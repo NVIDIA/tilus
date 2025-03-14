@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# macOS specific
+.DS_Store
+
+# Windows specific
+Thumbs.db
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.sublime-workspace
+
+# Python cache files
+*.pyc
+*.pyo
+
+# Environment variables
+.envrc
+.env
+
+# pytest cache
+.pytest_cache/
+
+# MyPy type check reports
+.mypy_cache/
+
+/hidet

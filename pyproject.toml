@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tilus"
+version = "0.1.dev"
+description = "Tilus"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
+license = { text = "Apache-2.0"}
+keywords = ["Deep Learning", "Machine Learning", "Neural Network", "Inference", "Compiler"]
+authors = [
+    { name = "Hidet Team" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "hidet",
+    "torch",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff==0.9.10",
+    "mypy==1.15.0",
+    "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/hidet-org/tilus"
+Documentation = "https://hidet.org"
+
+[tool.setuptools.package-dir]
+"" = "python"
+
+[tool.ruff]
+# Set the maximum line length to 79.
+line-length = 120
+
+[tool.ruff.lint]
+# Add the `line-too-long` rule to the enforced rule set.
+extend-select = [
+#    "D", # enforce docstring conventions
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[[tool.mypy.overrides]]
+module = ["tilus.*"]
+disable_error_code = [
+    # we disable this error code because we heavily used a pattern like
+    # class EmitterBase:
+    #     def emit(self, inst: Instruction):
+    #         ...
+    # class PrintEmitter(EmitterBase):
+    #     def emit(self, inst: PrintInst):  # type: ignore[override]
+    #         ...
+    "override",
+]
+
+[[tool.mypy.overrides]]
+module = ["hidet.*"]
+follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tilus.extensions.hidet.ir.primitives.*"]
+disable_error_code = ["operator", "index"]
+
+[[tool.mypy.overrides]]
+module = [
+    "tilus.ir.builder",  # todo: update the defintion of threadIx etc to enable this checking
+    "tilus.backends.emitters.cast",  # todo: update the FloatType to add mantissa_nbits and exponent_nbits
+    "tilus.backends.codegen"
+]
+disable_error_code = ["attr-defined"]
+
