@@ -1,4 +1,4 @@
-from tilus.ir.function import Function
+from tilus.ir.func import Function
 
 
 class Pass:

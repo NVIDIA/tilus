@@ -4,7 +4,7 @@ from hidet.ir import BaseType
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
 from hidet.ir.expr import Expr, Var
 from tilus.ir.layouts import Layout
-from tilus.ir.function import Function, BlockMapping
+from tilus.ir.func import Function, BlockMapping
 from tilus.ir.weight_transform import (
     WeightTransform,
     WeightLayoutTransformGeneric,
@@ -12,8 +12,8 @@ from tilus.ir.weight_transform import (
     WeightLayoutTransform,
 )
 from tilus.ir.weight_transform import IndexSymbolicMapping, ValueSymbolicMapping
-from tilus.ir.statement import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt
-from tilus.ir.instructions import Instruction
+from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt
+from tilus.ir.inst import Instruction
 from tilus.ir.value import Value, RegisterValue, SharedValue, ScalarValue, SharedLayout
 from tilus.ir.functors import IRFunctor
 from tilus.extensions.hidet.utils.doc import doc_strip_parentheses, doc_join_lines, doc_comment
@@ -205,6 +205,9 @@ class IRPrinter(IRFunctor):
             [head_doc, (NewLine() + attributes_doc).indent(4), (NewLine() + body_doc).indent(4), comment_doc], ""
         )
         return doc
+
+    def visit_InstructionStmt(self, stmt: InstructionStmt):
+        return self.visit(stmt.inst)
 
     def visit_SeqStmt(self, stmt: SeqStmt) -> Doc:
         return doc_join([self.visit(node) for node in stmt.seq], NewLine())

@@ -3,13 +3,13 @@ from hidet.ir.dtypes import int32
 from hidet.ir.expr import Constant, Expr
 from hidet.transforms.rule_based_simplifier import RuleBasedSimplifier, BoundAnalyzer, BoundInfo
 from tilus.ir.functors import IRRewriter
-from tilus.ir.function import Function, BlockMapping
-from tilus.ir.instructions import (
+from tilus.ir.func import Function, BlockMapping
+from tilus.ir.inst import (
     CopyAsyncInst,
     LoadGlobalInst,
 )
-from tilus.ir.instructions import StoreGlobalInst
-from tilus.ir.statement import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt
+from tilus.ir.inst import StoreGlobalInst
+from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt
 from tilus.ir.weight_transform import (
     WeightTransform,
     WeightLayoutTransform,

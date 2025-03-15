@@ -1,7 +1,7 @@
 from typing import Optional, List
 import os
 import shutil
-from tilus.ir.function import Function
+from tilus.ir.func import Function
 from .base import Pass
 from .bound_aware_simplify import bound_aware_simplify_pass
 

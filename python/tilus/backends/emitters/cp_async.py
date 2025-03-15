@@ -14,7 +14,7 @@ from tilus.extensions.hidet.ir.primitives.cuda.cp_async import (
     cp_async_wait_group,
     cp_async_wait_all,
 )
-from tilus.ir.instructions import CopyAsyncInst, CopyAsyncCommitGroupInst, CopyAsyncWaitGroupInst, CopyAsyncWaitAllInst
+from tilus.ir.inst import CopyAsyncInst, CopyAsyncCommitGroupInst, CopyAsyncWaitGroupInst, CopyAsyncWaitAllInst
 from tilus.ir.value import SharedValue, SharedLayout
 from tilus.target import nvgpu_sm80
 

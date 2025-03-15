@@ -1,5 +1,5 @@
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.instructions import AssignInst
+from tilus.ir.inst import AssignInst
 from tilus.target import gpgpu_any
 
 

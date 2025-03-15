@@ -11,9 +11,9 @@ from hidet.ir.primitives.cuda.vars import threadIdx
 from hidet.ir.type import BaseType, void_p
 
 from tilus.utils import prod, cdiv
-from tilus.ir.instructions import Instruction, PrintValueInst, FormatPrintInst
-from tilus.ir.function import Function
-from tilus.ir.statement import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, BreakStmt, WhileStmt
+from tilus.ir.inst import Instruction, PrintValueInst, FormatPrintInst
+from tilus.ir.func import Function
+from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, BreakStmt, WhileStmt
 from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.ir.value import Value, SharedValue, RegisterValue, SharedLayout
 from tilus.ir.tools import IRPrinter
@@ -279,7 +279,7 @@ class MainKernelCodegen(IRFunctor):
         return self._builder
 
     def sync(self):
-        from tilus.ir.instructions import SyncThreadsInst
+        from tilus.ir.inst import SyncThreadsInst
 
         self.visit(SyncThreadsInst())
 
@@ -586,7 +586,7 @@ class WeightTransformKernelCodegen(IRFunctor):
             raise NotImplementedError(wt.__class__.__name__)
 
     def generate_layout_transform(self, param: Var, idx: int, transform: WeightLayoutTransform) -> Tuple[Var, Var]:
-        from tilus.ir.builder import StatementBuilder
+        from tilus.ir.builders import StatementBuilder
         from tilus.extensions.hidet.ir.utils.index_transform import (
             index_add,
             index_multiply,

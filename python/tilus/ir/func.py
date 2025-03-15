@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional, Any
 from hidet.ir.expr import Var, Expr
-from tilus.ir.statement import Stmt
+from tilus.ir.stmt import Stmt
 from tilus.ir.weight_transform import WeightTransform
 
 

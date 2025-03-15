@@ -2,35 +2,40 @@ from typing import List, Tuple, Dict, Union
 from hidet.ir.type import BaseType
 from hidet.ir.expr import Expr
 from tilus.ir.layouts import Layout
-from tilus.ir.function import Function, BlockMapping
+from tilus.ir.func import Function, BlockMapping
 from tilus.ir.weight_transform import WeightTransform
-from tilus.ir.statement import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt
+from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt
 from tilus.ir.value import Value, ScalarValue, RegisterValue, SharedValue, SharedLayout
-from tilus.ir.instructions import Instruction, AllocateInst, LoadGlobalInst, StoreGlobalInst, CastInst
-from tilus.ir.instructions import (
+from tilus.ir.inst import (
+    Instruction,
+    AllocateInst,
+    LoadGlobalInst,
+    StoreGlobalInst,
+    CastInst,
     ElementwiseUnaryInst,
     ElementwiseBinaryInst,
     MmaDotInst,
     PrintValueInst,
     FormatPrintInst,
-)
-from tilus.ir.instructions import (
     ShuffleUpInst,
     ShuffleDownInst,
     ViewInst,
     CopyAsyncInst,
     AllocateSharedInst,
     ViewSharedInst,
-)
-from tilus.ir.instructions import (
     CopyAsyncCommitGroupInst,
     CopyAsyncWaitGroupInst,
     CopyAsyncWaitAllInst,
     SyncThreadsInst,
-)
-from tilus.ir.instructions import AllocateScalarInst, LoadMatrixInst, LoadSharedInst, AssignScalarInst, FreeSharedInst
-from tilus.ir.instructions import BroadcastElementwiseBinaryInst, StoreSharedInst, AllocateGlobalInst, LoadScalarInst
-from tilus.ir.instructions import (
+    AllocateScalarInst,
+    LoadMatrixInst,
+    LoadSharedInst,
+    AssignScalarInst,
+    FreeSharedInst,
+    BroadcastElementwiseBinaryInst,
+    StoreSharedInst,
+    AllocateGlobalInst,
+    LoadScalarInst,
     SyncReduceThreadsInst,
     StoreScalarInst,
     ExitInst,
@@ -66,6 +71,8 @@ class IRFunctor:
         elif isinstance(node, WeightTransform):
             ret = self.visit_WeightTransform(node)
         # statements
+        elif isinstance(node, InstructionStmt):
+            ret = self.visit_InstructionStmt(node)
         elif isinstance(node, SeqStmt):
             ret = self.visit_SeqStmt(node)
         elif isinstance(node, ForStmt):
@@ -149,6 +156,9 @@ class IRFunctor:
         raise NotImplementedError()
 
     # statements
+
+    def visit_InstructionStmt(self, stmt: InstructionStmt):
+        raise NotImplementedError()
 
     def visit_SeqStmt(self, stmt: SeqStmt):
         raise NotImplementedError()
@@ -358,6 +368,9 @@ class IRRewriter(IRFunctor):
     def visit_WeightTransform(self, node: WeightTransform):
         return node
 
+    def visit_InstructionStmt(self, stmt: InstructionStmt):
+        self.visit(stmt.inst)
+
     def visit_SeqStmt(self, stmt: SeqStmt):
         seq = self.visit(stmt.seq)
         if seq is stmt.seq:
@@ -557,6 +570,9 @@ class IRVisitor(IRFunctor):
 
     def visit_WeightTransform(self, node: WeightTransform):
         pass
+
+    def visit_InstructionStmt(self, stmt: InstructionStmt):
+        self.visit(stmt.inst)
 
     def visit_SeqStmt(self, stmt: SeqStmt):
         for sub_stmt in stmt.seq:

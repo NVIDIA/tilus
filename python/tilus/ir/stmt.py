@@ -1,7 +1,7 @@
-from typing import List, Union, Optional
+from typing import List, Optional, Sequence
 
 from hidet.ir.expr import Expr, Var
-from .instructions import Instruction
+from tilus.ir.inst import Instruction
 
 
 class Stmt:
@@ -9,10 +9,10 @@ class Stmt:
 
 
 class SeqStmt(Stmt):
-    def __init__(self, seq) -> None:
-        self.seq: List[Union[Stmt, Instruction]] = seq
+    def __init__(self, seq: List[Stmt]) -> None:
+        self.seq: List[Stmt] = seq
 
-        assert all(isinstance(s, (Stmt, Instruction)) for s in seq)
+        assert all(isinstance(s, Stmt) for s in seq)
 
 
 class ForStmt(Stmt):
@@ -72,3 +72,11 @@ class BreakStmt(Stmt):
 class InstructionStmt(Stmt):
     def __init__(self, inst: Instruction):
         self.inst: Instruction = inst
+
+
+def seq_stmt(seq: Sequence[Stmt | Instruction]) -> Stmt:
+    stmt_seq: List[Stmt] = [InstructionStmt(item) if isinstance(item, Instruction) else item for item in seq]
+    if len(stmt_seq) == 1:
+        return stmt_seq[0]
+    else:
+        return SeqStmt(stmt_seq)

@@ -4,20 +4,23 @@ from hidet.ir.dtypes import int32, boolean
 from hidet.ir.expr import Expr, cast, logical_and
 
 from tilus.extensions.hidet.ir.expr import convert_to_expr
-from tilus.ir.function import Function
-from tilus.ir.builder import StatementBuilder
+from tilus.ir.func import Function
+from tilus.ir.builders import StatementBuilder
 from tilus.ir.functors import IRRewriter
-import tilus.ir.instructions
-from tilus.ir.instructions import Instruction, PrintValueInst, FormatPrintInst, CopyAsyncInst
-from tilus.ir.instructions import (
+import tilus.ir.inst
+from tilus.ir.inst import (
+    Instruction,
+    PrintValueInst,
+    FormatPrintInst,
+    CopyAsyncInst,
     CopyAsyncWaitAllInst,
     StoreGlobalInst,
     StoreSharedInst,
     ViewSharedInst,
     AllocateSharedInst,
+    AllocateInst,
 )
-from tilus.ir.instructions import AllocateInst
-from tilus.ir.statement import SeqStmt, ForStmt
+from tilus.ir.stmt import SeqStmt, ForStmt, InstructionStmt, seq_stmt
 from tilus.transforms.base import Pass
 
 
@@ -33,9 +36,9 @@ class InjectPrintInstructionRewriter(IRRewriter):
         if instructions_to_print is not None:
             self.instructions_to_print = []
             for inst in instructions_to_print:
-                if not hasattr(tilus.ir.instructions, inst):
+                if not hasattr(tilus.ir.inst, inst):
                     raise ValueError("Instruction {} does not exist".format(inst))
-                self.instructions_to_print.append(getattr(tilus.ir.instructions, inst))
+                self.instructions_to_print.append(getattr(tilus.ir.inst, inst))
         else:
             self.instructions_to_print = None
 
@@ -60,7 +63,10 @@ class InjectPrintInstructionRewriter(IRRewriter):
         prog = super().visit_Program(prog)
         text = "Virtual Machine Program:\n{}\nPrint for {}\n".format(prog_text, str(block_printed)).replace("\n", "\\n")
         prog.body = SeqStmt(
-            [FormatPrintInst(cond=self.cond, fstring="%s", expressions=[convert_to_expr(text)]), prog.body]
+            [
+                InstructionStmt(FormatPrintInst(cond=self.cond, fstring="%s", expressions=[convert_to_expr(text)])),
+                prog.body,
+            ]
         )
         return prog
 
@@ -107,10 +113,10 @@ class InjectPrintInstructionRewriter(IRRewriter):
             return inst
 
         if inst.output is not None:
-            from tilus.ir.instructions import ElementwiseBinaryInst
+            from tilus.ir.inst import ElementwiseBinaryInst
 
             if isinstance(inst, ElementwiseBinaryInst):
-                return SeqStmt(
+                return seq_stmt(
                     [
                         # PrintValueInst(inst.inputs[0], cond=self.cond, msg=inst_string),
                         # PrintValueInst(inst.inputs[1], cond=self.cond, msg=''),
@@ -119,7 +125,7 @@ class InjectPrintInstructionRewriter(IRRewriter):
                         FormatPrintInst(cond=self.cond, fstring="\n"),
                     ]
                 )
-            return SeqStmt(
+            return seq_stmt(
                 [
                     inst,
                     PrintValueInst(inst.output, cond=self.cond, msg=inst_string),
@@ -127,7 +133,7 @@ class InjectPrintInstructionRewriter(IRRewriter):
                 ]
             )
         elif isinstance(inst, CopyAsyncInst):
-            return SeqStmt(
+            return seq_stmt(
                 [
                     inst,
                     CopyAsyncWaitAllInst(),
@@ -137,7 +143,7 @@ class InjectPrintInstructionRewriter(IRRewriter):
             )
         elif type(inst) in inst2input:
             input_idx = inst2input[type(inst)]
-            return SeqStmt(
+            return seq_stmt(
                 [
                     inst,
                     PrintValueInst(inst.inputs[input_idx], cond=self.cond, msg=inst_string),

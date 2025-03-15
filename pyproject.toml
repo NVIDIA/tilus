@@ -82,7 +82,7 @@ disable_error_code = ["operator", "index"]
 
 [[tool.mypy.overrides]]
 module = [
-    "tilus.ir.builder.function_builder",  # todo: update the defintion of threadIx etc to enable this checking
+    "tilus.ir.builders.func_builder",  # todo: update the defintion of threadIx etc to enable this checking
     "tilus.backends.emitters.cast",  # todo: update the FloatType to add mantissa_nbits and exponent_nbits
     "tilus.backends.codegen"
 ]

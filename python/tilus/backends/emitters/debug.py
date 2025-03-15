@@ -7,7 +7,7 @@ from hidet.ir.primitives.debug import printf
 
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
 from tilus.extensions.hidet.ir.dtypes import float8_e4m3, float6_e3m2
-from tilus.ir.instructions import PrintValueInst, FormatPrintInst
+from tilus.ir.inst import PrintValueInst, FormatPrintInst
 from tilus.ir.layouts import Layout
 from tilus.ir.value import RegisterValue, SharedValue, SharedLayout
 from tilus.target import gpgpu_any

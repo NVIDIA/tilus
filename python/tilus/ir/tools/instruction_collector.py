@@ -1,7 +1,7 @@
 from typing import List
-from tilus.ir.function import Function
+from tilus.ir.func import Function
 from tilus.ir.functors import IRVisitor
-from tilus.ir.instructions import Instruction
+from tilus.ir.inst import Instruction
 
 
 class InstructionCollector(IRVisitor):

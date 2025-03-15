@@ -7,7 +7,7 @@ from hidet.ir.type import DataType
 
 from tilus.backends.codegen import BaseInstEmitter, InvalidInstruction, register_inst_emitter
 from tilus.extensions.hidet.ir.utils.index_transform import index_add, index_multiply
-from tilus.ir.instructions import LoadMatrixInst
+from tilus.ir.inst import LoadMatrixInst
 from tilus.ir.layouts import Layout, repeat, divide, get_composition_chain, compose_chain, compose, identity, simplify
 from tilus.ir.value import SharedValue, RegisterValue
 from tilus.target import nvgpu_sm75
