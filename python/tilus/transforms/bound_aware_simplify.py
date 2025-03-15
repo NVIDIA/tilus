@@ -28,16 +28,16 @@ class BoundAwareSimplifyRewriter(IRRewriter):
         self.analyzer: BoundAnalyzer = self.simplifier.analyzer
         self.bound: Dict[Expr, BoundInfo] = self.analyzer.bound
 
-    def visit_Program(self, prog: Function):
+    def visit_Function(self, func: Function):
         # annotate the bound information for parameters
-        for param, attrs in prog.param2attrs.items():
+        for param, attrs in func.param2attrs.items():
             info = BoundInfo(min_value=attrs.lower, max_value=attrs.upper)
             self.bound[param] = info
 
         # analyze and annotate the bound information for virtual axes
-        self.visit(prog.block_mapping)
+        self.visit(func.block_mapping)
 
-        return super().visit_Program(prog)
+        return super().visit_Function(func)
 
     def visit_Expr(self, expr: Expr):
         return self.simplifier(expr)

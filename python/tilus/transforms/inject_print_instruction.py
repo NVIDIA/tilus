@@ -42,11 +42,11 @@ class InjectPrintInstructionRewriter(IRRewriter):
         else:
             self.instructions_to_print = None
 
-    def visit_Program(self, prog: Function):
+    def visit_Function(self, func: Function):
         self.cond = boolean.true
         block_to_print = self.block_to_print.copy() if self.block_to_print else {}
         block_printed = {}
-        for axis in prog.block_mapping.virtual_axes_values.keys():
+        for axis in func.block_mapping.virtual_axes_values.keys():
             assert axis.hint is not None
             if block_to_print and axis.hint in block_to_print:
                 val = int32(block_to_print[axis.hint])
@@ -59,16 +59,16 @@ class InjectPrintInstructionRewriter(IRRewriter):
         if block_to_print:
             warnings.warn("Some block axes are specified but not used by the vm: {}".format(block_to_print))
 
-        prog_text = str(self.vm_printer(prog))
-        prog = super().visit_Program(prog)
+        prog_text = str(self.vm_printer(func))
+        func = super().visit_Function(func)
         text = "Virtual Machine Program:\n{}\nPrint for {}\n".format(prog_text, str(block_printed)).replace("\n", "\\n")
-        prog.body = SeqStmt(
+        func.body = SeqStmt(
             [
                 InstructionStmt(FormatPrintInst(cond=self.cond, fstring="%s", expressions=[convert_to_expr(text)])),
-                prog.body,
+                func.body,
             ]
         )
-        return prog
+        return func
 
     def visit_ForStmt(self, stmt: ForStmt):
         vb = StatementBuilder()

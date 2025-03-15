@@ -2,6 +2,7 @@ from typing import List, Tuple, Dict, Union
 from hidet.ir.type import BaseType
 from hidet.ir.expr import Expr
 from tilus.ir.layouts import Layout
+from tilus.ir.prog import Program
 from tilus.ir.func import Function, BlockMapping
 from tilus.ir.weight_transform import WeightTransform
 from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt
@@ -63,8 +64,10 @@ class IRFunctor:
         if key in self.memo:
             return self.memo[key]
 
-        if isinstance(node, Function):
+        if isinstance(node, Program):
             ret = self.visit_Program(node)
+        elif isinstance(node, Function):
+            ret = self.visit_Function(node)
         # program aux
         elif isinstance(node, BlockMapping):
             ret = self.visit_BlockMapping(node)
@@ -146,7 +149,10 @@ class IRFunctor:
     def visit_BaseType(self, tp: BaseType):
         raise NotImplementedError()
 
-    def visit_Program(self, prog: Function):
+    def visit_Program(self, prog: Program):
+        raise NotImplementedError()
+
+    def visit_Function(self, func: Function):
         raise NotImplementedError()
 
     def visit_BlockMapping(self, node: BlockMapping):
@@ -331,25 +337,32 @@ class IRRewriter(IRFunctor):
     def visit_BaseType(self, tp: BaseType):
         return tp
 
-    def visit_Program(self, prog: Function):
-        body = self.visit(prog.body)
-        block_mapping = self.visit(prog.block_mapping)
-        weight_transforms = self.visit(prog.weight_transforms)
-        if same_list([body, block_mapping, weight_transforms], [prog.body, prog.block_mapping, prog.weight_transforms]):
+    def visit_Program(self, prog: Program):
+        functions = self.visit(prog.functions)
+        if same_list([functions], [prog.functions]):
             return prog
         else:
+            return Program(functions=functions)
+
+    def visit_Function(self, func: Function):
+        body = self.visit(func.body)
+        block_mapping = self.visit(func.block_mapping)
+        weight_transforms = self.visit(func.weight_transforms)
+        if same_list([body, block_mapping, weight_transforms], [func.body, func.block_mapping, func.weight_transforms]):
+            return func
+        else:
             return Function(
-                name=prog.name,
-                params=prog.params,
-                param2attrs=prog.param2attrs,
-                num_warps=prog.num_warps,
-                block_axes=prog.block_axes,
-                num_blocks=prog.num_blocks,
+                name=func.name,
+                params=func.params,
+                param2attrs=func.param2attrs,
+                num_warps=func.num_warps,
+                block_axes=func.block_axes,
+                num_blocks=func.num_blocks,
                 body=body,
                 block_mapping=block_mapping,
                 weight_transforms=weight_transforms,
-                var2divisibility=prog.var2divisibility,
-                annotations=prog.annotations,
+                var2divisibility=func.var2divisibility,
+                annotations=func.annotations,
             )
 
     def visit_BlockMapping(self, node: BlockMapping):
@@ -559,8 +572,11 @@ class IRVisitor(IRFunctor):
     def visit_BaseType(self, tp: BaseType):
         pass
 
-    def visit_Program(self, prog: Function):
-        self.visit(prog.body)
+    def visit_Program(self, prog: Program):
+        self.visit(prog.functions)
+
+    def visit_Function(self, func: Function):
+        self.visit(func.body)
 
     def visit_BlockMapping(self, node: BlockMapping):
         self.visit(node.hardware_axes)

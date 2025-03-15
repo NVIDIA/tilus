@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  format-and-lint:
+    if: github.repository == 'hidet-org/tilus'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}-${{ matrix.python-version }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install hidet repository
+        run: |
+          # todo: make tilus depends on public hidet repository in the future
+          git clone https://${{ secrets.CENTML_HIDET_ACCESS }}@github.com/CentML/hidet.git
+          cd hidet; mkdir build; cd build; cmake ..; make -j4; cd ..; cd ..;
+          cd hidet; pip install --no-deps .
+
+      - name: Install the dev dependencies
+        run: |
+          pip install .[dev]
+
+      - name: Run tests
+        run: |
+          pytest ./tests

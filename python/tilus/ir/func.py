@@ -97,12 +97,3 @@ class Function:
     def __call__(self, *args):
         module = self.build()
         return module(*args)
-
-    # def build(self, dump_ir_dir: Optional[str] = None) -> CompiledModule:
-    #     from tilus.backends import generate_ir_module
-    #     from mutis.extension.transforms import apply_mutis_specific_transforms
-    #
-    #     ir_module = generate_ir_module(self)
-    #     ir_module = apply_mutis_specific_transforms(ir_module, module_dir=dump_ir_dir, dump_ir=dump_ir_dir is not None)
-    #
-    #     return ir_module.build()

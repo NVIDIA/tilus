@@ -5,6 +5,7 @@ from hidet.utils.doc import Doc, NewLine, Text, doc_join
 from hidet.ir.expr import Expr, Var
 from tilus.ir.layouts import Layout
 from tilus.ir.func import Function, BlockMapping
+from tilus.ir.prog import Program
 from tilus.ir.weight_transform import (
     WeightTransform,
     WeightLayoutTransformGeneric,
@@ -149,19 +150,27 @@ class IRPrinter(IRFunctor):
         ]
         return doc_join_lines(items, left="block_mapping(", right=")")
 
-    def visit_Program(self, prog: Function) -> Doc:
+    def visit_Program(self, prog: Program):
+        doc = Doc()
+
+        for func in prog.functions.values():
+            doc += self.visit(func) + NewLine()
+
+        return doc
+
+    def visit_Function(self, func: Function) -> Doc:
         # head doc
         head_doc = doc_join_lines(
-            seq=[self.visit(p) + ": " + self.printer(p.type) for p in prog.params],
-            left="def " + prog.name + "(",
+            seq=[self.visit(p) + ": " + self.printer(p.type) for p in func.params],
+            left="def " + func.name + "(",
             right=")",
         )
 
         # attr doc
-        num_warps_doc = Text("num_warps = ") + self.visit(prog.num_warps)
+        num_warps_doc = Text("num_warps = ") + self.visit(func.num_warps)
 
         # block mapping doc
-        block_mapping_doc = self.visit(prog.block_mapping)
+        block_mapping_doc = self.visit(func.block_mapping)
 
         # weight transform doc
         weight_transform_doc = doc_join_lines(
@@ -169,7 +178,7 @@ class IRPrinter(IRFunctor):
                 doc_join_lines(
                     seq=[self.visit(transform) for transform in transforms], left=self.visit(param) + ": [", right="]"
                 )
-                for param, transforms in prog.weight_transforms.items()
+                for param, transforms in func.weight_transforms.items()
                 if len(transforms) > 0
             ],
             left="weight_transforms = {",
@@ -177,7 +186,7 @@ class IRPrinter(IRFunctor):
         )
 
         # divisibility doc
-        divisibility: Dict[Var, int] = prog.var2divisibility
+        divisibility: Dict[Var, int] = func.var2divisibility
         divisibility_doc = doc_join_lines(
             seq=[self.visit(var) + ": " + str(divisibility[var]) for var in divisibility],
             left="divisibility = {",
@@ -185,7 +194,7 @@ class IRPrinter(IRFunctor):
         )
 
         # body doc
-        body_doc = self.visit(prog.body)
+        body_doc = self.visit(func.body)
 
         # comment doc
         comment_doc = doc_comment(

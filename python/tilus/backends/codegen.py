@@ -217,8 +217,8 @@ class Codegen(IRFunctor):
         self.weight_transform_codegen = WeightTransformKernelCodegen()
         self.main_kernel_codegen = MainKernelCodegen()
 
-    def visit_Program(self, prog: Function):
-        ir_modules = [self.weight_transform_codegen(prog), self.main_kernel_codegen(prog)]
+    def visit_Function(self, func: Function):
+        ir_modules = [self.weight_transform_codegen(func), self.main_kernel_codegen(func)]
         return merge_ir_modules(ir_modules)
 
 
@@ -378,36 +378,36 @@ class MainKernelCodegen(IRFunctor):
         launch_func.body = SeqStmt([sb.finish(), launch_func.body])
         return ir_module
 
-    def visit_Program(self, prog: Function):
+    def visit_Function(self, func: Function):
         # warmup printer
-        self.printer(prog)
+        self.printer(func)
 
-        self._program = prog
+        self._program = func
 
         self.check_emitter_existence()
 
         self._builder = FunctionBuilder(
-            name=prog.name,
+            name=func.name,
             kind="cuda_kernel" if is_nvgpu() else "hip_kernel",
             label="",
             grid_dim=self._program.block_mapping.hardware_num_blocks,
-            block_dim=prog.num_warps * 32,
+            block_dim=func.num_warps * 32,
             dynamic_smem_bytes=None,
             min_blocks=None,
         )
-        self.builder.extend_params(prog.params)
+        self.builder.extend_params(func.params)
 
         # init for_thread_group stack
         self.thread_groups.num_groups = [1]
-        self.thread_groups.group_size = [prog.num_warps * 32]
+        self.thread_groups.group_size = [func.num_warps * 32]
         self.thread_groups.current_worker = [threadIdx.x]
 
         # init pre-defined variables
         self.init_block_axes()
-        self.init_smem_workspace(prog)
+        self.init_smem_workspace(func)
 
         # emit body
-        self.visit(prog.body)
+        self.visit(func.body)
 
         # check shared memory allocation and set dynamic shared memory size
         if self.smem_workspace:
@@ -501,9 +501,9 @@ class WeightTransformKernelCodegen(IRFunctor):
         self.param_to_apply_kernels: Dict[Var, List[Var]] = {}
         self.param_to_reverse_kernels: Dict[Var, List[Var]] = {}
 
-    def visit_Program(self, prog: Function) -> IRModule:
+    def visit_Function(self, func: Function) -> IRModule:
         # generate weight transform functions and reverse transform functions for each weight param
-        for param, transforms in prog.weight_transforms.items():
+        for param, transforms in func.weight_transforms.items():
             self.param_to_apply_kernels[param] = []
             self.param_to_reverse_kernels[param] = []
             for idx, transform in enumerate(transforms):
@@ -512,7 +512,7 @@ class WeightTransformKernelCodegen(IRFunctor):
                 self.param_to_reverse_kernels[param].append(reverse_kernel)
 
         # generate driver functions
-        self.generate_driver_functions(prog)
+        self.generate_driver_functions(func)
 
         return self.ir_module
 
