@@ -7,7 +7,7 @@ from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.type import tensor_pointer_type
 
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import AllocateSharedInst, FreeSharedInst, ViewSharedInst
+from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst, ViewSharedInst
 from tilus.ir.value import SharedValue
 from tilus.target import gpgpu_any
 

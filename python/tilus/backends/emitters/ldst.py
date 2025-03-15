@@ -11,8 +11,8 @@ from tilus.extensions.hidet.ir.utils.index_transform import index_add
 from tilus.extensions.hidet.ir.tools.rewriter import rewrite
 from tilus.extensions.hidet.ir.primitives.cuda.ldst import load, store
 from tilus.ir.analyzers.value_analyzer import analyze_info, TensorInfo
-from tilus.ir.inst import LoadGlobalInst, StoreGlobalInst, LoadSharedInst, StoreSharedInst
-from tilus.ir.layout import Layout
+from tilus.ir.instructions import LoadGlobalInst, StoreGlobalInst, LoadSharedInst, StoreSharedInst
+from tilus.ir.layouts import Layout
 from tilus.ir.value import RegisterValue
 from tilus.ir.value import SharedLayout
 from tilus.target import gpgpu_any, nvgpu_any, amdgpu_any

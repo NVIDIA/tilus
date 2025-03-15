@@ -42,3 +42,4 @@ Thumbs.db
 .mypy_cache/
 
 /hidet
+/experiments

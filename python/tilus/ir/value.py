@@ -4,8 +4,7 @@ from typing import Union, List
 from enum import Enum
 
 from hidet.ir.type import DataType, PointerType
-from tilus.ir.layout import Layout
-from tilus.ir.shared_layout import SharedLayout
+from tilus.ir.layouts import Layout, SharedLayout
 from tilus.utils import nbytes_from_nbits
 
 

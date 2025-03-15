@@ -1,17 +1,17 @@
 from typing import Optional, List
 import os
 import shutil
-from tilus.ir.program import VirtualMachineProgram
-from .base import VirtualMachinePass
+from tilus.ir.function import Function
+from .base import Pass
 from .bound_aware_simplify import bound_aware_simplify_pass
 
 
 def optimize_vm_program(
-    program: VirtualMachineProgram,
+    program: Function,
     *,
-    transforms: Optional[List[VirtualMachinePass]] = None,
+    transforms: Optional[List[Pass]] = None,
     dump_dir: Optional[str] = None,
-) -> VirtualMachineProgram:
+) -> Function:
     if transforms is None:
         transforms = [bound_aware_simplify_pass()]
 

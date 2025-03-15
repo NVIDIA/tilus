@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional, Any
 from hidet.ir.expr import Var, Expr
-from tilus.ir.stmt import Stmt
+from tilus.ir.statement import Stmt
 from tilus.ir.weight_transform import WeightTransform
 
 
@@ -56,7 +56,7 @@ class BlockMapping:
         self.virtual_axes_values: Dict[Var, Expr] = virtual_axes_values
 
 
-class VirtualMachineProgram:
+class Function:
     def __init__(
         self,
         name: str,
@@ -89,9 +89,9 @@ class VirtualMachineProgram:
         assert all(isinstance(v, Expr) for v in num_blocks)
 
     def __str__(self):
-        from tilus.ir.printer import VirtualMachinePrinter
+        from tilus.ir.tools import IRPrinter
 
-        printer = VirtualMachinePrinter()
+        printer = IRPrinter()
         return str(printer(self))
 
     def __call__(self, *args):

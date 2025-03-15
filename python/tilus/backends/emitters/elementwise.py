@@ -3,7 +3,7 @@ import operator
 from hidet.ir.expr import Expr, Var, if_then_else, tensor_var
 from hidet.ir.utils.broadcast_utils import broadcast_indices
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import ElementwiseUnaryInst, ElementwiseBinaryInst, BroadcastElementwiseBinaryInst
+from tilus.ir.instructions import ElementwiseUnaryInst, ElementwiseBinaryInst, BroadcastElementwiseBinaryInst
 from tilus.ir.value import RegisterValue
 from tilus.target import gpgpu_any
 

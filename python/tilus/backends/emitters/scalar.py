@@ -6,7 +6,7 @@ from hidet.ir.tools import infer_type
 from hidet.ir.type import DataType, PointerType
 
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import (
+from tilus.ir.instructions import (
     AllocateScalarInst,
     AssignScalarInst,
     LoadScalarInst,

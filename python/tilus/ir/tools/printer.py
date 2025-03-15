@@ -3,9 +3,8 @@ from typing import List, Tuple, Dict, Union, Set, Any
 from hidet.ir import BaseType
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
 from hidet.ir.expr import Expr, Var
-from hidet.ir.tools import IRPrinter
-from tilus.ir.layout import Layout
-from tilus.ir.program import VirtualMachineProgram, BlockMapping
+from tilus.ir.layouts import Layout
+from tilus.ir.function import Function, BlockMapping
 from tilus.ir.weight_transform import (
     WeightTransform,
     WeightLayoutTransformGeneric,
@@ -13,17 +12,19 @@ from tilus.ir.weight_transform import (
     WeightLayoutTransform,
 )
 from tilus.ir.weight_transform import IndexSymbolicMapping, ValueSymbolicMapping
-from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt
-from tilus.ir.inst import Instruction
+from tilus.ir.statement import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt
+from tilus.ir.instructions import Instruction
 from tilus.ir.value import Value, RegisterValue, SharedValue, ScalarValue, SharedLayout
-from tilus.ir.functor import VirtualMachineFunctor
+from tilus.ir.functors import IRFunctor
 from tilus.extensions.hidet.utils.doc import doc_strip_parentheses, doc_join_lines, doc_comment
 
 
-class VirtualMachinePrinter(VirtualMachineFunctor):
+class IRPrinter(IRFunctor):
     def __init__(self) -> None:
+        from hidet.ir.tools import IRPrinter as HidetIRPrinter
+
         super().__init__()
-        self.printer = IRPrinter()
+        self.printer = HidetIRPrinter()
         self.value2name: Dict[Value, str] = {}
         self.comment2key: Dict[str, str] = {}
         self.keys: Set[str] = set()
@@ -148,7 +149,7 @@ class VirtualMachinePrinter(VirtualMachineFunctor):
         ]
         return doc_join_lines(items, left="block_mapping(", right=")")
 
-    def visit_Program(self, prog: VirtualMachineProgram) -> Doc:
+    def visit_Program(self, prog: Function) -> Doc:
         # head doc
         head_doc = doc_join_lines(
             seq=[self.visit(p) + ": " + self.printer(p.type) for p in prog.params],
@@ -255,7 +256,7 @@ class VirtualMachinePrinter(VirtualMachineFunctor):
 
     def visit_Instruction(self, inst: Instruction) -> Doc:
         doc = Doc()
-        if inst.output is not None:
+        if inst.has_output():
             doc += self.visit(inst.output) + " = "
         doc += inst.__class__.__name__ + "("
 
@@ -284,7 +285,7 @@ class VirtualMachinePrinter(VirtualMachineFunctor):
             item_body = doc_join(items, ", ")
         doc += item_body
         doc += ")"
-        if inst.output:
+        if inst.has_output():
             doc += "  # " + self.get_value_type(inst.output)
         return doc
 

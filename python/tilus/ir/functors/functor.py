@@ -1,22 +1,47 @@
 from typing import List, Tuple, Dict, Union
 from hidet.ir.type import BaseType
 from hidet.ir.expr import Expr
-from tilus.ir.layout import Layout
-from tilus.ir.program import VirtualMachineProgram, BlockMapping
+from tilus.ir.layouts import Layout
+from tilus.ir.function import Function, BlockMapping
 from tilus.ir.weight_transform import WeightTransform
-from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt
+from tilus.ir.statement import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt
 from tilus.ir.value import Value, ScalarValue, RegisterValue, SharedValue, SharedLayout
-from tilus.ir.inst import Instruction, AllocateInst, LoadGlobalInst, StoreGlobalInst, CastInst
-from tilus.ir.inst import ElementwiseUnaryInst, ElementwiseBinaryInst, MmaDotInst, PrintValueInst, FormatPrintInst
-from tilus.ir.inst import ShuffleUpInst, ShuffleDownInst, ViewInst, CopyAsyncInst, AllocateSharedInst, ViewSharedInst
-from tilus.ir.inst import CopyAsyncCommitGroupInst, CopyAsyncWaitGroupInst, CopyAsyncWaitAllInst, SyncThreadsInst
-from tilus.ir.inst import AllocateScalarInst, LoadMatrixInst, LoadSharedInst, AssignScalarInst, FreeSharedInst
-from tilus.ir.inst import BroadcastElementwiseBinaryInst, StoreSharedInst, AllocateGlobalInst, LoadScalarInst
-from tilus.ir.inst import SyncReduceThreadsInst, StoreScalarInst, ExitInst, SimtDotInst, AssignInst, AtomicScalarInst
+from tilus.ir.instructions import Instruction, AllocateInst, LoadGlobalInst, StoreGlobalInst, CastInst
+from tilus.ir.instructions import (
+    ElementwiseUnaryInst,
+    ElementwiseBinaryInst,
+    MmaDotInst,
+    PrintValueInst,
+    FormatPrintInst,
+)
+from tilus.ir.instructions import (
+    ShuffleUpInst,
+    ShuffleDownInst,
+    ViewInst,
+    CopyAsyncInst,
+    AllocateSharedInst,
+    ViewSharedInst,
+)
+from tilus.ir.instructions import (
+    CopyAsyncCommitGroupInst,
+    CopyAsyncWaitGroupInst,
+    CopyAsyncWaitAllInst,
+    SyncThreadsInst,
+)
+from tilus.ir.instructions import AllocateScalarInst, LoadMatrixInst, LoadSharedInst, AssignScalarInst, FreeSharedInst
+from tilus.ir.instructions import BroadcastElementwiseBinaryInst, StoreSharedInst, AllocateGlobalInst, LoadScalarInst
+from tilus.ir.instructions import (
+    SyncReduceThreadsInst,
+    StoreScalarInst,
+    ExitInst,
+    SimtDotInst,
+    AssignInst,
+    AtomicScalarInst,
+)
 from tilus.utils import same_list
 
 
-class VirtualMachineFunctor:
+class IRFunctor:
     def __init__(self):
         self.memo = {}
 
@@ -33,7 +58,7 @@ class VirtualMachineFunctor:
         if key in self.memo:
             return self.memo[key]
 
-        if isinstance(node, VirtualMachineProgram):
+        if isinstance(node, Function):
             ret = self.visit_Program(node)
         # program aux
         elif isinstance(node, BlockMapping):
@@ -114,7 +139,7 @@ class VirtualMachineFunctor:
     def visit_BaseType(self, tp: BaseType):
         raise NotImplementedError()
 
-    def visit_Program(self, prog: VirtualMachineProgram):
+    def visit_Program(self, prog: Function):
         raise NotImplementedError()
 
     def visit_BlockMapping(self, node: BlockMapping):
@@ -265,7 +290,7 @@ class VirtualMachineFunctor:
         raise NotImplementedError()
 
 
-class VirtualMachineRewriter(VirtualMachineFunctor):
+class IRRewriter(IRFunctor):
     def visit_list(self, lst: List):
         updated = [self.visit(item) for item in lst]
         if same_list(lst, updated):
@@ -296,14 +321,14 @@ class VirtualMachineRewriter(VirtualMachineFunctor):
     def visit_BaseType(self, tp: BaseType):
         return tp
 
-    def visit_Program(self, prog: VirtualMachineProgram):
+    def visit_Program(self, prog: Function):
         body = self.visit(prog.body)
         block_mapping = self.visit(prog.block_mapping)
         weight_transforms = self.visit(prog.weight_transforms)
         if same_list([body, block_mapping, weight_transforms], [prog.body, prog.block_mapping, prog.weight_transforms]):
             return prog
         else:
-            return VirtualMachineProgram(
+            return Function(
                 name=prog.name,
                 params=prog.params,
                 param2attrs=prog.param2attrs,
@@ -499,7 +524,7 @@ class VirtualMachineRewriter(VirtualMachineFunctor):
         return self.default_visit_Instruction(inst)
 
 
-class VirtualMachineVisitor(VirtualMachineFunctor):
+class IRVisitor(IRFunctor):
     def visit_list(self, lst: List):
         for item in lst:
             self.visit(item)
@@ -521,7 +546,7 @@ class VirtualMachineVisitor(VirtualMachineFunctor):
     def visit_BaseType(self, tp: BaseType):
         pass
 
-    def visit_Program(self, prog: VirtualMachineProgram):
+    def visit_Program(self, prog: Function):
         self.visit(prog.body)
 
     def visit_BlockMapping(self, node: BlockMapping):

@@ -2,14 +2,14 @@ from typing import Dict, Optional
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Constant, Expr
 from hidet.transforms.rule_based_simplifier import RuleBasedSimplifier, BoundAnalyzer, BoundInfo
-from tilus.ir.functor import VirtualMachineRewriter
-from tilus.ir.program import VirtualMachineProgram, BlockMapping
-from tilus.ir.inst import (
+from tilus.ir.functors import IRRewriter
+from tilus.ir.function import Function, BlockMapping
+from tilus.ir.instructions import (
     CopyAsyncInst,
     LoadGlobalInst,
 )
-from tilus.ir.inst import StoreGlobalInst
-from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt
+from tilus.ir.instructions import StoreGlobalInst
+from tilus.ir.statement import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt
 from tilus.ir.weight_transform import (
     WeightTransform,
     WeightLayoutTransform,
@@ -17,18 +17,18 @@ from tilus.ir.weight_transform import (
     WeightValueTransform,
     IndexSymbolicMapping,
 )
-from tilus.transforms.base import VirtualMachinePass
+from tilus.transforms.base import Pass
 from tilus.utils import same_list
 
 
-class BoundAwareSimplifyRewriter(VirtualMachineRewriter):
+class BoundAwareSimplifyRewriter(IRRewriter):
     def __init__(self) -> None:
         super().__init__()
         self.simplifier: RuleBasedSimplifier = RuleBasedSimplifier()
         self.analyzer: BoundAnalyzer = self.simplifier.analyzer
         self.bound: Dict[Expr, BoundInfo] = self.analyzer.bound
 
-    def visit_Program(self, prog: VirtualMachineProgram):
+    def visit_Program(self, prog: Function):
         # annotate the bound information for parameters
         for param, attrs in prog.param2attrs.items():
             info = BoundInfo(min_value=attrs.lower, max_value=attrs.upper)
@@ -159,14 +159,14 @@ class BoundAwareSimplifyRewriter(VirtualMachineRewriter):
         return super().default_visit_Instruction(inst)
 
 
-class BoundAwareSimplifyPass(VirtualMachinePass):
+class BoundAwareSimplifyPass(Pass):
     def __init__(self):
         super().__init__()
 
-    def __call__(self, prog: VirtualMachineProgram) -> VirtualMachineProgram:
+    def __call__(self, prog: Function) -> Function:
         rewriter = BoundAwareSimplifyRewriter()
         return rewriter(prog)
 
 
-def bound_aware_simplify_pass() -> VirtualMachinePass:
+def bound_aware_simplify_pass() -> Pass:
     return BoundAwareSimplifyPass()

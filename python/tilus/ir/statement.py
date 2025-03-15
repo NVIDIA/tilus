@@ -1,7 +1,7 @@
 from typing import List, Union, Optional
 
 from hidet.ir.expr import Expr, Var
-from .inst import Instruction
+from .instructions import Instruction
 
 
 class Stmt:
@@ -67,3 +67,8 @@ class WhileStmt(Stmt):
 
 class BreakStmt(Stmt):
     pass
+
+
+class InstructionStmt(Stmt):
+    def __init__(self, inst: Instruction):
+        self.inst: Instruction = inst

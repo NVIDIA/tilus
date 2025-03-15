@@ -1,6 +1,6 @@
 from hidet.ir.expr import Expr, cast
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import AllocateGlobalInst
+from tilus.ir.instructions import AllocateGlobalInst
 from tilus.target import gpgpu_any
 
 

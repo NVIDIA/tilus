@@ -4,22 +4,27 @@ from hidet.ir.dtypes import int32, boolean
 from hidet.ir.expr import Expr, cast, logical_and
 
 from tilus.extensions.hidet.ir.expr import convert_to_expr
-from tilus.ir.functor import VirtualMachineRewriter
-from tilus.ir.printer import VirtualMachinePrinter
-from tilus.ir.program import VirtualMachineProgram
-from tilus.ir.builder import VirtualMachineBuilder
-import tilus.ir.inst
-from tilus.ir.inst import Instruction, PrintValueInst, FormatPrintInst, CopyAsyncInst
-from tilus.ir.inst import CopyAsyncWaitAllInst, StoreGlobalInst, StoreSharedInst, ViewSharedInst, AllocateSharedInst
-from tilus.ir.inst import AllocateInst
-from tilus.ir.stmt import SeqStmt, ForStmt
-from tilus.transforms.base import VirtualMachinePass
+from tilus.ir.function import Function
+from tilus.ir.builder import StatementBuilder
+from tilus.ir.functors import IRRewriter
+import tilus.ir.instructions
+from tilus.ir.instructions import Instruction, PrintValueInst, FormatPrintInst, CopyAsyncInst
+from tilus.ir.instructions import (
+    CopyAsyncWaitAllInst,
+    StoreGlobalInst,
+    StoreSharedInst,
+    ViewSharedInst,
+    AllocateSharedInst,
+)
+from tilus.ir.instructions import AllocateInst
+from tilus.ir.statement import SeqStmt, ForStmt
+from tilus.transforms.base import Pass
 
 
-class InjectPrintInstructionRewriter(VirtualMachineRewriter):
+class InjectPrintInstructionRewriter(IRRewriter):
     def __init__(self, block_to_print: Optional[Dict[str, int]], instructions_to_print: Optional[List[str]]):
         super().__init__()
-        self.vm_printer = VirtualMachinePrinter()
+        self.vm_printer = IRRewriter()
         self.block_to_print: Optional[Dict[str, int]] = block_to_print
         self.instructions_to_print: Optional[List[Type[Instruction]]] = None
         self.cond: Expr = boolean.true
@@ -28,13 +33,13 @@ class InjectPrintInstructionRewriter(VirtualMachineRewriter):
         if instructions_to_print is not None:
             self.instructions_to_print = []
             for inst in instructions_to_print:
-                if not hasattr(tilus.ir.inst, inst):
+                if not hasattr(tilus.ir.instructions, inst):
                     raise ValueError("Instruction {} does not exist".format(inst))
-                self.instructions_to_print.append(getattr(tilus.ir.inst, inst))
+                self.instructions_to_print.append(getattr(tilus.ir.instructions, inst))
         else:
             self.instructions_to_print = None
 
-    def visit_Program(self, prog: VirtualMachineProgram):
+    def visit_Program(self, prog: Function):
         self.cond = boolean.true
         block_to_print = self.block_to_print.copy() if self.block_to_print else {}
         block_printed = {}
@@ -60,7 +65,7 @@ class InjectPrintInstructionRewriter(VirtualMachineRewriter):
         return prog
 
     def visit_ForStmt(self, stmt: ForStmt):
-        vb = VirtualMachineBuilder()
+        vb = StatementBuilder()
 
         vb.format_print(
             fstring="for {} in range({}) when {} = %d:\n".format(
@@ -102,7 +107,7 @@ class InjectPrintInstructionRewriter(VirtualMachineRewriter):
             return inst
 
         if inst.output is not None:
-            from tilus.ir.inst import ElementwiseBinaryInst
+            from tilus.ir.instructions import ElementwiseBinaryInst
 
             if isinstance(inst, ElementwiseBinaryInst):
                 return SeqStmt(
@@ -143,18 +148,18 @@ class InjectPrintInstructionRewriter(VirtualMachineRewriter):
             return inst
 
 
-class InjectPrintInstructionPass(VirtualMachinePass):
+class InjectPrintInstructionPass(Pass):
     def __init__(self, block_to_print: Optional[Dict[str, int]], instructions_to_print: Optional[List[str]]):
         super().__init__()
         self.block_to_print: Optional[Dict[str, int]] = block_to_print
         self.instructions_to_print: Optional[List[str]] = instructions_to_print
 
-    def __call__(self, prog: VirtualMachineProgram) -> VirtualMachineProgram:
+    def __call__(self, prog: Function) -> Function:
         rewriter = InjectPrintInstructionRewriter(self.block_to_print, self.instructions_to_print)
         return rewriter(prog)
 
 
 def inject_print_instruction_pass(
     block_to_print: Optional[Dict[str, int]], instructions_to_print: Optional[List[str]]
-) -> VirtualMachinePass:
+) -> Pass:
     return InjectPrintInstructionPass(block_to_print=block_to_print, instructions_to_print=instructions_to_print)

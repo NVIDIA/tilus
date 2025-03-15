@@ -1,6 +1,6 @@
-from tilus.ir.program import VirtualMachineProgram
+from tilus.ir.function import Function
 
 
-class VirtualMachinePass:
-    def __call__(self, prog: VirtualMachineProgram) -> VirtualMachineProgram:
+class Pass:
+    def __call__(self, prog: Function) -> Function:
         raise NotImplementedError()

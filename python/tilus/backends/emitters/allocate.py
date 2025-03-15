@@ -1,7 +1,7 @@
 from hidet.ir.expr import tensor_var
 from hidet.ir.tools import rewrite
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import AllocateInst
+from tilus.ir.instructions import AllocateInst
 from tilus.target import gpgpu_any
 
 

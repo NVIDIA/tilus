@@ -2,15 +2,15 @@ from typing import List, Callable
 from hidet.ir.type import DataType
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Var, Expr, var
-from tilus.ir.layout import Layout
+from tilus.ir.layouts import Layout
 from tilus.utils import idiv
 
 
 class WeightTransform:
     def __str__(self):
-        from tilus.ir.printer import VirtualMachinePrinter
+        from tilus.ir.tools import IRPrinter
 
-        printer = VirtualMachinePrinter()
+        printer = IRPrinter()
         return str(printer.visit(self))
 
 

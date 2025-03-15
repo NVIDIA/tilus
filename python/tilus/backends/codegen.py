@@ -4,19 +4,20 @@ from typing import Optional, Dict, List, Tuple, Type, Set, no_type_check
 from hidet.ir.dtypes import int32, uint8
 from hidet.ir.expr import Var, SymbolVar, Expr, cast, logical_not, Constant, convert, tensor_var
 from hidet.ir.stmt import DeclareScope
-from hidet.ir.func import Function
 from hidet.ir.module import IRModule
+from hidet.ir.func import Function as HidetFunction
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.primitives.cuda.vars import threadIdx
 from hidet.ir.type import BaseType, void_p
+
 from tilus.utils import prod, cdiv
-from tilus.ir.functor import VirtualMachineFunctor
-from tilus.ir.inst import Instruction, PrintValueInst, FormatPrintInst
-from tilus.ir.program import VirtualMachineProgram
-from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, BreakStmt, WhileStmt
+from tilus.ir.instructions import Instruction, PrintValueInst, FormatPrintInst
+from tilus.ir.function import Function
+from tilus.ir.statement import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, BreakStmt, WhileStmt
 from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.ir.value import Value, SharedValue, RegisterValue, SharedLayout
-from tilus.ir.printer import VirtualMachinePrinter
+from tilus.ir.tools import IRPrinter
+from tilus.ir.functors import IRFunctor
 from tilus.target import get_current_target, match_target, gpgpu_any, Target
 from tilus.extensions.hidet.ir.expr import convert_sequence
 from tilus.extensions.hidet.ir.module import merge_ir_modules
@@ -210,18 +211,18 @@ class SharedMemoryAllocator:
         del self.addr2nbytes[addr]
 
 
-class VirtualMachineCodegen(VirtualMachineFunctor):
+class Codegen(IRFunctor):
     def __init__(self):
         super().__init__()
         self.weight_transform_codegen = WeightTransformKernelCodegen()
         self.main_kernel_codegen = MainKernelCodegen()
 
-    def visit_Program(self, prog: VirtualMachineProgram):
+    def visit_Program(self, prog: Function):
         ir_modules = [self.weight_transform_codegen(prog), self.main_kernel_codegen(prog)]
         return merge_ir_modules(ir_modules)
 
 
-class MainKernelCodegen(VirtualMachineFunctor):
+class MainKernelCodegen(IRFunctor):
     GMEM_WORKSPACE_NAME = "__gmem_workspace"
     GMEM_CLEAN_WORKSPACE_NAME = "__gmem_clean_workspace"
 
@@ -237,8 +238,8 @@ class MainKernelCodegen(VirtualMachineFunctor):
     def __init__(self) -> None:
         super().__init__()
         self._builder: Optional[FunctionBuilder] = None
-        self._program: Optional[VirtualMachineProgram] = None
-        self.printer: VirtualMachinePrinter = VirtualMachinePrinter()
+        self._program: Optional[Function] = None
+        self.printer: IRPrinter = IRPrinter()
 
         # value mapping
         self.value2var: Dict[Value, Var] = {}
@@ -264,11 +265,11 @@ class MainKernelCodegen(VirtualMachineFunctor):
         # stacks of for_thread_groups
         self.thread_groups = MainKernelCodegen.ThreadGroups([], [], [])
 
-    def __call__(self, prog: VirtualMachineProgram):
+    def __call__(self, prog: Function):
         return self.visit(prog)
 
     @property
-    def program(self) -> VirtualMachineProgram:
+    def program(self) -> Function:
         assert self._program is not None
         return self._program
 
@@ -278,7 +279,7 @@ class MainKernelCodegen(VirtualMachineFunctor):
         return self._builder
 
     def sync(self):
-        from tilus.ir.inst import SyncThreadsInst
+        from tilus.ir.instructions import SyncThreadsInst
 
         self.visit(SyncThreadsInst())
 
@@ -322,7 +323,7 @@ class MainKernelCodegen(VirtualMachineFunctor):
         for axis, value in self._program.block_mapping.virtual_axes_values.items():
             self.builder.declare(v=axis, init=value)
 
-    def init_smem_workspace(self, program: VirtualMachineProgram):
+    def init_smem_workspace(self, program: Function):
         smem_workspace_nbytes: int = 0
         for inst in collect_instructions(program):
             smem_workspace_nbytes = max(smem_workspace_nbytes, inst.request_shared_workspace())
@@ -335,7 +336,7 @@ class MainKernelCodegen(VirtualMachineFunctor):
             )
             self.smem_workspace = value
 
-    def generate_launch_function(self, ir_module: IRModule, kernel_func: Function) -> IRModule:
+    def generate_launch_function(self, ir_module: IRModule, kernel_func: HidetFunction) -> IRModule:
         from tilus.extensions.hidet.ir.primitives.runtime import set_symbol_value_ptr
         from hidet.transforms.generate_launch_func import add_launch_func
         from hidet.ir.stmt import SeqStmt
@@ -377,7 +378,7 @@ class MainKernelCodegen(VirtualMachineFunctor):
         launch_func.body = SeqStmt([sb.finish(), launch_func.body])
         return ir_module
 
-    def visit_Program(self, prog: VirtualMachineProgram):
+    def visit_Program(self, prog: Function):
         # warmup printer
         self.printer(prog)
 
@@ -493,14 +494,14 @@ class MainKernelCodegen(VirtualMachineFunctor):
         self.builder.append(emitter.finish())
 
 
-class WeightTransformKernelCodegen(VirtualMachineFunctor):
+class WeightTransformKernelCodegen(IRFunctor):
     def __init__(self) -> None:
         super().__init__()
         self.ir_module = IRModule()
         self.param_to_apply_kernels: Dict[Var, List[Var]] = {}
         self.param_to_reverse_kernels: Dict[Var, List[Var]] = {}
 
-    def visit_Program(self, prog: VirtualMachineProgram) -> IRModule:
+    def visit_Program(self, prog: Function) -> IRModule:
         # generate weight transform functions and reverse transform functions for each weight param
         for param, transforms in prog.weight_transforms.items():
             self.param_to_apply_kernels[param] = []
@@ -568,7 +569,9 @@ class WeightTransformKernelCodegen(VirtualMachineFunctor):
                         transform(workspace, weight_arg)
                         memcpy_async(dst=weight_arg, src=workspace, count=convert(weight_nbytes), kind=kind)
 
-        assert isinstance(apply_weight_transforms, Function) and isinstance(reverse_weight_transforms, Function)
+        assert isinstance(apply_weight_transforms, HidetFunction) and isinstance(
+            reverse_weight_transforms, HidetFunction
+        )
         self.ir_module.add_function(apply_weight_transforms.name, apply_weight_transforms)
         self.ir_module.add_function(reverse_weight_transforms.name, reverse_weight_transforms)
 
@@ -583,7 +586,7 @@ class WeightTransformKernelCodegen(VirtualMachineFunctor):
             raise NotImplementedError(wt.__class__.__name__)
 
     def generate_layout_transform(self, param: Var, idx: int, transform: WeightLayoutTransform) -> Tuple[Var, Var]:
-        from tilus.ir.builder import VirtualMachineBuilder
+        from tilus.ir.builder import StatementBuilder
         from tilus.extensions.hidet.ir.utils.index_transform import (
             index_add,
             index_multiply,
@@ -603,10 +606,10 @@ class WeightTransformKernelCodegen(VirtualMachineFunctor):
         assert original_layout.num_workers % 32 == 0
         num_warps = original_layout.num_workers // 32
 
-        vb = VirtualMachineBuilder()
+        vb = StatementBuilder()
 
         # generate transform program
-        with vb.program(name="apply_" + func_name, num_warps=num_warps, params={"dst": void_p, "src": void_p}) as (
+        with vb.function(name="apply_" + func_name, num_warps=num_warps, params={"dst": void_p, "src": void_p}) as (
             dst,
             src,
         ):
@@ -627,10 +630,10 @@ class WeightTransformKernelCodegen(VirtualMachineFunctor):
                 + axes[0],
             )
 
-        apply_program = vb.flush_program()
+        apply_program = vb.flush_function()
 
         # generate reverse transform program
-        with vb.program(name="reverse_" + func_name, num_warps=num_warps, params={"dst": void_p, "src": void_p}) as (
+        with vb.function(name="reverse_" + func_name, num_warps=num_warps, params={"dst": void_p, "src": void_p}) as (
             dst,
             src,
         ):
@@ -651,7 +654,7 @@ class WeightTransformKernelCodegen(VirtualMachineFunctor):
                 ),
             )
 
-        reverse_program = vb.flush_program()
+        reverse_program = vb.flush_function()
 
         # build the two programs and extract the functions
         apply_ir_module: IRModule = generate_ir_module(apply_program)
@@ -783,7 +786,7 @@ class WeightTransformKernelCodegen(VirtualMachineFunctor):
                     in_index = transform.reverse_mapping(out_index)
                     typed_dst[out_index] = typed_src[in_index]
 
-        assert isinstance(apply_kernel, Function) and isinstance(reverse_kernel, Function)
+        assert isinstance(apply_kernel, HidetFunction) and isinstance(reverse_kernel, HidetFunction)
         self.ir_module.add_function(apply_kernel.name, apply_kernel)
         self.ir_module.add_function(reverse_kernel.name, reverse_kernel)
 
@@ -832,15 +835,15 @@ class WeightTransformKernelCodegen(VirtualMachineFunctor):
             if i < num_elements:
                 typed_dst[i] = transform.reverse_mapping(typed_src[i])
 
-        assert isinstance(apply_kernel, Function) and isinstance(reverse_kernel, Function)
+        assert isinstance(apply_kernel, HidetFunction) and isinstance(reverse_kernel, HidetFunction)
         self.ir_module.add_function(apply_kernel.name, apply_kernel)
         self.ir_module.add_function(reverse_kernel.name, reverse_kernel)
 
         return self.ir_module.lookup_var(apply_kernel.name), self.ir_module.lookup_var(reverse_kernel.name)
 
 
-def generate_ir_module(prog: VirtualMachineProgram) -> IRModule:
-    codegen = VirtualMachineCodegen()
+def generate_ir_module(prog: Function) -> IRModule:
+    codegen = Codegen()
     ir_module: IRModule = codegen(prog)
     ir_module.attrs["default_kernel"] = prog.name
     return ir_module

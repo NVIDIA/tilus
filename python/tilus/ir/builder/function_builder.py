@@ -3,23 +3,23 @@ from hidet.ir.type import BaseType, DataType, PointerType
 from hidet.ir.expr import Expr, Var
 from hidet.ir.dtypes import int32, boolean
 from hidet.ir.primitives.cuda import blockIdx
-from tilus.ir.layout import Layout
-from tilus.ir.program import VirtualMachineProgram, BlockMapping, WeightTransform, ParamAttrs
-from tilus.ir.stmt import Stmt, ForStmt, SeqStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt
+from tilus.ir.layouts import Layout
+from tilus.ir.function import Function, BlockMapping, WeightTransform, ParamAttrs
+from tilus.ir.statement import Stmt, ForStmt, SeqStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt
 from tilus.ir.value import RegisterValue, SharedValue, SharedLayout
-from tilus.ir.inst import Instruction
-from tilus.ir.inst import AllocateInst, PrintValueInst, SyncThreadsInst, AllocateSharedInst, ViewInst
-from tilus.ir.inst import StoreSharedInst, LoadSharedInst, StoreGlobalInst, FreeSharedInst, LoadGlobalInst
-from tilus.ir.inst import LoadScalarInst, StoreScalarInst, ExitInst, ElementwiseBinaryInst, AllocateScalarInst
-from tilus.ir.inst import SyncReduceThreadsInst, AssignScalarInst, AssignInst, ViewSharedInst, CopyAsyncInst
-from tilus.ir.inst import FormatPrintInst, CastInst, LoadMatrixInst, MmaDotInst, CopyAsyncWaitAllInst
-from tilus.ir.inst import CopyAsyncCommitGroupInst, CopyAsyncWaitGroupInst, AllocateGlobalInst, AtomicScalarInst
+from tilus.ir.instructions import Instruction
+from tilus.ir.instructions import AllocateInst, PrintValueInst, SyncThreadsInst, AllocateSharedInst, ViewInst
+from tilus.ir.instructions import StoreSharedInst, LoadSharedInst, StoreGlobalInst, FreeSharedInst, LoadGlobalInst
+from tilus.ir.instructions import LoadScalarInst, StoreScalarInst, ExitInst, ElementwiseBinaryInst, AllocateScalarInst
+from tilus.ir.instructions import SyncReduceThreadsInst, AssignScalarInst, AssignInst, ViewSharedInst, CopyAsyncInst
+from tilus.ir.instructions import FormatPrintInst, CastInst, LoadMatrixInst, MmaDotInst, CopyAsyncWaitAllInst
+from tilus.ir.instructions import CopyAsyncCommitGroupInst, CopyAsyncWaitGroupInst, AllocateGlobalInst, AtomicScalarInst
 from tilus.extensions.hidet.ir.expr import convert_to_expr
 
 
-class BaseContext:
+class StatementContext:
     def __init__(self, vb) -> None:
-        self.vb: VirtualMachineBuilder = vb
+        self.vb: StatementBuilder = vb
 
     def enter(self):
         self.vb._stack.append([])
@@ -35,7 +35,7 @@ class BaseContext:
         return self.vb._stack[-1]
 
 
-class ForContext(BaseContext):
+class ForContext(StatementContext):
     def __init__(
         self, vb, iter_vars: List[Var], extents: List[Expr], unrolls: List[Optional[int]], unwrap: bool = False
     ):
@@ -65,7 +65,7 @@ class ForContext(BaseContext):
         self.append(body)
 
 
-class ForThreadGroupContext(BaseContext):
+class ForThreadGroupContext(StatementContext):
     def __init__(self, vb, iter_var: Var, num_groups: int):
         super().__init__(vb)
         self.iter_var: Var = iter_var
@@ -79,7 +79,7 @@ class ForThreadGroupContext(BaseContext):
         self.append(ForThreadGroupStmt(self.iter_var, self.num_groups, body=self.pop()))
 
 
-class IfContext(BaseContext):
+class IfContext(StatementContext):
     def __init__(self, vb, cond: Expr):
         super().__init__(vb)
         self.cond: Expr = cond
@@ -91,7 +91,7 @@ class IfContext(BaseContext):
         self.append(IfStmt(self.cond, then_body=self.pop(), else_body=None))
 
 
-class ElseIfContext(BaseContext):
+class ElseIfContext(StatementContext):
     def __init__(self, vb, cond: Expr):
         super().__init__(vb)
         self.cond: Expr = cond
@@ -111,7 +111,7 @@ class ElseIfContext(BaseContext):
         if_stmt.else_body = IfStmt(self.cond, then_body=body, else_body=None)
 
 
-class OtherwiseContext(BaseContext):
+class OtherwiseContext(StatementContext):
     def __init__(self, vb):
         super().__init__(vb)
 
@@ -130,7 +130,7 @@ class OtherwiseContext(BaseContext):
         if_stmt.else_body = else_body
 
 
-class WhileContext(BaseContext):
+class WhileContext(StatementContext):
     def __init__(self, vb, cond: Expr):
         super().__init__(vb)
         self.cond: Expr = cond
@@ -142,28 +142,98 @@ class WhileContext(BaseContext):
         self.append(WhileStmt(self.cond, body=self.pop()))
 
 
-class VirtualMachineBuilderCore:
-    def __init__(self) -> None:
-        self._name: Optional[str] = None
-        self._num_warps: Optional[int] = None
-        self._params: List[Var] = []
-        self._block_axes: List[Var] = []
-        self._num_blocks: List[Expr] = []
-        self._weight_transforms: Dict[Var, List[WeightTransform]] = {}
-        self._param2attrs: Dict[Var, ParamAttrs] = {}
-        self._var2divisibility: Dict[Var, int] = {}
+class FunctionContext:
+    def __init__(self, vb, name: str, num_warps: int, params: Union[Dict[str, BaseType], List[Var]]):
+        self.vb: StatementBuilder = vb
+        self.vb._name = name
+        self.vb._num_warps = num_warps
+        self.vb._params = [Var(name, type) for name, type in params.items()] if isinstance(params, dict) else params
+        self.vb._block_axes = []
+        self.vb._num_blocks = []
+        self.vb._stack = [[]]
 
+    def __enter__(self):
+        return self.vb._params
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            return
+
+        assert len(self.vb._stack) == 1, len(self.vb._stack)
+        axis2size = {a: b for a, b in zip(self.vb._block_axes, self.vb._num_blocks)}
+        self.vb._built_function = Function(
+            name=self.vb._name,
+            params=self.vb._params,
+            param2attrs=self.vb._param2attrs,
+            num_warps=self.vb._num_warps,
+            block_axes=self.vb._block_axes,
+            num_blocks=self.vb._num_blocks,
+            body=SeqStmt(self.vb._stack.pop()),
+            block_mapping=self.create_default_mapping(self.vb._block_axes, axis2size),
+            weight_transforms=self.vb._weight_transforms,
+            var2divisibility=self.vb._var2divisibility,
+            annotations={},
+        )
+
+    @staticmethod
+    def create_default_mapping(
+        block_axes: List[Var],
+        axis2size: Dict[Var, Expr],
+    ):
+        # perform mapping
+        logical2hardware: Dict[Var, Var] = {}
+        hardware_axes = [blockIdx.x, blockIdx.y, blockIdx.z]
+
+        if len(block_axes) == 0:
+            pass
+        elif len(block_axes) == 1:
+            logical2hardware[block_axes[0]] = blockIdx.x
+        elif len(block_axes) == 2:
+            logical2hardware[block_axes[0]] = blockIdx.y
+            logical2hardware[block_axes[1]] = blockIdx.x
+        elif len(block_axes) == 3:
+            logical2hardware[block_axes[0]] = blockIdx.z
+            logical2hardware[block_axes[1]] = blockIdx.y
+            logical2hardware[block_axes[2]] = blockIdx.x
+        else:
+            for axis in block_axes[:-3]:
+                logical2hardware[axis] = blockIdx.z
+            logical2hardware[block_axes[-3]] = blockIdx.z
+            logical2hardware[block_axes[-2]] = blockIdx.y
+            logical2hardware[block_axes[-1]] = blockIdx.x
+
+        # get the logical axis expressions of hardware axes
+        hardware_axes_size = {axis: int32.one for axis in hardware_axes}
+        for axis in block_axes:
+            hardware_axis = logical2hardware[axis]
+            hardware_axes_size[hardware_axis] = hardware_axes_size[hardware_axis] * axis2size[axis]
+
+        # get the mapping from logical axis to the expression of hardware axes
+        virtual_axes_values = {}
+        hardware_axis_divisor = {blockIdx.x: 1, blockIdx.y: 1, blockIdx.z: 1}
+
+        last_virtual_axis: Dict[Var, Var] = {}
+        for axis, hardware_axis in logical2hardware.items():
+            last_virtual_axis[hardware_axis] = axis
+
+        for axis, hardware_axis in logical2hardware.items():
+            virtual_axes_values[axis] = hardware_axis // hardware_axis_divisor[hardware_axis]
+            if axis is not last_virtual_axis[hardware_axis]:
+                virtual_axes_values[axis] = virtual_axes_values[axis] % axis2size[axis]
+            hardware_axis_divisor[hardware_axis] = hardware_axis_divisor[hardware_axis] * axis2size[axis]
+
+        return BlockMapping(
+            hardware_axes=hardware_axes,
+            hardware_num_blocks=[hardware_axes_size[axis] for axis in hardware_axes],
+            predicate=boolean.true,
+            virtual_axes_values=virtual_axes_values,
+        )
+
+
+class StatementBuilderCore:
+    def __init__(self) -> None:
         # context stack
         self._stack: List[List[Union[Stmt, Instruction]]] = [[]]
-
-        # built program
-        self.built_program: Optional[VirtualMachineProgram] = None
-
-    def __call__(self, *args):
-        return self.built_program(*args)
-
-    def __str__(self):
-        return str(self.built_program)
 
     def _reset(self):
         self._name = None
@@ -172,33 +242,7 @@ class VirtualMachineBuilderCore:
         self._block_axes = []
         self._num_blocks = []
         self._stack = [[]]
-        self.built_program = None
-
-    def program(self, name: str, num_warps: int, params: Union[Dict[str, BaseType], List[Var]]):
-        return ProgramContext(self, name, num_warps, params)
-
-    def virtual_blocks(self, num_blocks: Sequence[Union[Expr, int]]) -> List[Var]:
-        self._block_axes = [Var(f"b{i}", int32) for i in range(len(num_blocks))]
-        self._num_blocks = [int32(num_block) for num_block in num_blocks]
-        return self._block_axes.copy()
-
-    def annotate_divisibility(self, var2divisibility: Dict[Var, int]):
-        self._var2divisibility.update(var2divisibility)
-
-    def append_weight_transform(self, param: Var, weight_transform: WeightTransform):
-        if param not in self._params:
-            raise ValueError(f"Parameter {param} is not defined")
-        if param not in self._weight_transforms:
-            self._weight_transforms[param] = []
-        self._weight_transforms[param].append(weight_transform)
-
-    def set_weight_nbytes(self, param: Var, nbytes: int):
-        if param not in self._params:
-            raise ValueError(f"Parameter {param} is not defined")
-        if param not in self._param2attrs:
-            self._param2attrs[param] = ParamAttrs()
-        self._param2attrs[param].is_weight = True
-        self._param2attrs[param].weight_nbytes = nbytes
+        self._built_function = None
 
     def for_range(
         self, extent: Union[Expr, int], iter_name_hint: str = "i", unroll_factor: Optional[int] = None
@@ -253,32 +297,8 @@ class VirtualMachineBuilderCore:
         self._reset()
         return ret
 
-    def flush_program(self) -> VirtualMachineProgram:
-        assert self.built_program is not None
-        ret = self.built_program
-        self._reset()
-        return ret
 
-    # def finish(self) -> Union[VirtualMachineProgram, Stmt]:
-    #     ret: Union[VirtualMachineProgram, Stmt]
-    #     if self.built_program:
-    #         ret = self.built_program
-    #     else:
-    #         if len(self._stack) != 1:
-    #             raise ValueError("Unbalanced context stack")
-    #         if len(self._stack[0]) != 1:
-    #             ret = SeqStmt(self._stack.pop())
-    #         else:
-    #             stmt_or_inst = self._stack.pop()[0]
-    #             if isinstance(stmt_or_inst, Stmt):
-    #                 ret = stmt_or_inst
-    #             else:
-    #                 ret = SeqStmt([stmt_or_inst])
-    #     self._reset()
-    #     return ret
-
-
-class VirtualMachineBuilder(VirtualMachineBuilderCore):
+class StatementBuilder(StatementBuilderCore):
     # register value operations
     def allocate(
         self,
@@ -533,87 +553,55 @@ class VirtualMachineBuilder(VirtualMachineBuilderCore):
         self.append(inst)
 
 
-class ProgramContext:
-    def __init__(self, vb, name: str, num_warps: int, params: Union[Dict[str, BaseType], List[Var]]):
-        self.vb: VirtualMachineBuilder = vb
-        self.vb._name = name
-        self.vb._num_warps = num_warps
-        self.vb._params = [Var(name, type) for name, type in params.items()] if isinstance(params, dict) else params
-        self.vb._block_axes = []
-        self.vb._num_blocks = []
-        self.vb._stack = [[]]
+class FunctionBuilder(StatementBuilder):
+    def __init__(self) -> None:
+        super().__init__()
+        self._name: Optional[str] = None
+        self._num_warps: Optional[int] = None
+        self._params: List[Var] = []
+        self._block_axes: List[Var] = []
+        self._num_blocks: List[Expr] = []
+        self._weight_transforms: Dict[Var, List[WeightTransform]] = {}
+        self._param2attrs: Dict[Var, ParamAttrs] = {}
+        self._var2divisibility: Dict[Var, int] = {}
 
-    def __enter__(self):
-        return self.vb._params
+        # built function
+        self._built_function: Optional[Function] = None
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is not None:
-            return
+    def __call__(self, *args):
+        return self._built_function(*args)
 
-        assert len(self.vb._stack) == 1, len(self.vb._stack)
-        axis2size = {a: b for a, b in zip(self.vb._block_axes, self.vb._num_blocks)}
-        self.vb.built_program = VirtualMachineProgram(
-            name=self.vb._name,
-            params=self.vb._params,
-            param2attrs=self.vb._param2attrs,
-            num_warps=self.vb._num_warps,
-            block_axes=self.vb._block_axes,
-            num_blocks=self.vb._num_blocks,
-            body=SeqStmt(self.vb._stack.pop()),
-            block_mapping=self.create_default_mapping(self.vb._block_axes, axis2size),
-            weight_transforms=self.vb._weight_transforms,
-            var2divisibility=self.vb._var2divisibility,
-            annotations={},
-        )
+    def __str__(self):
+        return str(self._built_function)
 
-    @staticmethod
-    def create_default_mapping(
-        block_axes: List[Var],
-        axis2size: Dict[Var, Expr],
-    ):
-        # perform mapping
-        logical2hardware: Dict[Var, Var] = {}
-        hardware_axes = [blockIdx.x, blockIdx.y, blockIdx.z]
+    def virtual_blocks(self, num_blocks: Sequence[Union[Expr, int]]) -> List[Var]:
+        self._block_axes = [Var(f"b{i}", int32) for i in range(len(num_blocks))]
+        self._num_blocks = [int32(num_block) for num_block in num_blocks]
+        return self._block_axes.copy()
 
-        if len(block_axes) == 1:
-            logical2hardware[block_axes[0]] = blockIdx.x
-        elif len(block_axes) == 2:
-            logical2hardware[block_axes[0]] = blockIdx.y
-            logical2hardware[block_axes[1]] = blockIdx.x
-        elif len(block_axes) == 3:
-            logical2hardware[block_axes[0]] = blockIdx.z
-            logical2hardware[block_axes[1]] = blockIdx.y
-            logical2hardware[block_axes[2]] = blockIdx.x
-        else:
-            for axis in block_axes[:-3]:
-                logical2hardware[axis] = blockIdx.z
-            logical2hardware[block_axes[-3]] = blockIdx.z
-            logical2hardware[block_axes[-2]] = blockIdx.y
-            logical2hardware[block_axes[-1]] = blockIdx.x
+    def annotate_divisibility(self, var2divisibility: Dict[Var, int]):
+        self._var2divisibility.update(var2divisibility)
 
-        # get the logical axis expressions of hardware axes
-        hardware_axes_size = {axis: int32.one for axis in hardware_axes}
-        for axis in block_axes:
-            hardware_axis = logical2hardware[axis]
-            hardware_axes_size[hardware_axis] = hardware_axes_size[hardware_axis] * axis2size[axis]
+    def append_weight_transform(self, param: Var, weight_transform: WeightTransform):
+        if param not in self._params:
+            raise ValueError(f"Parameter {param} is not defined")
+        if param not in self._weight_transforms:
+            self._weight_transforms[param] = []
+        self._weight_transforms[param].append(weight_transform)
 
-        # get the mapping from logical axis to the expression of hardware axes
-        virtual_axes_values = {}
-        hardware_axis_divisor = {blockIdx.x: 1, blockIdx.y: 1, blockIdx.z: 1}
+    def set_weight_nbytes(self, param: Var, nbytes: int):
+        if param not in self._params:
+            raise ValueError(f"Parameter {param} is not defined")
+        if param not in self._param2attrs:
+            self._param2attrs[param] = ParamAttrs()
+        self._param2attrs[param].is_weight = True
+        self._param2attrs[param].weight_nbytes = nbytes
 
-        last_virtual_axis: Dict[Var, Var] = {}
-        for axis, hardware_axis in logical2hardware.items():
-            last_virtual_axis[hardware_axis] = axis
+    def function(self, name: str, num_warps: int, params: Union[Dict[str, BaseType], List[Var]]):
+        return FunctionContext(self, name, num_warps, params)
 
-        for axis, hardware_axis in logical2hardware.items():
-            virtual_axes_values[axis] = hardware_axis // hardware_axis_divisor[hardware_axis]
-            if axis is not last_virtual_axis[hardware_axis]:
-                virtual_axes_values[axis] = virtual_axes_values[axis] % axis2size[axis]
-            hardware_axis_divisor[hardware_axis] = hardware_axis_divisor[hardware_axis] * axis2size[axis]
-
-        return BlockMapping(
-            hardware_axes=hardware_axes,
-            hardware_num_blocks=[hardware_axes_size[axis] for axis in hardware_axes],
-            predicate=boolean.true,
-            virtual_axes_values=virtual_axes_values,
-        )
+    def flush_function(self) -> Function:
+        assert self._built_function is not None
+        ret = self._built_function
+        self._reset()
+        return ret

@@ -6,7 +6,7 @@ from hidet.ir.primitives.cuda.mma import MmaConfig as HidetMmaConfig
 from hidet.ir.utils.broadcast_utils import broadcast_indices
 from tilus.extensions.hidet.ir.primitives.cuda.mma import mma_sync_v2
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import MmaDotInst, MmaConfig
+from tilus.ir.instructions import MmaDotInst, MmaConfig
 from tilus.target import nvgpu_sm70
 
 

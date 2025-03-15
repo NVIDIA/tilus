@@ -1,10 +1,10 @@
 from typing import List
-from tilus.ir.program import VirtualMachineProgram
-from tilus.ir.functor import VirtualMachineVisitor
-from tilus.ir.inst import Instruction
+from tilus.ir.function import Function
+from tilus.ir.functors import IRVisitor
+from tilus.ir.instructions import Instruction
 
 
-class InstructionCollector(VirtualMachineVisitor):
+class InstructionCollector(IRVisitor):
     def __init__(self) -> None:
         super().__init__()
         self.instructions: List[Instruction] = []
@@ -13,7 +13,7 @@ class InstructionCollector(VirtualMachineVisitor):
         self.instructions.append(inst)
 
 
-def collect_instructions(prog: VirtualMachineProgram) -> List[Instruction]:
+def collect_instructions(prog: Function) -> List[Instruction]:
     collector = InstructionCollector()
     collector(prog)
     return collector.instructions
