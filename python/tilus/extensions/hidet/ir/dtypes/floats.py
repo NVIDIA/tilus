@@ -15,8 +15,24 @@ float8_e5m2 = FloatType(
 )
 
 # todo: add the mantissa and exponent bits
-_mantissa_bits = {"float64": 52, "float32": 23, "float16": 10, "bfloat16": 7, "float8_e5m2": 2, "float8_e4m3": 3}
-_exponent_bits = {"float64": 11, "float32": 8, "float16": 5, "bfloat16": 8, "float8_e5m2": 5, "float8_e4m3": 4}
+_mantissa_bits = {
+    "float64": 52,
+    "float32": 23,
+    "tfloat32": 10,
+    "float16": 10,
+    "bfloat16": 7,
+    "float8_e5m2": 2,
+    "float8_e4m3": 3,
+}
+_exponent_bits = {
+    "float64": 11,
+    "float32": 8,
+    "tfloat32": 8,
+    "float16": 5,
+    "bfloat16": 8,
+    "float8_e5m2": 5,
+    "float8_e4m3": 4,
+}
 
 for float_dtype in [float64, float32, tfloat32, bfloat16, float16]:
     float_dtype.mantissa_bits = _mantissa_bits[float_dtype.name]  # type: ignore

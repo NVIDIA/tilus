@@ -382,7 +382,9 @@ class IRRewriter(IRFunctor):
         return node
 
     def visit_InstructionStmt(self, stmt: InstructionStmt):
-        self.visit(stmt.inst)
+        inst = self.visit(stmt.inst)
+        assert isinstance(inst, Instruction)
+        return InstructionStmt(inst)
 
     def visit_SeqStmt(self, stmt: SeqStmt):
         seq = self.visit(stmt.seq)
@@ -427,11 +429,11 @@ class IRRewriter(IRFunctor):
             return WhileStmt(cond, body)
 
     def default_visit_Instruction(self, inst: Instruction):
-        output = self.visit(inst.output)
+        output = self.visit(inst.optional_output)
         inputs = self.visit(inst.inputs)
         attrs = self.visit(inst.attrs)
 
-        if output is inst.output and inputs is inst.inputs and attrs is inst.attrs:
+        if output is inst.optional_output and inputs is inst.inputs and attrs is inst.attrs:
             return inst
         else:
             return inst.recreate(updated_output=output, updated_inputs=inputs, updated_attrs=attrs)

@@ -182,55 +182,6 @@ def register_functions() -> None:
                         register_primitive_function(name=cuda_store.name, func_or_type=cuda_store)
 
 
-@initialize()
-def register_primitive_functions_with_body():
-    # pylint: disable=import-outside-toplevel
-    from hidet.ir.type import ReferenceType
-    from hidet.ir.expr import Var
-    from hidet.ir.stmt import AsmStmt
-    from hidet.ir.builders import FunctionBuilder
-
-    # lds128
-    with FunctionBuilder("cuda_lds128", kind="cuda_internal") as fb:
-        # params
-        regs_vars = [Var(f"reg{i}", ReferenceType(data_type("float32"))) for i in range(4)]
-        smem_addr_var = Var("smem_addr", PointerType(data_type("float32")))
-        fb.extend_params(regs_vars + [smem_addr_var])
-        # body
-        body = AsmStmt(
-            r"{"
-            r"  .reg.u64 u64addr;"
-            r"  cvta.to.shared.u64 u64addr, %4;"
-            r"  ld.shared.v4.f32 {%0, %1, %2, %3}, [u64addr];"
-            r"}",
-            outputs=[("=f", reg) for reg in regs_vars],
-            inputs=[("l", smem_addr_var)],
-            is_volatile=True,
-        )
-        fb.set_body(body)
-    register_primitive_function(name="cuda_lds128", func_or_type=fb.get())
-
-    # sts128
-    with FunctionBuilder("cuda_sts128", kind="cuda_internal") as fb:
-        # params
-        regs_vars = [Var(f"reg{i}", ReferenceType(data_type("float32"))) for i in range(4)]
-        smem_addr_var = Var("smem_addr", PointerType(data_type("float32")))
-        fb.extend_params(regs_vars + [smem_addr_var])
-        # body
-        body = AsmStmt(
-            r"{"
-            r"  .reg.u64 u64addr;"
-            r"  cvta.to.shared.u64 u64addr, %0;"
-            r"  st.shared.v4.f32 [u64addr], {%1, %2, %3, %4};"
-            r"}",
-            outputs=[],
-            inputs=[("l", smem_addr_var)] + [("f", reg) for reg in regs_vars],
-            is_volatile=True,
-        )
-        fb.set_body(body)
-    register_primitive_function(name="cuda_sts128", func_or_type=fb.get())
-
-
 def resolve_pointed_dtype(addr: Expr) -> str:
     ptr_type = infer_type(addr)
     if not isinstance(ptr_type, (PointerType, TensorPointerType)):
@@ -312,11 +263,3 @@ def store(
     dtype = data_type(dtype)
     func_name = normalize_func_name(resolve_store_inst_name(dtype.nbytes * 8, space, sync, len(src_addrs), scope))
     return call_primitive_func(func_name, [addr, *src_addrs])
-
-
-def lds128(reg0, reg1, reg2, reg3, smem_addr):
-    return call_primitive_func("cuda_lds128", [reg0, reg1, reg2, reg3, smem_addr])
-
-
-def sts128(reg0, reg1, reg2, reg3, smem_addr):
-    return call_primitive_func("cuda_sts128", [reg0, reg1, reg2, reg3, smem_addr])

@@ -10,7 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # pylint: disable=line-too-long
-from typing import Union, Optional
+from typing import Optional
 from hidet.utils import initialize
 from hidet.ir.type import void_p
 from hidet.ir.dtypes import int32
@@ -94,51 +94,6 @@ def register_cp_async():
                     register_primitive_function(name=cuda_cp_async.name, func_or_type=cuda_cp_async)
 
 
-@initialize()
-def register_cp_async_commit_group():
-    from hidet.lang import script, attrs
-
-    @script
-    def cuda_cp_async_commit_group():
-        attrs.func_name = "cuda_cp_async_commit_group"
-        attrs.func_kind = "cuda_internal"
-        asm("cp.async.commit_group;")
-
-    assert isinstance(cuda_cp_async_commit_group, Function)
-    register_primitive_function(cuda_cp_async_commit_group.name, cuda_cp_async_commit_group)
-
-
-@initialize()
-def register_cp_async_wait_group():
-    from hidet.lang import script, attrs
-
-    for groups in range(10):
-        func_name = "cuda_cp_async_wait_group_{}".format(groups)
-
-        @script
-        def cuda_cp_async_wait_group():
-            attrs.func_name = func_name
-            attrs.func_kind = "cuda_internal"
-            asm("cp.async.wait_group {};".format(groups))
-
-        assert isinstance(cuda_cp_async_wait_group, Function)
-        register_primitive_function(cuda_cp_async_wait_group.name, cuda_cp_async_wait_group)
-
-
-@initialize()
-def register_cp_async_wait_all():
-    from hidet.lang import script, attrs
-
-    @script
-    def cuda_cp_async_wait_all():
-        attrs.func_name = "cuda_cp_async_wait_all"
-        attrs.func_kind = "cuda_internal"
-        asm("cp.async.wait_all;")
-
-    assert isinstance(cuda_cp_async_wait_all, Function)
-    register_primitive_function(cuda_cp_async_wait_all.name, cuda_cp_async_wait_all)
-
-
 def cp_async(
     dst: Expr,
     src: Expr,
@@ -196,45 +151,3 @@ def cp_async(
         src_size = cp_size
     func_name = resolve_name_cp_async(use_shared_space_dst, cp_size, cache_level, evict, prefetch_bytes)
     return call_cuda(func_name, [dst, src, src_size])
-
-
-def cp_async_commit_group():
-    """
-    Commit all prior issued cp_async into a group.
-
-    See Also
-        https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-commit-group
-    """
-    return call_cuda("cp_async_commit_group", [])
-
-
-def cp_async_wait_group(allow_on_fly_groups: Union[int, Expr]):
-    """
-    Wait the completion of prior asynchronous copy operations.
-
-    See Also
-       https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-wait-group
-
-    Parameters
-    ----------
-    allow_on_fly_groups: Union[int, Expr]
-        The maximum number of asynchronous copies that are allowed to be on-the-fly after this function.
-        Can be a python integer or a hidet constant expression.
-    """
-    if isinstance(allow_on_fly_groups, Expr):
-        from hidet.ir.tools.simplifier import simplify_to_int
-
-        allow_on_fly_groups = simplify_to_int(allow_on_fly_groups)
-    if not 0 <= allow_on_fly_groups < 10:
-        raise ValueError("n out of bound")
-    return call_cuda("cp_async_wait_group_{}".format(allow_on_fly_groups), [])
-
-
-def cp_async_wait_all():
-    """
-    Wait all prior asynchronous copy operations.
-
-    See Also
-       https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-wait-group
-    """
-    return call_cuda("cp_async_wait_all", [])

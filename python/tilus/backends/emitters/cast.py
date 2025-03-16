@@ -4,6 +4,8 @@ from hidet.ir.dtypes import int8, float16, bfloat16, uint32, uint8
 from hidet.ir.dtypes.floats import FloatType
 from hidet.ir.expr import Var, Expr, tensor_var, cast, tensor_pointer_var, var
 from hidet.ir.type import DataType, Callable, TensorPointerType, TensorType, PointerType
+from hidet.ir.primitives.cuda.half import sub_f16x2, fma_f16x2
+from hidet.ir.primitives.cuda.prmt import prmt
 
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
 from tilus.extensions.hidet.ir.dtypes import float6_e3m2
@@ -12,9 +14,8 @@ from tilus.extensions.hidet.ir.dtypes import int4b
 from tilus.extensions.hidet.ir.dtypes import uint7b, uint6b, uint5b, uint4b, uint3b, uint2b, uint1b
 from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
 from tilus.extensions.hidet.ir.primitives.cuda.bfloat16 import mul_bf16x2
-from tilus.extensions.hidet.ir.primitives.cuda.half import sub_f16x2, fma_f16x2, mul_f16x2
+from tilus.extensions.hidet.ir.primitives.cuda.half import mul_f16x2
 from tilus.extensions.hidet.ir.primitives.cuda.lop3 import lop3
-from tilus.extensions.hidet.ir.primitives.cuda.prmt import prmt
 from tilus.ir.inst import CastInst
 from tilus.target import nvgpu_any, amdgpu_any
 from tilus.utils import cdiv

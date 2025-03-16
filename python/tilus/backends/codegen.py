@@ -1,34 +1,27 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, List, Tuple, Type, Set, no_type_check
+from typing import Optional, Dict, List, Tuple, Type, Set
 
 from hidet.ir.dtypes import int32, uint8
-from hidet.ir.expr import Var, SymbolVar, Expr, cast, logical_not, Constant, convert, tensor_var
+from hidet.ir.expr import Var, SymbolVar, Expr, cast, logical_not, Constant, tensor_var
 from hidet.ir.stmt import DeclareScope
 from hidet.ir.module import IRModule
 from hidet.ir.func import Function as HidetFunction
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.primitives.cuda.vars import threadIdx
-from hidet.ir.type import BaseType, void_p
+from hidet.ir.type import void_p
 
-from tilus.utils import prod, cdiv
 from tilus.ir.inst import Instruction, PrintValueInst, FormatPrintInst
+from tilus.ir.prog import Program
 from tilus.ir.func import Function
-from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, BreakStmt, WhileStmt
+from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, BreakStmt, WhileStmt, InstructionStmt
 from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.ir.value import Value, SharedValue, RegisterValue, SharedLayout
 from tilus.ir.tools import IRPrinter
 from tilus.ir.functors import IRFunctor
 from tilus.target import get_current_target, match_target, gpgpu_any, Target
-from tilus.extensions.hidet.ir.expr import convert_sequence
 from tilus.extensions.hidet.ir.module import merge_ir_modules
 from tilus.extensions.hidet.ir.builders import StmtBuilder, FunctionBuilder
 from tilus.extensions.hidet.ir.tools import rewrite
-from tilus.ir.weight_transform import (
-    WeightTransform,
-    WeightLayoutTransformGeneric,
-    WeightValueTransform,
-    WeightLayoutTransform,
-)
 
 
 class InvalidInstruction(Exception):
@@ -54,7 +47,10 @@ class BaseInstEmitter(StmtBuilder):
 
     def __init__(self, codegen) -> None:
         super().__init__()
-        self.codegen: MainKernelCodegen = codegen
+        # todo: currently, the instruction emitters (that inherit from BaseInstEmitter) directly access the codegen
+        #       object to access some data in the codegen object. This is not a good design. We should refactor this
+        #       to use the methods of the BaseInstEmitter class to access the data in the codegen object.
+        self.codegen: Codegen = codegen
 
     def sync(self):
         from hidet.ir.primitives.cuda import syncthreads
@@ -122,8 +118,7 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def num_warps(self) -> int:
-        assert self.codegen._program is not None
-        return self.codegen._program.num_warps
+        return self.codegen.program.num_warps
 
     def emit(self, inst: Instruction):
         raise NotImplementedError()
@@ -212,17 +207,6 @@ class SharedMemoryAllocator:
 
 
 class Codegen(IRFunctor):
-    def __init__(self):
-        super().__init__()
-        self.weight_transform_codegen = WeightTransformKernelCodegen()
-        self.main_kernel_codegen = MainKernelCodegen()
-
-    def visit_Function(self, func: Function):
-        ir_modules = [self.weight_transform_codegen(func), self.main_kernel_codegen(func)]
-        return merge_ir_modules(ir_modules)
-
-
-class MainKernelCodegen(IRFunctor):
     GMEM_WORKSPACE_NAME = "__gmem_workspace"
     GMEM_CLEAN_WORKSPACE_NAME = "__gmem_clean_workspace"
 
@@ -263,9 +247,9 @@ class MainKernelCodegen(IRFunctor):
         self.smem_workspace: Optional[SharedValue] = None
 
         # stacks of for_thread_groups
-        self.thread_groups = MainKernelCodegen.ThreadGroups([], [], [])
+        self.thread_groups = Codegen.ThreadGroups([], [], [])
 
-    def __call__(self, prog: Function):
+    def __call__(self, prog: Function) -> IRModule:
         return self.visit(prog)
 
     @property
@@ -344,6 +328,14 @@ class MainKernelCodegen(IRFunctor):
         add_launch_func(ir_module, kernel_func=kernel_func)
 
         launch_func = ir_module.functions["launch"]
+        launch_func = HidetFunction(
+            name=kernel_func.name.removesuffix("_kernel"),
+            params=launch_func.params,
+            body=launch_func.body,
+            ret_type=launch_func.ret_type,
+            kind=launch_func.kind,
+            attrs=launch_func.attrs,
+        )
 
         if is_nvgpu():
             from hidet.ir.primitives.runtime import request_cuda_workspace
@@ -387,7 +379,7 @@ class MainKernelCodegen(IRFunctor):
         self.check_emitter_existence()
 
         self._builder = FunctionBuilder(
-            name=func.name,
+            name=func.name + "_kernel",
             kind="cuda_kernel" if is_nvgpu() else "hip_kernel",
             label="",
             grid_dim=self._program.block_mapping.hardware_num_blocks,
@@ -479,6 +471,9 @@ class MainKernelCodegen(IRFunctor):
     def visit_BreakStmt(self, stmt: BreakStmt):
         self.builder.brk()
 
+    def visit_InstructionStmt(self, stmt: InstructionStmt):
+        self.visit(stmt.inst)
+
     def visit_Instruction(self, inst: Instruction):
         # insert a comment statement
         skip_comment_instructions = (PrintValueInst, FormatPrintInst)
@@ -494,356 +489,51 @@ class MainKernelCodegen(IRFunctor):
         self.builder.append(emitter.finish())
 
 
-class WeightTransformKernelCodegen(IRFunctor):
-    def __init__(self) -> None:
-        super().__init__()
-        self.ir_module = IRModule()
-        self.param_to_apply_kernels: Dict[Var, List[Var]] = {}
-        self.param_to_reverse_kernels: Dict[Var, List[Var]] = {}
+class ProgramCodegen(IRFunctor):
+    def __call__(self, prog: Program) -> IRModule:
+        return self.visit(prog)
 
-    def visit_Function(self, func: Function) -> IRModule:
-        # generate weight transform functions and reverse transform functions for each weight param
-        for param, transforms in func.weight_transforms.items():
-            self.param_to_apply_kernels[param] = []
-            self.param_to_reverse_kernels[param] = []
-            for idx, transform in enumerate(transforms):
-                apply_kernel, reverse_kernel = self.generate_transform(param, idx, transform)
-                self.param_to_apply_kernels[param].append(apply_kernel)
-                self.param_to_reverse_kernels[param].append(reverse_kernel)
+    def visit_Program(self, prog: Program):
+        ir_module = IRModule()
+        for name, func in prog.functions.items():
+            func_codegen = Codegen()
+            sub_ir_module = func_codegen(func)
+            ir_module = merge_ir_modules([ir_module, sub_ir_module])
 
-        # generate driver functions
-        self.generate_driver_functions(func)
+        # if there is only one public function, we copy it and generate a function named 'launch', which is used as the
+        # entry point of the module
+        public_functions = [func for func in ir_module.functions.values() if func.kind == "public"]
 
-        return self.ir_module
-
-    def generate_driver_functions(self, prog) -> None:
-        import hidet.ir.primitives.runtime
-        from hidet.lang import attrs, meta
-
-        kernel_param_types: List[BaseType] = [param.type for param in prog.params]
-        num_weights: int = len(prog.weight_transforms)
-        weight2nbytes: Dict[Var, int] = {}
-        for param in prog.weight_transforms.keys():
-            nbytes: Optional[int] = prog.param2attrs[param].weight_nbytes
-            if nbytes is None:
-                raise ValueError("Weight transform requires weight_nbytes to be set, got {}".format(weight2nbytes))
-            weight2nbytes[param] = nbytes
-
-        weight2arg_idx: Dict[Var, int] = {param: i for i, param in enumerate(prog.params) if param in weight2nbytes}
-        weight_params: List[Var] = list(weight2nbytes.keys())
-        workspace_size: int = max(weight2nbytes.values()) if num_weights > 0 else 0
-
-        request_workspace = (
-            hidet.ir.primitives.runtime.request_cuda_workspace
-            if get_current_target().is_nvgpu()
-            else hidet.ir.primitives.runtime.request_hip_workspace
-        )
-        memcpy_async = hidet.ir.primitives.cuda.memcpy_async if is_nvgpu() else hidet.ir.primitives.hip.memcpy_async
-        kind = "cuda_to_cuda" if is_nvgpu() else "hip_to_hip"
-
-        @no_type_check
-        @hidet.script
-        def apply_weight_transforms(args: meta.types(kernel_param_types)):
-            attrs.func_kind = "public"
-
-            if num_weights > 0:
-                workspace = request_workspace(nbytes=workspace_size)
-                for weight_param in meta.each(weight_params):
-                    weight_arg = args[weight2arg_idx[weight_param]]
-                    weight_nbytes = weight2nbytes[weight_param]
-                    for transform in meta.each(self.param_to_apply_kernels[weight_param]):
-                        transform(workspace, weight_arg)
-                        memcpy_async(dst=weight_arg, src=workspace, count=convert(weight_nbytes), kind=kind)
-
-        @no_type_check
-        @hidet.script  # type: ignore
-        def reverse_weight_transforms(args: meta.types(kernel_param_types)):  # type: ignore
-            attrs.func_kind = "public"
-
-            if num_weights > 0:
-                workspace = request_workspace(nbytes=workspace_size)
-                for weight_param in meta.each(weight_params):
-                    weight_arg = args[weight2arg_idx[weight_param]]
-                    weight_nbytes = weight2nbytes[weight_param]
-                    for transform in meta.each(reversed(self.param_to_reverse_kernels[weight_param])):
-                        transform(workspace, weight_arg)
-                        memcpy_async(dst=weight_arg, src=workspace, count=convert(weight_nbytes), kind=kind)
-
-        assert isinstance(apply_weight_transforms, HidetFunction) and isinstance(
-            reverse_weight_transforms, HidetFunction
-        )
-        self.ir_module.add_function(apply_weight_transforms.name, apply_weight_transforms)
-        self.ir_module.add_function(reverse_weight_transforms.name, reverse_weight_transforms)
-
-    def generate_transform(self, param, idx: int, wt: WeightTransform) -> Tuple[Var, Var]:
-        if isinstance(wt, WeightLayoutTransform):
-            return self.generate_layout_transform(param, idx, wt)
-        elif isinstance(wt, WeightLayoutTransformGeneric):
-            return self.generate_layout_transform_generic(param, idx, wt)
-        elif isinstance(wt, WeightValueTransform):
-            return self.generate_value_transform(param, idx, wt)
-        else:
-            raise NotImplementedError(wt.__class__.__name__)
-
-    def generate_layout_transform(self, param: Var, idx: int, transform: WeightLayoutTransform) -> Tuple[Var, Var]:
-        from tilus.ir.builders import StatementBuilder
-        from tilus.extensions.hidet.ir.utils.index_transform import (
-            index_add,
-            index_multiply,
-            index_sum,
-            index_serialize,
-        )
-
-        func_name = "layout_transform_{}_{}".format(param.hint, idx)
-
-        dtype = transform.dtype
-        original_layout = transform.original_layout
-        transformed_layout = transform.transformed_layout
-        transformed_dtype = transform.transformed_dtype
-        tile_shape = transform.tile_shape
-        num_tiles: List[Expr] = list(convert_sequence(transform.num_tiles))
-        strides: List[int] = transform.strides
-        assert original_layout.num_workers % 32 == 0
-        num_warps = original_layout.num_workers // 32
-
-        vb = StatementBuilder()
-
-        # generate transform program
-        with vb.function(name="apply_" + func_name, num_warps=num_warps, params={"dst": void_p, "src": void_p}) as (
-            dst,
-            src,
-        ):
-            block_axes: List[Var] = vb.virtual_blocks(num_blocks=num_tiles)
-            loaded = vb.load_global(
-                dtype=dtype,
-                layout=original_layout,
-                ptr=src,
-                f_offset=lambda axes: index_sum(
-                    index_multiply(index_add(index_multiply(block_axes, tile_shape), axes), strides)
+        if len(public_functions) == 1 and "launch" not in ir_module.functions:
+            public_func: HidetFunction = public_functions[0]
+            ir_module.add_function(
+                name="launch",
+                func=HidetFunction(
+                    name="launch",
+                    params=public_func.params,
+                    body=public_func.body,
+                    ret_type=public_func.ret_type,
+                    kind=public_func.kind,
+                    attrs=public_func.attrs,
                 ),
             )
-            viewed = vb.view(loaded, dtype=transformed_dtype, layout=transformed_layout)
-            vb.store_global(
-                viewed,
-                ptr=dst,
-                f_offset=lambda axes: index_serialize(block_axes, shape=num_tiles) * transformed_layout.shape[0]
-                + axes[0],
-            )
-
-        apply_program = vb.flush_function()
-
-        # generate reverse transform program
-        with vb.function(name="reverse_" + func_name, num_warps=num_warps, params={"dst": void_p, "src": void_p}) as (
-            dst,
-            src,
-        ):
-            block_axes = vb.virtual_blocks(num_blocks=num_tiles)
-            loaded = vb.load_global(
-                dtype=transformed_dtype,
-                layout=transformed_layout,
-                ptr=src,
-                f_offset=lambda axes: index_serialize(block_axes, shape=num_tiles) * transformed_layout.shape[0]
-                + axes[0],
-            )
-            viewed = vb.view(loaded, dtype=dtype, layout=original_layout)
-            vb.store_global(
-                viewed,
-                ptr=dst,
-                f_offset=lambda axes: index_sum(
-                    index_multiply(index_add(index_multiply(block_axes, tile_shape), axes), strides)
-                ),
-            )
-
-        reverse_program = vb.flush_function()
-
-        # build the two programs and extract the functions
-        apply_ir_module: IRModule = generate_ir_module(apply_program)
-        reverse_ir_module: IRModule = generate_ir_module(reverse_program)
-
-        results: List[Var] = []
-        for name, module in [["apply_" + func_name, apply_ir_module], ["reverse_" + func_name, reverse_ir_module]]:
-            self.ir_module.add_function(name, module.functions[name])
-            results.append(self.ir_module.lookup_var(name))
-
-        return results[0], results[1]
-
-    def generate_layout_transform_generic(
-        self, param: Var, idx: int, transform: WeightLayoutTransformGeneric
-    ) -> Tuple[Var, Var]:
-        from hidet.lang import attrs, script
-        from hidet.lang.types import void_p, tensor_pointer
-
-        if is_nvgpu():
-            from hidet.lang.cuda import blockIdx, threadIdx, blockDim
-        else:
-            # todo: make cuda/hip share the same dim3
-            from hidet.lang.hip import blockIdx, threadIdx, blockDim  # type: ignore[assignment]
-
-        dtype = transform.dtype
-        func_name = "layout_transform_{}_{}".format(param.hint, idx)
-        num_elements = transform.size
-
-        if dtype.nbits < 8:
-            # hidet support to sub-byte type is not complete
-            # we avoid generating kernels for sub-byte types for now
-            assert num_elements * dtype.nbits % 8 == 0
-
-            nbits = num_elements * dtype.nbits
-            nbytes = nbits // 8
-            num_lanes: int = 8 // dtype.nbits
-            lane_bits = dtype.nbits
-            lane_mask = (1 << lane_bits) - 1
-            block_dim = 128
-            grid_dim = cdiv(nbytes, block_dim)
-
-            @no_type_check
-            @script
-            def apply_kernel(dst: void_p, src: void_p):
-                attrs.func_kind = "gpgpu_kernel"
-                attrs.func_name = "apply_" + func_name
-                attrs.gpgpu.grid_dim = grid_dim
-                attrs.gpgpu.block_dim = block_dim
-
-                byte_index = blockIdx.x * blockDim.x + threadIdx.x
-
-                dst_uint8 = tensor_pointer(uint8, shape=[nbytes], init=cast(dst, ~uint8))
-                src_uint8 = tensor_pointer(uint8, shape=[nbytes], init=cast(src, ~uint8))
-
-                if byte_index < nbytes:
-                    value: uint8 = uint8.zero
-
-                    for lane in range(num_lanes):
-                        out_element_index = byte_index * num_lanes + lane
-                        in_element_index = transform.mapping(out_element_index)
-                        in_byte_index = in_element_index // num_lanes
-                        in_lane = in_element_index % num_lanes
-                        in_byte = src_uint8[in_byte_index]
-                        value = value | ((in_byte >> (in_lane * lane_bits) & lane_mask) << (lane * lane_bits))
-                    dst_uint8[byte_index] = value
-
-            @no_type_check
-            @script
-            def reverse_kernel(dst: void_p, src: void_p):
-                attrs.func_kind = "gpgpu_kernel"
-                attrs.func_name = "reverse_" + func_name
-                attrs.gpgpu.grid_dim = grid_dim
-                attrs.gpgpu.block_dim = block_dim
-
-                i = blockIdx.x * blockDim.x + threadIdx.x
-
-                dst_uint8 = tensor_pointer(uint8, shape=[nbytes], init=cast(dst, ~uint8))
-                src_uint8 = tensor_pointer(uint8, shape=[nbytes], init=cast(src, ~uint8))
-
-                if i < nbytes:
-                    value: uint8 = uint8.zero
-
-                    for lane in range(num_lanes):
-                        out_element_index = i * num_lanes + lane
-                        in_element_index = transform.reverse_mapping(out_element_index)
-                        in_byte_index = in_element_index // num_lanes
-                        in_lane = in_element_index % num_lanes
-                        in_byte = src_uint8[in_byte_index]
-                        value = value | ((in_byte >> (in_lane * lane_bits) & lane_mask) << (lane * lane_bits))
-                    dst_uint8[i] = value
-
-        else:
-            block_dim = 128
-            grid_dim = cdiv(num_elements, block_dim)
-
-            @no_type_check
-            @script
-            def apply_kernel(dst: void_p, src: void_p):
-                attrs.func_kind = "gpgpu_kernel"
-                attrs.func_name = "apply_" + func_name
-                attrs.gpgpu.grid_dim = grid_dim
-                attrs.gpgpu.block_dim = block_dim
-
-                i = blockIdx.x * blockDim.x + threadIdx.x
-
-                typed_dst = tensor_pointer(dtype, shape=[num_elements], init=cast(dst, ~dtype))
-                typed_src = tensor_pointer(dtype, shape=[num_elements], init=cast(src, ~dtype))
-
-                if i < num_elements:
-                    out_index = i
-                    in_index = transform.mapping(out_index)
-                    typed_dst[out_index] = typed_src[in_index]
-
-            @no_type_check
-            @script
-            def reverse_kernel(dst: void_p, src: void_p):
-                attrs.func_kind = "gpgpu_kernel"
-                attrs.func_name = "reverse_" + func_name
-                attrs.gpgpu.grid_dim = grid_dim
-                attrs.gpgpu.block_dim = block_dim
-
-                i = blockIdx.x * blockDim.x + threadIdx.x
-
-                typed_dst = tensor_pointer(dtype, shape=[num_elements], init=cast(dst, ~dtype))
-                typed_src = tensor_pointer(dtype, shape=[num_elements], init=cast(src, ~dtype))
-
-                if i < num_elements:
-                    out_index = i
-                    in_index = transform.reverse_mapping(out_index)
-                    typed_dst[out_index] = typed_src[in_index]
-
-        assert isinstance(apply_kernel, HidetFunction) and isinstance(reverse_kernel, HidetFunction)
-        self.ir_module.add_function(apply_kernel.name, apply_kernel)
-        self.ir_module.add_function(reverse_kernel.name, reverse_kernel)
-
-        return self.ir_module.lookup_var(apply_kernel.name), self.ir_module.lookup_var(reverse_kernel.name)
-
-    def generate_value_transform(self, param: Var, idx: int, transform: WeightValueTransform) -> Tuple[Var, Var]:
-        from hidet.lang import attrs, script
-        from hidet.lang.types import void_p, tensor_pointer
-        from hidet.lang.cuda import blockIdx, threadIdx, blockDim
-
-        dtype = transform.dtype
-        func_name = "value_transform_{}_{}".format(param.hint, idx)
-        num_elements = prod(transform.shape)
-        block_dim = 128
-        grid_dim = cdiv(num_elements, block_dim)
-
-        @no_type_check
-        @script
-        def apply_kernel(dst: void_p, src: void_p):
-            attrs.func_kind = "cuda_kernel"
-            attrs.func_name = "apply_" + func_name
-            attrs.cuda.grid_dim = grid_dim
-            attrs.cuda.block_dim = block_dim
-
-            typed_dst = tensor_pointer(dtype, shape=[num_elements], init=cast(dst, ~dtype))
-            typed_src = tensor_pointer(dtype, shape=[num_elements], init=cast(src, ~dtype))
-
-            i = blockIdx.x * blockDim.x + threadIdx.x
-
-            if i < num_elements:
-                typed_dst[i] = transform.mapping(typed_src[i])
-
-        @no_type_check
-        @script
-        def reverse_kernel(dst: void_p, src: void_p):
-            attrs.func_kind = "cuda_kernel"
-            attrs.func_name = "reverse_" + func_name
-            attrs.cuda.grid_dim = grid_dim
-            attrs.cuda.block_dim = block_dim
-
-            typed_dst = tensor_pointer(dtype, shape=[num_elements], init=cast(dst, ~dtype))
-            typed_src = tensor_pointer(dtype, shape=[num_elements], init=cast(src, ~dtype))
-
-            i = blockIdx.x * blockDim.x + threadIdx.x
-
-            if i < num_elements:
-                typed_dst[i] = transform.reverse_mapping(typed_src[i])
-
-        assert isinstance(apply_kernel, HidetFunction) and isinstance(reverse_kernel, HidetFunction)
-        self.ir_module.add_function(apply_kernel.name, apply_kernel)
-        self.ir_module.add_function(reverse_kernel.name, reverse_kernel)
-
-        return self.ir_module.lookup_var(apply_kernel.name), self.ir_module.lookup_var(reverse_kernel.name)
+        return ir_module
 
 
-def generate_ir_module(prog: Function) -> IRModule:
-    codegen = Codegen()
+def generate_ir_module(prog: Program) -> IRModule:
+    """
+    Generate an IRModule from a Program by compiling the statements and instructions to lower-level Hidet IR.
+
+    Parameters
+    ----------
+    prog: Program
+        The program to be compiled.
+
+    Returns
+    -------
+    ir_module: IRModule
+        The lower-level Hidet IR module.
+    """
+    codegen = ProgramCodegen()
     ir_module: IRModule = codegen(prog)
-    ir_module.attrs["default_kernel"] = prog.name
     return ir_module

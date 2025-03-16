@@ -25,6 +25,10 @@ class Instruction:
         return "{}({})".format(self.__class__.__name__, ",\n".join(items))
 
     @property
+    def optional_output(self) -> Optional[Value]:
+        return self._output
+
+    @property
     def output(self) -> Value:
         if self._output is None:
             raise ValueError("output is not set")

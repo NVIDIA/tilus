@@ -26,8 +26,11 @@ jobs:
         run: |
           # todo: make tilus depends on public hidet repository in the future
           git clone https://${{ secrets.CENTML_HIDET_ACCESS }}@github.com/CentML/hidet.git
-          cd hidet; mkdir build; cd build; cmake ..; make -j4; cd ..; cd ..;
-          cd hidet; pip install --no-deps .
+          cd hidet;
+          git fetch --all
+          git checkout yaoyao/tilus
+          mkdir build; cd build; cmake ..; make -j4; cd ..;
+          pip install --no-deps .
 
       - name: Install the dev dependencies
         run: |
