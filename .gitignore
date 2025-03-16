@@ -41,4 +41,7 @@ Thumbs.db
 # MyPy type check reports
 .mypy_cache/
 
+# tilus cache
+/.cache
+
 /experiments

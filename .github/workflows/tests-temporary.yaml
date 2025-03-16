@@ -1,4 +1,4 @@
-name: Tests
+name: Tests (Temporary)
 
 on:
   push:
@@ -12,9 +12,7 @@ concurrency:
 jobs:
   tests:
     if: github.repository == 'hidet-org/tilus'
-    continue-on-error: true
-    runs-on:
-      group: "arc-l4"
+    runs-on: "yaoyao-workstation"
     container:
       image: nvidia/cuda:12.6.2-devel-ubuntu22.04
       options: --gpus all

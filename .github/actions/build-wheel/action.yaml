@@ -1,0 +1,30 @@
+name: "Build Tilus Wheel"
+description: "Builds tilus package into a wheel (.whl)"
+inputs:
+  package-path:
+    description: "Path to the Python package (default is current directory)"
+    required: false
+    default: "."
+
+outputs:
+  wheel-path:
+    description: "Path to the built wheel file"
+    value: ${{ steps.build.outputs.wheel-path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install build dependencies
+      run: |
+        pip install --upgrade pip
+        pip install build
+      shell: bash
+
+    - name: Build the wheel
+      id: build
+      run: |
+        python -m build ${{ inputs.package-path }}
+        export WHEEL_PATH=$(ls ${{ inputs.package-path }}/dist/*.whl)
+        echo "Build wheel saved at $WHEEL_PATH"
+        echo "wheel-path=${WHEEL_PATH}" >> "$GITHUB_OUTPUT"
+      shell: bash

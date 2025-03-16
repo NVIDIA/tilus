@@ -5,36 +5,39 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   format-and-lint:
     if: github.repository == 'hidet-org/tilus'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10"]
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}-${{ matrix.python-version }}
-      cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
-      
-      - name: Install hidet repository
-        run: |
-          # todo: make tilus depends on public hidet repository in the future
-          git clone https://${{ secrets.CENTML_HIDET_ACCESS }}@github.com/CentML/hidet.git
-          cd hidet;
-          git fetch --all
-          git checkout yaoyao/tilus
-          mkdir build; cd build; cmake ..; make -j4; cd ..;
-          pip install --no-deps .
+          python-version: '3.10'
 
-      - name: Install the dev dependencies
-        run: |
-          pip install .[dev]
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Hidet Package
+        uses: ./.github/actions/install-hidet
+        with:
+          hidet-access-token: ${{ secrets.CENTML_HIDET_ACCESS }}
+
+      - name: Build Tilus Wheel
+        id: build-wheel
+        uses: ./.github/actions/build-wheel
+        with:
+          package-path: "."
+
+      - name: Verify Built Wheel
+        run: ls -lh dist/
+
+      - name: Install Tilus with Dev Dependencies
+        run: pip install ${{ steps.build-wheel.outputs.wheel-path }}[dev]
 
       - name: Check format and lint
         run: |
