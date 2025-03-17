@@ -34,7 +34,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff==0.9.10",
+    "ruff==0.11.0",
     "mypy==1.15.0",
     "pytest",
 ]
@@ -47,7 +47,6 @@ Documentation = "https://hidet.org"
 "" = "python"
 
 [tool.ruff]
-# Set the maximum line length to 79.
 line-length = 120
 
 [tool.ruff.lint]
@@ -58,6 +57,9 @@ extend-select = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
 
 [[tool.mypy.overrides]]
 module = ["tilus.*"]

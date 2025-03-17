@@ -12,7 +12,7 @@ from tilus.extensions.hidet.ir.tools.rewriter import rewrite
 from tilus.extensions.hidet.ir.primitives.cuda.ldst import load, store
 from tilus.ir.analyzers.value_analyzer import analyze_info, TensorInfo
 from tilus.ir.inst import LoadGlobalInst, StoreGlobalInst, LoadSharedInst, StoreSharedInst
-from tilus.ir.layouts import Layout
+from tilus.ir.layout import Layout
 from tilus.ir.value import RegisterValue
 from tilus.ir.value import SharedLayout
 from tilus.target import gpgpu_any, nvgpu_any, amdgpu_any
@@ -163,9 +163,6 @@ class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
         raise NotImplementedError()
 
     def emit(self, inst: Union[LoadGlobalInst, LoadSharedInst]):
-        self.analyze_vectorization(inst)
-        assert self.vectorize_dimension is not None and self.vector_bytes is not None
-
         # create the output var to store the loaded elements
         output: RegisterValue = inst.register_output
         dtype: DataType = output.dtype
@@ -180,7 +177,9 @@ class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
             condition = self.current_worker < layout.num_workers
 
         with self.if_then(condition):
+            self.analyze_vectorization(inst)
             if self.vectorize_dimension is not None:
+                assert self.vector_bytes is not None
                 # vectorized loading.
                 total_nbytes = layout.local_size * dtype.nbits // 8
                 with self.for_range(extent=total_nbytes // self.vector_bytes) as vec_i:
@@ -286,9 +285,6 @@ class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
         raise NotImplementedError()
 
     def emit(self, inst: Union[StoreSharedInst, StoreGlobalInst]):
-        self.analyze_vectorization(inst)
-        assert self.vectorize_dimension is not None and self.vector_bytes is not None
-
         # get the register value and its corresponding lowered variable to write
         value: RegisterValue
         if isinstance(inst, StoreSharedInst):
@@ -309,7 +305,9 @@ class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
 
         with self.if_then(condition):
             # check if we can use vectorized store
+            self.analyze_vectorization(inst)
             if self.vectorize_dimension is not None:
+                assert self.vectorize_dimension is not None and self.vector_bytes is not None
                 # vectorized store
                 total_nbytes = layout.local_size * value.dtype.nbits // 8
                 assert total_nbytes % self.vector_bytes == 0

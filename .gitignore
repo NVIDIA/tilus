@@ -43,5 +43,6 @@ Thumbs.db
 
 # tilus cache
 /.cache
+/.test_cache
 
 /experiments

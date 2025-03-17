@@ -1,5 +1,4 @@
-from typing import List, Dict, Optional, Type
-import warnings
+from typing import List, Optional, Type
 from hidet.ir.dtypes import int32, boolean
 from hidet.ir.expr import Expr, cast, logical_and
 
@@ -23,12 +22,14 @@ from tilus.ir.inst import (
 from tilus.ir.stmt import SeqStmt, ForStmt, InstructionStmt, seq_stmt
 from tilus.transforms.base import Pass
 
+from hidet.ir.primitives import blockIdx
+
 
 class InjectPrintInstructionRewriter(IRRewriter):
-    def __init__(self, block_to_print: Optional[Dict[str, int]], instructions_to_print: Optional[List[str]]):
+    def __init__(self, block_to_print: tuple[int, int, int], instructions_to_print: Optional[List[str]]):
         super().__init__()
         self.vm_printer = IRRewriter()
-        self.block_to_print: Optional[Dict[str, int]] = block_to_print
+        self.block_to_print: tuple[int, int, int] = block_to_print
         self.instructions_to_print: Optional[List[Type[Instruction]]] = None
         self.cond: Expr = boolean.true
 
@@ -43,25 +44,17 @@ class InjectPrintInstructionRewriter(IRRewriter):
             self.instructions_to_print = None
 
     def visit_Function(self, func: Function):
-        self.cond = boolean.true
-        block_to_print = self.block_to_print.copy() if self.block_to_print else {}
-        block_printed = {}
-        for axis in func.block_mapping.virtual_axes_values.keys():
-            assert axis.hint is not None
-            if block_to_print and axis.hint in block_to_print:
-                val = int32(block_to_print[axis.hint])
-                block_printed[axis.hint] = val
-                del block_to_print[axis.hint]
-            else:
-                val = int32.zero
-                block_printed[axis.hint] = 0
-            self.cond = logical_and(self.cond, axis == val)
-        if block_to_print:
-            warnings.warn("Some block axes are specified but not used by the vm: {}".format(block_to_print))
+        self.cond = logical_and(
+            blockIdx.x == self.block_to_print[0],  # type: ignore[attr-defined]
+            blockIdx.y == self.block_to_print[1],  # type: ignore[attr-defined]
+            blockIdx.z == self.block_to_print[2],  # type: ignore[attr-defined]
+        )
 
         prog_text = str(self.vm_printer(func))
         func = super().visit_Function(func)
-        text = "Virtual Machine Program:\n{}\nPrint for {}\n".format(prog_text, str(block_printed)).replace("\n", "\\n")
+        text = "Virtual Machine Program:\n{}\nPrint for {}\n".format(prog_text, str(self.block_to_print)).replace(
+            "\n", "\\n"
+        )
         func.body = SeqStmt(
             [
                 InstructionStmt(FormatPrintInst(cond=self.cond, fstring="%s", expressions=[convert_to_expr(text)])),
@@ -155,9 +148,9 @@ class InjectPrintInstructionRewriter(IRRewriter):
 
 
 class InjectPrintInstructionPass(Pass):
-    def __init__(self, block_to_print: Optional[Dict[str, int]], instructions_to_print: Optional[List[str]]):
+    def __init__(self, block_to_print: tuple[int, int, int], instructions_to_print: Optional[List[str]]):
         super().__init__()
-        self.block_to_print: Optional[Dict[str, int]] = block_to_print
+        self.block_to_print: tuple[int, int, int] = block_to_print
         self.instructions_to_print: Optional[List[str]] = instructions_to_print
 
     def __call__(self, prog: Function) -> Function:
@@ -166,6 +159,6 @@ class InjectPrintInstructionPass(Pass):
 
 
 def inject_print_instruction_pass(
-    block_to_print: Optional[Dict[str, int]], instructions_to_print: Optional[List[str]]
+    block_to_print: tuple[int, int, int], instructions_to_print: Optional[List[str]]
 ) -> Pass:
     return InjectPrintInstructionPass(block_to_print=block_to_print, instructions_to_print=instructions_to_print)

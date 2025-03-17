@@ -704,7 +704,7 @@ def greedy_decompose(
     Returns
     -------
     layout_lhs, layout_rhs: Tuple[Layout, Layout]
-        The decomposed layouts such that layout = layout_lhs * layout_rhs.
+        The decomposed layout such that layout = layout_lhs * layout_rhs.
     """
     chain = get_composition_chain(layout, fine_grained=True)
     rhs_chain = []

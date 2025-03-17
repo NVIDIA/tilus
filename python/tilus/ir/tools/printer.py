@@ -2,17 +2,10 @@ from typing import List, Tuple, Dict, Union, Set, Any
 
 from hidet.ir import BaseType
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
-from hidet.ir.expr import Expr, Var
-from tilus.ir.layouts import Layout
-from tilus.ir.func import Function, BlockMapping
+from hidet.ir.expr import Expr
+from tilus.ir.layout import Layout
+from tilus.ir.func import Function
 from tilus.ir.prog import Program
-from tilus.ir.weight_transform import (
-    WeightTransform,
-    WeightLayoutTransformGeneric,
-    WeightValueTransform,
-    WeightLayoutTransform,
-)
-from tilus.ir.weight_transform import IndexSymbolicMapping, ValueSymbolicMapping
 from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt
 from tilus.ir.inst import Instruction
 from tilus.ir.value import Value, RegisterValue, SharedValue, ScalarValue, SharedLayout
@@ -93,63 +86,6 @@ class IRPrinter(IRFunctor):
     def visit_BaseType(self, tp: BaseType):
         return self.printer(tp)
 
-    def visit_IndexSymbolicMapping(self, m: IndexSymbolicMapping):
-        return doc_join_lines(
-            seq=["axis=" + self.visit(m.axis), "index=" + self.visit(m.index)], left="index_mapping(", right=")"
-        )
-
-    def visit_ValueSymbolicMapping(self, m: ValueSymbolicMapping):
-        return doc_join_lines(
-            seq=["x=" + self.visit(m.x), "value=" + self.visit(m.value)], left="value_mapping(", right=")"
-        )
-
-    def visit_WeightTransform(self, wt: WeightTransform):
-        if isinstance(wt, WeightLayoutTransform):
-            return doc_join_lines(
-                seq=[
-                    "dtype=" + self.visit(wt.dtype),
-                    "shape=[" + self.visit(wt.shape) + "]",
-                    "tile_shape=[" + self.visit(wt.tile_shape) + "]",
-                    "original_layout=" + self.visit(str(wt.original_layout)),
-                    "transformed_dtype=" + self.visit(wt.transformed_dtype),
-                    "transformed_layout=" + self.visit(str(wt.transformed_layout)),
-                ],
-                left="layout_transform(",
-                right=")",
-            )
-        elif isinstance(wt, WeightLayoutTransformGeneric):
-            return doc_join_lines(
-                seq=[
-                    "dtype=" + self.visit(wt.dtype),
-                    "size=" + self.visit(wt.size),
-                    "mapping=" + self.visit_IndexSymbolicMapping(wt.mapping),
-                    "reverse_mapping=" + self.visit_IndexSymbolicMapping(wt.reverse_mapping),
-                ],
-                left="layout_transform_generic(",
-                right=")",
-            )
-        elif isinstance(wt, WeightValueTransform):
-            return doc_join_lines(
-                seq=[
-                    "dtype=" + self.visit(wt.dtype),
-                    "mapping=" + self.visit_ValueSymbolicMapping(wt.mapping),
-                    "reverse_mapping=" + self.visit_ValueSymbolicMapping(wt.reverse_mapping),
-                ],
-                left="value_transform(",
-                right=")",
-            )
-        else:
-            raise NotImplementedError()
-
-    def visit_BlockMapping(self, m: BlockMapping):
-        items = [
-            "hardware_axes=[{}]".format(self.visit(m.hardware_axes)),
-            "hardware_num_blocks=[{}]".format(self.visit(m.hardware_num_blocks)),
-            "predicate={}".format(self.visit(m.predicate)),
-            "virtual_axes_values=[{}]".format(self.visit(m.virtual_axes_values)),
-        ]
-        return doc_join_lines(items, left="block_mapping(", right=")")
-
     def visit_Program(self, prog: Program):
         doc = Doc()
 
@@ -167,31 +103,32 @@ class IRPrinter(IRFunctor):
         )
 
         # attr doc
+        num_blocks_doc = Text("num_blocks = ") + self.visit(func.num_blocks)
         num_warps_doc = Text("num_warps = ") + self.visit(func.num_warps)
 
         # block mapping doc
-        block_mapping_doc = self.visit(func.block_mapping)
+        # block_mapping_doc = self.visit(func.block_mapping)
 
         # weight transform doc
-        weight_transform_doc = doc_join_lines(
-            seq=[
-                doc_join_lines(
-                    seq=[self.visit(transform) for transform in transforms], left=self.visit(param) + ": [", right="]"
-                )
-                for param, transforms in func.weight_transforms.items()
-                if len(transforms) > 0
-            ],
-            left="weight_transforms = {",
-            right="}",
-        )
+        # weight_transform_doc = doc_join_lines(
+        #     seq=[
+        #         doc_join_lines(
+        #             seq=[self.visit(transform) for transform in transforms], left=self.visit(param) + ": [", right="]"
+        #         )
+        #         for param, transforms in func.weight_transforms.items()
+        #         if len(transforms) > 0
+        #     ],
+        #     left="weight_transforms = {",
+        #     right="}",
+        # )
 
         # divisibility doc
-        divisibility: Dict[Var, int] = func.var2divisibility
-        divisibility_doc = doc_join_lines(
-            seq=[self.visit(var) + ": " + str(divisibility[var]) for var in divisibility],
-            left="divisibility = {",
-            right="}",
-        )
+        # divisibility: Dict[Var, int] = func.var2divisibility
+        # divisibility_doc = doc_join_lines(
+        #     seq=[self.visit(var) + ": " + str(divisibility[var]) for var in divisibility],
+        #     left="divisibility = {",
+        #     right="}",
+        # )
 
         # body doc
         body_doc = self.visit(func.body)
@@ -205,7 +142,15 @@ class IRPrinter(IRFunctor):
 
         # attributes parts
         attributes_doc = doc_comment(
-            doc_join([num_warps_doc, block_mapping_doc, weight_transform_doc, divisibility_doc], NewLine()),
+            doc_join(
+                [
+                    num_blocks_doc,
+                    num_warps_doc,
+                    # weight_transform_doc,
+                    # divisibility_doc
+                ],
+                NewLine(),
+            ),
             comment_string="# ",
         )
 
@@ -270,7 +215,8 @@ class IRPrinter(IRFunctor):
         doc = Doc()
         if inst.has_output():
             doc += self.visit(inst.output) + " = "
-        doc += inst.__class__.__name__ + "("
+        inst_name = inst.__class__.__name__.removesuffix("Inst")
+        doc += inst_name + "("
 
         items = []
         if len(inst.inputs):

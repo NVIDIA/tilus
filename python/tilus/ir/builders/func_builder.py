@@ -1,65 +1,10 @@
 from typing import List, Union, Optional, Dict, Sequence
 from hidet.ir.type import BaseType
 from hidet.ir.expr import Expr, Var
-from hidet.ir.dtypes import int32, boolean
-from hidet.ir.primitives.cuda import blockIdx
-from tilus.ir.func import Function, BlockMapping, WeightTransform, ParamAttrs
+from hidet.ir.dtypes import int32
+from tilus.ir.func import Function, ParamAttrs
 from tilus.ir.stmt import SeqStmt
 from tilus.ir.builders.stmt_builder import StatementBuilder
-
-
-def _create_default_mapping(
-    block_axes: List[Var],
-    axis2size: Dict[Var, Expr],
-):
-    # perform mapping
-    logical2hardware: Dict[Var, Var] = {}
-    hardware_axes = [blockIdx.x, blockIdx.y, blockIdx.z]
-
-    if len(block_axes) == 0:
-        pass
-    elif len(block_axes) == 1:
-        logical2hardware[block_axes[0]] = blockIdx.x
-    elif len(block_axes) == 2:
-        logical2hardware[block_axes[0]] = blockIdx.y
-        logical2hardware[block_axes[1]] = blockIdx.x
-    elif len(block_axes) == 3:
-        logical2hardware[block_axes[0]] = blockIdx.z
-        logical2hardware[block_axes[1]] = blockIdx.y
-        logical2hardware[block_axes[2]] = blockIdx.x
-    else:
-        for axis in block_axes[:-3]:
-            logical2hardware[axis] = blockIdx.z
-        logical2hardware[block_axes[-3]] = blockIdx.z
-        logical2hardware[block_axes[-2]] = blockIdx.y
-        logical2hardware[block_axes[-1]] = blockIdx.x
-
-    # get the logical axis expressions of hardware axes
-    hardware_axes_size = {axis: int32.one for axis in hardware_axes}
-    for axis in block_axes:
-        hardware_axis = logical2hardware[axis]
-        hardware_axes_size[hardware_axis] = hardware_axes_size[hardware_axis] * axis2size[axis]
-
-    # get the mapping from logical axis to the expression of hardware axes
-    virtual_axes_values = {}
-    hardware_axis_divisor = {blockIdx.x: 1, blockIdx.y: 1, blockIdx.z: 1}
-
-    last_virtual_axis: Dict[Var, Var] = {}
-    for axis, hardware_axis in logical2hardware.items():
-        last_virtual_axis[hardware_axis] = axis
-
-    for axis, hardware_axis in logical2hardware.items():
-        virtual_axes_values[axis] = hardware_axis // hardware_axis_divisor[hardware_axis]
-        if axis is not last_virtual_axis[hardware_axis]:
-            virtual_axes_values[axis] = virtual_axes_values[axis] % axis2size[axis]
-        hardware_axis_divisor[hardware_axis] = hardware_axis_divisor[hardware_axis] * axis2size[axis]
-
-    return BlockMapping(
-        hardware_axes=hardware_axes,
-        hardware_num_blocks=[hardware_axes_size[axis] for axis in hardware_axes],
-        predicate=boolean.true,
-        virtual_axes_values=virtual_axes_values,
-    )
 
 
 class FunctionBuilder(StatementBuilder):
@@ -83,18 +28,13 @@ class FunctionBuilder(StatementBuilder):
                 return
 
             assert len(self.builder._stack) == 1, len(self.builder._stack)
-            axis2size = {a: b for a, b in zip(self.builder._block_axes, self.builder._num_blocks)}
             built_function = Function(
                 name=self.builder._name,
                 params=self.builder._params,
                 param2attrs=self.builder._param2attrs,
                 num_warps=self.builder._num_warps,
-                block_axes=self.builder._block_axes,
                 num_blocks=self.builder._num_blocks,
                 body=SeqStmt(self.builder._stack.pop()),
-                block_mapping=_create_default_mapping(self.builder._block_axes, axis2size),
-                weight_transforms=self.builder._weight_transforms,
-                var2divisibility=self.builder._var2divisibility,
                 annotations={},
             )
             self.builder._on_finish(built_function)
@@ -106,7 +46,6 @@ class FunctionBuilder(StatementBuilder):
         self._params: List[Var] = []
         self._block_axes: List[Var] = []
         self._num_blocks: List[Expr] = []
-        self._weight_transforms: Dict[Var, List[WeightTransform]] = {}
         self._param2attrs: Dict[Var, ParamAttrs] = {}
         self._var2divisibility: Dict[Var, int] = {}
 
@@ -135,13 +74,6 @@ class FunctionBuilder(StatementBuilder):
 
     def annotate_divisibility(self, var2divisibility: Dict[Var, int]):
         self._var2divisibility.update(var2divisibility)
-
-    def append_weight_transform(self, param: Var, weight_transform: WeightTransform):
-        if param not in self._params:
-            raise ValueError(f"Parameter {param} is not defined")
-        if param not in self._weight_transforms:
-            self._weight_transforms[param] = []
-        self._weight_transforms[param].append(weight_transform)
 
     def set_weight_nbytes(self, param: Var, nbytes: int):
         if param not in self._params:

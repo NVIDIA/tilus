@@ -1,7 +1,6 @@
 from typing import List, Dict, Optional, Any
 from hidet.ir.expr import Var, Expr
 from tilus.ir.stmt import Stmt
-from tilus.ir.weight_transform import WeightTransform
 
 
 class ParamAttrs:
@@ -37,25 +36,6 @@ class ParamAttrs:
         return self.upper is not None or self.lower is not None or self.divisibility is not None or self.is_weight
 
 
-class BlockMapping:
-    def __init__(
-        self,
-        hardware_axes: List[Var],
-        hardware_num_blocks: List[Expr],
-        predicate: Expr,
-        virtual_axes_values: Dict[Var, Expr],
-    ):
-        # the hardware block axes
-        self.hardware_axes: List[Var] = hardware_axes
-        # the extent of each hardware axis
-        self.hardware_num_blocks: List[Expr] = hardware_num_blocks
-        # whether the given hardware block axes should participate the computation
-        self.predicate: Expr = predicate
-        # when predicate evaluates to True, how each virtual axis (block axes and inter block reduce axes) are
-        # calculated given the hardware axes
-        self.virtual_axes_values: Dict[Var, Expr] = virtual_axes_values
-
-
 class Function:
     def __init__(
         self,
@@ -63,29 +43,19 @@ class Function:
         params: List[Var],
         param2attrs: Dict[Var, ParamAttrs],
         num_warps: int,
-        block_axes: List[Var],
         num_blocks: List[Expr],
         body: Stmt,
-        block_mapping: BlockMapping,
-        weight_transforms: Optional[Dict[Var, List[WeightTransform]]],
-        var2divisibility: Optional[Dict[Var, int]],
         annotations: Optional[Dict[str, str]],
     ):
         self.name: str = name
         self.params: List[Var] = params
         self.param2attrs: Dict[Var, ParamAttrs] = param2attrs
         self.num_warps: int = num_warps
-        self.block_axes: List[Var] = block_axes
         self.num_blocks: List[Expr] = num_blocks
         self.body: Stmt = body
-        self.block_mapping: BlockMapping = block_mapping
-        self.weight_transforms: Dict[Var, List[WeightTransform]] = weight_transforms if weight_transforms else {}
-        self.var2divisibility: Dict[Var, int] = (
-            var2divisibility.copy() if var2divisibility else {}
-        )  # todo: make compiler analyze this
         self.annotations: Dict[str, Any] = annotations.copy() if annotations else {}
+        self.var2divisibility: Dict[Var, int] = {}
 
-        assert block_mapping is not None
         assert all(isinstance(v, Expr) for v in num_blocks)
 
     def __str__(self):

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Optional, Dict, List, Tuple, Type, Set
 
 from hidet.ir.dtypes import int32, uint8
-from hidet.ir.expr import Var, SymbolVar, Expr, cast, logical_not, Constant, tensor_var
+from hidet.ir.expr import Var, SymbolVar, Expr, cast, Constant, tensor_var
 from hidet.ir.stmt import DeclareScope
 from hidet.ir.module import IRModule
 from hidet.ir.func import Function as HidetFunction
@@ -302,10 +302,11 @@ class Codegen(IRFunctor):
             )
 
     def init_block_axes(self):
-        with self.builder.if_then(logical_not(self._program.block_mapping.predicate)):
-            self.builder.ret()
-        for axis, value in self._program.block_mapping.virtual_axes_values.items():
-            self.builder.declare(v=axis, init=value)
+        # with self.builder.if_then(logical_not(self._program.block_mapping.predicate)):
+        #     self.builder.ret()
+        # for axis, value in self._program.block_mapping.virtual_axes_values.items():
+        #     self.builder.declare(v=axis, init=value)
+        pass
 
     def init_smem_workspace(self, program: Function):
         smem_workspace_nbytes: int = 0
@@ -368,7 +369,13 @@ class Codegen(IRFunctor):
             )
 
         launch_func.body = SeqStmt([sb.finish(), launch_func.body])
-        return ir_module
+        updated_ir_module = IRModule(
+            functions={
+                launch_func.name: launch_func,
+                kernel_func.name: kernel_func,
+            },
+        )
+        return updated_ir_module
 
     def visit_Function(self, func: Function):
         # warmup printer
@@ -382,7 +389,7 @@ class Codegen(IRFunctor):
             name=func.name + "_kernel",
             kind="cuda_kernel" if is_nvgpu() else "hip_kernel",
             label="",
-            grid_dim=self._program.block_mapping.hardware_num_blocks,
+            grid_dim=self._program.num_blocks,
             block_dim=func.num_warps * 32,
             dynamic_smem_bytes=None,
             min_blocks=None,

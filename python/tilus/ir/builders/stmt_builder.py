@@ -12,7 +12,7 @@ from tilus.ir.inst import Instruction
 from tilus.ir.inst import LoadScalarInst, StoreScalarInst, ExitInst, ElementwiseBinaryInst, AllocateScalarInst
 from tilus.ir.inst import StoreSharedInst, LoadSharedInst, StoreGlobalInst, FreeSharedInst, LoadGlobalInst
 from tilus.ir.inst import SyncReduceThreadsInst, AssignScalarInst, AssignInst, ViewSharedInst, CopyAsyncInst
-from tilus.ir.layouts import Layout
+from tilus.ir.layout import Layout
 from tilus.ir.stmt import Stmt, ForStmt, SeqStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt
 from tilus.ir.value import RegisterValue, SharedValue, SharedLayout
 

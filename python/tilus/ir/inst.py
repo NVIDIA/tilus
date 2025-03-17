@@ -6,7 +6,7 @@ from hidet.ir.type import DataType, BaseType, PointerType
 from hidet.ir.dtypes import bf16, f16, f32, i32, i8, boolean
 from hidet.utils.py import is_power_of_two, prod
 from tilus.extensions.hidet.ir.expr import index_vars, convert_to_expr
-from tilus.ir.layouts import Layout, spatial, repeat, column_repeat, column_spatial
+from tilus.ir.layout import Layout, spatial, repeat, column_repeat, column_spatial
 from tilus.ir.value import Value, RegisterValue, SharedValue, SharedLayout
 
 

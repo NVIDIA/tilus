@@ -40,5 +40,6 @@ runs:
         cd ..
 
         # Install the package
+        pip uninstall -y hidet
         pip install -e .
       shell: bash

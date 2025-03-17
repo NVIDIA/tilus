@@ -6,11 +6,6 @@ inputs:
     required: false
     default: "."
 
-outputs:
-  wheel-path:
-    description: "Path to the built wheel file"
-    value: ${{ steps.build.outputs.wheel-path }}
-
 runs:
   using: "composite"
   steps:
@@ -27,4 +22,14 @@ runs:
         export WHEEL_PATH=$(ls ${{ inputs.package-path }}/dist/*.whl)
         echo "Build wheel saved at $WHEEL_PATH"
         echo "wheel-path=${WHEEL_PATH}" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Verify Built Wheel
+      run: ls -lh dist/
+      shell: bash
+
+    - name: Install Tilus with Dev Dependencies
+      run: |
+        pip uninstall -y tilus # for self-hosted runners, the package in previous jobs may be installed
+        pip install ${{ steps.build.outputs.wheel-path }}[dev]
       shell: bash

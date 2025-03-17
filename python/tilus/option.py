@@ -69,16 +69,16 @@ def get_option(name: str) -> Any:
     return _get_hidet_option("tilus." + name)
 
 
-def cache_dir(dir_path: str) -> None:
+def cache_dir(dir_path: str | Path) -> None:
     """
     Set the cache directory for the compiled programs.
 
     Parameters
     ----------
-    dir_path: str
+    dir_path: str or Path
         The path to the cache directory.
     """
-    _set_hidet_option("tilus.cache_dir", dir_path)
+    _set_hidet_option("tilus.cache_dir", str(dir_path))
 
 
 class debug:

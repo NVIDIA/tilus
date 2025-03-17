@@ -22,22 +22,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Install Hidet Package
+      - name: Install Hidet
         uses: ./.github/actions/install-hidet
         with:
           hidet-access-token: ${{ secrets.CENTML_HIDET_ACCESS }}
 
-      - name: Build Tilus Wheel
-        id: build-wheel
-        uses: ./.github/actions/build-wheel
+      - name: Install Tilus
+        id: install-tilus
+        uses: ./.github/actions/install-tilus
         with:
           package-path: "."
-
-      - name: Verify Built Wheel
-        run: ls -lh dist/
-
-      - name: Install Tilus with Dev Dependencies
-        run: pip install ${{ steps.build-wheel.outputs.wheel-path }}[dev]
 
       - name: Check format and lint
         run: |

@@ -1,10 +1,9 @@
 from typing import List, Tuple, Dict, Union
 from hidet.ir.type import BaseType
 from hidet.ir.expr import Expr
-from tilus.ir.layouts import Layout
+from tilus.ir.layout import Layout
 from tilus.ir.prog import Program
-from tilus.ir.func import Function, BlockMapping
-from tilus.ir.weight_transform import WeightTransform
+from tilus.ir.func import Function
 from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt
 from tilus.ir.value import Value, ScalarValue, RegisterValue, SharedValue, SharedLayout
 from tilus.ir.inst import (
@@ -68,11 +67,6 @@ class IRFunctor:
             ret = self.visit_Program(node)
         elif isinstance(node, Function):
             ret = self.visit_Function(node)
-        # program aux
-        elif isinstance(node, BlockMapping):
-            ret = self.visit_BlockMapping(node)
-        elif isinstance(node, WeightTransform):
-            ret = self.visit_WeightTransform(node)
         # statements
         elif isinstance(node, InstructionStmt):
             ret = self.visit_InstructionStmt(node)
@@ -153,12 +147,6 @@ class IRFunctor:
         raise NotImplementedError()
 
     def visit_Function(self, func: Function):
-        raise NotImplementedError()
-
-    def visit_BlockMapping(self, node: BlockMapping):
-        raise NotImplementedError()
-
-    def visit_WeightTransform(self, node: WeightTransform):
         raise NotImplementedError()
 
     # statements
@@ -346,9 +334,18 @@ class IRRewriter(IRFunctor):
 
     def visit_Function(self, func: Function):
         body = self.visit(func.body)
-        block_mapping = self.visit(func.block_mapping)
-        weight_transforms = self.visit(func.weight_transforms)
-        if same_list([body, block_mapping, weight_transforms], [func.body, func.block_mapping, func.weight_transforms]):
+        # block_mapping = self.visit(func.block_mapping)
+        # weight_transforms = self.visit(func.weight_transforms)
+        if same_list(
+            [
+                body,
+                # block_mapping, weight_transforms
+            ],
+            [
+                func.body,
+                # func.block_mapping, func.weight_transforms
+            ],
+        ):
             return func
         else:
             return Function(
@@ -356,30 +353,14 @@ class IRRewriter(IRFunctor):
                 params=func.params,
                 param2attrs=func.param2attrs,
                 num_warps=func.num_warps,
-                block_axes=func.block_axes,
+                # block_axes=func.block_axes,
                 num_blocks=func.num_blocks,
                 body=body,
-                block_mapping=block_mapping,
-                weight_transforms=weight_transforms,
-                var2divisibility=func.var2divisibility,
+                # block_mapping=block_mapping,
+                # weight_transforms=weight_transforms,
+                # var2divisibility=func.var2divisibility,
                 annotations=func.annotations,
             )
-
-    def visit_BlockMapping(self, node: BlockMapping):
-        hardware_axes = node.hardware_axes
-        hardware_num_blocks = self.visit(node.hardware_num_blocks)
-        predicate = self.visit(node.predicate)
-        virtual_axes_values = self.visit(node.virtual_axes_values)
-        if same_list(
-            [hardware_axes, hardware_num_blocks, predicate, virtual_axes_values],
-            [node.hardware_axes, node.hardware_num_blocks, node.predicate, node.virtual_axes_values],
-        ):
-            return node
-        else:
-            return BlockMapping(hardware_axes, hardware_num_blocks, predicate, virtual_axes_values)
-
-    def visit_WeightTransform(self, node: WeightTransform):
-        return node
 
     def visit_InstructionStmt(self, stmt: InstructionStmt):
         inst = self.visit(stmt.inst)
@@ -579,15 +560,6 @@ class IRVisitor(IRFunctor):
 
     def visit_Function(self, func: Function):
         self.visit(func.body)
-
-    def visit_BlockMapping(self, node: BlockMapping):
-        self.visit(node.hardware_axes)
-        self.visit(node.hardware_num_blocks)
-        self.visit(node.predicate)
-        self.visit(node.virtual_axes_values)
-
-    def visit_WeightTransform(self, node: WeightTransform):
-        pass
 
     def visit_InstructionStmt(self, stmt: InstructionStmt):
         self.visit(stmt.inst)

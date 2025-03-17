@@ -44,7 +44,7 @@ def optimize_program(program: Program, cache_dir: Path) -> Program:
         return apply_transforms(program, transforms)
 
 
-def optimize_ir_module(ir_module: IRModule) -> IRModule:
+def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     """
     Optimize the low-level IR module with a predefined set of transformations.
 
@@ -53,14 +53,24 @@ def optimize_ir_module(ir_module: IRModule) -> IRModule:
     ir_module: IRModule
         The low-level IR module to optimize.
 
+    cache_dir: Path
+        The directory to store the cache of the current program. Used to store the IR when debug.dump_ir is set to True.
+
     Returns
     -------
     optimized_ir_module: IRModule
         The optimized low-level IR module.
     """
-    from hidet.transforms import lower
+    from tilus.extensions.hidet.transforms import PassContext, PassInstrument, SaveIRInstrument, ProfileInstrument
+    from tilus.extensions.hidet.transforms import lower_with, common_transforms
 
-    return lower(ir_module)
+    instruments: list[PassInstrument] = []
+    if tilus.option.get_option("debug.dump_ir"):
+        instruments.append(SaveIRInstrument(str(cache_dir / "module" / "ir")))
+        instruments.append(ProfileInstrument(str(cache_dir / "module" / "ir" / "lower_time.txt")))
+
+    with PassContext(instruments):
+        return lower_with(ir_module, common_transforms)
 
 
 def _resolve_cache_dir(prog: Program) -> Path:
@@ -83,7 +93,7 @@ def _resolve_cache_dir(prog: Program) -> Path:
     printer = IRPrinter()
     prog_text: str = str(printer(prog))
     hex_digest: str = hashlib.sha256(prog_text.encode()).hexdigest()[:12]
-    cache_dir: Path = Path(tilus.option.get_option("cache_dir")) / hex_digest
+    cache_dir: Path = Path(tilus.option.get_option("cache_dir")) / "programs" / hex_digest
     program_path: Path = cache_dir / "program.txt"
 
     if program_path.exists():
@@ -137,7 +147,7 @@ def build_program(prog: Program) -> CompiledModule:
         ir_module: IRModule = generate_ir_module(prog)
 
         # 3. optimize the low-level IR
-        ir_module = optimize_ir_module(ir_module)
+        ir_module = optimize_ir_module(ir_module, cache_dir)
 
         # 4. generate the low-level code (CUDA C)
         src_path = module_dir / "source.cu"
