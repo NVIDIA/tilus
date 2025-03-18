@@ -1,3 +1,4 @@
+from typing import no_type_check
 from hidet.ir.func import Function
 from hidet.ir.primitives.func import register_primitive_function, call_primitive_func
 from hidet.utils import initialize
@@ -7,6 +8,7 @@ from hidet.utils import initialize
 def register_functions():
     from hidet.lang import attrs, script, asm  # pylint: disable=import-outside-toplevel
 
+    @no_type_check
     @script
     def exit_primitive():
         attrs.func_kind = "cuda_internal"

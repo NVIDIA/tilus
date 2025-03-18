@@ -1,5 +1,5 @@
 import dataclasses
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict, Union, Hashable
 from hidet.ir.type import BaseType
 from hidet.ir.expr import Expr
 from tilus.ir.layout import Layout
@@ -55,6 +55,7 @@ class IRFunctor:
         return self.visit(node)
 
     def visit(self, node):
+        key: Hashable
         if isinstance(node, (list, tuple, dict)):
             key = id(node)
         elif isinstance(node, (str, int, float, bool)):
@@ -133,7 +134,7 @@ class IRFunctor:
     def visit_dict(self, node: Dict):
         raise NotImplementedError()
 
-    def visit_PyConstant(self, node: Union[int, float, bool]):
+    def visit_PyConstant(self, node: Union[int, float, bool, str, None]):
         raise NotImplementedError()
 
     def visit_Expr(self, expr: Expr):
@@ -312,7 +313,7 @@ class IRRewriter(IRFunctor):
         else:
             return updated
 
-    def visit_PyConstant(self, node: Union[int, float, bool]):
+    def visit_PyConstant(self, node: Union[int, float, bool, str, None]):
         return node
 
     def visit_Expr(self, expr: Expr):
@@ -537,7 +538,7 @@ class IRVisitor(IRFunctor):
         for k, v in node.items():
             self.visit(v)
 
-    def visit_PyConstant(self, node: Union[int, float, bool]):
+    def visit_PyConstant(self, node: Union[int, float, bool, str, None]):
         pass
 
     def visit_Expr(self, expr: Expr):

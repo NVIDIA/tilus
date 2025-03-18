@@ -6,7 +6,8 @@ def test_program_builder():
     ib = IRBuilder()
 
     with ib.program():
-        with ib.function(name='hello', num_warps=1, params={'n': int32}) as n:
+        with ib.function(name="hello", num_warps=1, params={"n": int32}) as n:
+            ib.num_blocks = 1
             ib.printf("Hello, world!\n")
             ib.printf("n = %d\n", n)
 

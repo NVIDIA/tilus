@@ -13,7 +13,7 @@ class MemoryCopy(tilus.Script):
         self.block_size: int = num_warps * 32
         self.layout: Layout = spatial(num_warps * 32)
 
-    def kernel(self, n: int32, src_ptr: ~float32, dst_ptr: ~float32):
+    def kernel(self, n: int32, src_ptr: ~float32, dst_ptr: ~float32):  # type: ignore
         self.attrs.blocks = [cdiv(n, self.block_size) * self.block_size]
         self.attrs.warps = self.num_warps
 
@@ -24,13 +24,13 @@ class MemoryCopy(tilus.Script):
             layout=self.layout,
             ptr=src_ptr,
             f_offset=lambda indices: bi * self.block_size + indices[0],
-            f_mask=lambda indices: bi * self.block_size + indices[0] < n
+            f_mask=lambda indices: bi * self.block_size + indices[0] < n,
         )
         self.store_global(
             loaded_regs,
             ptr=dst_ptr,
             f_offset=lambda indices: bi * self.block_size + indices[0],
-            f_mask=lambda indices: bi * self.block_size + indices[0] < n
+            f_mask=lambda indices: bi * self.block_size + indices[0] < n,
         )
 
 
@@ -54,4 +54,3 @@ def test_tilus_script_with_copy_example():
     script.kernel(n, a, b)
 
     torch.testing.assert_close(a, b)
-

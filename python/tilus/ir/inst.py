@@ -7,21 +7,22 @@ from hidet.ir.type import DataType, BaseType, PointerType
 from hidet.ir.dtypes import bf16, f16, f32, i32, i8, boolean
 from tilus.extensions.hidet.ir.expr import index_vars, convert_to_expr
 from tilus.ir.layout import Layout, spatial, repeat, column_repeat, column_spatial
+from tilus.ir.node import IRNode
 from tilus.ir.value import Value, RegisterValue, SharedValue, SharedLayout
 
 
 @dataclass(frozen=True, eq=False)
-class Instruction:
+class Instruction(IRNode):
     output: Optional[Value]
     inputs: tuple[Value, ...]
 
-    def __str__(self):
-        items = []
-        if self.output is not None:
-            items.append(str(self.output))
-        items.extend([str(t) for t in self.inputs])
-        items.extend([f"{k}={v}" for k, v in self.attrs.items()])
-        return "{}({})".format(self.__class__.__name__, ",\n".join(items))
+    # def __str__(self):
+    #     items = []
+    #     if self.output is not None:
+    #         items.append(str(self.output))
+    #     items.extend([str(t) for t in self.inputs])
+    #     items.extend([f"{k}={v}" for k, v in self.attributes.items()])
+    #     return "{}({})".format(self.__class__.__name__, ",\n".join(items))
 
     @property
     def shared_output(self) -> SharedValue:

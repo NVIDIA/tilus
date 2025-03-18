@@ -2,7 +2,6 @@ from typing import List, Dict, Optional, Sequence
 
 from hidet.ir.dtypes import boolean, uint32, int32
 from hidet.ir.expr import Expr, Var, if_then_else, cast
-from hidet.ir.tools import rewrite
 from hidet.ir.type import DataType
 from hidet.ir.primitives.cuda.cp_async import cp_async_commit_group, cp_async_wait_group, cp_async_wait_all
 from hidet.ir.utils.index_transform import index_deserialize
@@ -10,6 +9,7 @@ from tilus.utils import prod
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
 from tilus.extensions.hidet.ir.dtypes import uint32x4, uint32x2
 from tilus.extensions.hidet.ir.primitives.cuda.cp_async import cp_async
+from tilus.extensions.hidet.ir.tools import rewrite
 from tilus.ir.inst import CopyAsyncInst, CopyAsyncCommitGroupInst, CopyAsyncWaitGroupInst, CopyAsyncWaitAllInst
 from tilus.ir.value import SharedValue, SharedLayout
 from tilus.target import nvgpu_sm80

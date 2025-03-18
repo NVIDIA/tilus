@@ -44,6 +44,7 @@ class BoundAwareSimplifyRewriter(IRRewriter):
             else:
                 self.bound[stmt.iter_var] = BoundInfo(value=0)
                 self.memo[stmt.iter_var] = int32.zero
+                assert self.simplifier.memo is not None
                 self.simplifier.memo[stmt.iter_var] = int32.zero
                 return self.visit(stmt.body)
         else:
@@ -81,6 +82,7 @@ class BoundAwareSimplifyRewriter(IRRewriter):
         if stmt.num_groups == 1:
             self.bound[stmt.iter_var] = BoundInfo(value=0)
             self.memo[stmt.iter_var] = int32.zero
+            assert self.simplifier.memo is not None
             self.simplifier.memo[stmt.iter_var] = int32.zero
             return self.visit(stmt.body)
         return super().visit_ForThreadGroupStmt(stmt)

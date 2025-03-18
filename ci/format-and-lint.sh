@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Define the target directory (relative to script location)
 TARGET_DIR=$(realpath "$SCRIPT_DIR/../python")
+TEST_DIR=$(realpath "$SCRIPT_DIR/../tests")
 
 # Ensure the target directory exists
 if [ ! -d "$TARGET_DIR" ]; then
@@ -16,15 +17,15 @@ if [ ! -d "$TARGET_DIR" ]; then
 fi
 
 # Run Ruff to format and fix issues
-echo "Running ruff to clean code in $TARGET_DIR..."
-ruff check --fix "$TARGET_DIR"
-ruff format "$TARGET_DIR"
+echo "Running ruff to clean code..."
+ruff check --fix "$TARGET_DIR" "$TEST_DIR"
+ruff format "$TARGET_DIR" "$TEST_DIR"
 
 echo "Ruff completed successfully."
 
 # Run Mypy for static type checking
-echo "Running mypy for type checking in $TARGET_DIR..."
-mypy "$TARGET_DIR"
+echo "Running mypy for type checking..."
+mypy "$TARGET_DIR" "$TEST_DIR"
 
 echo "mypy completed successfully."
 

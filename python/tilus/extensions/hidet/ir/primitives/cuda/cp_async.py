@@ -10,7 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # pylint: disable=line-too-long
-from typing import Optional
+from typing import Optional, no_type_check
 from hidet.utils import initialize
 from hidet.ir.type import void_p
 from hidet.ir.dtypes import int32
@@ -72,6 +72,7 @@ def register_cp_async():
 
                     func_name = "cuda_" + resolve_name_cp_async(False, cp_size, cache_level, evict, prefetch_bytes)
 
+                    @no_type_check
                     @script
                     def cuda_cp_async(generic_dst: void_p, src: void_p, src_size: i32):
                         attrs.func_name = func_name
@@ -84,6 +85,7 @@ def register_cp_async():
 
                     func_name = "cuda_" + resolve_name_cp_async(True, cp_size, cache_level, evict, prefetch_bytes)
 
+                    @no_type_check
                     @script
                     def cuda_cp_async(shared_dst: int32, src: void_p, src_size: i32):
                         attrs.func_name = func_name

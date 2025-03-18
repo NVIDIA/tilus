@@ -1,3 +1,4 @@
+from typing import no_type_check
 from hidet.ir.expr import Expr
 from hidet.ir.func import Function
 from hidet.ir.primitives.func import register_primitive_function, call_primitive_func
@@ -9,6 +10,7 @@ def register_functions():
     from hidet.lang import attrs, script, asm, cast  # pylint: disable=import-outside-toplevel
     from hidet.lang.types import uint32, void_p
 
+    @no_type_check
     @script
     def mul_f16x2_(d: void_p, a: uint32, b: uint32):
         attrs.func_kind = "cuda_internal"

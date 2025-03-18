@@ -46,6 +46,9 @@ class IfStmt(Stmt):
     then_body: Stmt
     else_body: Optional[Stmt]
 
+    def with_else_body(self, else_body: Stmt):
+        return IfStmt(self.cond, self.then_body, else_body)
+
 
 @dataclass(frozen=True, eq=False)
 class WhileStmt(Stmt):

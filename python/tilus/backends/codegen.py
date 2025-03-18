@@ -265,7 +265,7 @@ class Codegen(IRFunctor):
     def sync(self):
         from tilus.ir.inst import SyncThreadsInst
 
-        self.visit(SyncThreadsInst())
+        self.visit(SyncThreadsInst.create())
 
     def allocate_shared_value(self, value: SharedValue, nbytes: int):
         addr: int = self.smem_allocator.allocate(nbytes)

@@ -101,14 +101,25 @@ class ElseIfContext(StatementContext):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         body = self.pop()
-        if_stmt = self.innermost_stack[-1]
+        if_stmt = self.innermost_stack.pop()
         assert isinstance(if_stmt, IfStmt), "with vb.else_if() must be used after with vb.if_then() or vb.else_if()"
-        while if_stmt.else_body is not None:
-            assert isinstance(if_stmt.else_body, IfStmt), (
+        if_chain: List[IfStmt] = [if_stmt]
+        while if_chain[-1].else_body is not None:
+            else_body = if_chain[-1].else_body
+            assert isinstance(else_body, IfStmt), (
                 "with vb.else_if() must be used after with vb.if_then() or vb.else_if()"
             )
-            if_stmt = if_stmt.else_body
-        if_stmt.else_body = IfStmt(self.cond, then_body=body, else_body=None)
+            if_chain.append(else_body)
+        if_chain.append(IfStmt(self.cond, then_body=body, else_body=None))
+
+        # merge the if-chain
+        while len(if_chain) > 1:
+            # chain, a, b
+            b = if_chain.pop()
+            a = if_chain.pop()
+            if_chain.append(a.with_else_body(b))
+
+        self.append(if_chain[0])
 
 
 class OtherwiseContext(StatementContext):
@@ -122,12 +133,23 @@ class OtherwiseContext(StatementContext):
         else_body = self.pop()
         if_stmt = self.innermost_stack[-1]
         assert isinstance(if_stmt, IfStmt), "with vb.otherwise() must be used after with vb.if_then() or vb.else_if()"
-        while if_stmt.else_body is not None:
-            assert isinstance(if_stmt.else_body, IfStmt), (
+        if_chain: List[IfStmt] = [if_stmt]
+        while if_chain[-1].else_body is not None:
+            else_body = if_chain[-1].else_body
+            assert isinstance(else_body, IfStmt), (
                 "with vb.otherwise() must be used after with vb.if_then() or vb.else_if()"
             )
-            if_stmt = if_stmt.else_body
-        if_stmt.else_body = else_body
+            if_chain.append(else_body)
+        if_chain[-1] = if_chain[-1].with_else_body(else_body)
+
+        # merge the if-chain
+        while len(if_chain) > 1:
+            # chain, a, b
+            b = if_chain.pop()
+            a = if_chain.pop()
+            if_chain.append(a.with_else_body(b))
+
+        self.append(if_chain[0])
 
 
 class WhileContext(StatementContext):
@@ -442,7 +464,7 @@ class StatementBuilder(StatementBuilderCore):
     # control operations
 
     def syncthreads(self):
-        inst = SyncThreadsInst()
+        inst = SyncThreadsInst.create()
         self.append(inst)
 
     def syncthreads_and(self, cond: Union[Expr, bool]):
@@ -456,5 +478,5 @@ class StatementBuilder(StatementBuilderCore):
         return inst.var
 
     def exit(self):
-        inst = ExitInst()
+        inst = ExitInst.create()
         self.append(inst)

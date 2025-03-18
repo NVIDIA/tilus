@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 import tilus
 import hidet
+import tilus.utils
 
 
 def pytest_sessionstart(session):
@@ -20,8 +21,10 @@ def pytest_sessionstart(session):
     Called after the Session object has been created and before performing collection and entering the run test loop.
     """
     # set the cache directory to a subdirectory of the current directory
-    tilus.option.cache_dir(Path(tilus.option.get_option('cache_dir')) / '..' / '.test_cache')
-    print('Cache directory: {}'.format(hidet.option.get_cache_dir()))
+    tilus.option.cache_dir(Path(tilus.option.get_option("cache_dir")) / ".." / ".test_cache")
+    print("Cache directory: {}".format(hidet.option.get_cache_dir()))
+    tilus.utils.clear_cache()
+
 
 @pytest.fixture(autouse=True)
 def clear_before_test():
@@ -33,7 +36,7 @@ def clear_before_test():
 
     torch.cuda.empty_cache()
     if hidet.cuda.available():
-        hidet.runtime.storage.current_memory_pool('cuda').clear()
+        hidet.runtime.storage.current_memory_pool("cuda").clear()
     gc.collect()  # release resources with circular references but are unreachable
     yield
     # run after each test

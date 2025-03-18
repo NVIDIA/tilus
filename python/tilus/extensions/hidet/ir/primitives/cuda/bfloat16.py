@@ -1,3 +1,4 @@
+from typing import no_type_check
 from hidet.ir.expr import Expr
 from hidet.ir.stmt import BlackBoxStmt
 from hidet.ir.func import Function
@@ -12,6 +13,7 @@ def register_functions():
 
     template = r"__nv_bfloat162 out = __hmul2(*reinterpret_cast<__nv_bfloat162*>({}), *reinterpret_cast<const __nv_bfloat162*>({})); *reinterpret_cast<__nv_bfloat162*>({}) = out;"
 
+    @no_type_check
     @script
     def mul_bf16x2_(d: void_p, a: uint32, b: uint32):
         attrs.func_kind = "cuda_internal"

@@ -72,7 +72,7 @@ class IRPrinter(IRFunctor):
             items.append(key_doc + ": " + doc_strip_parentheses(value_doc))
         return doc_join(items, ", ")
 
-    def visit_PyConstant(self, node: Union[int, float, bool]) -> Doc:
+    def visit_PyConstant(self, node: Union[int, float, bool, str, None]) -> Doc:
         if isinstance(node, str):
             return Text(repr(node))
         else:

@@ -1,5 +1,7 @@
 from typing import List
 
+from typing_extensions import no_type_check
+
 from hidet.ir.expr import Expr
 from hidet.ir.primitives.cuda.funcs import call_cuda
 from hidet.ir.primitives.cuda.mma import MmaConfig, mma_configs
@@ -35,6 +37,7 @@ def register_mma_instructions():
         b_reg_p_type = meta.types([void_p for _ in range(config.b_regs)])
         c_reg_p_type = meta.types([void_p for _ in range(config.c_regs)])
 
+        @no_type_check
         @script
         def mma_sync_v2_primitive(a_reg_p: a_reg_p_type, b_reg_p: b_reg_p_type, c_reg_p: c_reg_p_type):
             attrs.func_name = func_name + "_v2"

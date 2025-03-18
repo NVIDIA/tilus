@@ -107,7 +107,7 @@ class Script(CompiledScript, ScriptTracer):
             for kernel in self._kernels:
                 transpiler = Transpiler()
                 functions[kernel] = transpiler.transpile(script=self, method=getattr(self.__class__, kernel))
-            self._program = Program(functions=functions)
+            self._program = Program.create(functions=functions)
 
         return self._program
 
@@ -133,10 +133,10 @@ class Script(CompiledScript, ScriptTracer):
         f_offset: Callable[[Sequence[Var]], Expr | int],
         f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
         out: Optional[RegisterValue] = None,
-    ) -> Optional[RegisterValue]:
+    ) -> RegisterValue:
         inst = LoadGlobalInst.create(dtype=dtype, layout=layout, ptr=ptr, f_offset=f_offset, f_mask=f_mask, out=out)
         self._append(inst)
-        return inst.register_output if out is None else None
+        return inst.register_output
 
     def store_global(
         self,

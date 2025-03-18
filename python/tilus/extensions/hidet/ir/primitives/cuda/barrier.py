@@ -1,5 +1,7 @@
 from typing import Optional, Union, List
 
+from typing_extensions import no_type_check
+
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr
 from hidet.ir.func import Function
@@ -19,6 +21,7 @@ def register_functions():
             if mode == "sync_all":
                 template = "barrier.sync{} %0;".format(".aligned" if aligned else "")
 
+                @no_type_check
                 @script
                 def barrier_func(barrier: int32):
                     attrs.func_kind = "cuda_internal"
@@ -29,6 +32,7 @@ def register_functions():
             else:
                 template = "barrier.sync{} %0, %1;".format(".aligned" if aligned else "")
 
+                @no_type_check
                 @script
                 def barrier_func(barrier: int32, count: int32):
                     attrs.func_kind = "cuda_internal"
