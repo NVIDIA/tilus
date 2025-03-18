@@ -20,7 +20,7 @@ from hidet.utils import initialize
 
 
 def resolve_load_inst_name(
-    bits: int, space: str, sync: Optional[str], nc_cache=False, vec=1, scope: Optional[str] = None
+    bits: int, space: str, sync: Optional[str], nc_cache: bool = False, vec: int = 1, scope: Optional[str] = None
 ) -> str:
     inst = "ld"
     if sync:
@@ -42,7 +42,9 @@ def resolve_load_inst_name(
     return inst
 
 
-def resolve_store_inst_name(bits: int, space: str, sync: Optional[str], vec=1, scope: Optional[str] = None) -> str:
+def resolve_store_inst_name(
+    bits: int, space: str, sync: Optional[str], vec: int = 1, scope: Optional[str] = None
+) -> str:
     inst = "st"
     if sync:
         if scope is None:
@@ -195,7 +197,15 @@ def resolve_pointed_dtype(addr: Expr) -> str:
     return dtype.name
 
 
-def load(dtype, addr: Expr, dst_addrs: List[Expr], space: str = "generic", sync=None, nc_cache=False, scope=None):
+def load(
+    dtype: str | DataType,
+    addr: Expr,
+    dst_addrs: List[Expr],
+    space: str = "generic",
+    sync: Optional[str] = None,
+    nc_cache: bool = False,
+    scope: Optional[str] = None,
+) -> Expr:
     """
     Load data from memory.
 
@@ -220,8 +230,8 @@ def load(dtype, addr: Expr, dst_addrs: List[Expr], space: str = "generic", sync=
     nc_cache: bool
         Whether to use non-coherent cache. This parameter is only valid when space is 'global'.
 
-    scope: str
-        The scope of the synchronization. Candidates: None, 'cta', 'gpu', 'sys'.
+    scope: str, optional
+        The scope of the synchronization. Candidates: None, 'cta', 'gpu', 'sys'. Default is None.
 
     Returns
     -------
@@ -236,8 +246,13 @@ def load(dtype, addr: Expr, dst_addrs: List[Expr], space: str = "generic", sync=
 
 
 def store(
-    dtype, addr: Expr, src_addrs: List[Expr], space: str = "generic", sync: Optional[str] = None, scope: str = "gpu"
-):
+    dtype: str | DataType,
+    addr: Expr,
+    src_addrs: List[Expr],
+    space: str = "generic",
+    sync: Optional[str] = None,
+    scope: str = "gpu",
+) -> Expr:
     """
     Store data to memory.
 

@@ -11,12 +11,14 @@
 # limitations under the License.
 from typing import List, Dict, Optional, Any, Sequence
 
-from hidet.ir.type import VoidType
-from hidet.ir.expr import Var
+from hidet.ir.type import VoidType, BaseType
+from hidet.ir.expr import Var, Expr
 from hidet.ir.func import Function
 from hidet.ir.stmt import Stmt
 
 from .stmt_builder import StmtBuilder
+
+OptionalDims = Optional[Sequence[int | Expr] | int | Expr]
 
 
 class FunctionBuilder(StmtBuilder):
@@ -25,13 +27,13 @@ class FunctionBuilder(StmtBuilder):
         name: str,
         kind: str,
         label: str = "",
-        ret_type=VoidType(),
-        grid_dim=None,
-        cluster_dim=None,
-        block_dim=None,
-        dynamic_smem_bytes=None,
-        min_blocks=None,
-        attrs=None,
+        ret_type: BaseType = VoidType(),
+        grid_dim: OptionalDims = None,
+        cluster_dim: OptionalDims = None,
+        block_dim: OptionalDims = None,
+        dynamic_smem_bytes: Optional[Expr | int] = None,
+        min_blocks: Optional[Expr | int] = None,
+        attrs: Optional[dict[str, Any]] = None,
     ):
         super().__init__()
         self.name = name
@@ -62,16 +64,16 @@ class FunctionBuilder(StmtBuilder):
         if exc_type is None:
             self.finish_func()
 
-    def extend_params(self, params: Sequence[Var]):
+    def extend_params(self, params: Sequence[Var]) -> None:
         self.params.extend(params)
 
-    def extend_attrs(self, new_attrs: Dict[str, object]):
+    def extend_attrs(self, new_attrs: Dict[str, object]) -> None:
         self.attrs.update(new_attrs)
 
-    def set_body(self, body: Stmt):
+    def set_body(self, body: Stmt) -> None:
         self.body = body
 
-    def finish_func(self):
+    def finish_func(self) -> None:
         # pylint: disable=import-outside-toplevel
         assert self.func is None
         if "label" not in self.attrs:

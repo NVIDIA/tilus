@@ -1,10 +1,11 @@
 from typing import List, Sequence, Union, Optional, cast as typing_cast
 from hidet.ir.expr import Expr
 from hidet.ir.dtypes import int32
+from tilus.extensions.hidet.ir.expr import as_expr
 
 
 def index_serialize(
-    indices: Sequence[Expr], shape: Sequence[Union[Expr, int]], ranks: Optional[Sequence[int]] = None
+    indices: Sequence[Expr | int], shape: Sequence[Union[Expr, int]], ranks: Optional[Sequence[int]] = None
 ) -> Expr:
     """
     Serialize the logical indices in a tensor with given shape to a linear index in linear memory space.
@@ -35,7 +36,7 @@ def index_serialize(
 
 
 def index_deserialize(
-    scalar_index: Expr, shape: Sequence[Union[Expr, int]], ranks: Optional[Sequence[int]] = None
+    scalar_index: Expr | int, shape: Sequence[Union[Expr, int]], ranks: Optional[Sequence[int]] = None
 ) -> List[Expr]:
     """
     reverse of index_serialize
@@ -53,10 +54,10 @@ def index_deserialize(
         extent = shape[dim]
         assert indices[dim] is None, f"index {dim} is already set"
 
-        index = scalar_index
+        index = as_expr(scalar_index)
 
         if rank != len(shape) - 1:
-            index = scalar_index // acc
+            index = as_expr(scalar_index) // acc
 
         if rank != 0:
             index = index % extent
@@ -69,31 +70,36 @@ def index_deserialize(
     return typing_cast(List[Expr], indices)
 
 
-def index_add(lhs_indices: Sequence[Union[Expr, int]], rhs_indices: Sequence[Union[Expr, int]]):
+def index_add(lhs_indices: Sequence[Union[Expr, int]], rhs_indices: Sequence[Union[Expr, int]]) -> List[Expr]:
     assert len(lhs_indices) == len(rhs_indices), "Expect both indices have the same length"
-    return [a + b for a, b in zip(lhs_indices, rhs_indices)]
+    return [as_expr(a) + as_expr(b) for a, b in zip(lhs_indices, rhs_indices)]
 
 
-def index_multiply(lhs_indices: Sequence[Union[Expr, int]], rhs_indices: Sequence[Union[Expr, int]]):
+def index_multiply(lhs_indices: Sequence[Union[Expr, int]], rhs_indices: Sequence[Union[Expr, int]]) -> List[Expr]:
+    assert len(lhs_indices) == len(rhs_indices), "Expect both indices have the same length"
+    return [as_expr(a) * as_expr(b) for a, b in zip(lhs_indices, rhs_indices)]
+
+
+def index_mod(lhs_indices: Sequence[Union[Expr, int]], rhs_indices: Sequence[Union[Expr, int]]) -> List[Expr]:
+    assert len(lhs_indices) == len(rhs_indices), "Expect both indices have the same length"
+    return [as_expr(a) % as_expr(b) for a, b in zip(lhs_indices, rhs_indices)]
+
+
+def index_divide(lhs_indices: Sequence[Union[Expr, int]], rhs_indices: Sequence[Union[Expr, int]]) -> List[Expr]:
+    assert len(lhs_indices) == len(rhs_indices), "Expect both indices have the same length"
+    return [as_expr(a) // as_expr(b) for a, b in zip(lhs_indices, rhs_indices)]
+
+
+def index_sum(indices: Sequence[Union[Expr, int]], init: Union[Expr, int] = 0) -> Expr:
+    if len(indices) == 0:
+        return as_expr(init)
+    else:
+        s: Expr = as_expr(indices[0])
+        for a in indices[1:]:
+            s = s + as_expr(a)
+        return s
+
+
+def const_index_multiply(lhs_indices: Sequence[int], rhs_indices: Sequence[int]) -> List[int]:
     assert len(lhs_indices) == len(rhs_indices), "Expect both indices have the same length"
     return [a * b for a, b in zip(lhs_indices, rhs_indices)]
-
-
-def index_mod(lhs_indices: Sequence[Union[Expr, int]], rhs_indices: Sequence[Union[Expr, int]]):
-    assert len(lhs_indices) == len(rhs_indices), "Expect both indices have the same length"
-    return [a % b for a, b in zip(lhs_indices, rhs_indices)]
-
-
-def index_divide(lhs_indices: Sequence[Union[Expr, int]], rhs_indices: Sequence[Union[Expr, int]]):
-    assert len(lhs_indices) == len(rhs_indices), "Expect both indices have the same length"
-    return [a // b for a, b in zip(lhs_indices, rhs_indices)]
-
-
-def index_sum(indices: Sequence[Union[Expr, int]], init: Union[Expr, int] = 0) -> Union[Expr, int]:
-    if len(indices) == 0:
-        return init
-    else:
-        s = indices[0]
-        for a in indices[1:]:
-            s = s + a
-        return s

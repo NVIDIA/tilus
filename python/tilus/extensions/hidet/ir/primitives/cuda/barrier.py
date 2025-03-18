@@ -44,7 +44,7 @@ def register_functions():
             register_primitive_function(name=barrier_func.name, func_or_type=barrier_func)
 
 
-def _barrier(barrier: Union[int, Expr], count: Optional[Union[int, Expr]], aligned: bool, mode: str):
+def _barrier(barrier: Union[int, Expr], count: Optional[Union[int, Expr]], aligned: bool, mode: str) -> Expr:
     # resolve function name
     func_name = "barrier_{}{}".format(mode, "_aligned" if aligned else "")
 
@@ -55,7 +55,7 @@ def _barrier(barrier: Union[int, Expr], count: Optional[Union[int, Expr]], align
     return call_primitive_func(func_name, args=args)
 
 
-def barrier_sync(barrier: Union[int, Expr], count: Optional[Union[int, Expr]] = None, aligned: bool = False):
+def barrier_sync(barrier: Union[int, Expr], count: Optional[Union[int, Expr]] = None, aligned: bool = False) -> Expr:
     """
     Performs barrier synchronization and communication within a CTA.
 
@@ -81,7 +81,7 @@ def barrier_sync(barrier: Union[int, Expr], count: Optional[Union[int, Expr]] = 
     return _barrier(barrier, count, aligned, mode=mode)
 
 
-def barrier_arrive(barrier: Union[int, Expr], count: Union[int, Expr], aligned: bool = False):
+def barrier_arrive(barrier: Union[int, Expr], count: Union[int, Expr], aligned: bool = False) -> Expr:
     """
     Performs barrier synchronization and communication within a CTA.
 

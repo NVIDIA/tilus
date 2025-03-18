@@ -1,7 +1,4 @@
-from typing import List
-
-from typing_extensions import no_type_check
-
+from typing import Sequence, no_type_check
 from hidet.ir.expr import Expr
 from hidet.ir.primitives.cuda.funcs import call_cuda
 from hidet.ir.primitives.cuda.mma import MmaConfig, mma_configs
@@ -53,6 +50,6 @@ def register_mma_instructions():
         register_primitive_function(mma_sync_v2_primitive.name, mma_sync_v2_primitive)
 
 
-def mma_sync_v2(config: MmaConfig, a_reg_p: List[Expr], b_reg_p: List[Expr], c_reg_p: List[Expr]):
+def mma_sync_v2(config: MmaConfig, a_reg_p: Sequence[Expr], b_reg_p: Sequence[Expr], c_reg_p: Sequence[Expr]) -> Expr:
     name = config.inst_name().replace(".", "_") + "_v2"
     return call_cuda(func_name=name, args=[*a_reg_p, *b_reg_p, *c_reg_p])

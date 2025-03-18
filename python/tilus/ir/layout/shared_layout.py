@@ -36,12 +36,12 @@ class SharedLayout:
         return SharedLayout(shape=self.shape, size=self.size, axes=self.axes, offset=simplifier(self.offset))
 
     @staticmethod
-    def create(shape: Sequence[int], size: int, f_offset: Callable[[Sequence[Var]], Expr]):
+    def create(shape: Sequence[int], size: int, f_offset: Callable[[Sequence[Var]], Expr]) -> SharedLayout:
         axes: List[Var] = index_vars(num_vars=len(shape))
         return SharedLayout(shape=tuple(shape), size=size, axes=tuple(axes), offset=f_offset(axes))
 
     @staticmethod
-    def _generic_repeat(shape: List[int], ranks: List[int]):
+    def _generic_repeat(shape: List[int], ranks: List[int]) -> SharedLayout:
         assert len(shape) == len(ranks)
         assert len(ranks) == len(set(ranks)) and all(0 <= d < len(shape) for d in ranks)
         strides: List[int] = [prod([s for j, s in enumerate(shape) if ranks[j] > ranks[i]]) for i in range(len(shape))]
@@ -52,15 +52,15 @@ class SharedLayout:
         return SharedLayout.create(shape=shape, size=prod(shape), f_offset=f_offset)
 
     @staticmethod
-    def repeat(*shape) -> SharedLayout:
+    def repeat(*shape: int) -> SharedLayout:
         return SharedLayout._generic_repeat(shape=list(shape), ranks=list(range(len(shape))))
 
     @staticmethod
-    def column_repeat(*shape) -> SharedLayout:
+    def column_repeat(*shape: int) -> SharedLayout:
         return SharedLayout._generic_repeat(shape=list(shape), ranks=list(reversed(range(len(shape)))))
 
     @staticmethod
-    def compose(lhs: SharedLayout, rhs: SharedLayout):
+    def compose(lhs: SharedLayout, rhs: SharedLayout) -> SharedLayout:
         assert len(lhs.shape) == len(rhs.shape)
         ndims = len(lhs.shape)
 
@@ -102,7 +102,7 @@ class SharedLayout:
 
         return SharedLayout.create(shape=(extent,) + self.shape, size=extent * self.size, f_offset=f_offset)
 
-    def unsqueeze(self, dims: List[int]):
+    def unsqueeze(self, dims: Sequence[int]) -> SharedLayout:
         shape = []
         cur_dim = 0
         for i in range(len(self.shape) + len(dims)):
@@ -119,15 +119,15 @@ class SharedLayout:
         return SharedLayout.create(shape=shape, size=self.size, f_offset=f_offset)
 
 
-def shared_repeat(*shape) -> SharedLayout:
+def shared_repeat(*shape: int) -> SharedLayout:
     return SharedLayout.repeat(*shape)
 
 
-def shared_column_repeat(*shape) -> SharedLayout:
+def shared_column_repeat(*shape: int) -> SharedLayout:
     return SharedLayout.column_repeat(*shape)
 
 
-def shared_compose(lhs: SharedLayout, rhs: SharedLayout, *others) -> SharedLayout:
+def shared_compose(lhs: SharedLayout, rhs: SharedLayout, *others: SharedLayout) -> SharedLayout:
     if len(others) == 0:
         return SharedLayout.compose(lhs, rhs)
     else:

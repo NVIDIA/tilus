@@ -17,7 +17,7 @@ from tilus.target import nvgpu_sm80
 
 @register_inst_emitter(CopyAsyncInst, target=nvgpu_sm80)
 class CopyAysncInstEmitter(BaseInstEmitter):
-    def emit(self, inst: CopyAsyncInst):
+    def emit(self, inst: CopyAsyncInst) -> None:
         from tilus.ir.analyzers.value_analyzer import analyze_info, TensorInfo
 
         dst: SharedValue = inst.inputs[0].as_shared_value()
@@ -87,17 +87,17 @@ class CopyAysncInstEmitter(BaseInstEmitter):
             vec_size = cp_size * 8 // dtype.nbits
             task_shape = [extent if dim != contiguous_dim else extent // vec_size for dim, extent in enumerate(shape)]
 
-            def get_element_indices(task_indices: List[Expr]):
+            def get_element_indices(task_indices: List[Expr]) -> List[Expr]:
                 return [idx if dim != contiguous_dim else idx * vec_size for dim, idx in enumerate(task_indices)]
 
-            def get_global_address_and_mask(task_indices):
+            def get_global_address_and_mask(task_indices: List[Expr]) -> tuple[Expr, Expr]:
                 element_indices = get_element_indices(task_indices)
                 remap = {a: b for a, b in zip(inst.axes, element_indices)}
                 gmem_offset = rewrite(inst.offset, rewrite_map=remap)
                 global_address = cast(inst.ptr, ~dtype) + gmem_offset
                 return global_address, rewrite(inst_mask, rewrite_map=remap)
 
-            def get_shared_address(task_indices):
+            def get_shared_address(task_indices: List[Expr]) -> Expr:
                 element_indices = get_element_indices(task_indices)
                 smem_offset = layout(*element_indices)
                 return smem_addr + smem_offset * dtype.nbytes
@@ -108,7 +108,7 @@ class CopyAysncInstEmitter(BaseInstEmitter):
             vec_size = dtype.nbits // (cp_size * 8)
             task_shape = [extent if idx != contiguous_dim else extent * vec_size for idx, extent in enumerate(shape)]
 
-            def get_element_indices_and_lane_index(task_indices: List[Expr]):
+            def get_element_indices_and_lane_index(task_indices: List[Expr]) -> tuple[List[Expr], Expr]:
                 return (
                     # element indices
                     [idx if dim != contiguous_dim else idx // vec_size for dim, idx in enumerate(task_indices)],
@@ -116,7 +116,7 @@ class CopyAysncInstEmitter(BaseInstEmitter):
                     task_indices[contiguous_dim] % vec_size,
                 )
 
-            def get_global_address_and_mask(task_indices):
+            def get_global_address_and_mask(task_indices: List[Expr]) -> tuple[Expr, Expr]:
                 element_indices, lane_index = get_element_indices_and_lane_index(task_indices)
                 remap = {a: b for a, b in zip(inst.axes, element_indices)}
                 gmem_offset = rewrite(inst.offset, rewrite_map=remap)
@@ -124,7 +124,7 @@ class CopyAysncInstEmitter(BaseInstEmitter):
                 global_address = cast(inst.ptr, ~cp_dtype) + gmem_offset
                 return global_address, rewrite(inst_mask, rewrite_map=remap)
 
-            def get_shared_address(task_indices):
+            def get_shared_address(task_indices: List[Expr]) -> Expr:
                 element_indices, lane_index = get_element_indices_and_lane_index(task_indices)
                 smem_offset = layout(*element_indices)
                 smem_offset = smem_offset * vec_size + lane_index
@@ -133,7 +133,7 @@ class CopyAysncInstEmitter(BaseInstEmitter):
         else:
             raise NotImplementedError()
 
-        def emit_cp_async(task_indices: List[Expr]):
+        def emit_cp_async(task_indices: List[Expr]) -> None:
             global_address, mask = get_global_address_and_mask(task_indices)
             shared_address = get_shared_address(task_indices)
 
@@ -182,17 +182,17 @@ class CopyAysncInstEmitter(BaseInstEmitter):
 
 @register_inst_emitter(CopyAsyncCommitGroupInst, target=nvgpu_sm80)
 class CopyAysncCommitGroupInstEmitter(BaseInstEmitter):
-    def emit(self, inst: CopyAsyncCommitGroupInst):
+    def emit(self, inst: CopyAsyncCommitGroupInst) -> None:
         self.append(cp_async_commit_group())
 
 
 @register_inst_emitter(CopyAsyncWaitGroupInst, target=nvgpu_sm80)
 class CopyAysncWaitGroupInstEmitter(BaseInstEmitter):
-    def emit(self, inst: CopyAsyncWaitGroupInst):
+    def emit(self, inst: CopyAsyncWaitGroupInst) -> None:
         self.append(cp_async_wait_group(inst.n))
 
 
 @register_inst_emitter(CopyAsyncWaitAllInst, target=nvgpu_sm80)
 class CopyAysncWaitAllInstEmitter(BaseInstEmitter):
-    def emit(self, inst: CopyAsyncWaitAllInst):
+    def emit(self, inst: CopyAsyncWaitAllInst) -> None:
         self.append(cp_async_wait_all())

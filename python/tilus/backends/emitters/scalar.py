@@ -18,19 +18,19 @@ from tilus.target import nvgpu_any, gpgpu_any
 
 @register_inst_emitter(AllocateScalarInst, target=gpgpu_any)
 class AllocateScalarInstEmitter(BaseInstEmitter):
-    def emit(self, inst: AllocateScalarInst):
+    def emit(self, inst: AllocateScalarInst) -> None:
         self.declare(inst.var, init=inst.init)
 
 
 @register_inst_emitter(AssignScalarInst, target=gpgpu_any)
 class AssignScalarInstEmitter(BaseInstEmitter):
-    def emit(self, inst: AssignScalarInst):
+    def emit(self, inst: AssignScalarInst) -> None:
         self.assign(inst.var, inst.scalar_expr)
 
 
 @register_inst_emitter(LoadScalarInst, target=nvgpu_any)
 class LoadScalarInstEmitter(BaseInstEmitter):
-    def emit(self, inst: LoadScalarInst):
+    def emit(self, inst: LoadScalarInst) -> None:
         dtype = inst.var.type
         assert isinstance(dtype, DataType)
         self.declare(inst.var)
@@ -47,7 +47,7 @@ class LoadScalarInstEmitter(BaseInstEmitter):
 
 @register_inst_emitter(StoreScalarInst, target=nvgpu_any)
 class StoreScalarInstEmitter(BaseInstEmitter):
-    def emit(self, inst: StoreScalarInst):
+    def emit(self, inst: StoreScalarInst) -> None:
         ptr_type = infer_type(inst.ptr)
         if isinstance(ptr_type, PointerType):
             dtype = ptr_type.base_type
@@ -68,7 +68,7 @@ class StoreScalarInstEmitter(BaseInstEmitter):
 
 @register_inst_emitter(AtomicScalarInst, target=nvgpu_any)
 class AtomicScalarInstEmitter(BaseInstEmitter):
-    def emit(self, inst: AtomicScalarInst):
+    def emit(self, inst: AtomicScalarInst) -> None:
         op2primitive: dict[str, Callable[[Expr, Expr], Expr]] = {
             "add": atomic_add,
             "sub": atomic_sub,

@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Union, List, Tuple
+from typing import Dict, Optional, Union, List, Tuple, Any
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Var, Expr
 from hidet.transforms.rule_based_simplifier import RuleBasedSimplifier as OriginalRuleBasedSimplifier
@@ -32,7 +32,9 @@ class RuleBasedSimplifier(OriginalRuleBasedSimplifier):
         self.bound_patterns.extend(extra_bound_patterns)
 
 
-def bound_aware_simplify(exprs: Union[Expr, List[Expr]], var2bound: Dict[Var, Union[BoundInfo, int, Tuple[int, int]]]):
+def bound_aware_simplify(
+    exprs: Union[Expr, List[Expr]], var2bound: Dict[Var, Union[BoundInfo, int, Tuple[int, int]]]
+) -> Any:
     normalized_var2bound = {}
     for var, bound in var2bound.items():
         if isinstance(bound, int):

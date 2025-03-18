@@ -9,7 +9,7 @@ class InstructionCollector(IRVisitor):
         super().__init__()
         self.instructions: List[Instruction] = []
 
-    def visit_Instruction(self, inst: Instruction):
+    def visit_Instruction(self, inst: Instruction) -> None:
         self.instructions.append(inst)
 
 

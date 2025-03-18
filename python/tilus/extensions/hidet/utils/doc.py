@@ -1,8 +1,8 @@
-from typing import List, Union, Sequence
+from typing import List, Union, Sequence, Optional
 from hidet.utils.doc import Doc, NewLine, NewLineToken
 
 
-def doc_join(seq: List, sep):
+def doc_join(seq: List[Doc | str], sep: Union[Doc, str]) -> Doc:
     doc = Doc()
     for i in range(len(seq)):
         if i != 0:
@@ -12,8 +12,12 @@ def doc_join(seq: List, sep):
 
 
 def doc_join_lines(
-    seq: Sequence[Union[str, Doc]], left: Union[Doc, str], right: Union[Doc, str], indent=None, line_end_sep=","
-):
+    seq: Sequence[Union[str, Doc]],
+    left: Union[Doc, str],
+    right: Union[Doc, str],
+    indent: Optional[int] = None,
+    line_end_sep: str = ",",
+) -> Doc:
     doc = Doc()
     if indent is None:
         indent = 4
@@ -31,7 +35,7 @@ def doc_join_lines(
         return doc
 
 
-def doc_comment(doc: Doc, comment_string="# "):
+def doc_comment(doc: Doc, comment_string: str = "# ") -> Doc:
     docs = list(doc.docs)
     new_docs: List[Union[NewLineToken, str]] = []
     for i, token in enumerate(docs):

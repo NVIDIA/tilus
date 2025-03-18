@@ -12,7 +12,7 @@ from tilus.target import nvgpu_sm70
 
 @register_inst_emitter(MmaDotInst, target=nvgpu_sm70)
 class MmaDotInstEmitter(BaseInstEmitter):
-    def emit(self, inst: MmaDotInst):  # type: ignore
+    def emit(self, inst: MmaDotInst) -> None:  # type: ignore
         assert inst.output is inst.inputs[2]
         mma: MmaConfig = MmaConfig.from_name(inst.mma_inst)
         a_value = inst.inputs[0].as_register_value()

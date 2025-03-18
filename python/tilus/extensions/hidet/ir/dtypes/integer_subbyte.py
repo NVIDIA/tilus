@@ -14,7 +14,9 @@ from hidet.ir.dtypes.integer import IntegerType, IntInfo, uint8, uint32
 
 
 class IntegerSubbyteType(IntegerType):
-    def __init__(self, name, short_name, storage, nbits, signed, min_value, max_value) -> None:
+    def __init__(
+        self, name: str, short_name: str, storage: DataType, nbits: int, signed: bool, min_value: int, max_value: int
+    ) -> None:
         nbytes = storage.nbytes
         super().__init__(name, short_name, nbytes, min_value, max_value)
         self._storage: DataType = storage

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import List, Sequence
 from pathlib import Path
 from tilus.ir.prog import Program
@@ -22,27 +23,27 @@ class PassContext:
         assert PassContext._ctx is self
         PassContext._ctx = None
 
-    def before_all_passes(self, program: Program):
+    def before_all_passes(self, program: Program) -> None:
         for instrument in self.instruments:
             instrument.before_all_passes(program)
 
-    def before_pass(self, pass_name: str, program: Program):
+    def before_pass(self, pass_name: str, program: Program) -> None:
         for instrument in self.instruments:
             instrument.before_pass(pass_name, program)
 
-    def after_pass(self, pass_name: str, program: Program):
+    def after_pass(self, pass_name: str, program: Program) -> None:
         for instrument in self.instruments:
             instrument.after_pass(pass_name, program)
 
-    def after_all_passes(self, program: Program):
+    def after_all_passes(self, program: Program) -> None:
         for instrument in self.instruments:
             instrument.after_all_passes(program)
 
-    def dump_ir(self, dump_dir: Path):
+    def dump_ir(self, dump_dir: Path) -> None:
         self.instruments.append(DumpIRInstrument(dump_dir))
 
     @staticmethod
-    def current():
+    def current() -> PassContext:
         if PassContext._ctx is None:
             return PassContext()  # use a default context
         else:

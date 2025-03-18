@@ -30,7 +30,7 @@ def register_functions():
         register_primitive_function(name=func.name, func_or_type=func)
 
 
-def mul_bf16x2(d: Expr, a: Expr, b: Expr):
+def mul_bf16x2(d: Expr, a: Expr, b: Expr) -> Expr:
     """
     Multiply two bf16x2 values and store the result in `d`.
 

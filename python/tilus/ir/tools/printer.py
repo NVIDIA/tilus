@@ -23,7 +23,7 @@ class IRPrinter(IRFunctor):
         self.comment2key: Dict[str, str] = {}
         self.keys: Set[str] = set()
 
-    def add_key_comment(self, key_hint, comment: Any) -> str:
+    def add_key_comment(self, key_hint: str, comment: Any) -> str:
         comment = str(comment)
         if comment in self.comment2key:
             return self.comment2key[comment]
@@ -81,10 +81,10 @@ class IRPrinter(IRFunctor):
     def visit_Expr(self, expr: Expr) -> Doc:
         return self.printer(expr)
 
-    def visit_BaseType(self, tp: BaseType):
+    def visit_BaseType(self, tp: BaseType) -> Doc:
         return self.printer(tp)
 
-    def visit_Program(self, prog: Program):
+    def visit_Program(self, prog: Program) -> Doc:
         doc = Doc()
 
         for func in prog.functions.values():
@@ -158,7 +158,7 @@ class IRPrinter(IRFunctor):
         )
         return doc
 
-    def visit_InstructionStmt(self, stmt: InstructionStmt):
+    def visit_InstructionStmt(self, stmt: InstructionStmt) -> Doc:
         return self.visit(stmt.inst)
 
     def visit_SeqStmt(self, stmt: SeqStmt) -> Doc:
@@ -177,7 +177,7 @@ class IRPrinter(IRFunctor):
         doc = head_doc + body_doc.indent(4)
         return doc
 
-    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt):
+    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt) -> Doc:
         head_doc = (
             Text("for ")
             + self.printer(stmt.iter_var)
@@ -245,15 +245,15 @@ class IRPrinter(IRFunctor):
             doc += "  # " + self.get_value_type(inst.output)
         return doc
 
-    def visit_Value(self, value: Value):
+    def visit_Value(self, value: Value) -> Doc:
         if value not in self.value2name:
             self.value2name[value] = "%" + str(len(self.value2name))
         return Text(self.value2name[value])
 
-    def visit_Layout(self, layout: Layout):
+    def visit_Layout(self, layout: Layout) -> Doc:
         return Text(self.add_key_comment("layout", str(layout)))
 
-    def visit_SharedLayout(self, node: SharedLayout):
+    def visit_SharedLayout(self, node: SharedLayout) -> Doc:
         printer = IRPrinter()
         items = [
             "shape=[" + printer(node.shape) + "]",

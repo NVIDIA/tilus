@@ -10,7 +10,7 @@ from tilus.target import gpgpu_any
 
 @register_inst_emitter(ElementwiseUnaryInst, target=gpgpu_any)
 class ElementwiseUnaryInstEmitter(BaseInstEmitter):
-    def emit(self, inst: ElementwiseUnaryInst):
+    def emit(self, inst: ElementwiseUnaryInst) -> None:
         name_mapping = {"relu": "relu", "clip": "clipped"}
         op_var_name = name_mapping[inst.op]
 
@@ -37,7 +37,7 @@ class ElementwiseUnaryInstEmitter(BaseInstEmitter):
 
 @register_inst_emitter(ElementwiseBinaryInst, target=gpgpu_any)
 class ElementwiseBinaryInstEmitter(BaseInstEmitter):
-    def emit(self, inst: ElementwiseBinaryInst):
+    def emit(self, inst: ElementwiseBinaryInst) -> None:
         name_mapping = {"+": "added", "-": "diff", "*": "product", "/": "quotient"}
 
         x_value: RegisterValue = inst.inputs[0].as_register_value()
@@ -61,7 +61,7 @@ class ElementwiseBinaryInstEmitter(BaseInstEmitter):
 
 @register_inst_emitter(BroadcastElementwiseBinaryInst, target=gpgpu_any)
 class BroadcastElementwiseBinaryInstEmitter(BaseInstEmitter):
-    def emit(self, inst: BroadcastElementwiseBinaryInst):
+    def emit(self, inst: BroadcastElementwiseBinaryInst) -> None:
         name_mapping = {"+": "added", "-": "diff", "*": "product", "/": "quotient"}
         op_var_name = name_mapping[inst.op]
 

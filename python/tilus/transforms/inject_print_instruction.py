@@ -2,9 +2,9 @@ from typing import List, Optional, Type
 from hidet.ir.dtypes import int32, boolean
 from hidet.ir.expr import Expr, cast, logical_and
 
-from tilus.extensions.hidet.ir.expr import convert_to_expr
+from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir.func import Function
-from tilus.ir.builders import StatementBuilder
+from tilus.ir.builders import StmtBuilder
 from tilus.ir.functors import IRRewriter
 import tilus.ir.inst
 from tilus.ir.inst import (
@@ -19,7 +19,7 @@ from tilus.ir.inst import (
     AllocateSharedInst,
     AllocateInst,
 )
-from tilus.ir.stmt import SeqStmt, ForStmt, InstructionStmt, seq_stmt
+from tilus.ir.stmt import SeqStmt, ForStmt, InstructionStmt, seq_stmt, Stmt
 from tilus.transforms.base import Pass
 
 from hidet.ir.primitives import blockIdx
@@ -43,7 +43,7 @@ class InjectPrintInstructionRewriter(IRRewriter):
         else:
             self.instructions_to_print = None
 
-    def visit_Function(self, func: Function):
+    def visit_Function(self, func: Function) -> Function:
         self.cond = logical_and(
             blockIdx.x == self.block_to_print[0],  # type: ignore[attr-defined]
             blockIdx.y == self.block_to_print[1],  # type: ignore[attr-defined]
@@ -57,16 +57,14 @@ class InjectPrintInstructionRewriter(IRRewriter):
         )
         new_body = SeqStmt(
             (
-                InstructionStmt(
-                    FormatPrintInst.create(cond=self.cond, fstring="%s", expressions=[convert_to_expr(text)])
-                ),
+                InstructionStmt(FormatPrintInst.create(cond=self.cond, fstring="%s", expressions=[as_expr(text)])),
                 func.body,
             )
         )
         return func.with_body(new_body)
 
-    def visit_ForStmt(self, stmt: ForStmt):
-        vb = StatementBuilder()
+    def visit_ForStmt(self, stmt: ForStmt) -> Stmt:
+        vb = StmtBuilder()
 
         vb.format_print(
             fstring="for {} in range({}) when {} = %d:\n".format(
@@ -85,12 +83,14 @@ class InjectPrintInstructionRewriter(IRRewriter):
             iter_var=stmt.iter_var, extent=stmt.extent, body=vb.flush_statement(), unroll_factor=stmt.unroll_factor
         )
 
-    def visit_Instruction(self, inst: Instruction):
-        inst = super().visit_Instruction(inst)
+    def visit_InstructionStmt(self, stmt: InstructionStmt) -> Stmt:
+        inst: Instruction = self.visit(stmt.inst)
 
         if self.instructions_to_print and not isinstance(inst, tuple(self.instructions_to_print)):
             # specified the set of instructions to print, but the current instruction is not in the set
-            return inst
+            return InstructionStmt(inst)
+
+        assert isinstance(inst, Instruction)
 
         inst_string = "{}:\n".format(self.vm_printer(inst))
 
@@ -98,14 +98,14 @@ class InjectPrintInstructionRewriter(IRRewriter):
         inst2input = {StoreGlobalInst: 0, StoreSharedInst: 0}
         skip_list = (ViewSharedInst,)
 
-        if isinstance(skip_list, skip_list):
-            return inst
+        if isinstance(inst, skip_list):
+            return InstructionStmt(inst)
 
         if isinstance(inst, AllocateSharedInst) and inst.init is None:
-            return inst
+            return InstructionStmt(inst)
 
         if isinstance(inst, AllocateInst) and inst.init is None:
-            return inst
+            return InstructionStmt(inst)
 
         if inst.output is not None:
             from tilus.ir.inst import ElementwiseBinaryInst
@@ -144,7 +144,7 @@ class InjectPrintInstructionRewriter(IRRewriter):
                 ]
             )
         else:
-            return inst
+            return InstructionStmt(inst)
 
 
 class InjectPrintInstructionPass(Pass):

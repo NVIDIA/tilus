@@ -4,7 +4,7 @@ from hidet.ir.stmt import asm
 from hidet.ir.dtypes import uint32
 
 
-def lop3(d: Expr, a: Expr, b: Expr, c: Expr, *, imm_lut: Union[int, Callable[[int, int, int], int]]):
+def lop3(d: Expr, a: Expr, b: Expr, c: Expr, *, imm_lut: Union[int, Callable[[int, int, int], int]]) -> Expr:
     """
     Perform a logical operation on three 32-bit values and store the result in `d`.
 

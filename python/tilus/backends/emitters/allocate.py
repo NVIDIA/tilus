@@ -8,7 +8,7 @@ from tilus.target import gpgpu_any
 
 @register_inst_emitter(AllocateInst, target=gpgpu_any)
 class AllocateInstEmitter(BaseInstEmitter):
-    def emit(self, inst: AllocateInst):  # type: ignore
+    def emit(self, inst: AllocateInst) -> None:  # type: ignore
         output: RegisterValue = inst.register_output
         var = self.declare(tensor_var("regs", shape=[output.size], dtype=output.dtype))
         if inst.init is not None:

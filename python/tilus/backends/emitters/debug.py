@@ -16,7 +16,7 @@ from tilus.utils import prod
 
 @register_inst_emitter(PrintValueInst, target=gpgpu_any)
 class PrintValueInstEmitter(BaseInstEmitter):
-    def print_left_bracket(self, indices: List[Expr], shape: List[int]):
+    def print_left_bracket(self, indices: List[Expr], shape: List[int]) -> None:
         # left [
         if len(shape) >= 1:
             with self.if_then(logical_and(self.current_worker == 0, indices[-1] == 0)):
@@ -28,7 +28,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
                         self.append(printf(" "))
             self.sync()
 
-    def print_right_bracket(self, indices: Sequence[Expr], shape: Sequence[int]):
+    def print_right_bracket(self, indices: Sequence[Expr], shape: Sequence[int]) -> None:
         # right ]
         if len(shape) >= 1:
             with self.if_then(logical_and(self.current_worker == 0, indices[-1] == shape[-1] - 1)):
@@ -39,13 +39,15 @@ class PrintValueInstEmitter(BaseInstEmitter):
                 self.append(printf("\n"))
             self.sync()
 
-    def print_seperate_comma(self, indices: Sequence[Expr], shape: Sequence[int]):
+    def print_seperate_comma(self, indices: Sequence[Expr], shape: Sequence[int]) -> None:
         if len(shape) >= 1:
             with self.if_then(logical_and(self.current_worker == 0, indices[-1] != shape[-1] - 1)):
                 self.append(printf(", "))
             self.sync()
 
-    def restore_indices(self, squeezed_indices: Sequence[Expr], squeezed_dims: Sequence[int], shape: Sequence[int]):
+    def restore_indices(
+        self, squeezed_indices: Sequence[Expr], squeezed_dims: Sequence[int], shape: Sequence[int]
+    ) -> List[Expr]:
         indices: List[Expr] = []
         for dim in range(len(shape)):
             if dim in squeezed_dims:
@@ -54,7 +56,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
                 indices.append(int32(0))
         return indices
 
-    def emit(self, inst: PrintValueInst):
+    def emit(self, inst: PrintValueInst) -> None:
         default_fmt_mapping = {
             int4b: "%2d",
             uint4b: "%2d",
@@ -183,7 +185,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
 
 @register_inst_emitter(FormatPrintInst, target=gpgpu_any)
 class FormatPrintInstEmitter(BaseInstEmitter):
-    def emit(self, inst: FormatPrintInst):
+    def emit(self, inst: FormatPrintInst) -> None:
         self.sync()
         with self.if_then(logical_and(inst.cond, self.current_worker == 0)):
             self.append(printf(inst.fstring, *inst.expressions))

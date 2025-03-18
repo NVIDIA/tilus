@@ -14,7 +14,7 @@ from typing import Union
 from hidet.ir.expr import Expr
 from hidet.ir.type import FuncType, void_p, void, string_type
 from hidet.ir.primitives.func import register_primitive_function, call_primitive_func
-from tilus.extensions.hidet.ir.expr import convert_to_expr
+from tilus.extensions.hidet.ir.expr import as_expr
 from hidet.utils import initialize
 
 
@@ -31,8 +31,8 @@ def register_functions():
 
 
 def get_symbol_value_ptr(name: Union[str, Expr]) -> Expr:
-    return call_primitive_func("get_symbol_value_ptr", [convert_to_expr(name)])
+    return call_primitive_func("get_symbol_value_ptr", [as_expr(name)])
 
 
-def set_symbol_value_ptr(name: Union[str, Expr], value: Expr):
-    return call_primitive_func("set_symbol_value_ptr", [convert_to_expr(name), value])
+def set_symbol_value_ptr(name: Union[str, Expr], value: Expr) -> Expr:
+    return call_primitive_func("set_symbol_value_ptr", [as_expr(name), value])

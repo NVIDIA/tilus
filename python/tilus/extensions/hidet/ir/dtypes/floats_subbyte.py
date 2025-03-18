@@ -14,7 +14,7 @@ from hidet.ir.dtypes.floats import FloatType, FloatInfo
 
 
 class FloatSubbyteType(FloatType):
-    def __init__(self, name, short_name, nbits, exponent_nbits, mantissa_nbits) -> None:
+    def __init__(self, name: str, short_name: str, nbits: int, exponent_nbits: int, mantissa_nbits: int) -> None:
         self._nbits: int = nbits
         self._exponent_nbits: int = exponent_nbits
         self._mantissa_nbits: int = mantissa_nbits

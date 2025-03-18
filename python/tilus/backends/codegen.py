@@ -1,5 +1,6 @@
+from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, Dict, List, Tuple, Type, Set
+from typing import Optional, Dict, List, Tuple, Type, Set, Callable
 
 from hidet.ir.dtypes import int32, uint8
 from hidet.ir.expr import Var, SymbolVar, Expr, cast, Constant, tensor_var
@@ -45,7 +46,7 @@ class BaseInstEmitter(StmtBuilder):
     # inst -> emitter
     REGISTRY: Dict[Type[Instruction], Dict[Target, Type["BaseInstEmitter"]]] = {}
 
-    def __init__(self, codegen) -> None:
+    def __init__(self, codegen: Codegen) -> None:
         super().__init__()
         # todo: currently, the instruction emitters (that inherit from BaseInstEmitter) directly access the codegen
         #       object to access some data in the codegen object. This is not a good design. We should refactor this
@@ -120,16 +121,18 @@ class BaseInstEmitter(StmtBuilder):
     def num_warps(self) -> int:
         return self.codegen.program.num_warps
 
-    def emit(self, inst: Instruction):
+    def emit(self, inst: Instruction) -> None:
         raise NotImplementedError()
 
 
-def register_inst_emitter(inst_cls: Type[Instruction], *, target: Optional[Target] = None):
+def register_inst_emitter(
+    inst_cls: Type[Instruction], *, target: Optional[Target] = None
+) -> Callable[[Type[BaseInstEmitter]], Type[BaseInstEmitter]]:
     assert issubclass(inst_cls, Instruction)
     if target is None:
         target = gpgpu_any
 
-    def decorator(emitter_cls: Type[BaseInstEmitter]):
+    def decorator(emitter_cls: Type[BaseInstEmitter]) -> Type[BaseInstEmitter]:
         assert issubclass(emitter_cls, BaseInstEmitter)
 
         if inst_cls not in BaseInstEmitter.REGISTRY:
@@ -178,7 +181,7 @@ class SharedMemoryAllocator:
         self.allocated += nbytes
         return addr
 
-    def free(self, addr: int):
+    def free(self, addr: int) -> None:
         # find the slot that is right before the address
         before = [i for i, slot in enumerate(self.free_slots) if slot[1] <= addr]
         after = [i for i, slot in enumerate(self.free_slots) if slot[0] > addr]
@@ -262,18 +265,18 @@ class Codegen(IRFunctor):
         assert self._builder is not None
         return self._builder
 
-    def sync(self):
+    def sync(self) -> None:
         from tilus.ir.inst import SyncThreadsInst
 
         self.visit(SyncThreadsInst.create())
 
-    def allocate_shared_value(self, value: SharedValue, nbytes: int):
+    def allocate_shared_value(self, value: SharedValue, nbytes: int) -> int:
         addr: int = self.smem_allocator.allocate(nbytes)
         assert value not in self.shared_value_allocator_addr
         self.shared_value_allocator_addr[value] = addr
         return addr
 
-    def free_shared_value(self, value: SharedValue):
+    def free_shared_value(self, value: SharedValue) -> None:
         assert value in self.shared_value_allocator_addr
         self.smem_allocator.free(addr=self.shared_value_allocator_addr[value])
         del self.shared_value_allocator_addr[value]
@@ -301,14 +304,7 @@ class Codegen(IRFunctor):
                 "Failed to find emitter for the following instructions: \n{}".format("\n".join(failed_instructions))
             )
 
-    def init_block_axes(self):
-        # with self.builder.if_then(logical_not(self._program.block_mapping.predicate)):
-        #     self.builder.ret()
-        # for axis, value in self._program.block_mapping.virtual_axes_values.items():
-        #     self.builder.declare(v=axis, init=value)
-        pass
-
-    def init_smem_workspace(self, program: Function):
+    def init_smem_workspace(self, program: Function) -> None:
         smem_workspace_nbytes: int = 0
         # for inst in collect_instructions(program):    # todo: add this to emiter
         #     smem_workspace_nbytes = max(smem_workspace_nbytes, inst.request_shared_workspace())
@@ -377,7 +373,7 @@ class Codegen(IRFunctor):
         )
         return updated_ir_module
 
-    def visit_Function(self, func: Function):
+    def visit_Function(self, func: Function) -> IRModule:
         # warmup printer
         self.printer(func)
 
@@ -402,7 +398,6 @@ class Codegen(IRFunctor):
         self.thread_groups.current_worker = [threadIdx.x]
 
         # init pre-defined variables
-        self.init_block_axes()
         self.init_smem_workspace(func)
 
         # emit body
@@ -433,22 +428,22 @@ class Codegen(IRFunctor):
         ir_module = self.generate_launch_function(ir_module, kernel_func=kernel_function)
         return ir_module
 
-    def visit_SeqStmt(self, stmt: SeqStmt):
+    def visit_SeqStmt(self, stmt: SeqStmt) -> None:
         for sub_stmt in stmt.seq:
             self.visit(sub_stmt)
 
-    def visit_IfStmt(self, stmt: IfStmt):
+    def visit_IfStmt(self, stmt: IfStmt) -> None:
         with self.builder.if_then(stmt.cond):
             self.visit(stmt.then_body)
         if stmt.else_body is not None:
             with self.builder.otherwise():
                 self.visit(stmt.else_body)
 
-    def visit_WhileStmt(self, stmt: WhileStmt):
+    def visit_WhileStmt(self, stmt: WhileStmt) -> None:
         with self.builder.while_loop(stmt.cond):
             self.visit(stmt.body)
 
-    def visit_ForStmt(self, stmt: ForStmt):
+    def visit_ForStmt(self, stmt: ForStmt) -> None:
         if stmt.unroll_factor is None:
             attr = "."
         elif stmt.unroll_factor == -1:
@@ -458,7 +453,7 @@ class Codegen(IRFunctor):
         with self.builder.for_loop(stmt.iter_var, stmt.extent, attr=attr):
             self.visit(stmt.body)
 
-    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt):
+    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt) -> None:
         prev_group_size = self.thread_groups.group_size[-1]
         group_size = prev_group_size // stmt.num_groups
 
@@ -475,13 +470,13 @@ class Codegen(IRFunctor):
 
             self.sync()
 
-    def visit_BreakStmt(self, stmt: BreakStmt):
+    def visit_BreakStmt(self, stmt: BreakStmt) -> None:
         self.builder.brk()
 
-    def visit_InstructionStmt(self, stmt: InstructionStmt):
+    def visit_InstructionStmt(self, stmt: InstructionStmt) -> None:
         self.visit(stmt.inst)
 
-    def visit_Instruction(self, inst: Instruction):
+    def visit_Instruction(self, inst: Instruction) -> None:
         # insert a comment statement
         skip_comment_instructions = (PrintValueInst, FormatPrintInst)
         if not isinstance(inst, skip_comment_instructions):
@@ -500,7 +495,7 @@ class ProgramCodegen(IRFunctor):
     def __call__(self, prog: Program) -> IRModule:
         return self.visit(prog)
 
-    def visit_Program(self, prog: Program):
+    def visit_Program(self, prog: Program) -> IRModule:
         ir_module = IRModule()
         for name, func in prog.functions.items():
             func_codegen = Codegen()

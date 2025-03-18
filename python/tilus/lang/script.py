@@ -49,7 +49,7 @@ class ScriptTracer:
 
         self._transpiler: Optional[Transpiler] = None
 
-    def _append(self, inst_or_stmt: Union[Instruction, Stmt]):
+    def _append(self, inst_or_stmt: Union[Instruction, Stmt]) -> None:
         assert self._transpiler is not None
 
         stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstructionStmt(inst=inst_or_stmt)

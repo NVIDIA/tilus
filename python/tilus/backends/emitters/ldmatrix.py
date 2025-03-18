@@ -47,7 +47,7 @@ class LoadMatrixInstEmitter(BaseInstEmitter):
 
         raise InvalidInstruction(inst)
 
-    def emit(self, inst: LoadMatrixInst):
+    def emit(self, inst: LoadMatrixInst) -> None:
         trans, atom, middle, outer = LoadMatrixInstEmitter.resolve(inst)
         warp_id = self.current_worker // 32
 
@@ -74,7 +74,7 @@ class LoadMatrixInstEmitter(BaseInstEmitter):
             # prepare shared memory addr
             lane_id = self.current_worker % 32
             outer_indices: List[Expr] = outer.local2global(outer_local, warp_id)
-            outer_strides: List[int] = index_multiply(middle.shape, atom.shape)
+            outer_strides: List[Expr] = index_multiply(middle.shape, atom.shape)
             middle_indices = middle.local2global(local_index=lane_id // 8, worker=int32.zero)
             middle_strides: Sequence[int] = atom.shape
             atom_indices = [lane_id % 8, 0]

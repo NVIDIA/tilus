@@ -7,7 +7,7 @@ from hidet.ir.type import DataType, Callable, TensorPointerType, TensorType, Poi
 from hidet.ir.primitives.cuda.half import sub_f16x2, fma_f16x2
 from hidet.ir.primitives.cuda.prmt import prmt
 
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
+from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter, Codegen
 from tilus.extensions.hidet.ir.dtypes import float6_e3m2
 from tilus.extensions.hidet.ir.dtypes import float8_e4m3
 from tilus.extensions.hidet.ir.dtypes import int4b
@@ -33,7 +33,7 @@ def get_base_type(tp):
 
 
 class CastInstBaseEmitter(BaseInstEmitter):
-    def __init__(self, codegen) -> None:
+    def __init__(self, codegen: Codegen) -> None:
         super().__init__(codegen)
         self.specialized_cast: Dict[Tuple[DataType, DataType], Callable[[Var, Var], None]] = {}
 
@@ -42,7 +42,7 @@ class CastInstBaseEmitter(BaseInstEmitter):
         self.interleave_stride: Optional[int] = None
         self.ignore_int4b_xor: Optional[bool] = None
 
-    def emit(self, inst: CastInst):  # type: ignore
+    def emit(self, inst: CastInst) -> None:  # type: ignore
         src = inst.inputs[0]
         dst = inst.register_output
         self.interleave_width = inst.interleave_width
@@ -66,7 +66,7 @@ class CastInstBaseEmitter(BaseInstEmitter):
 
         impl(src_var, dst_var)
 
-    def cast_generic(self, src: Var, dst: Var):
+    def cast_generic(self, src: Var, dst: Var) -> None:
         with self.for_range(extent=self.size) as i:
             if self.interleave_width is not None or self.interleave_stride is not None:
                 assert self.interleave_width is not None and self.interleave_stride is not None
@@ -101,7 +101,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             }
         )
 
-    def cast_u8_to_f16(self, src: Var, dst: Var):
+    def cast_u8_to_f16(self, src: Var, dst: Var) -> None:
         if self.size % 4 != 0 or self.interleave_width:
             self.cast_generic(src, dst)
             return
@@ -125,7 +125,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             self.append(sub_f16x2(d=~dst_uint32[i << 1], a=dst_uint32[i << 1], b=uint32(0x64006400)))
             self.append(sub_f16x2(d=~dst_uint32[i << 1 | 1], a=dst_uint32[i << 1 | 1], b=uint32(0x64006400)))
 
-    def cast_i8_to_f16(self, src: Var, dst: Var):
+    def cast_i8_to_f16(self, src: Var, dst: Var) -> None:
         if self.size % 4 != 0 or self.interleave_width:
             self.cast_generic(src, dst)
             return
@@ -152,7 +152,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             self.append(sub_f16x2(d=~dst_uint32[i << 1], a=dst_uint32[i << 1], b=uint32(0x64806480)))
             self.append(sub_f16x2(d=~dst_uint32[i << 1 | 1], a=dst_uint32[i << 1 | 1], b=uint32(0x64806480)))
 
-    def cast_i4_to_f16(self, src: Var, dst: Var):
+    def cast_i4_to_f16(self, src: Var, dst: Var) -> None:
         if self.size % 8 != 0:
             self.cast_generic(src, dst)
             return
@@ -213,7 +213,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             else:
                 raise ValueError(interleave_pair)
 
-    def extract_bits_to_uint32(self, src_uint8, i: int, size: int, nbits: int, pos: str) -> Var:
+    def extract_bits_to_uint32(self, src_uint8: Expr, i: int, size: int, nbits: int, pos: str) -> Var:
         """
         Extract the bits of src[2 * i] and src[2 * i + 1] to uint32 variable. The src_uint8 stored size elements of a
         type with nbits number of bits (nbits <= 8).
@@ -269,7 +269,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
                     self.update_bits(p, s, src_start_bit=0, dst_start_bit=j * 16 + r_bits, num_bits=nbits - r_bits)
         return p
 
-    def cast_ux_to_f16(self, src: Var, dst: Var):
+    def cast_ux_to_f16(self, src: Var, dst: Var) -> None:
         if self.size % 2 != 0:
             self.cast_generic(src, dst)
             return
@@ -296,7 +296,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             self.append(sub_f16x2(d=~h, a=h, b=uint32(0x64006400)))
             self.buffer_store(buf=dst_uint32, indices=[i], value=h)
 
-    def cast_u4_to_f16(self, src: Var, dst: Var):
+    def cast_u4_to_f16(self, src: Var, dst: Var) -> None:
         if self.size % 8 != 0:
             self.cast_generic(src, dst)
             return
@@ -349,7 +349,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             else:
                 raise ValueError(interleave_pair)
 
-    def cast_f8e4m3_to_f16(self, src: Var, dst: Var):
+    def cast_f8e4m3_to_f16(self, src: Var, dst: Var) -> None:
         if self.size % 4 != 0 or self.interleave_width:
             self.cast_generic(src, dst)
             return
@@ -377,7 +377,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             self.buffer_store(buf=dst_uint32, indices=[i << 1], value=p)
             self.buffer_store(buf=dst_uint32, indices=[i << 1 | 1], value=q)
 
-    def cast_f8e4m3_to_bf16(self, src: Var, dst: Var):
+    def cast_f8e4m3_to_bf16(self, src: Var, dst: Var) -> None:
         if self.size % 4 != 0 or self.interleave_width:
             self.cast_generic(src, dst)
             return
@@ -405,7 +405,9 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             self.buffer_store(buf=dst_uint32, indices=[i << 1], value=p)
             self.buffer_store(buf=dst_uint32, indices=[i << 1 | 1], value=q)
 
-    def update_bits(self, dst_uint32: Expr, src_uint32: Expr, src_start_bit: int, dst_start_bit: int, num_bits: int):
+    def update_bits(
+        self, dst_uint32: Expr, src_uint32: Expr, src_start_bit: int, dst_start_bit: int, num_bits: int
+    ) -> None:
         # the dst_uint32 must be zero on the specified bits
         bit_offset = src_start_bit - dst_start_bit
         assert 0 <= src_start_bit <= 32 - num_bits and 0 <= dst_start_bit <= 32 - num_bits
@@ -416,7 +418,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
         mask = ((uint32(1) << num_bits) - 1) << dst_start_bit
         self.append(lop3(d=~dst_uint32, a=dst_uint32, b=src_uint32, c=mask, imm_lut=lambda a, b, c: a | (b & c)))
 
-    def cast_f6e3m2_to_bf16(self, src: Var, dst: Var):
+    def cast_f6e3m2_to_bf16(self, src: Var, dst: Var) -> None:
         if self.size % 2 != 0 or self.interleave_width:
             self.cast_generic(src, dst)
             return
@@ -442,7 +444,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
 
             self.buffer_store(dst_uint32, indices=[i], value=p)
 
-    def cast_from_subbyte_16bit_float(self, src: Var, dst: Var):
+    def cast_from_subbyte_16bit_float(self, src: Var, dst: Var) -> None:
         if self.size % 2 != 0 or self.interleave_width:
             self.cast_generic(src, dst)
             return

@@ -14,7 +14,7 @@ from tilus.target import gpgpu_any
 
 @register_inst_emitter(AllocateSharedInst, target=gpgpu_any)
 class AllocateSharedInstEmitter(BaseInstEmitter):
-    def emit(self, inst: AllocateSharedInst):
+    def emit(self, inst: AllocateSharedInst) -> None:
         value: SharedValue = inst.shared_output
 
         allocator_addr = self.codegen.allocate_shared_value(value, nbytes=value.nbytes())
@@ -34,7 +34,7 @@ class AllocateSharedInstEmitter(BaseInstEmitter):
 
 @register_inst_emitter(FreeSharedInst, target=gpgpu_any)
 class FreeSharedInstEmitter(BaseInstEmitter):
-    def emit(self, inst: FreeSharedInst):
+    def emit(self, inst: FreeSharedInst) -> None:
         value: SharedValue = inst.inputs[0].as_shared_value()
         self.codegen.free_shared_value(value)
 
@@ -44,7 +44,7 @@ class FreeSharedInstEmitter(BaseInstEmitter):
 
 @register_inst_emitter(ViewSharedInst, target=gpgpu_any)
 class ViewSharedInstEmitter(BaseInstEmitter):
-    def emit(self, inst: ViewSharedInst):
+    def emit(self, inst: ViewSharedInst) -> None:
         value: SharedValue = inst.shared_output
         base_value: SharedValue = inst.inputs[0].as_shared_value()
 

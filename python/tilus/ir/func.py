@@ -1,3 +1,4 @@
+from __future__ import annotations as _
 from typing import Any, Sequence, Mapping
 import dataclasses
 from dataclasses import dataclass
@@ -24,11 +25,11 @@ class Function(IRNode):
         num_warps: int,
         num_blocks: Sequence[Expr],
         annotations: Mapping[str, Any],
-    ):
+    ) -> Function:
         assert len(num_blocks) == 3
         return Function(
             name, tuple(params), body, num_warps, (num_blocks[0], num_blocks[1], num_blocks[2]), frozendict(annotations)
         )
 
-    def with_body(self, new_body: Stmt):
+    def with_body(self, new_body: Stmt) -> Function:
         return dataclasses.replace(self, body=new_body)

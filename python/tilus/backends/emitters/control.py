@@ -6,5 +6,5 @@ from tilus.target import nvgpu_any
 
 @register_inst_emitter(ExitInst, target=nvgpu_any)
 class ExitInstEmitter(BaseInstEmitter):
-    def emit(self, inst: ExitInst):  # type: ignore[override]
+    def emit(self, inst: ExitInst) -> None:
         self.append(exit())

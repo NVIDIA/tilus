@@ -6,6 +6,6 @@ from tilus.target import gpgpu_any
 
 @register_inst_emitter(AllocateGlobalInst, target=gpgpu_any)
 class AllocateGlobalInstEmitter(BaseInstEmitter):
-    def emit(self, inst: AllocateGlobalInst):
+    def emit(self, inst: AllocateGlobalInst) -> None:
         ptr: Expr = self.codegen.allocate_global_memory(nbytes=inst.nbytes, clean=inst.require_clean)
         self.declare(inst.var, init=cast(ptr, inst.var.type))

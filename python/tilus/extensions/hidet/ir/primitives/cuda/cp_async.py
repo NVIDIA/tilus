@@ -14,7 +14,7 @@ from typing import Optional, no_type_check
 from hidet.utils import initialize
 from hidet.ir.type import void_p
 from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Call
+from hidet.ir.expr import Expr
 from hidet.ir.stmt import asm
 from hidet.ir.func import Function
 from hidet.ir.primitives.func import register_primitive_function
@@ -22,7 +22,7 @@ from hidet.ir.primitives.cuda.funcs import call_cuda
 
 
 def resolve_name_cp_async(
-    use_shared_space_dst,
+    use_shared_space_dst: bool,
     cp_size: int,
     cache_level: str = "always",
     evict: Optional[str] = None,
@@ -100,12 +100,12 @@ def cp_async(
     dst: Expr,
     src: Expr,
     cp_size: int,
-    use_shared_space_dst=False,
-    src_size=None,
-    cache_level="always",
+    use_shared_space_dst: bool = False,
+    src_size: Optional[int | Expr] = None,
+    cache_level: str = "always",
     evict: Optional[str] = None,
-    prefetch_bytes=0,
-) -> Call:
+    prefetch_bytes: int = 0,
+) -> Expr:
     """
     Copy data from global memory to shared memory asynchronously.
 
@@ -135,7 +135,7 @@ def cp_async(
 
     Returns
     -------
-    ret: Call
+    ret: Expr
         The call expression.
     """
     if not (isinstance(cp_size, int) and cp_size in [4, 8, 16]):
@@ -150,6 +150,10 @@ def cp_async(
         if cp_size != 16:
             raise ValueError("When cache_level is global, the cp_size must be 16, got {}".format(cp_size))
     if src_size is None:
-        src_size = cp_size
+        src_size = int32.constant(cp_size)
+    elif isinstance(src_size, int):
+        src_size = int32.constant(src_size)
+    assert isinstance(src_size, Expr)
+
     func_name = resolve_name_cp_async(use_shared_space_dst, cp_size, cache_level, evict, prefetch_bytes)
     return call_cuda(func_name, [dst, src, src_size])

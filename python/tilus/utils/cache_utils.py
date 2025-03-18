@@ -3,7 +3,7 @@ from pathlib import Path
 import tilus.option
 
 
-def clear_cache(*items: str):
+def clear_cache(*items: str) -> None:
     """
     Clear the cache directory for the given items.
 

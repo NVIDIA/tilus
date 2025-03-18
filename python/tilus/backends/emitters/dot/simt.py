@@ -9,7 +9,7 @@ from tilus.target import gpgpu_any
 
 @register_inst_emitter(SimtDotInst, target=gpgpu_any)
 class MmaDotInstEmitter(BaseInstEmitter):
-    def emit(self, inst: SimtDotInst):  # type: ignore
+    def emit(self, inst: SimtDotInst) -> None:  # type: ignore
         assert inst.output is inst.inputs[2]
         a_value = inst.inputs[0].as_register_value()
         b_value = inst.inputs[1].as_register_value()

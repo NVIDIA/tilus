@@ -11,14 +11,14 @@ class DumpIRInstrument(PassInstrument):
 
         self.dump_dir.mkdir(parents=True, exist_ok=True)
 
-    def before_all_passes(self, program: Program):
+    def before_all_passes(self, program: Program) -> None:
         printer = IRPrinter()
         with open(self.dump_dir / "0_original.txt", "w") as f:
             f.write(str(printer(program)))
 
         self.count = 1
 
-    def after_pass(self, pass_name: str, program: Program):
+    def after_pass(self, pass_name: str, program: Program) -> None:
         printer = IRPrinter()
         with open(self.dump_dir / f"{self.count}_{pass_name}.txt", "w") as f:
             f.write(str(printer(program)))

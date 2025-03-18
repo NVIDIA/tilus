@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import List, Optional, Sequence
 
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ class SeqStmt(Stmt):
     seq: tuple[Stmt, ...]
 
     @staticmethod
-    def create(seq: Sequence[Stmt]):
+    def create(seq: Sequence[Stmt]) -> SeqStmt:
         return SeqStmt(tuple(seq))
 
 
@@ -46,7 +47,7 @@ class IfStmt(Stmt):
     then_body: Stmt
     else_body: Optional[Stmt]
 
-    def with_else_body(self, else_body: Stmt):
+    def with_else_body(self, else_body: Stmt) -> IfStmt:
         return IfStmt(self.cond, self.then_body, else_body)
 
 

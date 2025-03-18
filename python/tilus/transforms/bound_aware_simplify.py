@@ -8,6 +8,7 @@ from tilus.ir.inst import (
     CopyAsyncInst,
     LoadGlobalInst,
     StoreGlobalInst,
+    Instruction,
 )
 from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, Stmt
 from tilus.transforms.base import Pass
@@ -21,7 +22,7 @@ class BoundAwareSimplifyRewriter(IRRewriter):
         self.analyzer: BoundAnalyzer = self.simplifier.analyzer
         self.bound: Dict[Expr, BoundInfo] = self.analyzer.bound
 
-    def visit_Function(self, func: Function):
+    def visit_Function(self, func: Function) -> Function:
         # annotate the bound information for parameters
         # for param, attrs in func.param2attrs.items():
         #     info = BoundInfo(min_value=attrs.lower, max_value=attrs.upper)
@@ -32,10 +33,10 @@ class BoundAwareSimplifyRewriter(IRRewriter):
 
         return super().visit_Function(func)
 
-    def visit_Expr(self, expr: Expr):
+    def visit_Expr(self, expr: Expr) -> Expr:
         return self.simplifier(expr)
 
-    def visit_ForStmt(self, stmt: ForStmt):
+    def visit_ForStmt(self, stmt: ForStmt) -> Stmt:
         self.analyzer(stmt.extent)
         bound = self.bound[stmt.extent]
         if bound.value is not None and bound.value in [0, 1]:
@@ -50,7 +51,7 @@ class BoundAwareSimplifyRewriter(IRRewriter):
         else:
             return super().visit_ForStmt(stmt)
 
-    def visit_IfStmt(self, stmt: IfStmt):
+    def visit_IfStmt(self, stmt: IfStmt) -> Stmt:
         cond = self.visit(stmt.cond)
         if isinstance(cond, Constant):
             if cond:
@@ -63,7 +64,7 @@ class BoundAwareSimplifyRewriter(IRRewriter):
         else:
             return super().visit_IfStmt(stmt)
 
-    def visit_SeqStmt(self, stmt: SeqStmt):
+    def visit_SeqStmt(self, stmt: SeqStmt) -> Stmt:
         seq: list[Stmt] = []
         for s in stmt.seq:
             s = self.visit(s)
@@ -78,7 +79,7 @@ class BoundAwareSimplifyRewriter(IRRewriter):
         else:
             return SeqStmt.create(seq)
 
-    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt):
+    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt) -> Stmt:
         if stmt.num_groups == 1:
             self.bound[stmt.iter_var] = BoundInfo(value=0)
             self.memo[stmt.iter_var] = int32.zero
@@ -89,17 +90,17 @@ class BoundAwareSimplifyRewriter(IRRewriter):
 
     # instructions
 
-    def visit_CopyAsyncInst(self, inst: CopyAsyncInst):
+    def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Instruction:
         for axis, extent in zip(inst.axes, inst.inputs[0].shape):
             self.bound[axis] = BoundInfo(min_value=0, max_value=extent - 1)
         return super().default_visit_Instruction(inst)
 
-    def visit_LoadGlobalInst(self, inst: LoadGlobalInst):
+    def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> Instruction:
         for axis, extent in zip(inst.axes, inst.register_output.shape):
             self.bound[axis] = BoundInfo(min_value=0, max_value=extent - 1)
         return super().default_visit_Instruction(inst)
 
-    def visit_StoreGlobalInst(self, inst: StoreGlobalInst):
+    def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Instruction:
         for axis, extent in zip(inst.axes, inst.inputs[0].shape):
             self.bound[axis] = BoundInfo(min_value=0, max_value=extent - 1)
         return super().default_visit_Instruction(inst)

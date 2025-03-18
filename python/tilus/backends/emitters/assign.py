@@ -5,7 +5,7 @@ from tilus.target import gpgpu_any
 
 @register_inst_emitter(AssignInst, target=gpgpu_any)
 class AllocateInstEmitter(BaseInstEmitter):
-    def emit(self, inst: AssignInst):  # type: ignore
+    def emit(self, inst: AssignInst) -> None:  # type: ignore
         value = inst.register_output
         input_value = inst.inputs[0].as_register_value()
         var = self.get_or_allocate_var(value=value, name="regs")

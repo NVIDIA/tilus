@@ -83,7 +83,7 @@ def cache_dir(dir_path: str | Path) -> None:
 
 class debug:
     @staticmethod
-    def dump_ir(enable: bool = True):
+    def dump_ir(enable: bool = True) -> None:
         """
         Enable or disable dumping the IR during compilation.
 

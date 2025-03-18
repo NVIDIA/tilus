@@ -4,7 +4,7 @@ from hidet.ir.dtypes import uint32, uint16, uint8, int32, boolean, vectorize
 from hidet.ir.expr import Expr, if_then_else, cast, Var, logical_and
 from hidet.ir.type import DataType, void_p
 
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
+from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter, Codegen
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.extensions.hidet.ir.type import type_equal
 from tilus.extensions.hidet.ir.utils.index_transform import index_add
@@ -20,12 +20,14 @@ from tilus.utils import gcd
 
 
 class LoadStoreInstBaseEmitter(BaseInstEmitter):
-    def __init__(self, codegen) -> None:
+    def __init__(self, codegen: Codegen) -> None:
         super().__init__(codegen)
         self.vectorize_dimension: Optional[int] = None
         self.vector_bytes: Optional[int] = None
 
-    def analyze_vectorization(self, inst: Union[LoadGlobalInst, StoreGlobalInst, LoadSharedInst, StoreSharedInst]):
+    def analyze_vectorization(
+        self, inst: Union[LoadGlobalInst, StoreGlobalInst, LoadSharedInst, StoreSharedInst]
+    ) -> None:
         """
         Analyze the applicable vectorization of the load/store instruction to global or shared memory.
 
@@ -107,7 +109,9 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
 
 
 class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
-    def get_buffer_and_mask(self, inst: Union[LoadGlobalInst, LoadSharedInst], indices) -> Tuple[Expr, Expr]:
+    def get_buffer_and_mask(
+        self, inst: Union[LoadGlobalInst, LoadSharedInst], indices: List[Expr]
+    ) -> Tuple[Expr, Expr]:
         """
         Get the buffer to load from and the mask indicating whether we should perform the loading.
 
@@ -121,7 +125,9 @@ class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
         """
         raise NotImplementedError()
 
-    def vectorized_load(self, load_dtype: DataType, buffer: Expr, dst_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr):
+    def vectorized_load(
+        self, load_dtype: DataType, buffer: Expr, dst_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr
+    ) -> Optional[Expr]:
         """
         Perform the vectorized loading operation that loads sub_vec_size * len(dst_addrs) elements from the buffer to
         the destination addresses (must be in register scope).
@@ -141,17 +147,20 @@ class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
 
         Returns
         -------
-        call: Expr
+        call: Expr, optional
             The call expression that performs the vectorized loading operation.
         """
         raise NotImplementedError()
 
-    def load(self, inst, indices: List[Expr]) -> Tuple[Expr, Expr]:
+    def load(self, inst: LoadGlobalInst | LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         """
         Load the elements from the memory with the given indices in the output tile.
 
         Parameters
         ----------
+        inst: Union[LoadGlobalInst, LoadSharedInst]
+            The load instruction.
+
         indices: List[Expr]
             The indices in the output tile to load the elements from the memory.
 
@@ -162,7 +171,7 @@ class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
         """
         raise NotImplementedError()
 
-    def emit(self, inst: Union[LoadGlobalInst, LoadSharedInst]):
+    def emit(self, inst: Union[LoadGlobalInst, LoadSharedInst]) -> None:
         # create the output var to store the loaded elements
         output: RegisterValue = inst.register_output
         dtype: DataType = output.dtype
@@ -223,7 +232,9 @@ class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
 
 
 class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
-    def get_buffer_and_mask(self, inst: Union[StoreGlobalInst, StoreSharedInst], indices) -> Tuple[Expr, Expr]:
+    def get_buffer_and_mask(
+        self, inst: Union[StoreGlobalInst, StoreSharedInst], indices: List[Expr]
+    ) -> Tuple[Expr, Expr]:
         """
         Get the buffer to load from and the mask indicating whether we should perform the loading.
 
@@ -239,7 +250,7 @@ class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
 
     def vectorized_store(
         self, store_dtype: DataType, buffer: Expr, source_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr
-    ):
+    ) -> Optional[Expr]:
         """
         Perform the vectorized storing operation that stores sub_vec_size * len(src_addrs) elements from the source
         addresses (must be in register scope) to the buffer.
@@ -259,12 +270,14 @@ class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
 
         Returns
         -------
-        call: Expr, optional
+        call: Expr
             The call expression that performs the vectorized loading operation.
         """
         raise NotImplementedError()
 
-    def store(self, inst, indices: List[Expr], value: Expr, is_first_occurrence: Expr):
+    def store(
+        self, inst: StoreGlobalInst | StoreSharedInst, indices: List[Expr], value: Expr, is_first_occurrence: Expr
+    ) -> None:
         """
         Store the elements to the memory with the given indices in the input tile.
 
@@ -284,7 +297,7 @@ class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
         """
         raise NotImplementedError()
 
-    def emit(self, inst: Union[StoreSharedInst, StoreGlobalInst]):
+    def emit(self, inst: Union[StoreSharedInst, StoreGlobalInst]) -> None:
         # get the register value and its corresponding lowered variable to write
         value: RegisterValue
         if isinstance(inst, StoreSharedInst):
@@ -352,20 +365,20 @@ class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
 
 @register_inst_emitter(LoadSharedInst, target=nvgpu_any)
 class LoadSharedInstNVGPUEmitter(LoadInstBaseEmitter):
-    def get_buffer_and_mask(self, inst: LoadSharedInst, indices) -> Tuple[Expr, Expr]:
+    def get_buffer_and_mask(self, inst: LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         src = inst.inputs[0].as_shared_value()
         global_indices: List[Expr] = index_add(inst.offsets, indices)
         remap = {axis: global_index for axis, global_index in zip(src.layout.axes, global_indices)}
         offset: Expr = rewrite(node=src.layout.offset, rewrite_map=remap)
         mask: Expr = boolean.true
-        # buf: Var = self.value2var[src]
-        # buffer_smem_addr = self.declare_var('smem_addr', int32, cvta_generic_to_shared(generic_addr=~buf[offset]))
         buffer_smem_addr = self.declare_var(
             name="smem_addr", tp=int32, init=self.shared_value_shared_space_addr[src] + offset * src.dtype.nbytes
         )
         return buffer_smem_addr, mask
 
-    def vectorized_load(self, load_dtype: DataType, buffer: Expr, dst_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr):
+    def vectorized_load(
+        self, load_dtype: DataType, buffer: Expr, dst_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr
+    ) -> Optional[Expr]:
         # we need to multiply the addr by the size of the data type since the buffer has int32 data type representing
         # an address in shared memory window
         return load(
@@ -375,7 +388,7 @@ class LoadSharedInstNVGPUEmitter(LoadInstBaseEmitter):
             space="shared",
         )
 
-    def load(self, inst: LoadSharedInst, indices: List[Expr]):
+    def load(self, inst: LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         src = inst.inputs[0].as_shared_value()
         indices = index_add(inst.offsets, indices)
         remap = {axis: global_index for axis, global_index in zip(src.layout.axes, indices)}
@@ -401,7 +414,7 @@ class StoreSharedInstEmitter(StoreInstBaseEmitter):
 
     def vectorized_store(
         self, store_dtype: DataType, buffer: Expr, source_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr
-    ):
+    ) -> Optional[Expr]:
         source_buffer = cast(source_buffer, ~store_dtype)
         self.append(
             store(
@@ -411,8 +424,9 @@ class StoreSharedInstEmitter(StoreInstBaseEmitter):
                 space="shared",
             )
         )
+        return None
 
-    def store(self, inst, indices: Sequence[Expr], value: Expr, is_first_occurrence: Expr):
+    def store(self, inst: StoreSharedInst, indices: Sequence[Expr], value: Expr, is_first_occurrence: Expr) -> None:
         buf: Var = self.value2var[inst.inputs[0]]
         indices = index_add(indices, inst.offsets)
         layout: SharedLayout = inst.inputs[0].as_shared_value().layout
@@ -432,10 +446,13 @@ class LoadGlobalInstEmitter(LoadInstBaseEmitter):
         buffer = self.declare_var(inst.ptr.hint, ~dtype, init=cast(inst.ptr, ~dtype) + offset)
         return buffer, mask
 
-    def vectorized_load(self, load_dtype: DataType, buffer: Expr, dst_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr):
+    def vectorized_load(
+        self, load_dtype: DataType, buffer: Expr, dst_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr
+    ) -> Optional[Expr]:
         buffer = cast(buffer, ~vectorize(load_dtype, sub_vec_size))
         dst_buffer = cast(dst_buffer, ~vectorize(load_dtype, sub_vec_size))
         self.buffer_store(dst_buffer, indices=[sub_vec_i], value=buffer[sub_vec_i])
+        return None
 
     def load(self, inst: LoadGlobalInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         remap = {axis: index for axis, index in zip(inst.axes, indices)}
@@ -452,7 +469,7 @@ class LoadGlobalInstEmitter(LoadInstBaseEmitter):
 
 @register_inst_emitter(LoadSharedInst, target=amdgpu_any)
 class LoadSharedInstAMDGPUEmitter(LoadInstBaseEmitter):
-    def get_buffer_and_mask(self, inst: LoadSharedInst, indices) -> Tuple[Expr, Expr]:
+    def get_buffer_and_mask(self, inst: LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         src = inst.inputs[0].as_shared_value()
         global_indices: List[Expr] = index_add(inst.offsets, indices)
         remap = {axis: global_index for axis, global_index in zip(src.layout.axes, global_indices)}
@@ -461,12 +478,15 @@ class LoadSharedInstAMDGPUEmitter(LoadInstBaseEmitter):
         buf: Var = self.value2var[src]
         return ~buf[offset], mask
 
-    def vectorized_load(self, load_dtype: DataType, buffer: Expr, dst_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr):
+    def vectorized_load(
+        self, load_dtype: DataType, buffer: Expr, dst_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr
+    ) -> Optional[Expr]:
         buffer = cast(buffer, ~vectorize(load_dtype, sub_vec_size))
         dst_buffer = cast(dst_buffer, ~vectorize(load_dtype, sub_vec_size))
         self.buffer_store(dst_buffer, indices=[sub_vec_i], value=buffer[sub_vec_i])
+        return None
 
-    def load(self, inst: LoadSharedInst, indices: List[Expr]):
+    def load(self, inst: LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         src = inst.inputs[0].as_shared_value()
         indices = index_add(inst.offsets, indices)
         remap = {axis: global_index for axis, global_index in zip(src.layout.axes, indices)}
@@ -489,12 +509,13 @@ class StoreGlobalInstEmitter(StoreInstBaseEmitter):
 
     def vectorized_store(
         self, store_dtype: DataType, buffer: Expr, source_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr
-    ):
+    ) -> Optional[Expr]:
         buffer = cast(buffer, ~vectorize(store_dtype, sub_vec_size))
         source_buffer = cast(source_buffer, ~vectorize(store_dtype, sub_vec_size))
         self.buffer_store(buffer, indices=[sub_vec_i], value=source_buffer[sub_vec_i])
+        return None
 
-    def store(self, inst: StoreGlobalInst, indices: List[Expr], value: Expr, is_first_occurrence: Expr):
+    def store(self, inst: StoreGlobalInst, indices: List[Expr], value: Expr, is_first_occurrence: Expr) -> None:
         remap = {axis: global_index for axis, global_index in zip(inst.axes, indices)}
         offset: Expr = rewrite(node=inst.offset, rewrite_map=remap)
         mask: Expr = rewrite(node=inst.mask, rewrite_map=remap) if inst.mask is not None else boolean.true
@@ -506,7 +527,7 @@ class StoreGlobalInstEmitter(StoreInstBaseEmitter):
 
 @register_inst_emitter(StoreSharedInst, target=amdgpu_any)
 class StoreSharedInstAMDGPUEmitter(StoreInstBaseEmitter):
-    def get_buffer_and_mask(self, inst: StoreSharedInst, indices) -> Tuple[Expr, Expr]:
+    def get_buffer_and_mask(self, inst: StoreSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         dst = inst.inputs[0].as_shared_value()
         indices = index_add(inst.offsets, indices)
         remap: Dict[Var, Expr] = {axis: index for axis, index in zip(dst.layout.axes, indices)}
@@ -517,12 +538,13 @@ class StoreSharedInstAMDGPUEmitter(StoreInstBaseEmitter):
 
     def vectorized_store(
         self, store_dtype: DataType, buffer: Expr, source_buffer: Expr, sub_vec_size: int, sub_vec_i: Expr
-    ):
+    ) -> Optional[Expr]:
         buffer = cast(buffer, ~vectorize(store_dtype, sub_vec_size))
         source_buffer = cast(source_buffer, ~vectorize(store_dtype, sub_vec_size))
         self.buffer_store(buffer, indices=[sub_vec_i], value=source_buffer[sub_vec_i])
+        return None
 
-    def store(self, inst, indices: List[Expr], value: Expr, is_first_occurrence: Expr):
+    def store(self, inst: StoreSharedInst, indices: List[Expr], value: Expr, is_first_occurrence: Expr) -> None:
         buf: Var = self.value2var[inst.inputs[0]]
         indices = index_add(indices, inst.offsets)
         layout: SharedLayout = inst.inputs[0].as_shared_value().layout

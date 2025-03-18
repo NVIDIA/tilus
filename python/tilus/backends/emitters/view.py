@@ -6,7 +6,7 @@ from tilus.target import gpgpu_any
 
 @register_inst_emitter(ViewInst, target=gpgpu_any)
 class ViewInstEmitter(BaseInstEmitter):
-    def emit(self, inst: ViewInst):
+    def emit(self, inst: ViewInst) -> None:
         out_value = inst.register_output
         in_var = self.value2var[inst.inputs[0]]
         out_var: Var = self.declare(

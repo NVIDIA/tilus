@@ -8,7 +8,7 @@ from hidet.ir.functors import IRFunctor
 from hidet.utils import gcd
 
 
-def compute_value(a: DimensionInfo, b: DimensionInfo, op) -> Optional[int]:
+def compute_value(a: DimensionInfo, b: DimensionInfo, op: Callable[[int, int], int]) -> Optional[int]:
     if a.value is not None and b.value is not None:
         return op(a.value, b.value)
     else:
@@ -291,7 +291,7 @@ class TensorInfo:
         return self._binary(other, operator.xor)
 
     @staticmethod
-    def from_axis(shape: Sequence[int], dim: int):
+    def from_axis(shape: Sequence[int], dim: int) -> TensorInfo:
         infos: List[DimensionInfo] = []
         for i, extent in enumerate(shape):
             if i == dim:
@@ -301,7 +301,7 @@ class TensorInfo:
         return TensorInfo(shape, infos)
 
     @staticmethod
-    def from_constant(shape: Sequence[int], value: Optional[int]):
+    def from_constant(shape: Sequence[int], value: Optional[int]) -> TensorInfo:
         infos: List[DimensionInfo] = []
 
         for i, extent in enumerate(shape):
@@ -313,7 +313,7 @@ class TensorInfo:
         return TensorInfo(shape, infos)
 
     @staticmethod
-    def from_divisiblity(shape: Sequence[int], divisibility: int):
+    def from_divisibility(shape: Sequence[int], divisibility: int) -> TensorInfo:
         infos: List[DimensionInfo] = []
 
         for i, extent in enumerate(shape):
@@ -357,20 +357,20 @@ class ValueAnalyzer(IRFunctor):
         info = self.visit(expr)
         return info
 
-    def visit_Var(self, e: Var):
+    def visit_Var(self, e: Var) -> TensorInfo:
         if e in self.var2info:
             return self.var2info[e]
         else:
             return TensorInfo.from_constant(self.shape, value=None)
 
-    def visit_Constant(self, e: Constant):
+    def visit_Constant(self, e: Constant) -> TensorInfo:
         if isinstance(e.type, DataType) and e.type.is_integer():
             assert isinstance(e.value, int)
             return TensorInfo.from_constant(self.shape, value=int(e.value))
         else:
             return TensorInfo.from_constant(self.shape, value=None)
 
-    def visit_binary(self, e: BinaryExpr):
+    def visit_binary(self, e: BinaryExpr) -> TensorInfo:
         a = self.visit(e.a)
         b = self.visit(e.b)
         op_dict: Dict[Type[Expr], Callable] = {
@@ -390,31 +390,31 @@ class ValueAnalyzer(IRFunctor):
 
         return c
 
-    def visit_Add(self, e: Add):
+    def visit_Add(self, e: Add) -> TensorInfo:
         return self.visit_binary(e)
 
-    def visit_Sub(self, e: Sub):
+    def visit_Sub(self, e: Sub) -> TensorInfo:
         return self.visit_binary(e)
 
-    def visit_Multiply(self, e: Multiply):
+    def visit_Multiply(self, e: Multiply) -> TensorInfo:
         return self.visit_binary(e)
 
-    def visit_Mod(self, e: Mod):
+    def visit_Mod(self, e: Mod) -> TensorInfo:
         return self.visit_binary(e)
 
-    def visit_Div(self, e: Div):
+    def visit_Div(self, e: Div) -> TensorInfo:
         return self.visit_binary(e)
 
-    def visit_LessThan(self, e: LessThan):
+    def visit_LessThan(self, e: LessThan) -> TensorInfo:
         return self.visit_binary(e)
 
-    def visit_And(self, e: LogicalAnd):
+    def visit_And(self, e: LogicalAnd) -> TensorInfo:
         return self.visit_binary(e)
 
-    def visit_BitwiseXor(self, e: BitwiseXor):
+    def visit_BitwiseXor(self, e: BitwiseXor) -> TensorInfo:
         return self.visit_binary(e)
 
-    def visit_Equal(self, e: Equal):
+    def visit_Equal(self, e: Equal) -> TensorInfo:
         return self.visit_binary(e)
 
 

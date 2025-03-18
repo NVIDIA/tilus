@@ -36,7 +36,7 @@ class RegisterValue(Value):
         return self.layout.local_size
 
     @staticmethod
-    def create(dtype: DataType, layout: Layout):
+    def create(dtype: DataType, layout: Layout) -> RegisterValue:
         return RegisterValue(dtype, layout.shape, layout)
 
 
@@ -45,12 +45,12 @@ class SharedValue(Value):
     layout: SharedLayout
 
     @staticmethod
-    def create(dtype: DataType, layout: SharedLayout):
+    def create(dtype: DataType, layout: SharedLayout) -> SharedValue:
         return SharedValue(dtype, layout.shape, layout)
 
     @property
     def size(self) -> int:
         return self.layout.size
 
-    def nbytes(self):
+    def nbytes(self) -> int:
         return nbytes_from_nbits(self.size * self.dtype.nbits)

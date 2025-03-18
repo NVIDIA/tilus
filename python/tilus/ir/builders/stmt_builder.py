@@ -1,10 +1,11 @@
+from __future__ import annotations
 from typing import List, Union, Optional, Callable, Sequence, Tuple
 
 from hidet.ir.dtypes import int32, boolean
 from hidet.ir.expr import Expr, Var
 from hidet.ir.type import BaseType, DataType, PointerType
 
-from tilus.extensions.hidet.ir.expr import convert_to_expr
+from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir.inst import AllocateInst, PrintValueInst, SyncThreadsInst, AllocateSharedInst, ViewInst
 from tilus.ir.inst import CopyAsyncCommitGroupInst, CopyAsyncWaitGroupInst, AllocateGlobalInst, AtomicScalarInst
 from tilus.ir.inst import FormatPrintInst, CastInst, LoadMatrixInst, MmaDotInst, CopyAsyncWaitAllInst
@@ -17,27 +18,32 @@ from tilus.ir.stmt import Stmt, ForStmt, SeqStmt, ForThreadGroupStmt, IfStmt, Wh
 from tilus.ir.value import RegisterValue, SharedValue, SharedLayout
 
 
-class StatementContext:
-    def __init__(self, vb) -> None:
-        self.vb: StatementBuilder = vb
+class StmtContext:
+    def __init__(self, vb: StmtBuilderCore) -> None:
+        self.vb: StmtBuilderCore = vb
 
-    def enter(self):
+    def enter(self) -> None:
         self.vb._stack.append([])
 
     def pop(self) -> Stmt:
         return SeqStmt(tuple(self.vb._stack.pop()))
 
-    def append(self, stmt):
+    def append(self, stmt: Stmt) -> None:
         self.vb._stack[-1].append(stmt)
 
     @property
-    def innermost_stack(self):
+    def innermost_stack(self) -> List[Stmt]:
         return self.vb._stack[-1]
 
 
-class ForContext(StatementContext):
+class ForContext(StmtContext):
     def __init__(
-        self, vb, iter_vars: List[Var], extents: List[Expr], unrolls: List[Optional[int]], unwrap: bool = False
+        self,
+        vb: StmtBuilderCore,
+        iter_vars: List[Var],
+        extents: List[Expr],
+        unrolls: List[Optional[int]],
+        unwrap: bool = False,
     ):
         super().__init__(vb)
         self.iter_vars: List[Var] = iter_vars
@@ -65,13 +71,13 @@ class ForContext(StatementContext):
         self.append(body)
 
 
-class ForThreadGroupContext(StatementContext):
-    def __init__(self, vb, iter_var: Var, num_groups: int):
+class ForThreadGroupContext(StmtContext):
+    def __init__(self, vb: StmtBuilderCore, iter_var: Var, num_groups: int):
         super().__init__(vb)
         self.iter_var: Var = iter_var
         self.num_groups: int = num_groups
 
-    def __enter__(self):
+    def __enter__(self) -> Var:
         self.enter()
         return self.iter_var
 
@@ -79,24 +85,24 @@ class ForThreadGroupContext(StatementContext):
         self.append(ForThreadGroupStmt(self.iter_var, self.num_groups, body=self.pop()))
 
 
-class IfContext(StatementContext):
-    def __init__(self, vb, cond: Expr):
+class IfContext(StmtContext):
+    def __init__(self, vb: StmtBuilderCore, cond: Expr):
         super().__init__(vb)
         self.cond: Expr = cond
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         self.enter()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.append(IfStmt(self.cond, then_body=self.pop(), else_body=None))
 
 
-class ElseIfContext(StatementContext):
-    def __init__(self, vb, cond: Expr):
+class ElseIfContext(StmtContext):
+    def __init__(self, vb: StmtBuilderCore, cond: Expr):
         super().__init__(vb)
         self.cond: Expr = cond
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         self.enter()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -122,11 +128,11 @@ class ElseIfContext(StatementContext):
         self.append(if_chain[0])
 
 
-class OtherwiseContext(StatementContext):
-    def __init__(self, vb):
+class OtherwiseContext(StmtContext):
+    def __init__(self, vb: StmtBuilderCore):
         super().__init__(vb)
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         self.enter()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -152,19 +158,19 @@ class OtherwiseContext(StatementContext):
         self.append(if_chain[0])
 
 
-class WhileContext(StatementContext):
-    def __init__(self, vb, cond: Expr):
+class WhileContext(StmtContext):
+    def __init__(self, vb: StmtBuilderCore, cond: Expr):
         super().__init__(vb)
         self.cond: Expr = cond
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         self.enter()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.append(WhileStmt(self.cond, body=self.pop()))
 
 
-class StatementBuilderCore:
+class StmtBuilderCore:
     def __init__(self) -> None:
         # context stack
         self._stack: List[List[Stmt]] = [[]]
@@ -173,10 +179,10 @@ class StatementBuilderCore:
         self, extent: Union[Expr, int], iter_name_hint: str = "i", unroll_factor: Optional[int] = None
     ) -> ForContext:
         iter_var = Var(iter_name_hint, type=int32)
-        return ForContext(self, [iter_var], [convert_to_expr(extent)], [unroll_factor], unwrap=True)
+        return ForContext(self, [iter_var], [as_expr(extent)], [unroll_factor], unwrap=True)
 
     def for_grid(self, extents: List[Union[Expr, int]], iter_name_hints: Optional[List[str]] = None) -> ForContext:
-        expr_extents = [convert_to_expr(extent) for extent in extents]
+        expr_extents = [as_expr(extent) for extent in extents]
         if iter_name_hints is None:
             names = "ijkpqrstuvw"
             assert len(extents) < len(names)
@@ -188,14 +194,14 @@ class StatementBuilderCore:
         iter_var = Var("tg", type=int32)
         return ForThreadGroupContext(self, iter_var, num_groups)
 
-    def while_loop(self, cond: Union[Expr, bool]):
-        return WhileContext(self, convert_to_expr(cond))
+    def while_loop(self, cond: Union[Expr, bool]) -> WhileContext:
+        return WhileContext(self, as_expr(cond))
 
     def if_then(self, cond: Union[Expr, bool]) -> IfContext:
-        return IfContext(self, convert_to_expr(cond))
+        return IfContext(self, as_expr(cond))
 
     def else_if(self, cond: Union[Expr, bool]) -> ElseIfContext:
-        return ElseIfContext(self, convert_to_expr(cond))
+        return ElseIfContext(self, as_expr(cond))
 
     def otherwise(self) -> OtherwiseContext:
         return OtherwiseContext(self)
@@ -204,7 +210,7 @@ class StatementBuilderCore:
         stmt = BreakStmt()
         self._stack[-1].append(stmt)
 
-    def append(self, inst_or_stmt: Union[Instruction, Stmt]):
+    def append(self, inst_or_stmt: Union[Instruction, Stmt]) -> None:
         if isinstance(inst_or_stmt, Instruction):
             stmt: Stmt = InstructionStmt(inst_or_stmt)
         else:
@@ -227,7 +233,7 @@ class StatementBuilderCore:
         return ret
 
 
-class StatementBuilder(StatementBuilderCore):
+class StmtBuilder(StmtBuilderCore):
     # register value operations
     def allocate(
         self,
@@ -239,7 +245,7 @@ class StatementBuilder(StatementBuilderCore):
         if f_init is not None:
 
             def wrapped_init(axes: Sequence[Var]) -> Expr:
-                return convert_to_expr(f_init(axes))
+                return as_expr(f_init(axes))
 
         inst = AllocateInst.create(dtype, layout, wrapped_init)
         self.append(inst)
@@ -257,11 +263,11 @@ class StatementBuilder(StatementBuilderCore):
         self.append(inst)
         return inst.var
 
-    def assign(self, output: RegisterValue, x: RegisterValue):
+    def assign(self, output: RegisterValue, x: RegisterValue) -> None:
         inst = AssignInst.create(output, x)
         self.append(inst)
 
-    def assign_scalar(self, var: Var, scalar_expr: Expr):
+    def assign_scalar(self, var: Var, scalar_expr: Expr) -> None:
         inst = AssignScalarInst.create(var=var, scalar_expr=scalar_expr)
         self.append(inst)
 
@@ -275,16 +281,16 @@ class StatementBuilder(StatementBuilderCore):
     ) -> RegisterValue:
         inst = ViewInst.create(x, layout=layout, dtype=dtype, local_offset=local_offset)
         self.append(inst)
-        return inst.output.as_register_value()
+        return inst.register_output
 
     def cast(
         self,
         x: RegisterValue,
         *,
         dtype: DataType,
-        interleave_width=None,
-        interleave_stride=None,
-        ignore_int4b_xor=False,
+        interleave_width: Optional[int] = None,
+        interleave_stride: Optional[int] = None,
+        ignore_int4b_xor: bool = False,
     ) -> RegisterValue:
         if x.dtype == dtype:
             return x
@@ -313,7 +319,7 @@ class StatementBuilder(StatementBuilderCore):
         f_offset: Callable[[List[Var]], Expr],
         f_mask: Optional[Callable[[List[Var]], Expr]],
         evict: Optional[str] = None,
-    ):
+    ) -> None:
         inst = CopyAsyncInst.create(dst, ptr, f_offset, f_mask, evict=evict)
         self.append(inst)
 
@@ -325,8 +331,8 @@ class StatementBuilder(StatementBuilderCore):
         inst = CopyAsyncCommitGroupInst.create()
         self.append(inst)
 
-    def copy_async_wait_group(self, n: Union[Expr, int]):
-        inst = CopyAsyncWaitGroupInst.create(convert_to_expr(n))
+    def copy_async_wait_group(self, n: Union[Expr, int]) -> None:
+        inst = CopyAsyncWaitGroupInst.create(as_expr(n))
         self.append(inst)
 
     def elementwise_binary(
@@ -334,7 +340,7 @@ class StatementBuilder(StatementBuilderCore):
     ) -> RegisterValue:
         inst = ElementwiseBinaryInst.create(x, y, op, output=out)
         self.append(inst)
-        return inst.output
+        return inst.register_output
 
     def add(self, x: RegisterValue, y: RegisterValue, *, out: Optional[RegisterValue] = None) -> RegisterValue:
         return self.elementwise_binary(x, y, "+", out=out)
@@ -351,17 +357,17 @@ class StatementBuilder(StatementBuilderCore):
     def mod(self, x: RegisterValue, y: RegisterValue, *, out: Optional[RegisterValue] = None) -> RegisterValue:
         return self.elementwise_binary(x, y, "%", out=out)
 
-    def print_value(self, msg: str, value: RegisterValue, fmt: Optional[str] = None, cond: Expr = boolean.true):
+    def print_value(self, msg: str, value: RegisterValue, fmt: Optional[str] = None, cond: Expr = boolean.true) -> None:
         inst = PrintValueInst.create(value, cond=cond, msg=msg, fmt=fmt)
         self.append(inst)
 
-    def format_print(self, fstring: str, expressions: Sequence[Expr], cond: Optional[Expr] = None):
+    def format_print(self, fstring: str, expressions: Sequence[Expr], cond: Optional[Expr] = None) -> None:
         if cond is None:
             cond = boolean.true
         inst = FormatPrintInst.create(cond=cond, fstring=fstring, expressions=expressions)
         self.append(inst)
 
-    def printf(self, fstring: str, *expressions: Expr):
+    def printf(self, fstring: str, *expressions: Expr) -> None:
         self.format_print(fstring=fstring, expressions=expressions)
 
     def mma_dot(
@@ -373,12 +379,12 @@ class StatementBuilder(StatementBuilderCore):
         warp_spatial: Tuple[int, int, int],
         warp_repeat: Tuple[int, int, int],
         output: Optional[RegisterValue] = None,
-    ):
+    ) -> RegisterValue:
         inst = MmaDotInst.create(
             a=a, b=b, c=c, mma_inst=mma_inst, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
         )
         self.append(inst)
-        return inst.output.as_register_value()
+        return inst.register_output
 
     # shared value operations
 
@@ -389,11 +395,11 @@ class StatementBuilder(StatementBuilderCore):
         self.append(inst)
         return inst.shared_output
 
-    def free_shared(self, shared_value: SharedValue):
+    def free_shared(self, shared_value: SharedValue) -> None:
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
 
-    def store_shared(self, dst: SharedValue, src: RegisterValue, offsets: Optional[List[Expr]] = None):
+    def store_shared(self, dst: SharedValue, src: RegisterValue, offsets: Optional[List[Expr]] = None) -> None:
         inst = StoreSharedInst.create(dst, src, offsets)
         self.append(inst)
 
@@ -417,7 +423,7 @@ class StatementBuilder(StatementBuilderCore):
         register_layout: Layout,
         offsets: List[Expr],
         output: Optional[RegisterValue] = None,
-    ):
+    ) -> RegisterValue:
         inst = LoadMatrixInst.create(src=src, register_layout=register_layout, offsets=offsets, output=output)
         self.append(inst)
         return inst.register_output
@@ -430,7 +436,7 @@ class StatementBuilder(StatementBuilderCore):
         ptr: Var,
         f_offset: Callable[[List[Var]], Expr | int],
         f_mask: Optional[Callable[[List[Var]], Expr | int | bool]] = None,
-    ):
+    ) -> None:
         inst = StoreGlobalInst.create(x=x, ptr=ptr, f_offset=f_offset, f_mask=f_mask)
         self.append(inst)
 
@@ -453,30 +459,30 @@ class StatementBuilder(StatementBuilderCore):
         self.append(inst)
         return inst.var
 
-    def store_scalar(self, ptr: Expr, value: Expr, sync: str = "weak"):
+    def store_scalar(self, ptr: Expr, value: Expr, sync: str = "weak") -> None:
         inst = StoreScalarInst.create(ptr, value, sync)
         self.append(inst)
 
-    def atomic_scalar(self, ptr: Expr, op: str, value: Expr):
+    def atomic_scalar(self, ptr: Expr, op: str, value: Expr) -> None:
         inst = AtomicScalarInst.create(ptr=ptr, op=op, value=value)
         self.append(inst)
 
     # control operations
 
-    def syncthreads(self):
+    def syncthreads(self) -> None:
         inst = SyncThreadsInst.create()
         self.append(inst)
 
-    def syncthreads_and(self, cond: Union[Expr, bool]):
-        inst = SyncReduceThreadsInst.create(reduce_op="and", var_hint="sync_and", reduce_value=convert_to_expr(cond))
+    def syncthreads_and(self, cond: Union[Expr, bool]) -> Var:
+        inst = SyncReduceThreadsInst.create(reduce_op="and", var_hint="sync_and", reduce_value=as_expr(cond))
         self.append(inst)
         return inst.var
 
-    def syncthreads_or(self, cond: Union[Expr, bool]):
-        inst = SyncReduceThreadsInst.create(reduce_op="or", var_hint="sync_and", reduce_value=convert_to_expr(cond))
+    def syncthreads_or(self, cond: Union[Expr, bool]) -> Var:
+        inst = SyncReduceThreadsInst.create(reduce_op="or", var_hint="sync_and", reduce_value=as_expr(cond))
         self.append(inst)
         return inst.var
 
-    def exit(self):
+    def exit(self) -> None:
         inst = ExitInst.create()
         self.append(inst)

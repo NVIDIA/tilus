@@ -10,7 +10,7 @@ from tilus.target import nvgpu_any
 @register_inst_emitter(ShuffleUpInst, target=nvgpu_any)
 @register_inst_emitter(ShuffleDownInst, target=nvgpu_any)
 class ShuffleBaseInstEmitter(BaseInstEmitter):
-    def emit(self, inst: ShuffleBaseInst):
+    def emit(self, inst: ShuffleBaseInst) -> None:
         dtype = inst.register_output.dtype
         layout = inst.register_output.layout
         thread_nbytes: int = dtype.nbytes * layout.local_size

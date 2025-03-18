@@ -1,8 +1,8 @@
 from typing import Optional
-from hidet.ir.stmt import BlackBoxStmt
+from hidet.ir.stmt import BlackBoxStmt, Stmt
 
 
-def comment(comment_string, style: Optional[str] = None):
+def comment(comment_string: str, style: Optional[str] = None) -> Stmt:
     """
     Generate a comment statement.
 

@@ -2,7 +2,7 @@
 This module contains utility functions that only depend on the Python standard library.
 """
 
-from typing import List, Optional, Any, Callable, Sequence, Iterable
+from typing import List, Optional, Any, Callable, Sequence, Iterable, Iterator
 import itertools
 
 
@@ -14,7 +14,7 @@ def cdiv(a, b):
     return (a + (b - 1)) // b
 
 
-def idiv(a: int, b: int):
+def idiv(a: int, b: int) -> int:
     """
     Integer division with checking of proper division.
     """
@@ -54,7 +54,7 @@ def nbytes_from_nbits(nbits: int) -> int:
     return nbits // 8
 
 
-def ranked_product(*iterables, ranks: Sequence[int]):
+def ranked_product(*iterables: Any, ranks: Sequence[int]) -> Iterator[List[Any]]:
     assert set(ranks) == set(range(len(iterables)))
     reverse_ranks = {rank: i for i, rank in enumerate(ranks)}
     sorted_ranks_iterables = sorted(zip(ranks, iterables), key=lambda x: x[0])

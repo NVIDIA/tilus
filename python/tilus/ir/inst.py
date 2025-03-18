@@ -5,7 +5,7 @@ from functools import lru_cache
 from hidet.ir.expr import Var, Expr
 from hidet.ir.type import DataType, BaseType, PointerType
 from hidet.ir.dtypes import bf16, f16, f32, i32, i8, boolean
-from tilus.extensions.hidet.ir.expr import index_vars, convert_to_expr
+from tilus.extensions.hidet.ir.expr import index_vars, as_expr
 from tilus.ir.layout import Layout, spatial, repeat, column_repeat, column_spatial
 from tilus.ir.node import IRNode
 from tilus.ir.value import Value, RegisterValue, SharedValue, SharedLayout
@@ -43,7 +43,9 @@ class Instruction(IRNode):
             attrs[k] = v
         return attrs
 
-    def recreate(self, updated_output: Optional[Value], updated_inputs: List[Value], updated_attrs: Dict[str, Any]):
+    def recreate(
+        self, updated_output: Optional[Value], updated_inputs: List[Value], updated_attrs: Dict[str, Any]
+    ) -> Instruction:
         # by default, all subclasses of Instruction will have __init__ accepts ([output, ]*inputs, **attrs)
         # if the subclass has different signature, it should override this method so that we can recreate the instance
         # with the updated values and attrs
@@ -57,7 +59,7 @@ class Instruction(IRNode):
 @dataclass(frozen=True, eq=False)
 class AssignInst(Instruction):
     @staticmethod
-    def create(output: Value, x: Value):
+    def create(output: Value, x: Value) -> AssignInst:
         return AssignInst(output=output, inputs=(x,))
 
 
@@ -85,7 +87,7 @@ class AllocateScalarInst(Instruction):
     init: Optional[Expr]
 
     @staticmethod
-    def create(hint: str, scalar_type: Union[DataType, PointerType], init: Optional[Expr] = None):
+    def create(hint: str, scalar_type: Union[DataType, PointerType], init: Optional[Expr] = None) -> AllocateScalarInst:
         var = Var(hint=hint, type=scalar_type)
         return AllocateScalarInst(output=None, inputs=tuple(), var=var, init=init)
 
@@ -96,7 +98,7 @@ class AssignScalarInst(Instruction):
     scalar_expr: Expr
 
     @staticmethod
-    def create(var: Var, scalar_expr: Expr):
+    def create(var: Var, scalar_expr: Expr) -> AssignScalarInst:
         return AssignScalarInst(output=None, inputs=tuple(), var=var, scalar_expr=scalar_expr)
 
 
@@ -119,8 +121,8 @@ class LoadGlobalInst(Instruction):
         if out is None:
             out = RegisterValue.create(dtype, layout)
         axes = index_vars(num_vars=len(layout.shape))
-        offset = convert_to_expr(f_offset(axes))
-        mask = convert_to_expr(f_mask(axes)) if f_mask is not None else boolean.true
+        offset = as_expr(f_offset(axes))
+        mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
         return LoadGlobalInst(output=out, inputs=tuple(), ptr=ptr, axes=axes, offset=offset, mask=mask)
 
 
@@ -139,8 +141,8 @@ class StoreGlobalInst(Instruction):
         f_mask: Optional[Callable[[List[Var]], Expr | int | bool]] = None,
     ) -> StoreGlobalInst:
         axes = index_vars(num_vars=len(x.layout.shape))
-        offset = convert_to_expr(f_offset(axes))
-        mask = convert_to_expr(f_mask(axes)) if f_mask is not None else boolean.true
+        offset = as_expr(f_offset(axes))
+        mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
         return StoreGlobalInst(output=None, inputs=(x,), ptr=ptr, axes=axes, offset=offset, mask=mask)
 
 
@@ -152,7 +154,11 @@ class CastInst(Instruction):
 
     @staticmethod
     def create(
-        dtype: DataType, x: RegisterValue, interleave_width=None, interleave_stride=None, ignore_int4b_xor=False
+        dtype: DataType,
+        x: RegisterValue,
+        interleave_width: Optional[int] = None,
+        interleave_stride: Optional[int] = None,
+        ignore_int4b_xor: bool = False,
     ) -> CastInst:
         out = RegisterValue.create(dtype, x.layout)
         return CastInst(
@@ -183,7 +189,9 @@ class ElementwiseBinaryInst(Instruction):
     op: str
 
     @staticmethod
-    def create(x: RegisterValue, y: RegisterValue, op: str, *, output: Optional[RegisterValue]):
+    def create(
+        x: RegisterValue, y: RegisterValue, op: str, *, output: Optional[RegisterValue]
+    ) -> ElementwiseBinaryInst:
         assert op in ElementwiseBinaryInst.VALID_OPS
         if output is None:
             output = RegisterValue.create(x.dtype, x.layout)
@@ -200,7 +208,7 @@ class BroadcastElementwiseBinaryInst(Instruction):
     @staticmethod
     def create(
         x: Union[RegisterValue, Expr], y: Union[RegisterValue, Expr], op: str, *, output: Optional[RegisterValue]
-    ):
+    ) -> BroadcastElementwiseBinaryInst:
         assert op in BroadcastElementwiseBinaryInst.VALID_OPS
         if isinstance(x, RegisterValue) and isinstance(y, Expr):
             r, s = x, y
@@ -235,7 +243,7 @@ class MmaDotInst(Instruction):
         warp_spatial: Tuple[int, int, int],
         warp_repeat: Tuple[int, int, int],
         output: Optional[RegisterValue] = None,
-    ):
+    ) -> MmaDotInst:
         if output is None:
             output = RegisterValue.create(c.dtype, c.layout)
         return MmaDotInst(
@@ -260,7 +268,7 @@ class SimtDotInst(Instruction):
         thread_spatial: Tuple[int, int],
         thread_repeat: Tuple[int, int],
         output: Optional[RegisterValue] = None,
-    ):
+    ) -> SimtDotInst:
         if output is None:
             output = RegisterValue.create(c.dtype, c.layout)
         return SimtDotInst(
@@ -280,7 +288,7 @@ class FormatPrintInst(Instruction):
     expressions: List[Expr]
 
     @staticmethod
-    def create(cond: Expr, fstring: str, expressions: Sequence[Expr] = tuple()):
+    def create(cond: Expr, fstring: str, expressions: Sequence[Expr] = tuple()) -> FormatPrintInst:
         return FormatPrintInst(output=None, inputs=(), cond=cond, fstring=fstring, expressions=list(expressions))
 
 
@@ -291,7 +299,7 @@ class PrintValueInst(Instruction):
     fmt: Optional[str]
 
     @staticmethod
-    def create(x: Value, cond: Expr, msg: str, fmt: Optional[str] = None):
+    def create(x: Value, cond: Expr, msg: str, fmt: Optional[str] = None) -> PrintValueInst:
         return PrintValueInst(output=None, inputs=(x,), cond=cond, msg=msg, fmt=fmt)
 
 
@@ -338,7 +346,7 @@ class ViewInst(Instruction):
         layout: Optional[Layout] = None,
         dtype: Optional[DataType] = None,
         local_offset: Union[Expr, int] = 0,
-    ):
+    ) -> ViewInst:
         dtype = dtype if dtype else x.dtype
         layout = layout if layout else x.layout
         output = RegisterValue.create(dtype=dtype, layout=layout)
@@ -371,7 +379,9 @@ class AllocateGlobalInst(Instruction):
     require_clean: bool
 
     @staticmethod
-    def create(hint: str, scalar_type: BaseType, nbytes: Union[Expr, int], require_clean: bool = False):
+    def create(
+        hint: str, scalar_type: BaseType, nbytes: Union[Expr, int], require_clean: bool = False
+    ) -> AllocateGlobalInst:
         return AllocateGlobalInst(
             output=None,
             inputs=(),
@@ -384,7 +394,7 @@ class AllocateGlobalInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class FreeSharedInst(Instruction):
     @staticmethod
-    def create(shared_value: SharedValue):
+    def create(shared_value: SharedValue) -> FreeSharedInst:
         return FreeSharedInst(output=None, inputs=(shared_value,))
 
 
@@ -395,7 +405,9 @@ class ViewSharedInst(Instruction):
     layout: SharedLayout
 
     @staticmethod
-    def create(x: SharedValue, indices: List[Expr], layout: SharedLayout, dtype: Optional[DataType] = None):
+    def create(
+        x: SharedValue, indices: List[Expr], layout: SharedLayout, dtype: Optional[DataType] = None
+    ) -> ViewSharedInst:
         if dtype is None:
             dtype = x.dtype
         out = SharedValue.create(dtype=dtype, layout=layout)
@@ -428,7 +440,7 @@ class CopyAsyncInst(Instruction):
         f_offset: Callable[[List[Var]], Expr],
         f_mask: Optional[Callable[[List[Var]], Expr]],
         evict: Optional[str] = None,
-    ):
+    ) -> CopyAsyncInst:
         axes = index_vars(len(dst.shape))
         offset = f_offset(axes)
         mask = f_mask(axes) if f_mask else None
@@ -474,7 +486,7 @@ class SyncReduceThreadsInst(Instruction):
     reduce_value: Expr
 
     @staticmethod
-    def create(reduce_op: str, var_hint: str, reduce_value: Expr):
+    def create(reduce_op: str, var_hint: str, reduce_value: Expr) -> SyncReduceThreadsInst:
         var = Var(var_hint, type=boolean)
         return SyncReduceThreadsInst(output=None, inputs=(), reduce_op=reduce_op, var=var, reduce_value=reduce_value)
 
@@ -486,7 +498,7 @@ class LoadScalarInst(Instruction):
     sync: str
 
     @staticmethod
-    def create(ptr: Expr, sync: str = "weak"):
+    def create(ptr: Expr, sync: str = "weak") -> LoadScalarInst:
         from hidet.ir.tools import infer_type
 
         ptr_type = infer_type(ptr)
@@ -504,7 +516,7 @@ class StoreScalarInst(Instruction):
     sync: str
 
     @staticmethod
-    def create(ptr: Expr, value: Expr, sync: str = "weak"):
+    def create(ptr: Expr, value: Expr, sync: str = "weak") -> StoreScalarInst:
         return StoreScalarInst(output=None, inputs=(), ptr=ptr, value=value, sync=sync)
 
 
@@ -515,7 +527,7 @@ class AtomicScalarInst(Instruction):
     value: Expr
 
     @staticmethod
-    def create(ptr: Expr, op: str, value: Expr):
+    def create(ptr: Expr, op: str, value: Expr) -> AtomicScalarInst:
         return AtomicScalarInst(output=None, inputs=(), ptr=ptr, op=op, value=value)
 
 
@@ -613,7 +625,7 @@ class MmaConfig:
         return getattr(MmaConfig, hidet_config_name)()
 
     @staticmethod
-    def m16n8k16_f16_f16(vec_k: int = 1):
+    def m16n8k16_f16_f16(vec_k: int = 1) -> MmaConfig:
         return MmaConfig(
             name="m16n8k16v{}_f16_f16".format(vec_k),
             m=16,
@@ -628,7 +640,7 @@ class MmaConfig:
         )
 
     @staticmethod
-    def m16n8k16_f16_f32(vec_k: int = 1):
+    def m16n8k16_f16_f32(vec_k: int = 1) -> MmaConfig:
         return MmaConfig(
             name="m16n8k16v{}_f16_f32".format(vec_k),
             m=16,
@@ -643,7 +655,7 @@ class MmaConfig:
         )
 
     @staticmethod
-    def m16n8k16_bf16_f32(vec_k: int = 1):
+    def m16n8k16_bf16_f32(vec_k: int = 1) -> MmaConfig:
         return MmaConfig(
             name="m16n8k16v{}_bf16_f32".format(vec_k),
             m=16,
@@ -658,7 +670,7 @@ class MmaConfig:
         )
 
     @staticmethod
-    def m8n8k16_i8_i32(vec_k: int = 1):
+    def m8n8k16_i8_i32(vec_k: int = 1) -> MmaConfig:
         return MmaConfig(
             name="m8n8k16v{}_i8_i32".format(vec_k),
             m=8,
@@ -674,7 +686,7 @@ class MmaConfig:
 
     @staticmethod
     @lru_cache()
-    def all():
+    def all() -> dict[str, MmaConfig]:
         config_list = []
         for vec_k in [1, 2, 3, 4]:
             config_list.append(MmaConfig.m16n8k16_f16_f32(vec_k))
@@ -684,5 +696,5 @@ class MmaConfig:
         return {config.name: config for config in config_list}
 
     @staticmethod
-    def from_name(name: str):
+    def from_name(name: str) -> MmaConfig:
         return MmaConfig.all()[name]

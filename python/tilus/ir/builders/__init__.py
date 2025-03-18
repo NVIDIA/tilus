@@ -1,5 +1,5 @@
-from .stmt_builder import StatementBuilder
+from .stmt_builder import StmtBuilder
 from .func_builder import FunctionBuilder
 from .ir_builder import IRBuilder
 
-__all__ = ["StatementBuilder", "FunctionBuilder", "IRBuilder"]
+__all__ = ["StmtBuilder", "FunctionBuilder", "IRBuilder"]

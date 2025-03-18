@@ -15,7 +15,7 @@ from hidet.ir.expr import Var
 from hidet.lang.script import eliminate_indent, eliminate_decorators
 from hidet.lang.transpiler import PythonAstFunctor, HidetProgramError
 from tilus import ir as tilus_ir
-from tilus.extensions.hidet.ir.expr import convert_to_expr
+from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir.layout import Layout
 from tilus.ir.func import Function
 from tilus.ir.stmt import Stmt, SeqStmt, InstructionStmt
@@ -43,7 +43,7 @@ class Scope:
         scope = Scope(None)
         return scope
 
-    def bind(self, name: str, var_or_value: Var | Value | Any):
+    def bind(self, name: str, var_or_value: Var | Value | Any) -> None:
         if isinstance(var_or_value, Var):
             self.name2var[name] = var_or_value
         elif isinstance(var_or_value, Value):
@@ -63,12 +63,12 @@ class Scope:
             return self.parent.lookup(name, search_parents)
         return None
 
-    def annotate(self, name: str, value: Any):
+    def annotate(self, name: str, value: Any) -> None:
         if name in self.attributes:
             raise ValueError("Attribute {} has already been annotated.".format(name))
         self.attributes[name] = value
 
-    def append(self, inst_or_stmt: Instruction | Stmt):
+    def append(self, inst_or_stmt: Instruction | Stmt) -> None:
         stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstructionStmt(inst_or_stmt)
         self.stmts.append(stmt)
 
@@ -93,7 +93,7 @@ class ScopeStack:
 
 
 class LambdaProxy:
-    def __init__(self, lambda_expr: ast.Lambda, translator):
+    def __init__(self, lambda_expr: ast.Lambda, translator: Transpiler):
         self.lambda_expr: ast.Lambda = lambda_expr
         self.translator: Transpiler = translator
 
@@ -183,8 +183,8 @@ class Transpiler(PythonAstFunctor):
             return function
 
     def process_assign(
-        self, lhs: Union[ast.Attribute, ast.Subscript, ast.Name], rhs, type_annotation: Optional[ast.expr] = None
-    ):
+        self, lhs: Union[ast.Attribute, ast.Subscript, ast.Name], rhs: Any, type_annotation: Optional[ast.expr] = None
+    ) -> None:
         # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         # check the rhs value, must be an instance of rhs_allowed_types or a list of these kinds of elements.
         host_var_types: Tuple[Any, ...] = (Layout, str, list, tuple, dict)
@@ -250,14 +250,16 @@ class Transpiler(PythonAstFunctor):
             type_name = type(lhs).__name__
             raise HidetProgramError(self, lhs, 'Cannot recognize "{}" as left side of assignment.'.format(type_name))
 
-    def visit_Module(self, module: ast.Module):
+    def visit_Module(self, module: ast.Module) -> Function:
         if len(module.body) != 1 or not isinstance(module.body[0], ast.FunctionDef):
             msg = "The module expects to have only one function definition statement, got\n"
             msg += str(ast.unparse(module))
             raise ValueError(msg)
         return self.visit(module.body[0])
 
-    def process_param_ret_type(self, arg, arg_type: Union[BaseType, Type[int], Type[float], Type[bool]]):
+    def process_param_ret_type(
+        self, arg: ast.AST, arg_type: Union[BaseType, Type[int], Type[float], Type[bool]]
+    ) -> BaseType:
         if isinstance(arg_type, BaseType):
             return arg_type
         elif arg_type in [bool, int, float]:
@@ -278,7 +280,7 @@ class Transpiler(PythonAstFunctor):
             raise TilusProgramError(self, arg, "Tilus expect a type annotation for this parameter.")
         return arg_type
 
-    def visit_FunctionDef(self, func_def: ast.FunctionDef):
+    def visit_FunctionDef(self, func_def: ast.FunctionDef) -> Function:
         func_params = []
         with self.scope() as scope:
             # process function arguments
@@ -328,7 +330,7 @@ class Transpiler(PythonAstFunctor):
                     self.blocks = dim_x, dim_y
                 """
                 raise TilusProgramError(self, func_def, msg)
-            blocks = [convert_to_expr(dim) for dim in normalize_launch_dims(self.current_scope.attributes["blocks"])]
+            blocks = [as_expr(dim) for dim in normalize_launch_dims(self.current_scope.attributes["blocks"])]
             if "warps" not in attributes:
                 raise TilusProgramError(
                     self, func_def, "Tilus script should set the number of warps via self.warps = ..."
@@ -344,7 +346,7 @@ class Transpiler(PythonAstFunctor):
                 annotations={},
             )
 
-    def visit_Expr(self, expr: ast.Expr):
+    def visit_Expr(self, expr: ast.Expr) -> None:
         value = self.visit(expr.value)
 
         if value is None:
@@ -352,7 +354,7 @@ class Transpiler(PythonAstFunctor):
         else:
             raise NotImplementedError(value)
 
-    def visit_Call(self, expr: ast.Call):
+    def visit_Call(self, expr: ast.Call) -> Any:
         func = self.visit(expr.func)
         args = []
         for arg in expr.args:
@@ -430,7 +432,7 @@ class Transpiler(PythonAstFunctor):
         else:
             return func(*args, **kwargs)
 
-    def visit_Attribute(self, expr: ast.Attribute):
+    def visit_Attribute(self, expr: ast.Attribute) -> Any:
         base = self.visit(expr.value)
         attr = expr.attr
 
@@ -445,10 +447,9 @@ class Transpiler(PythonAstFunctor):
             ret = getattr(base, attr)
         else:
             raise HidetProgramError(self, expr, 'Can not access attribute "{}" of this object.'.format(attr))
-        # print('accessing attribute {} of {}: {}'.format(attr, base, ret))
         return ret
 
-    def visit_Name(self, expr: ast.Name):
+    def visit_Name(self, expr: ast.Name) -> Any:
         if isinstance(expr.ctx, ast.Store):
             raise ValueError("Internal Error, please deal with all Store behavior in parent nodes like Assign.")
         elif isinstance(expr.ctx, ast.Load):
@@ -465,13 +466,13 @@ class Transpiler(PythonAstFunctor):
         else:
             raise ValueError()
 
-    def visit_Tuple(self, expr: ast.Tuple):
-        return (self.visit(v) for v in expr.elts)
+    def visit_Tuple(self, expr: ast.Tuple) -> Tuple[Any, ...]:
+        return tuple(self.visit(v) for v in expr.elts)
 
-    def visit_List(self, expr: ast.List):
+    def visit_List(self, expr: ast.List) -> list[Any]:
         return [self.visit(v) for v in expr.elts]
 
-    def visit_BinOp(self, expr: ast.BinOp):
+    def visit_BinOp(self, expr: ast.BinOp) -> Union[hidet_ir.Expr, float, int, list, tuple, str]:
         from hidet import ir
 
         lhs = self.visit(expr.left)
@@ -510,7 +511,7 @@ class Transpiler(PythonAstFunctor):
                 self, expr, "Can not apply operator {} to {} and {}.".format(expr.op, type(lhs), type(rhs))
             )
 
-    def visit_Assign(self, stmt: ast.Assign):
+    def visit_Assign(self, stmt: ast.Assign) -> None:
         if len(stmt.targets) > 1:
             raise HidetProgramError(self, stmt, 'Hidet does not support syntax like "a = b = 1".')
         target = stmt.targets[0]
@@ -545,10 +546,10 @@ class Transpiler(PythonAstFunctor):
             rhs = self.visit(value)
             self.process_assign(target, rhs)
 
-    def visit_Lambda(self, expr: ast.Lambda):
+    def visit_Lambda(self, expr: ast.Lambda) -> LambdaProxy:
         return LambdaProxy(expr, self)
 
-    def visit_Subscript(self, expr: ast.Subscript):
+    def visit_Subscript(self, expr: ast.Subscript) -> Any:
         base = self.visit(expr.value)
         indices = self.visit(expr.slice)
 
@@ -557,7 +558,7 @@ class Transpiler(PythonAstFunctor):
         else:
             raise NotImplementedError()
 
-    def visit_Constant(self, expr: ast.Constant):
+    def visit_Constant(self, expr: ast.Constant) -> Union[float, int, str, None]:
         if isinstance(expr.value, (float, int)):
             return expr.value
         elif isinstance(expr.value, str):
@@ -567,7 +568,7 @@ class Transpiler(PythonAstFunctor):
         else:
             raise HidetProgramError(self, expr, "Can not recognize Constant {}".format(repr(expr.value)))
 
-    def visit_Compare(self, expr: ast.Compare):
+    def visit_Compare(self, expr: ast.Compare) -> hidet_ir.Expr:
         front = self.visit(expr.left)
         op_dict = {
             ast.And: hidet_ir.logical_and,
@@ -600,9 +601,10 @@ class Transpiler(PythonAstFunctor):
                     raise HidetProgramError(
                         self, expr, "Currently, we do not support {} operator for hidet vars.".format(op_kind.__name__)
                     )
-                cur_cond = op_dict[op_kind](front, current)  # type: ignore[operator]
+                cur_cond: Any = op_dict[op_kind](front, current)  # type: ignore[operator]
             else:
                 cur_cond = py_op_dict[op_kind](front, current)
             cond = hidet_ir.logical_and(cond, cur_cond) if cond is not None else cur_cond
             front = current
+        assert isinstance(cond, hidet_ir.Expr)
         return cond
