@@ -13,14 +13,15 @@ from tilus.target import nvgpu_sm70
 @register_inst_emitter(MmaDotInst, target=nvgpu_sm70)
 class MmaDotInstEmitter(BaseInstEmitter):
     def emit(self, inst: MmaDotInst) -> None:  # type: ignore
-        assert inst.output is inst.inputs[2]
         mma: MmaConfig = MmaConfig.from_name(inst.mma_inst)
         a_value = inst.inputs[0].as_register_value()
         b_value = inst.inputs[1].as_register_value()
         c_value = inst.inputs[2].as_register_value()
+        d_value = inst.register_output
         a_buf = self.value2var[a_value]
         b_buf = self.value2var[b_value]
         c_buf = self.value2var[c_value]
+        d_buf = self.get_or_allocate_var(value=d_value, name="d")
 
         warp_id: Expr = self.current_worker // 32
         warp_spatial: Tuple[int, int, int] = inst.warp_spatial
@@ -44,6 +45,7 @@ class MmaDotInstEmitter(BaseInstEmitter):
                 a_indices = a_outer_indices + [mma_indices[0], mma_indices[2]]
                 b_indices = b_outer_indices + [mma_indices[2], mma_indices[1]]
                 c_indices = c_outer_indices + [mma_indices[0], mma_indices[1]]
+                d_indices = c_indices
 
                 a_regs = self.declare(
                     var("a_regs", ~uint32),
@@ -57,12 +59,17 @@ class MmaDotInstEmitter(BaseInstEmitter):
                     var("c_regs", ~uint32),
                     init=cast(~c_buf[c_value.layout.global2local(c_indices, worker=self.current_worker)], ~uint32),
                 )
+                d_regs = self.declare(
+                    var("d_regs", ~uint32),
+                    init=cast(~d_buf[d_value.layout.global2local(d_indices, worker=self.current_worker)], ~uint32),
+                )
 
                 with self.for_range(mma.vec_k) as vk:
                     hidet_mma: HidetMmaConfig = mma.hidet_mma_config()
                     self.append(
                         mma_sync_v2(
                             config=hidet_mma,
+                            d_reg_p=[d_regs + i for i in range(hidet_mma.c_regs)],
                             a_reg_p=[a_regs + i * mma.vec_k + vk for i in range(hidet_mma.a_regs)],
                             b_reg_p=[b_regs + i * mma.vec_k + vk for i in range(hidet_mma.b_regs)],
                             c_reg_p=[c_regs + i for i in range(hidet_mma.c_regs)],

@@ -4,7 +4,7 @@ import filelock
 from hidet.ir.module import IRModule
 from hidet.runtime.compiled_module import CompiledModule, load_compiled_module, compiled_module_exists
 from hidet.drivers.build_module import write_function_types
-from hidet.backend.codegen import codegen
+from tilus.extensions.hidet.backend.codegen import codegen
 from hidet.backend.build import compile_source
 
 import tilus.option

@@ -1,12 +1,13 @@
 from typing import List, Optional, Union, Tuple, Dict, Sequence
 
-from hidet.ir.dtypes import uint32, uint16, uint8, int32, boolean, vectorize
+from hidet.ir.dtypes import uint32, uint16, uint8, int32, boolean
 from hidet.ir.expr import Expr, if_then_else, cast, Var, logical_and
 from hidet.ir.type import DataType, void_p
 
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter, Codegen
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.extensions.hidet.ir.type import type_equal
+from tilus.extensions.hidet.ir.dtypes.vector import vectorize
 from tilus.extensions.hidet.ir.utils.index_transform import index_add
 from tilus.extensions.hidet.ir.tools.rewriter import rewrite
 from tilus.extensions.hidet.ir.primitives.cuda.ldst import load, store

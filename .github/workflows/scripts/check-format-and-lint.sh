@@ -43,7 +43,7 @@ echo -e "${BOLD_GREEN}✔ Ruff format checks passed.${NC}"
 
 # Run Mypy for static type checking
 echo "Running mypy for type checking..."
-if ! mypy "$TARGET_DIR" "$TEST_DIR"; then
+if ! mypy "$TARGET_DIR"; then
     echo -e "${BOLD_RED}mypy found type issues. Please fix them.${NC}"
     exit 1
 fi

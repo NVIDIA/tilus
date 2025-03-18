@@ -1,14 +1,29 @@
-from typing import Any, Sequence, Union, Optional, Callable, List
+from typing import Any, Sequence, Union, Optional, Callable, Literal, Iterable
+import typing
 from types import FunctionType
 from hidet.ir.type import DataType
 from hidet.ir.expr import Var, Expr
+from hidet.ir.dtypes import boolean
+from tilus.extensions.hidet.ir.expr import as_expr
 from hidet.runtime.compiled_module import CompiledModule
 from tilus.ir.layout import Layout
 from tilus.ir.stmt import Stmt, InstructionStmt
-from tilus.ir.value import RegisterValue
-from tilus.ir.inst import Instruction, LoadGlobalInst, StoreGlobalInst
+from tilus.ir.value import RegisterValue, Value
+from tilus.ir.inst import (
+    Instruction,
+    LoadGlobalInst,
+    StoreGlobalInst,
+    AllocateInst,
+    MmaDotInst,
+    CastInst,
+    PrintValueInst,
+    FormatPrintInst,
+)
 from tilus.drivers import build_program
 from tilus.ir.prog import Program
+from tilus.lang.modules.cuda import cuda
+from tilus.lang.modules.utils import utils
+from tilus.lang.utils import group_function_argument
 
 
 class CompiledScript:
@@ -85,8 +100,13 @@ class Dim3:
 class Script(CompiledScript, ScriptTracer):
     def __init__(self) -> None:
         super().__init__()
+        # the following attributes should be set by the user in the kernel function
         self.attrs: Attributes = Attributes()
         self.blockIdx: Dim3 = Dim3()
+
+        # the following primitives could be used in the __init__ function to prepare the layouts
+        self.cuda = cuda
+        self.utils = utils
 
     def __call__(self, *args):
         return self.compiled()(*args)
@@ -124,27 +144,110 @@ class Script(CompiledScript, ScriptTracer):
             self._compiled_module = build_program(self.program())
         return self._compiled_module
 
+    # the following functions should be called in the kernel function
+
+    @staticmethod
+    def range(
+        start: Expr | int,
+        end: Optional[Expr | int] = None,
+        step: Optional[Expr | int] = None,
+        /,
+        *,
+        unroll: Optional[Literal["all"] | int],
+    ) -> Iterable[Var]:
+        from tilus.lang.constructs.loops import range
+
+        # the cast is to make the type checker happy
+        return typing.cast(Iterable[Var], range(start, end, step, unroll=unroll))
+
     def load_global(
         self,
         *,
         dtype: DataType,
         layout: Layout,
         ptr: Var,
-        f_offset: Callable[[Sequence[Var]], Expr | int],
-        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
+        f_offset: Callable[..., Expr | int],
+        f_mask: Optional[Callable[..., Expr | int | bool]] = None,
         out: Optional[RegisterValue] = None,
     ) -> RegisterValue:
-        inst = LoadGlobalInst.create(dtype=dtype, layout=layout, ptr=ptr, f_offset=f_offset, f_mask=f_mask, out=out)
+        inst = LoadGlobalInst.create(
+            dtype=dtype,
+            layout=layout,
+            ptr=ptr,
+            f_offset=group_function_argument(f_offset),
+            f_mask=group_function_argument(f_mask) if f_mask else None,
+            out=out,
+        )
         self._append(inst)
         return inst.register_output
 
     def store_global(
         self,
         x: RegisterValue,
+        /,
         *,
         ptr: Var,
-        f_offset: Callable[[List[Var]], Expr | int],
-        f_mask: Optional[Callable[[List[Var]], Expr | int | bool]] = None,
+        f_offset: Callable[..., Expr | int],
+        f_mask: Optional[Callable[..., Expr | int | bool]] = None,
     ) -> None:
-        inst = StoreGlobalInst.create(x=x, ptr=ptr, f_offset=f_offset, f_mask=f_mask)
+        inst = StoreGlobalInst.create(
+            x=x,
+            ptr=ptr,
+            f_offset=group_function_argument(f_offset),
+            f_mask=group_function_argument(f_mask) if f_mask else None,
+        )
+        self._append(inst)
+
+    def register_tensor(
+        self, dtype: DataType, layout: Layout, f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
+    ) -> RegisterValue:
+        inst = AllocateInst.create(dtype=dtype, layout=layout, f_init=f_init)
+        self._append(inst)
+        return inst.register_output
+
+    def mma_dot(
+        self,
+        a: RegisterValue,
+        b: RegisterValue,
+        c: RegisterValue,
+        /,
+        *,
+        mma_inst: str,
+        warp_spatial: tuple[int, int, int],
+        warp_repeat: tuple[int, int, int],
+        output: Optional[RegisterValue] = None,
+    ) -> RegisterValue:
+        inst = MmaDotInst.create(
+            a=a, b=b, c=c, mma_inst=mma_inst, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
+        )
+        self._append(inst)
+        return inst.register_output
+
+    def cast(
+        self,
+        x: RegisterValue,
+        /,
+        dtype: DataType,
+        *,
+        interleave_width: Optional[int] = None,
+        interleave_stride: Optional[int] = None,
+        ignore_int4b_xor: bool = False,
+    ) -> RegisterValue:
+        inst = CastInst.create(
+            dtype=dtype,
+            x=x,
+            interleave_width=interleave_width,
+            interleave_stride=interleave_stride,
+            ignore_int4b_xor=ignore_int4b_xor,
+        )
+        self._append(inst)
+        return inst.register_output
+
+    def print_tensor(self, x: Value, fmt: Optional[str] = None) -> None:
+        inst = PrintValueInst.create(x, cond=boolean.true, msg="", fmt=fmt)
+        self._append(inst)
+
+    def printf(self, fstring: str, *args: Expr | int | float) -> None:
+        expr_args = [as_expr(arg) for arg in args]
+        inst = FormatPrintInst.create(cond=boolean.true, fstring=fstring, expressions=expr_args)
         self._append(inst)

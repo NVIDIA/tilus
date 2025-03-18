@@ -13,13 +13,15 @@ def register_mma_instructions():
     for config in mma_configs.values():
         inst_name = config.inst_name()
 
-        a_regs, b_regs, c_regs = config.a_regs, config.b_regs, config.c_regs
+        a_regs, b_regs, c_regs, d_regs = config.a_regs, config.b_regs, config.c_regs, config.c_regs
         template_sub_strings = [
             inst_name,
-            "{{{}}},".format(", ".join([f"%{i}" for i in range(c_regs)])),
-            "{{{}}},".format(", ".join([f"%{i}" for i in range(c_regs, c_regs + a_regs)])),
-            "{{{}}},".format(", ".join([f"%{i}" for i in range(c_regs + a_regs, c_regs + a_regs + b_regs)])),
-            "{{{}}};".format(", ".join([f"%{i}" for i in range(c_regs)])),
+            "{{{}}},".format(", ".join([f"%{i}" for i in range(d_regs)])),
+            "{{{}}},".format(", ".join([f"%{i}" for i in range(d_regs, d_regs + a_regs)])),
+            "{{{}}},".format(", ".join([f"%{i}" for i in range(d_regs + a_regs, d_regs + a_regs + b_regs)])),
+            "{{{}}};".format(
+                ", ".join([f"%{i}" for i in range(d_regs + a_regs + b_regs, d_regs + a_regs + b_regs + c_regs)])
+            ),
         ]
         template_string = " ".join(template_sub_strings)
 
@@ -30,26 +32,36 @@ def register_mma_instructions():
         from hidet.lang import attrs, script, meta
         from hidet.lang.types import void_p, uint32
 
-        a_reg_p_type = meta.types([void_p for _ in range(config.a_regs)])
-        b_reg_p_type = meta.types([void_p for _ in range(config.b_regs)])
-        c_reg_p_type = meta.types([void_p for _ in range(config.c_regs)])
+        a_reg_p_type = meta.types([void_p for _ in range(a_regs)])
+        b_reg_p_type = meta.types([void_p for _ in range(b_regs)])
+        c_reg_p_type = meta.types([void_p for _ in range(c_regs)])
+        d_reg_p_type = meta.types([void_p for _ in range(d_regs)])
 
         @no_type_check
         @script
-        def mma_sync_v2_primitive(a_reg_p: a_reg_p_type, b_reg_p: b_reg_p_type, c_reg_p: c_reg_p_type):
+        def mma_sync_v2_primitive(
+            d_reg_p: d_reg_p_type, a_reg_p: a_reg_p_type, b_reg_p: b_reg_p_type, c_reg_p: c_reg_p_type
+        ):
             attrs.func_name = func_name + "_v2"
             attrs.func_kind = "cuda_internal"
 
             asm(
                 template_string,
-                output_inputs=[deref(c_reg_p[i], uint32) for i in range(c_regs)],
+                outputs=[deref(d_reg_p[i], uint32) for i in range(d_regs)],
                 inputs=[deref(a_reg_p[i], uint32) for i in range(a_regs)]
-                + [deref(b_reg_p[i], uint32) for i in range(b_regs)],
+                + [deref(b_reg_p[i], uint32) for i in range(b_regs)]
+                + [deref(c_reg_p[i], uint32) for i in range(c_regs)],
             )
 
         register_primitive_function(mma_sync_v2_primitive.name, mma_sync_v2_primitive)
 
 
-def mma_sync_v2(config: MmaConfig, a_reg_p: Sequence[Expr], b_reg_p: Sequence[Expr], c_reg_p: Sequence[Expr]) -> Expr:
+def mma_sync_v2(
+    config: MmaConfig,
+    d_reg_p: Sequence[Expr],
+    a_reg_p: Sequence[Expr],
+    b_reg_p: Sequence[Expr],
+    c_reg_p: Sequence[Expr],
+) -> Expr:
     name = config.inst_name().replace(".", "_") + "_v2"
-    return call_cuda(func_name=name, args=[*a_reg_p, *b_reg_p, *c_reg_p])
+    return call_cuda(func_name=name, args=[*d_reg_p, *a_reg_p, *b_reg_p, *c_reg_p])

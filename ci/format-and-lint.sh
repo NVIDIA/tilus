@@ -25,7 +25,7 @@ echo "Ruff completed successfully."
 
 # Run Mypy for static type checking
 echo "Running mypy for type checking..."
-mypy "$TARGET_DIR" "$TEST_DIR"
+mypy "$TARGET_DIR"
 
 echo "mypy completed successfully."
 

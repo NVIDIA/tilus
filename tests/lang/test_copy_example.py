@@ -23,14 +23,14 @@ class MemoryCopy(tilus.Script):
             dtype=float32,
             layout=self.layout,
             ptr=src_ptr,
-            f_offset=lambda indices: bi * self.block_size + indices[0],
-            f_mask=lambda indices: bi * self.block_size + indices[0] < n,
+            f_offset=lambda i: bi * self.block_size + i,
+            f_mask=lambda i: bi * self.block_size + i < n,
         )
         self.store_global(
             loaded_regs,
             ptr=dst_ptr,
-            f_offset=lambda indices: bi * self.block_size + indices[0],
-            f_mask=lambda indices: bi * self.block_size + indices[0] < n,
+            f_offset=lambda i: bi * self.block_size + i,
+            f_mask=lambda i: bi * self.block_size + i < n,
         )
 
 

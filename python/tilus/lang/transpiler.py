@@ -16,13 +16,16 @@ from hidet.lang.script import eliminate_indent, eliminate_decorators
 from hidet.lang.transpiler import PythonAstFunctor, HidetProgramError
 from tilus import ir as tilus_ir
 from tilus.extensions.hidet.ir.expr import as_expr
+from tilus.ir import RegisterValue
 from tilus.ir.layout import Layout
 from tilus.ir.func import Function
 from tilus.ir.stmt import Stmt, SeqStmt, InstructionStmt
-from tilus.ir.inst import Instruction, AllocateScalarInst
+from tilus.ir.inst import Instruction, AllocateScalarInst, AssignInst, AssignScalarInst
 from tilus.ir.builders import IRBuilder
 from tilus.ir.value import Value
 from tilus.lang.script import Script
+from tilus.lang.constructs.loops import TilusLoopIterable
+import tilus.lang.constructs.loops
 
 
 class TilusProgramError(HidetProgramError):
@@ -41,6 +44,8 @@ class Scope:
     @staticmethod
     def default_top_level():
         scope = Scope(None)
+        # when user use range(...), it will be translated to tilus.lang.constructs.loops.range(...)
+        scope.bind("range", tilus.lang.constructs.loops.range)
         return scope
 
     def bind(self, name: str, var_or_value: Var | Value | Any) -> None:
@@ -206,7 +211,7 @@ class Transpiler(PythonAstFunctor):
                 #  3) other host expressions
                 #    3.1) if there is type annotation, we define a scalar variable
                 #    3.2) otherwise, we bind the host expression to the name
-                if isinstance(lhs, hidet_ir.Expr):
+                if isinstance(rhs, hidet_ir.Expr):
                     declare_inst = AllocateScalarInst.create(hint=var_name, scalar_type=hidet_ir.infer_type(rhs))
                     self.current_scope.append(declare_inst)
                     self.current_scope.bind(var_name, rhs)
@@ -222,7 +227,27 @@ class Transpiler(PythonAstFunctor):
                             )
                         self.current_scope.bind(var_name, rhs)
             else:
-                raise NotImplementedError()
+                # assignment
+                if isinstance(lookup_result, Var):
+                    if not isinstance(rhs, (hidet_ir.Expr, int, float, str)):
+                        raise TilusProgramError(self, lhs, "Assignment between Var is only accepted for hidet_ir.Expr.")
+                    self.current_scope.append(AssignScalarInst.create(var=lookup_result, scalar_expr=as_expr(rhs)))
+                elif isinstance(lookup_result, Value):
+                    if not isinstance(rhs, RegisterValue) or not isinstance(lookup_result, RegisterValue):
+                        raise TilusProgramError(
+                            self, lhs, "Assignment between Value is only accepted for RegisterValue."
+                        )
+                    from tilus.extensions.hidet.ir.type import type_equal
+
+                    if not type_equal(lookup_result.dtype, rhs.dtype):
+                        raise TilusProgramError(
+                            self,
+                            lhs,
+                            "Different types of RegisterValue are not allowed to be assigned to each other. ",
+                        )
+                    self.current_scope.append(AssignInst.create(output=lookup_result, x=rhs))
+                else:
+                    raise TilusProgramError(self, lhs, "Unexpected assignee: {}".format(type(lookup_result)))
         elif isinstance(lhs, ast.Subscript):
             # example: a[3, 4] = 5.0
             raise NotImplementedError("subscript assignment")
@@ -433,20 +458,20 @@ class Transpiler(PythonAstFunctor):
             return func(*args, **kwargs)
 
     def visit_Attribute(self, expr: ast.Attribute) -> Any:
+        from hidet.ir.primitives.cuda.vars import blockIdx
+
         base = self.visit(expr.value)
         attr = expr.attr
 
-        self_attributes = {(self._script, "blockIdx")}
-        if (base, attr) in self_attributes:
-            # self.blockIdx
-            from hidet.ir.primitives.cuda.vars import blockIdx
-
-            self_attributes_map = {(self._script, "blockIdx"): blockIdx}
-            ret = self_attributes_map[(base, attr)]
-        elif hasattr(base, attr):
+        if hasattr(base, attr):
             ret = getattr(base, attr)
         else:
-            raise HidetProgramError(self, expr, 'Can not access attribute "{}" of this object.'.format(attr))
+            raise HidetProgramError(self, expr, 'Can not access attribute "{}" of object {}.'.format(attr, base))
+
+        self_attributes = {self.script.blockIdx: blockIdx}
+        for key in self_attributes:
+            if ret is key:
+                return self_attributes[key]
         return ret
 
     def visit_Name(self, expr: ast.Name) -> Any:
@@ -511,6 +536,15 @@ class Transpiler(PythonAstFunctor):
                 self, expr, "Can not apply operator {} to {} and {}.".format(expr.op, type(lhs), type(rhs))
             )
 
+    def visit_BoolOp(self, expr: ast.BoolOp) -> hidet_ir.Expr:
+        values = [self.visit(v) for v in expr.values]
+        assert all(isinstance(value, (hidet_ir.Node, bool, int, bool)) for value in values)
+        if isinstance(expr.op, ast.And):
+            return hidet_ir.logical_and(*values)
+        else:
+            assert isinstance(expr.op, ast.Or)
+            return hidet_ir.logical_or(*values)
+
     def visit_Assign(self, stmt: ast.Assign) -> None:
         if len(stmt.targets) > 1:
             raise HidetProgramError(self, stmt, 'Hidet does not support syntax like "a = b = 1".')
@@ -545,6 +579,15 @@ class Transpiler(PythonAstFunctor):
             assert isinstance(target, (ast.Attribute, ast.Subscript, ast.Name))
             rhs = self.visit(value)
             self.process_assign(target, rhs)
+
+    def visit_AnnAssign(self, stmt: ast.AnnAssign) -> None:
+        lhs = stmt.target
+        rhs = self.visit(stmt.value) if stmt.value else None
+        assert isinstance(lhs, (ast.Name, ast.Attribute, ast.Subscript))
+        if isinstance(lhs, (ast.Attribute, ast.Subscript)):
+            msg = 'Hidet do not support annotation for expression like "x.y" or "x[y]"'
+            raise HidetProgramError(self, stmt.annotation, msg)
+        self.process_assign(lhs, rhs, stmt.annotation)
 
     def visit_Lambda(self, expr: ast.Lambda) -> LambdaProxy:
         return LambdaProxy(expr, self)
@@ -608,3 +651,53 @@ class Transpiler(PythonAstFunctor):
             front = current
         assert isinstance(cond, hidet_ir.Expr)
         return cond
+
+    def visit_For(self, stmt: ast.For) -> None:
+        # create loop vars
+        iter_targets: list[ast.Name] = []
+        if isinstance(stmt.target, (ast.List, ast.Tuple)):
+            for target in stmt.target.elts:
+                if not isinstance(target, ast.Name):
+                    raise HidetProgramError(self, stmt, "For loop target must be a name.")
+                iter_targets.append(target)
+        else:
+            if not isinstance(stmt.target, ast.Name):
+                raise HidetProgramError(self, stmt, "For loop target must be a name.")
+            iter_targets.append(stmt.target)
+
+        # construct for body
+        stmt_iter = self.visit(stmt.iter)
+        num_targets: int = len(iter_targets)
+        if isinstance(stmt_iter, TilusLoopIterable):
+            loop_vars: list[Var] = []
+            host_vars: dict[str, Any] = {}
+
+            num_loop_vars: int = stmt_iter.num_loop_vars()
+
+            if num_targets == num_loop_vars > 1 or (num_targets == num_loop_vars == 1 and not stmt_iter.bind_tuple()):
+                for target in iter_targets:
+                    loop_vars.append(Var(target.id, type=hidet_ir.data_type("int32")))
+            elif num_targets == 1:
+                name = iter_targets[0].id
+                for i in range(num_loop_vars):
+                    loop_vars.append(Var(f"{name}{i}", type=hidet_ir.data_type("int32")))
+                host_vars[name] = list(loop_vars)
+            else:
+                raise HidetProgramError(
+                    self, stmt, f"Expect {num_loop_vars} loop variables, but got {len(iter_targets)}."
+                )
+
+            with self.scope() as for_scope:
+                for var in loop_vars:
+                    assert var.hint is not None
+                    for_scope.bind(name=var.hint, var_or_value=var)
+                for name, value in host_vars.items():
+                    for_scope.bind(name, value)
+                for s in stmt.body:
+                    self.visit(s)
+            body = for_scope.flush_stmts()
+            for_stmt = stmt_iter.generate_loop_statement(loop_vars=loop_vars, body=body)
+            self.current_scope.append(for_stmt)
+        else:
+            msg = "For loop iterable must be a one of the following types: \n1.\n  for ... in range(...): \n      ...\n"
+            raise HidetProgramError(self, stmt.iter, msg)
