@@ -16,13 +16,13 @@ class IRBuilder(FunctionBuilder):
 
     def __init__(self) -> None:
         super().__init__()
-        self._built_program: Program = Program(functions={})
+        self._built_program: Program = Program.create(functions={})
 
     def _on_finish(self, built_function: Function):
         super()._on_finish(built_function)
         if built_function.name in self._built_program.functions:
             raise ValueError(f"Function {built_function.name} already exists in the program")
-        self._built_program.functions[built_function.name] = built_function
+        self._built_program = self._built_program.with_function(built_function)
 
     def program(self):
         return self._ProgramContext(self)

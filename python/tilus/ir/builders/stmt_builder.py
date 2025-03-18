@@ -25,7 +25,7 @@ class StatementContext:
         self.vb._stack.append([])
 
     def pop(self) -> Stmt:
-        return SeqStmt(self.vb._stack.pop())
+        return SeqStmt(tuple(self.vb._stack.pop()))
 
     def append(self, stmt):
         self.vb._stack[-1].append(stmt)
@@ -194,13 +194,13 @@ class StatementBuilderCore:
             raise ValueError("Unbalanced context stack")
         ret: Stmt
         if len(self._stack[0]) != 1:
-            ret = SeqStmt(self._stack.pop())
+            ret = SeqStmt(tuple(self._stack.pop()))
         else:
             stmt_or_inst = self._stack.pop()[0]
             if isinstance(stmt_or_inst, Stmt):
                 ret = stmt_or_inst
             else:
-                ret = SeqStmt([stmt_or_inst])
+                ret = SeqStmt((stmt_or_inst,))
         self._stack = [[]]
         return ret
 
@@ -296,15 +296,15 @@ class StatementBuilder(StatementBuilderCore):
         self.append(inst)
 
     def copy_async_wait_all(self):
-        inst = CopyAsyncWaitAllInst()
+        inst = CopyAsyncWaitAllInst.create()
         self.append(inst)
 
     def copy_async_commit_group(self):
-        inst = CopyAsyncCommitGroupInst()
+        inst = CopyAsyncCommitGroupInst.create()
         self.append(inst)
 
     def copy_async_wait_group(self, n: Union[Expr, int]):
-        inst = CopyAsyncWaitGroupInst(convert_to_expr(n))
+        inst = CopyAsyncWaitGroupInst.create(convert_to_expr(n))
         self.append(inst)
 
     def elementwise_binary(
@@ -330,13 +330,13 @@ class StatementBuilder(StatementBuilderCore):
         return self.elementwise_binary(x, y, "%", out=out)
 
     def print_value(self, msg: str, value: RegisterValue, fmt: Optional[str] = None, cond: Expr = boolean.true):
-        inst = PrintValueInst(value, cond=cond, msg=msg, fmt=fmt)
+        inst = PrintValueInst.create(value, cond=cond, msg=msg, fmt=fmt)
         self.append(inst)
 
     def format_print(self, fstring: str, expressions: Sequence[Expr], cond: Optional[Expr] = None):
         if cond is None:
             cond = boolean.true
-        inst = FormatPrintInst(cond=cond, fstring=fstring, expressions=expressions)
+        inst = FormatPrintInst.create(cond=cond, fstring=fstring, expressions=expressions)
         self.append(inst)
 
     def printf(self, fstring: str, *expressions: Expr):

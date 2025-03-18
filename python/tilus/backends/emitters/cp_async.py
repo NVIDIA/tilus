@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Sequence
 
 from hidet.ir.dtypes import boolean, uint32, int32
 from hidet.ir.expr import Expr, Var, if_then_else, cast
@@ -23,18 +23,18 @@ class CopyAysncInstEmitter(BaseInstEmitter):
         dst: SharedValue = inst.inputs[0].as_shared_value()
         dtype: DataType = dst.dtype
         layout: SharedLayout = dst.layout
-        shape: List[int] = layout.shape
+        shape: Sequence[int] = layout.shape
 
         # get shared info
         shared_info: TensorInfo = analyze_info(shape=layout.shape, axes=layout.axes, var2info={}, expr=layout.offset)
 
         # get global and mask info
         var2info: Dict[Var, TensorInfo] = {}
-        for param, attr in self.codegen.program.param2attrs.items():
-            if attr.divisibility is not None:
-                var2info[param] = TensorInfo.from_divisiblity(shape=shape, divisibility=attr.divisibility)
-        for var, divisibility in self.codegen.program.var2divisibility.items():
-            var2info[var] = TensorInfo.from_divisiblity(shape=shape, divisibility=divisibility)
+        # for param, attr in self.codegen.program.param2attrs.items():
+        #     if attr.divisibility is not None:
+        #         var2info[param] = TensorInfo.from_divisiblity(shape=shape, divisibility=attr.divisibility)
+        # for var, divisibility in self.codegen.program.var2divisibility.items():
+        #     var2info[var] = TensorInfo.from_divisiblity(shape=shape, divisibility=divisibility)
         global_info: TensorInfo = analyze_info(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.offset)
         inst_mask = inst.mask if inst.mask is not None else boolean.true
         mask_info: TensorInfo = analyze_info(shape=shape, axes=inst.axes, var2info=var2info, expr=inst_mask)

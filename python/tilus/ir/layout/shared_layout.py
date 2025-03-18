@@ -1,18 +1,18 @@
 from __future__ import annotations
 from typing import Callable, List, Dict, Sequence
-
+from dataclasses import dataclass
 from hidet.ir.expr import Var, Expr
 from hidet.ir.dtypes import int32
 from hidet.utils import prod
 from tilus.extensions.hidet.ir.expr import index_vars
 
 
+@dataclass(frozen=True, eq=False)
 class SharedLayout:
-    def __init__(self, shape: List[int], size: int, axes: List[Var], offset: Expr):
-        self.shape: List[int] = shape
-        self.size: int = size
-        self.axes: List[Var] = axes
-        self.offset: Expr = offset
+    shape: tuple[int, ...]
+    size: int
+    axes: tuple[Var, ...]
+    offset: Expr
 
     def __str__(self):
         return "shared_layout({}, axes={}, offset={})".format(self.shape, self.axes, self.offset)
@@ -36,9 +36,9 @@ class SharedLayout:
         return SharedLayout(shape=self.shape, size=self.size, axes=self.axes, offset=simplifier(self.offset))
 
     @staticmethod
-    def create(shape: List[int], size: int, f_offset: Callable[[List[Var]], Expr]):
+    def create(shape: Sequence[int], size: int, f_offset: Callable[[Sequence[Var]], Expr]):
         axes: List[Var] = index_vars(num_vars=len(shape))
-        return SharedLayout(shape=shape, size=size, axes=axes, offset=f_offset(axes))
+        return SharedLayout(shape=tuple(shape), size=size, axes=tuple(axes), offset=f_offset(axes))
 
     @staticmethod
     def _generic_repeat(shape: List[int], ranks: List[int]):
@@ -46,7 +46,7 @@ class SharedLayout:
         assert len(ranks) == len(set(ranks)) and all(0 <= d < len(shape) for d in ranks)
         strides: List[int] = [prod([s for j, s in enumerate(shape) if ranks[j] > ranks[i]]) for i in range(len(shape))]
 
-        def f_offset(axes: List[Var]) -> Expr:
+        def f_offset(axes: Sequence[Var]) -> Expr:
             return sum([axes[i] * strides[i] for i in range(len(shape))], start=int32.zero)
 
         return SharedLayout.create(shape=shape, size=prod(shape), f_offset=f_offset)
@@ -64,7 +64,7 @@ class SharedLayout:
         assert len(lhs.shape) == len(rhs.shape)
         ndims = len(lhs.shape)
 
-        def f_offset(axes: List[Var]) -> Expr:
+        def f_offset(axes: Sequence[Var]) -> Expr:
             lhs_axes = [axes[i] // rhs.shape[i] for i in range(ndims)]
             rhs_axes = [axes[i] % rhs.shape[i] for i in range(ndims)]
             lhs_offset = lhs(*lhs_axes)
@@ -88,7 +88,7 @@ class SharedLayout:
                 regards_index = regards_index % self.shape[dim]
             return regards_index
 
-        def f_offset(axes: List[Var]) -> Expr:
+        def f_offset(axes: Sequence[Var]) -> Expr:
             swizzled_indices: List[Expr] = [axis for axis in axes]
             swizzled_indices[dim] = swizzled_indices[dim] ^ get_xor_index(axes)
             return self(*swizzled_indices)
@@ -96,11 +96,11 @@ class SharedLayout:
         return SharedLayout.create(shape=self.shape, size=self.size, f_offset=f_offset)
 
     def prepend_dim(self, extent: int) -> SharedLayout:
-        def f_offset(axes: List[Var]) -> Expr:
+        def f_offset(axes: Sequence[Var]) -> Expr:
             tile_offset = axes[0] * self.size
             return tile_offset + self(*axes[1:])
 
-        return SharedLayout.create(shape=[extent] + self.shape, size=extent * self.size, f_offset=f_offset)
+        return SharedLayout.create(shape=(extent,) + self.shape, size=extent * self.size, f_offset=f_offset)
 
     def unsqueeze(self, dims: List[int]):
         shape = []
@@ -112,7 +112,7 @@ class SharedLayout:
                 shape.append(self.shape[cur_dim])
                 cur_dim += 1
 
-        def f_offset(axes: List[Var]) -> Expr:
+        def f_offset(axes: Sequence[Var]) -> Expr:
             base_axes = [axis for i, axis in enumerate(axes) if i not in dims]
             return self(*base_axes)
 

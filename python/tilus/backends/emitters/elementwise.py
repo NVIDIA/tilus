@@ -23,7 +23,7 @@ class ElementwiseUnaryInstEmitter(BaseInstEmitter):
         with self.for_range(extent=y_value.size) as i:
             op_map = {
                 "relu": lambda x: if_then_else(x > x_value.dtype.zero, x, x_value.dtype.zero),
-                "clip": lambda x: self._clip(x, inst.attrs["min_value"], inst.attrs["max_value"]),
+                # "clip": lambda x: self._clip(x, inst.attrs["min_value"], inst.attrs["max_value"]),
             }
             op = op_map[inst.op]
 

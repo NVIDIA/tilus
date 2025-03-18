@@ -54,7 +54,7 @@ def nbytes_from_nbits(nbits: int) -> int:
     return nbits // 8
 
 
-def ranked_product(*iterables, ranks: List[int]):
+def ranked_product(*iterables, ranks: Sequence[int]):
     assert set(ranks) == set(range(len(iterables)))
     reverse_ranks = {rank: i for i, rank in enumerate(ranks)}
     sorted_ranks_iterables = sorted(zip(ranks, iterables), key=lambda x: x[0])

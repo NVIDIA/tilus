@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Sequence
 
 from hidet.ir.dtypes import int4b, uint8, int8, uint32, int32, float16, float32, bfloat16
 from hidet.ir.dtypes import uint4b
@@ -28,7 +28,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
                         self.append(printf(" "))
             self.sync()
 
-    def print_right_bracket(self, indices: List[Expr], shape: List[int]):
+    def print_right_bracket(self, indices: Sequence[Expr], shape: Sequence[int]):
         # right ]
         if len(shape) >= 1:
             with self.if_then(logical_and(self.current_worker == 0, indices[-1] == shape[-1] - 1)):
@@ -39,13 +39,13 @@ class PrintValueInstEmitter(BaseInstEmitter):
                 self.append(printf("\n"))
             self.sync()
 
-    def print_seperate_comma(self, indices: List[Expr], shape: List[int]):
+    def print_seperate_comma(self, indices: Sequence[Expr], shape: Sequence[int]):
         if len(shape) >= 1:
             with self.if_then(logical_and(self.current_worker == 0, indices[-1] != shape[-1] - 1)):
                 self.append(printf(", "))
             self.sync()
 
-    def restore_indices(self, squeezed_indices: List[Expr], squeezed_dims: List[int], shape: List[int]):
+    def restore_indices(self, squeezed_indices: Sequence[Expr], squeezed_dims: Sequence[int], shape: Sequence[int]):
         indices: List[Expr] = []
         for dim in range(len(shape)):
             if dim in squeezed_dims:
@@ -70,14 +70,11 @@ class PrintValueInstEmitter(BaseInstEmitter):
         }
         value = inst.inputs[0]
         dtype = value.dtype
-        shape: List[int] = value.shape
+        shape: Sequence[int] = value.shape
         squeezed_dims = [dim for dim in range(len(shape)) if shape[dim] > 1]
         squeezed_shape = [shape[dim] for dim in squeezed_dims]
         not_supported_print = inst.inputs[0].dtype.is_vector()
-        if inst.cond is None:
-            cond = logical_and(*[axis == 0 for axis in self.codegen._program.block_mapping.virtual_axes_values.keys()])
-        else:
-            cond = inst.cond
+        cond = inst.cond
 
         if isinstance(value, RegisterValue):
             if self.thread_groups.group_size[-1] != value.layout.num_workers:

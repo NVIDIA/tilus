@@ -11,13 +11,14 @@ from tilus.target import nvgpu_any
 @register_inst_emitter(ShuffleDownInst, target=nvgpu_any)
 class ShuffleBaseInstEmitter(BaseInstEmitter):
     def emit(self, inst: ShuffleBaseInst):
-        thread_nbytes: int = inst.dtype.nbytes * inst.layout.local_size
+        dtype = inst.register_output.dtype
+        layout = inst.register_output.layout
+        thread_nbytes: int = dtype.nbytes * layout.local_size
+        num_groups = max([i // inst.width for i in range(self.num_warps) if inst.mask & (1 << i)]) + 1
         warp_nbytes: int = thread_nbytes * 32
         assert self.codegen.smem_workspace is not None
         smem_buf: Var = self.declare(
-            v=tensor_pointer_var(
-                "shfl_smem", shape=[inst.num_groups, inst.width - inst.delta, warp_nbytes], dtype=uint8
-            ),
+            v=tensor_pointer_var("shfl_smem", shape=[num_groups, inst.width - inst.delta, warp_nbytes], dtype=uint8),
             init=cast(self.value2var[self.codegen.smem_workspace], ~uint8),
         )
         warp_id: Expr = self.current_worker // 32
@@ -58,7 +59,7 @@ class ShuffleBaseInstEmitter(BaseInstEmitter):
         self.sync()
 
         # load the data from shared memory to register
-        dst_var: Var = self.get_or_allocate_var(inst.output, "shuffled")
+        dst_var: Var = self.get_or_allocate_var(inst.register_output, "shuffled")
         with self.if_then(logical_and(cond_in_mask, cond_is_receiver)):
             if thread_nbytes % 4 == 0:
                 vec = gcd(thread_nbytes // 4, 4)

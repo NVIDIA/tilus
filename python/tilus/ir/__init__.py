@@ -1,1 +1,1 @@
-from .value import Value, ScalarValue, RegisterValue, SharedValue
+from .value import Value, RegisterValue, SharedValue

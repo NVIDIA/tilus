@@ -1,6 +1,7 @@
 from typing import List, Sequence, Dict, Tuple, Optional, Set
 import io
 import itertools
+from dataclasses import dataclass
 from collections import defaultdict
 from hidet.ir.expr import Expr, logical_and
 from hidet.ir.dtypes import int32, boolean
@@ -20,12 +21,15 @@ class LayoutOperationFailed(Exception):
     pass
 
 
+@dataclass(frozen=True, eq=False)
 class Layout:
-    def __init__(self, shape: List[int], local_size: int, num_workers: int):
-        self.shape: List[int] = shape
-        self.local_size: int = local_size
-        self.num_workers: int = num_workers
-        self.size: int = prod(shape)
+    shape: tuple[int, ...]
+    local_size: int
+    num_workers: int
+
+    @property
+    def size(self):
+        return prod(self.shape)
 
     def __repr__(self):
         return str(self)
@@ -190,14 +194,24 @@ class Layout:
         raise NotImplementedError()
 
 
+@dataclass(frozen=True, eq=False)
 class AtomLayout(Layout):
-    def __init__(self, shape: List[int], workers: List[int], ranks: List[int], worker_ranks: List[int]):
-        super().__init__(
-            shape, local_size=prod([a // b if a >= b else 1 for a, b in zip(shape, workers)]), num_workers=prod(workers)
+    workers: tuple[int, ...]
+    ranks: tuple[int, ...]
+    worker_ranks: tuple[int, ...]
+
+    @staticmethod
+    def create(shape: Sequence[int], workers: Sequence[int], ranks: Sequence[int], worker_ranks: Sequence[int]):
+        num_workers = prod(workers)
+        local_size = prod([a // b if a >= b else 1 for a, b in zip(shape, workers)])
+        return AtomLayout(
+            shape=tuple(shape),
+            workers=tuple(workers),
+            ranks=tuple(ranks),
+            worker_ranks=tuple(worker_ranks),
+            local_size=local_size,
+            num_workers=num_workers,
         )
-        self.workers: List[int] = workers
-        self.ranks: List[int] = ranks
-        self.worker_ranks: List[int] = worker_ranks
 
     def __str__(self):
         num_dims = len(self.shape)
@@ -301,16 +315,21 @@ class AtomLayout(Layout):
         return is_valid
 
 
+@dataclass(frozen=True, eq=False)
 class SqueezeLayout(Layout):
-    def __init__(self, base: Layout, dims: List[int]):
-        super().__init__(
-            shape=[d for i, d in enumerate(base.shape) if i not in dims],
+    base: Layout
+    dims: tuple[int, ...]
+
+    @staticmethod
+    def create(base: Layout, dims: Sequence[int]):
+        assert all(base.shape[dim] == 1 for dim in dims), "Can only squeeze the dims with size != 1"
+        return SqueezeLayout(
+            shape=tuple(d for i, d in enumerate(base.shape) if i not in dims),
             local_size=base.local_size,
             num_workers=base.num_workers,
+            base=base,
+            dims=tuple(dims),
         )
-        self.base: Layout = base
-        self.dims: List[int] = list(dims)
-        assert all(base.shape[dim] == 1 for dim in dims), "Can only squeeze the dims with size != 1"
 
     def __str__(self):
         return "squeeze({}, dims={})".format(str(self.base), self.dims)
@@ -345,8 +364,13 @@ class SqueezeLayout(Layout):
         return self.base.is_valid(self._get_base_global_indices(global_indices), worker=worker)
 
 
+@dataclass(frozen=True, eq=False)
 class ExpandLayout(Layout):
-    def __init__(self, base: Layout, dims: List[int]):
+    base: Layout
+    dims: tuple[int, ...]
+
+    @staticmethod
+    def create(base: Layout, dims: Sequence[int]):
         shape = []
         cur = 0
         for dim in range(len(base.shape) + len(dims)):
@@ -355,9 +379,9 @@ class ExpandLayout(Layout):
             else:
                 shape.append(base.shape[cur])
                 cur += 1
-        super().__init__(shape=shape, local_size=base.local_size, num_workers=base.num_workers)
-        self.base: Layout = base
-        self.dims: List[int] = dims
+        return ExpandLayout(
+            shape=tuple(shape), local_size=base.local_size, num_workers=base.num_workers, base=base, dims=tuple(dims)
+        )
 
     def __str__(self):
         return "expand({}, dims={})".format(self.base, self.dims)
@@ -393,10 +417,18 @@ class ExpandLayout(Layout):
         return self.base.is_valid(base_global_indices, worker=worker)
 
 
+@dataclass(frozen=True, eq=False)
 class FlattenLayout(Layout):
-    def __init__(self, base: Layout):
-        super().__init__(shape=[prod(base.shape)], local_size=base.local_size, num_workers=base.num_workers)
-        self.base: Layout = base
+    base: Layout
+
+    @staticmethod
+    def create(base: Layout):
+        return FlattenLayout(
+            shape=(prod(base.shape),),
+            local_size=base.local_size,
+            num_workers=base.num_workers,
+            base=base,
+        )
 
     def __str__(self):
         return "flatten({})".format(self.base)
@@ -424,15 +456,20 @@ class FlattenLayout(Layout):
         return self.base.is_valid(global_indices, worker)
 
 
+@dataclass(frozen=True, eq=False)
 class ComposedLayout(Layout):
-    def __init__(self, outer: Layout, inner: Layout):
-        super().__init__(
-            shape=index_multiply(outer.shape, inner.shape),
+    outer: Layout
+    inner: Layout
+
+    @staticmethod
+    def create(outer: Layout, inner: Layout):
+        return ComposedLayout(
+            shape=tuple(index_multiply(outer.shape, inner.shape)),
             local_size=outer.local_size * inner.local_size,
             num_workers=outer.num_workers * inner.num_workers,
+            outer=outer,
+            inner=inner,
         )
-        self.outer: Layout = outer
-        self.inner: Layout = inner
 
     def __str__(self):
         def get_compose_list(layout) -> List[Layout]:
@@ -507,7 +544,7 @@ def atom(
     assert set(ranks) == set(list(range(len(shape))))
     assert set(worker_ranks) == set(list(range(len(worker_ranks))))
 
-    return AtomLayout(list(shape), workers=workers, ranks=ranks, worker_ranks=worker_ranks)
+    return AtomLayout.create(list(shape), workers=workers, ranks=ranks, worker_ranks=worker_ranks)
 
 
 def spatial(*shape: int, ranks: Optional[List[int]] = None) -> Layout:
@@ -543,64 +580,64 @@ def compose(outer: Layout, inner: Optional[Layout]) -> Layout:
         outer = expand(outer, list(range(len(inner.shape) - len(outer.shape))))
     if len(outer.shape) > len(inner.shape):
         inner = expand(inner, list(range(len(outer.shape) - len(inner.shape))))
-    return ComposedLayout(outer, inner)
+    return ComposedLayout.create(outer, inner)
 
 
-def squeeze(layout: Layout, dims: List[int]) -> Layout:
+def squeeze(layout: Layout, dims: Sequence[int]) -> Layout:
     if isinstance(layout, AtomLayout) and all(layout.workers[dim] == 1 for dim in dims):
         ranks = [layout.ranks[i] for i in range(len(layout.shape)) if i not in dims]
         worker_ranks = [layout.worker_ranks[i] for i in range(len(layout.shape)) if i not in dims]
         ranks = [sum(v < ranks[i] for v in ranks) for i in range(len(ranks))]
         worker_ranks = [sum(v < worker_ranks[i] for v in worker_ranks) for i in range(len(worker_ranks))]
-        return AtomLayout(
+        return AtomLayout.create(
             shape=[d for i, d in enumerate(layout.shape) if i not in dims],
             workers=[d for i, d in enumerate(layout.workers) if i not in dims],
             ranks=ranks,
             worker_ranks=worker_ranks,
         )
 
-    return SqueezeLayout(layout, dims)
+    return SqueezeLayout.create(layout, dims)
 
 
-def _reduce(layout: Layout, dims: List[int]) -> Layout:
+def _reduce(layout: Layout, dims: Sequence[int]) -> Layout:
     if isinstance(layout, AtomLayout):
-        return AtomLayout(
+        return AtomLayout.create(
             shape=[d if i not in dims else 1 for i, d in enumerate(layout.shape)],
             workers=list(layout.workers),
             ranks=layout.ranks,
             worker_ranks=layout.worker_ranks,
         )
     elif isinstance(layout, ComposedLayout):
-        return ComposedLayout(outer=_reduce(layout.outer, dims), inner=_reduce(layout.inner, dims))
+        return ComposedLayout.create(outer=_reduce(layout.outer, dims), inner=_reduce(layout.inner, dims))
     elif isinstance(layout, SqueezeLayout):
         base_dims = list(range(len(layout.base.shape)))
         squeezed_dims = [dim for dim in base_dims if dim not in layout.dims]
         new_reduce_dims = [squeezed_dims[dim] for dim in dims]
-        return SqueezeLayout(base=_reduce(layout.base, new_reduce_dims), dims=layout.dims)
+        return SqueezeLayout.create(base=_reduce(layout.base, new_reduce_dims), dims=layout.dims)
     elif isinstance(layout, ExpandLayout):
         base_dims_after_expanded = [dim for dim in range(len(layout.shape)) if dim not in layout.dims]
         base_dims_before_expanded = [dim for dim in range(len(layout.base.shape))]
         new_reduce_dims = [a for a, b in zip(base_dims_before_expanded, base_dims_after_expanded) if b in dims]
-        return ExpandLayout(base=_reduce(layout.base, new_reduce_dims), dims=layout.dims)
+        return ExpandLayout.create(base=_reduce(layout.base, new_reduce_dims), dims=layout.dims)
     else:
         raise NotImplementedError()
 
 
-def reduce(layout: Layout, dims: List[int], squeeze_dims=True) -> Layout:
+def reduce(layout: Layout, dims: Sequence[int], squeeze_dims=True) -> Layout:
     if squeeze_dims:
         return squeeze(_reduce(layout, dims), dims)
     else:
         return _reduce(layout, dims)
 
 
-def expand(layout: Layout, dims: List[int]) -> Layout:
+def expand(layout: Layout, dims: Sequence[int]) -> Layout:
     if len(dims) == 0:
         return layout
-    return ExpandLayout(layout, dims=dims)
+    return ExpandLayout.create(layout, dims=dims)
 
 
 def flatten(layout: Layout) -> Layout:
-    return FlattenLayout(layout)
+    return FlattenLayout.create(layout)
 
 
 def get_composition_chain(layout: Layout, fine_grained=False) -> List[Layout]:
@@ -611,7 +648,7 @@ def get_composition_chain(layout: Layout, fine_grained=False) -> List[Layout]:
             return [layout]
         chain: List[Layout] = []
         if layout.is_repeat():
-            shape = layout.shape.copy()
+            shape = list(layout.shape)
             ranks = layout.ranks
             ordered_dims = list(sorted(range(len(shape)), key=lambda dim: ranks[dim]))
             for dim in ordered_dims:
@@ -620,7 +657,7 @@ def get_composition_chain(layout: Layout, fine_grained=False) -> List[Layout]:
                     chain.append(repeat(*[factor if i == dim else 1 for i in range(len(shape))]))
             return chain
         elif layout.is_spatial():
-            shape = layout.shape.copy()
+            shape = list(layout.shape)
             ranks = layout.worker_ranks
             ordered_dims = list(sorted(range(len(shape)), key=lambda dim: ranks[dim]))
             for dim in ordered_dims:
@@ -734,7 +771,7 @@ def greedy_decompose(
 
 
 def _try_merge_shape_ranks(
-    lhs_shape: List[int], lhs_ranks: List[int], rhs_shape: List[int], rhs_ranks: List[int]
+    lhs_shape: Sequence[int], lhs_ranks: Sequence[int], rhs_shape: Sequence[int], rhs_ranks: Sequence[int]
 ) -> Optional[Tuple[List[int], List[int]]]:
     assert all(a >= 1 for a in lhs_shape) and all(a >= 1 for a in rhs_shape)
     # try to unify ranks
@@ -874,29 +911,3 @@ def auto_layout_for_efficient_ldst(num_threads: int, shape: List[int], dtype_nbi
     shape[-1] //= vec_size
     inner_repeat_shape = [1 for i in range(len(shape) - 1)] + [vec_size]
     return auto_repeat_spatial(num_threads, shape) * repeat(*inner_repeat_shape)
-
-
-def demo_flatten():
-    a = atom(2, 1, workers=[2, 3])
-    b = flatten(a)
-
-    print(a)
-    print(b)
-
-    assert a.num_workers == b.num_workers
-    assert a.local_size == b.local_size
-    assert len(b.shape) == 1 and prod(a.shape) == b.shape[0]
-    for local in range(a.local_size):
-        for worker in range(a.num_workers):
-            a_global = a.local2global(local, int32(worker))
-            b_global = b.local2global(local, int32(worker))
-            assert index_serialize(a_global, a.shape) == b_global[0]
-
-
-def main():
-    demo_flatten()
-    pass
-
-
-if __name__ == "__main__":
-    main()

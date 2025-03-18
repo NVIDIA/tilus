@@ -8,7 +8,7 @@ from tilus.ir.func import Function
 from tilus.ir.prog import Program
 from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt
 from tilus.ir.inst import Instruction
-from tilus.ir.value import Value, RegisterValue, SharedValue, ScalarValue, SharedLayout
+from tilus.ir.value import Value, RegisterValue, SharedValue, SharedLayout
 from tilus.ir.functors import IRFunctor
 from tilus.extensions.hidet.utils.doc import doc_strip_parentheses, doc_join_lines, doc_comment
 
@@ -49,8 +49,6 @@ class IRPrinter(IRFunctor):
             doc += "size={}".format(value.layout.size)
             doc += ", {}".format(self.visit(value.layout))
             return doc
-        elif isinstance(value, ScalarValue):
-            return self.printer(value.data_type)
         else:
             raise NotImplementedError()
 
@@ -213,7 +211,7 @@ class IRPrinter(IRFunctor):
 
     def visit_Instruction(self, inst: Instruction) -> Doc:
         doc = Doc()
-        if inst.has_output():
+        if inst.output is not None:
             doc += self.visit(inst.output) + " = "
         inst_name = inst.__class__.__name__.removesuffix("Inst")
         doc += inst_name + "("
@@ -221,7 +219,7 @@ class IRPrinter(IRFunctor):
         items = []
         if len(inst.inputs):
             items.append(self.visit(inst.inputs))
-        for k, v in inst.attrs.items():
+        for k, v in inst.attributes.items():
             if v is None:
                 continue
             v_doc = doc_strip_parentheses(self.visit(v))
@@ -243,7 +241,7 @@ class IRPrinter(IRFunctor):
             item_body = doc_join(items, ", ")
         doc += item_body
         doc += ")"
-        if inst.has_output():
+        if inst.output is not None:
             doc += "  # " + self.get_value_type(inst.output)
         return doc
 

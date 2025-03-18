@@ -1,8 +1,7 @@
-from typing import List, Union, Optional, Dict, Sequence
+from typing import List, Union, Optional, Dict
 from hidet.ir.type import BaseType
 from hidet.ir.expr import Expr, Var
-from hidet.ir.dtypes import int32
-from tilus.ir.func import Function, ParamAttrs
+from tilus.ir.func import Function
 from tilus.ir.stmt import SeqStmt
 from tilus.ir.builders.stmt_builder import StatementBuilder
 
@@ -31,7 +30,7 @@ class FunctionBuilder(StatementBuilder):
             built_function = Function(
                 name=self.builder._name,
                 params=self.builder._params,
-                param2attrs=self.builder._param2attrs,
+                # param2attrs=self.builder._param2attrs,
                 num_warps=self.builder._num_warps,
                 num_blocks=self.builder._num_blocks,
                 body=SeqStmt(self.builder._stack.pop()),
@@ -46,7 +45,7 @@ class FunctionBuilder(StatementBuilder):
         self._params: List[Var] = []
         self._block_axes: List[Var] = []
         self._num_blocks: List[Expr] = []
-        self._param2attrs: Dict[Var, ParamAttrs] = {}
+        # self._param2attrs: Dict[Var, ParamAttrs] = {}
         self._var2divisibility: Dict[Var, int] = {}
 
         # built function
@@ -66,22 +65,6 @@ class FunctionBuilder(StatementBuilder):
     def _on_finish(self, built_function: Function):
         self._built_function = built_function
         self._reset()
-
-    def virtual_blocks(self, num_blocks: Sequence[Union[Expr, int]]) -> List[Var]:
-        self._block_axes = [Var(f"b{i}", int32) for i in range(len(num_blocks))]
-        self._num_blocks = [int32(num_block) for num_block in num_blocks]
-        return self._block_axes.copy()
-
-    def annotate_divisibility(self, var2divisibility: Dict[Var, int]):
-        self._var2divisibility.update(var2divisibility)
-
-    def set_weight_nbytes(self, param: Var, nbytes: int):
-        if param not in self._params:
-            raise ValueError(f"Parameter {param} is not defined")
-        if param not in self._param2attrs:
-            self._param2attrs[param] = ParamAttrs()
-        self._param2attrs[param].is_weight = True
-        self._param2attrs[param].weight_nbytes = nbytes
 
     def function(self, name: str, num_warps: int, params: Union[Dict[str, BaseType], List[Var]]):
         return self._FunctionContext(self, name, num_warps, params)

@@ -1,12 +1,18 @@
+from dataclasses import dataclass
 from tilus.ir.func import Function
+from tilus.ir.utils import frozendict
+from tilus.ir.node import IRNode
 
 
-class Program:
-    def __init__(self, functions: dict[str, Function]):
-        self.functions: dict[str, Function] = functions
+@dataclass(frozen=True, eq=False)
+class Program(IRNode):
+    functions: frozendict[str, Function]
 
-    def __str__(self):
-        from tilus.ir.tools import IRPrinter
+    @staticmethod
+    def create(functions: dict[str, Function]):
+        return Program(frozendict(functions))
 
-        printer = IRPrinter()
-        return str(printer(self))
+    def with_function(self, new_function: Function):
+        new_functions = dict(self.functions)
+        new_functions[new_function.name] = new_function
+        return Program(frozendict(new_functions))

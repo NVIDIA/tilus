@@ -55,9 +55,9 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
         num_dims = len(value.shape)
         dtype: DataType = value.dtype
 
-        var2info = {}
-        for var, divisibility in self.codegen.program.var2divisibility.items():
-            var2info[var] = TensorInfo.from_divisiblity(shape=value.shape, divisibility=divisibility)
+        var2info: dict[Var, TensorInfo] = {}
+        # for var, divisibility in self.codegen.program.var2divisibility.items():
+        #     var2info[var] = TensorInfo.from_divisiblity(shape=value.shape, divisibility=divisibility)
 
         # analyze the offset and mask's value information (e.g., divisibility, constancy, etc.)
         if isinstance(inst, (LoadGlobalInst, StoreGlobalInst)):
@@ -424,7 +424,7 @@ class StoreSharedInstEmitter(StoreInstBaseEmitter):
 @register_inst_emitter(LoadGlobalInst, target=gpgpu_any)
 class LoadGlobalInstEmitter(LoadInstBaseEmitter):
     def get_buffer_and_mask(self, inst: LoadGlobalInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
-        dtype = inst.output.dtype
+        dtype = inst.register_output.dtype
         remap = {axis: global_index for axis, global_index in zip(inst.axes, indices)}
         offset: Expr = rewrite(node=inst.offset, rewrite_map=remap)
         mask: Expr = rewrite(node=inst.mask, rewrite_map=remap) if inst.mask is not None else boolean.true
@@ -441,7 +441,11 @@ class LoadGlobalInstEmitter(LoadInstBaseEmitter):
         remap = {axis: index for axis, index in zip(inst.axes, indices)}
         offset: Expr = rewrite(node=inst.offset, rewrite_map=remap)
         mask: Expr = rewrite(node=inst.mask, rewrite_map=remap) if inst.mask is not None else boolean.true
-        buf = cast(inst.ptr, ~inst.output.dtype) if not type_equal(inst.ptr.type, ~inst.output.dtype) else inst.ptr
+        buf = (
+            cast(inst.ptr, ~inst.register_output.dtype)
+            if not type_equal(inst.ptr.type, ~inst.register_output.dtype)
+            else inst.ptr
+        )
         loaded_value = buf[offset]
         return loaded_value, mask
 

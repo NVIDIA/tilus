@@ -4,7 +4,7 @@ from hidet.ir.dtypes import int32
 
 
 def index_serialize(
-    indices: Sequence[Expr], shape: Sequence[Union[Expr, int]], ranks: Optional[List[int]] = None
+    indices: Sequence[Expr], shape: Sequence[Union[Expr, int]], ranks: Optional[Sequence[int]] = None
 ) -> Expr:
     """
     Serialize the logical indices in a tensor with given shape to a linear index in linear memory space.

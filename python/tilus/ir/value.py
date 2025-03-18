@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Union, List
 
+from dataclasses import dataclass
 from enum import Enum
 
-from hidet.ir.type import DataType, PointerType
+from hidet.ir.type import DataType
 from tilus.ir.layout import Layout, SharedLayout
 from tilus.utils import nbytes_from_nbits
 
@@ -13,10 +13,10 @@ class Scope(Enum):
     SHARED = 1
 
 
+@dataclass(frozen=True, eq=False)
 class Value:
-    def __init__(self, dtype: DataType, shape: List[int]):
-        self.dtype: DataType = dtype
-        self.shape: List[int] = shape
+    dtype: DataType
+    shape: tuple[int, ...]
 
     def as_register_value(self) -> RegisterValue:
         assert isinstance(self, RegisterValue)
@@ -27,25 +27,30 @@ class Value:
         return self
 
 
+@dataclass(frozen=True, eq=False)
 class RegisterValue(Value):
-    def __init__(self, dtype: DataType, layout: Layout):
-        super().__init__(dtype, layout.shape)
-        self.size: int = layout.local_size
-        self.layout: Layout = layout
+    layout: Layout
+
+    @property
+    def size(self) -> int:
+        return self.layout.local_size
+
+    @staticmethod
+    def create(dtype: DataType, layout: Layout):
+        return RegisterValue(dtype, layout.shape, layout)
 
 
+@dataclass(frozen=True, eq=False)
 class SharedValue(Value):
-    def __init__(self, dtype: DataType, layout: SharedLayout):
-        super().__init__(dtype, layout.shape)
-        self.size: int = layout.size
-        self.layout: SharedLayout = layout
+    layout: SharedLayout
+
+    @staticmethod
+    def create(dtype: DataType, layout: SharedLayout):
+        return SharedValue(dtype, layout.shape, layout)
+
+    @property
+    def size(self) -> int:
+        return self.layout.size
 
     def nbytes(self):
         return nbytes_from_nbits(self.size * self.dtype.nbits)
-
-
-class ScalarValue(Value):
-    def __init__(self, data_type: Union[DataType, PointerType]):
-        super().__init__(data_type, [])  # type: ignore
-        self.data_type: Union[DataType, PointerType] = data_type
-        raise ValueError("deprecated")

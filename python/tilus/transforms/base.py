@@ -61,7 +61,7 @@ class Pass:
         if all(a is b for a, b in zip(functions.values(), program.functions.values())):
             return program
         else:
-            return Program(functions)
+            return Program.create(functions)
 
     def process_function(self, function: Function) -> Function:
         raise NotImplementedError()

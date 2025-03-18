@@ -73,7 +73,7 @@ class Scope:
         self.stmts.append(stmt)
 
     def flush_stmts(self) -> Stmt:
-        seq_stmt = SeqStmt(seq=list(self.stmts))
+        seq_stmt = SeqStmt.create(seq=self.stmts)
         self.stmts.clear()
         return seq_stmt
 
@@ -335,10 +335,9 @@ class Transpiler(PythonAstFunctor):
                 )
             warps = self.current_scope.attributes["warps"]
 
-            return Function(
+            return Function.create(
                 name=func_def.name,
                 params=func_params,
-                param2attrs={},
                 num_warps=warps,
                 num_blocks=blocks,
                 body=scope.flush_stmts(),

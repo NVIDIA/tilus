@@ -1,3 +1,4 @@
+import dataclasses
 from typing import List, Tuple, Dict, Union
 from hidet.ir.type import BaseType
 from hidet.ir.expr import Expr
@@ -5,7 +6,7 @@ from tilus.ir.layout import Layout
 from tilus.ir.prog import Program
 from tilus.ir.func import Function
 from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt
-from tilus.ir.value import Value, ScalarValue, RegisterValue, SharedValue, SharedLayout
+from tilus.ir.value import Value, RegisterValue, SharedValue, SharedLayout
 from tilus.ir.inst import (
     Instruction,
     AllocateInst,
@@ -117,8 +118,6 @@ class IRFunctor:
             return self.visit_RegisterValue(value)
         elif isinstance(value, SharedValue):
             return self.visit_SharedValue(value)
-        elif isinstance(value, ScalarValue):
-            return self.visit_ScalarValue(value)
         else:
             raise NotImplementedError(value.__class__.__name__)
 
@@ -173,9 +172,6 @@ class IRFunctor:
         raise NotImplementedError()
 
     # values
-
-    def visit_ScalarValue(self, value: ScalarValue):
-        raise NotImplementedError()
 
     def visit_RegisterValue(self, value: RegisterValue):
         raise NotImplementedError()
@@ -351,14 +347,9 @@ class IRRewriter(IRFunctor):
             return Function(
                 name=func.name,
                 params=func.params,
-                param2attrs=func.param2attrs,
                 num_warps=func.num_warps,
-                # block_axes=func.block_axes,
                 num_blocks=func.num_blocks,
                 body=body,
-                # block_mapping=block_mapping,
-                # weight_transforms=weight_transforms,
-                # var2divisibility=func.var2divisibility,
                 annotations=func.annotations,
             )
 
@@ -410,14 +401,14 @@ class IRRewriter(IRFunctor):
             return WhileStmt(cond, body)
 
     def default_visit_Instruction(self, inst: Instruction):
-        output = self.visit(inst.optional_output)
+        output = self.visit(inst.output)
         inputs = self.visit(inst.inputs)
-        attrs = self.visit(inst.attrs)
+        attributes = self.visit(inst.attributes)
 
-        if output is inst.optional_output and inputs is inst.inputs and attrs is inst.attrs:
+        if output is inst.output and inputs is inst.inputs and attributes is inst.attributes:
             return inst
         else:
-            return inst.recreate(updated_output=output, updated_inputs=inputs, updated_attrs=attrs)
+            return dataclasses.replace(inst, output=output, inputs=inputs, **attributes)
 
     def visit_Value(self, value: Value):
         return value
@@ -590,9 +581,6 @@ class IRVisitor(IRFunctor):
 
     # values
 
-    def visit_ScalarValue(self, value: ScalarValue):
-        pass
-
     def visit_RegisterValue(self, value: RegisterValue):
         pass
 
@@ -609,7 +597,7 @@ class IRVisitor(IRFunctor):
     def default_visit_Instruction(self, inst: Instruction):
         self.visit(inst.output)
         self.visit(inst.inputs)
-        self.visit(inst.attrs)
+        self.visit(inst.attributes)
 
     def visit_AllocateInst(self, inst: AllocateInst):
         return self.default_visit_Instruction(inst)

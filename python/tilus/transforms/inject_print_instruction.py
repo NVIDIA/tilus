@@ -55,13 +55,15 @@ class InjectPrintInstructionRewriter(IRRewriter):
         text = "Virtual Machine Program:\n{}\nPrint for {}\n".format(prog_text, str(self.block_to_print)).replace(
             "\n", "\\n"
         )
-        func.body = SeqStmt(
-            [
-                InstructionStmt(FormatPrintInst(cond=self.cond, fstring="%s", expressions=[convert_to_expr(text)])),
+        new_body = SeqStmt(
+            (
+                InstructionStmt(
+                    FormatPrintInst.create(cond=self.cond, fstring="%s", expressions=[convert_to_expr(text)])
+                ),
                 func.body,
-            ]
+            )
         )
-        return func
+        return func.with_body(new_body)
 
     def visit_ForStmt(self, stmt: ForStmt):
         vb = StatementBuilder()
@@ -111,27 +113,25 @@ class InjectPrintInstructionRewriter(IRRewriter):
             if isinstance(inst, ElementwiseBinaryInst):
                 return seq_stmt(
                     [
-                        # PrintValueInst(inst.inputs[0], cond=self.cond, msg=inst_string),
-                        # PrintValueInst(inst.inputs[1], cond=self.cond, msg=''),
                         inst,
-                        PrintValueInst(inst.output, cond=self.cond, msg=inst_string),
-                        FormatPrintInst(cond=self.cond, fstring="\n"),
+                        PrintValueInst.create(inst.output, cond=self.cond, msg=inst_string),
+                        FormatPrintInst.create(cond=self.cond, fstring="\n"),
                     ]
                 )
             return seq_stmt(
                 [
                     inst,
-                    PrintValueInst(inst.output, cond=self.cond, msg=inst_string),
-                    FormatPrintInst(cond=self.cond, fstring="\n"),
+                    PrintValueInst.create(inst.output, cond=self.cond, msg=inst_string),
+                    FormatPrintInst.create(cond=self.cond, fstring="\n"),
                 ]
             )
         elif isinstance(inst, CopyAsyncInst):
             return seq_stmt(
                 [
                     inst,
-                    CopyAsyncWaitAllInst(),
-                    PrintValueInst(inst.inputs[0], cond=self.cond, msg=inst_string),
-                    FormatPrintInst(cond=self.cond, fstring="\n"),
+                    CopyAsyncWaitAllInst.create(),
+                    PrintValueInst.create(inst.inputs[0], cond=self.cond, msg=inst_string),
+                    FormatPrintInst.create(cond=self.cond, fstring="\n"),
                 ]
             )
         elif type(inst) in inst2input:
@@ -139,8 +139,8 @@ class InjectPrintInstructionRewriter(IRRewriter):
             return seq_stmt(
                 [
                     inst,
-                    PrintValueInst(inst.inputs[input_idx], cond=self.cond, msg=inst_string),
-                    FormatPrintInst(cond=self.cond, fstring="\n"),
+                    PrintValueInst.create(inst.inputs[input_idx], cond=self.cond, msg=inst_string),
+                    FormatPrintInst.create(cond=self.cond, fstring="\n"),
                 ]
             )
         else:

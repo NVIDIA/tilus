@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, List, Dict, Type, Callable
+from typing import Optional, List, Dict, Type, Callable, Sequence, Mapping
 import operator
 
 from hidet.ir import Mod, Div, BitwiseXor, Equal, DataType
@@ -241,9 +241,9 @@ class TensorInfo:
 
     """
 
-    def __init__(self, shape: List[int], infos: List[DimensionInfo]):
-        self.shape: List[int] = shape
-        self.infos: List[DimensionInfo] = infos
+    def __init__(self, shape: Sequence[int], infos: Sequence[DimensionInfo]):
+        self.shape: Sequence[int] = shape
+        self.infos: Sequence[DimensionInfo] = infos
 
     def __str__(self):
         continuity = [dim.continuity for dim in self.infos]
@@ -291,7 +291,7 @@ class TensorInfo:
         return self._binary(other, operator.xor)
 
     @staticmethod
-    def from_axis(shape: List[int], dim: int):
+    def from_axis(shape: Sequence[int], dim: int):
         infos: List[DimensionInfo] = []
         for i, extent in enumerate(shape):
             if i == dim:
@@ -301,7 +301,7 @@ class TensorInfo:
         return TensorInfo(shape, infos)
 
     @staticmethod
-    def from_constant(shape: List[int], value: Optional[int]):
+    def from_constant(shape: Sequence[int], value: Optional[int]):
         infos: List[DimensionInfo] = []
 
         for i, extent in enumerate(shape):
@@ -313,7 +313,7 @@ class TensorInfo:
         return TensorInfo(shape, infos)
 
     @staticmethod
-    def from_divisiblity(shape: List[int], divisibility: int):
+    def from_divisiblity(shape: Sequence[int], divisibility: int):
         infos: List[DimensionInfo] = []
 
         for i, extent in enumerate(shape):
@@ -340,10 +340,12 @@ class ValueAnalyzer(IRFunctor):
 
     def __init__(self) -> None:
         super().__init__()
-        self.shape: List[int] = []
+        self.shape: Sequence[int] = []
         self.var2info: Dict[Var, TensorInfo] = {}
 
-    def analyze(self, axes: List[Var], shape: List[int], var2value: Dict[Var, TensorInfo], expr: Expr) -> TensorInfo:
+    def analyze(
+        self, axes: Sequence[Var], shape: Sequence[int], var2value: Mapping[Var, TensorInfo], expr: Expr
+    ) -> TensorInfo:
         self.var2info.clear()
         self.var2info.update(var2value)
 
@@ -416,7 +418,9 @@ class ValueAnalyzer(IRFunctor):
         return self.visit_binary(e)
 
 
-def analyze_info(shape: List[int], axes: List[Var], var2info: Dict[Var, TensorInfo], expr: Expr) -> TensorInfo:
+def analyze_info(
+    shape: Sequence[int], axes: Sequence[Var], var2info: Mapping[Var, TensorInfo], expr: Expr
+) -> TensorInfo:
     """
     Given the mapping from axes -> value, we could construct a tensor with given shape. This function analyze the
     tensor information (TensorInfo) of this tensor.

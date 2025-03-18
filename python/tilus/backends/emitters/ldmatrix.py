@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Sequence
 
 from hidet.ir.dtypes import uint32, int32
 from hidet.ir.expr import Expr, tensor_var, tensor_pointer_var, cast
@@ -23,7 +23,7 @@ class LoadMatrixInstEmitter(BaseInstEmitter):
         dtype: DataType = dst.dtype
 
         # check whether the layout can be loaded via ldmatrix
-        for nbytes, trans, ldmatrix_layout in LoadMatrixInst.ldmatrix_configs:
+        for nbytes, trans, ldmatrix_layout in LoadMatrixInst.LDMATRIX_CONFIGS:
             if nbytes != dtype.nbytes:
                 continue
             outer: Optional[Layout] = divide(layout, ldmatrix_layout)
@@ -76,7 +76,7 @@ class LoadMatrixInstEmitter(BaseInstEmitter):
             outer_indices: List[Expr] = outer.local2global(outer_local, warp_id)
             outer_strides: List[int] = index_multiply(middle.shape, atom.shape)
             middle_indices = middle.local2global(local_index=lane_id // 8, worker=int32.zero)
-            middle_strides: List[int] = atom.shape
+            middle_strides: Sequence[int] = atom.shape
             atom_indices = [lane_id % 8, 0]
             smem_indices = index_add(
                 offsets,

@@ -310,10 +310,10 @@ class Codegen(IRFunctor):
 
     def init_smem_workspace(self, program: Function):
         smem_workspace_nbytes: int = 0
-        for inst in collect_instructions(program):
-            smem_workspace_nbytes = max(smem_workspace_nbytes, inst.request_shared_workspace())
+        # for inst in collect_instructions(program):    # todo: add this to emiter
+        #     smem_workspace_nbytes = max(smem_workspace_nbytes, inst.request_shared_workspace())
         if smem_workspace_nbytes > 0:
-            value = SharedValue(dtype=uint8, layout=SharedLayout.repeat(smem_workspace_nbytes))
+            value = SharedValue.create(dtype=uint8, layout=SharedLayout.repeat(smem_workspace_nbytes))
             self.allocate_shared_value(value, nbytes=smem_workspace_nbytes)
             self.value2var[value] = self.builder.declare(
                 v=Var("temp_smem", type=void_p),

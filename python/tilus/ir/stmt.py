@@ -1,77 +1,66 @@
 from typing import List, Optional, Sequence
 
+from dataclasses import dataclass
 from hidet.ir.expr import Expr, Var
 from tilus.ir.inst import Instruction
+from tilus.ir.node import IRNode
 
 
-class Stmt:
+@dataclass(frozen=True, eq=False)
+class Stmt(IRNode):
     pass
 
 
+@dataclass(frozen=True, eq=False)
 class SeqStmt(Stmt):
-    def __init__(self, seq: List[Stmt]) -> None:
-        self.seq: List[Stmt] = seq
+    seq: tuple[Stmt, ...]
 
-        assert all(isinstance(s, Stmt) for s in seq)
+    @staticmethod
+    def create(seq: Sequence[Stmt]):
+        return SeqStmt(tuple(seq))
 
 
+@dataclass(frozen=True, eq=False)
 class ForStmt(Stmt):
-    def __init__(self, iter_var: Var, extent: Expr, body: Stmt, unroll_factor: Optional[int]):
-        self.iter_var: Var = iter_var
-        self.extent: Expr = extent
-        self.body: Stmt = body
+    iter_var: Var
+    extent: Expr
+    body: Stmt
 
-        # candidates:
-        # - None (no annotation),
-        # - -1 (unroll all),
-        # - n (n >= 1, unroll with factor n)
-        self.unroll_factor: Optional[int] = unroll_factor
-
-        assert isinstance(iter_var, Var) and isinstance(extent, Expr) and isinstance(body, Stmt)
-        assert unroll_factor is None or (
-            not isinstance(unroll_factor, bool)
-            and isinstance(unroll_factor, int)
-            and (unroll_factor == -1 or unroll_factor >= 1)
-        ), unroll_factor
+    # candidates:
+    # - None (no annotation),
+    # - -1 (unroll all),
+    # - n (n >= 1, unroll with factor n)
+    unroll_factor: Optional[int]
 
 
+@dataclass(frozen=True, eq=False)
 class ForThreadGroupStmt(Stmt):
-    def __init__(self, iter_var: Var, num_groups: int, body: Stmt):
-        self.iter_var: Var = iter_var
-        self.num_groups: int = num_groups
-        self.body: Stmt = body
-
-        assert isinstance(iter_var, Var) and isinstance(num_groups, int) and isinstance(body, Stmt)
+    iter_var: Var
+    num_groups: int
+    body: Stmt
 
 
+@dataclass(frozen=True, eq=False)
 class IfStmt(Stmt):
-    def __init__(self, cond: Expr, then_body: Stmt, else_body: Optional[Stmt] = None):
-        self.cond: Expr = cond
-        self.then_body: Stmt = then_body
-        self.else_body: Optional[Stmt] = else_body
-
-        assert (
-            isinstance(cond, (Expr, bool))
-            and isinstance(then_body, Stmt)
-            and (else_body is None or isinstance(else_body, Stmt))
-        )
+    cond: Expr
+    then_body: Stmt
+    else_body: Optional[Stmt]
 
 
+@dataclass(frozen=True, eq=False)
 class WhileStmt(Stmt):
-    def __init__(self, cond: Expr, body: Stmt):
-        self.cond: Expr = cond
-        self.body: Stmt = body
-
-        assert isinstance(cond, Expr) and isinstance(body, Stmt)
+    cond: Expr
+    body: Stmt
 
 
+@dataclass(frozen=True, eq=False)
 class BreakStmt(Stmt):
     pass
 
 
+@dataclass(frozen=True, eq=False)
 class InstructionStmt(Stmt):
-    def __init__(self, inst: Instruction):
-        self.inst: Instruction = inst
+    inst: Instruction
 
 
 def seq_stmt(seq: Sequence[Stmt | Instruction]) -> Stmt:
@@ -79,4 +68,4 @@ def seq_stmt(seq: Sequence[Stmt | Instruction]) -> Stmt:
     if len(stmt_seq) == 1:
         return stmt_seq[0]
     else:
-        return SeqStmt(stmt_seq)
+        return SeqStmt(tuple(stmt_seq))
