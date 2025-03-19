@@ -1,11 +1,10 @@
 from typing import Literal, Optional
 
-from hidet.ir.dtypes import int32
 from hidet.ir.expr import Constant, Expr, Var
 from hidet.ir.tools import simplify
 from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir.builders import IRBuilder
-from tilus.ir.stmt import ForStmt, Stmt
+from tilus.ir.stmt import DeclareStmt, ForStmt, Stmt
 
 
 class TilusLoopIterable:
@@ -56,11 +55,11 @@ class RangeLoop(TilusLoopIterable):
             assert loop_var.hint is not None
 
             with ib.for_range(
-                extent=(self.stop - self.start) // self.step,
+                extent=(self.stop + (self.step - self.start - 1)) // self.step,
                 iter_name_hint=loop_var.hint + "_",
                 unroll_factor=unroll_factor,
             ) as i:
-                ib.declare(type=int32, init=self.start + i * self.step)
+                ib.append(DeclareStmt(loop_var, init=self.start + i * self.step))
                 ib.append(body)
             return ib.flush_stmts()
 

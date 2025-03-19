@@ -6,12 +6,13 @@ import torch
 from tilus import float16, float32, int32
 
 
-class Matmul(tilus.Script):
+class MatmulV0(tilus.Script):
     def __init__(self, n_size: int, k_size: int):
         super().__init__()
         self.mma = self.cuda.mma.m16n8k16_f16_f32
         self.n_size = n_size
         self.k_size = k_size
+
         self.block_m = self.mma.m
         self.block_n = self.mma.n
         self.block_k = self.mma.k
@@ -42,8 +43,8 @@ class Matmul(tilus.Script):
 
 @pytest.mark.parametrize("m", [333, 444, 555])
 @pytest.mark.parametrize("n,k", [[333, 444]])
-def test_load_store_with_matmul(m, n, k):
-    matmul = Matmul(n, k)
+def test_kernels_matmul_v0(m, n, k):
+    matmul = MatmulV0(n, k)
     a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
     b = (torch.rand(k, n, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
     c = torch.empty(m, n, dtype=torch.float16).cuda()

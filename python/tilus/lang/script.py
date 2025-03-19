@@ -1,29 +1,35 @@
 import typing
 from types import FunctionType
-from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Union
+from typing import Callable, Iterable, Literal, Optional, Sequence, Union
 
 from hidet.ir.dtypes import boolean
 from hidet.ir.expr import Expr, Var
+from hidet.ir.primitives.cuda.vars import blockIdx, dim3
 from hidet.ir.type import DataType
 from hidet.runtime.compiled_module import CompiledModule
 from tilus.drivers import BuildOptions, build_program
 from tilus.ir.inst import (
     AllocateRegisterInst,
+    AllocateSharedInst,
     CastInst,
     FormatPrintInst,
+    FreeSharedInst,
     GlobalViewInst,
     Instruction,
     LoadGlobalGenericInst,
     LoadGlobalInst,
+    LoadSharedInst,
     MmaDotInst,
     PrintValueInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
+    StoreSharedInst,
+    SyncThreadsInst,
 )
-from tilus.ir.layout import GlobalLayout, RegisterLayout, global_repeat, global_strides
+from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_repeat, global_strides
 from tilus.ir.prog import Program
 from tilus.ir.stmt import InstStmt, Stmt
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, Tensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
 from tilus.lang.utils import group_function_argument
@@ -77,36 +83,50 @@ class ScriptTracer:
 class Attributes:
     """
     Attributes of the script program.
+
+    Attributes
+    ----------
+    blocks: Optional[Sequence[Expr | int] | Expr | int]
+        The number of blocks.
+    warps: Optional[int]
+        The number of warps, must between 1 and 32.
     """
 
-    """
-    The number of blocks. 
-    """
-    blocks: list[Any] | Any
+    blocks: Optional[Sequence[Expr | int] | Expr | int] = None
+    warps: Optional[int] = None
 
-    """
-    The number of warps.
-    """
-    warps: int
-
-
-class Dim3:
-    """
-    The three dimensions of the grid of blocks.
-    """
-
-    x: Var
-    y: Var
-    z: Var
+    def __setattr__(self, key, value):
+        """Check the validity of the attribute value."""
+        if key == "warps":
+            if value is None:
+                pass
+            elif not isinstance(value, int):
+                raise ValueError("The number of warps must be an integer")
+            elif value <= 0:
+                raise ValueError("The number of warps must be positive")
+            elif value > 32:
+                raise ValueError("The number of warps must be less than or equal to 32")
+        elif key == "blocks":
+            if value is None:
+                pass
+            elif not isinstance(value, (int, Expr)) and not isinstance(value, Sequence):
+                raise ValueError("The number of blocks must be an integer or a sequence of integers")
+            elif isinstance(value, Sequence):
+                if not all(isinstance(v, (int, Expr)) for v in value):
+                    raise ValueError("The number of blocks must be an integer or a sequence of integers")
+        else:
+            raise ValueError(f"Unknown attribute {key}")
+        super().__setattr__(key, value)
 
 
 class Script(CompiledScript, ScriptTracer):
     def __init__(self, debug_block: Optional[tuple[int, ...] | int] = None) -> None:
         super().__init__()
         self._debug_block = debug_block
+
         # the following attributes should be set by the user in the kernel function
         self.attrs: Attributes = Attributes()
-        self.blockIdx: Dim3 = Dim3()
+        self.blockIdx: dim3 = blockIdx
 
         # the following primitives could be used in the __init__ function to prepare the layouts
         self.cuda = cuda
@@ -164,43 +184,55 @@ class Script(CompiledScript, ScriptTracer):
         # the cast is to make the type checker happy
         return typing.cast(Iterable[Var], range(start, end, step, unroll=unroll))
 
-    def load_global_flex(
+    def register_tensor(
         self,
         *,
         dtype: DataType,
         layout: RegisterLayout,
-        ptr: Var,
-        f_offset: Callable[..., Expr | int],
-        f_mask: Optional[Callable[..., Expr | int | bool]] = None,
-        out: Optional[RegisterTensor] = None,
+        f_init: Optional[Callable[[Sequence[Var]], Expr]] = None,
+        init: Optional[Expr | int | float] = None,
     ) -> RegisterTensor:
-        inst = LoadGlobalGenericInst.create(
-            dtype=dtype,
-            layout=layout,
-            ptr=ptr,
-            f_offset=group_function_argument(f_offset),
-            f_mask=group_function_argument(f_mask) if f_mask else None,
-            out=out,
-        )
+        if f_init is not None and init is not None:
+            raise ValueError("Cannot specify both f_init and init")
+        elif f_init is None and init is not None:
+
+            def f_init(_):
+                return dtype.constant(init)
+
+        inst = AllocateRegisterInst.create(dtype=dtype, layout=layout, f_init=f_init)
         self._append(inst)
         return inst.register_output
 
-    def store_global_flex(
+    def shared_tensor(
         self,
-        x: RegisterTensor,
-        /,
         *,
-        ptr: Var,
-        f_offset: Callable[..., Expr | int],
-        f_mask: Optional[Callable[..., Expr | int | bool]] = None,
-    ) -> None:
-        inst = StoreGlobalGenericInst.create(
-            x=x,
-            ptr=ptr,
-            f_offset=group_function_argument(f_offset),
-            f_mask=group_function_argument(f_mask) if f_mask else None,
+        dtype: DataType,
+        shape: Optional[Sequence[int]] = None,
+        layout: Optional[SharedLayout] = None,
+        f_init: Optional[Callable[[list[Var]], Expr]] = None,
+    ) -> SharedTensor:
+        from tilus.ir.layout.shared_layout import shared_repeat
+
+        match (shape, layout):
+            case (None, None):
+                raise ValueError("Must specify either shape or layout")
+            case (_, None):
+                assert isinstance(shape, Sequence)
+                layout = shared_repeat(*shape)
+            case (None, _):
+                pass
+            case _:
+                raise ValueError("Cannot specify both shape and layout")
+
+        assert layout is not None
+
+        inst = AllocateSharedInst.create(
+            dtype=dtype,
+            layout=layout,
+            f_init=f_init,
         )
         self._append(inst)
+        return inst.shared_output
 
     def global_view(
         self,
@@ -234,11 +266,32 @@ class Script(CompiledScript, ScriptTracer):
         /,
         *,
         offsets: Sequence[Expr],
+        shape: Optional[Sequence[int]] = None,
         layout: Optional[RegisterLayout] = None,
         dims: Optional[Iterable[int]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        inst = LoadGlobalInst.create(x, offsets=offsets, dims=dims, layout=layout, out=out)
+        match (shape, layout, out):
+            case (None, None, None):
+                raise ValueError("Must specify one of shape, layout and out")
+            case (_, None, None):
+                from tilus.ir.layout import auto_repeat_spatial
+
+                if self.attrs.warps is None:
+                    raise ValueError(
+                        "Must specify the number of warps in th script so that load_global could use it "
+                        "to infer the register tensor layout"
+                    )
+                layout = auto_repeat_spatial(num_threads=self.attrs.warps * 32, shape=shape)  # type: ignore[arg-type]
+                out = RegisterTensor.create(dtype=x.dtype, layout=layout)
+            case (None, _, None):
+                out = RegisterTensor.create(dtype=x.dtype, layout=layout)  # type: ignore[arg-type]
+            case (None, None, _):
+                pass
+            case _:
+                raise ValueError("Cannot specify any two of shape, layout, and out")
+
+        inst = LoadGlobalInst.create(x, offsets=offsets, dims=dims, out=out)
         self._append(inst)
         return inst.register_output
 
@@ -253,12 +306,27 @@ class Script(CompiledScript, ScriptTracer):
         inst = StoreGlobalInst.create(dst, x, offsets=offsets, dims=slice_dims)
         self._append(inst)
 
-    def register_tensor(
-        self, dtype: DataType, layout: RegisterLayout, f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
+    def load_shared(
+        self,
+        src: SharedTensor,
+        *,
+        offsets: Optional[Sequence[Expr | int]] = None,
+        out_layout: Optional[RegisterLayout] = None,
+        out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        inst = AllocateRegisterInst.create(dtype=dtype, layout=layout, f_init=f_init)
+        inst = LoadSharedInst.create(src, offsets=offsets, out_layout=out_layout, out=out)
         self._append(inst)
         return inst.register_output
+
+    def store_shared(
+        self, dst: SharedTensor, src: RegisterTensor, *, offsets: Optional[Sequence[Expr | int]] = None
+    ) -> None:
+        inst = StoreSharedInst.create(dst=dst, src=src, offsets=offsets)
+        self._append(inst)
+
+    def free_shared(self, tensor: SharedTensor) -> None:
+        inst = FreeSharedInst.create(tensor=tensor)
+        self._append(inst)
 
     def mma_dot(
         self,
@@ -297,6 +365,48 @@ class Script(CompiledScript, ScriptTracer):
         )
         self._append(inst)
         return inst.register_output
+
+    def load_global_generic(
+        self,
+        *,
+        dtype: DataType,
+        layout: RegisterLayout,
+        ptr: Var,
+        f_offset: Callable[..., Expr | int],
+        f_mask: Optional[Callable[..., Expr | int | bool]] = None,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        inst = LoadGlobalGenericInst.create(
+            dtype=dtype,
+            layout=layout,
+            ptr=ptr,
+            f_offset=group_function_argument(f_offset),
+            f_mask=group_function_argument(f_mask) if f_mask else None,
+            out=out,
+        )
+        self._append(inst)
+        return inst.register_output
+
+    def store_global_generic(
+        self,
+        x: RegisterTensor,
+        /,
+        *,
+        ptr: Var,
+        f_offset: Callable[..., Expr | int],
+        f_mask: Optional[Callable[..., Expr | int | bool]] = None,
+    ) -> None:
+        inst = StoreGlobalGenericInst.create(
+            x=x,
+            ptr=ptr,
+            f_offset=group_function_argument(f_offset),
+            f_mask=group_function_argument(f_mask) if f_mask else None,
+        )
+        self._append(inst)
+
+    def sync(self) -> None:
+        inst = SyncThreadsInst.create()
+        self._append(inst)
 
     def print_tensor(self, msg: str, x: Tensor, fmt: Optional[str] = None) -> None:
         inst = PrintValueInst.create(x, cond=boolean.true, msg=msg, fmt=fmt)

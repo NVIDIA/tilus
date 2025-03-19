@@ -27,14 +27,14 @@ class Matmul(tilus.Script):
         k_blocks = self.utils.ceil_div(self.k_size, self.block_k)
         for k in range(k_blocks):
             offset_k = k * self.block_k
-            a = self.load_global_flex(
+            a = self.load_global_generic(
                 dtype=float16,
                 layout=self.mma.la,
                 ptr=a_ptr,
                 f_offset=lambda i, k: (offset_m + i) * self.k_size + offset_k + k,
                 f_mask=lambda i, k: offset_m + i < m_size and offset_k + k < self.k_size,
             )
-            b = self.load_global_flex(
+            b = self.load_global_generic(
                 dtype=float16,
                 layout=self.mma.lb,
                 ptr=b_ptr,
@@ -43,7 +43,7 @@ class Matmul(tilus.Script):
             )
             acc = self.mma_dot(a, b, acc, mma_inst=self.mma.name, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
         acc_f16 = self.cast(acc, dtype=float16)
-        self.store_global_flex(
+        self.store_global_generic(
             acc_f16,
             ptr=c_ptr,
             f_offset=lambda i, j: (offset_m + i) * self.n_size + offset_n + j,

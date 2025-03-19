@@ -885,9 +885,9 @@ def is_compatible(lhs: RegisterLayout, rhs: RegisterLayout) -> bool:
     return lhs.local_size == rhs.local_size and lhs.num_workers == rhs.num_workers
 
 
-def auto_repeat_spatial(num_threads: int, shape: List[int]) -> RegisterLayout:
+def auto_repeat_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayout:
     assert prod(shape) % num_threads == 0
-    remain_shape = shape.copy()
+    remain_shape = list(shape)
     remain_threads = num_threads
     spatial_shape = [1 for i in range(len(shape))]
 

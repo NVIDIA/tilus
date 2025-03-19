@@ -255,20 +255,13 @@ class Transpiler(PythonAstFunctor):
             # example: self.attrs.blocks = 16, 16
             lhs_base = self.visit(lhs.value)
 
-            namespace = {
-                self.script.attrs: "",
-            }
-            if lhs_base in namespace:
-                attr_name = namespace[lhs_base] + lhs.attr
-                if attr_name in [
-                    "warps",
-                    "blocks",
-                ]:
-                    if isinstance(rhs, (tuple, list)):
-                        rhs = [hidet_ir.tools.simplify(v) for v in rhs]
-                    else:
-                        rhs = hidet_ir.tools.simplify(rhs)
-                self.current_scope.annotate(attr_name, rhs)
+            if lhs_base is self.script.attrs:
+                # we only allow the kernel function to assign self.attrs.xxx = ...
+                if isinstance(rhs, (tuple, list)):
+                    rhs = [hidet_ir.tools.simplify(v) for v in rhs]
+                else:
+                    rhs = hidet_ir.tools.simplify(rhs)
+                setattr(self.script.attrs, lhs.attr, rhs)
             else:
                 raise HidetProgramError(self, lhs, "Invalid assignment.")
         else:
@@ -346,8 +339,8 @@ class Transpiler(PythonAstFunctor):
                 self.visit(stmt)
 
             # process the attributes
-            attributes = scope.attributes
-            if "blocks" not in attributes:
+            attrs = self.script.attrs
+            if attrs.blocks is None:
                 msg = """
                 Tilus script should set the number of blocks via self.blocks = ... like
                     self.blocks = dim_x
@@ -355,12 +348,15 @@ class Transpiler(PythonAstFunctor):
                     self.blocks = dim_x, dim_y
                 """
                 raise TilusProgramError(self, func_def, msg)
-            blocks = [as_expr(dim) for dim in normalize_launch_dims(self.current_scope.attributes["blocks"])]
-            if "warps" not in attributes:
+            blocks = [as_expr(dim) for dim in normalize_launch_dims(attrs.blocks)]
+            attrs.blocks = None
+
+            if attrs.warps is None:
                 raise TilusProgramError(
                     self, func_def, "Tilus script should set the number of warps via self.warps = ..."
                 )
-            warps = self.current_scope.attributes["warps"]
+            warps = attrs.warps
+            attrs.warps = None
 
             return Function.create(
                 name=func_def.name,

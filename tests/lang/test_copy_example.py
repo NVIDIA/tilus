@@ -18,14 +18,14 @@ class MemoryCopy(tilus.Script):
 
         bi = self.blockIdx.x
 
-        loaded_regs = self.load_global_flex(
+        loaded_regs = self.load_global_generic(
             dtype=float32,
             layout=self.layout,
             ptr=src_ptr,
             f_offset=lambda i: bi * self.block_size + i,
             f_mask=lambda i: bi * self.block_size + i < n,
         )
-        self.store_global_flex(
+        self.store_global_generic(
             loaded_regs,
             ptr=dst_ptr,
             f_offset=lambda i: bi * self.block_size + i,

@@ -1,6 +1,7 @@
 from .global_layout import GlobalLayout, global_column_repeat, global_compose, global_repeat, global_strides
 from .register_layout import (
     RegisterLayout,
+    auto_repeat_spatial,
     column_repeat,
     column_spatial,
     compose,

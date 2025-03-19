@@ -191,7 +191,7 @@ class IRPrinter(IRFunctor):
             else:
                 head_doc += "#pragma unroll {}".format(stmt.unroll_factor)
             head_doc += NewLine()
-        head_doc += Text("for ") + self.printer(stmt.iter_var) + " in range(" + self.visit(stmt.extent) + "):"
+        head_doc += Text("for ") + self.visit(stmt.iter_var) + " in range(" + self.visit(stmt.extent) + "):"
         body_doc = NewLine() + self.visit(stmt.body)
         doc = head_doc + body_doc.indent(4)
         return doc
@@ -303,21 +303,25 @@ class IRPrinter(IRFunctor):
         return Text(self.add_key_comment("layout", str(layout)))
 
     def visit_SharedLayout(self, node: SharedLayout) -> Doc:
-        printer = IRPrinter()
+        for i, axis in enumerate(node.axes):
+            self.var2name[axis] = "u" + str(i)
+            self.printer.namer.obj_name[axis] = self.var2name[axis]
         items = [
             "shape=[" + self(node.shape) + "]",
-            "axes=[" + printer(node.axes) + "]",
-            "offset=" + printer(node.offset),
+            "axes=[" + self(node.axes) + "]",
+            "offset=" + self(node.offset),
         ]
         doc = Text("SharedLayout(") + doc_join(items, ", ") + ")"
         return Text(self.add_key_comment("shared_layout", doc))
 
     def visit_GlobalLayout(self, node: GlobalLayout) -> Doc:
-        printer = IRPrinter()
+        for i, axis in enumerate(node.axes):
+            self.var2name[axis] = "u" + str(i)
+            self.printer.namer.obj_name[axis] = self.var2name[axis]
         items = [
             "shape=[" + self(node.shape) + "]",
-            "axes=[" + printer(node.axes) + "]",
-            "offset=" + printer(node.offset),
+            "axes=[" + self(node.axes) + "]",
+            "offset=" + self(node.offset),
         ]
         doc = Text("GlobalLayout(") + doc_join(items, ", ") + ")"
         return Text(self.add_key_comment("global_layout", doc))

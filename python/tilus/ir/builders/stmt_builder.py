@@ -423,7 +423,7 @@ class StmtBuilder(StmtBuilderCore):
     def allocate_shared(
         self, dtype: DataType, shared_layout: SharedLayout, f_init: Optional[Callable[[List[Var]], Expr]] = None
     ) -> SharedTensor:
-        inst = AllocateSharedInst.create(dtype=dtype, shared_layout=shared_layout, f_init=f_init)
+        inst = AllocateSharedInst.create(dtype=dtype, layout=shared_layout, f_init=f_init)
         self.append(inst)
         return inst.shared_output
 
@@ -444,7 +444,7 @@ class StmtBuilder(StmtBuilderCore):
     ) -> RegisterTensor:
         if offsets is None:
             offsets = [int32.zero for _ in range(len(src.shape))]
-        inst = LoadSharedInst.create(src=src, register_layout=register_layout, offsets=offsets, output=output)
+        inst = LoadSharedInst.create(src=src, out_layout=register_layout, offsets=offsets, out=output)
         self.append(inst)
         return inst.register_output
 

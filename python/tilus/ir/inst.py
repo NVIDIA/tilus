@@ -112,22 +112,24 @@ class LoadGlobalInst(Instruction):
         layout: Optional[RegisterLayout] = None,
         out: Optional[RegisterTensor] = None,
     ) -> LoadGlobalInst:
-        if out is not None and layout is not None:
-            raise ValueError("Cannot specify both reg_layout and out")
-        if out is None and layout is None:
-            raise ValueError("Must specify either reg_layout or out")
-        if out is None:
-            assert layout is not None
-            out = RegisterTensor.create(dtype=x.dtype, layout=layout)
-
+        match (layout, out):
+            case None, None:
+                raise ValueError("Must specify either reg_layout or out")
+            case None, _:
+                assert out.dtype == x.dtype  # type: ignore[union-attr]
+            case _, None:
+                out = RegisterTensor.create(dtype=x.dtype, layout=layout)  # type: ignore[union-attr, arg-type]
+            case _:
+                raise ValueError("Cannot specify both reg_layout and out")
         if dims is None:
-            if len(out.shape) == len(offsets):
+            if len(x.shape) == len(offsets):
                 dims = tuple(range(len(offsets)))
             else:
                 raise ValueError("Must specify dims since it can not been inferred automatically")
         else:
             dims = tuple(sorted(dims))
 
+        assert dims is not None and out is not None
         assert len(dims) == len(out.layout.shape), "dims must have the same length as the output shape"
         assert len(offsets) == len(x.shape), "offsets must have the same length as the input shape"
 
@@ -398,11 +400,11 @@ class AllocateSharedInst(Instruction):
 
     @staticmethod
     def create(
-        dtype: DataType, shared_layout: SharedLayout, f_init: Optional[Callable[[List[Var]], Expr]] = None
+        dtype: DataType, layout: SharedLayout, f_init: Optional[Callable[[List[Var]], Expr]] = None
     ) -> AllocateSharedInst:
-        out = SharedTensor.create(dtype=dtype, layout=shared_layout)
+        out = SharedTensor.create(dtype=dtype, layout=layout)
         if f_init:
-            axes = index_vars(num_vars=len(shared_layout.shape))
+            axes = index_vars(num_vars=len(layout.shape))
             init = f_init(axes)
         else:
             axes = None
@@ -439,8 +441,8 @@ class GlobalViewInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class FreeSharedInst(Instruction):
     @staticmethod
-    def create(shared_value: SharedTensor) -> FreeSharedInst:
-        return FreeSharedInst(output=None, inputs=(shared_value,))
+    def create(tensor: SharedTensor) -> FreeSharedInst:
+        return FreeSharedInst(output=None, inputs=(tensor,))
 
 
 @dataclass(frozen=True, eq=False)
@@ -561,32 +563,45 @@ class LoadMatrixInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class LoadSharedInst(Instruction):
-    offsets: List[Expr]
+    offsets: tuple[Expr, ...]
 
     @staticmethod
     def create(
         src: SharedTensor,
-        register_layout: RegisterLayout,
-        offsets: List[Expr],
         *,
-        output: Optional[RegisterTensor] = None,
+        offsets: Optional[Sequence[Expr | int]] = None,
+        out_layout: Optional[RegisterLayout] = None,
+        out: Optional[RegisterTensor] = None,
     ) -> LoadSharedInst:
-        if output is None:
-            output = RegisterTensor.create(dtype=src.dtype, layout=register_layout)
+        match (out_layout, out):
+            case None, None:
+                raise ValueError("Must specify either out_layout or out")
+            case None, _:
+                assert out.dtype == src.dtype  # type: ignore[union-attr]
+            case _, None:
+                out = RegisterTensor.create(dtype=src.dtype, layout=out_layout)  # type: ignore[union-attr, arg-type]
+            case _:
+                raise ValueError("Cannot specify both out_layout and out")
+        if offsets is None:
+            offsets_ = tuple([i32.zero for _ in range(len(src.shape))])
         else:
-            assert output.dtype == src.dtype and output.layout.quick_equal(register_layout)
-        return LoadSharedInst(output=output, inputs=(src,), offsets=offsets)
+            offsets_ = tuple([as_expr(v) for v in offsets])
+        return LoadSharedInst(output=out, inputs=(src,), offsets=offsets_)
 
 
 @dataclass(frozen=True, eq=False)
 class StoreSharedInst(Instruction):
-    offsets: List[Expr]
+    offsets: tuple[Expr, ...]
 
     @staticmethod
-    def create(dst: SharedTensor, src: RegisterTensor, offsets: Optional[List[Expr]] = None) -> StoreSharedInst:
+    def create(
+        dst: SharedTensor, src: RegisterTensor, offsets: Optional[Sequence[Expr | int]] = None
+    ) -> StoreSharedInst:
         if offsets is None:
-            offsets = [i32.zero for _ in range(len(dst.shape))]
-        return StoreSharedInst(output=None, inputs=(dst, src), offsets=offsets)
+            offsets_ = [i32.zero for _ in range(len(dst.shape))]
+        else:
+            offsets_ = [as_expr(v) for v in offsets]
+        return StoreSharedInst(output=None, inputs=(dst, src), offsets=tuple(offsets_))
 
 
 @dataclass(frozen=True, eq=False)
@@ -603,30 +618,21 @@ class NopInst(Instruction):
         return NopInst(output=None, inputs=())
 
 
+@dataclass(frozen=True, eq=False)
 class MmaConfig:
-    def __init__(
-        self,
-        name: str,
-        m: int,
-        n: int,
-        k: int,
-        vec_k: int,
-        la: RegisterLayout,
-        lb: RegisterLayout,
-        lc: RegisterLayout,
-        operand_type: DataType,
-        acc_type: DataType,
-    ):
-        self.name: str = name
-        self.m: int = m
-        self.n: int = n
-        self.k: int = k
-        self.vec_k: int = vec_k
-        self.la: RegisterLayout = la
-        self.lb: RegisterLayout = lb
-        self.lc: RegisterLayout = lc
-        self.operand_type: DataType = operand_type
-        self.acc_type: DataType = acc_type
+    name: str
+    m: int
+    n: int
+    k: int
+    vec_k: int
+    la: RegisterLayout
+    lb: RegisterLayout
+    lc: RegisterLayout
+    operand_type: DataType
+    acc_type: DataType
+
+    def __hash__(self):
+        return hash((MmaConfig, self.name))
 
     def __eq__(self, other):
         return isinstance(other, MmaConfig) and self.name == other.name
@@ -656,6 +662,7 @@ class MmaConfig:
         )
 
     @staticmethod
+    @lru_cache()
     def m16n8k16_f16_f32(vec_k: int = 1) -> MmaConfig:
         return MmaConfig(
             name="m16n8k16v{}_f16_f32".format(vec_k),
@@ -671,6 +678,7 @@ class MmaConfig:
         )
 
     @staticmethod
+    @lru_cache()
     def m16n8k16_bf16_f32(vec_k: int = 1) -> MmaConfig:
         return MmaConfig(
             name="m16n8k16v{}_bf16_f32".format(vec_k),
@@ -686,6 +694,7 @@ class MmaConfig:
         )
 
     @staticmethod
+    @lru_cache()
     def m8n8k16_i8_i32(vec_k: int = 1) -> MmaConfig:
         return MmaConfig(
             name="m8n8k16v{}_i8_i32".format(vec_k),
