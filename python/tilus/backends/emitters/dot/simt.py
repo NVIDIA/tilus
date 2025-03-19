@@ -11,9 +11,9 @@ from tilus.target import gpgpu_any
 class MmaDotInstEmitter(BaseInstEmitter):
     def emit(self, inst: SimtDotInst) -> None:  # type: ignore
         assert inst.output is inst.inputs[2]
-        a_value = inst.inputs[0].as_register_value()
-        b_value = inst.inputs[1].as_register_value()
-        c_value = inst.inputs[2].as_register_value()
+        a_value = inst.inputs[0].as_register_tensor()
+        b_value = inst.inputs[1].as_register_tensor()
+        c_value = inst.inputs[2].as_register_tensor()
         a_buf = self.value2var[a_value]
         b_buf = self.value2var[b_value]
         c_buf = self.value2var[c_value]

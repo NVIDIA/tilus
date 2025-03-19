@@ -2,8 +2,8 @@
 This module contains utility functions that only depend on the Python standard library.
 """
 
-from typing import List, Optional, Any, Callable, Sequence, Iterable, Iterator
 import itertools
+from typing import Any, Callable, Iterable, Iterator, List, Optional, Sequence
 
 
 def serial_imap(func: Callable, jobs: Sequence[Any], num_workers: Optional[int] = None) -> Iterable[Any]:

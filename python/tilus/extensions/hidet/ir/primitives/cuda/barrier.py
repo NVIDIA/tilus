@@ -1,17 +1,17 @@
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 from typing_extensions import no_type_check
 
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr
 from hidet.ir.func import Function
-from hidet.ir.primitives.func import register_primitive_function, call_primitive_func
+from hidet.ir.primitives.func import call_primitive_func, register_primitive_function
 from hidet.utils import initialize
 
 
 @initialize()
 def register_functions():
-    from hidet.lang import attrs, script, asm
+    from hidet.lang import asm, attrs, script
     from hidet.lang.types import int32
 
     for aligned in [False, True]:

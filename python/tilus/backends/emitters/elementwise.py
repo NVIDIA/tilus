@@ -3,8 +3,8 @@ import operator
 from hidet.ir.expr import Expr, Var, if_then_else, tensor_var
 from hidet.ir.utils.broadcast_utils import broadcast_indices
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import ElementwiseUnaryInst, ElementwiseBinaryInst, BroadcastElementwiseBinaryInst
-from tilus.ir.value import RegisterValue
+from tilus.ir.inst import BroadcastElementwiseBinaryInst, ElementwiseBinaryInst, ElementwiseUnaryInst
+from tilus.ir.tensor import RegisterTensor
 from tilus.target import gpgpu_any
 
 
@@ -14,13 +14,13 @@ class ElementwiseUnaryInstEmitter(BaseInstEmitter):
         name_mapping = {"relu": "relu", "clip": "clipped"}
         op_var_name = name_mapping[inst.op]
 
-        x_value: RegisterValue = inst.inputs[0].as_register_value()
-        y_value: RegisterValue = inst.register_output
+        x_value: RegisterTensor = inst.inputs[0].as_register_tensor()
+        y_value: RegisterTensor = inst.register_output
         x_var: Var = self.value2var[x_value]
-        y_var: Var = self.declare(tensor_var(op_var_name, shape=[y_value.size], dtype=y_value.dtype))
+        y_var: Var = self.declare(tensor_var(op_var_name, shape=[y_value.local_size], dtype=y_value.dtype))
         self.value2var[y_value] = y_var
 
-        with self.for_range(extent=y_value.size) as i:
+        with self.for_range(extent=y_value.local_size) as i:
             op_map = {
                 "relu": lambda x: if_then_else(x > x_value.dtype.zero, x, x_value.dtype.zero),
                 # "clip": lambda x: self._clip(x, inst.attrs["min_value"], inst.attrs["max_value"]),
@@ -40,13 +40,13 @@ class ElementwiseBinaryInstEmitter(BaseInstEmitter):
     def emit(self, inst: ElementwiseBinaryInst) -> None:
         name_mapping = {"+": "added", "-": "diff", "*": "product", "/": "quotient"}
 
-        x_value: RegisterValue = inst.inputs[0].as_register_value()
-        y_value: RegisterValue = inst.inputs[1].as_register_value()
-        z_value: RegisterValue = inst.register_output
+        x_value: RegisterTensor = inst.inputs[0].as_register_tensor()
+        y_value: RegisterTensor = inst.inputs[1].as_register_tensor()
+        z_value: RegisterTensor = inst.register_output
         x_var: Var = self.value2var[x_value]
         y_var: Var = self.value2var[y_value]
         z_var = self.get_or_allocate_var(z_value, name_mapping[inst.op])
-        with self.for_range(extent=z_value.size) as i:
+        with self.for_range(extent=z_value.local_size) as i:
             z_indices = z_value.layout.local2global(local_index=i, worker=self.current_worker)
             x_indices = broadcast_indices(out_indices=z_indices, shape=x_value.shape, out_shape=z_value.shape)
             y_indices = broadcast_indices(out_indices=z_indices, shape=y_value.shape, out_shape=z_value.shape)
@@ -65,17 +65,17 @@ class BroadcastElementwiseBinaryInstEmitter(BaseInstEmitter):
         name_mapping = {"+": "added", "-": "diff", "*": "product", "/": "quotient"}
         op_var_name = name_mapping[inst.op]
 
-        r_value: RegisterValue = inst.inputs[0].as_register_value()
+        r_value: RegisterTensor = inst.inputs[0].as_register_tensor()
         s_expr: Expr = inst.s
-        z_value: RegisterValue = inst.register_output
+        z_value: RegisterTensor = inst.register_output
         r_var: Var = self.value2var[r_value]
         z_var: Var
         if z_value in self.value2var:
             z_var = self.value2var[z_value]
         else:
-            z_var = self.declare(tensor_var(op_var_name, shape=[z_value.size], dtype=z_value.dtype))
+            z_var = self.declare(tensor_var(op_var_name, shape=[z_value.local_size], dtype=z_value.dtype))
             self.value2var[z_value] = z_var
-        with self.for_range(extent=z_value.size) as i:
+        with self.for_range(extent=z_value.local_size) as i:
             op_map = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv, "%": operator.mod}
 
             def expr_op(x, y):

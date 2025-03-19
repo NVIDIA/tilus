@@ -1,28 +1,39 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Optional, Dict, List, Tuple, Type, Set, Callable
+from typing import Callable, Dict, List, Optional, Set, Tuple, Type
 
 from hidet.ir.dtypes import int32, uint8
-from hidet.ir.expr import Var, SymbolVar, Expr, cast, Constant, tensor_var
-from hidet.ir.stmt import DeclareScope
-from hidet.ir.module import IRModule
+from hidet.ir.expr import Constant, Expr, SymbolVar, Var, cast, tensor_pointer_var, tensor_var
 from hidet.ir.func import Function as HidetFunction
+from hidet.ir.module import IRModule
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.primitives.cuda.vars import threadIdx
+from hidet.ir.stmt import DeclareScope
 from hidet.ir.type import void_p
-
-from tilus.ir.inst import Instruction, PrintValueInst, FormatPrintInst
-from tilus.ir.prog import Program
-from tilus.ir.func import Function
-from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, BreakStmt, WhileStmt, InstructionStmt
-from tilus.ir.tools.instruction_collector import collect_instructions
-from tilus.ir.value import Value, SharedValue, RegisterValue, SharedLayout
-from tilus.ir.tools import IRPrinter
-from tilus.ir.functors import IRFunctor
-from tilus.target import get_current_target, match_target, gpgpu_any, Target
+from tilus.extensions.hidet.ir.builders import FunctionBuilder, StmtBuilder
 from tilus.extensions.hidet.ir.module import merge_ir_modules
-from tilus.extensions.hidet.ir.builders import StmtBuilder, FunctionBuilder
 from tilus.extensions.hidet.ir.tools import rewrite
+from tilus.ir.func import Function
+from tilus.ir.functors import IRFunctor
+from tilus.ir.inst import FormatPrintInst, Instruction, PrintValueInst
+from tilus.ir.prog import Program
+from tilus.ir.stmt import (
+    AssignStmt,
+    BreakStmt,
+    DeclareStmt,
+    ForStmt,
+    ForThreadGroupStmt,
+    IfStmt,
+    InstStmt,
+    SeqStmt,
+    TensorPtrStmt,
+    WhileStmt,
+)
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
+from tilus.ir.tools import IRPrinter
+from tilus.ir.tools.instruction_collector import collect_instructions
+from tilus.target import Target, get_current_target, gpgpu_any, match_target
 
 
 class InvalidInstruction(Exception):
@@ -86,16 +97,21 @@ class BaseInstEmitter(StmtBuilder):
         else:
             raise NotImplementedError()
 
-    def get_or_allocate_var(self, value: Value, name: Optional[str] = None) -> Var:
+    def get_or_allocate_var(self, value: Tensor, name: Optional[str] = None) -> Var:
         if value in self.value2var:
             return self.value2var[value]
         else:
-            if isinstance(value, RegisterValue):
+            if isinstance(value, RegisterTensor):
                 name = name if name else "regs"
-                var = self.declare(tensor_var(name, shape=[value.size], dtype=value.dtype), scope=DeclareScope.Register)
-            elif isinstance(value, SharedValue):
+                var = self.declare(
+                    tensor_var(name, shape=[value.local_size], dtype=value.dtype), scope=DeclareScope.Register
+                )
+            elif isinstance(value, SharedTensor):
                 name = name if name else "smem"
-                var = self.declare(tensor_var(name, shape=[value.size], dtype=value.dtype), scope=DeclareScope.Shared)
+                var = self.declare(tensor_pointer_var(name, shape=[value.size], dtype=value.dtype))
+            elif isinstance(value, GlobalTensor):
+                name = name if name else "gmem"
+                var = self.declare(tensor_pointer_var(name, shape=[value.size], dtype=value.dtype))
             else:
                 raise NotImplementedError()
             self.value2var[value] = var
@@ -110,8 +126,8 @@ class BaseInstEmitter(StmtBuilder):
         return self.codegen.thread_groups
 
     @property
-    def value2var(self) -> Dict[Value, Var]:
-        return self.codegen.value2var
+    def value2var(self) -> Dict[Tensor, Var]:
+        return self.codegen.tensor2var
 
     @property
     def shared_value_shared_space_addr(self):
@@ -229,7 +245,7 @@ class Codegen(IRFunctor):
         self.printer: IRPrinter = IRPrinter()
 
         # value mapping
-        self.value2var: Dict[Value, Var] = {}
+        self.tensor2var: Dict[Tensor, Var] = {}
 
         # global memory management
         self.gmem_base_ptr: Var = SymbolVar(dtype=~uint8, name=self.GMEM_WORKSPACE_NAME)  # type: ignore # todo: update hidet to allow SymbolVar supports pointer
@@ -242,12 +258,12 @@ class Codegen(IRFunctor):
         # shared memory allocator
         self.smem_allocator: SharedMemoryAllocator = SharedMemoryAllocator()
         # mapping from shared value to the address in shared memory allocator for all allocated shared values
-        self.shared_value_allocator_addr: Dict[SharedValue, int] = {}
+        self.shared_value_allocator_addr: Dict[SharedTensor, int] = {}
         # mapping from shared value to the address in shared memory space (e.g., returned by cvta ptx instruction)
-        self.shared_value_shared_space_addr: Dict[SharedValue, Var] = {}
+        self.shared_value_shared_space_addr: Dict[SharedTensor, Var] = {}
 
         # shared memory workspace
-        self.smem_workspace: Optional[SharedValue] = None
+        self.smem_workspace: Optional[SharedTensor] = None
 
         # stacks of for_thread_groups
         self.thread_groups = Codegen.ThreadGroups([], [], [])
@@ -270,13 +286,13 @@ class Codegen(IRFunctor):
 
         self.visit(SyncThreadsInst.create())
 
-    def allocate_shared_value(self, value: SharedValue, nbytes: int) -> int:
+    def allocate_shared_value(self, value: SharedTensor, nbytes: int) -> int:
         addr: int = self.smem_allocator.allocate(nbytes)
         assert value not in self.shared_value_allocator_addr
         self.shared_value_allocator_addr[value] = addr
         return addr
 
-    def free_shared_value(self, value: SharedValue) -> None:
+    def free_shared_value(self, value: SharedTensor) -> None:
         assert value in self.shared_value_allocator_addr
         self.smem_allocator.free(addr=self.shared_value_allocator_addr[value])
         del self.shared_value_allocator_addr[value]
@@ -309,18 +325,18 @@ class Codegen(IRFunctor):
         # for inst in collect_instructions(program):    # todo: add this to emiter
         #     smem_workspace_nbytes = max(smem_workspace_nbytes, inst.request_shared_workspace())
         if smem_workspace_nbytes > 0:
-            value = SharedValue.create(dtype=uint8, layout=SharedLayout.repeat(smem_workspace_nbytes))
+            value = SharedTensor.create(dtype=uint8, layout=SharedLayout.repeat(smem_workspace_nbytes))
             self.allocate_shared_value(value, nbytes=smem_workspace_nbytes)
-            self.value2var[value] = self.builder.declare(
+            self.tensor2var[value] = self.builder.declare(
                 v=Var("temp_smem", type=void_p),
                 init=dynamic_shared_memory(byte_offset=self.shared_value_allocator_addr[value], dtype=uint8),
             )
             self.smem_workspace = value
 
     def generate_launch_function(self, ir_module: IRModule, kernel_func: HidetFunction) -> IRModule:
-        from tilus.extensions.hidet.ir.primitives.runtime import set_symbol_value_ptr
-        from hidet.transforms.generate_launch_func import add_launch_func
         from hidet.ir.stmt import SeqStmt
+        from hidet.transforms.generate_launch_func import add_launch_func
+        from tilus.extensions.hidet.ir.primitives.runtime import set_symbol_value_ptr
 
         add_launch_func(ir_module, kernel_func=kernel_func)
 
@@ -473,7 +489,16 @@ class Codegen(IRFunctor):
     def visit_BreakStmt(self, stmt: BreakStmt) -> None:
         self.builder.brk()
 
-    def visit_InstructionStmt(self, stmt: InstructionStmt) -> None:
+    def visit_DeclareStmt(self, stmt: DeclareStmt) -> None:
+        self.builder.declare(stmt.var, init=stmt.init)
+
+    def visit_AssignStmt(self, stmt: AssignStmt) -> None:
+        self.builder.assign(stmt.var, value=stmt.value)
+
+    def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> None:
+        self.builder.declare(stmt.ptr_var, self.tensor2var[stmt.tensor])
+
+    def visit_InstStmt(self, stmt: InstStmt) -> None:
         self.visit(stmt.inst)
 
     def visit_Instruction(self, inst: Instruction) -> None:

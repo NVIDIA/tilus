@@ -12,10 +12,10 @@
 from typing import Union
 
 from hidet.ir.expr import Expr
-from hidet.ir.type import FuncType, void_p, void, string_type
-from hidet.ir.primitives.func import register_primitive_function, call_primitive_func
-from tilus.extensions.hidet.ir.expr import as_expr
+from hidet.ir.primitives.func import call_primitive_func, register_primitive_function
+from hidet.ir.type import FuncType, string_type, void, void_p
 from hidet.utils import initialize
+from tilus.extensions.hidet.ir.expr import as_expr
 
 
 @initialize()

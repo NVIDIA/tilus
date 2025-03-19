@@ -1,7 +1,8 @@
-from typing import Any
 from pathlib import Path
-from hidet.option import register_option as _register_hidet_option
+from typing import Any
+
 from hidet.option import get_option as _get_hidet_option
+from hidet.option import register_option as _register_hidet_option
 from hidet.option import set_option as _set_hidet_option
 
 

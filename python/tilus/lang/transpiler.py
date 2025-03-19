@@ -1,31 +1,31 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Type, Any, Tuple, Sequence
-import types
-import operator
-import math
 import ast
-import inspect
 import builtins
+import inspect
+import math
+import operator
+import types
+from typing import Any, Optional, Sequence, Tuple, Type, Union
 
+import tilus.lang.constructs.loops
 from hidet import ir as hidet_ir
 from hidet.ir.analyzers import normalize_launch_dims
-from hidet.ir.type import BaseType, data_type
 from hidet.ir.expr import Var
-from hidet.lang.script import eliminate_indent, eliminate_decorators
-from hidet.lang.transpiler import PythonAstFunctor, HidetProgramError
+from hidet.ir.type import BaseType, data_type
+from hidet.lang.script import eliminate_decorators, eliminate_indent
+from hidet.lang.transpiler import HidetProgramError, PythonAstFunctor
 from tilus import ir as tilus_ir
 from tilus.extensions.hidet.ir.expr import as_expr
-from tilus.ir import RegisterValue
-from tilus.ir.layout import Layout
-from tilus.ir.func import Function
-from tilus.ir.stmt import Stmt, SeqStmt, InstructionStmt
-from tilus.ir.inst import Instruction, AllocateScalarInst, AssignInst, AssignScalarInst
+from tilus.ir import RegisterTensor
 from tilus.ir.builders import IRBuilder
-from tilus.ir.value import Value
-from tilus.lang.script import Script
+from tilus.ir.func import Function
+from tilus.ir.inst import AssignInst, Instruction
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.stmt import AssignStmt, DeclareStmt, InstStmt, SeqStmt, Stmt
+from tilus.ir.tensor import Tensor
 from tilus.lang.constructs.loops import TilusLoopIterable
-import tilus.lang.constructs.loops
+from tilus.lang.script import Script
 
 
 class TilusProgramError(HidetProgramError):
@@ -36,7 +36,7 @@ class Scope:
     def __init__(self, parent: Optional[Scope]):
         self.parent: Optional[Scope] = parent
         self.name2var: dict[str, Var] = {}
-        self.name2value: dict[str, Value] = {}
+        self.name2value: dict[str, Tensor] = {}
         self.name2host_var: dict[str, Any] = {}
         self.stmts: list[Stmt] = []
         self.attributes: dict[str, Any] = {}
@@ -48,16 +48,16 @@ class Scope:
         scope.bind("range", tilus.lang.constructs.loops.range)
         return scope
 
-    def bind(self, name: str, var_or_value: Var | Value | Any) -> None:
+    def bind(self, name: str, var_or_value: Var | Tensor | Any) -> None:
         if isinstance(var_or_value, Var):
             self.name2var[name] = var_or_value
-        elif isinstance(var_or_value, Value):
+        elif isinstance(var_or_value, Tensor):
             self.name2value[name] = var_or_value
         else:
             self.name2host_var[name] = var_or_value
         # print('binding {} with {}'.format(name, var_or_value))
 
-    def lookup(self, name: str, search_parents: bool = True) -> Var | Value | Any | None:
+    def lookup(self, name: str, search_parents: bool = True) -> Var | Tensor | Any | None:
         if name in self.name2var:
             return self.name2var[name]
         if name in self.name2value:
@@ -74,7 +74,7 @@ class Scope:
         self.attributes[name] = value
 
     def append(self, inst_or_stmt: Instruction | Stmt) -> None:
-        stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstructionStmt(inst_or_stmt)
+        stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstStmt(inst_or_stmt)
         self.stmts.append(stmt)
 
     def flush_stmts(self) -> Stmt:
@@ -192,8 +192,8 @@ class Transpiler(PythonAstFunctor):
     ) -> None:
         # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         # check the rhs value, must be an instance of rhs_allowed_types or a list of these kinds of elements.
-        host_var_types: Tuple[Any, ...] = (Layout, str, list, tuple, dict)
-        var_types = (hidet_ir.Expr, tilus_ir.Value, float, int, str, type(None))
+        host_var_types: Tuple[Any, ...] = (RegisterLayout, str, list, tuple, dict)
+        var_types = (hidet_ir.Expr, tilus_ir.Tensor, float, int, str, type(None))
         rhs_allowed_types = var_types + host_var_types
         assert isinstance(rhs, rhs_allowed_types), 'unexpected value "{}" with type {}'.format(rhs, type(rhs))
 
@@ -212,10 +212,10 @@ class Transpiler(PythonAstFunctor):
                 #    3.1) if there is type annotation, we define a scalar variable
                 #    3.2) otherwise, we bind the host expression to the name
                 if isinstance(rhs, hidet_ir.Expr):
-                    declare_inst = AllocateScalarInst.create(hint=var_name, scalar_type=hidet_ir.infer_type(rhs))
-                    self.current_scope.append(declare_inst)
-                    self.current_scope.bind(var_name, rhs)
-                elif isinstance(rhs, tilus_ir.Value):
+                    stmt = DeclareStmt(var=Var(hint=var_name, type=hidet_ir.infer_type(rhs)), init=rhs)
+                    self.current_scope.append(stmt)
+                    self.current_scope.bind(var_name, stmt.var)
+                elif isinstance(rhs, tilus_ir.Tensor):
                     self.current_scope.bind(var_name, rhs)
                 else:
                     if type_annotation is not None:
@@ -231,9 +231,9 @@ class Transpiler(PythonAstFunctor):
                 if isinstance(lookup_result, Var):
                     if not isinstance(rhs, (hidet_ir.Expr, int, float, str)):
                         raise TilusProgramError(self, lhs, "Assignment between Var is only accepted for hidet_ir.Expr.")
-                    self.current_scope.append(AssignScalarInst.create(var=lookup_result, scalar_expr=as_expr(rhs)))
-                elif isinstance(lookup_result, Value):
-                    if not isinstance(rhs, RegisterValue) or not isinstance(lookup_result, RegisterValue):
+                    self.current_scope.append(AssignStmt(var=lookup_result, value=as_expr(rhs)))
+                elif isinstance(lookup_result, Tensor):
+                    if not isinstance(rhs, RegisterTensor) or not isinstance(lookup_result, RegisterTensor):
                         raise TilusProgramError(
                             self, lhs, "Assignment between Value is only accepted for RegisterValue."
                         )

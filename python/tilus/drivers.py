@@ -1,19 +1,47 @@
-from pathlib import Path
+from __future__ import annotations
+
 import hashlib
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional, Sequence
+
 import filelock
-from hidet.ir.module import IRModule
-from hidet.runtime.compiled_module import CompiledModule, load_compiled_module, compiled_module_exists
-from hidet.drivers.build_module import write_function_types
-from tilus.extensions.hidet.backend.codegen import codegen
-from hidet.backend.build import compile_source
 
 import tilus.option
-from tilus.ir.tools.printer import IRPrinter
+from hidet.backend.build import compile_source
+from hidet.drivers.build_module import write_function_types
+from hidet.ir.module import IRModule
+from hidet.runtime.compiled_module import CompiledModule, compiled_module_exists, load_compiled_module
 from tilus.backends.codegen import generate_ir_module
+from tilus.extensions.hidet.backend.codegen import codegen
 from tilus.ir.prog import Program
+from tilus.ir.tools.printer import IRPrinter
 
 
-def optimize_program(program: Program, cache_dir: Path) -> Program:
+@dataclass(frozen=True)
+class BuildOptions:
+    """
+    Options for building a program.
+    """
+
+    debug_block: Optional[tuple[int, int, int]] = None
+
+    @staticmethod
+    def create(debug_block_: Optional[Sequence[int] | int]) -> BuildOptions:
+        if debug_block_ is None:
+            debug_block = None
+        else:
+            if isinstance(debug_block_, int):
+                debug_block_ = [debug_block_]
+            debug_block_ = list(debug_block_)
+            while len(debug_block_) < 3:
+                debug_block_.append(0)
+            debug_block = (debug_block_[0], debug_block_[1], debug_block_[2])
+
+        return BuildOptions(debug_block=debug_block)
+
+
+def optimize_program(program: Program, options: BuildOptions, cache_dir: Path) -> Program:
     """
     Optimize the program with a predefined set of transformations.
 
@@ -21,6 +49,9 @@ def optimize_program(program: Program, cache_dir: Path) -> Program:
     ----------
     program: Program
         The program to optimize.
+
+    options: BuildOptions
+        The options for building the program.
 
     cache_dir: Path, optional
         The directory to store the cache of the current program. Used to store the IR when debug.dump_ir is set to True.
@@ -30,12 +61,21 @@ def optimize_program(program: Program, cache_dir: Path) -> Program:
     optimized_prog: Program
         The optimized program.
     """
-    from tilus.transforms import PassContext, apply_transforms
-    from tilus.transforms import bound_aware_simplify_pass
+    from tilus.transforms import (
+        PassContext,
+        apply_transforms,
+        bound_aware_simplify_pass,
+        inject_print_instruction_pass,
+        lower_load_store_pass,
+    )
 
     transforms = [
+        lower_load_store_pass(),
         bound_aware_simplify_pass(),
     ]
+
+    if options.debug_block is not None:
+        transforms.append(inject_print_instruction_pass(block_to_print=options.debug_block))
 
     with PassContext() as ctx:
         if tilus.option.get_option("debug.dump_ir"):  # dump the IR after each transformation
@@ -61,8 +101,14 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     optimized_ir_module: IRModule
         The optimized low-level IR module.
     """
-    from tilus.extensions.hidet.transforms import PassContext, PassInstrument, SaveIRInstrument, ProfileInstrument
-    from tilus.extensions.hidet.transforms import lower_with, common_transforms
+    from tilus.extensions.hidet.transforms import (
+        PassContext,
+        PassInstrument,
+        ProfileInstrument,
+        SaveIRInstrument,
+        common_transforms,
+        lower_with,
+    )
 
     instruments: list[PassInstrument] = []
     if tilus.option.get_option("debug.dump_ir"):
@@ -73,7 +119,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         return lower_with(ir_module, common_transforms)
 
 
-def _resolve_cache_dir(prog: Program) -> Path:
+def _resolve_cache_dir(prog: Program, options: BuildOptions) -> Path:
     """
     Resolve the cache directory for the program.
 
@@ -85,6 +131,9 @@ def _resolve_cache_dir(prog: Program) -> Path:
     prog: Program
         The program to determine the cache directory.
 
+    options: BuildOptions
+        The options for building the program.
+
     Returns
     -------
     cache_dir: Path
@@ -92,26 +141,32 @@ def _resolve_cache_dir(prog: Program) -> Path:
     """
     printer = IRPrinter()
     prog_text: str = str(printer(prog))
-    hex_digest: str = hashlib.sha256(prog_text.encode()).hexdigest()[:12]
+    options_text: str = str(options)
+    hex_digest: str = hashlib.sha256(options_text.encode() + prog_text.encode()).hexdigest()[:12]
     cache_dir: Path = Path(tilus.option.get_option("cache_dir")) / "programs" / hex_digest
     program_path: Path = cache_dir / "program.txt"
+    options_path: Path = cache_dir / "options.txt"
 
-    if program_path.exists():
+    if program_path.exists() and options_path.exists():
         # make sure the program is the same as the cached one
         with open(program_path, "r") as f:
             cached_prog_text = f.read()
-        if cached_prog_text != prog_text:
+        with open(options_path, "r") as f:
+            cached_options_text = f.read()
+        if cached_prog_text != prog_text or cached_options_text != options_text:
             raise ValueError("The program text is different from the cached one: {}".format(program_path))
     else:
         # create the cache directory and write the program text to the file
         cache_dir.mkdir(parents=True, exist_ok=True)
         with open(program_path, "w") as f:
             f.write(prog_text)
+        with open(options_path, "w") as f:
+            f.write(options_text)
 
     return cache_dir
 
 
-def build_program(prog: Program) -> CompiledModule:
+def build_program(prog: Program, options: Optional[BuildOptions] = None) -> CompiledModule:
     """
     Build the program into a compiled module that could be executed directly.
 
@@ -120,12 +175,17 @@ def build_program(prog: Program) -> CompiledModule:
     prog: Program
         The program to build.
 
+    options: BuildOptions, optional
+        The options for building the program.
+
     Returns
     -------
     compiled_module: CompiledModule
         The compiled module.
     """
-    cache_dir: Path = _resolve_cache_dir(prog)
+    if options is None:
+        options = BuildOptions()
+    cache_dir: Path = _resolve_cache_dir(prog, options)
     module_dir: Path = cache_dir / "module"
 
     # the program has finished building the program, load the compiled module
@@ -141,7 +201,7 @@ def build_program(prog: Program) -> CompiledModule:
 
         # otherwise, build the program
         # 1. optimize the program
-        prog = optimize_program(prog, cache_dir)
+        prog = optimize_program(prog, options=options, cache_dir=cache_dir)
 
         # 2. generate the low-level IR (Hidet IR)
         ir_module: IRModule = generate_ir_module(prog)

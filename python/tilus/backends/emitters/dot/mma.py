@@ -1,12 +1,12 @@
 from typing import Tuple
 
 from hidet.ir.dtypes import uint32
-from hidet.ir.expr import Expr, var, cast
+from hidet.ir.expr import Expr, cast, var
 from hidet.ir.primitives.cuda.mma import MmaConfig as HidetMmaConfig
 from hidet.ir.utils.broadcast_utils import broadcast_indices
-from tilus.extensions.hidet.ir.primitives.cuda.mma import mma_sync_v2
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import MmaDotInst, MmaConfig
+from tilus.extensions.hidet.ir.primitives.cuda.mma import mma_sync_v2
+from tilus.ir.inst import MmaConfig, MmaDotInst
 from tilus.target import nvgpu_sm70
 
 
@@ -14,9 +14,9 @@ from tilus.target import nvgpu_sm70
 class MmaDotInstEmitter(BaseInstEmitter):
     def emit(self, inst: MmaDotInst) -> None:  # type: ignore
         mma: MmaConfig = MmaConfig.from_name(inst.mma_inst)
-        a_value = inst.inputs[0].as_register_value()
-        b_value = inst.inputs[1].as_register_value()
-        c_value = inst.inputs[2].as_register_value()
+        a_value = inst.inputs[0].as_register_tensor()
+        b_value = inst.inputs[1].as_register_tensor()
+        c_value = inst.inputs[2].as_register_tensor()
         d_value = inst.register_output
         a_buf = self.value2var[a_value]
         b_buf = self.value2var[b_value]

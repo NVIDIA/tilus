@@ -1,16 +1,17 @@
 from typing import Dict
+
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Constant, Expr
-from hidet.transforms.rule_based_simplifier import RuleBasedSimplifier, BoundAnalyzer, BoundInfo
-from tilus.ir.functors import IRRewriter
+from hidet.transforms.rule_based_simplifier import BoundAnalyzer, BoundInfo, RuleBasedSimplifier
 from tilus.ir.func import Function
+from tilus.ir.functors import IRRewriter
 from tilus.ir.inst import (
     CopyAsyncInst,
-    LoadGlobalInst,
-    StoreGlobalInst,
     Instruction,
+    LoadGlobalGenericInst,
+    StoreGlobalGenericInst,
 )
-from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, Stmt
+from tilus.ir.stmt import ForStmt, ForThreadGroupStmt, IfStmt, SeqStmt, Stmt
 from tilus.transforms.base import Pass
 from tilus.utils import same_list
 
@@ -91,17 +92,17 @@ class BoundAwareSimplifyRewriter(IRRewriter):
     # instructions
 
     def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Instruction:
-        for axis, extent in zip(inst.axes, inst.inputs[0].shape):
+        for axis, extent in zip(inst.axes, inst.inputs[0].as_shared_tensor().shape):
             self.bound[axis] = BoundInfo(min_value=0, max_value=extent - 1)
         return super().default_visit_Instruction(inst)
 
-    def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> Instruction:
+    def visit_LoadGlobalGenericInst(self, inst: LoadGlobalGenericInst) -> Instruction:
         for axis, extent in zip(inst.axes, inst.register_output.shape):
             self.bound[axis] = BoundInfo(min_value=0, max_value=extent - 1)
         return super().default_visit_Instruction(inst)
 
-    def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Instruction:
-        for axis, extent in zip(inst.axes, inst.inputs[0].shape):
+    def visit_StoreGlobalGenericInst(self, inst: StoreGlobalGenericInst) -> Instruction:
+        for axis, extent in zip(inst.axes, inst.inputs[0].as_register_tensor().shape):
             self.bound[axis] = BoundInfo(min_value=0, max_value=extent - 1)
         return super().default_visit_Instruction(inst)
 

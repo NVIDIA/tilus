@@ -1,26 +1,29 @@
-from typing import Any, Sequence, Union, Optional, Callable, Literal, Iterable
 import typing
 from types import FunctionType
-from hidet.ir.type import DataType
-from hidet.ir.expr import Var, Expr
+from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Union
+
 from hidet.ir.dtypes import boolean
-from tilus.extensions.hidet.ir.expr import as_expr
+from hidet.ir.expr import Expr, Var
+from hidet.ir.type import DataType
 from hidet.runtime.compiled_module import CompiledModule
-from tilus.ir.layout import Layout
-from tilus.ir.stmt import Stmt, InstructionStmt
-from tilus.ir.value import RegisterValue, Value
+from tilus.drivers import BuildOptions, build_program
 from tilus.ir.inst import (
-    Instruction,
-    LoadGlobalInst,
-    StoreGlobalInst,
-    AllocateInst,
-    MmaDotInst,
+    AllocateRegisterInst,
     CastInst,
-    PrintValueInst,
     FormatPrintInst,
+    GlobalViewInst,
+    Instruction,
+    LoadGlobalGenericInst,
+    LoadGlobalInst,
+    MmaDotInst,
+    PrintValueInst,
+    StoreGlobalGenericInst,
+    StoreGlobalInst,
 )
-from tilus.drivers import build_program
+from tilus.ir.layout import GlobalLayout, RegisterLayout, global_repeat, global_strides
 from tilus.ir.prog import Program
+from tilus.ir.stmt import InstStmt, Stmt
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, Tensor
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
 from tilus.lang.utils import group_function_argument
@@ -67,7 +70,7 @@ class ScriptTracer:
     def _append(self, inst_or_stmt: Union[Instruction, Stmt]) -> None:
         assert self._transpiler is not None
 
-        stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstructionStmt(inst=inst_or_stmt)
+        stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstStmt(inst=inst_or_stmt)
         self._transpiler.current_scope.stmts.append(stmt)
 
 
@@ -98,8 +101,9 @@ class Dim3:
 
 
 class Script(CompiledScript, ScriptTracer):
-    def __init__(self) -> None:
+    def __init__(self, debug_block: Optional[tuple[int, ...] | int] = None) -> None:
         super().__init__()
+        self._debug_block = debug_block
         # the following attributes should be set by the user in the kernel function
         self.attrs: Attributes = Attributes()
         self.blockIdx: Dim3 = Dim3()
@@ -141,7 +145,7 @@ class Script(CompiledScript, ScriptTracer):
             The compiled module.
         """
         if self._compiled_module is None:
-            self._compiled_module = build_program(self.program())
+            self._compiled_module = build_program(self.program(), options=BuildOptions.create(self._debug_block))
         return self._compiled_module
 
     # the following functions should be called in the kernel function
@@ -160,17 +164,17 @@ class Script(CompiledScript, ScriptTracer):
         # the cast is to make the type checker happy
         return typing.cast(Iterable[Var], range(start, end, step, unroll=unroll))
 
-    def load_global(
+    def load_global_flex(
         self,
         *,
         dtype: DataType,
-        layout: Layout,
+        layout: RegisterLayout,
         ptr: Var,
         f_offset: Callable[..., Expr | int],
         f_mask: Optional[Callable[..., Expr | int | bool]] = None,
-        out: Optional[RegisterValue] = None,
-    ) -> RegisterValue:
-        inst = LoadGlobalInst.create(
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        inst = LoadGlobalGenericInst.create(
             dtype=dtype,
             layout=layout,
             ptr=ptr,
@@ -181,16 +185,16 @@ class Script(CompiledScript, ScriptTracer):
         self._append(inst)
         return inst.register_output
 
-    def store_global(
+    def store_global_flex(
         self,
-        x: RegisterValue,
+        x: RegisterTensor,
         /,
         *,
         ptr: Var,
         f_offset: Callable[..., Expr | int],
         f_mask: Optional[Callable[..., Expr | int | bool]] = None,
     ) -> None:
-        inst = StoreGlobalInst.create(
+        inst = StoreGlobalGenericInst.create(
             x=x,
             ptr=ptr,
             f_offset=group_function_argument(f_offset),
@@ -198,25 +202,76 @@ class Script(CompiledScript, ScriptTracer):
         )
         self._append(inst)
 
+    def global_view(
+        self,
+        ptr: Expr,
+        *,
+        dtype: DataType,
+        shape: Optional[Sequence[Expr | int]] = None,
+        strides: Optional[Sequence[Expr | int]] = None,
+        layout: Optional[GlobalLayout] = None,
+    ) -> GlobalTensor:
+        global_layout: GlobalLayout
+        if layout is not None:
+            assert shape is None and strides is None, "Cannot specify both layout and shape/strides"
+            global_layout = layout
+        else:
+            assert shape is not None, "Must specify shape when layout is not provided"
+            if strides is None:
+                # assume compact row-major layout
+                global_layout = global_repeat(*shape)
+            else:
+                assert len(shape) == len(strides), "Shape and strides must have the same length"
+                global_layout = global_strides(shape, strides)
+
+        inst = GlobalViewInst.create(dtype=dtype, layout=global_layout, ptr=ptr)
+        self._append(inst)
+        return inst.global_output
+
+    def load_global(
+        self,
+        x: GlobalTensor,
+        /,
+        *,
+        offsets: Sequence[Expr],
+        layout: Optional[RegisterLayout] = None,
+        dims: Optional[Iterable[int]] = None,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        inst = LoadGlobalInst.create(x, offsets=offsets, dims=dims, layout=layout, out=out)
+        self._append(inst)
+        return inst.register_output
+
+    def store_global(
+        self,
+        dst: GlobalTensor,
+        x: RegisterTensor,
+        *,
+        offsets: Sequence[Expr],
+        slice_dims: Optional[Sequence[int]] = None,
+    ) -> None:
+        inst = StoreGlobalInst.create(dst, x, offsets=offsets, dims=slice_dims)
+        self._append(inst)
+
     def register_tensor(
-        self, dtype: DataType, layout: Layout, f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
-    ) -> RegisterValue:
-        inst = AllocateInst.create(dtype=dtype, layout=layout, f_init=f_init)
+        self, dtype: DataType, layout: RegisterLayout, f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
+    ) -> RegisterTensor:
+        inst = AllocateRegisterInst.create(dtype=dtype, layout=layout, f_init=f_init)
         self._append(inst)
         return inst.register_output
 
     def mma_dot(
         self,
-        a: RegisterValue,
-        b: RegisterValue,
-        c: RegisterValue,
+        a: RegisterTensor,
+        b: RegisterTensor,
+        c: RegisterTensor,
         /,
         *,
         mma_inst: str,
         warp_spatial: tuple[int, int, int],
         warp_repeat: tuple[int, int, int],
-        output: Optional[RegisterValue] = None,
-    ) -> RegisterValue:
+        output: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
         inst = MmaDotInst.create(
             a=a, b=b, c=c, mma_inst=mma_inst, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
         )
@@ -225,14 +280,14 @@ class Script(CompiledScript, ScriptTracer):
 
     def cast(
         self,
-        x: RegisterValue,
+        x: RegisterTensor,
         /,
         dtype: DataType,
         *,
         interleave_width: Optional[int] = None,
         interleave_stride: Optional[int] = None,
         ignore_int4b_xor: bool = False,
-    ) -> RegisterValue:
+    ) -> RegisterTensor:
         inst = CastInst.create(
             dtype=dtype,
             x=x,
@@ -243,11 +298,10 @@ class Script(CompiledScript, ScriptTracer):
         self._append(inst)
         return inst.register_output
 
-    def print_tensor(self, x: Value, fmt: Optional[str] = None) -> None:
-        inst = PrintValueInst.create(x, cond=boolean.true, msg="", fmt=fmt)
+    def print_tensor(self, msg: str, x: Tensor, fmt: Optional[str] = None) -> None:
+        inst = PrintValueInst.create(x, cond=boolean.true, msg=msg, fmt=fmt)
         self._append(inst)
 
     def printf(self, fstring: str, *args: Expr | int | float) -> None:
-        expr_args = [as_expr(arg) for arg in args]
-        inst = FormatPrintInst.create(cond=boolean.true, fstring=fstring, expressions=expr_args)
+        inst = FormatPrintInst.create(cond=boolean.true, fstring=fstring, expressions_=args)
         self._append(inst)

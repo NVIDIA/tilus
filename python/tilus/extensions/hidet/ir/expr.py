@@ -1,7 +1,8 @@
-from typing import List, Union, Optional, Sequence
-from hidet.ir.type import string_type, BaseType
+from typing import List, Optional, Sequence, Union
+
 from hidet.ir.dtypes import boolean, default_float_dtype, default_int_dtype
-from hidet.ir.expr import Var, Expr, var, Constant, cast, Dereference
+from hidet.ir.expr import Constant, Dereference, Expr, Var, cast, var
+from hidet.ir.type import BaseType, string_type
 
 
 def deref(v: Expr, derefed_type: Optional[BaseType] = None) -> Expr:

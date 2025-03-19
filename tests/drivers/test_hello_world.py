@@ -1,6 +1,7 @@
-from hidet.runtime import CompiledModule
-from tilus.ir.builders import IRBuilder
 from tilus.drivers import build_program
+from tilus.ir.builders import IRBuilder
+
+from hidet.runtime import CompiledModule
 
 
 def test_compile_hello_world():

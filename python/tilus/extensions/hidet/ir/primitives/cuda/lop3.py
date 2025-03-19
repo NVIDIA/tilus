@@ -1,7 +1,8 @@
-from typing import Union, Callable
+from typing import Callable, Union
+
+from hidet.ir.dtypes import uint32
 from hidet.ir.expr import Expr, cast
 from hidet.ir.stmt import asm
-from hidet.ir.dtypes import uint32
 
 
 def lop3(d: Expr, a: Expr, b: Expr, c: Expr, *, imm_lut: Union[int, Callable[[int, int, int], int]]) -> Expr:

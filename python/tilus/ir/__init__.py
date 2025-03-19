@@ -1,1 +1,1 @@
-from .value import Value, RegisterValue, SharedValue
+from .tensor import RegisterTensor, SharedTensor, Tensor

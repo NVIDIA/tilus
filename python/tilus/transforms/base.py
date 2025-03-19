@@ -1,9 +1,11 @@
 from __future__ import annotations
-from typing import List, Sequence
+
 from pathlib import Path
-from tilus.ir.prog import Program
+from typing import List, Sequence
+
 from tilus.ir.func import Function
-from tilus.transforms.instruments import PassInstrument, DumpIRInstrument
+from tilus.ir.prog import Program
+from tilus.transforms.instruments import DumpIRInstrument, PassInstrument
 
 
 class PassContext:

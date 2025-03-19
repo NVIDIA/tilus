@@ -1,8 +1,10 @@
-from typing import Optional, Union, Sequence
+from typing import Optional, Sequence, Union
+
+from hidet.ir.builders.stmt_builder import StmtBuilder as OriginalStmtBuilder
+from hidet.ir.builders.stmt_builder import StmtScope
+from hidet.ir.expr import Expr, Var, var
+from hidet.ir.stmt import AssertStmt, BreakStmt, DeclareScope, DeclareStmt, ForStmt, ForStmtAttr, Stmt, WhileStmt
 from hidet.ir.type import BaseType
-from hidet.ir.expr import Expr, var, Var
-from hidet.ir.stmt import ForStmt, WhileStmt, DeclareStmt, AssertStmt, BreakStmt, ForStmtAttr, Stmt, DeclareScope
-from hidet.ir.builders.stmt_builder import StmtBuilder as OriginalStmtBuilder, StmtScope
 
 
 class StmtBuilder(OriginalStmtBuilder):

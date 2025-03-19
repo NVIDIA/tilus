@@ -53,6 +53,7 @@ line-length = 120
 # Add the `line-too-long` rule to the enforced rule set.
 extend-select = [
 #    "D", # enforce docstring conventions
+    "I", # isort rules that unify the import order
 ]
 
 [tool.ruff.lint.pydocstyle]

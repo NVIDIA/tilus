@@ -1,15 +1,13 @@
 from typing import List, Sequence
 
-from hidet.ir.dtypes import int4b, uint8, int8, uint32, int32, float16, float32, bfloat16
-from hidet.ir.dtypes import uint4b
-from hidet.ir.expr import Expr, logical_and, cast
+from hidet.ir.dtypes import bfloat16, float16, float32, int4b, int8, int32, uint4b, uint8, uint32
+from hidet.ir.expr import Expr, cast, logical_and
 from hidet.ir.primitives.debug import printf
-
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.extensions.hidet.ir.dtypes import float8_e4m3, float6_e3m2
-from tilus.ir.inst import PrintValueInst, FormatPrintInst
-from tilus.ir.layout import Layout
-from tilus.ir.value import RegisterValue, SharedValue, SharedLayout
+from tilus.extensions.hidet.ir.dtypes import float6_e3m2, float8_e4m3
+from tilus.ir.inst import FormatPrintInst, PrintValueInst
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.tensor import RegisterTensor, SharedLayout, SharedTensor
 from tilus.target import gpgpu_any
 from tilus.utils import prod
 
@@ -70,25 +68,25 @@ class PrintValueInstEmitter(BaseInstEmitter):
             float32: "%6.3f",
             uint32: "%3u",
         }
-        value = inst.inputs[0]
-        dtype = value.dtype
-        shape: Sequence[int] = value.shape
+        tensor = inst.inputs[0]
+        dtype = tensor.dtype
+        shape: Sequence[int] = tensor.as_register_or_shared_tensor().shape
         squeezed_dims = [dim for dim in range(len(shape)) if shape[dim] > 1]
         squeezed_shape = [shape[dim] for dim in squeezed_dims]
         not_supported_print = inst.inputs[0].dtype.is_vector()
         cond = inst.cond
 
-        if isinstance(value, RegisterValue):
-            if self.thread_groups.group_size[-1] != value.layout.num_workers:
+        if isinstance(tensor, RegisterTensor):
+            if self.thread_groups.group_size[-1] != tensor.layout.num_workers:
                 # msg = (
-                #     'Trying to print a register value with layout: \n{}\nin a thread group with group size: {}'.format(
-                #         value.layout, self.thread_groups.group_size[-1]
+                #     'Trying to print a register tensor with layout: \n{}\nin a thread group with group size: {}'.format(
+                #         tensor.layout, self.thread_groups.group_size[-1]
                 #     )
                 # )
                 # raise ValueError(msg)
                 pass
 
-            layout: Layout = value.layout
+            layout: RegisterLayout = tensor.layout
             self.sync()
             with self.if_then(cond):
                 self.sync()
@@ -98,13 +96,13 @@ class PrintValueInstEmitter(BaseInstEmitter):
                             "%s%s\n",
                             inst.msg,
                             "register_tile(dtype={}, shape={}) layout={}".format(
-                                value.dtype.name, value.shape, value.layout
+                                tensor.dtype.name, tensor.shape, tensor.layout
                             ),
                         )
                     )
                 self.sync()
                 if not not_supported_print:
-                    fmt = inst.fmt if inst.fmt is not None else default_fmt_mapping[value.dtype]
+                    fmt = inst.fmt if inst.fmt is not None else default_fmt_mapping[tensor.dtype]
                     with self.for_grid(squeezed_shape) as squeezed_indices:
                         self.print_left_bracket(squeezed_indices, squeezed_shape)
 
@@ -117,7 +115,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
                         indices = self.restore_indices(squeezed_indices, squeezed_dims, shape)
                         is_valid = layout.is_valid(global_indices=indices, worker=self.current_worker)
                         with self.if_then(logical_and(self.current_worker < layout.num_workers, is_valid)):
-                            buf = self.value2var[value]
+                            buf = self.value2var[tensor]
                             local_index = layout.global2local(indices, worker=self.current_worker)
                             data = buf[local_index]
                             if dtype.is_float():
@@ -130,7 +128,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
                             if prod(layout.shape) == layout.local_size * layout.num_workers:
                                 self.append(printf(fmt, data))
                             else:
-                                # multi threads store the same value
+                                # multi threads store the same tensor
                                 self.append(printf("%3d:" + fmt + " ", self.current_worker, data))
                         self.sync()
 
@@ -142,9 +140,9 @@ class PrintValueInstEmitter(BaseInstEmitter):
                         self.print_seperate_comma(squeezed_indices, squeezed_shape)
 
                         self.print_right_bracket(squeezed_indices, squeezed_shape)
-        elif isinstance(value, SharedValue):
-            shared_layout: SharedLayout = value.layout
-            buf = self.value2var[value]
+        elif isinstance(tensor, SharedTensor):
+            shared_layout: SharedLayout = tensor.layout
+            buf = self.value2var[tensor]
             self.sync()
             with self.if_then(cond):
                 self.sync()
@@ -153,13 +151,13 @@ class PrintValueInstEmitter(BaseInstEmitter):
                     self.append(
                         printf(
                             "shared_tile(dtype={}, shape={}) layout={}\n".format(
-                                value.dtype.name, value.shape, value.layout
+                                tensor.dtype.name, tensor.shape, tensor.layout
                             )
                         )
                     )
                 self.sync()
                 if not not_supported_print:
-                    fmt = inst.fmt if inst.fmt is not None else default_fmt_mapping[value.dtype]
+                    fmt = inst.fmt if inst.fmt is not None else default_fmt_mapping[tensor.dtype]
                     with self.for_grid(squeezed_shape) as squeezed_indices:
                         self.print_left_bracket(squeezed_indices, squeezed_shape)
 

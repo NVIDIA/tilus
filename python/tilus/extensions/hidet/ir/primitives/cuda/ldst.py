@@ -10,12 +10,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # pylint: disable=cell-var-from-loop
-from typing import Optional, List, no_type_check
+from typing import List, Optional, no_type_check
 
-from hidet.ir.type import PointerType, DataType, TensorPointerType, data_type
 from hidet.ir.expr import Expr
+from hidet.ir.primitives.func import call_primitive_func, register_primitive_function
 from hidet.ir.tools import infer_type
-from hidet.ir.primitives.func import register_primitive_function, call_primitive_func
+from hidet.ir.type import DataType, PointerType, TensorPointerType, data_type
 from hidet.utils import initialize
 
 
@@ -68,7 +68,7 @@ def normalize_func_name(inst_name):
 @initialize()
 def register_functions() -> None:
     # pylint: disable=function-redefined
-    from hidet.lang import attrs, script, asm, deref, cast  # pylint: disable=import-outside-toplevel
+    from hidet.lang import asm, attrs, cast, deref, script  # pylint: disable=import-outside-toplevel
     from hidet.lang.types import uint8, uint32, uint64, void_p
     from tilus.extensions.hidet.lang.types import uint16
 

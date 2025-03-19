@@ -1,17 +1,18 @@
 # ruff: noqa: F401
-from . import allocate
-from . import assign
-from . import cast
-from . import debug
-from . import elementwise
-from . import dot
-from . import shuffle
-from . import view
-from . import smem
-from . import cp_async
-from . import sync
-from . import ldmatrix
-from . import scalar
-from . import gmem
-from . import control
-from . import ldst
+from . import (
+    allocate,
+    assign,
+    cast,
+    control,
+    cp_async,
+    debug,
+    dot,
+    elementwise,
+    gmem,
+    ldmatrix,
+    ldst,
+    shuffle,
+    smem,
+    sync,
+    view,
+)

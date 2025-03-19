@@ -1,10 +1,12 @@
 from __future__ import annotations
-from typing import List, Optional, Sequence
 
 from dataclasses import dataclass
+from typing import List, Optional, Sequence
+
 from hidet.ir.expr import Expr, Var
 from tilus.ir.inst import Instruction
 from tilus.ir.node import IRNode
+from tilus.ir.tensor import Tensor
 
 
 @dataclass(frozen=True, eq=False)
@@ -63,12 +65,30 @@ class BreakStmt(Stmt):
 
 
 @dataclass(frozen=True, eq=False)
-class InstructionStmt(Stmt):
+class DeclareStmt(Stmt):
+    var: Var
+    init: Optional[Expr]
+
+
+@dataclass(frozen=True, eq=False)
+class AssignStmt(Stmt):
+    var: Var
+    value: Expr
+
+
+@dataclass(frozen=True, eq=False)
+class TensorPtrStmt(Stmt):
+    ptr_var: Var
+    tensor: Tensor
+
+
+@dataclass(frozen=True, eq=False)
+class InstStmt(Stmt):
     inst: Instruction
 
 
 def seq_stmt(seq: Sequence[Stmt | Instruction]) -> Stmt:
-    stmt_seq: List[Stmt] = [InstructionStmt(item) if isinstance(item, Instruction) else item for item in seq]
+    stmt_seq: List[Stmt] = [InstStmt(item) if isinstance(item, Instruction) else item for item in seq]
     if len(stmt_seq) == 1:
         return stmt_seq[0]
     else:

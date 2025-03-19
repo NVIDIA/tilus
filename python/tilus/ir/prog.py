@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
+
 from tilus.ir.func import Function
-from tilus.ir.utils import frozendict
 from tilus.ir.node import IRNode
+from tilus.ir.utils import frozendict
 
 
 @dataclass(frozen=True, eq=False)

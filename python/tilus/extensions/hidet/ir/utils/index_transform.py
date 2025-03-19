@@ -1,6 +1,8 @@
-from typing import List, Sequence, Union, Optional, cast as typing_cast
-from hidet.ir.expr import Expr
+from typing import List, Optional, Sequence, Union
+from typing import cast as typing_cast
+
 from hidet.ir.dtypes import int32
+from hidet.ir.expr import Expr, logical_and
 from tilus.extensions.hidet.ir.expr import as_expr
 
 
@@ -98,6 +100,23 @@ def index_sum(indices: Sequence[Union[Expr, int]], init: Union[Expr, int] = 0) -
         for a in indices[1:]:
             s = s + as_expr(a)
         return s
+
+
+def index_within_bound(
+    indices: Sequence[Expr | int],
+    lower_bound: Sequence[Expr | int] | Expr | int,
+    upper_bound: Sequence[Expr | int] | Expr | int,
+) -> Expr:
+    # check if the indices are within the bound
+    if isinstance(lower_bound, (int, Expr)):
+        lower_bound = [lower_bound for _ in indices]
+    if isinstance(upper_bound, (int, Expr)):
+        upper_bound = [upper_bound for _ in indices]
+    assert len(indices) == len(lower_bound) == len(upper_bound), "Expect all indices have the same length"
+    conditions = [
+        logical_and(lower <= idx, idx < upper) for lower, idx, upper in zip(lower_bound, indices, upper_bound)
+    ]
+    return logical_and(*conditions)
 
 
 def const_index_multiply(lhs_indices: Sequence[int], rhs_indices: Sequence[int]) -> List[int]:

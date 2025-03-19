@@ -1,5 +1,4 @@
-from typing import Callable, TypeVar, Sequence
-
+from typing import Callable, Sequence, TypeVar
 
 ArgType = TypeVar("ArgType")
 ReturnType = TypeVar("ReturnType")

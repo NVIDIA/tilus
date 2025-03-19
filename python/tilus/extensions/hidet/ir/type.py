@@ -1,4 +1,4 @@
-from hidet.ir.type import BaseType, DataType, PointerType, TensorPointerType, TensorType, VoidType, FuncType
+from hidet.ir.type import BaseType, DataType, FuncType, PointerType, TensorPointerType, TensorType, VoidType
 
 
 def sizeof(tp: BaseType) -> int:

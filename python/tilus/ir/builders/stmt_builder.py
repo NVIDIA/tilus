@@ -1,21 +1,52 @@
 from __future__ import annotations
-from typing import List, Union, Optional, Callable, Sequence, Tuple
 
-from hidet.ir.dtypes import int32, boolean
+from typing import Callable, List, Optional, Sequence, Tuple, Union
+
+from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Expr, Var
-from hidet.ir.type import BaseType, DataType, PointerType
-
+from hidet.ir.type import BaseType, DataType
 from tilus.extensions.hidet.ir.expr import as_expr
-from tilus.ir.inst import AllocateInst, PrintValueInst, SyncThreadsInst, AllocateSharedInst, ViewInst
-from tilus.ir.inst import CopyAsyncCommitGroupInst, CopyAsyncWaitGroupInst, AllocateGlobalInst, AtomicScalarInst
-from tilus.ir.inst import FormatPrintInst, CastInst, LoadMatrixInst, MmaDotInst, CopyAsyncWaitAllInst
-from tilus.ir.inst import Instruction
-from tilus.ir.inst import LoadScalarInst, StoreScalarInst, ExitInst, ElementwiseBinaryInst, AllocateScalarInst
-from tilus.ir.inst import StoreSharedInst, LoadSharedInst, StoreGlobalInst, FreeSharedInst, LoadGlobalInst
-from tilus.ir.inst import SyncReduceThreadsInst, AssignScalarInst, AssignInst, ViewSharedInst, CopyAsyncInst
-from tilus.ir.layout import Layout
-from tilus.ir.stmt import Stmt, ForStmt, SeqStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt
-from tilus.ir.value import RegisterValue, SharedValue, SharedLayout
+from tilus.ir.inst import (
+    AllocateRegisterInst,
+    AllocateSharedInst,
+    AssignInst,
+    CastInst,
+    CopyAsyncCommitGroupInst,
+    CopyAsyncInst,
+    CopyAsyncWaitAllInst,
+    CopyAsyncWaitGroupInst,
+    ElementwiseBinaryInst,
+    ExitInst,
+    FormatPrintInst,
+    FreeSharedInst,
+    Instruction,
+    LoadGlobalGenericInst,
+    LoadMatrixInst,
+    LoadSharedInst,
+    MmaDotInst,
+    PrintValueInst,
+    StoreGlobalGenericInst,
+    StoreSharedInst,
+    SyncReduceThreadsInst,
+    SyncThreadsInst,
+    ViewInst,
+    ViewSharedInst,
+)
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.stmt import (
+    AssignStmt,
+    BreakStmt,
+    DeclareStmt,
+    ForStmt,
+    ForThreadGroupStmt,
+    IfStmt,
+    InstStmt,
+    SeqStmt,
+    Stmt,
+    TensorPtrStmt,
+    WhileStmt,
+)
+from tilus.ir.tensor import RegisterTensor, SharedLayout, SharedTensor, Tensor
 
 
 class StmtContext:
@@ -210,14 +241,27 @@ class StmtBuilderCore:
         stmt = BreakStmt()
         self._stack[-1].append(stmt)
 
+    def declare(self, type: BaseType, init: Optional[Expr | float | int] = None) -> Var:
+        var = Var("v", type=type)
+        self.append(DeclareStmt(var, as_expr(init) if init is not None else None))
+        return var
+
+    def assign(self, var: Var, value: Expr) -> None:
+        self.append(AssignStmt(var, value))
+
+    def tensor_ptr(self, tensor: Tensor) -> Var:
+        ptr_var = Var("v", type=~tensor.dtype)
+        self.append(TensorPtrStmt(ptr_var, tensor))
+        return ptr_var
+
     def append(self, inst_or_stmt: Union[Instruction, Stmt]) -> None:
         if isinstance(inst_or_stmt, Instruction):
-            stmt: Stmt = InstructionStmt(inst_or_stmt)
+            stmt: Stmt = InstStmt(inst_or_stmt)
         else:
             stmt = inst_or_stmt
         self._stack[-1].append(stmt)
 
-    def flush_statement(self) -> Stmt:
+    def flush_stmts(self) -> Stmt:
         if len(self._stack) != 1:
             raise ValueError("Unbalanced context stack")
         ret: Stmt
@@ -235,63 +279,47 @@ class StmtBuilderCore:
 
 class StmtBuilder(StmtBuilderCore):
     # register value operations
-    def allocate(
+    def allocate_register(
         self,
         dtype: DataType,
-        layout: Layout,
+        layout: RegisterLayout,
         f_init: Optional[Callable[[Sequence[Var]], Union[Expr, float, int]]] = None,
-    ) -> RegisterValue:
+    ) -> RegisterTensor:
         wrapped_init: Optional[Callable[[Sequence[Var]], Expr]] = None
         if f_init is not None:
 
             def wrapped_init(axes: Sequence[Var]) -> Expr:
                 return as_expr(f_init(axes))
 
-        inst = AllocateInst.create(dtype, layout, wrapped_init)
+        inst = AllocateRegisterInst.create(dtype, layout, wrapped_init)
         self.append(inst)
         return inst.register_output
 
-    def allocate_scalar(self, hint: str, scalar_type: Union[DataType, PointerType], init: Optional[Expr] = None) -> Var:
-        inst = AllocateScalarInst.create(hint=hint, scalar_type=scalar_type, init=init)
-        self.append(inst)
-        return inst.var
-
-    def allocate_global(
-        self, hint: str, scalar_type: BaseType, nbytes: Union[Expr, int], require_clean: bool = False
-    ) -> Var:
-        inst = AllocateGlobalInst.create(hint=hint, scalar_type=scalar_type, nbytes=nbytes, require_clean=require_clean)
-        self.append(inst)
-        return inst.var
-
-    def assign(self, output: RegisterValue, x: RegisterValue) -> None:
+    def assign_register(self, output: RegisterTensor, x: RegisterTensor) -> None:
         inst = AssignInst.create(output, x)
-        self.append(inst)
-
-    def assign_scalar(self, var: Var, scalar_expr: Expr) -> None:
-        inst = AssignScalarInst.create(var=var, scalar_expr=scalar_expr)
         self.append(inst)
 
     def view(
         self,
-        x: RegisterValue,
+        x: RegisterTensor,
         *,
-        layout: Optional[Layout] = None,
+        layout: Optional[RegisterLayout] = None,
         dtype: Optional[DataType] = None,
         local_offset: Union[Expr, int] = 0,
-    ) -> RegisterValue:
+    ) -> RegisterTensor:
         inst = ViewInst.create(x, layout=layout, dtype=dtype, local_offset=local_offset)
         self.append(inst)
         return inst.register_output
 
     def cast(
         self,
-        x: RegisterValue,
+        x: RegisterTensor,
         *,
         dtype: DataType,
         interleave_width: Optional[int] = None,
         interleave_stride: Optional[int] = None,
         ignore_int4b_xor: bool = False,
-    ) -> RegisterValue:
+    ) -> RegisterTensor:
         if x.dtype == dtype:
             return x
         inst = CastInst.create(
@@ -305,8 +333,8 @@ class StmtBuilder(StmtBuilderCore):
         return inst.register_output
 
     def view_shared(
-        self, x: SharedValue, *, indices: List[Expr], layout: SharedLayout, dtype: Optional[DataType] = None
-    ) -> SharedValue:
+        self, x: SharedTensor, *, indices: List[Expr], layout: SharedLayout, dtype: Optional[DataType] = None
+    ) -> SharedTensor:
         inst = ViewSharedInst.create(x, indices, layout, dtype)
         self.append(inst)
         return inst.shared_output
@@ -314,7 +342,7 @@ class StmtBuilder(StmtBuilderCore):
     def copy_async(
         self,
         *,
-        dst: SharedValue,
+        dst: SharedTensor,
         ptr: Var,
         f_offset: Callable[[List[Var]], Expr],
         f_mask: Optional[Callable[[List[Var]], Expr]],
@@ -336,50 +364,54 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     def elementwise_binary(
-        self, x: RegisterValue, y: RegisterValue, op: str, *, out: Optional[RegisterValue] = None
-    ) -> RegisterValue:
+        self, x: RegisterTensor, y: RegisterTensor, op: str, *, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
         inst = ElementwiseBinaryInst.create(x, y, op, output=out)
         self.append(inst)
         return inst.register_output
 
-    def add(self, x: RegisterValue, y: RegisterValue, *, out: Optional[RegisterValue] = None) -> RegisterValue:
+    def add(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_binary(x, y, "+", out=out)
 
-    def sub(self, x: RegisterValue, y: RegisterValue, *, out: Optional[RegisterValue] = None) -> RegisterValue:
+    def sub(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_binary(x, y, "-", out=out)
 
-    def mul(self, x: RegisterValue, y: RegisterValue, *, out: Optional[RegisterValue] = None) -> RegisterValue:
+    def mul(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_binary(x, y, "*", out=out)
 
-    def div(self, x: RegisterValue, y: RegisterValue, *, out: Optional[RegisterValue] = None) -> RegisterValue:
+    def div(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_binary(x, y, "/", out=out)
 
-    def mod(self, x: RegisterValue, y: RegisterValue, *, out: Optional[RegisterValue] = None) -> RegisterValue:
+    def mod(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_binary(x, y, "%", out=out)
 
-    def print_value(self, msg: str, value: RegisterValue, fmt: Optional[str] = None, cond: Expr = boolean.true) -> None:
+    def print_tensor(
+        self, msg: str, value: RegisterTensor | SharedTensor, fmt: Optional[str] = None, cond: Expr = boolean.true
+    ) -> None:
         inst = PrintValueInst.create(value, cond=cond, msg=msg, fmt=fmt)
         self.append(inst)
 
-    def format_print(self, fstring: str, expressions: Sequence[Expr], cond: Optional[Expr] = None) -> None:
+    def format_print(
+        self, fstring: str, expressions: Sequence[Expr | int | float | str], cond: Optional[Expr] = None
+    ) -> None:
         if cond is None:
             cond = boolean.true
-        inst = FormatPrintInst.create(cond=cond, fstring=fstring, expressions=expressions)
+        inst = FormatPrintInst.create(cond=cond, fstring=fstring, expressions_=expressions)
         self.append(inst)
 
-    def printf(self, fstring: str, *expressions: Expr) -> None:
-        self.format_print(fstring=fstring, expressions=expressions)
+    def printf(self, fstring: str, *expressions: Expr | int | float | str, cond: Optional[Expr] = None) -> None:
+        self.format_print(fstring=fstring, expressions=expressions, cond=cond)
 
     def mma_dot(
         self,
-        a: RegisterValue,
-        b: RegisterValue,
-        c: RegisterValue,
+        a: RegisterTensor,
+        b: RegisterTensor,
+        c: RegisterTensor,
         mma_inst: str,
         warp_spatial: Tuple[int, int, int],
         warp_repeat: Tuple[int, int, int],
-        output: Optional[RegisterValue] = None,
-    ) -> RegisterValue:
+        output: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
         inst = MmaDotInst.create(
             a=a, b=b, c=c, mma_inst=mma_inst, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
         )
@@ -390,26 +422,26 @@ class StmtBuilder(StmtBuilderCore):
 
     def allocate_shared(
         self, dtype: DataType, shared_layout: SharedLayout, f_init: Optional[Callable[[List[Var]], Expr]] = None
-    ) -> SharedValue:
+    ) -> SharedTensor:
         inst = AllocateSharedInst.create(dtype=dtype, shared_layout=shared_layout, f_init=f_init)
         self.append(inst)
         return inst.shared_output
 
-    def free_shared(self, shared_value: SharedValue) -> None:
+    def free_shared(self, shared_value: SharedTensor) -> None:
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
 
-    def store_shared(self, dst: SharedValue, src: RegisterValue, offsets: Optional[List[Expr]] = None) -> None:
+    def store_shared(self, dst: SharedTensor, src: RegisterTensor, offsets: Optional[List[Expr]] = None) -> None:
         inst = StoreSharedInst.create(dst, src, offsets)
         self.append(inst)
 
     def load_shared(
         self,
-        src: SharedValue,
-        register_layout: Layout,
+        src: SharedTensor,
+        register_layout: RegisterLayout,
         offsets: Optional[List[Expr]] = None,
-        output: Optional[RegisterValue] = None,
-    ) -> RegisterValue:
+        output: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
         if offsets is None:
             offsets = [int32.zero for _ in range(len(src.shape))]
         inst = LoadSharedInst.create(src=src, register_layout=register_layout, offsets=offsets, output=output)
@@ -418,54 +450,43 @@ class StmtBuilder(StmtBuilderCore):
 
     def load_matrix(
         self,
-        src: SharedValue,
+        src: SharedTensor,
         *,
-        register_layout: Layout,
+        register_layout: RegisterLayout,
         offsets: List[Expr],
-        output: Optional[RegisterValue] = None,
-    ) -> RegisterValue:
+        output: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
         inst = LoadMatrixInst.create(src=src, register_layout=register_layout, offsets=offsets, output=output)
         self.append(inst)
         return inst.register_output
 
     # global memory operations
-    def store_global(
+    def store_global_generic(
         self,
-        x: RegisterValue,
+        x: RegisterTensor,
         *,
         ptr: Var,
-        f_offset: Callable[[List[Var]], Expr | int],
-        f_mask: Optional[Callable[[List[Var]], Expr | int | bool]] = None,
+        f_offset: Callable[[Sequence[Var]], Expr | int],
+        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
     ) -> None:
-        inst = StoreGlobalInst.create(x=x, ptr=ptr, f_offset=f_offset, f_mask=f_mask)
+        inst = StoreGlobalGenericInst.create(x=x, ptr=ptr, f_offset=f_offset, f_mask=f_mask)
         self.append(inst)
 
-    def load_global(
+    def load_global_generic(
         self,
         *,
         dtype: DataType,
-        layout: Layout,
+        layout: RegisterLayout,
         ptr: Var,
-        f_offset: Callable[[List[Var]], Expr | int],
-        f_mask: Optional[Callable[[List[Var]], Expr | int | bool]] = None,
-        out: Optional[RegisterValue] = None,
-    ) -> RegisterValue:
-        inst = LoadGlobalInst.create(dtype=dtype, layout=layout, ptr=ptr, f_offset=f_offset, f_mask=f_mask, out=out)
+        f_offset: Callable[[Sequence[Var]], Expr | int],
+        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        inst = LoadGlobalGenericInst.create(
+            dtype=dtype, layout=layout, ptr=ptr, f_offset=f_offset, f_mask=f_mask, out=out
+        )
         self.append(inst)
         return inst.register_output
-
-    def load_scalar(self, ptr: Expr, sync: str = "weak") -> Var:
-        inst = LoadScalarInst.create(ptr, sync)
-        self.append(inst)
-        return inst.var
-
-    def store_scalar(self, ptr: Expr, value: Expr, sync: str = "weak") -> None:
-        inst = StoreScalarInst.create(ptr, value, sync)
-        self.append(inst)
-
-    def atomic_scalar(self, ptr: Expr, op: str, value: Expr) -> None:
-        inst = AtomicScalarInst.create(ptr=ptr, op=op, value=value)
-        self.append(inst)
 
     # control operations
 

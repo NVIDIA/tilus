@@ -1,16 +1,27 @@
-from typing import List, Tuple, Dict, Union, Set, Any
+from typing import Any, Dict, List, Set, Tuple, Union
 
 from hidet.ir import BaseType
+from hidet.ir.expr import Expr, Var
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
-from hidet.ir.expr import Expr
-from tilus.ir.layout import Layout
+from tilus.extensions.hidet.utils.doc import doc_comment, doc_join_lines, doc_strip_parentheses
 from tilus.ir.func import Function
-from tilus.ir.prog import Program
-from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt
-from tilus.ir.inst import Instruction
-from tilus.ir.value import Value, RegisterValue, SharedValue, SharedLayout
 from tilus.ir.functors import IRFunctor
-from tilus.extensions.hidet.utils.doc import doc_strip_parentheses, doc_join_lines, doc_comment
+from tilus.ir.inst import Instruction
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.prog import Program
+from tilus.ir.stmt import (
+    AssignStmt,
+    BreakStmt,
+    DeclareStmt,
+    ForStmt,
+    ForThreadGroupStmt,
+    IfStmt,
+    InstStmt,
+    SeqStmt,
+    TensorPtrStmt,
+    WhileStmt,
+)
+from tilus.ir.tensor import GlobalLayout, GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
 
 
 class IRPrinter(IRFunctor):
@@ -19,9 +30,16 @@ class IRPrinter(IRFunctor):
 
         super().__init__()
         self.printer = HidetIRPrinter()
-        self.value2name: Dict[Value, str] = {}
+        self.tensor2name: Dict[Tensor, str] = {}
+        self.var2name: Dict[Var, str] = {}
         self.comment2key: Dict[str, str] = {}
         self.keys: Set[str] = set()
+
+        self.shared_count: int = 0
+        self.register_count: int = 0
+        self.global_count: int = 0
+        self.var_count: int = 0
+        self.ptr_count: int = 0
 
     def add_key_comment(self, key_hint: str, comment: Any) -> str:
         comment = str(comment)
@@ -36,17 +54,23 @@ class IRPrinter(IRFunctor):
                 return key
             i += 1
 
-    def get_value_type(self, value: Value) -> Doc:
-        if isinstance(value, RegisterValue):
+    def get_value_type(self, value: Tensor) -> Doc:
+        if isinstance(value, RegisterTensor):
             doc = Text("register, ")
             doc += self.printer(value.dtype) + "[" + self.visit(value.shape) + "], "
             doc += "local_size={}".format(value.layout.local_size)
             doc += ", {}".format(self.visit(value.layout))
             return doc
-        elif isinstance(value, SharedValue):
+        elif isinstance(value, SharedTensor):
             doc = Text("shared, ")
             doc += self.printer(value.dtype) + "[" + self.visit(value.shape) + "], "
             doc += "size={}".format(value.layout.size)
+            doc += ", {}".format(self.visit(value.layout))
+            return doc
+        elif isinstance(value, GlobalTensor):
+            doc = Text("global, ")
+            doc += self.printer(value.dtype) + "[" + self.visit(value.shape) + "], "
+            doc += "size={}".format(self.printer(value.layout.size))
             doc += ", {}".format(self.visit(value.layout))
             return doc
         else:
@@ -65,12 +89,17 @@ class IRPrinter(IRFunctor):
             value_doc = self.visit(value)
             if isinstance(value, list):
                 value_doc = "[" + value_doc + "]"
-            if isinstance(value, tuple):
+            elif isinstance(value, tuple):
                 value_doc = "[" + value_doc + "]"
-            if isinstance(value, dict):
+            elif isinstance(value, dict):
+                value_doc = "{" + value_doc + "}"
+            elif isinstance(value, frozenset):
                 value_doc = "{" + value_doc + "}"
             items.append(key_doc + ": " + doc_strip_parentheses(value_doc))
         return doc_join(items, ", ")
+
+    def visit_frozenset(self, node: frozenset) -> Doc:
+        return doc_join([doc_strip_parentheses(self.visit(node)) for node in node], ", ")
 
     def visit_PyConstant(self, node: Union[int, float, bool, str, None]) -> Doc:
         if isinstance(node, str):
@@ -79,7 +108,21 @@ class IRPrinter(IRFunctor):
             return Text(str(node))
 
     def visit_Expr(self, expr: Expr) -> Doc:
-        return self.printer(expr)
+        if isinstance(expr, Var):
+            if expr not in self.var2name:
+                if expr.type.is_pointer():
+                    symbol = "%p"
+                    count = self.ptr_count
+                    self.ptr_count += 1
+                else:
+                    symbol = "%v"
+                    count = self.var_count
+                    self.var_count += 1
+                self.var2name[expr] = symbol + str(count)
+                self.printer.namer.obj_name[expr] = self.var2name[expr]
+            return Text(self.var2name[expr])
+        else:
+            return self.printer(expr)
 
     def visit_BaseType(self, tp: BaseType) -> Doc:
         return self.printer(tp)
@@ -103,30 +146,6 @@ class IRPrinter(IRFunctor):
         # attr doc
         num_blocks_doc = Text("num_blocks = ") + self.visit(func.num_blocks)
         num_warps_doc = Text("num_warps = ") + self.visit(func.num_warps)
-
-        # block mapping doc
-        # block_mapping_doc = self.visit(func.block_mapping)
-
-        # weight transform doc
-        # weight_transform_doc = doc_join_lines(
-        #     seq=[
-        #         doc_join_lines(
-        #             seq=[self.visit(transform) for transform in transforms], left=self.visit(param) + ": [", right="]"
-        #         )
-        #         for param, transforms in func.weight_transforms.items()
-        #         if len(transforms) > 0
-        #     ],
-        #     left="weight_transforms = {",
-        #     right="}",
-        # )
-
-        # divisibility doc
-        # divisibility: Dict[Var, int] = func.var2divisibility
-        # divisibility_doc = doc_join_lines(
-        #     seq=[self.visit(var) + ": " + str(divisibility[var]) for var in divisibility],
-        #     left="divisibility = {",
-        #     right="}",
-        # )
 
         # body doc
         body_doc = self.visit(func.body)
@@ -158,7 +177,7 @@ class IRPrinter(IRFunctor):
         )
         return doc
 
-    def visit_InstructionStmt(self, stmt: InstructionStmt) -> Doc:
+    def visit_InstStmt(self, stmt: InstStmt) -> Doc:
         return self.visit(stmt.inst)
 
     def visit_SeqStmt(self, stmt: SeqStmt) -> Doc:
@@ -209,6 +228,23 @@ class IRPrinter(IRFunctor):
     def visit_BreakStmt(self, stmt: BreakStmt) -> Doc:
         return Text("break")
 
+    def visit_DeclareStmt(self, stmt: DeclareStmt) -> Doc:
+        return self.visit(stmt.var) + ": " + self.printer(stmt.var.type) + " = " + self.visit(stmt.init)
+
+    def visit_AssignStmt(self, stmt: AssignStmt) -> Doc:
+        return self.visit(stmt.var) + " = " + self.visit(stmt.value)
+
+    def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> Doc:
+        return (
+            self.visit(stmt.ptr_var)
+            + ": "
+            + self.printer(stmt.ptr_var.type)
+            + " = "
+            + "addr("
+            + self.visit(stmt.tensor)
+            + ")"
+        )
+
     def visit_Instruction(self, inst: Instruction) -> Doc:
         doc = Doc()
         if inst.output is not None:
@@ -245,20 +281,43 @@ class IRPrinter(IRFunctor):
             doc += "  # " + self.get_value_type(inst.output)
         return doc
 
-    def visit_Value(self, value: Value) -> Doc:
-        if value not in self.value2name:
-            self.value2name[value] = "%" + str(len(self.value2name))
-        return Text(self.value2name[value])
+    def visit_RegisterTensor(self, tensor: RegisterTensor) -> Doc:
+        if tensor not in self.tensor2name:
+            self.tensor2name[tensor] = "%r" + str(self.register_count)
+            self.register_count += 1
+        return Text(self.tensor2name[tensor])
 
-    def visit_Layout(self, layout: Layout) -> Doc:
+    def visit_SharedTensor(self, tensor: SharedTensor) -> Doc:
+        if tensor not in self.tensor2name:
+            self.tensor2name[tensor] = "%s" + str(self.shared_count)
+            self.shared_count += 1
+        return Text(self.tensor2name[tensor])
+
+    def visit_GlobalTensor(self, tensor: GlobalTensor) -> Doc:
+        if tensor not in self.tensor2name:
+            self.tensor2name[tensor] = "%g" + str(self.global_count)
+            self.global_count += 1
+        return Text(self.tensor2name[tensor])
+
+    def visit_RegisterLayout(self, layout: RegisterLayout) -> Doc:
         return Text(self.add_key_comment("layout", str(layout)))
 
     def visit_SharedLayout(self, node: SharedLayout) -> Doc:
         printer = IRPrinter()
         items = [
-            "shape=[" + printer(node.shape) + "]",
+            "shape=[" + self(node.shape) + "]",
             "axes=[" + printer(node.axes) + "]",
             "offset=" + printer(node.offset),
         ]
         doc = Text("SharedLayout(") + doc_join(items, ", ") + ")"
         return Text(self.add_key_comment("shared_layout", doc))
+
+    def visit_GlobalLayout(self, node: GlobalLayout) -> Doc:
+        printer = IRPrinter()
+        items = [
+            "shape=[" + self(node.shape) + "]",
+            "axes=[" + printer(node.axes) + "]",
+            "offset=" + printer(node.offset),
+        ]
+        doc = Text("GlobalLayout(") + doc_join(items, ", ") + ")"
+        return Text(self.add_key_comment("global_layout", doc))

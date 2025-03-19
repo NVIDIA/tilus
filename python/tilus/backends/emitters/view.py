@@ -1,4 +1,4 @@
-from hidet.ir.expr import Var, tensor_pointer_var, cast
+from hidet.ir.expr import Var, cast, tensor_pointer_var
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
 from tilus.ir.inst import ViewInst
 from tilus.target import gpgpu_any

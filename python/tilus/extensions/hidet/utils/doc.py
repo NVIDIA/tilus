@@ -1,4 +1,5 @@
-from typing import List, Union, Sequence, Optional
+from typing import List, Optional, Sequence, Union
+
 from hidet.utils.doc import Doc, NewLine, NewLineToken
 
 

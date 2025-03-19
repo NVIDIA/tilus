@@ -1,12 +1,13 @@
 from typing import no_type_check
+
 from hidet.ir.func import Function
-from hidet.ir.primitives.func import register_primitive_function, call_primitive_func
+from hidet.ir.primitives.func import call_primitive_func, register_primitive_function
 from hidet.utils import initialize
 
 
 @initialize()
 def register_functions():
-    from hidet.lang import attrs, script, asm  # pylint: disable=import-outside-toplevel
+    from hidet.lang import asm, attrs, script  # pylint: disable=import-outside-toplevel
 
     @no_type_check
     @script

@@ -1,9 +1,10 @@
 from __future__ import annotations
-from typing import Optional, List, Dict, Type, Callable, Sequence, Mapping
-import operator
 
-from hidet.ir import Mod, Div, BitwiseXor, Equal, DataType
-from hidet.ir.expr import Var, Constant, Add, Multiply, Sub, Expr, BinaryExpr, LessThan, LogicalAnd
+import operator
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Type
+
+from hidet.ir import BitwiseXor, DataType, Div, Equal, Mod
+from hidet.ir.expr import Add, BinaryExpr, Constant, Expr, LessEqual, LessThan, LogicalAnd, Multiply, Sub, Var
 from hidet.ir.functors import IRFunctor
 from hidet.utils import gcd
 
@@ -180,6 +181,29 @@ class DimensionInfo:
             divisibility=divisibility,
         )
 
+    def __le__(self, other):
+        assert isinstance(other, DimensionInfo)
+        if self.constancy > 1 and other.constancy > 1:
+            continuity = 1
+            constancy = gcd(self.constancy, other.constancy)
+            divisibility = 1
+        elif self.constancy > 1:
+            continuity = 1
+            constancy = gcd(self.constancy, self.divisibility, other.continuity, other.divisibility)
+            divisibility = 1
+        elif other.constancy > 1:
+            continuity = 1
+            constancy = gcd(other.constancy, other.divisibility, self.continuity, self.divisibility)
+            divisibility = 1
+        else:
+            continuity, constancy, divisibility = 1, 1, 1
+        return DimensionInfo(
+            value=compute_value(self, other, lambda a, b: a <= b),
+            continuity=continuity,
+            constancy=constancy,
+            divisibility=divisibility,
+        )
+
     def __eq__(self, other):
         assert isinstance(other, DimensionInfo)
         if self.constancy > 1 and other.constancy > 1:
@@ -281,6 +305,9 @@ class TensorInfo:
     def __lt__(self, other):
         return self._binary(other, operator.lt)
 
+    def __le__(self, other):
+        return self._binary(other, operator.le)
+
     def __eq__(self, other):
         return self._binary(other, operator.eq)
 
@@ -380,6 +407,7 @@ class ValueAnalyzer(IRFunctor):
             Div: operator.floordiv,
             Mod: operator.mod,
             LessThan: operator.lt,
+            LessEqual: operator.le,
             Equal: operator.eq,
             LogicalAnd: operator.and_,
             BitwiseXor: operator.xor,
@@ -406,6 +434,9 @@ class ValueAnalyzer(IRFunctor):
         return self.visit_binary(e)
 
     def visit_LessThan(self, e: LessThan) -> TensorInfo:
+        return self.visit_binary(e)
+
+    def visit_LessEqual(self, e: LessEqual) -> TensorInfo:
         return self.visit_binary(e)
 
     def visit_And(self, e: LogicalAnd) -> TensorInfo:

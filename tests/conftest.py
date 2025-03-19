@@ -10,10 +10,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from pathlib import Path
+
 import pytest
 import tilus
-import hidet
 import tilus.utils
+
+import hidet
 
 
 def pytest_sessionstart(session):
@@ -32,6 +34,7 @@ def clear_before_test():
     Clear the memory cache before each test.
     """
     import gc
+
     import torch
 
     torch.cuda.empty_cache()

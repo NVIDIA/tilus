@@ -10,7 +10,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import math
-from hidet.ir.dtypes.floats import FloatType, FloatInfo
+
+from hidet.ir.dtypes.floats import FloatInfo, FloatType
 
 
 class FloatSubbyteType(FloatType):

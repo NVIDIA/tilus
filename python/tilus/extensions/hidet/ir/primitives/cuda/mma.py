@@ -1,4 +1,5 @@
 from typing import Sequence, no_type_check
+
 from hidet.ir.expr import Expr
 from hidet.ir.primitives.cuda.funcs import call_cuda
 from hidet.ir.primitives.cuda.mma import MmaConfig, mma_configs
@@ -29,8 +30,8 @@ def register_mma_instructions():
         func_name = "cuda_" + inst_name.replace(".", "_")
 
         # v2
-        from hidet.lang import attrs, script, meta
-        from hidet.lang.types import void_p, uint32
+        from hidet.lang import attrs, meta, script
+        from hidet.lang.types import uint32, void_p
 
         a_reg_p_type = meta.types([void_p for _ in range(a_regs)])
         b_reg_p_type = meta.types([void_p for _ in range(b_regs)])

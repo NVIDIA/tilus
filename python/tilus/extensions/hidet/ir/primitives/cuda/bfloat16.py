@@ -1,8 +1,9 @@
 from typing import no_type_check
+
 from hidet.ir.expr import Expr
-from hidet.ir.stmt import BlackBoxStmt
 from hidet.ir.func import Function
-from hidet.ir.primitives.func import register_primitive_function, call_primitive_func
+from hidet.ir.primitives.func import call_primitive_func, register_primitive_function
+from hidet.ir.stmt import BlackBoxStmt
 from hidet.utils import initialize
 
 

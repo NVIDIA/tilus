@@ -9,12 +9,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import List, Dict, Optional, Any, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
-from hidet.ir.type import VoidType, BaseType
-from hidet.ir.expr import Var, Expr
+from hidet.ir.expr import Expr, Var
 from hidet.ir.func import Function
 from hidet.ir.stmt import Stmt
+from hidet.ir.type import BaseType, VoidType
 
 from .stmt_builder import StmtBuilder
 

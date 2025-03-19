@@ -1,15 +1,23 @@
-from typing import List, Optional, Tuple, Sequence
+from typing import List, Optional, Sequence, Tuple
 
-from hidet.ir.dtypes import uint32, int32
-from hidet.ir.expr import Expr, tensor_var, tensor_pointer_var, cast
+from hidet.ir.dtypes import int32, uint32
+from hidet.ir.expr import Expr, cast, tensor_pointer_var, tensor_var
 from hidet.ir.primitives.cuda.mma import ldmatrix
 from hidet.ir.type import DataType
-
 from tilus.backends.codegen import BaseInstEmitter, InvalidInstruction, register_inst_emitter
 from tilus.extensions.hidet.ir.utils.index_transform import index_add, index_multiply
 from tilus.ir.inst import LoadMatrixInst
-from tilus.ir.layout import Layout, repeat, divide, get_composition_chain, compose_chain, compose, identity, simplify
-from tilus.ir.value import SharedValue, RegisterValue
+from tilus.ir.layout import (
+    RegisterLayout,
+    compose,
+    compose_chain,
+    divide,
+    get_composition_chain,
+    identity,
+    repeat,
+    simplify,
+)
+from tilus.ir.tensor import RegisterTensor, SharedTensor
 from tilus.target import nvgpu_sm75
 from tilus.utils import prod
 
@@ -17,19 +25,19 @@ from tilus.utils import prod
 @register_inst_emitter(LoadMatrixInst, target=nvgpu_sm75)
 class LoadMatrixInstEmitter(BaseInstEmitter):
     @staticmethod
-    def resolve(inst: LoadMatrixInst) -> Tuple[bool, Layout, Layout, Layout]:
-        dst: RegisterValue = inst.register_output
-        layout: Layout = dst.layout
+    def resolve(inst: LoadMatrixInst) -> Tuple[bool, RegisterLayout, RegisterLayout, RegisterLayout]:
+        dst: RegisterTensor = inst.register_output
+        layout: RegisterLayout = dst.layout
         dtype: DataType = dst.dtype
 
         # check whether the layout can be loaded via ldmatrix
         for nbytes, trans, ldmatrix_layout in LoadMatrixInst.LDMATRIX_CONFIGS:
             if nbytes != dtype.nbytes:
                 continue
-            outer: Optional[Layout] = divide(layout, ldmatrix_layout)
+            outer: Optional[RegisterLayout] = divide(layout, ldmatrix_layout)
             if outer is None:
                 continue
-            decomposed_outer: List[Layout] = get_composition_chain(outer, fine_grained=True)
+            decomposed_outer: List[RegisterLayout] = get_composition_chain(outer, fine_grained=True)
             middle = repeat(1, 1)
             while len(decomposed_outer) > 0:
                 tail = decomposed_outer[-1]
@@ -51,12 +59,12 @@ class LoadMatrixInstEmitter(BaseInstEmitter):
         trans, atom, middle, outer = LoadMatrixInstEmitter.resolve(inst)
         warp_id = self.current_worker // 32
 
-        dst: RegisterValue = inst.register_output
-        src: SharedValue = inst.inputs[0].as_shared_value()
+        dst: RegisterTensor = inst.register_output
+        src: SharedTensor = inst.inputs[0].as_shared_tensor()
         vec_size = 4 // dst.dtype.nbytes
-        var = self.declare(v=tensor_var("ldm", shape=[dst.size], dtype=dst.dtype))
+        var = self.declare(v=tensor_var("ldm", shape=[dst.local_size], dtype=dst.dtype))
         regs_view = self.declare(
-            v=tensor_pointer_var("regs", shape=[dst.size // vec_size], dtype=uint32), init=cast(var, ~uint32)
+            v=tensor_pointer_var("regs", shape=[dst.local_size // vec_size], dtype=uint32), init=cast(var, ~uint32)
         )
         # src_buf = self.value2var[src]
         # src_shared_addr = self.declare(Var('smem_addr', int32), init=cvta_generic_to_shared(src_buf))

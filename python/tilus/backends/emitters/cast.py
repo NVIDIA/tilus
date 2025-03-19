@@ -1,23 +1,30 @@
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional, Tuple
 
-from hidet.ir.dtypes import int8, float16, bfloat16, uint32, uint8
+from hidet.ir.dtypes import bfloat16, float16, int8, uint8, uint32
 from hidet.ir.dtypes.floats import FloatType
-from hidet.ir.expr import Var, Expr, tensor_var, cast, tensor_pointer_var, var
-from hidet.ir.type import DataType, Callable, TensorPointerType, TensorType, PointerType
-from hidet.ir.primitives.cuda.half import sub_f16x2, fma_f16x2
+from hidet.ir.expr import Expr, Var, cast, tensor_pointer_var, tensor_var, var
+from hidet.ir.primitives.cuda.half import fma_f16x2, sub_f16x2
 from hidet.ir.primitives.cuda.prmt import prmt
-
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter, Codegen
-from tilus.extensions.hidet.ir.dtypes import float6_e3m2
-from tilus.extensions.hidet.ir.dtypes import float8_e4m3
-from tilus.extensions.hidet.ir.dtypes import int4b
-from tilus.extensions.hidet.ir.dtypes import uint7b, uint6b, uint5b, uint4b, uint3b, uint2b, uint1b
+from hidet.ir.type import Callable, DataType, PointerType, TensorPointerType, TensorType
+from tilus.backends.codegen import BaseInstEmitter, Codegen, register_inst_emitter
+from tilus.extensions.hidet.ir.dtypes import (
+    float6_e3m2,
+    float8_e4m3,
+    int4b,
+    uint1b,
+    uint2b,
+    uint3b,
+    uint4b,
+    uint5b,
+    uint6b,
+    uint7b,
+)
 from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
 from tilus.extensions.hidet.ir.primitives.cuda.bfloat16 import mul_bf16x2
 from tilus.extensions.hidet.ir.primitives.cuda.half import mul_f16x2
 from tilus.extensions.hidet.ir.primitives.cuda.lop3 import lop3
 from tilus.ir.inst import CastInst
-from tilus.target import nvgpu_any, amdgpu_any
+from tilus.target import amdgpu_any, nvgpu_any
 from tilus.utils import cdiv
 
 
@@ -48,9 +55,11 @@ class CastInstBaseEmitter(BaseInstEmitter):
         self.interleave_width = inst.interleave_width
         self.interleave_stride = inst.interleave_stride
         self.ignore_int4b_xor = inst.ignore_int4b_xor
-        self.size = dst.size
+        self.size = dst.local_size
 
-        var: Var = self.declare(tensor_var("casted_{}".format(dst.dtype.short_name), shape=[dst.size], dtype=dst.dtype))
+        var: Var = self.declare(
+            tensor_var("casted_{}".format(dst.dtype.short_name), shape=[dst.local_size], dtype=dst.dtype)
+        )
         self.value2var[dst] = var
 
         src_var = self.value2var[src]

@@ -11,14 +11,15 @@
 # limitations under the License.
 # pylint: disable=line-too-long
 from typing import Optional, no_type_check
-from hidet.utils import initialize
-from hidet.ir.type import void_p
+
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr
-from hidet.ir.stmt import asm
 from hidet.ir.func import Function
-from hidet.ir.primitives.func import register_primitive_function
 from hidet.ir.primitives.cuda.funcs import call_cuda
+from hidet.ir.primitives.func import register_primitive_function
+from hidet.ir.stmt import asm
+from hidet.ir.type import void_p
+from hidet.utils import initialize
 
 
 def resolve_name_cp_async(
@@ -45,8 +46,8 @@ def resolve_name_cp_async(
 
 @initialize()
 def register_cp_async():
-    from hidet.lang import script, i32, attrs
     from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
+    from hidet.lang import attrs, i32, script
 
     for cp_size in [4, 8, 16]:
         for prefetch_bytes in [0, 64, 128, 256]:

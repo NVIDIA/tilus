@@ -23,42 +23,35 @@ class Matmul(tilus.Script):
         offset_m: int32 = self.block_m * self.blockIdx.x
         offset_n: int32 = self.block_n * self.blockIdx.y
 
+        ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, self.k_size])
+        gb = self.global_view(b_ptr, dtype=float16, shape=[self.k_size, self.n_size])
         acc = self.register_tensor(dtype=float32, layout=self.mma.lc, f_init=lambda indices: float32.zero)
+
         k_blocks = self.utils.ceil_div(self.k_size, self.block_k)
         for k in range(k_blocks):
             offset_k = k * self.block_k
-            a = self.load_global_flex(
-                dtype=float16,
-                layout=self.mma.la,
-                ptr=a_ptr,
-                f_offset=lambda i, k: (offset_m + i) * self.k_size + offset_k + k,
-                f_mask=lambda i, k: offset_m + i < m_size and offset_k + k < self.k_size,
-            )
-            b = self.load_global_flex(
-                dtype=float16,
-                layout=self.mma.lb,
-                ptr=b_ptr,
-                f_offset=lambda k, j: (offset_k + k) * self.n_size + offset_n + j,
-                f_mask=lambda k, j: offset_k + k < self.k_size and offset_n + j < self.n_size,
-            )
+
+            a = self.load_global(ga, offsets=[offset_m, offset_k], dims=[0, 1], layout=self.mma.la)
+            b = self.load_global(gb, offsets=[offset_k, offset_n], dims=[0, 1], layout=self.mma.lb)
             acc = self.mma_dot(a, b, acc, mma_inst=self.mma.name, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
+
         acc_f16 = self.cast(acc, dtype=float16)
-        self.store_global_flex(
-            acc_f16,
-            ptr=c_ptr,
-            f_offset=lambda i, j: (offset_m + i) * self.n_size + offset_n + j,
-            f_mask=lambda i, j: offset_m + i < m_size and offset_n + j < self.n_size,
-        )
+        gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, self.n_size])
+        self.store_global(gc, acc_f16, offsets=[offset_m, offset_n])
 
 
-@pytest.mark.parametrize("m,n,k", [[131, 137, 139], [345, 456, 567]])
-def test_simple_mma_matmul(m, n, k):
+@pytest.mark.parametrize("m", [333, 444, 555])
+@pytest.mark.parametrize("n,k", [[333, 444]])
+def test_load_store_with_matmul(m, n, k):
     matmul = Matmul(n, k)
     a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
     b = (torch.rand(k, n, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
     c = torch.empty(m, n, dtype=torch.float16).cuda()
     c_ref = a @ b
+
     matmul.kernel(m, a, b, c)
+
+    torch.cuda.synchronize()
 
     torch.testing.assert_close(
         actual=c,

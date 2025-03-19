@@ -1,50 +1,63 @@
 import dataclasses
-from typing import List, Tuple, Dict, Union, Hashable, Any
-from hidet.ir.type import BaseType
+from typing import Any, Dict, Hashable, List, Tuple, TypeVar, Union
+
 from hidet.ir.expr import Expr
-from tilus.ir.layout import Layout
-from tilus.ir.prog import Program
+from hidet.ir.type import BaseType
 from tilus.ir.func import Function
-from tilus.ir.stmt import SeqStmt, ForStmt, ForThreadGroupStmt, IfStmt, WhileStmt, BreakStmt, InstructionStmt, Stmt
-from tilus.ir.value import Value, RegisterValue, SharedValue, SharedLayout
 from tilus.ir.inst import (
-    Instruction,
-    AllocateInst,
-    LoadGlobalInst,
-    StoreGlobalInst,
-    CastInst,
-    ElementwiseUnaryInst,
-    ElementwiseBinaryInst,
-    MmaDotInst,
-    PrintValueInst,
-    FormatPrintInst,
-    ShuffleUpInst,
-    ShuffleDownInst,
-    ViewInst,
-    CopyAsyncInst,
+    AllocateGlobalInst,
+    AllocateRegisterInst,
     AllocateSharedInst,
-    ViewSharedInst,
+    AssignInst,
+    BroadcastElementwiseBinaryInst,
+    CastInst,
     CopyAsyncCommitGroupInst,
-    CopyAsyncWaitGroupInst,
+    CopyAsyncInst,
     CopyAsyncWaitAllInst,
-    SyncThreadsInst,
-    AllocateScalarInst,
+    CopyAsyncWaitGroupInst,
+    ElementwiseBinaryInst,
+    ElementwiseUnaryInst,
+    ExitInst,
+    FormatPrintInst,
+    FreeSharedInst,
+    GlobalViewInst,
+    Instruction,
+    LoadGlobalGenericInst,
+    LoadGlobalInst,
     LoadMatrixInst,
     LoadSharedInst,
-    AssignScalarInst,
-    FreeSharedInst,
-    BroadcastElementwiseBinaryInst,
-    StoreSharedInst,
-    AllocateGlobalInst,
-    LoadScalarInst,
-    SyncReduceThreadsInst,
-    StoreScalarInst,
-    ExitInst,
+    MmaDotInst,
+    PrintValueInst,
+    ShuffleDownInst,
+    ShuffleUpInst,
     SimtDotInst,
-    AssignInst,
-    AtomicScalarInst,
+    StoreGlobalGenericInst,
+    StoreGlobalInst,
+    StoreSharedInst,
+    SyncReduceThreadsInst,
+    SyncThreadsInst,
+    ViewInst,
+    ViewSharedInst,
 )
+from tilus.ir.layout import GlobalLayout, RegisterLayout
+from tilus.ir.prog import Program
+from tilus.ir.stmt import (
+    AssignStmt,
+    BreakStmt,
+    DeclareStmt,
+    ForStmt,
+    ForThreadGroupStmt,
+    IfStmt,
+    InstStmt,
+    SeqStmt,
+    Stmt,
+    TensorPtrStmt,
+    WhileStmt,
+)
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor
 from tilus.utils import same_list
+
+InstClsVar = TypeVar("InstClsVar", bound=Instruction)
 
 
 class IRFunctor:
@@ -70,8 +83,8 @@ class IRFunctor:
         elif isinstance(node, Function):
             ret = self.visit_Function(node)
         # statements
-        elif isinstance(node, InstructionStmt):
-            ret = self.visit_InstructionStmt(node)
+        elif isinstance(node, InstStmt):
+            ret = self.visit_InstStmt(node)
         elif isinstance(node, SeqStmt):
             ret = self.visit_SeqStmt(node)
         elif isinstance(node, ForStmt):
@@ -84,6 +97,12 @@ class IRFunctor:
             ret = self.visit_WhileStmt(node)
         elif isinstance(node, BreakStmt):
             ret = self.visit_BreakStmt(node)
+        elif isinstance(node, DeclareStmt):
+            ret = self.visit_DeclareStmt(node)
+        elif isinstance(node, AssignStmt):
+            ret = self.visit_AssignStmt(node)
+        elif isinstance(node, TensorPtrStmt):
+            ret = self.visit_TensorPtrStmt(node)
         # instruction
         elif isinstance(node, Instruction):
             ret = self.visit_Instruction(node)
@@ -93,12 +112,18 @@ class IRFunctor:
         elif isinstance(node, BaseType):
             ret = self.visit_BaseType(node)
         # value and layout
-        elif isinstance(node, Value):
-            ret = self.visit_Value(node)
-        elif isinstance(node, Layout):
-            ret = self.visit_Layout(node)
+        elif isinstance(node, RegisterTensor):
+            ret = self.visit_RegisterTensor(node)
+        elif isinstance(node, SharedTensor):
+            ret = self.visit_SharedTensor(node)
+        elif isinstance(node, GlobalTensor):
+            ret = self.visit_GlobalTensor(node)
+        elif isinstance(node, RegisterLayout):
+            ret = self.visit_RegisterLayout(node)
         elif isinstance(node, SharedLayout):
             ret = self.visit_SharedLayout(node)
+        elif isinstance(node, GlobalLayout):
+            ret = self.visit_GlobalLayout(node)
         # python native
         elif isinstance(node, list):
             ret = self.visit_list(node)
@@ -113,14 +138,6 @@ class IRFunctor:
 
         self.memo[key] = ret
         return ret
-
-    def visit_Value(self, value: Value) -> Any:
-        if isinstance(value, RegisterValue):
-            return self.visit_RegisterValue(value)
-        elif isinstance(value, SharedValue):
-            return self.visit_SharedValue(value)
-        else:
-            raise NotImplementedError(value.__class__.__name__)
 
     def visit_Instruction(self, inst: Instruction) -> Any:
         return getattr(self, "visit_{}".format(inst.__class__.__name__))(inst)
@@ -151,7 +168,7 @@ class IRFunctor:
 
     # statements
 
-    def visit_InstructionStmt(self, stmt: InstructionStmt) -> Any:
+    def visit_InstStmt(self, stmt: InstStmt) -> Any:
         raise NotImplementedError()
 
     def visit_SeqStmt(self, stmt: SeqStmt) -> Any:
@@ -172,38 +189,56 @@ class IRFunctor:
     def visit_BreakStmt(self, stmt: BreakStmt) -> Any:
         raise NotImplementedError()
 
+    def visit_DeclareStmt(self, stmt: DeclareStmt) -> Any:
+        raise NotImplementedError()
+
+    def visit_AssignStmt(self, stmt: AssignStmt) -> Any:
+        raise NotImplementedError()
+
+    def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> Any:
+        raise NotImplementedError()
+
     # values
 
-    def visit_RegisterValue(self, value: RegisterValue) -> Any:
+    def visit_RegisterTensor(self, tensor: RegisterTensor) -> Any:
         raise NotImplementedError()
 
-    def visit_SharedValue(self, value: SharedValue) -> Any:
+    def visit_SharedTensor(self, tensor: SharedTensor) -> Any:
         raise NotImplementedError()
 
-    def visit_Layout(self, layout: Layout) -> Any:
+    def visit_GlobalTensor(self, tensor: GlobalTensor) -> Any:
+        raise NotImplementedError()
+
+    def visit_RegisterLayout(self, layout: RegisterLayout) -> Any:
         raise NotImplementedError()
 
     def visit_SharedLayout(self, node: SharedLayout) -> Any:
         raise NotImplementedError()
 
-    # instructions
-
-    def visit_AllocateInst(self, inst: AllocateInst) -> Any:
+    def visit_GlobalLayout(self, node: GlobalLayout) -> Any:
         raise NotImplementedError()
+
+    # instructions
 
     def visit_AssignInst(self, inst: AssignInst) -> Any:
         raise NotImplementedError()
 
-    def visit_AllocateSharedInst(self, inst: AllocateSharedInst) -> Any:
-        raise NotImplementedError
+    def visit_AllocateRegisterInst(self, inst: AllocateRegisterInst) -> Any:
+        raise NotImplementedError()
 
-    def visit_AllocateScalarInst(self, inst: AllocateScalarInst) -> Any:
+    def visit_AllocateGlobalInst(self, inst: AllocateGlobalInst) -> Any:
+        raise NotImplementedError()
+
+    def visit_AllocateSharedInst(self, inst: AllocateSharedInst) -> Any:
         raise NotImplementedError()
 
     def visit_FreeSharedInst(self, inst: FreeSharedInst) -> Any:
         raise NotImplementedError()
 
     def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> Any:
+        raise NotImplementedError()
+
+    def visit_LoadGlobalGenericInst(self, inst: LoadGlobalGenericInst) -> Any:
         raise NotImplementedError()
 
     def visit_LoadMatrixInst(self, inst: LoadMatrixInst) -> Any:
@@ -215,10 +250,10 @@ class IRFunctor:
     def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Any:
         raise NotImplementedError()
 
-    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Any:
+    def visit_StoreGlobalGenericInst(self, inst: StoreGlobalGenericInst) -> Any:
         raise NotImplementedError()
 
-    def visit_AssignScalarInst(self, inst: AssignScalarInst) -> Any:
+    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Any:
         raise NotImplementedError()
 
     def visit_CastInst(self, inst: CastInst) -> Any:
@@ -257,6 +292,9 @@ class IRFunctor:
     def visit_ViewSharedInst(self, inst: ViewSharedInst) -> Any:
         raise NotImplementedError()
 
+    def visit_GlobalViewInst(self, inst: GlobalViewInst) -> Any:
+        raise NotImplementedError()
+
     def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Any:
         raise NotImplementedError()
 
@@ -272,19 +310,7 @@ class IRFunctor:
     def visit_SyncThreadsInst(self, inst: SyncThreadsInst) -> Any:
         raise NotImplementedError()
 
-    def visit_AllocateGlobalInst(self, inst: AllocateGlobalInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_LoadScalarInst(self, inst: LoadScalarInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_AtomicScalarInst(self, inst: AtomicScalarInst) -> Any:
-        raise NotImplementedError()
-
     def visit_SyncReduceThreadsInst(self, inst: SyncReduceThreadsInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_StoreScalarInst(self, inst: StoreScalarInst) -> Any:
         raise NotImplementedError()
 
     def visit_ExitInst(self, inst: ExitInst) -> Any:
@@ -307,7 +333,7 @@ class IRRewriter(IRFunctor):
             return updated
 
     def visit_dict(self, node: Dict) -> Dict:
-        updated = {key: self.visit(value) for key, value in node.items()}
+        updated = type(node)({key: self.visit(value) for key, value in node.items()})
         if same_list(list(node.values()), list(updated.values())):
             return node
         else:
@@ -354,10 +380,14 @@ class IRRewriter(IRFunctor):
                 annotations=func.annotations,
             )
 
-    def visit_InstructionStmt(self, stmt: InstructionStmt) -> Stmt:
-        inst = self.visit(stmt.inst)
-        assert isinstance(inst, Instruction)
-        return InstructionStmt(inst)
+    def visit_InstStmt(self, stmt: InstStmt) -> Stmt:
+        inst_or_stmt = self.visit(stmt.inst)
+        if isinstance(inst_or_stmt, Stmt):
+            return inst_or_stmt
+        elif isinstance(inst_or_stmt, Instruction):
+            return InstStmt(inst_or_stmt)
+        else:
+            raise ValueError(f"An instruction should be rewritten to an instruction or a statement, got {inst_or_stmt}")
 
     def visit_SeqStmt(self, stmt: SeqStmt) -> Stmt:
         seq = self.visit(stmt.seq)
@@ -393,6 +423,27 @@ class IRRewriter(IRFunctor):
     def visit_BreakStmt(self, stmt: BreakStmt) -> Stmt:
         return stmt
 
+    def visit_DeclareStmt(self, stmt: DeclareStmt) -> Stmt:
+        init = self.visit(stmt.init)
+        if init is stmt.init:
+            return stmt
+        else:
+            return DeclareStmt(stmt.var, init)
+
+    def visit_AssignStmt(self, stmt: AssignStmt) -> Stmt:
+        value = self.visit(stmt.value)
+        if value is stmt.value:
+            return stmt
+        else:
+            return AssignStmt(stmt.var, value)
+
+    def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> Stmt:
+        tensor = self.visit(stmt.tensor)
+        if tensor is stmt.tensor:
+            return stmt
+        else:
+            return TensorPtrStmt(stmt.ptr_var, tensor)
+
     def visit_WhileStmt(self, stmt: WhileStmt) -> Stmt:
         cond = self.visit(stmt.cond)
         body = self.visit(stmt.body)
@@ -401,7 +452,7 @@ class IRRewriter(IRFunctor):
         else:
             return WhileStmt(cond, body)
 
-    def default_visit_Instruction(self, inst: Instruction) -> Instruction:
+    def default_visit_Instruction(self, inst: InstClsVar) -> InstClsVar:
         output = self.visit(inst.output)
         inputs = self.visit(inst.inputs)
         attributes = self.visit(inst.attributes)
@@ -411,117 +462,136 @@ class IRRewriter(IRFunctor):
         else:
             return dataclasses.replace(inst, output=output, inputs=inputs, **attributes)
 
-    def visit_Value(self, value: Value) -> Value:
-        return value
+    def visit_RegisterTensor(self, tensor: RegisterTensor) -> RegisterTensor:
+        layout = self.visit(tensor.layout)
+        if layout is tensor.layout:
+            return tensor
+        else:
+            return RegisterTensor.create(dtype=tensor.dtype, layout=layout)
 
-    def visit_Layout(self, layout: Layout) -> Layout:
+    def visit_SharedTensor(self, tensor: SharedTensor) -> SharedTensor:
+        layout = self.visit(tensor.layout)
+        if layout is tensor.layout:
+            return tensor
+        else:
+            return SharedTensor.create(dtype=tensor.dtype, layout=layout)
+
+    def visit_GlobalTensor(self, tensor: GlobalTensor) -> GlobalTensor:
+        layout = self.visit(tensor.layout)
+        if layout is tensor.layout:
+            return tensor
+        else:
+            return GlobalTensor.create(dtype=tensor.dtype, layout=layout)
+
+    def visit_RegisterLayout(self, layout: RegisterLayout) -> RegisterLayout:
         return layout
 
-    def visit_SharedLayout(self, node: SharedLayout) -> SharedLayout:
-        return node
+    def visit_SharedLayout(self, layout: SharedLayout) -> SharedLayout:
+        return layout
+
+    def visit_GlobalLayout(self, layout: GlobalLayout) -> GlobalLayout:
+        shape = self.visit(layout.shape)
+        size = self.visit(layout.size)
+        offset = self.visit(layout.offset)
+
+        if shape is layout.shape and offset is layout.offset and size is layout.size:
+            return layout
+        else:
+            return GlobalLayout(shape=shape, size=size, axes=layout.axes, offset=offset)
 
     # instructions
 
-    def visit_AllocateInst(self, inst: AllocateInst) -> Instruction:
+    def visit_AllocateRegisterInst(self, inst: AllocateRegisterInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_AssignInst(self, inst: AssignInst) -> Instruction:
+    def visit_AssignInst(self, inst: AssignInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_AllocateSharedInst(self, inst: AllocateSharedInst) -> Instruction:
+    def visit_AllocateSharedInst(self, inst: AllocateSharedInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_AllocateScalarInst(self, inst: AllocateScalarInst) -> Instruction:
+    def visit_FreeSharedInst(self, inst: FreeSharedInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_FreeSharedInst(self, inst: FreeSharedInst) -> Instruction:
+    def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> Instruction:
+    def visit_LoadGlobalGenericInst(self, inst: LoadGlobalGenericInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_LoadMatrixInst(self, inst: LoadMatrixInst) -> Instruction:
+    def visit_LoadMatrixInst(self, inst: LoadMatrixInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_LoadSharedInst(self, inst: LoadSharedInst) -> Instruction:
+    def visit_LoadSharedInst(self, inst: LoadSharedInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Instruction:
+    def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Instruction:
+    def visit_StoreGlobalGenericInst(self, inst: StoreGlobalGenericInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_AssignScalarInst(self, inst: AssignScalarInst) -> Instruction:
+    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_CastInst(self, inst: CastInst) -> Instruction:
+    def visit_CastInst(self, inst: CastInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_ElementwiseUnaryInst(self, inst: ElementwiseUnaryInst) -> Instruction:
+    def visit_ElementwiseUnaryInst(self, inst: ElementwiseUnaryInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_ElementwiseBinaryInst(self, inst: ElementwiseBinaryInst) -> Instruction:
+    def visit_ElementwiseBinaryInst(self, inst: ElementwiseBinaryInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_BroadcastElementwiseBinaryInst(self, inst: BroadcastElementwiseBinaryInst) -> Instruction:
+    def visit_BroadcastElementwiseBinaryInst(self, inst: BroadcastElementwiseBinaryInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_MmaDotInst(self, inst: MmaDotInst) -> Instruction:
+    def visit_MmaDotInst(self, inst: MmaDotInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_SimtDotInst(self, inst: SimtDotInst) -> Instruction:
+    def visit_SimtDotInst(self, inst: SimtDotInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_PrintValueInst(self, inst: PrintValueInst) -> Instruction:
+    def visit_PrintValueInst(self, inst: PrintValueInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_FormatPrintInst(self, inst: FormatPrintInst) -> Instruction:
+    def visit_FormatPrintInst(self, inst: FormatPrintInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_ShuffleUpInst(self, inst: ShuffleUpInst) -> Instruction:
+    def visit_ShuffleUpInst(self, inst: ShuffleUpInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_ShuffleDownInst(self, inst: ShuffleDownInst) -> Instruction:
+    def visit_ShuffleDownInst(self, inst: ShuffleDownInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_ViewInst(self, inst: ViewInst) -> Instruction:
+    def visit_ViewInst(self, inst: ViewInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_ViewSharedInst(self, inst: ViewSharedInst) -> Instruction:
+    def visit_ViewSharedInst(self, inst: ViewSharedInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Instruction:
+    def visit_GlobalViewInst(self, inst: GlobalViewInst) -> Any:
         return self.default_visit_Instruction(inst)
 
-    def visit_CopyAsyncCommitGroupInst(self, inst: CopyAsyncCommitGroupInst) -> Instruction:
+    def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_CopyAsyncWaitGroupInst(self, inst: CopyAsyncWaitGroupInst) -> Instruction:
+    def visit_CopyAsyncCommitGroupInst(self, inst: CopyAsyncCommitGroupInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_CopyAsyncWaitAllInst(self, inst: CopyAsyncWaitAllInst) -> Instruction:
+    def visit_CopyAsyncWaitGroupInst(self, inst: CopyAsyncWaitGroupInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_SyncThreadsInst(self, inst: SyncThreadsInst) -> Instruction:
+    def visit_CopyAsyncWaitAllInst(self, inst: CopyAsyncWaitAllInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_AllocateGlobalInst(self, inst: AllocateGlobalInst) -> Instruction:
+    def visit_SyncThreadsInst(self, inst: SyncThreadsInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_LoadScalarInst(self, inst: LoadScalarInst) -> Instruction:
+    def visit_SyncReduceThreadsInst(self, inst: SyncReduceThreadsInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
-    def visit_AtomicScalarInst(self, inst: AtomicScalarInst) -> Instruction:
-        return self.default_visit_Instruction(inst)
-
-    def visit_SyncReduceThreadsInst(self, inst: SyncReduceThreadsInst) -> Instruction:
-        return self.default_visit_Instruction(inst)
-
-    def visit_StoreScalarInst(self, inst: StoreScalarInst) -> Instruction:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ExitInst(self, inst: ExitInst) -> Instruction:
+    def visit_ExitInst(self, inst: ExitInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
 
@@ -553,7 +623,7 @@ class IRVisitor(IRFunctor):
     def visit_Function(self, func: Function) -> None:
         self.visit(func.body)
 
-    def visit_InstructionStmt(self, stmt: InstructionStmt) -> None:
+    def visit_InstStmt(self, stmt: InstStmt) -> None:
         self.visit(stmt.inst)
 
     def visit_SeqStmt(self, stmt: SeqStmt) -> None:
@@ -580,19 +650,39 @@ class IRVisitor(IRFunctor):
         self.visit(stmt.cond)
         self.visit(stmt.body)
 
+    def visit_DeclareStmt(self, stmt: DeclareStmt) -> None:
+        self.visit(stmt.var)
+        self.visit(stmt.init)
+
+    def visit_AssignStmt(self, stmt: AssignStmt) -> None:
+        self.visit(stmt.var)
+        self.visit(stmt.value)
+
+    def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> None:
+        self.visit(stmt.ptr_var)
+        self.visit(stmt.tensor)
+
     # values
 
-    def visit_RegisterValue(self, value: RegisterValue) -> None:
+    def visit_RegisterTensor(self, tensor: RegisterTensor) -> None:
         pass
 
-    def visit_SharedValue(self, value: SharedValue) -> None:
-        self.visit(value.layout.offset)
+    def visit_SharedTensor(self, tensor: SharedTensor) -> None:
+        self.visit(tensor.layout)
 
-    def visit_Layout(self, layout: Layout) -> None:
+    def visit_GlobalTensor(self, tensor: GlobalTensor) -> Any:
+        self.visit(tensor.layout)
+        self.visit(tensor.layout)
+
+    def visit_RegisterLayout(self, layout: RegisterLayout) -> None:
         pass
 
-    def visit_SharedLayout(self, node: SharedLayout) -> None:
-        self.visit(node.offset)
+    def visit_SharedLayout(self, layout: SharedLayout) -> None:
+        self.visit(layout.offset)
+
+    def visit_GlobalLayout(self, layout: GlobalLayout) -> None:
+        self.visit(layout.shape)
+        self.visit(layout.offset)
 
     # instructions
     def default_visit_Instruction(self, inst: Instruction) -> None:
@@ -600,7 +690,7 @@ class IRVisitor(IRFunctor):
         self.visit(inst.inputs)
         self.visit(inst.attributes)
 
-    def visit_AllocateInst(self, inst: AllocateInst) -> None:
+    def visit_AllocateRegisterInst(self, inst: AllocateRegisterInst) -> None:
         return self.default_visit_Instruction(inst)
 
     def visit_AssignInst(self, inst: AssignInst) -> None:
@@ -609,13 +699,13 @@ class IRVisitor(IRFunctor):
     def visit_AllocateSharedInst(self, inst: AllocateSharedInst) -> None:
         return self.default_visit_Instruction(inst)
 
-    def visit_AllocateScalarInst(self, inst: AllocateScalarInst) -> None:
-        return self.default_visit_Instruction(inst)
-
     def visit_FreeSharedInst(self, inst: FreeSharedInst) -> None:
         return self.default_visit_Instruction(inst)
 
     def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> None:
+        return self.default_visit_Instruction(inst)
+
+    def visit_LoadGlobalGenericInst(self, inst: LoadGlobalGenericInst) -> None:
         return self.default_visit_Instruction(inst)
 
     def visit_LoadMatrixInst(self, inst: LoadMatrixInst) -> None:
@@ -627,10 +717,10 @@ class IRVisitor(IRFunctor):
     def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> None:
         return self.default_visit_Instruction(inst)
 
-    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> None:
+    def visit_StoreGlobalGenericInst(self, inst: StoreGlobalGenericInst) -> None:
         return self.default_visit_Instruction(inst)
 
-    def visit_AssignScalarInst(self, inst: AssignScalarInst) -> None:
+    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> None:
         return self.default_visit_Instruction(inst)
 
     def visit_CastInst(self, inst: CastInst) -> None:
@@ -669,6 +759,9 @@ class IRVisitor(IRFunctor):
     def visit_ViewSharedInst(self, inst: ViewSharedInst) -> None:
         return self.default_visit_Instruction(inst)
 
+    def visit_GlobalViewInst(self, inst: GlobalViewInst) -> None:
+        return self.default_visit_Instruction(inst)
+
     def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> None:
         return self.default_visit_Instruction(inst)
 
@@ -684,19 +777,7 @@ class IRVisitor(IRFunctor):
     def visit_SyncThreadsInst(self, inst: SyncThreadsInst) -> None:
         return self.default_visit_Instruction(inst)
 
-    def visit_AllocateGlobalInst(self, inst: AllocateGlobalInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadScalarInst(self, inst: LoadScalarInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_AtomicScalarInst(self, inst: AtomicScalarInst) -> None:
-        return self.default_visit_Instruction(inst)
-
     def visit_SyncReduceThreadsInst(self, inst: SyncReduceThreadsInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_StoreScalarInst(self, inst: StoreScalarInst) -> None:
         return self.default_visit_Instruction(inst)
 
     def visit_ExitInst(self, inst: ExitInst) -> None:

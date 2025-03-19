@@ -1,5 +1,5 @@
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import SyncThreadsInst, SyncReduceThreadsInst
+from tilus.ir.inst import SyncReduceThreadsInst, SyncThreadsInst
 from tilus.target import gpgpu_any, nvgpu_any
 
 

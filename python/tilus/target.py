@@ -1,6 +1,6 @@
-from typing import Tuple, Sequence, Optional
-from dataclasses import dataclass
 import functools
+from dataclasses import dataclass
+from typing import Optional, Sequence, Tuple
 
 
 @dataclass(frozen=True)

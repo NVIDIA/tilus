@@ -1,4 +1,5 @@
 from typing import Optional
+
 from hidet.ir.stmt import BlackBoxStmt, Stmt
 
 

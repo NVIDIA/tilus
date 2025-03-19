@@ -1,5 +1,4 @@
-from hidet.ir.dtypes.floats import FloatType
-from hidet.ir.dtypes.floats import float64, float32, tfloat32, bfloat16, float16
+from hidet.ir.dtypes.floats import FloatType, bfloat16, float16, float32, float64, tfloat32
 
 float8_e4m3 = FloatType(
     "float8_e4m3", "f8e4m3", 1, min_value=float(-448), max_value=float(448), eps=2 ** (-2), smallest_normal=2 ** (-6)

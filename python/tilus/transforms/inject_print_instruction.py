@@ -1,47 +1,52 @@
-from typing import List, Optional, Type
-from hidet.ir.dtypes import int32, boolean
-from hidet.ir.expr import Expr, cast, logical_and
+from dataclasses import dataclass, field
+from typing import Type
 
+from hidet.ir.dtypes import boolean, int32
+from hidet.ir.expr import Expr, cast, logical_and
+from hidet.ir.primitives import blockIdx
 from tilus.extensions.hidet.ir.expr import as_expr
-from tilus.ir.func import Function
 from tilus.ir.builders import StmtBuilder
+from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
-import tilus.ir.inst
 from tilus.ir.inst import (
-    Instruction,
-    PrintValueInst,
-    FormatPrintInst,
-    CopyAsyncInst,
-    CopyAsyncWaitAllInst,
-    StoreGlobalInst,
-    StoreSharedInst,
-    ViewSharedInst,
+    AllocateRegisterInst,
     AllocateSharedInst,
-    AllocateInst,
+    CastInst,
+    Instruction,
+    LoadGlobalGenericInst,
+    LoadGlobalInst,
+    LoadSharedInst,
+    MmaDotInst,
+    StoreGlobalInst,
 )
-from tilus.ir.stmt import SeqStmt, ForStmt, InstructionStmt, seq_stmt, Stmt
+from tilus.ir.stmt import ForStmt, Stmt
 from tilus.transforms.base import Pass
 
-from hidet.ir.primitives import blockIdx
+
+@dataclass(frozen=True)
+class PrintConfig:
+    output: bool = False
+    inputs: list[int] = field(default_factory=lambda: [])
+
+
+PRINT_CONFIGS: dict[Type[Instruction], PrintConfig] = {
+    AllocateRegisterInst: PrintConfig(output=True),
+    AllocateSharedInst: PrintConfig(output=True),
+    LoadGlobalInst: PrintConfig(output=True),
+    LoadGlobalGenericInst: PrintConfig(output=True),
+    LoadSharedInst: PrintConfig(output=True),
+    MmaDotInst: PrintConfig(output=True),
+    CastInst: PrintConfig(output=True),
+    StoreGlobalInst: PrintConfig(inputs=[0]),
+}
 
 
 class InjectPrintInstructionRewriter(IRRewriter):
-    def __init__(self, block_to_print: tuple[int, int, int], instructions_to_print: Optional[List[str]]):
+    def __init__(self, block_to_print: tuple[int, int, int]):
         super().__init__()
         self.vm_printer = IRRewriter()
         self.block_to_print: tuple[int, int, int] = block_to_print
-        self.instructions_to_print: Optional[List[Type[Instruction]]] = None
         self.cond: Expr = boolean.true
-
-        # check the existence of the instructions
-        if instructions_to_print is not None:
-            self.instructions_to_print = []
-            for inst in instructions_to_print:
-                if not hasattr(tilus.ir.inst, inst):
-                    raise ValueError("Instruction {} does not exist".format(inst))
-                self.instructions_to_print.append(getattr(tilus.ir.inst, inst))
-        else:
-            self.instructions_to_print = None
 
     def visit_Function(self, func: Function) -> Function:
         self.cond = logical_and(
@@ -55,13 +60,17 @@ class InjectPrintInstructionRewriter(IRRewriter):
         text = "Virtual Machine Program:\n{}\nPrint for {}\n".format(prog_text, str(self.block_to_print)).replace(
             "\n", "\\n"
         )
-        new_body = SeqStmt(
-            (
-                InstructionStmt(FormatPrintInst.create(cond=self.cond, fstring="%s", expressions=[as_expr(text)])),
-                func.body,
-            )
+        sb = StmtBuilder()
+        sb.printf("%s\n", as_expr(text), cond=self.cond)
+        sb.append(func.body)
+        sb.printf(
+            "end of block (%d, %d, %d)\n",
+            self.block_to_print[0],
+            self.block_to_print[1],
+            self.block_to_print[2],
+            cond=self.cond,
         )
-        return func.with_body(new_body)
+        return func.with_body(sb.flush_stmts())
 
     def visit_ForStmt(self, stmt: ForStmt) -> Stmt:
         vb = StmtBuilder()
@@ -80,85 +89,38 @@ class InjectPrintInstructionRewriter(IRRewriter):
             cond=self.cond,
         )
         return ForStmt(
-            iter_var=stmt.iter_var, extent=stmt.extent, body=vb.flush_statement(), unroll_factor=stmt.unroll_factor
+            iter_var=stmt.iter_var, extent=stmt.extent, body=vb.flush_stmts(), unroll_factor=stmt.unroll_factor
         )
 
-    def visit_InstructionStmt(self, stmt: InstructionStmt) -> Stmt:
-        inst: Instruction = self.visit(stmt.inst)
+    def visit_Instruction(self, inst: Instruction) -> Stmt | Instruction:
+        inst = self.default_visit_Instruction(inst)
 
-        if self.instructions_to_print and not isinstance(inst, tuple(self.instructions_to_print)):
-            # specified the set of instructions to print, but the current instruction is not in the set
-            return InstructionStmt(inst)
+        if type(inst) not in PRINT_CONFIGS:
+            # do not print the instruction
+            return inst
 
-        assert isinstance(inst, Instruction)
+        config = PRINT_CONFIGS[type(inst)]
 
-        inst_string = "{}:\n".format(self.vm_printer(inst))
-
-        # print the input of some instructions if they do not produce a tensor
-        inst2input = {StoreGlobalInst: 0, StoreSharedInst: 0}
-        skip_list = (ViewSharedInst,)
-
-        if isinstance(inst, skip_list):
-            return InstructionStmt(inst)
-
-        if isinstance(inst, AllocateSharedInst) and inst.init is None:
-            return InstructionStmt(inst)
-
-        if isinstance(inst, AllocateInst) and inst.init is None:
-            return InstructionStmt(inst)
-
-        if inst.output is not None:
-            from tilus.ir.inst import ElementwiseBinaryInst
-
-            if isinstance(inst, ElementwiseBinaryInst):
-                return seq_stmt(
-                    [
-                        inst,
-                        PrintValueInst.create(inst.output, cond=self.cond, msg=inst_string),
-                        FormatPrintInst.create(cond=self.cond, fstring="\n"),
-                    ]
-                )
-            return seq_stmt(
-                [
-                    inst,
-                    PrintValueInst.create(inst.output, cond=self.cond, msg=inst_string),
-                    FormatPrintInst.create(cond=self.cond, fstring="\n"),
-                ]
-            )
-        elif isinstance(inst, CopyAsyncInst):
-            return seq_stmt(
-                [
-                    inst,
-                    CopyAsyncWaitAllInst.create(),
-                    PrintValueInst.create(inst.inputs[0], cond=self.cond, msg=inst_string),
-                    FormatPrintInst.create(cond=self.cond, fstring="\n"),
-                ]
-            )
-        elif type(inst) in inst2input:
-            input_idx = inst2input[type(inst)]
-            return seq_stmt(
-                [
-                    inst,
-                    PrintValueInst.create(inst.inputs[input_idx], cond=self.cond, msg=inst_string),
-                    FormatPrintInst.create(cond=self.cond, fstring="\n"),
-                ]
-            )
-        else:
-            return InstructionStmt(inst)
+        sb = StmtBuilder()
+        sb.append(inst)
+        sb.printf("%s\n", as_expr("{}".format(self.vm_printer(inst)).replace("\n", "\\n")), cond=self.cond)
+        for input_idx in config.inputs:
+            sb.print_tensor("input[0]: ", inst.inputs[input_idx].as_register_or_shared_tensor(), cond=self.cond)
+        if config.output:
+            sb.print_tensor("output: ", inst.register_or_shared_output, cond=self.cond)
+        sb.printf("\n", cond=self.cond)
+        return sb.flush_stmts()
 
 
 class InjectPrintInstructionPass(Pass):
-    def __init__(self, block_to_print: tuple[int, int, int], instructions_to_print: Optional[List[str]]):
+    def __init__(self, block_to_print: tuple[int, int, int]):
         super().__init__()
         self.block_to_print: tuple[int, int, int] = block_to_print
-        self.instructions_to_print: Optional[List[str]] = instructions_to_print
 
     def __call__(self, prog: Function) -> Function:
-        rewriter = InjectPrintInstructionRewriter(self.block_to_print, self.instructions_to_print)
+        rewriter = InjectPrintInstructionRewriter(self.block_to_print)
         return rewriter(prog)
 
 
-def inject_print_instruction_pass(
-    block_to_print: tuple[int, int, int], instructions_to_print: Optional[List[str]]
-) -> Pass:
-    return InjectPrintInstructionPass(block_to_print=block_to_print, instructions_to_print=instructions_to_print)
+def inject_print_instruction_pass(block_to_print: tuple[int, int, int]) -> Pass:
+    return InjectPrintInstructionPass(block_to_print=block_to_print)

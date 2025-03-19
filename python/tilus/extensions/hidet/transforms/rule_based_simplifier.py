@@ -1,8 +1,9 @@
-from typing import Dict, Optional, Union, List, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 from hidet.ir.dtypes import int32
-from hidet.ir.expr import Var, Expr
+from hidet.ir.expr import Expr, Var
+from hidet.transforms.rule_based_simplifier import BoundAnalyzer, BoundInfo
 from hidet.transforms.rule_based_simplifier import RuleBasedSimplifier as OriginalRuleBasedSimplifier
-from hidet.transforms.rule_based_simplifier import BoundInfo, BoundAnalyzer
 from hidet.utils import repeat_until_converge
 
 

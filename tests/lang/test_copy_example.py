@@ -1,8 +1,7 @@
-import torch
-
 import tilus
+import torch
 from tilus import float32, int32
-from tilus.ir.layout import Layout, spatial
+from tilus.ir.layout import RegisterLayout, spatial
 from tilus.utils import cdiv
 
 
@@ -11,7 +10,7 @@ class MemoryCopy(tilus.Script):
         super().__init__()
         self.num_warps: int = num_warps
         self.block_size: int = num_warps * 32
-        self.layout: Layout = spatial(num_warps * 32)
+        self.layout: RegisterLayout = spatial(num_warps * 32)
 
     def kernel(self, n: int32, src_ptr: ~float32, dst_ptr: ~float32):  # type: ignore
         self.attrs.blocks = [cdiv(n, self.block_size) * self.block_size]
@@ -19,14 +18,14 @@ class MemoryCopy(tilus.Script):
 
         bi = self.blockIdx.x
 
-        loaded_regs = self.load_global(
+        loaded_regs = self.load_global_flex(
             dtype=float32,
             layout=self.layout,
             ptr=src_ptr,
             f_offset=lambda i: bi * self.block_size + i,
             f_mask=lambda i: bi * self.block_size + i < n,
         )
-        self.store_global(
+        self.store_global_flex(
             loaded_regs,
             ptr=dst_ptr,
             f_offset=lambda i: bi * self.block_size + i,

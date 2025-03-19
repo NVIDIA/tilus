@@ -1,4 +1,5 @@
-from typing import Union, Mapping, TypeVar, Any
+from typing import Any, Mapping, TypeVar, Union
+
 from hidet.ir.node import Node
 from hidet.ir.tools import rewrite as original_rewrite
 

@@ -1,12 +1,14 @@
 from __future__ import annotations
-from typing import List, Union, Optional, Dict
+
+from typing import Dict, List, Optional, Union
+
 from hidet.ir.dtypes import int32
-from hidet.ir.type import BaseType
 from hidet.ir.expr import Expr, Var
+from hidet.ir.type import BaseType
 from tilus.extensions.hidet.ir.expr import as_expr
+from tilus.ir.builders.stmt_builder import StmtBuilder
 from tilus.ir.func import Function
 from tilus.ir.stmt import SeqStmt
-from tilus.ir.builders.stmt_builder import StmtBuilder
 
 
 class FunctionBuilder(StmtBuilder):
@@ -25,7 +27,10 @@ class FunctionBuilder(StmtBuilder):
             self.builder._stack = [[]]
 
         def __enter__(self):
-            return self.params
+            if len(self.params) == 1:
+                return self.params[0]
+            else:
+                return self.params
 
         def __exit__(self, exc_type, exc_val, exc_tb):
             if exc_type is not None:

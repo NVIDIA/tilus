@@ -1,10 +1,12 @@
 from __future__ import annotations as _
-from typing import Any, Sequence, Mapping
+
 import dataclasses
 from dataclasses import dataclass
-from hidet.ir.expr import Var, Expr
-from tilus.ir.stmt import Stmt
+from typing import Any, Mapping, Sequence
+
+from hidet.ir.expr import Expr, Var
 from tilus.ir.node import IRNode
+from tilus.ir.stmt import Stmt
 from tilus.ir.utils import frozendict
 
 

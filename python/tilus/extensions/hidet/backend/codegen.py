@@ -1,13 +1,14 @@
 import os
-from typing import Sequence, Union, List, Tuple
+from typing import List, Sequence, Tuple, Union
 
+from hidet.backend.codegen import Codegen, CPUCodegen, HIPCodegen
+from hidet.backend.codegen import CUDACodegen as OriginalCUDACodegen
 from hidet.ir import Add
-from hidet.ir.type import DataType
 from hidet.ir.module import IRModule
 from hidet.ir.target import Target
-from hidet.backend.codegen import CUDACodegen as OriginalCUDACodegen, HIPCodegen, CPUCodegen, Codegen
-from hidet.utils.doc import Text, Doc
-from tilus.extensions.hidet.utils.doc import doc_strip_parentheses, doc_join
+from hidet.ir.type import DataType
+from hidet.utils.doc import Doc, Text
+from tilus.extensions.hidet.utils.doc import doc_join, doc_strip_parentheses
 
 
 class CUDACodegen(OriginalCUDACodegen):

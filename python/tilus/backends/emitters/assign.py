@@ -7,7 +7,7 @@ from tilus.target import gpgpu_any
 class AllocateInstEmitter(BaseInstEmitter):
     def emit(self, inst: AssignInst) -> None:  # type: ignore
         value = inst.register_output
-        input_value = inst.inputs[0].as_register_value()
+        input_value = inst.inputs[0].as_register_tensor()
         var = self.get_or_allocate_var(value=value, name="regs")
         assert input_value.dtype == value.dtype
         assert input_value.layout.quick_equal(value.layout)

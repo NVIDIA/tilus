@@ -1,22 +1,20 @@
-from typing import List, Optional, Union, Tuple, Dict, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from hidet.ir.dtypes import uint32, uint16, uint8, int32, boolean
-from hidet.ir.expr import Expr, if_then_else, cast, Var, logical_and
+from hidet.ir.dtypes import boolean, int32, uint8, uint16, uint32
+from hidet.ir.expr import Expr, Var, cast, if_then_else, logical_and
 from hidet.ir.type import DataType, void_p
-
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter, Codegen
-from tilus.extensions.hidet.ir.expr import index_vars
-from tilus.extensions.hidet.ir.type import type_equal
+from tilus.backends.codegen import BaseInstEmitter, Codegen, register_inst_emitter
 from tilus.extensions.hidet.ir.dtypes.vector import vectorize
-from tilus.extensions.hidet.ir.utils.index_transform import index_add
-from tilus.extensions.hidet.ir.tools.rewriter import rewrite
+from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.extensions.hidet.ir.primitives.cuda.ldst import load, store
-from tilus.ir.analyzers.value_analyzer import analyze_info, TensorInfo
-from tilus.ir.inst import LoadGlobalInst, StoreGlobalInst, LoadSharedInst, StoreSharedInst
-from tilus.ir.layout import Layout
-from tilus.ir.value import RegisterValue
-from tilus.ir.value import SharedLayout
-from tilus.target import gpgpu_any, nvgpu_any, amdgpu_any
+from tilus.extensions.hidet.ir.tools.rewriter import rewrite
+from tilus.extensions.hidet.ir.type import type_equal
+from tilus.extensions.hidet.ir.utils.index_transform import index_add
+from tilus.ir.analyzers.value_analyzer import TensorInfo, analyze_info
+from tilus.ir.inst import LoadGlobalGenericInst, LoadSharedInst, StoreGlobalGenericInst, StoreSharedInst
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.tensor import RegisterTensor, SharedLayout
+from tilus.target import amdgpu_any, gpgpu_any, nvgpu_any
 from tilus.utils import gcd
 
 
@@ -27,7 +25,7 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
         self.vector_bytes: Optional[int] = None
 
     def analyze_vectorization(
-        self, inst: Union[LoadGlobalInst, StoreGlobalInst, LoadSharedInst, StoreSharedInst]
+        self, inst: Union[LoadGlobalGenericInst, StoreGlobalGenericInst, LoadSharedInst, StoreSharedInst]
     ) -> None:
         """
         Analyze the applicable vectorization of the load/store instruction to global or shared memory.
@@ -45,13 +43,13 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
         1-bit, 2-bit, ... and 7-bit data type).
         """
         # get the register value that is going to be stored or loaded to.
-        value: RegisterValue
-        if isinstance(inst, (LoadGlobalInst, LoadSharedInst)):
+        value: RegisterTensor
+        if isinstance(inst, (LoadGlobalGenericInst, LoadSharedInst)):
             value = inst.register_output
-        elif isinstance(inst, StoreGlobalInst):
-            value = inst.inputs[0].as_register_value()
+        elif isinstance(inst, StoreGlobalGenericInst):
+            value = inst.inputs[0].as_register_tensor()
         elif isinstance(inst, StoreSharedInst):
-            value = inst.inputs[1].as_register_value()
+            value = inst.inputs[1].as_register_tensor()
         else:
             raise NotImplementedError()
 
@@ -63,7 +61,7 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
         #     var2info[var] = TensorInfo.from_divisiblity(shape=value.shape, divisibility=divisibility)
 
         # analyze the offset and mask's value information (e.g., divisibility, constancy, etc.)
-        if isinstance(inst, (LoadGlobalInst, StoreGlobalInst)):
+        if isinstance(inst, (LoadGlobalGenericInst, StoreGlobalGenericInst)):
             offset_info: TensorInfo = analyze_info(shape=value.shape, axes=inst.axes, var2info={}, expr=inst.offset)
             mask_info: TensorInfo = analyze_info(
                 shape=value.shape,
@@ -72,7 +70,7 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
                 expr=inst.mask if inst.mask is not None else boolean.true,
             )
         elif isinstance(inst, (LoadSharedInst, StoreSharedInst)):
-            shared_layout: SharedLayout = inst.inputs[0].as_shared_value().layout
+            shared_layout: SharedLayout = inst.inputs[0].as_shared_tensor().layout
             offset_info = analyze_info(
                 shape=value.shape, axes=shared_layout.axes, var2info=var2info, expr=shared_layout.offset
             )
@@ -111,14 +109,14 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
 
 class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
     def get_buffer_and_mask(
-        self, inst: Union[LoadGlobalInst, LoadSharedInst], indices: List[Expr]
+        self, inst: Union[LoadGlobalGenericInst, LoadSharedInst], indices: List[Expr]
     ) -> Tuple[Expr, Expr]:
         """
         Get the buffer to load from and the mask indicating whether we should perform the loading.
 
         Parameters
         ----------
-        inst: Union[LoadGlobalInst, LoadSharedInst]
+        inst: Union[LoadGlobalGenericInst, LoadSharedInst]
             The load instruction.
 
         indices: List[Expr]
@@ -153,13 +151,13 @@ class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
         """
         raise NotImplementedError()
 
-    def load(self, inst: LoadGlobalInst | LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
+    def load(self, inst: LoadGlobalGenericInst | LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         """
         Load the elements from the memory with the given indices in the output tile.
 
         Parameters
         ----------
-        inst: Union[LoadGlobalInst, LoadSharedInst]
+        inst: Union[LoadGlobalGenericInst, LoadSharedInst]
             The load instruction.
 
         indices: List[Expr]
@@ -172,11 +170,11 @@ class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
         """
         raise NotImplementedError()
 
-    def emit(self, inst: Union[LoadGlobalInst, LoadSharedInst]) -> None:
+    def emit(self, inst: Union[LoadGlobalGenericInst, LoadSharedInst]) -> None:
         # create the output var to store the loaded elements
-        output: RegisterValue = inst.register_output
+        output: RegisterTensor = inst.register_output
         dtype: DataType = output.dtype
-        layout: Layout = output.layout
+        layout: RegisterLayout = output.layout
         var = self.get_or_allocate_var(value=output, name="loaded")
 
         assert layout.num_workers <= self.num_warps * 32
@@ -224,7 +222,7 @@ class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
                             break
             else:
                 # we can not load with vectorization, fall back to element-wise loading
-                with self.for_range(extent=output.size) as i:
+                with self.for_range(extent=output.local_size) as i:
                     global_indices = layout.local2global(local_index=i, worker=self.current_worker)
                     loaded_value, mask = self.load(inst, global_indices)
                     if mask is not None:
@@ -234,14 +232,14 @@ class LoadInstBaseEmitter(LoadStoreInstBaseEmitter):
 
 class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
     def get_buffer_and_mask(
-        self, inst: Union[StoreGlobalInst, StoreSharedInst], indices: List[Expr]
+        self, inst: Union[StoreGlobalGenericInst, StoreSharedInst], indices: List[Expr]
     ) -> Tuple[Expr, Expr]:
         """
         Get the buffer to load from and the mask indicating whether we should perform the loading.
 
         Parameters
         ----------
-        inst: Union[LoadGlobalInst, LoadSharedInst]
+        inst: Union[LoadGlobalGenericInst, LoadSharedInst]
             The load instruction.
 
         indices: List[Expr]
@@ -277,14 +275,18 @@ class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
         raise NotImplementedError()
 
     def store(
-        self, inst: StoreGlobalInst | StoreSharedInst, indices: List[Expr], value: Expr, is_first_occurrence: Expr
+        self,
+        inst: StoreGlobalGenericInst | StoreSharedInst,
+        indices: List[Expr],
+        value: Expr,
+        is_first_occurrence: Expr,
     ) -> None:
         """
         Store the elements to the memory with the given indices in the input tile.
 
         Parameters
         ----------
-        inst: StoreGlobalInst or StoreSharedInst
+        inst: StoreGlobalGenericInst or StoreSharedInst
             The store instruction.
 
         indices: List[Expr]
@@ -298,16 +300,16 @@ class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
         """
         raise NotImplementedError()
 
-    def emit(self, inst: Union[StoreSharedInst, StoreGlobalInst]) -> None:
+    def emit(self, inst: Union[StoreSharedInst, StoreGlobalGenericInst]) -> None:
         # get the register value and its corresponding lowered variable to write
-        value: RegisterValue
+        value: RegisterTensor
         if isinstance(inst, StoreSharedInst):
-            value = inst.inputs[1].as_register_value()
-        elif isinstance(inst, StoreGlobalInst):
-            value = inst.inputs[0].as_register_value()
+            value = inst.inputs[1].as_register_tensor()
+        elif isinstance(inst, StoreGlobalGenericInst):
+            value = inst.inputs[0].as_register_tensor()
         else:
             raise NotImplementedError()
-        layout: Layout = value.layout
+        layout: RegisterLayout = value.layout
         var: Var = self.value2var[value]
 
         assert layout.num_workers <= self.num_warps * 32
@@ -358,7 +360,7 @@ class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
                             break
             else:
                 # write the elements one by one
-                with self.for_range(extent=value.size) as i:
+                with self.for_range(extent=value.local_size) as i:
                     global_indices = layout.local2global(local_index=i, worker=self.current_worker)
                     is_first_occurrence = value.layout.is_first_occurrence(local_index=i, worker=self.current_worker)
                     self.store(inst, indices=global_indices, value=var[i], is_first_occurrence=is_first_occurrence)
@@ -367,7 +369,7 @@ class StoreInstBaseEmitter(LoadStoreInstBaseEmitter):
 @register_inst_emitter(LoadSharedInst, target=nvgpu_any)
 class LoadSharedInstNVGPUEmitter(LoadInstBaseEmitter):
     def get_buffer_and_mask(self, inst: LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
-        src = inst.inputs[0].as_shared_value()
+        src = inst.inputs[0].as_shared_tensor()
         global_indices: List[Expr] = index_add(inst.offsets, indices)
         remap = {axis: global_index for axis, global_index in zip(src.layout.axes, global_indices)}
         offset: Expr = rewrite(node=src.layout.offset, rewrite_map=remap)
@@ -390,7 +392,7 @@ class LoadSharedInstNVGPUEmitter(LoadInstBaseEmitter):
         )
 
     def load(self, inst: LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
-        src = inst.inputs[0].as_shared_value()
+        src = inst.inputs[0].as_shared_tensor()
         indices = index_add(inst.offsets, indices)
         remap = {axis: global_index for axis, global_index in zip(src.layout.axes, indices)}
         offset: Expr = rewrite(node=src.layout.offset, rewrite_map=remap)
@@ -401,7 +403,7 @@ class LoadSharedInstNVGPUEmitter(LoadInstBaseEmitter):
 @register_inst_emitter(StoreSharedInst, target=nvgpu_any)
 class StoreSharedInstEmitter(StoreInstBaseEmitter):
     def get_buffer_and_mask(self, inst: StoreSharedInst, indices: Sequence[Expr]) -> Tuple[Expr, Expr]:
-        dst = inst.inputs[0].as_shared_value()
+        dst = inst.inputs[0].as_shared_tensor()
         indices_with_offsets: List[Expr] = index_add(inst.offsets, indices)
         remap = {axis: index for axis, index in zip(dst.layout.axes, indices_with_offsets)}
         offset: Expr = rewrite(node=dst.layout.offset, rewrite_map=remap)
@@ -430,15 +432,15 @@ class StoreSharedInstEmitter(StoreInstBaseEmitter):
     def store(self, inst: StoreSharedInst, indices: Sequence[Expr], value: Expr, is_first_occurrence: Expr) -> None:
         buf: Var = self.value2var[inst.inputs[0]]
         indices = index_add(indices, inst.offsets)
-        layout: SharedLayout = inst.inputs[0].as_shared_value().layout
+        layout: SharedLayout = inst.inputs[0].as_shared_tensor().layout
         offset: Expr = layout(*indices)
         with self.if_then(is_first_occurrence):
             self.buffer_store(buf, [offset], value=value)
 
 
-@register_inst_emitter(LoadGlobalInst, target=gpgpu_any)
+@register_inst_emitter(LoadGlobalGenericInst, target=gpgpu_any)
 class LoadGlobalInstEmitter(LoadInstBaseEmitter):
-    def get_buffer_and_mask(self, inst: LoadGlobalInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
+    def get_buffer_and_mask(self, inst: LoadGlobalGenericInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         dtype = inst.register_output.dtype
         remap = {axis: global_index for axis, global_index in zip(inst.axes, indices)}
         offset: Expr = rewrite(node=inst.offset, rewrite_map=remap)
@@ -455,7 +457,7 @@ class LoadGlobalInstEmitter(LoadInstBaseEmitter):
         self.buffer_store(dst_buffer, indices=[sub_vec_i], value=buffer[sub_vec_i])
         return None
 
-    def load(self, inst: LoadGlobalInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
+    def load(self, inst: LoadGlobalGenericInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         remap = {axis: index for axis, index in zip(inst.axes, indices)}
         offset: Expr = rewrite(node=inst.offset, rewrite_map=remap)
         mask: Expr = rewrite(node=inst.mask, rewrite_map=remap) if inst.mask is not None else boolean.true
@@ -471,7 +473,7 @@ class LoadGlobalInstEmitter(LoadInstBaseEmitter):
 @register_inst_emitter(LoadSharedInst, target=amdgpu_any)
 class LoadSharedInstAMDGPUEmitter(LoadInstBaseEmitter):
     def get_buffer_and_mask(self, inst: LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
-        src = inst.inputs[0].as_shared_value()
+        src = inst.inputs[0].as_shared_tensor()
         global_indices: List[Expr] = index_add(inst.offsets, indices)
         remap = {axis: global_index for axis, global_index in zip(src.layout.axes, global_indices)}
         offset: Expr = rewrite(node=src.layout.offset, rewrite_map=remap)
@@ -488,7 +490,7 @@ class LoadSharedInstAMDGPUEmitter(LoadInstBaseEmitter):
         return None
 
     def load(self, inst: LoadSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
-        src = inst.inputs[0].as_shared_value()
+        src = inst.inputs[0].as_shared_tensor()
         indices = index_add(inst.offsets, indices)
         remap = {axis: global_index for axis, global_index in zip(src.layout.axes, indices)}
         offset: Expr = rewrite(node=src.layout.offset, rewrite_map=remap)
@@ -496,14 +498,16 @@ class LoadSharedInstAMDGPUEmitter(LoadInstBaseEmitter):
         return buf[offset], boolean.true
 
 
-@register_inst_emitter(StoreGlobalInst, target=gpgpu_any)
+@register_inst_emitter(StoreGlobalGenericInst, target=gpgpu_any)
 class StoreGlobalInstEmitter(StoreInstBaseEmitter):
-    def get_buffer_and_mask(self, inst: StoreGlobalInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
+    def get_buffer_and_mask(self, inst: StoreGlobalGenericInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
         remap = {axis: global_index for axis, global_index in zip(inst.axes, indices)}
         offset: Expr = rewrite(node=inst.offset, rewrite_map=remap)
         mask: Expr = rewrite(node=inst.mask, rewrite_map=remap) if inst.mask is not None else boolean.true
         buf = (
-            cast(inst.ptr, ~inst.inputs[0].as_register_value().dtype) if type_equal(inst.ptr.type, void_p) else inst.ptr
+            cast(inst.ptr, ~inst.inputs[0].as_register_tensor().dtype)
+            if type_equal(inst.ptr.type, void_p)
+            else inst.ptr
         )
         start_ptr = ~buf[offset]
         return start_ptr, mask
@@ -516,7 +520,7 @@ class StoreGlobalInstEmitter(StoreInstBaseEmitter):
         self.buffer_store(buffer, indices=[sub_vec_i], value=source_buffer[sub_vec_i])
         return None
 
-    def store(self, inst: StoreGlobalInst, indices: List[Expr], value: Expr, is_first_occurrence: Expr) -> None:
+    def store(self, inst: StoreGlobalGenericInst, indices: List[Expr], value: Expr, is_first_occurrence: Expr) -> None:
         remap = {axis: global_index for axis, global_index in zip(inst.axes, indices)}
         offset: Expr = rewrite(node=inst.offset, rewrite_map=remap)
         mask: Expr = rewrite(node=inst.mask, rewrite_map=remap) if inst.mask is not None else boolean.true
@@ -529,7 +533,7 @@ class StoreGlobalInstEmitter(StoreInstBaseEmitter):
 @register_inst_emitter(StoreSharedInst, target=amdgpu_any)
 class StoreSharedInstAMDGPUEmitter(StoreInstBaseEmitter):
     def get_buffer_and_mask(self, inst: StoreSharedInst, indices: List[Expr]) -> Tuple[Expr, Expr]:
-        dst = inst.inputs[0].as_shared_value()
+        dst = inst.inputs[0].as_shared_tensor()
         indices = index_add(inst.offsets, indices)
         remap: Dict[Var, Expr] = {axis: index for axis, index in zip(dst.layout.axes, indices)}
         offset: Expr = rewrite(node=dst.layout.offset, rewrite_map=remap)
@@ -548,7 +552,7 @@ class StoreSharedInstAMDGPUEmitter(StoreInstBaseEmitter):
     def store(self, inst: StoreSharedInst, indices: List[Expr], value: Expr, is_first_occurrence: Expr) -> None:
         buf: Var = self.value2var[inst.inputs[0]]
         indices = index_add(indices, inst.offsets)
-        layout: SharedLayout = inst.inputs[0].as_shared_value().layout
+        layout: SharedLayout = inst.inputs[0].as_shared_tensor().layout
         offset: Expr = layout(*indices)
         with self.if_then(is_first_occurrence):
             self.buffer_store(buf, [offset], value=value)

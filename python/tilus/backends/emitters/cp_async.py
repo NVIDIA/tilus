@@ -1,26 +1,26 @@
-from typing import List, Dict, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
-from hidet.ir.dtypes import boolean, uint32, int32
-from hidet.ir.expr import Expr, Var, if_then_else, cast
+from hidet.ir.dtypes import boolean, int32, uint32
+from hidet.ir.expr import Expr, Var, cast, if_then_else
+from hidet.ir.primitives.cuda.cp_async import cp_async_commit_group, cp_async_wait_all, cp_async_wait_group
 from hidet.ir.type import DataType
-from hidet.ir.primitives.cuda.cp_async import cp_async_commit_group, cp_async_wait_group, cp_async_wait_all
 from hidet.ir.utils.index_transform import index_deserialize
-from tilus.utils import prod
 from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.extensions.hidet.ir.dtypes import uint32x4, uint32x2
+from tilus.extensions.hidet.ir.dtypes import uint32x2, uint32x4
 from tilus.extensions.hidet.ir.primitives.cuda.cp_async import cp_async
 from tilus.extensions.hidet.ir.tools import rewrite
-from tilus.ir.inst import CopyAsyncInst, CopyAsyncCommitGroupInst, CopyAsyncWaitGroupInst, CopyAsyncWaitAllInst
-from tilus.ir.value import SharedValue, SharedLayout
+from tilus.ir.inst import CopyAsyncCommitGroupInst, CopyAsyncInst, CopyAsyncWaitAllInst, CopyAsyncWaitGroupInst
+from tilus.ir.tensor import SharedLayout, SharedTensor
 from tilus.target import nvgpu_sm80
+from tilus.utils import prod
 
 
 @register_inst_emitter(CopyAsyncInst, target=nvgpu_sm80)
 class CopyAysncInstEmitter(BaseInstEmitter):
     def emit(self, inst: CopyAsyncInst) -> None:
-        from tilus.ir.analyzers.value_analyzer import analyze_info, TensorInfo
+        from tilus.ir.analyzers.value_analyzer import TensorInfo, analyze_info
 
-        dst: SharedValue = inst.inputs[0].as_shared_value()
+        dst: SharedTensor = inst.inputs[0].as_shared_tensor()
         dtype: DataType = dst.dtype
         layout: SharedLayout = dst.layout
         shape: Sequence[int] = layout.shape
@@ -63,7 +63,7 @@ class CopyAysncInstEmitter(BaseInstEmitter):
         if contiguous_dim is None:
             attrs = {
                 "dtype": str(dtype),
-                "shared layout": str(inst.inputs[0].as_shared_value().layout),
+                "shared layout": str(inst.inputs[0].as_shared_tensor().layout),
                 "offset": str(inst.offset),
                 "mask": str(inst.mask),
                 "global_info": str(global_info),

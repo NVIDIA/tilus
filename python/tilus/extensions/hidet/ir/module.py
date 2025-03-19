@@ -1,4 +1,5 @@
 from typing import Sequence
+
 from hidet.ir.module import IRModule
 
 
