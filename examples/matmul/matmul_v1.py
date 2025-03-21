@@ -1,18 +1,16 @@
-import torch
-import pandas
 import math
 
+import pandas
 import tilus
+import torch
 from tilus import float16, float32, int32
 from tilus.utils import benchmark_func
 
-
-tilus.option.cache_dir('./cache')
-
+tilus.option.cache_dir("./cache")
 
 
 class MatmulV1(tilus.Script):
-    def __init__(self, n_size: int, k_size: int):
+    def __init__(self):
         super().__init__()
         self.mma = self.cuda.mma.m16n8k16_f16_f32
         self.block_m = self.mma.m
@@ -51,8 +49,9 @@ class MatmulV1(tilus.Script):
         gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
         self.store_global(gc, casted_acc, offsets=[offset_m, offset_n])
 
+
 def main():
-    headers = ['m', 'n', 'k', 'name', 'latency (ms)', 'gflops']
+    headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
         [2048, 2048, 2048],
         [4096, 4096, 4096],
@@ -73,16 +72,17 @@ def main():
 
         # benchmark
         for name, func in [
-            ('torch', lambda: torch.matmul(a, b, out=c_expect)),
-            ('tilus', lambda: matmul(m, n, k, a, b, c_actual)),
+            ("torch", lambda: torch.matmul(a, b, out=c_expect)),
+            ("tilus", lambda: matmul(m, n, k, a, b, c_actual)),
         ]:
             latency = benchmark_func(func, warmup=5, repeat=20)
             flops = 2 * m * n * k / latency * 1e-9
             rows.append([m, n, k, name, latency, flops])
 
-    pandas.set_option('display.float_format', lambda x: '%.2f' % x)
+    pandas.set_option("display.float_format", lambda x: "%.2f" % x)
     df = pandas.DataFrame(rows, columns=headers)
     print(df)
+
 
 if __name__ == "__main__":
     main()

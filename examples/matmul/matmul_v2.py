@@ -1,25 +1,26 @@
-import pandas
 import math
-import torch
+
+import pandas
 import pandas as pd
-from tqdm import tqdm
-import functools
-
 import tilus
+import torch
 from tilus import float16, float32, int32
-from tilus.ir.layout import spatial, reduce
-from tilus.utils import prod, parallel_imap, benchmark_func
+from tilus.ir.layout import reduce, spatial
+from tilus.utils import benchmark_func, prod
+
+tilus.option.cache_dir("./cache")
+
+pd.set_option("display.max_columns", None)
+pd.set_option("display.width", None)
+pd.set_option("display.max_rows", None)
+pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
 
-tilus.option.cache_dir('./cache')
-
-pd.set_option('display.max_columns', None)
-pd.set_option('display.width', None)
-pd.set_option('display.max_rows', None)
-
-
-@tilus.autotune('warp_spatial', [[1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1], [1, 4, 1], [2, 2, 1], [4, 1, 1]])
-@tilus.autotune('warp_repeat', [[1, 1, 1], [1, 2, 1], [2, 1, 1], [1, 4, 1], [4, 1, 1], [2, 2, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1]])
+@tilus.autotune("warp_spatial", [[1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1], [1, 4, 1], [2, 2, 1], [4, 1, 1]])
+@tilus.autotune(
+    "warp_repeat",
+    [[1, 1, 1], [1, 2, 1], [2, 1, 1], [1, 4, 1], [4, 1, 1], [2, 2, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1]],
+)
 class MatmulV2(tilus.Script):
     def __init__(
         self,
@@ -63,7 +64,9 @@ class MatmulV2(tilus.Script):
 
             a = self.load_shared(sa, out_layout=self.layout_ra)
             b = self.load_shared(sb, out_layout=self.layout_rb)
-            acc = self.mma_dot(a, b, acc, mma_inst=self.mma.name, warp_spatial=self.warp_spatial, warp_repeat=self.warp_repeat)
+            acc = self.mma_dot(
+                a, b, acc, mma_inst=self.mma.name, warp_spatial=self.warp_spatial, warp_repeat=self.warp_repeat
+            )
             self.sync()
 
         self.free_shared(sa)
@@ -75,7 +78,7 @@ class MatmulV2(tilus.Script):
 
 
 def main():
-    headers = ['m', 'n', 'k', 'name', 'latency (ms)', 'gflops']
+    headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
         [2048, 2048, 2048],
         [4096, 4096, 4096],
@@ -96,14 +99,13 @@ def main():
 
         # benchmark
         for name, func in [
-            ('torch', lambda: torch.matmul(a, b, out=c_expect)),
-            ('tilus', lambda: matmul(m, n, k, a, b, c_actual)),
+            ("torch", lambda: torch.matmul(a, b, out=c_expect)),
+            ("tilus", lambda: matmul(m, n, k, a, b, c_actual)),
         ]:
             latency = benchmark_func(func, warmup=5, repeat=20)
             flops = 2 * m * n * k / latency * 1e-9
             rows.append([m, n, k, name, latency, flops])
 
-    pandas.set_option('display.float_format', lambda x: '%.2f' % x)
     df = pandas.DataFrame(rows, columns=headers)
     print(df)
 

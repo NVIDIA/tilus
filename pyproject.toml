@@ -38,6 +38,7 @@ dev = [
     "mypy==1.15.0",
     "pytest",
     "types-tabulate",
+    "pandas",
 ]
 
 [project.urls]

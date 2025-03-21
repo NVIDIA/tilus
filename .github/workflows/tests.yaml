@@ -40,3 +40,6 @@ jobs:
 
       - name: Run tests
         run: pytest ./tests
+
+      - name: Run examples
+        run: bash .github/workflows/scripts/run-examples.sh
