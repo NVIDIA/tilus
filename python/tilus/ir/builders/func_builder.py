@@ -56,6 +56,7 @@ class FunctionBuilder(StmtBuilder):
                 num_blocks=num_blocks,
                 body=SeqStmt.create(self.builder._stack.pop()),
                 annotations={},
+                metadata=None,
             )
             self.builder._on_finish(built_function)
 

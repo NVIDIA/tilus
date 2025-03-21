@@ -354,7 +354,7 @@ class SqueezeRegisterLayout(RegisterLayout):
             if dim in self.dims:
                 base_global_indices.append(int32.zero)
             else:
-                base_global_indices.append(global_indices.pop(int32.zero))
+                base_global_indices.append(global_indices.pop(0))
         return base_global_indices
 
     def is_simple(self) -> bool:

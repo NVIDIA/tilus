@@ -1,6 +1,5 @@
 from typing import Generic, TypeVar
 
-# Type variables for keys and values
 K = TypeVar("K")
 V = TypeVar("V")
 
@@ -8,10 +7,13 @@ V = TypeVar("V")
 class frozendict(dict, Generic[K, V]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._frozen = True  # Mark as frozen after initialization
+        self._frozen = True
 
     def __setitem__(self, key, value):
-        self._raise_immutable_error()
+        if hasattr(self, "_frozen") and self._frozen:
+            self._raise_immutable_error()
+        else:
+            super().__setitem__(key, value)
 
     def __delitem__(self, key):
         self._raise_immutable_error()
@@ -35,5 +37,12 @@ class frozendict(dict, Generic[K, V]):
         raise TypeError("frozendict is immutable and does not support modification")
 
     def __hash__(self):
-        # Make it hashable like frozenset
         return hash(tuple(sorted(self.items())))
+
+    def __getstate__(self):
+        return dict(self)
+
+    def __setstate__(self, state):
+        self._frozen = False
+        super().__init__(state)
+        self._frozen = True

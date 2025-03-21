@@ -1,13 +1,12 @@
+from __future__ import annotations
+
 import typing
-from types import FunctionType
-from typing import Callable, Iterable, Literal, Optional, Sequence, Union
+from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
 from hidet.ir.dtypes import boolean
 from hidet.ir.expr import Expr, Var
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3
 from hidet.ir.type import DataType
-from hidet.runtime.compiled_module import CompiledModule
-from tilus.drivers import BuildOptions, build_program
 from tilus.ir.inst import (
     AllocateRegisterInst,
     AllocateSharedInst,
@@ -27,57 +26,11 @@ from tilus.ir.inst import (
     SyncThreadsInst,
 )
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_repeat, global_strides
-from tilus.ir.prog import Program
 from tilus.ir.stmt import InstStmt, Stmt
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
 from tilus.lang.utils import group_function_argument
-
-
-class CompiledScript:
-    def __init__(self) -> None:
-        self._program: Optional[Program] = None
-        self._compiled_module: Optional[CompiledModule] = None
-        self._kernels: set[str] = set()
-
-        self._detect_kernels()
-
-    def __getattribute__(self, item):
-        if item in super().__getattribute__("_kernels"):
-            return self.compiled()[item]
-        else:
-            return super().__getattribute__(item)
-
-    def _detect_kernels(self) -> None:
-        # get the method list unique to the current class
-        current_class = self.__class__
-        script_class = Script
-        unique_attrs: set[str] = set(dir(current_class)) - set(dir(script_class))
-        unique_methods: list[str] = [name for name in unique_attrs if callable(getattr(current_class, name))]
-
-        # if the method is a function, add it to the kernel list with a None value
-        kernels = set()
-        for unique_method in unique_methods:
-            if isinstance(getattr(current_class, unique_method), FunctionType):
-                kernels.add(unique_method)
-        self._kernels = kernels
-
-    def compiled(self) -> CompiledModule:
-        raise NotImplementedError()
-
-
-class ScriptTracer:
-    def __init__(self) -> None:
-        from tilus.lang.transpiler import Transpiler
-
-        self._transpiler: Optional[Transpiler] = None
-
-    def _append(self, inst_or_stmt: Union[Instruction, Stmt]) -> None:
-        assert self._transpiler is not None
-
-        stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstStmt(inst=inst_or_stmt)
-        self._transpiler.current_scope.stmts.append(stmt)
 
 
 class Attributes:
@@ -119,10 +72,28 @@ class Attributes:
         super().__setattr__(key, value)
 
 
-class Script(CompiledScript, ScriptTracer):
-    def __init__(self, debug_block: Optional[tuple[int, ...] | int] = None) -> None:
-        super().__init__()
-        self._debug_block = debug_block
+class Script:
+    # the compiled program will print the instruction output of the specified block
+    debug_block: Optional[tuple[int, int, int]] = None
+
+    # specify the schedule used for debugging, this will override any autotune space
+    debug_schedule: Optional[dict[str, Any]] = None
+
+    def __new__(cls, *args, **kwargs):
+        from tilus.lang.instantiated_script import InstantiatedScript
+
+        script_cls: Type[Script] = cls
+        return InstantiatedScript(
+            script_cls=script_cls,
+            script_args=args,
+            script_kwargs=kwargs,
+        )
+
+    def __init__(self) -> None:
+        from tilus.lang.transpiler import Transpiler
+
+        # transpiler used to append instructions
+        self._transpiler: Optional[Transpiler] = None
 
         # the following attributes should be set by the user in the kernel function
         self.attrs: Attributes = Attributes()
@@ -132,43 +103,16 @@ class Script(CompiledScript, ScriptTracer):
         self.cuda = cuda
         self.utils = utils
 
-    def __call__(self, *args):
-        return self.compiled()(*args)
-
-    def program(self):
+    def _append(self, inst_or_stmt: Union[Instruction, Stmt]) -> None:
         """
-        Get the tilus.ir.Program object from the script.
-
-        Returns
-        -------
-        prog: Program
-            The corresponding program of this script.
+        Internal utility function used to append an instruction or a statement to the current scope of transpiler.
         """
-        from tilus.lang.transpiler import Transpiler
+        assert self._transpiler is not None
 
-        if self._program is None:
-            functions = {}
-            for kernel in self._kernels:
-                transpiler = Transpiler()
-                functions[kernel] = transpiler.transpile(script=self, method=getattr(self.__class__, kernel))
-            self._program = Program.create(functions=functions)
+        stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstStmt(inst=inst_or_stmt)
+        self._transpiler.current_scope.stmts.append(stmt)
 
-        return self._program
-
-    def compiled(self) -> CompiledModule:
-        """
-        Get the compiled module of this script.
-
-        Returns
-        -------
-        module: CompiledModule
-            The compiled module.
-        """
-        if self._compiled_module is None:
-            self._compiled_module = build_program(self.program(), options=BuildOptions.create(self._debug_block))
-        return self._compiled_module
-
-    # the following functions should be called in the kernel function
+    # the following functions should only be called in the __call__ function to construct the script program
 
     @staticmethod
     def range(
@@ -415,3 +359,21 @@ class Script(CompiledScript, ScriptTracer):
     def printf(self, fstring: str, *args: Expr | int | float) -> None:
         inst = FormatPrintInst.create(cond=boolean.true, fstring=fstring, expressions_=args)
         self._append(inst)
+
+
+def autotune(arg_names: str, arg_values: Sequence[Any]) -> Callable[[Type[Script]], Any]:
+    def decorator(script_cls):
+        if not hasattr(script_cls, "_autotune_space"):
+            script_cls._autotune_space = {}
+        space = getattr(script_cls, "_autotune_space")
+        names = [name.strip() for name in arg_names.split(",")]
+        if any(name in space for name in names):
+            common_names = set(names) & set(space.keys())
+            raise RuntimeError("Duplicated specification for parameters: {}".format(common_names))
+        space[arg_names] = arg_values
+        setattr(script_cls, "_autotune_space", space)
+
+        # return functools.wraps(wrapped=script_cls, assigned=arg_names)(script_cls)
+        return script_cls
+
+    return decorator

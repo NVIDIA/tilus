@@ -362,11 +362,9 @@ class IRRewriter(IRFunctor):
         if same_list(
             [
                 body,
-                # block_mapping, weight_transforms
             ],
             [
                 func.body,
-                # func.block_mapping, func.weight_transforms
             ],
         ):
             return func
@@ -378,6 +376,7 @@ class IRRewriter(IRFunctor):
                 num_blocks=func.num_blocks,
                 body=body,
                 annotations=func.annotations,
+                metadata=func.metadata,
             )
 
     def visit_InstStmt(self, stmt: InstStmt) -> Stmt:

@@ -14,7 +14,7 @@ class DumpIRInstrument(PassInstrument):
 
     def before_all_passes(self, program: Program) -> None:
         printer = IRPrinter()
-        with open(self.dump_dir / "0_original.txt", "w") as f:
+        with open(self.dump_dir / "0_Original.txt", "w") as f:
             f.write(str(printer(program)))
 
         self.count = 1

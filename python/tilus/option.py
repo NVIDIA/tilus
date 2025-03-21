@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +45,12 @@ def _register_options():
         description="The directory to store the cache files.",
     )
     _register_hidet_option(
+        "tilus.parallel_workers",
+        type_hint="int",
+        default_value=os.cpu_count(),
+        description="The number of parallel workers the tilus package could use for parallel jobs.",
+    )
+    _register_hidet_option(
         "tilus.debug.dump_ir",
         type_hint="bool",
         default_value=False,
@@ -80,6 +87,18 @@ def cache_dir(dir_path: str | Path) -> None:
         The path to the cache directory.
     """
     _set_hidet_option("tilus.cache_dir", str(dir_path))
+
+
+def parallel_workers(n: int) -> None:
+    """
+    Set the number of parallel workers the tilus package could use for parallel jobs (e.g., parallel compilation).
+
+    Parameters
+    ----------
+    n: int
+        The number of parallel workers.
+    """
+    return _set_hidet_option("tilus.parallel_workers", n)
 
 
 class debug:

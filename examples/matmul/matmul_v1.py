@@ -1,16 +1,20 @@
+import torch
+import pandas
 import math
 
-import pytest
 import tilus
-import torch
 from tilus import float16, float32, int32
+from tilus.utils import benchmark_func
+
+
+tilus.option.cache_dir('./cache')
+
 
 
 class MatmulV1(tilus.Script):
-    def __init__(self):
+    def __init__(self, n_size: int, k_size: int):
         super().__init__()
         self.mma = self.cuda.mma.m16n8k16_f16_f32
-
         self.block_m = self.mma.m
         self.block_n = self.mma.n
         self.block_k = self.mma.k
@@ -47,21 +51,38 @@ class MatmulV1(tilus.Script):
         gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
         self.store_global(gc, casted_acc, offsets=[offset_m, offset_n])
 
+def main():
+    headers = ['m', 'n', 'k', 'name', 'latency (ms)', 'gflops']
+    workloads = [
+        [2048, 2048, 2048],
+        [4096, 4096, 4096],
+    ]
 
-@pytest.mark.parametrize("m", [129, 257, 511])
-@pytest.mark.parametrize("n, k", [[234, 456]])
-def test_matmul_v1(m, n, k):
-    matmul = MatmulV1()
-    a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
-    b = (torch.rand(k, n, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
-    c = torch.empty(m, n, dtype=torch.float16).cuda()
-    c_ref = a @ b
+    rows = []
+    for m, n, k in workloads:
+        matmul = MatmulV1()
 
-    matmul(m, n, k, a, b, c)
+        a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
+        b = (torch.rand(k, n, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
+        c_actual = torch.empty(m, n, dtype=torch.float16).cuda()
+        c_expect = a @ b
+        matmul(m, n, k, a, b, c_actual)
 
-    torch.cuda.synchronize()
+        # check correctness
+        torch.testing.assert_close(c_expect, c_actual, atol=1e-2, rtol=1e-2)
 
-    torch.testing.assert_close(
-        actual=c,
-        expected=c_ref,
-    )
+        # benchmark
+        for name, func in [
+            ('torch', lambda: torch.matmul(a, b, out=c_expect)),
+            ('tilus', lambda: matmul(m, n, k, a, b, c_actual)),
+        ]:
+            latency = benchmark_func(func, warmup=5, repeat=20)
+            flops = 2 * m * n * k / latency * 1e-9
+            rows.append([m, n, k, name, latency, flops])
+
+    pandas.set_option('display.float_format', lambda x: '%.2f' % x)
+    df = pandas.DataFrame(rows, columns=headers)
+    print(df)
+
+if __name__ == "__main__":
+    main()

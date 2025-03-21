@@ -11,7 +11,7 @@ from typing import Any, Optional, Sequence, Tuple, Type, Union
 import tilus.lang.constructs.loops
 from hidet import ir as hidet_ir
 from hidet.ir.analyzers import normalize_launch_dims
-from hidet.ir.expr import Var
+from hidet.ir.expr import Constant, Var
 from hidet.ir.type import BaseType, data_type
 from hidet.lang.script import eliminate_decorators, eliminate_indent
 from hidet.lang.transpiler import HidetProgramError, PythonAstFunctor
@@ -19,7 +19,7 @@ from tilus import ir as tilus_ir
 from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir import RegisterTensor
 from tilus.ir.builders import IRBuilder
-from tilus.ir.func import Function
+from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import AssignInst, Instruction
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.stmt import AssignStmt, DeclareStmt, InstStmt, SeqStmt, Stmt
@@ -126,7 +126,9 @@ class Transpiler(PythonAstFunctor):
         super().__init__(file="", start_lineno=0, start_column=0)
         self.ib = IRBuilder()
         self.scope_stack = ScopeStack()
-        self.method_annotations: dict[str, Any] = {}
+        self.type_annotations: dict[str, Any] = {}
+        self.name2consts: dict[str, Constant] = {}
+        self.name2divisibility: dict[str, int] = {}
 
         self._script: Optional[Script] = None
 
@@ -143,8 +145,11 @@ class Transpiler(PythonAstFunctor):
             raise RuntimeError("The script is not set.")
         return self._script
 
-    def transpile(self, script: Script, method: types.FunctionType) -> Function:
+    def transpile(
+        self, script: Script, name2consts: dict[str, Constant], name2divisibility: dict[str, int]
+    ) -> Function:
         # Extract the source code of given function
+        method = script.__class__.__call__
         lines, start_line = inspect.getsourcelines(method)
         file: Optional[str] = inspect.getsourcefile(method)
         if file is None:
@@ -169,7 +174,9 @@ class Transpiler(PythonAstFunctor):
         env.update(dict(zip(func_freevar_names, func_freevar_cells)))
 
         # get the type annotations of function parameters.
-        self.method_annotations = dict(method.__annotations__.items())
+        self.type_annotations = dict(method.__annotations__.items())
+        self.name2consts = name2consts
+        self.name2divisibility = name2divisibility
         with self.scope() as env_scope:
             for name, value in env.items():
                 env_scope.bind(name, value)
@@ -307,28 +314,29 @@ class Transpiler(PythonAstFunctor):
             # make sure that the function parameters only have normal positional arguments
             if args.vararg is not None:
                 raise TilusProgramError(self, args.vararg, 'Tilus program does not support "*args" arguments.')
-            if len(args.kwonlyargs) != 0:
-                raise TilusProgramError(self, args.kwonlyargs[0], 'Tilus program does not support "*kwargs" arguments.')
             if args.kwarg is not None:
-                raise TilusProgramError(self, args.kwarg, "Tilus program does not support keyword arguments.")
-            if len(args.kw_defaults) > 0:
-                raise TilusProgramError(self, args.kw_defaults[0], "Tilus does not support default argument.")
-            if len(args.defaults) > 0:
-                raise TilusProgramError(self, args.defaults[0], "Tilus does not support default argument.")
+                raise TilusProgramError(self, args.kwarg, 'Tilus program does not support "**kwargs" arguments.')
 
+            divisibility: dict[Var, int] = {}
             for idx, arg in enumerate(args.args):
                 arg_name = arg.arg
 
                 if idx == 0 and arg_name == "self":
                     continue
-                if arg_name not in self.method_annotations:
+                if arg_name in self.name2consts:
+                    value = self.name2consts[arg_name]
+                    self.current_scope.bind(arg_name, value)
+                    continue
+                if arg_name not in self.type_annotations:
                     raise TilusProgramError(self, arg, "Tilus expects type annotation for each function parameter.")
 
-                arg_type = self.method_annotations[arg_name]
+                arg_type = self.type_annotations[arg_name]
                 processed_arg_type: BaseType = self.process_param_ret_type(arg, arg_type)
                 param_var = Var(hint=arg_name, type=processed_arg_type)
                 func_params.append(param_var)
                 scope.bind(arg_name, param_var)
+                if arg_name in self.name2divisibility:
+                    divisibility[param_var] = self.name2divisibility[arg_name]
 
             # return type
             if func_def.returns is not None:
@@ -365,6 +373,7 @@ class Transpiler(PythonAstFunctor):
                 num_blocks=blocks,
                 body=scope.flush_stmts(),
                 annotations={},
+                metadata=Metadata.create(divisibility),
             )
 
     def visit_Expr(self, expr: ast.Expr) -> None:

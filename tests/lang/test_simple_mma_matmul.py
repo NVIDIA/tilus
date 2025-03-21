@@ -16,7 +16,7 @@ class Matmul(tilus.Script):
         self.block_n = self.mma.n
         self.block_k = self.mma.k
 
-    def kernel(self, m_size: int32, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
+    def __call__(self, m_size: int32, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
         self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(self.n_size, self.block_n)]
         self.attrs.warps = 1
 
@@ -58,7 +58,7 @@ def test_simple_mma_matmul(m, n, k):
     b = (torch.rand(k, n, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
     c = torch.empty(m, n, dtype=torch.float16).cuda()
     c_ref = a @ b
-    matmul.kernel(m, a, b, c)
+    matmul(m, a, b, c)
 
     torch.testing.assert_close(
         actual=c,

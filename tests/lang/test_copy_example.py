@@ -12,7 +12,7 @@ class MemoryCopy(tilus.Script):
         self.block_size: int = num_warps * 32
         self.layout: RegisterLayout = spatial(num_warps * 32)
 
-    def kernel(self, n: int32, src_ptr: ~float32, dst_ptr: ~float32):  # type: ignore
+    def __call__(self, n: int32, src_ptr: ~float32, dst_ptr: ~float32):  # type: ignore
         self.attrs.blocks = [cdiv(n, self.block_size) * self.block_size]
         self.attrs.warps = self.num_warps
 
@@ -40,16 +40,7 @@ def test_tilus_script_with_copy_example():
     script = MemoryCopy()
     n = a.size(0)
 
-    # get the program
-    print(script.program())
-
-    # get the compiled module and print the source
-    print(script.compiled().source())
-
-    # launch the kernel (when there is only one kernel defined)
+    # launch the kernel
     script(n, a, b)
-
-    # launch by method
-    script.kernel(n, a, b)
 
     torch.testing.assert_close(a, b)

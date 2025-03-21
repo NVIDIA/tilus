@@ -14,6 +14,7 @@ from hidet.ir.dtypes import (
     uint64,
 )
 from tilus.ir.layout import RegisterLayout, SharedLayout
-from tilus.lang.script import Script
+from tilus.lang.instantiated_script import InstantiatedScript
+from tilus.lang.script import Script, autotune
 
 from . import option, utils

@@ -1,7 +1,6 @@
 from tilus.drivers import build_program
 from tilus.ir.builders import IRBuilder
-
-from hidet.runtime import CompiledModule
+from tilus.runtime import CompiledProgram
 
 
 def test_compile_hello_world():
@@ -13,6 +12,6 @@ def test_compile_hello_world():
 
     program = ib.flush_program()
 
-    compiled_module: CompiledModule = build_program(program)
+    compiled_module: CompiledProgram = build_program(program)
 
     compiled_module()

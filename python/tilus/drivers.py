@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import dataclasses
+import functools
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,11 +13,10 @@ import tilus.option
 from hidet.backend.build import compile_source
 from hidet.drivers.build_module import write_function_types
 from hidet.ir.module import IRModule
-from hidet.runtime.compiled_module import CompiledModule, compiled_module_exists, load_compiled_module
 from tilus.backends.codegen import generate_ir_module
 from tilus.extensions.hidet.backend.codegen import codegen
 from tilus.ir.prog import Program
-from tilus.ir.tools.printer import IRPrinter
+from tilus.runtime import CompiledProgram, compiled_program_exists, load_compiled_program
 
 
 @dataclass(frozen=True)
@@ -27,18 +28,23 @@ class BuildOptions:
     debug_block: Optional[tuple[int, int, int]] = None
 
     @staticmethod
-    def create(debug_block_: Optional[Sequence[int] | int]) -> BuildOptions:
-        if debug_block_ is None:
-            debug_block = None
+    def _normalize_debug_block(debug_block: Optional[Sequence[int] | int]) -> Optional[tuple[int, int, int]]:
+        if debug_block is None:
+            return None
         else:
-            if isinstance(debug_block_, int):
-                debug_block_ = [debug_block_]
-            debug_block_ = list(debug_block_)
-            while len(debug_block_) < 3:
-                debug_block_.append(0)
-            debug_block = (debug_block_[0], debug_block_[1], debug_block_[2])
+            if isinstance(debug_block, int):
+                debug_block = [debug_block]
+            debug_block = list(debug_block)
+            while len(debug_block) < 3:
+                debug_block.append(0)
+            return debug_block[0], debug_block[1], debug_block[2]
 
-        return BuildOptions(debug_block=debug_block)
+    @staticmethod
+    def create(debug_block: Optional[Sequence[int] | int] = None) -> BuildOptions:
+        return BuildOptions(debug_block=BuildOptions._normalize_debug_block(debug_block))
+
+    def with_debug_block(self, debug_block_: Optional[Sequence[int] | int] = None) -> BuildOptions:
+        return dataclasses.replace(self, debug_block=BuildOptions._normalize_debug_block(debug_block_))
 
 
 def optimize_program(program: Program, options: BuildOptions, cache_dir: Path) -> Program:
@@ -119,7 +125,8 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         return lower_with(ir_module, common_transforms)
 
 
-def _resolve_cache_dir(prog: Program, options: BuildOptions) -> Path:
+@functools.lru_cache(maxsize=1024)
+def get_cache_dir(prog: Program, options: BuildOptions) -> Path:
     """
     Resolve the cache directory for the program.
 
@@ -139,8 +146,7 @@ def _resolve_cache_dir(prog: Program, options: BuildOptions) -> Path:
     cache_dir: Path
         The cache directory.
     """
-    printer = IRPrinter()
-    prog_text: str = str(printer(prog))
+    prog_text: str = str(prog)
     options_text: str = str(options)
     hex_digest: str = hashlib.sha256(options_text.encode() + prog_text.encode()).hexdigest()[:12]
     cache_dir: Path = Path(tilus.option.get_option("cache_dir")) / "programs" / hex_digest
@@ -166,9 +172,11 @@ def _resolve_cache_dir(prog: Program, options: BuildOptions) -> Path:
     return cache_dir
 
 
-def build_program(prog: Program, options: Optional[BuildOptions] = None) -> CompiledModule:
+def build_program(
+    prog: Program, options: Optional[BuildOptions] = None, load: bool = True
+) -> Optional[CompiledProgram]:
     """
-    Build the program into a compiled module that could be executed directly.
+    Build the program into a compiled program that could be executed directly.
 
     Parameters
     ----------
@@ -178,26 +186,31 @@ def build_program(prog: Program, options: Optional[BuildOptions] = None) -> Comp
     options: BuildOptions, optional
         The options for building the program.
 
+    load: bool
+        Whether to load the compiled module after building. Default is False.
+
     Returns
     -------
-    compiled_module: CompiledModule
-        The compiled module.
+    compiled_module: CompiledProgram, optional
+        The compiled program.
     """
     if options is None:
         options = BuildOptions()
-    cache_dir: Path = _resolve_cache_dir(prog, options)
-    module_dir: Path = cache_dir / "module"
+    cache_dir: Path = get_cache_dir(prog, options)
 
     # the program has finished building the program, load the compiled module
-    if compiled_module_exists(str(module_dir)):
-        return load_compiled_module(str(module_dir))
+    if compiled_program_exists(cache_dir):
+        if load:
+            return load_compiled_program(cache_dir)
+        else:
+            return None
 
     # lock the cache directory to prevent multiple processes from building the program at the same time
     lock_path = cache_dir / ".lock"
     with filelock.FileLock(str(lock_path)):
         # check if the program has been built by another process
-        if compiled_module_exists(str(module_dir)):
-            return load_compiled_module(str(module_dir))
+        if compiled_program_exists(cache_dir):
+            return load_compiled_program(cache_dir)
 
         # otherwise, build the program
         # 1. optimize the program
@@ -210,6 +223,7 @@ def build_program(prog: Program, options: Optional[BuildOptions] = None) -> Comp
         ir_module = optimize_ir_module(ir_module, cache_dir)
 
         # 4. generate the low-level code (CUDA C)
+        module_dir = cache_dir / "module"
         src_path = module_dir / "source.cu"
         codegen(ir_module, src_out_path=str(src_path), target="cuda")
 
@@ -220,4 +234,7 @@ def build_program(prog: Program, options: Optional[BuildOptions] = None) -> Comp
         lib_path = module_dir / "lib.so"
         compile_source(source_file=str(src_path), output_library_file=str(lib_path), target="cuda")
 
-        return load_compiled_module(str(module_dir))
+        if load:
+            return load_compiled_program(cache_dir)
+        else:
+            return None
