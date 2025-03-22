@@ -1,3 +1,2 @@
 from .printer import IRPrinter
-
-__all__ = ["IRPrinter"]
+from .verifier import Diagnostics, IRVerifier, VerificationError, verify

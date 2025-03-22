@@ -16,6 +16,7 @@ from hidet.ir.module import IRModule
 from tilus.backends.codegen import generate_ir_module
 from tilus.extensions.hidet.backend.codegen import codegen
 from tilus.ir.prog import Program
+from tilus.ir.tools import verify
 from tilus.runtime import CompiledProgram, compiled_program_exists, load_compiled_program
 
 
@@ -213,6 +214,9 @@ def build_program(
             return load_compiled_program(cache_dir)
 
         # otherwise, build the program
+        # 0. verify the program
+        verify(prog)
+
         # 1. optimize the program
         prog = optimize_program(prog, options=options, cache_dir=cache_dir)
 

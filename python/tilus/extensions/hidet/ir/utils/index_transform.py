@@ -119,6 +119,44 @@ def index_within_bound(
     return logical_and(*conditions)
 
 
-def const_index_multiply(lhs_indices: Sequence[int], rhs_indices: Sequence[int]) -> List[int]:
-    assert len(lhs_indices) == len(rhs_indices), "Expect both indices have the same length"
-    return [a * b for a, b in zip(lhs_indices, rhs_indices)]
+def vector_mul(lhs: Sequence[int], rhs: Sequence[int] | int) -> List[int]:
+    if isinstance(rhs, int):
+        rhs = [rhs for _ in lhs]
+    assert len(lhs) == len(rhs), "Expect both indices have the same length"
+    return [a * b for a, b in zip(lhs, rhs)]
+
+
+def vector_add(lhs: Sequence[int], rhs: Sequence[int] | int) -> List[int]:
+    if isinstance(rhs, int):
+        rhs = [rhs for _ in lhs]
+    assert len(lhs) == len(rhs), "Expect both indices have the same length"
+    return [a + b for a, b in zip(lhs, rhs)]
+
+
+def vector_sub(lhs: Sequence[int], rhs: Sequence[int] | int) -> List[int]:
+    if isinstance(rhs, int):
+        rhs = [rhs for _ in lhs]
+    assert len(lhs) == len(rhs), "Expect both indices have the same length"
+    return [a - b for a, b in zip(lhs, rhs)]
+
+
+def vector_div(lhs: Sequence[int], rhs: Sequence[int] | int) -> List[int]:
+    if isinstance(rhs, int):
+        rhs = [rhs for _ in lhs]
+    assert len(lhs) == len(rhs), "Expect both indices have the same length"
+    return [a // b for a, b in zip(lhs, rhs)]
+
+
+def vector_within_bound(
+    indices: Sequence[int],
+    lower_bound: Sequence[int] | int,
+    upper_bound: Sequence[int] | int,
+) -> bool:
+    # check if the indices are within the bound
+    if isinstance(lower_bound, int):
+        lower_bound = [lower_bound for _ in indices]
+    if isinstance(upper_bound, int):
+        upper_bound = [upper_bound for _ in indices]
+    assert len(indices) == len(lower_bound) == len(upper_bound), "Expect all indices have the same length"
+    conditions = [lower <= idx < upper for lower, idx, upper in zip(lower_bound, indices, upper_bound)]
+    return all(conditions)

@@ -16,7 +16,7 @@ pd.set_option("display.max_rows", None)
 pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
 
-@tilus.autotune("warp_spatial", [[1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1], [1, 4, 1], [2, 2, 1], [4, 1, 1]])
+@tilus.autotune("warp_spatial", [[1, 8], [2, 4], [4, 2], [8, 1], [1, 4], [2, 2], [4, 1]])
 @tilus.autotune(
     "warp_repeat",
     [[1, 1, 1], [1, 2, 1], [2, 1, 1], [1, 4, 1], [4, 1, 1], [2, 2, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1]],
@@ -24,23 +24,23 @@ pd.set_option("display.float_format", lambda x: "%.2f" % x)
 class MatmulV2(tilus.Script):
     def __init__(
         self,
-        warp_spatial: tuple[int, int, int],
+        warp_spatial: tuple[int, int],
         warp_repeat: tuple[int, int, int],
     ):
         super().__init__()
         self.mma = self.cuda.mma.m16n8k16_f16_f32
         self.block_m = self.mma.m * warp_spatial[0] * warp_repeat[0]
         self.block_n = self.mma.n * warp_spatial[1] * warp_repeat[1]
-        self.block_k = self.mma.k * warp_spatial[2] * warp_repeat[2]
+        self.block_k = self.mma.k * warp_repeat[2]
         self.num_warps = prod(warp_spatial)
 
-        wsm, wsn, wsk = warp_spatial
+        wsm, wsn = warp_spatial
         wrm, wrn, wrk = warp_repeat
         self.warp_spatial = warp_spatial
         self.warp_repeat = warp_repeat
-        self.layout_ra = reduce(spatial(wsm, wsk, wsn, ranks=[1, 0, 2]), dims=[2]).repeat(wrm, wrk) * self.mma.la
-        self.layout_rb = reduce(spatial(wsk, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk, wrn) * self.mma.lb
-        self.layout_rc = reduce(spatial(wsm, wsn, wsk, ranks=[0, 1, 2]), dims=[2]).repeat(wrm, wrn) * self.mma.lc
+        self.layout_ra = reduce(spatial(wsm, 1, wsn, ranks=[1, 0, 2]), dims=[2]).repeat(wrm, wrk) * self.mma.la
+        self.layout_rb = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk, wrn) * self.mma.lb
+        self.layout_rc = spatial(wsm, wsn).repeat(wrm, wrn) * self.mma.lc
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
         self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
@@ -112,3 +112,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # sanitizer_run(main)

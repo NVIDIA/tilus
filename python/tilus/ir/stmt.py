@@ -77,6 +77,12 @@ class AssignStmt(Stmt):
 
 
 @dataclass(frozen=True, eq=False)
+class EvaluateStmt(Stmt):
+    expr: Expr
+    pred: Optional[Expr]
+
+
+@dataclass(frozen=True, eq=False)
 class TensorPtrStmt(Stmt):
     ptr_var: Var
     tensor: Tensor

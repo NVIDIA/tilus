@@ -3,6 +3,7 @@ import inspect
 import json
 import os
 import pickle
+import shutil
 import traceback
 from itertools import product
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any, Mapping, Optional, Sequence, Type
 
 import filelock
 import tabulate
+from tqdm import tqdm
 
 import tilus.option
 from hidet.ir import Constant
@@ -227,6 +229,27 @@ _init_divisibility_key()
 
 
 def extract_keys(args: Sequence[Any], const_params: list[int], tuning_params: list[int]) -> tuple[JitKey, TuningKey]:
+    """
+    Extract the JIT key and the tuning key from the arguments.
+
+    This function is on the hot path, thus we should try to maximize its performance.
+
+    Parameters
+    ----------
+    args: Sequence[Any]
+        The calling arguments to __call__ of Script.
+
+    const_params: list[int]
+        The index of the constant parameters in the __call__ function.
+
+    tuning_params: list[int]
+        The index of the tuning parameters in the __call__ function.
+
+    Returns
+    -------
+    keys: tuple[JitKey, TuningKey]
+        The JIT key and the tuning key.
+    """
     jit_key = []
     tuning_key = []
     for i in const_params:
@@ -236,6 +259,15 @@ def extract_keys(args: Sequence[Any], const_params: list[int], tuning_params: li
         jit_key.append(divisibility_key[arg % 32])
         arg_block = 2 ** max((arg.bit_length() - 2), 0)
         tuning_key.append((arg - arg_block + 1) // arg_block * arg_block)
+    return tuple(jit_key), tuple(tuning_key)
+
+
+def construct_keys(const_params: Sequence[Any], tuning_params: Sequence[int]) -> tuple[JitKey, TuningKey]:
+    jit_key = list(const_params)
+    tuning_key = []
+    for arg in tuning_params:
+        block = 1 << max((arg.bit_length() - 2), 0)
+        tuning_key.append((arg - block + 1) // block * block)
     return tuple(jit_key), tuple(tuning_key)
 
 
@@ -249,24 +281,40 @@ class JitInstance:
         jit_key: JitKey,
     ):
         self.script_cls: Type[Script] = script_cls
+        self.instance_name: str = self._instance_name(script_cls, call_params, jit_key)
         self.call_params: CallParameters = call_params
         self.build_options: BuildOptions = build_options
         self.schedules: list[dict[str, Any]] = schedules
         self.jit_key: JitKey = jit_key
 
-        self.programs: list[Program] = []
+        # the programs that have been successfully transpiled
+        self.transpiled_programs: list[Program] = []
+        self.transpiled_schedules: list[int] = []
+        self.failed_scheduling: list[str] = []
+
+        # the programs that have been successfully transpiled and built
+        self.valid_programs: list[Program] = []
         self.valid_schedules: list[int] = []
         self.compiled_programs: list[CompiledProgram] = []
-        self.failed_scheduling: list[str] = []
         self.failed_building: list[tuple[str, str]] = []
+
         self.dispatch_table: dict[TuningKey, int] = {}
         self.cache_dir: Path = Path()
 
-        self.initialize()
+        self._transpile_programs()
 
-        # some checks
-        if script_cls.debug_block and len(self.compiled_programs) > 1:
-            raise ValueError("Please specify the debug_schedule when debug_block is set. ")
+    @staticmethod
+    def _instance_name(script_cls: Type[Script], call_params: CallParameters, jit_key: JitKey) -> str:
+        script_name = to_snake_case(script_cls.__name__)
+        keys: list[Any] = list(jit_key)
+        items = [script_name]
+        for _ in call_params.const_params:
+            items.append("{}".format(keys.pop(0)))
+
+        for _ in call_params.tuning_params:
+            items.append("d{}".format(keys.pop(0)))
+
+        return "-".join(items)
 
     @staticmethod
     def _instantiate_schedule(job: Any) -> Program | str:
@@ -313,7 +361,7 @@ class JitInstance:
         else:
             return "success"
 
-    def initialize(self):
+    def _transpile_programs(self):
         # prepare the jobs for instantiating the schedules
         scheduling_jobs = []
         for idx, schedule in enumerate(self.schedules):
@@ -329,13 +377,20 @@ class JitInstance:
             scheduling_jobs.append((self.script_cls, self.call_params, schedule, name2const, name2divisibility))
 
         # instantiate the schedules into programs in parallel
-        programs: list[Program] = []
-        schedules: list[int] = []
-        for idx, item in enumerate(parallel_imap(func=JitInstance._instantiate_schedule, jobs=scheduling_jobs)):
+        for idx, item in enumerate(
+            tqdm(
+                iterable=parallel_imap(func=JitInstance._instantiate_schedule, jobs=scheduling_jobs),
+                desc="[{}] {}".format("Scheduling", self.instance_name),
+                total=len(scheduling_jobs),
+                ncols=100,
+                delay=1,
+            )
+        ):
             if isinstance(item, Program):
-                programs.append(item)
-                schedules.append(idx)
+                self.transpiled_programs.append(item)
+                self.transpiled_schedules.append(idx)
             else:
+                assert isinstance(item, str)
                 sections = {"Schedule": str(self.schedules[idx]), "Traceback": nocolor(item)}
                 lines = []
                 for key, value in sections.items():
@@ -346,78 +401,25 @@ class JitInstance:
                     lines.append("")
                 self.failed_scheduling.append("\n".join(lines))
 
-        # build the programs in parallel
-        building_jobs = [(program, self.build_options) for program in programs]
-        for idx, item in enumerate(parallel_imap(func=JitInstance._build_program, jobs=building_jobs)):
-            program_cache_dir = get_cache_dir(programs[idx], options=self.build_options)
-            if item == "success":
-                self.programs.append(programs[idx])
-                self.valid_schedules.append(schedules[idx])
-                self.compiled_programs.append(load_compiled_program(program_cache_dir))  #
-            else:
-                sections = {
-                    "Schedule": str(self.schedules[idx]),
-                    "Program": str(programs[idx]),
-                    "Traceback": nocolor(item),
-                }
-                lines = []
-                for key, value in sections.items():
-                    lines.append(key)
-                    lines.append("=" * len(key))
-                    lines.append("")
-                    lines.append(value)
-                    lines.append("")
-                self.failed_building.append(("\n".join(lines), str(program_cache_dir)))
-
         # get the cache dir for this jit instance
-        concatenated_program_text = "\n".join([str(program) for program in self.programs])
+        concatenated_program_text = "\n".join([str(program) for program in self.valid_programs])
         option_text = str(self.build_options)
         hash_string = option_text + concatenated_program_text
         hash_key = hashlib.sha256(hash_string.encode()).hexdigest()[:8]
         jit_name_items = [to_snake_case(self.script_cls.__name__)] + [str(key) for key in self.jit_key] + [hash_key]
         self.cache_dir = Path(tilus.option.get_option("cache_dir")) / "scripts" / "-".join(jit_name_items)
-
-        # initialize the script cache if it does not exist
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+
         lock_path = self.cache_dir / ".lock"
         with filelock.FileLock(lock_path):
-            # add soft link to the cache dirs of compiled programs
-            programs_dir = self.cache_dir / "programs"
-            if not programs_dir.exists():
-                programs_dir.mkdir()
-                for idx, compiled_program in enumerate(self.compiled_programs):
-                    start_path = (programs_dir / str(idx)).resolve()
-                    target_path = compiled_program.program_dir.resolve()
-                    relative_path = relative_to_with_walk_up(start_path.parent, target=target_path)
-                    os.symlink(relative_path, start_path)
-
-            # write the schedule.txt
-            schedule_path = self.cache_dir / "schedule.txt"
-            if not schedule_path.exists() and self.valid_schedules:
-                headers = ["index"] + list(self.schedules[self.valid_schedules[0]].keys())
-                rows = []
-                for idx in self.valid_schedules:
-                    rows.append([idx] + list(self.schedules[idx].values()))
-                with open(schedule_path, "w") as f:
-                    f.write(tabulate.tabulate(rows, headers=headers))
-
             # write the failed schedules to the cache dir
             failed_scheduling_dir = self.cache_dir / "failed" / "scheduling"
-            if not failed_scheduling_dir.exists() and self.failed_scheduling:
+            if not failed_scheduling_dir.exists() and self.failed_scheduling or len(self.compiled_programs) == 0:
+                shutil.rmtree(failed_scheduling_dir, ignore_errors=True)
                 failed_scheduling_dir.mkdir(parents=True, exist_ok=True)
                 for idx, failed_schedule in enumerate(self.failed_scheduling):
                     with open(failed_scheduling_dir / f"{idx}.txt", "w") as f:
                         f.write(failed_schedule)
-            failed_building_dir = self.cache_dir / "failed" / "building"
-            if not failed_building_dir.exists() and self.failed_building:
-                failed_building_dir.mkdir(parents=True, exist_ok=True)
-                for idx, (failed_building, prog_cache_dir) in enumerate(self.failed_building):
-                    with open(failed_building_dir / f"{idx}.txt", "w") as f:
-                        f.write(failed_building)
-                    start_path = (failed_building_dir / f"{idx}").resolve()
-                    target_path = Path(prog_cache_dir).resolve()
-                    relative_path = relative_to_with_walk_up(start_path.parent, target=target_path)
-                    os.symlink(relative_path, start_path)
 
             # write the source code of the script class to source.txt
             source_path = self.cache_dir / "source.txt"
@@ -449,16 +451,121 @@ class JitInstance:
                 with open(options_path, "w") as f:
                     f.write(str(self.build_options))
 
+        if len(self.transpiled_programs) == 0:
+            call_file = inspect.getsourcefile(self.script_cls.__call__)
+            call_lino = inspect.getsourcelines(self.script_cls.__call__)[1]
+            lines = [
+                "No valid schedule found during instantiating the Tilus Script:",
+                '  File "{}", line {}'.format(call_file, call_lino),
+                "Please check the following cache dir for failure information:",
+                "  {}".format(str(self.cache_dir.resolve())),
+                "",
+                "The first failed scheduling",
+                "===========================",
+                "",
+            ]
+            lines.extend(["  " + s for s in self.failed_scheduling[0].split("\n")])
+            raise RuntimeError("\n".join(lines))
+
+    def build_programs(self):
+        # build the programs in parallel
+        transpiled_programs = self.transpiled_programs
+        transpiled_schedules = self.transpiled_schedules
+        building_jobs = [(program, self.build_options) for program in transpiled_programs]
+        for idx, item in enumerate(
+            tqdm(
+                iterable=parallel_imap(func=JitInstance._build_program, jobs=building_jobs),
+                desc="[{}] {}".format("Building", self.instance_name),
+                total=len(building_jobs),
+                ncols=100,
+                delay=1,
+            )
+        ):
+            program_cache_dir = get_cache_dir(transpiled_programs[idx], options=self.build_options)
+            if item == "success":
+                self.valid_programs.append(transpiled_programs[idx])
+                self.valid_schedules.append(transpiled_schedules[idx])
+                self.compiled_programs.append(load_compiled_program(program_cache_dir))  #
+            else:
+                assert isinstance(item, str)
+                sections = {
+                    "Schedule": str(self.schedules[idx]),
+                    "Program": str(transpiled_programs[idx]),
+                    "Traceback": nocolor(item),
+                }
+                lines = []
+                for key, value in sections.items():
+                    lines.append(key)
+                    lines.append("=" * len(key))
+                    lines.append("")
+                    lines.append(value)
+                    lines.append("")
+                self.failed_building.append(("\n".join(lines), str(program_cache_dir)))
+
+        # some checks
+        if self.script_cls.debug_block and len(self.compiled_programs) > 1:
+            raise ValueError("Please specify the debug_schedule when debug_block is set. ")
+
+        # initialize the script cache if it does not exist
+        lock_path = self.cache_dir / ".lock"
+        with filelock.FileLock(lock_path):
+            # add soft link to the cache dirs of compiled programs
+            programs_dir = self.cache_dir / "programs"
+            if not programs_dir.exists():
+                programs_dir.mkdir()
+                for idx, compiled_program in enumerate(self.compiled_programs):
+                    start_path = (programs_dir / str(idx)).resolve()
+                    target_path = compiled_program.program_dir.resolve()
+                    relative_path = relative_to_with_walk_up(start_path.parent, target=target_path)
+                    os.symlink(relative_path, start_path)
+
+            # write the schedule.txt
+            schedule_path = self.cache_dir / "schedule.txt"
+            if not schedule_path.exists() and self.valid_schedules:
+                headers = ["index"] + list(self.schedules[self.valid_schedules[0]].keys())
+                rows = []
+                for idx in self.valid_schedules:
+                    rows.append([idx] + list(self.schedules[idx].values()))
+                with open(schedule_path, "w") as f:
+                    f.write(tabulate.tabulate(rows, headers=headers))
+
+            # write the failed building to the cache dir
+            failed_building_dir = self.cache_dir / "failed" / "building"
+            if not failed_building_dir.exists() and self.failed_building or len(self.compiled_programs) == 0:
+                shutil.rmtree(failed_building_dir, ignore_errors=True)
+                failed_building_dir.mkdir(parents=True, exist_ok=True)
+                for idx, (failed_building, prog_cache_dir) in enumerate(self.failed_building):
+                    with open(failed_building_dir / f"{idx}.txt", "w") as f:
+                        f.write(failed_building)
+                    start_path = (failed_building_dir / f"{idx}").resolve()
+                    target_path = Path(prog_cache_dir).resolve()
+                    relative_path = relative_to_with_walk_up(start_path.parent, target=target_path)
+                    os.symlink(relative_path, start_path)
+
         # load the dispatch table from the cache dir
         self.load_dispatch_table()
 
         if len(self.compiled_programs) == 0:
-            raise RuntimeError(
-                "No valid schedule found. Please check the following cache dir for failure information: \n"
-                "    " + str(self.cache_dir.resolve())
-            )
+            call_file = inspect.getsourcefile(self.script_cls.__call__)
+            call_lino = inspect.getsourcelines(self.script_cls.__call__)[1]
+            lines = [
+                "No valid schedule found during building programs:",
+                '  File "{}", line {}'.format(call_file, call_lino),
+                "Please check the following cache dir for failure information:",
+                "  {}".format(str(self.cache_dir.resolve())),
+                "",
+                "The first failed building",
+                "=========================",
+                "",
+            ]
+            lines.extend(["  " + s for s in self.failed_building[0][0].split("\n")])
+
+            raise RuntimeError("\n".join(lines))
 
     def pick_best_program(self, args: Sequence[Any]) -> CompiledProgram:
+        if len(self.valid_programs) == 0:
+            self.build_programs()
+
         _, tuning_key = extract_keys(args, self.call_params.const_params, self.call_params.tuning_params)
 
         # check if the tuning key exists in the dispatch table
@@ -468,7 +575,13 @@ class JitInstance:
                 # we skip the benchmark if there is only one compiled program
                 latency.append(0.0)
             else:
-                for compiled_program in self.compiled_programs:
+                tuning_key_name = " " + "-".join([str(v) for v in tuning_key]) if tuning_key else ""
+                for compiled_program in tqdm(
+                    iterable=self.compiled_programs,
+                    desc="[{}] {}{}".format("Tuning", self.instance_name, tuning_key_name),
+                    ncols=100,
+                    delay=1,
+                ):
                     kernel_args = [args[i] for i in self.call_params.kernel_params]
                     compiled_func = compiled_program.compiled_module.functions["launch"]
                     latency.append(benchmark_func(lambda: compiled_func(*kernel_args), warmup=1, repeat=10))  # type: ignore
@@ -495,10 +608,10 @@ class JitInstance:
         return self.compiled_programs[self.dispatch_table[tuning_key]]
 
     def load_dispatch_table(self):
-        table_path = self.cache_dir / "dispatch_table.json"
+        table_path = self.cache_dir / "dispatch_table.pickle"
         if table_path.exists():
-            with open(table_path, "r") as f:
-                self.dispatch_table = json.load(f)
+            with open(table_path, "rb") as f:
+                self.dispatch_table = pickle.load(f)
 
     def dump_dispatch_table(self):
         table_path = self.cache_dir / "dispatch_table.pickle"
@@ -543,17 +656,19 @@ class InstantiatedScript:
             args = bound_args.args
 
         # extract the JIT key and the tuning key
-        jit_key, tuning_key = extract_keys(args, self.const_params, self.tuning_params)
+        keys = extract_keys(args, self.const_params, self.tuning_params)
 
         # check if the compiled function exists
-        compiled_func: Optional[CompiledFunction] = self.dispatch_table.get((jit_key, tuning_key), None)
+        compiled_func: Optional[CompiledFunction] = self.dispatch_table.get(keys, None)
 
         if compiled_func is None:
             # slow path
+            jit_key, tuning_key = keys
             jit_instance: Optional[JitInstance] = self.jit_instances.get(jit_key, None)
             if jit_instance is None:
                 jit_instance = JitInstance(self.script_cls, self.params, self.build_options, self.schedules, jit_key)
                 self.jit_instances[jit_key] = jit_instance
+
             compiled_program = jit_instance.pick_best_program(args)
             compiled_func = compiled_program.compiled_module.functions["launch"]
             self.dispatch_table[(jit_key, tuning_key)] = compiled_func
@@ -561,3 +676,35 @@ class InstantiatedScript:
         # call the compiled function
         kernel_args = (args[i] for i in self.kernel_params)
         return compiled_func(*kernel_args)
+
+    def program(self) -> Program:
+        programs = self.jit_instance_for().transpiled_programs
+        if len(programs) != 1:
+            raise RuntimeError("The script has multiple schedules.")
+        return programs[0]
+
+    def jit_instance_for(self, *args: Any, **kwargs: Any) -> JitInstance:
+        bound_args = self.params.signature.bind_partial(*args, **kwargs)
+        bound_args.apply_defaults()
+
+        const_params = []
+        for i in self.params.const_params:
+            name = self.params.param_names[i]
+            if name not in bound_args.arguments:
+                raise ValueError("The constant parameter '{}' is missing.".format(name))
+            const_params.append(bound_args.arguments[name])
+
+        tuning_params = []
+        for i in self.params.tuning_params:
+            name = self.params.param_names[i]
+            if name not in bound_args.arguments:
+                raise ValueError("The tuning parameter '{}' is missing.".format(name))
+            tuning_params.append(bound_args.arguments[name])
+
+        jit_key, tuning_key = construct_keys(const_params, tuning_params)
+        if jit_key not in self.jit_instances:
+            self.jit_instances[jit_key] = JitInstance(
+                self.script_cls, self.params, self.build_options, self.schedules, jit_key
+            )
+
+        return self.jit_instances[jit_key]

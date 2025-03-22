@@ -22,7 +22,7 @@ from tilus.ir.builders import IRBuilder
 from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import AssignInst, Instruction
 from tilus.ir.layout import RegisterLayout
-from tilus.ir.stmt import AssignStmt, DeclareStmt, InstStmt, SeqStmt, Stmt
+from tilus.ir.stmt import AssignStmt, DeclareStmt, EvaluateStmt, InstStmt, SeqStmt, Stmt
 from tilus.ir.tensor import Tensor
 from tilus.lang.constructs.loops import TilusLoopIterable
 from tilus.lang.script import Script
@@ -349,12 +349,12 @@ class Transpiler(PythonAstFunctor):
             # process the attributes
             attrs = self.script.attrs
             if attrs.blocks is None:
-                msg = """
-                Tilus script should set the number of blocks via self.blocks = ... like
-                    self.blocks = dim_x
-                or 
-                    self.blocks = dim_x, dim_y
-                """
+                msg = (
+                    "Tilus script should set the number of blocks via self.blocks = ... like\n"
+                    "    self.blocks = dim_x\n"
+                    "or\n"
+                    "    self.blocks = dim_x, dim_y"
+                )
                 raise TilusProgramError(self, func_def, msg)
             blocks = [as_expr(dim) for dim in normalize_launch_dims(attrs.blocks)]
             attrs.blocks = None
@@ -380,6 +380,12 @@ class Transpiler(PythonAstFunctor):
         value = self.visit(expr.value)
 
         if value is None:
+            # do nothing
+            return
+        elif isinstance(value, hidet_ir.Expr):
+            self.current_scope.append(EvaluateStmt(expr=value, pred=None))
+        elif isinstance(value, Tensor):
+            # do nothing
             return
         else:
             raise NotImplementedError(value)

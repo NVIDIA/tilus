@@ -26,6 +26,7 @@ from tilus.ir.inst import (
     SyncThreadsInst,
 )
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_repeat, global_strides
+from tilus.ir.prog import Program
 from tilus.ir.stmt import InstStmt, Stmt
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.modules.cuda import cuda
@@ -112,6 +113,39 @@ class Script:
         stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstStmt(inst=inst_or_stmt)
         self._transpiler.current_scope.stmts.append(stmt)
 
+    def program(self) -> Program:
+        """
+        Get the traced program.
+
+        The user defined script should satisfy:
+        - 1) there is only one schedule .
+        - 2) there is not const and tuning parameters in __call__.
+
+        Returns
+        -------
+        ret: Program
+            The traced program.
+        """
+        raise RuntimeError("This method should never be called. See InstantiatedScript.program instead.")
+
+    def jit_instance(self, *args, **kwargs):
+        """
+        Instantiate the script program with the specified arguments and keyword arguments.
+
+        Parameters
+        ----------
+        args:
+            The positional arguments to the __call__ method.
+        kwargs:
+            The keyword arguments to the __call__ method.
+
+        Returns
+        -------
+        ret: JitInstance
+            The JIT instance for the script with given arguments.
+        """
+        raise RuntimeError("This method should never be called. See InstantiatedScript.jit_instance instead.")
+
     # the following functions should only be called in the __call__ function to construct the script program
 
     @staticmethod
@@ -132,7 +166,8 @@ class Script:
         self,
         *,
         dtype: DataType,
-        layout: RegisterLayout,
+        shape: Optional[Sequence[int]] = None,
+        layout: Optional[RegisterLayout] = None,
         f_init: Optional[Callable[[Sequence[Var]], Expr]] = None,
         init: Optional[Expr | int | float] = None,
     ) -> RegisterTensor:
@@ -142,6 +177,20 @@ class Script:
 
             def f_init(_):
                 return dtype.constant(init)
+
+        if shape is None and layout is None:
+            raise ValueError("Must specify either shape or layout")
+        elif shape is not None and layout is not None:
+            raise ValueError("Cannot specify both shape and layout")
+        elif layout is None:
+            from tilus.ir.layout import auto_repeat_spatial
+
+            if self.attrs.warps is None:
+                raise ValueError(
+                    "Must specify the number of warps in th script so that load_global could use it "
+                    "to infer the register tensor layout"
+                )
+            layout = auto_repeat_spatial(num_threads=self.attrs.warps * 32, shape=shape)
 
         inst = AllocateRegisterInst.create(dtype=dtype, layout=layout, f_init=f_init)
         self._append(inst)
@@ -280,8 +329,8 @@ class Script:
         /,
         *,
         mma_inst: str,
-        warp_spatial: tuple[int, int, int],
-        warp_repeat: tuple[int, int, int],
+        warp_spatial: Sequence[int],
+        warp_repeat: Sequence[int],
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         inst = MmaDotInst.create(

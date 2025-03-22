@@ -7,7 +7,7 @@ from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var
 from hidet.utils import prod
 from tilus.extensions.hidet.ir.expr import index_vars
-from tilus.extensions.hidet.ir.utils.index_transform import const_index_multiply
+from tilus.extensions.hidet.ir.utils.index_transform import vector_mul
 from tilus.ir.node import IRNode
 
 
@@ -104,7 +104,7 @@ def _shared_compose(lhs: SharedLayout, rhs: SharedLayout) -> SharedLayout:
         rhs_offset = rhs(*rhs_axes)
         return lhs_offset * rhs.size + rhs_offset
 
-    shape = const_index_multiply(lhs.shape, rhs.shape)
+    shape = vector_mul(lhs.shape, rhs.shape)
     size = lhs.size * rhs.size
 
     return SharedLayout.create(shape=shape, size=size, f_offset=f_offset)

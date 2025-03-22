@@ -47,7 +47,7 @@ def doc_comment(doc: Doc, comment_string: str = "# ") -> Doc:
         else:
             new_docs.append(token)
     docs = new_docs
-    new_docs = []
+    new_docs: List[Union[NewLineToken, str]] = []
     if docs and not isinstance(docs[0], NewLineToken):
         new_docs.append(comment_string)
     for token in docs:

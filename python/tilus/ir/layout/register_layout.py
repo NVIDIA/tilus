@@ -10,13 +10,13 @@ from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Expr, logical_and
 from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.extensions.hidet.ir.utils.index_transform import (
-    const_index_multiply,
     index_add,
     index_deserialize,
     index_divide,
     index_mod,
     index_multiply,
     index_serialize,
+    vector_mul,
 )
 from tilus.ir.node import IRNode
 from tilus.utils import factorize_decomposition, gcd, is_power_of_two, prod, ranked_product, same_list
@@ -477,7 +477,7 @@ class ComposedRegisterLayout(RegisterLayout):
     @staticmethod
     def create(outer: RegisterLayout, inner: RegisterLayout) -> ComposedRegisterLayout:
         return ComposedRegisterLayout(
-            shape=tuple(const_index_multiply(outer.shape, inner.shape)),
+            shape=tuple(vector_mul(outer.shape, inner.shape)),
             local_size=outer.local_size * inner.local_size,
             num_workers=outer.num_workers * inner.num_workers,
             outer=outer,

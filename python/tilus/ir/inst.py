@@ -39,6 +39,20 @@ class Instruction(IRNode):
         return self.output
 
     @property
+    def register_input(self) -> RegisterTensor:
+        assert len(self.inputs) == 1
+        x = self.inputs[0]
+        assert isinstance(x, RegisterTensor)
+        return x
+
+    @property
+    def shared_input(self) -> SharedTensor:
+        assert len(self.inputs) == 1
+        x = self.inputs[0]
+        assert isinstance(x, SharedTensor)
+        return x
+
+    @property
     def attributes(self) -> Mapping[str, Any]:
         attrs = {}
         for k, v in self.__dict__.items():
@@ -279,14 +293,24 @@ class MmaDotInst(Instruction):
         b: RegisterTensor,
         c: RegisterTensor,
         mma_inst: str,
-        warp_spatial: Tuple[int, int, int],
-        warp_repeat: Tuple[int, int, int],
+        warp_spatial: Sequence[int],
+        warp_repeat: Sequence[int],
         output: Optional[RegisterTensor] = None,
     ) -> MmaDotInst:
         if output is None:
             output = RegisterTensor.create(c.dtype, c.layout)
+        if len(warp_spatial) == 2:
+            warp_spatial_ = (warp_spatial[0], warp_spatial[1], 1)
+        elif len(warp_spatial) == 3:
+            warp_spatial_ = (warp_spatial[0], warp_spatial[1], warp_spatial[2])
+        else:
+            raise ValueError("warp_spatial must have length 2 or 3")
+        if len(warp_repeat) == 3:
+            warp_repeat_ = (warp_repeat[0], warp_repeat[1], warp_repeat[2])
+        else:
+            raise ValueError("warp_repeat must have length 3")
         return MmaDotInst(
-            output=output, inputs=(a, b, c), mma_inst=mma_inst, warp_spatial=warp_spatial, warp_repeat=warp_repeat
+            output=output, inputs=(a, b, c), mma_inst=mma_inst, warp_spatial=warp_spatial_, warp_repeat=warp_repeat_
         )
 
 

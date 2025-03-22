@@ -61,7 +61,7 @@ class SharedTensor(Tensor):
         return SharedTensor(dtype=dtype, layout=layout)
 
     @property
-    def shape(self):
+    def shape(self) -> tuple[int, ...]:
         return self.layout.shape
 
     @property
