@@ -1,1 +1,3 @@
-__version__ = "0.1.dev"
+from importlib.metadata import version
+
+__version__ = version("tilus")

@@ -1,0 +1,54 @@
+name: Setup and Install Tilus
+description: Sets up Python, checks out the repository, and installs Hidet and Tilus
+
+inputs:
+  python-version:
+    description: Python version to set up
+    required: false
+    default: '3.10'
+  hidet-access-token:
+    description: Access token for Hidet repository
+    required: true
+
+outputs:
+  wheel-path:
+    description: Path to the built Tilus wheel
+    value: ${{ steps.install-tilus.outputs.wheel-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install git and cmake
+      run: |
+        # Define a function to check and install packages safely
+        install_package() {
+          if command -v sudo &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y "$1"
+          else
+            apt-get update && apt-get install -y "$1"
+          fi
+        }
+
+        # Install required packages
+        install_package git 
+        install_package cmake
+      shell: bash
+
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Hidet
+      uses: ./.github/actions/install-hidet
+      with:
+        hidet-access-token: ${{ inputs.hidet-access-token }}
+
+    - name: Install Tilus
+      id: install-tilus  # Preserve the ID for output
+      uses: ./.github/actions/install-tilus

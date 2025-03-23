@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "tilus"
-version = "0.1.dev"
 description = "Tilus"
+dynamic = ["version"]
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 license = { text = "Apache-2.0"}
@@ -45,6 +45,8 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/hidet-org/tilus"
 Documentation = "https://hidet.org"
+
+[tool.setuptools_scm]
 
 [tool.setuptools.package-dir]
 "" = "python"

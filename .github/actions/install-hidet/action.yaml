@@ -7,22 +7,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install git and cmake
-      run: |
-        # Define a function to check and install packages safely
-        install_package() {
-          if command -v sudo &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y "$1"
-          else
-            apt-get update && apt-get install -y "$1"
-          fi
-        }
-
-        # Install required packages
-        install_package git
-        install_package cmake
-      shell: bash
-
     - name: Install Hidet repository
       run: |
         # Clone Hidet repository

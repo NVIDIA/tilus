@@ -13,30 +13,25 @@ jobs:
   tests:
     if: github.repository == 'hidet-org/tilus'
     continue-on-error: true
-    runs-on:
-      group: "arc-l4"
+    strategy:
+      matrix:
+        runner: 
+          - group: "arc-l4"
+          - yaoyao-workstation
+    runs-on: ${{ matrix.runner }}
     container:
       image: nvidia/cuda:12.6.2-devel-ubuntu22.04
       options: --gpus all
     steps:
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Install Hidet
-        uses: ./.github/actions/install-hidet
+      - name: Setup and Install Tilus
+        id: setup-and-install
+        uses: ./.github/actions/setup-environment
         with:
+          python-version: '3.10'
           hidet-access-token: ${{ secrets.CENTML_HIDET_ACCESS }}
-
-      - name: Install Tilus
-        id: install-tilus
-        uses: ./.github/actions/install-tilus
-        with:
-          package-path: "."
 
       - name: Run tests
         run: pytest ./tests
