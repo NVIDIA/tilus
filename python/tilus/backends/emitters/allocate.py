@@ -12,15 +12,16 @@ class AllocateInstEmitter(BaseInstEmitter):
         output: RegisterTensor = inst.register_output
         var = self.declare(tensor_var("regs", shape=[output.local_size], dtype=output.dtype))
         if inst.init is not None:
-            axes, init_expr = inst.init
+            axes = inst.axes
+            init = inst.init
             with self.for_range(output.local_size) as i:
                 global_indices = output.layout.local2global(local_index=i, worker=self.current_worker)
                 self.buffer_store(
                     buf=var,
                     indices=[i],
                     value=rewrite(
-                        init_expr,
+                        init,
                         rewrite_map={axis: global_index for axis, global_index in zip(axes, global_indices)},
                     ),
                 )
-        self.value2var[output] = var
+        self.tensor2var[output] = var

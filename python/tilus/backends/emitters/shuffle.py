@@ -19,7 +19,7 @@ class ShuffleBaseInstEmitter(BaseInstEmitter):
         assert self.codegen.smem_workspace is not None
         smem_buf: Var = self.declare(
             v=tensor_pointer_var("shfl_smem", shape=[num_groups, inst.width - inst.delta, warp_nbytes], dtype=uint8),
-            init=cast(self.value2var[self.codegen.smem_workspace], ~uint8),
+            init=cast(self.tensor2var[self.codegen.smem_workspace], ~uint8),
         )
         warp_id: Expr = self.current_worker // 32
         warp_lane_id = self.current_worker % 32
@@ -38,7 +38,7 @@ class ShuffleBaseInstEmitter(BaseInstEmitter):
             sender_shfl_lane = shfl_lane_id
             receiver_shfl_lane = shfl_lane_id - inst.delta
         # store the data from the register to shared memory
-        src_var: Var = self.value2var[inst.inputs[0]]
+        src_var: Var = self.tensor2var[inst.inputs[0]]
         with self.if_then(logical_and(cond_in_mask, cond_is_sender)):
             if thread_nbytes % 4 == 0:
                 vec: int = gcd(thread_nbytes // 4, 4)

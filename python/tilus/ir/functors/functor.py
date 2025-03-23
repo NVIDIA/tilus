@@ -25,6 +25,7 @@ from tilus.ir.inst import (
     LoadGlobalGenericInst,
     LoadGlobalInst,
     LoadMatrixInst,
+    LoadSharedGenericInst,
     LoadSharedInst,
     MmaDotInst,
     PrintValueInst,
@@ -33,11 +34,11 @@ from tilus.ir.inst import (
     SimtDotInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
+    StoreSharedGenericInst,
     StoreSharedInst,
     SyncReduceThreadsInst,
     SyncThreadsInst,
     ViewInst,
-    ViewSharedInst,
 )
 from tilus.ir.layout import GlobalLayout, RegisterLayout
 from tilus.ir.prog import Program
@@ -247,6 +248,9 @@ class IRFunctor:
     def visit_LoadSharedInst(self, inst: LoadSharedInst) -> Any:
         raise NotImplementedError()
 
+    def visit_LoadSharedGenericInst(self, inst: LoadSharedGenericInst) -> Any:
+        raise NotImplementedError()
+
     def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Any:
         raise NotImplementedError()
 
@@ -254,6 +258,9 @@ class IRFunctor:
         raise NotImplementedError()
 
     def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Any:
+        raise NotImplementedError()
+
+    def visit_StoreSharedGenericInst(self, inst: StoreSharedGenericInst) -> Any:
         raise NotImplementedError()
 
     def visit_CastInst(self, inst: CastInst) -> Any:
@@ -287,9 +294,6 @@ class IRFunctor:
         raise NotImplementedError()
 
     def visit_ViewInst(self, inst: ViewInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_ViewSharedInst(self, inst: ViewSharedInst) -> Any:
         raise NotImplementedError()
 
     def visit_GlobalViewInst(self, inst: GlobalViewInst) -> Any:
@@ -524,6 +528,9 @@ class IRRewriter(IRFunctor):
     def visit_LoadSharedInst(self, inst: LoadSharedInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
+    def visit_LoadSharedGenericInst(self, inst: LoadSharedGenericInst) -> Union[Instruction, Stmt]:
+        return self.default_visit_Instruction(inst)
+
     def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
@@ -531,6 +538,9 @@ class IRRewriter(IRFunctor):
         return self.default_visit_Instruction(inst)
 
     def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Union[Instruction, Stmt]:
+        return self.default_visit_Instruction(inst)
+
+    def visit_StoreSharedGenericInst(self, inst: StoreSharedGenericInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
     def visit_CastInst(self, inst: CastInst) -> Union[Instruction, Stmt]:
@@ -564,9 +574,6 @@ class IRRewriter(IRFunctor):
         return self.default_visit_Instruction(inst)
 
     def visit_ViewInst(self, inst: ViewInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ViewSharedInst(self, inst: ViewSharedInst) -> Union[Instruction, Stmt]:
         return self.default_visit_Instruction(inst)
 
     def visit_GlobalViewInst(self, inst: GlobalViewInst) -> Any:
@@ -713,6 +720,9 @@ class IRVisitor(IRFunctor):
     def visit_LoadSharedInst(self, inst: LoadSharedInst) -> None:
         return self.default_visit_Instruction(inst)
 
+    def visit_LoadSharedGenericInst(self, inst: LoadSharedGenericInst) -> None:
+        return self.default_visit_Instruction(inst)
+
     def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> None:
         return self.default_visit_Instruction(inst)
 
@@ -720,6 +730,9 @@ class IRVisitor(IRFunctor):
         return self.default_visit_Instruction(inst)
 
     def visit_StoreSharedInst(self, inst: StoreSharedInst) -> None:
+        return self.default_visit_Instruction(inst)
+
+    def visit_StoreSharedGenericInst(self, inst: StoreSharedGenericInst) -> None:
         return self.default_visit_Instruction(inst)
 
     def visit_CastInst(self, inst: CastInst) -> None:
@@ -753,9 +766,6 @@ class IRVisitor(IRFunctor):
         return self.default_visit_Instruction(inst)
 
     def visit_ViewInst(self, inst: ViewInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ViewSharedInst(self, inst: ViewSharedInst) -> None:
         return self.default_visit_Instruction(inst)
 
     def visit_GlobalViewInst(self, inst: GlobalViewInst) -> None:

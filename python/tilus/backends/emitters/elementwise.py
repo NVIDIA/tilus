@@ -16,9 +16,9 @@ class ElementwiseUnaryInstEmitter(BaseInstEmitter):
 
         x_value: RegisterTensor = inst.inputs[0].as_register_tensor()
         y_value: RegisterTensor = inst.register_output
-        x_var: Var = self.value2var[x_value]
+        x_var: Var = self.tensor2var[x_value]
         y_var: Var = self.declare(tensor_var(op_var_name, shape=[y_value.local_size], dtype=y_value.dtype))
-        self.value2var[y_value] = y_var
+        self.tensor2var[y_value] = y_var
 
         with self.for_range(extent=y_value.local_size) as i:
             op_map = {
@@ -43,8 +43,8 @@ class ElementwiseBinaryInstEmitter(BaseInstEmitter):
         x_value: RegisterTensor = inst.inputs[0].as_register_tensor()
         y_value: RegisterTensor = inst.inputs[1].as_register_tensor()
         z_value: RegisterTensor = inst.register_output
-        x_var: Var = self.value2var[x_value]
-        y_var: Var = self.value2var[y_value]
+        x_var: Var = self.tensor2var[x_value]
+        y_var: Var = self.tensor2var[y_value]
         z_var = self.get_or_allocate_var(z_value, name_mapping[inst.op])
         with self.for_range(extent=z_value.local_size) as i:
             z_indices = z_value.layout.local2global(local_index=i, worker=self.current_worker)
@@ -68,13 +68,13 @@ class BroadcastElementwiseBinaryInstEmitter(BaseInstEmitter):
         r_value: RegisterTensor = inst.inputs[0].as_register_tensor()
         s_expr: Expr = inst.s
         z_value: RegisterTensor = inst.register_output
-        r_var: Var = self.value2var[r_value]
+        r_var: Var = self.tensor2var[r_value]
         z_var: Var
-        if z_value in self.value2var:
-            z_var = self.value2var[z_value]
+        if z_value in self.tensor2var:
+            z_var = self.tensor2var[z_value]
         else:
             z_var = self.declare(tensor_var(op_var_name, shape=[z_value.local_size], dtype=z_value.dtype))
-            self.value2var[z_value] = z_var
+            self.tensor2var[z_value] = z_var
         with self.for_range(extent=z_value.local_size) as i:
             op_map = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv, "%": operator.mod}
 

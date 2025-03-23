@@ -104,4 +104,4 @@ class LoadMatrixInstEmitter(BaseInstEmitter):
                 )
             )
 
-        self.value2var[dst] = var
+        self.tensor2var[dst] = var

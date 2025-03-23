@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Callable, ClassVar, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, ClassVar, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from hidet.ir.dtypes import bf16, boolean, f16, f32, i8, i32
 from hidet.ir.expr import Expr, Var
@@ -10,7 +10,7 @@ from hidet.ir.type import DataType
 from tilus.extensions.hidet.ir.expr import as_expr, index_vars
 from tilus.ir.layout import RegisterLayout, column_repeat, column_spatial, repeat, spatial
 from tilus.ir.node import IRNode
-from tilus.ir.tensor import GlobalLayout, GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
 
 
 @dataclass(frozen=True, eq=False)
@@ -71,44 +71,18 @@ class AssignInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class AllocateRegisterInst(Instruction):
-    init: Optional[tuple[tuple[Var, ...], Expr]]  # mapping from axes => init_value
+    axes: Optional[tuple[Var, ...]]
+    init: Optional[Expr]
 
     @staticmethod
-    def create(
-        dtype: DataType, layout: RegisterLayout, f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
-    ) -> AllocateRegisterInst:
-        out = RegisterTensor.create(dtype, layout)
+    def create(output: RegisterTensor, f_init: Optional[Callable[[Sequence[Var]], Expr]]) -> AllocateRegisterInst:
         if f_init is not None:
-            axes = tuple(index_vars(num_vars=len(layout.shape)))
-            value = f_init(axes)
-            init = (axes, value)
+            axes = tuple(index_vars(num_vars=len(output.layout.shape)))
+            init = f_init(axes)
         else:
+            axes = None
             init = None
-        return AllocateRegisterInst(output=out, inputs=tuple(), init=init)
-
-
-@dataclass(frozen=True, eq=False)
-class LoadGlobalGenericInst(Instruction):
-    ptr: Var
-    axes: List[Var]
-    offset: Expr
-    mask: Expr
-
-    @staticmethod
-    def create(
-        dtype: DataType,
-        layout: RegisterLayout,
-        ptr: Var,
-        f_offset: Callable[[List[Var]], Expr | int],
-        f_mask: Optional[Callable[[List[Var]], Expr | int | bool]] = None,
-        out: Optional[RegisterTensor] = None,
-    ) -> LoadGlobalGenericInst:
-        if out is None:
-            out = RegisterTensor.create(dtype, layout)
-        axes = index_vars(num_vars=len(layout.shape))
-        offset = as_expr(f_offset(axes))
-        mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
-        return LoadGlobalGenericInst(output=out, inputs=tuple(), ptr=ptr, axes=axes, offset=offset, mask=mask)
+        return AllocateRegisterInst(output=output, inputs=tuple(), axes=axes, init=init)
 
 
 @dataclass(frozen=True, eq=False)
@@ -117,57 +91,8 @@ class LoadGlobalInst(Instruction):
     dims: tuple[int, ...]
 
     @staticmethod
-    def create(
-        x: GlobalTensor,
-        /,
-        *,
-        offsets: Sequence[Expr],
-        dims: Optional[Iterable[int]] = None,
-        layout: Optional[RegisterLayout] = None,
-        out: Optional[RegisterTensor] = None,
-    ) -> LoadGlobalInst:
-        match (layout, out):
-            case None, None:
-                raise ValueError("Must specify either reg_layout or out")
-            case None, _:
-                assert out.dtype == x.dtype  # type: ignore[union-attr]
-            case _, None:
-                out = RegisterTensor.create(dtype=x.dtype, layout=layout)  # type: ignore[union-attr, arg-type]
-            case _:
-                raise ValueError("Cannot specify both reg_layout and out")
-        if dims is None:
-            if len(x.shape) == len(offsets):
-                dims = tuple(range(len(offsets)))
-            else:
-                raise ValueError("Must specify dims since it can not been inferred automatically")
-        else:
-            dims = tuple(sorted(dims))
-
-        assert dims is not None and out is not None
-        assert len(dims) == len(out.layout.shape), "dims must have the same length as the output shape"
-        assert len(offsets) == len(x.shape), "offsets must have the same length as the input shape"
-
-        return LoadGlobalInst(output=out, inputs=(x,), offsets=tuple(offsets), dims=dims)
-
-
-@dataclass(frozen=True, eq=False)
-class StoreGlobalGenericInst(Instruction):
-    ptr: Var
-    axes: List[Var]
-    offset: Expr
-    mask: Expr
-
-    @staticmethod
-    def create(
-        x: RegisterTensor,
-        ptr: Var,
-        f_offset: Callable[[List[Var]], Expr | int],
-        f_mask: Optional[Callable[[List[Var]], Expr | int | bool]] = None,
-    ) -> StoreGlobalGenericInst:
-        axes = index_vars(num_vars=len(x.layout.shape))
-        offset = as_expr(f_offset(axes))
-        mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
-        return StoreGlobalGenericInst(output=None, inputs=(x,), ptr=ptr, axes=axes, offset=offset, mask=mask)
+    def create(x: GlobalTensor, offsets: Sequence[Expr], dims: Sequence[int], output: RegisterTensor) -> LoadGlobalInst:
+        return LoadGlobalInst(output=output, inputs=(x,), offsets=tuple(offsets), dims=tuple(dims))
 
 
 @dataclass(frozen=True, eq=False)
@@ -176,63 +101,137 @@ class StoreGlobalInst(Instruction):
     dims: tuple[int, ...]
 
     @staticmethod
+    def create(dst: GlobalTensor, x: RegisterTensor, offsets: Sequence[Expr], dims: Sequence[int]) -> StoreGlobalInst:
+        return StoreGlobalInst(output=None, inputs=(dst, x), offsets=tuple(offsets), dims=tuple(dims))
+
+
+@dataclass(frozen=True, eq=False)
+class LoadSharedInst(Instruction):
+    offsets: tuple[Expr, ...]
+    dims: tuple[int, ...]
+
+    @staticmethod
     def create(
-        dst: GlobalTensor,
-        x: RegisterTensor,
-        /,
-        *,
+        x: SharedTensor,
         offsets: Sequence[Expr],
-        dims: Optional[Iterable[int]] = None,
-    ) -> StoreGlobalInst:
-        assert len(offsets) == len(dst.shape), "offsets must have the same length as the destination shape"
+        dims: Sequence[int],
+        output: RegisterTensor,
+    ) -> LoadSharedInst:
+        return LoadSharedInst(output=output, inputs=(x,), offsets=tuple(offsets), dims=tuple(dims))
 
-        if dims is None:
-            if len(x.layout.shape) == len(offsets):
-                dims = tuple(range(len(offsets)))
-            else:
-                raise ValueError("Must specify dims since it can not been inferred automatically")
-        else:
-            dims = tuple(sorted(dims))
 
-        assert len(dims) == len(x.layout.shape), "dims must have the same length as the input shape"
+@dataclass(frozen=True, eq=False)
+class StoreSharedInst(Instruction):
+    offsets: tuple[Expr, ...]
+    dims: tuple[int, ...]
 
-        return StoreGlobalInst(output=None, inputs=(dst, x), offsets=tuple(offsets), dims=dims)
+    @staticmethod
+    def create(
+        dst: SharedTensor,
+        src: RegisterTensor,
+        offsets: Sequence[Expr],
+        dims: Sequence[int],
+    ) -> StoreSharedInst:
+        return StoreSharedInst(output=None, inputs=(dst, src), offsets=tuple(offsets), dims=tuple(dims))
+
+
+@dataclass(frozen=True, eq=False)
+class LoadGlobalGenericInst(Instruction):
+    ptr: Var
+    axes: tuple[Var, ...]
+    offset: Expr
+    mask: Expr
+
+    @staticmethod
+    def create(
+        ptr: Var,
+        f_offset: Callable[[Sequence[Var]], Expr | int],
+        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]],
+        output: RegisterTensor,
+    ) -> LoadGlobalGenericInst:
+        axes = tuple(index_vars(num_vars=len(output.layout.shape)))
+        offset = as_expr(f_offset(axes))
+        mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
+        return LoadGlobalGenericInst(output=output, inputs=tuple(), ptr=ptr, axes=axes, offset=offset, mask=mask)
+
+
+@dataclass(frozen=True, eq=False)
+class StoreGlobalGenericInst(Instruction):
+    ptr: Var
+    axes: tuple[Var, ...]
+    offset: Expr
+    mask: Expr
+
+    @staticmethod
+    def create(
+        x: RegisterTensor,
+        ptr: Var,
+        f_offset: Callable[[Sequence[Var]], Expr | int],
+        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
+    ) -> StoreGlobalGenericInst:
+        axes = tuple(index_vars(num_vars=len(x.layout.shape)))
+        offset = as_expr(f_offset(axes))
+        mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
+        return StoreGlobalGenericInst(output=None, inputs=(x,), ptr=ptr, axes=axes, offset=offset, mask=mask)
+
+
+@dataclass(frozen=True, eq=False)
+class LoadSharedGenericInst(Instruction):
+    ptr: Var
+    axes: tuple[Var, ...]
+    offset: Expr
+    mask: Expr
+
+    @staticmethod
+    def create(
+        ptr: Var,
+        f_offset: Callable[[Sequence[Var]], Expr | int],
+        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]],
+        output: RegisterTensor,
+    ) -> LoadSharedGenericInst:
+        axes = tuple(index_vars(num_vars=len(output.layout.shape)))
+        offset = as_expr(f_offset(axes))
+        mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
+        return LoadSharedGenericInst(output=output, inputs=tuple(), ptr=ptr, axes=axes, offset=offset, mask=mask)
+
+
+@dataclass(frozen=True, eq=False)
+class StoreSharedGenericInst(Instruction):
+    ptr: Var
+    axes: tuple[Var, ...]
+    offset: Expr
+    mask: Expr
+
+    @staticmethod
+    def create(
+        x: RegisterTensor,
+        ptr: Var,
+        f_offset: Callable[[Sequence[Var]], Expr | int],
+        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
+    ) -> StoreSharedGenericInst:
+        axes = tuple(index_vars(num_vars=len(x.layout.shape)))
+        offset = as_expr(f_offset(axes))
+        mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
+        return StoreSharedGenericInst(output=None, inputs=(x,), ptr=ptr, axes=axes, offset=offset, mask=mask)
 
 
 @dataclass(frozen=True, eq=False)
 class CastInst(Instruction):
-    interleave_width: Optional[int]
-    interleave_stride: Optional[int]
-    ignore_int4b_xor: bool
-
     @staticmethod
     def create(
-        dtype: DataType,
         x: RegisterTensor,
-        interleave_width: Optional[int] = None,
-        interleave_stride: Optional[int] = None,
-        ignore_int4b_xor: bool = False,
+        output: RegisterTensor,
     ) -> CastInst:
-        out = RegisterTensor.create(dtype, x.layout)
-        return CastInst(
-            output=out,
-            inputs=(x,),
-            interleave_width=interleave_width,
-            interleave_stride=interleave_stride,
-            ignore_int4b_xor=ignore_int4b_xor,
-        )
+        return CastInst(output=output, inputs=(x,))
 
 
 @dataclass(frozen=True, eq=False)
 class ElementwiseUnaryInst(Instruction):
-    VALID_OPS: ClassVar[tuple[str, ...]] = ("relu", "clip")
+    VALID_OPS: ClassVar[tuple[str, ...]] = ("relu",)
     op: str
 
     @staticmethod
-    def create(x: RegisterTensor, op: str, *, output: Optional[RegisterTensor] = None) -> ElementwiseUnaryInst:
-        assert op in ElementwiseUnaryInst.VALID_OPS
-        if output is None:
-            output = RegisterTensor.create(x.dtype, x.layout)
+    def create(x: RegisterTensor, op: str, output: RegisterTensor) -> ElementwiseUnaryInst:
         return ElementwiseUnaryInst(output=output, inputs=(x,), op=op)
 
 
@@ -242,12 +241,7 @@ class ElementwiseBinaryInst(Instruction):
     op: str
 
     @staticmethod
-    def create(
-        x: RegisterTensor, y: RegisterTensor, op: str, *, output: Optional[RegisterTensor]
-    ) -> ElementwiseBinaryInst:
-        assert op in ElementwiseBinaryInst.VALID_OPS
-        if output is None:
-            output = RegisterTensor.create(x.dtype, x.layout)
+    def create(x: RegisterTensor, y: RegisterTensor, op: str, output: RegisterTensor) -> ElementwiseBinaryInst:
         return ElementwiseBinaryInst(output=output, inputs=(x, y), op=op)
 
 
@@ -259,26 +253,8 @@ class BroadcastElementwiseBinaryInst(Instruction):
     tensor_left: bool
 
     @staticmethod
-    def create(
-        x: Union[RegisterTensor, Expr], y: Union[RegisterTensor, Expr], op: str, *, output: Optional[RegisterTensor]
-    ) -> BroadcastElementwiseBinaryInst:
-        assert op in BroadcastElementwiseBinaryInst.VALID_OPS
-        if isinstance(x, RegisterTensor) and isinstance(y, Expr):
-            r, s = x, y
-            tensor_left = True
-        elif isinstance(x, Expr) and isinstance(y, RegisterTensor):
-            r, s = y, x
-            tensor_left = False
-        else:
-            assert False
-        if op in ["+", "-", "*", "/", "%"]:
-            out_dtype = r.dtype
-        else:
-            raise NotImplementedError()
-
-        if output is None:
-            output = RegisterTensor.create(out_dtype, r.layout)
-        return BroadcastElementwiseBinaryInst(output=output, inputs=(r,), op=op, s=s, tensor_left=tensor_left)
+    def create(tensor: RegisterTensor, scalar: Expr, op: str, tensor_left: bool) -> BroadcastElementwiseBinaryInst:
+        return BroadcastElementwiseBinaryInst(output=tensor, inputs=(tensor,), op=op, s=scalar, tensor_left=tensor_left)
 
 
 @dataclass(frozen=True, eq=False)
@@ -295,10 +271,8 @@ class MmaDotInst(Instruction):
         mma_inst: str,
         warp_spatial: Sequence[int],
         warp_repeat: Sequence[int],
-        output: Optional[RegisterTensor] = None,
+        output: RegisterTensor,
     ) -> MmaDotInst:
-        if output is None:
-            output = RegisterTensor.create(c.dtype, c.layout)
         if len(warp_spatial) == 2:
             warp_spatial_ = (warp_spatial[0], warp_spatial[1], 1)
         elif len(warp_spatial) == 3:
@@ -348,12 +322,12 @@ class SimtDotInst(Instruction):
 class FormatPrintInst(Instruction):
     cond: Expr
     fstring: str
-    expressions: List[Expr]
+    expressions: tuple[Expr, ...]
 
     @staticmethod
     def create(cond: Expr, fstring: str, expressions_: Sequence[Expr | float | int | str] = tuple()) -> FormatPrintInst:
         expressions = [as_expr(e) for e in expressions_]
-        return FormatPrintInst(output=None, inputs=(), cond=cond, fstring=fstring, expressions=list(expressions))
+        return FormatPrintInst(output=None, inputs=(), cond=cond, fstring=fstring, expressions=tuple(expressions))
 
 
 @dataclass(frozen=True, eq=False)
@@ -372,21 +346,6 @@ class ShuffleBaseInst(Instruction):
     mask: int
     delta: int
     width: int
-
-    # def __post_init__(self):
-    #     warp_size = 32
-    #     output = self.output
-    #     self.dtype: DataType = output.as_register_value().dtype
-    #     self.layout: Layout = output.as_register_value().layout
-    #     self.num_warps: int = self.layout.num_workers // 32
-    #     self.num_groups: int = max([i // self.width for i in range(self.num_warps) if self.mask & (1 << i)]) + 1
-    #     self.smem_shape: Tuple[int, int, int] = (
-    #         self.num_groups,
-    #         self.width - self.delta,
-    #         warp_size * self.layout.local_size,
-    #     )
-    #
-    #     assert all(is_power_of_two(v) for v in [self.delta, self.width, self.num_warps])
 
 
 @dataclass(frozen=True, eq=False)
@@ -419,21 +378,9 @@ class ViewInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class AllocateSharedInst(Instruction):
-    axes: Optional[List[Var]]
-    init: Optional[Expr]
-
     @staticmethod
-    def create(
-        dtype: DataType, layout: SharedLayout, f_init: Optional[Callable[[List[Var]], Expr]] = None
-    ) -> AllocateSharedInst:
-        out = SharedTensor.create(dtype=dtype, layout=layout)
-        if f_init:
-            axes = index_vars(num_vars=len(layout.shape))
-            init = f_init(axes)
-        else:
-            axes = None
-            init = None
-        return AllocateSharedInst(output=out, inputs=(), axes=axes, init=init)
+    def create(output: SharedTensor) -> AllocateSharedInst:
+        return AllocateSharedInst(output=output, inputs=())
 
 
 @dataclass(frozen=True, eq=False)
@@ -441,11 +388,7 @@ class AllocateGlobalInst(Instruction):
     require_clean: bool
 
     @staticmethod
-    def create(*, dtype: DataType, layout: GlobalLayout, require_clean: bool) -> AllocateGlobalInst:
-        output = GlobalTensor.create(
-            dtype=dtype,
-            layout=layout,
-        )
+    def create(output: GlobalTensor, require_clean: bool) -> AllocateGlobalInst:
         return AllocateGlobalInst(output=output, inputs=(), require_clean=require_clean)
 
 
@@ -454,11 +397,7 @@ class GlobalViewInst(Instruction):
     ptr: Expr
 
     @staticmethod
-    def create(*, dtype: DataType, layout: GlobalLayout, ptr: Expr) -> GlobalViewInst:
-        output = GlobalTensor.create(
-            dtype=dtype,
-            layout=layout,
-        )
+    def create(output: GlobalTensor, ptr: Expr) -> GlobalViewInst:
         return GlobalViewInst(output=output, inputs=(), ptr=ptr)
 
 
@@ -467,22 +406,6 @@ class FreeSharedInst(Instruction):
     @staticmethod
     def create(tensor: SharedTensor) -> FreeSharedInst:
         return FreeSharedInst(output=None, inputs=(tensor,))
-
-
-@dataclass(frozen=True, eq=False)
-class ViewSharedInst(Instruction):
-    indices: List[Expr]
-    dtype: DataType
-    layout: SharedLayout
-
-    @staticmethod
-    def create(
-        x: SharedTensor, indices: List[Expr], layout: SharedLayout, dtype: Optional[DataType] = None
-    ) -> ViewSharedInst:
-        if dtype is None:
-            dtype = x.dtype
-        out = SharedTensor.create(dtype=dtype, layout=layout)
-        return ViewSharedInst(output=out, inputs=(x,), indices=indices, dtype=dtype, layout=layout)
 
 
 @dataclass(frozen=True, eq=False)
@@ -583,49 +506,6 @@ class LoadMatrixInst(Instruction):
         else:
             assert output.dtype == src.dtype and output.layout.quick_equal(register_layout)
         return LoadMatrixInst(output=output, inputs=(src,), offsets=offsets)
-
-
-@dataclass(frozen=True, eq=False)
-class LoadSharedInst(Instruction):
-    offsets: tuple[Expr, ...]
-
-    @staticmethod
-    def create(
-        src: SharedTensor,
-        *,
-        offsets: Optional[Sequence[Expr | int]] = None,
-        out_layout: Optional[RegisterLayout] = None,
-        out: Optional[RegisterTensor] = None,
-    ) -> LoadSharedInst:
-        match (out_layout, out):
-            case None, None:
-                raise ValueError("Must specify either out_layout or out")
-            case None, _:
-                assert out.dtype == src.dtype  # type: ignore[union-attr]
-            case _, None:
-                out = RegisterTensor.create(dtype=src.dtype, layout=out_layout)  # type: ignore[union-attr, arg-type]
-            case _:
-                raise ValueError("Cannot specify both out_layout and out")
-        if offsets is None:
-            offsets_ = tuple([i32.zero for _ in range(len(src.shape))])
-        else:
-            offsets_ = tuple([as_expr(v) for v in offsets])
-        return LoadSharedInst(output=out, inputs=(src,), offsets=offsets_)
-
-
-@dataclass(frozen=True, eq=False)
-class StoreSharedInst(Instruction):
-    offsets: tuple[Expr, ...]
-
-    @staticmethod
-    def create(
-        dst: SharedTensor, src: RegisterTensor, offsets: Optional[Sequence[Expr | int]] = None
-    ) -> StoreSharedInst:
-        if offsets is None:
-            offsets_ = [i32.zero for _ in range(len(dst.shape))]
-        else:
-            offsets_ = [as_expr(v) for v in offsets]
-        return StoreSharedInst(output=None, inputs=(dst, src), offsets=tuple(offsets_))
 
 
 @dataclass(frozen=True, eq=False)

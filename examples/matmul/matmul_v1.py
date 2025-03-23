@@ -53,6 +53,7 @@ class MatmulV1(tilus.Script):
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
+        [1025, 1025, 1026],
         [2048, 2048, 2048],
         [4096, 4096, 4096],
     ]

@@ -7,6 +7,7 @@ from tilus import float16, float32, int32
 from tilus.utils import benchmark_func
 
 tilus.option.cache_dir("./cache")
+tilus.option.debug.dump_ir()
 
 
 class MatmulV0(tilus.Script):
@@ -44,9 +45,7 @@ class MatmulV0(tilus.Script):
 
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
-    workloads = [
-        [1024, 1024, 1024],
-    ]
+    workloads = [[1025, 1025, 1026]]
 
     rows = []
     for m, n, k in workloads:

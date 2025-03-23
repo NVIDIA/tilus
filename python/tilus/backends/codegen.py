@@ -97,24 +97,24 @@ class BaseInstEmitter(StmtBuilder):
         else:
             raise NotImplementedError()
 
-    def get_or_allocate_var(self, value: Tensor, name: Optional[str] = None) -> Var:
-        if value in self.value2var:
-            return self.value2var[value]
+    def get_or_allocate_var(self, tensor: Tensor, name: Optional[str] = None) -> Var:
+        if tensor in self.tensor2var:
+            return self.tensor2var[tensor]
         else:
-            if isinstance(value, RegisterTensor):
+            if isinstance(tensor, RegisterTensor):
                 name = name if name else "regs"
                 var = self.declare(
-                    tensor_var(name, shape=[value.local_size], dtype=value.dtype), scope=DeclareScope.Register
+                    tensor_var(name, shape=[tensor.local_size], dtype=tensor.dtype), scope=DeclareScope.Register
                 )
-            elif isinstance(value, SharedTensor):
+            elif isinstance(tensor, SharedTensor):
                 name = name if name else "smem"
-                var = self.declare(tensor_pointer_var(name, shape=[value.size], dtype=value.dtype))
-            elif isinstance(value, GlobalTensor):
+                var = self.declare(tensor_pointer_var(name, shape=[tensor.size], dtype=tensor.dtype))
+            elif isinstance(tensor, GlobalTensor):
                 name = name if name else "gmem"
-                var = self.declare(tensor_pointer_var(name, shape=[value.size], dtype=value.dtype))
+                var = self.declare(tensor_pointer_var(name, shape=[tensor.size], dtype=tensor.dtype))
             else:
                 raise NotImplementedError()
-            self.value2var[value] = var
+            self.tensor2var[tensor] = var
             return var
 
     @property
@@ -126,7 +126,7 @@ class BaseInstEmitter(StmtBuilder):
         return self.codegen.thread_groups
 
     @property
-    def value2var(self) -> Dict[Tensor, Var]:
+    def tensor2var(self) -> Dict[Tensor, Var]:
         return self.codegen.tensor2var
 
     @property

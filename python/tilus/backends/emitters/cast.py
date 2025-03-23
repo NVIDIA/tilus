@@ -52,18 +52,18 @@ class CastInstBaseEmitter(BaseInstEmitter):
     def emit(self, inst: CastInst) -> None:  # type: ignore
         src = inst.inputs[0]
         dst = inst.register_output
-        self.interleave_width = inst.interleave_width
-        self.interleave_stride = inst.interleave_stride
-        self.ignore_int4b_xor = inst.ignore_int4b_xor
+        self.interleave_width = None
+        self.interleave_stride = None
+        self.ignore_int4b_xor = None
         self.size = dst.local_size
 
         var: Var = self.declare(
             tensor_var("casted_{}".format(dst.dtype.short_name), shape=[dst.local_size], dtype=dst.dtype)
         )
-        self.value2var[dst] = var
+        self.tensor2var[dst] = var
 
-        src_var = self.value2var[src]
-        dst_var = self.value2var[dst]
+        src_var = self.tensor2var[src]
+        dst_var = self.tensor2var[dst]
 
         src_dtype = src.dtype
         dst_dtype = dst.dtype

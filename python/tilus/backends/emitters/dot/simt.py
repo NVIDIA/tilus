@@ -14,9 +14,9 @@ class MmaDotInstEmitter(BaseInstEmitter):
         a_value = inst.inputs[0].as_register_tensor()
         b_value = inst.inputs[1].as_register_tensor()
         c_value = inst.inputs[2].as_register_tensor()
-        a_buf = self.value2var[a_value]
-        b_buf = self.value2var[b_value]
-        c_buf = self.value2var[c_value]
+        a_buf = self.tensor2var[a_value]
+        b_buf = self.tensor2var[b_value]
+        c_buf = self.tensor2var[c_value]
 
         warp_id: Expr = self.current_worker // 32
         warp_spatial: Tuple[int, int, int] = inst.warp_spatial

@@ -18,7 +18,7 @@ from hidet.lang.transpiler import HidetProgramError, PythonAstFunctor
 from tilus import ir as tilus_ir
 from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir import RegisterTensor
-from tilus.ir.builders import IRBuilder
+from tilus.ir.builders import IRBuilder, StmtBuilder
 from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import AssignInst, Instruction
 from tilus.ir.layout import RegisterLayout
@@ -182,7 +182,7 @@ class Transpiler(PythonAstFunctor):
                 env_scope.bind(name, value)
             env_scope.bind("self", script)
 
-            script._transpiler = self
+            script._builder = StmtBuilder()
             self._script = script
 
             function = self.visit(parsed)
@@ -190,7 +190,7 @@ class Transpiler(PythonAstFunctor):
 
             # prevent loop reference
             self._script = None
-            script._transpiler = None
+            script._builder = None
 
             return function
 
@@ -409,10 +409,10 @@ class Transpiler(PythonAstFunctor):
 
         if isinstance(func, types.FunctionType):
             # call python function
-            return func(*args, **kwargs)
+            ret = func(*args, **kwargs)
         elif isinstance(func, types.MethodType):
             # call python class method
-            return func(*args, **kwargs)
+            ret = func(*args, **kwargs)
         elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):
             # call python builtin method, such "a string".format(...) or max, min
             from hidet import ir
@@ -466,7 +466,13 @@ class Transpiler(PythonAstFunctor):
                         'Currently, do not support calling python builtin function "{}".'.format(func.__qualname__),
                     )
         else:
-            return func(*args, **kwargs)
+            ret = func(*args, **kwargs)
+        builder_stack: list[list[Stmt]] = self._script._builder._stack
+        assert len(builder_stack) == 1
+        if len(builder_stack[0]) > 0:
+            self.current_scope.stmts.extend(builder_stack[0])
+            builder_stack[0].clear()
+        return ret
 
     def visit_Attribute(self, expr: ast.Attribute) -> Any:
         from hidet.ir.primitives.cuda.vars import blockIdx

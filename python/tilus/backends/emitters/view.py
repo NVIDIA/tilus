@@ -8,9 +8,9 @@ from tilus.target import gpgpu_any
 class ViewInstEmitter(BaseInstEmitter):
     def emit(self, inst: ViewInst) -> None:
         out_value = inst.register_output
-        in_var = self.value2var[inst.inputs[0]]
+        in_var = self.tensor2var[inst.inputs[0]]
         out_var: Var = self.declare(
             v=tensor_pointer_var("viewed", shape=[out_value.layout.local_size], dtype=out_value.dtype),
             init=cast(~in_var[inst.local_offset], ~out_value.dtype),
         )
-        self.value2var[out_value] = out_var
+        self.tensor2var[out_value] = out_var

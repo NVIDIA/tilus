@@ -1,37 +1,17 @@
 from __future__ import annotations
 
 import typing
-from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
+from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type
 
-from hidet.ir.dtypes import boolean
 from hidet.ir.expr import Expr, Var
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3
 from hidet.ir.type import DataType
-from tilus.ir.inst import (
-    AllocateRegisterInst,
-    AllocateSharedInst,
-    CastInst,
-    FormatPrintInst,
-    FreeSharedInst,
-    GlobalViewInst,
-    Instruction,
-    LoadGlobalGenericInst,
-    LoadGlobalInst,
-    LoadSharedInst,
-    MmaDotInst,
-    PrintValueInst,
-    StoreGlobalGenericInst,
-    StoreGlobalInst,
-    StoreSharedInst,
-    SyncThreadsInst,
-)
+from tilus.ir.builders import StmtBuilder
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_repeat, global_strides
 from tilus.ir.prog import Program
-from tilus.ir.stmt import InstStmt, Stmt
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
-from tilus.lang.utils import group_function_argument
 
 
 class Attributes:
@@ -91,10 +71,8 @@ class Script:
         )
 
     def __init__(self) -> None:
-        from tilus.lang.transpiler import Transpiler
-
-        # transpiler used to append instructions
-        self._transpiler: Optional[Transpiler] = None
+        # builder used to append instructions
+        self._builder: Optional[StmtBuilder] = None
 
         # the following attributes should be set by the user in the kernel function
         self.attrs: Attributes = Attributes()
@@ -103,15 +81,6 @@ class Script:
         # the following primitives could be used in the __init__ function to prepare the layouts
         self.cuda = cuda
         self.utils = utils
-
-    def _append(self, inst_or_stmt: Union[Instruction, Stmt]) -> None:
-        """
-        Internal utility function used to append an instruction or a statement to the current scope of transpiler.
-        """
-        assert self._transpiler is not None
-
-        stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstStmt(inst=inst_or_stmt)
-        self._transpiler.current_scope.stmts.append(stmt)
 
     def program(self) -> Program:
         """
@@ -192,9 +161,7 @@ class Script:
                 )
             layout = auto_repeat_spatial(num_threads=self.attrs.warps * 32, shape=shape)
 
-        inst = AllocateRegisterInst.create(dtype=dtype, layout=layout, f_init=f_init)
-        self._append(inst)
-        return inst.register_output
+        return self._builder.allocate_register(dtype=dtype, layout=layout, f_init=f_init)
 
     def shared_tensor(
         self,
@@ -202,7 +169,6 @@ class Script:
         dtype: DataType,
         shape: Optional[Sequence[int]] = None,
         layout: Optional[SharedLayout] = None,
-        f_init: Optional[Callable[[list[Var]], Expr]] = None,
     ) -> SharedTensor:
         from tilus.ir.layout.shared_layout import shared_repeat
 
@@ -218,14 +184,7 @@ class Script:
                 raise ValueError("Cannot specify both shape and layout")
 
         assert layout is not None
-
-        inst = AllocateSharedInst.create(
-            dtype=dtype,
-            layout=layout,
-            f_init=f_init,
-        )
-        self._append(inst)
-        return inst.shared_output
+        return self._builder.allocate_shared(dtype=dtype, shared_layout=layout)
 
     def global_view(
         self,
@@ -236,22 +195,19 @@ class Script:
         strides: Optional[Sequence[Expr | int]] = None,
         layout: Optional[GlobalLayout] = None,
     ) -> GlobalTensor:
-        global_layout: GlobalLayout
         if layout is not None:
             assert shape is None and strides is None, "Cannot specify both layout and shape/strides"
-            global_layout = layout
+            layout = layout
         else:
             assert shape is not None, "Must specify shape when layout is not provided"
             if strides is None:
                 # assume compact row-major layout
-                global_layout = global_repeat(*shape)
+                layout = global_repeat(*shape)
             else:
                 assert len(shape) == len(strides), "Shape and strides must have the same length"
-                global_layout = global_strides(shape, strides)
+                layout = global_strides(shape, strides)
 
-        inst = GlobalViewInst.create(dtype=dtype, layout=global_layout, ptr=ptr)
-        self._append(inst)
-        return inst.global_output
+        return self._builder.global_view(ptr=ptr, dtype=dtype, layout=layout)
 
     def load_global(
         self,
@@ -261,7 +217,7 @@ class Script:
         offsets: Sequence[Expr],
         shape: Optional[Sequence[int]] = None,
         layout: Optional[RegisterLayout] = None,
-        dims: Optional[Iterable[int]] = None,
+        dims: Optional[Sequence[int]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         match (shape, layout, out):
@@ -284,9 +240,7 @@ class Script:
             case _:
                 raise ValueError("Cannot specify any two of shape, layout, and out")
 
-        inst = LoadGlobalInst.create(x, offsets=offsets, dims=dims, out=out)
-        self._append(inst)
-        return inst.register_output
+        return self._builder.load_global(x=x, offsets=offsets, dims=dims, output=out)
 
     def store_global(
         self,
@@ -296,8 +250,7 @@ class Script:
         offsets: Sequence[Expr],
         slice_dims: Optional[Sequence[int]] = None,
     ) -> None:
-        inst = StoreGlobalInst.create(dst, x, offsets=offsets, dims=slice_dims)
-        self._append(inst)
+        self._builder.store_global(dst=dst, src=x, offsets=offsets, dims=slice_dims)
 
     def load_shared(
         self,
@@ -305,21 +258,22 @@ class Script:
         *,
         offsets: Optional[Sequence[Expr | int]] = None,
         out_layout: Optional[RegisterLayout] = None,
+        slice_dims: Optional[Sequence[int]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        inst = LoadSharedInst.create(src, offsets=offsets, out_layout=out_layout, out=out)
-        self._append(inst)
-        return inst.register_output
+        if slice_dims is None:
+            slice_dims = list(range(len(src.shape)))
+        return self._builder.load_shared(
+            src=src, register_layout=out_layout, offsets=offsets, dims=slice_dims, output=out
+        )
 
     def store_shared(
         self, dst: SharedTensor, src: RegisterTensor, *, offsets: Optional[Sequence[Expr | int]] = None
     ) -> None:
-        inst = StoreSharedInst.create(dst=dst, src=src, offsets=offsets)
-        self._append(inst)
+        self._builder.store_shared(dst=dst, src=src, offsets=offsets)
 
     def free_shared(self, tensor: SharedTensor) -> None:
-        inst = FreeSharedInst.create(tensor=tensor)
-        self._append(inst)
+        self._builder.free_shared(tensor)
 
     def mma_dot(
         self,
@@ -333,31 +287,12 @@ class Script:
         warp_repeat: Sequence[int],
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        inst = MmaDotInst.create(
-            a=a, b=b, c=c, mma_inst=mma_inst, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
+        return self._builder.mma_dot(
+            a, b, c, mma_inst=mma_inst, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
         )
-        self._append(inst)
-        return inst.register_output
 
-    def cast(
-        self,
-        x: RegisterTensor,
-        /,
-        dtype: DataType,
-        *,
-        interleave_width: Optional[int] = None,
-        interleave_stride: Optional[int] = None,
-        ignore_int4b_xor: bool = False,
-    ) -> RegisterTensor:
-        inst = CastInst.create(
-            dtype=dtype,
-            x=x,
-            interleave_width=interleave_width,
-            interleave_stride=interleave_stride,
-            ignore_int4b_xor=ignore_int4b_xor,
-        )
-        self._append(inst)
-        return inst.register_output
+    def cast(self, x: RegisterTensor, dtype: DataType) -> RegisterTensor:
+        return self._builder.cast(x=x, dtype=dtype)
 
     def load_global_generic(
         self,
@@ -369,16 +304,14 @@ class Script:
         f_mask: Optional[Callable[..., Expr | int | bool]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        inst = LoadGlobalGenericInst.create(
+        return self._builder.load_global_generic(
             dtype=dtype,
             layout=layout,
             ptr=ptr,
-            f_offset=group_function_argument(f_offset),
-            f_mask=group_function_argument(f_mask) if f_mask else None,
+            f_offset=lambda args: f_offset(*args),
+            f_mask=lambda args: f_mask(*args) if f_mask is not None else None,
             out=out,
         )
-        self._append(inst)
-        return inst.register_output
 
     def store_global_generic(
         self,
@@ -389,25 +322,21 @@ class Script:
         f_offset: Callable[..., Expr | int],
         f_mask: Optional[Callable[..., Expr | int | bool]] = None,
     ) -> None:
-        inst = StoreGlobalGenericInst.create(
+        self._builder.store_global_generic(
             x=x,
             ptr=ptr,
-            f_offset=group_function_argument(f_offset),
-            f_mask=group_function_argument(f_mask) if f_mask else None,
+            f_offset=lambda args: f_offset(*args),
+            f_mask=lambda args: f_mask(*args) if f_mask is not None else None,
         )
-        self._append(inst)
 
     def sync(self) -> None:
-        inst = SyncThreadsInst.create()
-        self._append(inst)
+        self._builder.syncthreads()
 
-    def print_tensor(self, msg: str, x: Tensor, fmt: Optional[str] = None) -> None:
-        inst = PrintValueInst.create(x, cond=boolean.true, msg=msg, fmt=fmt)
-        self._append(inst)
+    def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None) -> None:
+        self._builder.print_tensor(msg=msg, tensor=tensor, fmt=fmt)
 
     def printf(self, fstring: str, *args: Expr | int | float) -> None:
-        inst = FormatPrintInst.create(cond=boolean.true, fstring=fstring, expressions_=args)
-        self._append(inst)
+        self._builder.printf(fstring, *args)
 
 
 def autotune(arg_names: str, arg_values: Sequence[Any]) -> Callable[[Type[Script]], Any]:

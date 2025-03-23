@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Union
 
 from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Expr, Var
@@ -19,20 +19,24 @@ from tilus.ir.inst import (
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
+    GlobalViewInst,
     Instruction,
     LoadGlobalGenericInst,
+    LoadGlobalInst,
     LoadMatrixInst,
+    LoadSharedGenericInst,
     LoadSharedInst,
     MmaDotInst,
     PrintValueInst,
     StoreGlobalGenericInst,
+    StoreGlobalInst,
+    StoreSharedGenericInst,
     StoreSharedInst,
     SyncReduceThreadsInst,
     SyncThreadsInst,
     ViewInst,
-    ViewSharedInst,
 )
-from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout import GlobalLayout, RegisterLayout
 from tilus.ir.stmt import (
     AssignStmt,
     BreakStmt,
@@ -46,7 +50,7 @@ from tilus.ir.stmt import (
     TensorPtrStmt,
     WhileStmt,
 )
-from tilus.ir.tensor import RegisterTensor, SharedLayout, SharedTensor, Tensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
 
 
 class StmtContext:
@@ -285,13 +289,15 @@ class StmtBuilder(StmtBuilderCore):
         layout: RegisterLayout,
         f_init: Optional[Callable[[Sequence[Var]], Union[Expr, float, int]]] = None,
     ) -> RegisterTensor:
-        wrapped_init: Optional[Callable[[Sequence[Var]], Expr]] = None
+        wrapped_f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
         if f_init is not None:
 
-            def wrapped_init(axes: Sequence[Var]) -> Expr:
+            def wrapped_f_init(axes: Sequence[Var]) -> Expr:
                 return as_expr(f_init(axes))
 
-        inst = AllocateRegisterInst.create(dtype, layout, wrapped_init)
+        output = RegisterTensor.create(dtype, layout)
+
+        inst = AllocateRegisterInst.create(output=output, f_init=wrapped_f_init)
         self.append(inst)
         return inst.register_output
 
@@ -316,28 +322,15 @@ class StmtBuilder(StmtBuilderCore):
         x: RegisterTensor,
         *,
         dtype: DataType,
-        interleave_width: Optional[int] = None,
-        interleave_stride: Optional[int] = None,
-        ignore_int4b_xor: bool = False,
     ) -> RegisterTensor:
         if x.dtype == dtype:
             return x
         inst = CastInst.create(
-            dtype=dtype,
             x=x,
-            interleave_width=interleave_width,
-            interleave_stride=interleave_stride,
-            ignore_int4b_xor=ignore_int4b_xor,
+            output=RegisterTensor.create(dtype=dtype, layout=x.layout),
         )
         self.append(inst)
         return inst.register_output
-
-    def view_shared(
-        self, x: SharedTensor, *, indices: List[Expr], layout: SharedLayout, dtype: Optional[DataType] = None
-    ) -> SharedTensor:
-        inst = ViewSharedInst.create(x, indices, layout, dtype)
-        self.append(inst)
-        return inst.shared_output
 
     def copy_async(
         self,
@@ -385,10 +378,8 @@ class StmtBuilder(StmtBuilderCore):
     def mod(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_binary(x, y, "%", out=out)
 
-    def print_tensor(
-        self, msg: str, value: RegisterTensor | SharedTensor, fmt: Optional[str] = None, cond: Expr = boolean.true
-    ) -> None:
-        inst = PrintValueInst.create(value, cond=cond, msg=msg, fmt=fmt)
+    def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None, cond: Expr = boolean.true) -> None:
+        inst = PrintValueInst.create(tensor, cond=cond, msg=msg, fmt=fmt)
         self.append(inst)
 
     def format_print(
@@ -408,10 +399,12 @@ class StmtBuilder(StmtBuilderCore):
         b: RegisterTensor,
         c: RegisterTensor,
         mma_inst: str,
-        warp_spatial: Tuple[int, int, int],
-        warp_repeat: Tuple[int, int, int],
+        warp_spatial: Sequence[int],
+        warp_repeat: Sequence[int],
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        if output is None:
+            output = RegisterTensor.create(dtype=c.dtype, layout=c.layout)
         inst = MmaDotInst.create(
             a=a, b=b, c=c, mma_inst=mma_inst, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
         )
@@ -420,10 +413,8 @@ class StmtBuilder(StmtBuilderCore):
 
     # shared value operations
 
-    def allocate_shared(
-        self, dtype: DataType, shared_layout: SharedLayout, f_init: Optional[Callable[[List[Var]], Expr]] = None
-    ) -> SharedTensor:
-        inst = AllocateSharedInst.create(dtype=dtype, layout=shared_layout, f_init=f_init)
+    def allocate_shared(self, dtype: DataType, shared_layout: SharedLayout) -> SharedTensor:
+        inst = AllocateSharedInst.create(output=SharedTensor.create(dtype=dtype, layout=shared_layout))
         self.append(inst)
         return inst.shared_output
 
@@ -431,20 +422,39 @@ class StmtBuilder(StmtBuilderCore):
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
 
-    def store_shared(self, dst: SharedTensor, src: RegisterTensor, offsets: Optional[List[Expr]] = None) -> None:
-        inst = StoreSharedInst.create(dst, src, offsets)
+    def store_shared(
+        self,
+        dst: SharedTensor,
+        src: RegisterTensor,
+        offsets: Optional[Sequence[Expr | int]] = None,
+        dims: Optional[Sequence[int]] = None,
+    ) -> None:
+        if dims is None:
+            dims = range(len(dst.shape))
+        if offsets is None:
+            offsets_ = [int32.zero for _ in range(len(dst.shape))]
+        else:
+            offsets_ = [as_expr(offset) for offset in offsets]
+        inst = StoreSharedInst.create(dst=dst, src=src, offsets=offsets_, dims=dims)
         self.append(inst)
 
     def load_shared(
         self,
         src: SharedTensor,
         register_layout: RegisterLayout,
-        offsets: Optional[List[Expr]] = None,
+        offsets: Optional[Sequence[Expr | int]] = None,
+        dims: Optional[Sequence[int]] = None,
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        if dims is None:
+            dims = range(len(src.shape))
         if offsets is None:
-            offsets = [int32.zero for _ in range(len(src.shape))]
-        inst = LoadSharedInst.create(src=src, out_layout=register_layout, offsets=offsets, out=output)
+            offsets_ = [int32.zero for _ in range(len(src.shape))]
+        else:
+            offsets_ = [as_expr(offset) for offset in offsets]
+        if output is None:
+            output = RegisterTensor.create(dtype=src.dtype, layout=register_layout)
+        inst = LoadSharedInst.create(x=src, offsets=offsets_, dims=dims, output=output)
         self.append(inst)
         return inst.register_output
 
@@ -461,6 +471,40 @@ class StmtBuilder(StmtBuilderCore):
         return inst.register_output
 
     # global memory operations
+    def global_view(self, ptr: Expr, dtype: DataType, layout: GlobalLayout) -> GlobalTensor:
+        inst = GlobalViewInst.create(output=GlobalTensor.create(dtype=dtype, layout=layout), ptr=ptr)
+        self.append(inst)
+        return inst.global_output
+
+    def load_global(
+        self,
+        x: GlobalTensor,
+        offsets: Sequence[Expr],
+        dims: Optional[Sequence[int]] = None,
+        register_layout: Optional[RegisterLayout] = None,
+        output: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        if output is None:
+            assert register_layout is not None
+            output = RegisterTensor.create(dtype=x.dtype, layout=register_layout)
+        else:
+            assert register_layout is None
+        if dims is None:
+            assert len(x.shape) == len(output.shape)
+            dims = range(len(x.shape))
+        inst = LoadGlobalInst.create(x=x, offsets=offsets, dims=dims, output=output)
+        self.append(inst)
+        return inst.register_output
+
+    def store_global(
+        self, dst: GlobalTensor, src: RegisterTensor, offsets: Sequence[Expr], dims: Optional[Sequence[int]] = None
+    ) -> None:
+        if dims is None:
+            assert len(dst.shape) == len(src.shape)
+            dims = list(range(len(dst.shape)))
+        inst = StoreGlobalInst.create(dst=dst, x=src, offsets=offsets, dims=dims)
+        self.append(inst)
+
     def store_global_generic(
         self,
         x: RegisterTensor,
@@ -482,9 +526,36 @@ class StmtBuilder(StmtBuilderCore):
         f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        inst = LoadGlobalGenericInst.create(
-            dtype=dtype, layout=layout, ptr=ptr, f_offset=f_offset, f_mask=f_mask, out=out
-        )
+        if out is None:
+            out = RegisterTensor.create(dtype=dtype, layout=layout)
+        inst = LoadGlobalGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
+        self.append(inst)
+        return inst.register_output
+
+    def store_shared_generic(
+        self,
+        x: RegisterTensor,
+        *,
+        ptr: Var,
+        f_offset: Callable[[Sequence[Var]], Expr | int],
+        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
+    ) -> None:
+        inst = StoreSharedGenericInst.create(x=x, ptr=ptr, f_offset=f_offset, f_mask=f_mask)
+        self.append(inst)
+
+    def load_shared_generic(
+        self,
+        *,
+        dtype: DataType,
+        layout: RegisterLayout,
+        ptr: Var,
+        f_offset: Callable[[Sequence[Var]], Expr | int],
+        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        if out is None:
+            out = RegisterTensor.create(dtype=dtype, layout=layout)
+        inst = LoadSharedGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
         self.append(inst)
         return inst.register_output
 

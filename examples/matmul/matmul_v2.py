@@ -19,7 +19,7 @@ pd.set_option("display.float_format", lambda x: "%.2f" % x)
 @tilus.autotune("warp_spatial", [[1, 8], [2, 4], [4, 2], [8, 1], [1, 4], [2, 2], [4, 1]])
 @tilus.autotune(
     "warp_repeat",
-    [[1, 1, 1], [1, 2, 1], [2, 1, 1], [1, 4, 1], [4, 1, 1], [2, 2, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1]],
+    [[1, 4, 1], [4, 1, 1], [2, 2, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1]],
 )
 class MatmulV2(tilus.Script):
     def __init__(
@@ -80,6 +80,7 @@ class MatmulV2(tilus.Script):
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
+        [1025, 1025, 1026],
         [2048, 2048, 2048],
         [4096, 4096, 4096],
     ]
@@ -112,4 +113,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # sanitizer_run(main)

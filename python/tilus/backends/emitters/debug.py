@@ -115,7 +115,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
                         indices = self.restore_indices(squeezed_indices, squeezed_dims, shape)
                         is_valid = layout.is_valid(global_indices=indices, worker=self.current_worker)
                         with self.if_then(logical_and(self.current_worker < layout.num_workers, is_valid)):
-                            buf = self.value2var[tensor]
+                            buf = self.tensor2var[tensor]
                             local_index = layout.global2local(indices, worker=self.current_worker)
                             data = buf[local_index]
                             if dtype.is_float():
@@ -142,7 +142,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
                         self.print_right_bracket(squeezed_indices, squeezed_shape)
         elif isinstance(tensor, SharedTensor):
             shared_layout: SharedLayout = tensor.layout
-            buf = self.value2var[tensor]
+            buf = self.tensor2var[tensor]
             self.sync()
             with self.if_then(cond):
                 self.sync()

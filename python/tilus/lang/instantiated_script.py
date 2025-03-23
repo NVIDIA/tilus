@@ -402,7 +402,7 @@ class JitInstance:
                 self.failed_scheduling.append("\n".join(lines))
 
         # get the cache dir for this jit instance
-        concatenated_program_text = "\n".join([str(program) for program in self.valid_programs])
+        concatenated_program_text = "\n".join([str(program) for program in self.transpiled_programs])
         option_text = str(self.build_options)
         hash_string = option_text + concatenated_program_text
         hash_key = hashlib.sha256(hash_string.encode()).hexdigest()[:8]
