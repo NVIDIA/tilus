@@ -1,9 +1,10 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 from hidet.ir.dtypes import DataType
+from tilus import RegisterLayout
 from tilus.ir.instructions.cuda import MmaDotConfig
-from tilus.ir.layout import SharedLayout, shared_compose, shared_repeat
-from tilus.utils import idiv
+from tilus.ir.layout import SharedLayout, auto_repeat_spatial, shared_compose, shared_repeat
+from tilus.utils import gcd, idiv, prod
 
 
 class cuda:
@@ -157,3 +158,28 @@ class cuda:
         if bs is not None:
             layout = layout.prepend_dim(extent=bs)
         return layout
+
+    @staticmethod
+    def default_register_layout(
+        num_warps: int, dtype: DataType, shape: Sequence[int], vector_size: Optional[int] = None
+    ) -> RegisterLayout:
+        num_threads = num_warps * 32
+        num_elements = prod(shape)
+        if num_elements % num_threads != 0:
+            raise RuntimeError(
+                "Can not automatically generate register layout for shape {} and num_warps {}.".format(shape, num_warps)
+            )
+        elements_per_thread = num_elements // num_threads
+        if vector_size is None:
+            vector_size = gcd(elements_per_thread, 4 // dtype.nbytes, shape[-1])
+        else:
+            assert elements_per_thread % vector_size == 0
+
+        if vector_size > 1:
+            vector_shape = list(shape)
+            vector_shape[-1] = shape[-1] // vector_size
+            repeat_shape = [1 for _ in shape]
+            repeat_shape[-1] = vector_size
+            return auto_repeat_spatial(num_threads=num_threads, shape=vector_shape).repeat(*repeat_shape)
+        else:
+            return auto_repeat_spatial(num_threads=num_threads, shape=shape)

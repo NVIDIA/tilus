@@ -53,6 +53,12 @@ class Attributes:
             raise ValueError(f"Unknown attribute {key}")
         super().__setattr__(key, value)
 
+    def __getattribute__(self, key):
+        ret = super().__getattribute__(key)
+        if ret is None:
+            raise ValueError("The function attribute {} must be set in the script program".format(key))
+        return ret
+
 
 class Script:
     # the compiled program will print the instruction output of the specified block
@@ -153,14 +159,7 @@ class Script:
         elif shape is not None and layout is not None:
             raise ValueError("Cannot specify both shape and layout")
         elif layout is None:
-            from tilus.ir.layout import auto_repeat_spatial
-
-            if self.attrs.warps is None:
-                raise ValueError(
-                    "Must specify the number of warps in th script so that load_global could use it "
-                    "to infer the register tensor layout"
-                )
-            layout = auto_repeat_spatial(num_threads=self.attrs.warps * 32, shape=shape)
+            layout = self.cuda.default_register_layout(num_warps=self.attrs.warps, dtype=dtype, shape=shape)
 
         return self._builder.allocate_register(dtype=dtype, layout=layout, f_init=f_init)
 
@@ -266,6 +265,8 @@ class Script:
             if dims is None:
                 dims = list(range(len(src.shape)))
             src = self._builder.shared_slice(src, offsets=offsets, slice_dims=dims, slice_shape=out_layout.shape)
+        if out_layout is None and out is None:
+            out_layout = self.cuda.default_register_layout(num_warps=self.attrs.warps, dtype=src.dtype, shape=src.shape)
         return self._builder.load_shared(src=src, output_layout=out_layout, output=out)
 
     def store_shared(
