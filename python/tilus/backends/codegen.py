@@ -131,8 +131,8 @@ class BaseInstEmitter(StmtBuilder):
         return self.codegen.tensor2var
 
     @property
-    def shared_value_shared_space_addr(self):
-        return self.codegen.shared_value_shared_space_addr
+    def shared_tensor_shared_space_addr(self):
+        return self.codegen.shared_tensor_shared_space_addr
 
     @property
     def num_warps(self) -> int:
@@ -261,7 +261,7 @@ class Codegen(IRFunctor):
         # mapping from shared value to the address in shared memory allocator for all allocated shared values
         self.shared_value_allocator_addr: Dict[SharedTensor, int] = {}
         # mapping from shared value to the address in shared memory space (e.g., returned by cvta ptx instruction)
-        self.shared_value_shared_space_addr: Dict[SharedTensor, Var] = {}
+        self.shared_tensor_shared_space_addr: Dict[SharedTensor, Var] = {}
 
         # shared memory workspace
         self.smem_workspace: Optional[SharedTensor] = None

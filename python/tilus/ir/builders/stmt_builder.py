@@ -440,13 +440,14 @@ class StmtBuilder(StmtBuilderCore):
     def shared_slice(
         self,
         tensor: SharedTensor,
-        offsets: Sequence[int],
+        offsets: Sequence[Expr | int],
         slice_dims: Sequence[int],
         slice_shape: Sequence[int],
     ) -> SharedTensor:
+        offsets_ = [as_expr(offset) for offset in offsets]
         inst = SharedSliceInst.create(
             tensor=tensor,
-            offsets=offsets,
+            offsets=offsets_,
             dims=slice_dims,
             shape=slice_shape,
         )

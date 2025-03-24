@@ -8,6 +8,8 @@ from tilus.utils import benchmark_func
 
 tilus.option.cache_dir("./cache")
 
+pandas.set_option("display.float_format", lambda x: "%.2f" % x)
+
 
 class MatmulV1(tilus.Script):
     def __init__(self):
@@ -80,7 +82,6 @@ def main():
             flops = 2 * m * n * k / latency * 1e-9
             rows.append([m, n, k, name, latency, flops])
 
-    pandas.set_option("display.float_format", lambda x: "%.2f" % x)
     df = pandas.DataFrame(rows, columns=headers)
     print(df)
 

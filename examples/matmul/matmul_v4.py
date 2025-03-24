@@ -10,9 +10,6 @@ from tilus.utils import benchmark_func, prod
 
 tilus.option.cache_dir("./cache")
 
-pd.set_option("display.max_columns", None)
-pd.set_option("display.width", None)
-pd.set_option("display.max_rows", None)
 pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
 
@@ -80,9 +77,9 @@ class MatmulV4(tilus.Script):
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
-        # [1025, 1025, 1026],
         [2048, 2048, 2048],
         [4096, 4096, 4096],
+        [4097, 4096, 4096],
     ]
 
     rows = []

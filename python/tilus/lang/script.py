@@ -257,7 +257,7 @@ class Script:
         self,
         src: SharedTensor,
         *,
-        offsets: Optional[Sequence[int]] = None,
+        offsets: Optional[Sequence[Expr | int]] = None,
         dims: Optional[Sequence[int]] = None,
         out_layout: Optional[RegisterLayout] = None,
         out: Optional[RegisterTensor] = None,

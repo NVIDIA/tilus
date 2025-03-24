@@ -10,9 +10,6 @@ from tilus.utils import benchmark_func, prod
 
 tilus.option.cache_dir("./cache")
 
-pd.set_option("display.max_columns", None)
-pd.set_option("display.width", None)
-pd.set_option("display.max_rows", None)
 pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
 

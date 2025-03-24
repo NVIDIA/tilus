@@ -72,6 +72,9 @@ class SharedTensor(Tensor):
     def nbytes(self) -> int:
         return nbytes_from_nbits(self.size * self.dtype.nbits)
 
+    def __getitem__(self, index: int | Expr) -> SharedTensor:
+        raise RuntimeError("shared_tensor[...] could only be used in Tilus Script.")
+
 
 @dataclass(frozen=True, eq=False)
 class GlobalTensor(Tensor):

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from hidet.ir.dtypes import DataType
 from tilus.ir.instructions.cuda import MmaDotConfig
 from tilus.ir.layout import SharedLayout, shared_compose, shared_repeat
@@ -11,7 +13,7 @@ class cuda:
         m16n8k16_bf16_f32: MmaDotConfig = MmaDotConfig.m16n8k16_bf16_f32()
 
     @staticmethod
-    def swizzled_shared_layout(dtype: DataType, m: int, n: int) -> SharedLayout:
+    def swizzled_shared_layout(dtype: DataType, *, m: int, n: int, bs: Optional[int] = None) -> SharedLayout:
         """
         Generate a shared layout that could be used to generate ldmatrix instruction when using LoadSharedInst.
 
@@ -86,6 +88,10 @@ class cuda:
         n: int
             The number of columns in the shared memory.
 
+        bs: Optional[int]
+            The batch size of the shared memory. When it's not None, the returned layout will have three dimensions
+            (bs, m, n). Default is None.
+
         Returns
         -------
         shared_layout: SharedLayout
@@ -148,4 +154,6 @@ class cuda:
         layout = shared_compose(core, shared_repeat(1, group_elements))
         if m > layout.shape[0] or n > layout.shape[1]:
             layout = shared_compose(shared_repeat(m // layout.shape[0], n // layout.shape[1]), layout)
+        if bs is not None:
+            layout = layout.prepend_dim(extent=bs)
         return layout

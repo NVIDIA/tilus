@@ -17,14 +17,14 @@ from hidet.lang.script import eliminate_decorators, eliminate_indent
 from hidet.lang.transpiler import HidetProgramError, PythonAstFunctor
 from tilus import ir as tilus_ir
 from tilus.extensions.hidet.ir.expr import as_expr
-from tilus.ir import RegisterTensor
+from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.builders import IRBuilder, StmtBuilder
 from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import AssignInst
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.stmt import AssignStmt, DeclareStmt, EvaluateStmt, InstStmt, SeqStmt, Stmt
-from tilus.ir.tensor import Tensor
+from tilus.ir.tensor import GlobalTensor, Tensor
 from tilus.lang.constructs.loops import TilusLoopIterable
 from tilus.lang.script import Script
 
@@ -226,8 +226,17 @@ class Transpiler(PythonAstFunctor):
                 elif isinstance(rhs, tilus_ir.Tensor):
                     self.current_scope.bind(var_name, rhs)
                 else:
-                    if type_annotation is not None:
-                        raise NotImplementedError("define var with type annotation")
+                    if type_annotation is not None and rhs is not None:
+                        resolved_annotation = self.visit(type_annotation)
+                        if not isinstance(resolved_annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
+                            raise TilusProgramError(
+                                self, lhs, "Invalid type annotation: {}".format(resolved_annotation)
+                            )
+                        if not isinstance(rhs, hidet_ir.Expr):
+                            rhs = as_expr(rhs)
+                        stmt = DeclareStmt(var=Var(hint=var_name, type=resolved_annotation), init=rhs)
+                        self.current_scope.append(stmt)
+                        self.current_scope.bind(var_name, stmt.var)
                     else:
                         if rhs is None:
                             raise TilusProgramError(
@@ -602,7 +611,7 @@ class Transpiler(PythonAstFunctor):
         if isinstance(lhs, (ast.Attribute, ast.Subscript)):
             msg = 'Hidet do not support annotation for expression like "x.y" or "x[y]"'
             raise HidetProgramError(self, stmt.annotation, msg)
-        self.process_assign(lhs, rhs, stmt.annotation)
+        self.process_assign(lhs, rhs, type_annotation=stmt.annotation)
 
     def visit_Lambda(self, expr: ast.Lambda) -> LambdaProxy:
         return LambdaProxy(expr, self)
@@ -613,6 +622,28 @@ class Transpiler(PythonAstFunctor):
 
         if isinstance(base, Sequence):
             return base[indices]
+        elif isinstance(base, GlobalTensor):
+            raise TilusProgramError(self, expr, "Tilus Script does not support indexing/slicing on GlobalTensor.")
+        elif isinstance(base, RegisterTensor):
+            raise TilusProgramError(self, expr, "Tilus Script does not support indexing/slicing on RegisterTensor.")
+        elif isinstance(base, SharedTensor):
+            sb = StmtBuilder()
+            if isinstance(indices, (hidet_ir.Expr, int)):
+                offsets = [as_expr(indices)]
+                for i in range(len(base.shape) - 1):
+                    offsets.append(as_expr(0))
+                sliced_tensor = sb.shared_slice(
+                    tensor=base,
+                    offsets=offsets,
+                    slice_dims=range(1, len(base.shape)),
+                    slice_shape=base.shape[1:],
+                )
+                self.current_scope.append(sb.flush_stmts())
+                return sliced_tensor
+            else:
+                raise TilusProgramError(
+                    self, expr, "Tilus Script does not support slicing on SharedTensor with subscript syntax."
+                )
         else:
             raise NotImplementedError()
 

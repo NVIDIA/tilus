@@ -81,7 +81,7 @@ class CopyAysncInstEmitter(BaseInstEmitter):
 
         cp_dtype = self.get_cp_dtype(cp_size)
         # smem_addr: Var = self.declare(v=Var("smem_addr", int32), init=cvta_generic_to_shared(self.value2var[dst]))
-        smem_addr: Var = self.shared_value_shared_space_addr[dst]
+        smem_addr: Var = self.shared_tensor_shared_space_addr[dst]
 
         if cp_size * 8 % dtype.nbits == 0:
             # a single cp.async instruction copies multiple elements

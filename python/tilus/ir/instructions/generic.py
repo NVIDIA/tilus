@@ -70,13 +70,13 @@ class StoreSharedInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class SharedSliceInst(Instruction):
-    offsets: tuple[int, ...]
+    offsets: tuple[Expr, ...]
     dims: Optional[tuple[int, ...]]
 
     @staticmethod
     def create(
         tensor: SharedTensor,
-        offsets: Sequence[int],
+        offsets: Sequence[Expr],
         dims: Sequence[int],
         shape: Sequence[int],
     ) -> SharedSliceInst:

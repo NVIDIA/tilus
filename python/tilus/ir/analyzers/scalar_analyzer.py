@@ -42,7 +42,7 @@ class ScalarSet:
         self.lower_bound: Optional[int] = lower_bound
         self.upper_bound: Optional[int] = upper_bound
 
-        assert self.divisibility >= 1
+        assert self.divisibility >= 0
         assert upper_bound is None or isinstance(upper_bound, int)
         assert lower_bound is None or isinstance(lower_bound, int)
 
@@ -62,7 +62,10 @@ class ScalarSet:
             and self.upper_bound is not None
             and (
                 self.lower_bound > self.upper_bound
-                or self.upper_bound // self.divisibility * self.divisibility < self.lower_bound
+                or (
+                    self.divisibility != 0
+                    and self.upper_bound // self.divisibility * self.divisibility < self.lower_bound
+                )
             )
         )
 
@@ -216,7 +219,8 @@ class ScalarSetAnalyzer(HidetIRFunctor):
 
     def visit_Constant(self, constant: Constant) -> ScalarSet:
         if constant.type.is_integer():  # type: ignore
-            return ScalarSet(divisibility=constant.value, lower_bound=constant.value, upper_bound=constant.value)  # type: ignore
+            value: int = int(constant.value)  # type: ignore
+            return ScalarSet(divisibility=abs(value), lower_bound=value, upper_bound=value)
         else:
             return ScalarSet()
 

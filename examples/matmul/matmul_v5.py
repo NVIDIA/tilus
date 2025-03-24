@@ -18,12 +18,12 @@ pd.set_option("display.float_format", lambda x: "%.2f" % x)
     "warp_repeat",
     [[1, 4, 1], [4, 1, 1], [2, 2, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1]],
 )
-class MatmulV2(tilus.Script):
-    def __init__(
-        self,
-        warp_spatial: tuple[int, int],
-        warp_repeat: tuple[int, int, int],
-    ):
+@tilus.autotune(
+    "num_stages",
+    [3, 4, 5],
+)
+class MatmulV5(tilus.Script):
+    def __init__(self, warp_spatial: tuple[int, int], warp_repeat: tuple[int, int, int], num_stages: int):
         super().__init__()
         self.mma = self.cuda.mma.m16n8k16_f16_f32
         self.block_m = self.mma.m * warp_spatial[0] * warp_repeat[0]
@@ -35,33 +35,53 @@ class MatmulV2(tilus.Script):
         wrm, wrn, wrk = warp_repeat
         self.warp_spatial = warp_spatial
         self.warp_repeat = warp_repeat
+        self.num_stages = num_stages
         self.layout_ra = reduce(spatial(wsm, 1, wsn, ranks=[1, 0, 2]), dims=[2]).repeat(wrm, wrk) * self.mma.la
         self.layout_rb = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk, wrn) * self.mma.lb
         self.layout_rc = spatial(wsm, wsn).repeat(wrm, wrn) * self.mma.lc
+        self.layout_sa = self.cuda.swizzled_shared_layout(dtype=float16, bs=num_stages, m=self.block_m, n=self.block_k)
+        self.layout_sb = self.cuda.swizzled_shared_layout(dtype=float16, bs=num_stages, m=self.block_k, n=self.block_n)
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
         self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
         self.attrs.warps = self.num_warps
 
-        offset_m: int32 = self.block_m * self.blockIdx.x
-        offset_n: int32 = self.block_n * self.blockIdx.y
+        block_m, block_n, block_k = self.block_m, self.block_n, self.block_k
+        offset_m: int32 = block_m * self.blockIdx.x
+        offset_n: int32 = block_n * self.blockIdx.y
 
         ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
-        sa = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
-        sb = self.shared_tensor(dtype=float16, shape=[self.block_k, self.block_n])
+        sa = self.shared_tensor(dtype=float16, layout=self.layout_sa)
+        sb = self.shared_tensor(dtype=float16, layout=self.layout_sb)
         acc = self.register_tensor(dtype=float32, layout=self.layout_rc, init=0.0)
 
-        for offset_k in range(0, k_size, self.block_k):
-            lda = self.load_global(ga, offsets=[offset_m, offset_k], shape=[self.block_m, self.block_k])
-            self.store_shared(sa, lda)
-            ldb = self.load_global(gb, offsets=[offset_k, offset_n], shape=[self.block_k, self.block_n])
-            self.store_shared(sb, ldb)
-            self.sync()
+        for stage in range(self.num_stages - 1):
+            offset_k = stage * self.block_k
+            self.copy_async(src=ga, dst=sa[stage], offsets=[offset_m, offset_k])
+            self.copy_async(src=gb, dst=sb[stage], offsets=[offset_k, offset_n])
+            self.copy_async_commit_group()
 
-            a = self.load_shared(sa, out_layout=self.layout_ra)
-            b = self.load_shared(sb, out_layout=self.layout_rb)
+        self.copy_async_wait_group(n=self.num_stages - 2)
+        self.sync()
+
+        current_stage: int32 = 0
+        preload_stage: int32 = self.num_stages - 1
+        start_k = (self.num_stages - 1) * block_k
+        for offset_k in self.range(start_k, k_size, block_k, unroll=self.num_stages):
+            # preload the next tile of A and B into shared memory
+            self.copy_async(src=ga, dst=sa[preload_stage], offsets=[offset_m, offset_k])
+            self.copy_async(src=gb, dst=sb[preload_stage], offsets=[offset_k, offset_n])
+            self.copy_async_commit_group()
+
+            # computation for current tile
+            a = self.load_shared(sa[current_stage], out_layout=self.layout_ra)
+            b = self.load_shared(sb[current_stage], out_layout=self.layout_rb)
             acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=self.warp_spatial, warp_repeat=self.warp_repeat)
+
+            # update the stage
+            current_stage = (current_stage + 1) % self.num_stages
+            preload_stage = (preload_stage + 1) % self.num_stages
             self.sync()
 
         self.free_shared(sa)
@@ -75,14 +95,14 @@ class MatmulV2(tilus.Script):
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
-        [1025, 1025, 1026],
         [2048, 2048, 2048],
         [4096, 4096, 4096],
+        [4097, 4096, 4096],
     ]
 
     rows = []
     for m, n, k in workloads:
-        matmul = MatmulV2()
+        matmul = MatmulV5()
 
         a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
         b = (torch.rand(k, n, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
