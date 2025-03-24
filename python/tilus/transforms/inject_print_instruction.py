@@ -8,11 +8,11 @@ from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
-from tilus.ir.inst import (
+from tilus.ir.inst import Instruction
+from tilus.ir.instructions import (
     AllocateRegisterInst,
     AllocateSharedInst,
     CastInst,
-    Instruction,
     LoadGlobalGenericInst,
     LoadGlobalInst,
     LoadSharedInst,
@@ -93,7 +93,7 @@ class InjectPrintInstructionRewriter(IRRewriter):
         )
 
     def visit_Instruction(self, inst: Instruction) -> Stmt | Instruction:
-        inst = self.default_visit_Instruction(inst)
+        inst = super().visit_Instruction(inst)
 
         if type(inst) not in PRINT_CONFIGS:
             # do not print the instruction

@@ -6,7 +6,7 @@ from hidet.utils.doc import Doc, NewLine, Text, doc_join
 from tilus.extensions.hidet.utils.doc import doc_comment, doc_join_lines, doc_strip_parentheses
 from tilus.ir.func import Function
 from tilus.ir.functors import IRFunctor
-from tilus.ir.inst import Instruction
+from tilus.ir.inst import Instruction, InstructionConfig
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.prog import Program
 from tilus.ir.stmt import (
@@ -279,6 +279,24 @@ class IRPrinter(IRFunctor):
         doc += ")"
         if inst.output is not None:
             doc += "  # " + self.get_value_type(inst.output)
+        return doc
+
+    def visit_InstructionConfig(self, inst_config: InstructionConfig) -> Any:
+        name2value = inst_config.__dict__
+        doc = Doc()
+        doc += Text(inst_config.__class__.__name__)
+        doc += "("
+        items = []
+        for name, value in name2value.items():
+            if value is None:
+                continue
+            if isinstance(value, (list, tuple)):
+                value = "[" + self.visit(value) + "]"
+            elif isinstance(value, dict):
+                value = "{" + self.visit(value) + "}"
+            items.append(Text(name) + "=" + self.visit(value))
+        doc += doc_join(items, ", ")
+        doc += ")"
         return doc
 
     def visit_RegisterTensor(self, tensor: RegisterTensor) -> Doc:

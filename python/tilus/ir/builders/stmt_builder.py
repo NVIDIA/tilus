@@ -6,7 +6,8 @@ from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Expr, Var
 from hidet.ir.type import BaseType, DataType
 from tilus.extensions.hidet.ir.expr import as_expr
-from tilus.ir.inst import (
+from tilus.ir.inst import Instruction
+from tilus.ir.instructions import (
     AllocateRegisterInst,
     AllocateSharedInst,
     AssignInst,
@@ -20,14 +21,15 @@ from tilus.ir.inst import (
     FormatPrintInst,
     FreeSharedInst,
     GlobalViewInst,
-    Instruction,
     LoadGlobalGenericInst,
     LoadGlobalInst,
+    LoadMatrixConfig,
     LoadMatrixInst,
     LoadSharedGenericInst,
     LoadSharedInst,
+    MmaDotConfig,
     MmaDotInst,
-    PrintValueInst,
+    PrintTensorInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
     StoreSharedGenericInst,
@@ -379,7 +381,7 @@ class StmtBuilder(StmtBuilderCore):
         return self.elementwise_binary(x, y, "%", out=out)
 
     def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None, cond: Expr = boolean.true) -> None:
-        inst = PrintValueInst.create(tensor, cond=cond, msg=msg, fmt=fmt)
+        inst = PrintTensorInst.create(tensor, cond=cond, msg=msg, fmt=fmt)
         self.append(inst)
 
     def format_print(
@@ -398,7 +400,7 @@ class StmtBuilder(StmtBuilderCore):
         a: RegisterTensor,
         b: RegisterTensor,
         c: RegisterTensor,
-        mma_inst: str,
+        config: MmaDotConfig,
         warp_spatial: Sequence[int],
         warp_repeat: Sequence[int],
         output: Optional[RegisterTensor] = None,
@@ -406,7 +408,7 @@ class StmtBuilder(StmtBuilderCore):
         if output is None:
             output = RegisterTensor.create(dtype=c.dtype, layout=c.layout)
         inst = MmaDotInst.create(
-            a=a, b=b, c=c, mma_inst=mma_inst, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
+            a=a, b=b, c=c, config=config, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
         )
         self.append(inst)
         return inst.register_output
@@ -460,13 +462,19 @@ class StmtBuilder(StmtBuilderCore):
 
     def load_matrix(
         self,
-        src: SharedTensor,
-        *,
-        register_layout: RegisterLayout,
-        offsets: List[Expr],
-        output: Optional[RegisterTensor] = None,
+        ptr: Var,
+        axes: Sequence[Var],
+        offset: Expr,
+        config: LoadMatrixConfig,
+        output: RegisterTensor,
     ) -> RegisterTensor:
-        inst = LoadMatrixInst.create(src=src, register_layout=register_layout, offsets=offsets, output=output)
+        inst = LoadMatrixInst.create(
+            ptr=ptr,
+            axes=axes,
+            offset=offset,
+            config=config,
+            output=output,
+        )
         self.append(inst)
         return inst.register_output
 

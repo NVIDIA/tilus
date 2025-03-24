@@ -1,14 +1,14 @@
 from hidet.ir.dtypes import boolean, uint8, uint32
 from hidet.ir.expr import Expr, Var, bitwise_and, cast, left_shift, logical_and, tensor_pointer_var
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.ldst import load, store
-from tilus.ir.inst import ShuffleBaseInst, ShuffleDownInst, ShuffleUpInst
+from tilus.ir.instructions.generic import ShuffleBaseInst, ShuffleDownInst, ShuffleUpInst
 from tilus.target import nvgpu_any
 from tilus.utils import gcd
 
 
-@register_inst_emitter(ShuffleUpInst, target=nvgpu_any)
-@register_inst_emitter(ShuffleDownInst, target=nvgpu_any)
+@register_emitter(ShuffleUpInst, target=nvgpu_any)
+@register_emitter(ShuffleDownInst, target=nvgpu_any)
 class ShuffleBaseInstEmitter(BaseInstEmitter):
     def emit(self, inst: ShuffleBaseInst) -> None:
         dtype = inst.register_output.dtype

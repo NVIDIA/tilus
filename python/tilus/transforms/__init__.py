@@ -2,3 +2,4 @@ from .base import Pass, PassContext, apply_transforms
 from .bound_aware_simplify import bound_aware_simplify_pass
 from .inject_print_instruction import inject_print_instruction_pass
 from .lower_load_store import lower_load_store_pass
+from .lower_to_load_matrix import lower_to_load_matrix_pass

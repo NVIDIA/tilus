@@ -1,10 +1,9 @@
 from hidet.ir.expr import Var, cast, tensor_pointer_var
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import ViewInst
-from tilus.target import gpgpu_any
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.ir.instructions import ViewInst
 
 
-@register_inst_emitter(ViewInst, target=gpgpu_any)
+@register_emitter(ViewInst)
 class ViewInstEmitter(BaseInstEmitter):
     def emit(self, inst: ViewInst) -> None:
         out_value = inst.register_output

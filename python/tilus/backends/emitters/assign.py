@@ -1,9 +1,8 @@
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import AssignInst
-from tilus.target import gpgpu_any
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.ir.instructions import AssignInst
 
 
-@register_inst_emitter(AssignInst, target=gpgpu_any)
+@register_emitter(AssignInst)
 class AllocateInstEmitter(BaseInstEmitter):
     def emit(self, inst: AssignInst) -> None:  # type: ignore
         value = inst.register_output

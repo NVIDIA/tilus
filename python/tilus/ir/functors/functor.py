@@ -4,7 +4,8 @@ from typing import Any, Dict, Hashable, List, Tuple, TypeVar, Union
 from hidet.ir.expr import Expr
 from hidet.ir.type import BaseType
 from tilus.ir.func import Function
-from tilus.ir.inst import (
+from tilus.ir.inst import Instruction, InstructionConfig
+from tilus.ir.instructions import (
     AllocateGlobalInst,
     AllocateRegisterInst,
     AllocateSharedInst,
@@ -21,14 +22,13 @@ from tilus.ir.inst import (
     FormatPrintInst,
     FreeSharedInst,
     GlobalViewInst,
-    Instruction,
     LoadGlobalGenericInst,
     LoadGlobalInst,
     LoadMatrixInst,
     LoadSharedGenericInst,
     LoadSharedInst,
     MmaDotInst,
-    PrintValueInst,
+    PrintTensorInst,
     ShuffleDownInst,
     ShuffleUpInst,
     SimtDotInst,
@@ -79,13 +79,30 @@ class IRFunctor:
         if key in self.memo:
             return self.memo[key]
 
-        if isinstance(node, Program):
+        # inst stmt
+        if isinstance(node, InstStmt):
+            ret = self.visit_InstStmt(node)
+        # instruction
+        elif isinstance(node, Instruction):
+            method_name = "visit_" + node.__class__.__name__
+            visit_method = getattr(self.__class__, method_name, None)
+            if visit_method is None or visit_method is getattr(IRFunctor, method_name):
+                ret = self.visit_Instruction(node)
+            else:
+                ret = visit_method(self, node)
+        # instruction config
+        elif isinstance(node, InstructionConfig):
+            method_name = "visit_" + node.__class__.__name__
+            visit_method = getattr(self.__class__, method_name, None)
+            if visit_method is None or visit_method is getattr(IRFunctor, method_name):
+                ret = self.visit_InstructionConfig(node)
+            else:
+                ret = visit_method(self, node)
+        elif isinstance(node, Program):
             ret = self.visit_Program(node)
         elif isinstance(node, Function):
             ret = self.visit_Function(node)
-        # statements
-        elif isinstance(node, InstStmt):
-            ret = self.visit_InstStmt(node)
+        # other statements
         elif isinstance(node, SeqStmt):
             ret = self.visit_SeqStmt(node)
         elif isinstance(node, ForStmt):
@@ -104,9 +121,6 @@ class IRFunctor:
             ret = self.visit_AssignStmt(node)
         elif isinstance(node, TensorPtrStmt):
             ret = self.visit_TensorPtrStmt(node)
-        # instruction
-        elif isinstance(node, Instruction):
-            ret = self.visit_Instruction(node)
         # scalar expression and type
         elif isinstance(node, Expr):
             ret = self.visit_Expr(node)
@@ -141,7 +155,10 @@ class IRFunctor:
         return ret
 
     def visit_Instruction(self, inst: Instruction) -> Any:
-        return getattr(self, "visit_{}".format(inst.__class__.__name__))(inst)
+        raise NotImplementedError()
+
+    def visit_InstructionConfig(self, inst_config: InstructionConfig) -> Any:
+        raise NotImplementedError()
 
     def visit_list(self, lst: List) -> Any:
         raise NotImplementedError()
@@ -281,7 +298,7 @@ class IRFunctor:
     def visit_SimtDotInst(self, inst: SimtDotInst) -> Any:
         raise NotImplementedError()
 
-    def visit_PrintValueInst(self, inst: PrintValueInst) -> Any:
+    def visit_PrintTensorInst(self, inst: PrintTensorInst) -> Any:
         raise NotImplementedError()
 
     def visit_FormatPrintInst(self, inst: FormatPrintInst) -> Any:
@@ -455,16 +472,6 @@ class IRRewriter(IRFunctor):
         else:
             return WhileStmt(cond, body)
 
-    def default_visit_Instruction(self, inst: InstClsVar) -> InstClsVar:
-        output = self.visit(inst.output)
-        inputs = self.visit(inst.inputs)
-        attributes = self.visit(inst.attributes)
-
-        if output is inst.output and inputs is inst.inputs and attributes is inst.attributes:
-            return inst
-        else:
-            return dataclasses.replace(inst, output=output, inputs=inputs, **attributes)
-
     def visit_RegisterTensor(self, tensor: RegisterTensor) -> RegisterTensor:
         layout = self.visit(tensor.layout)
         if layout is tensor.layout:
@@ -503,102 +510,19 @@ class IRRewriter(IRFunctor):
             return GlobalLayout(shape=shape, size=size, axes=layout.axes, offset=offset)
 
     # instructions
+    def visit_Instruction(self, inst: InstClsVar) -> InstClsVar:
+        output = self.visit(inst.output)
+        inputs = self.visit(inst.inputs)
+        attributes = self.visit(inst.attributes)
 
-    def visit_AllocateRegisterInst(self, inst: AllocateRegisterInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
+        if output is inst.output and inputs is inst.inputs and attributes is inst.attributes:
+            return inst
+        else:
+            return dataclasses.replace(inst, output=output, inputs=inputs, **attributes)
 
-    def visit_AssignInst(self, inst: AssignInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_AllocateSharedInst(self, inst: AllocateSharedInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_FreeSharedInst(self, inst: FreeSharedInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadGlobalGenericInst(self, inst: LoadGlobalGenericInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadMatrixInst(self, inst: LoadMatrixInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadSharedInst(self, inst: LoadSharedInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadSharedGenericInst(self, inst: LoadSharedGenericInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_StoreGlobalGenericInst(self, inst: StoreGlobalGenericInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_StoreSharedGenericInst(self, inst: StoreSharedGenericInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_CastInst(self, inst: CastInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ElementwiseUnaryInst(self, inst: ElementwiseUnaryInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ElementwiseBinaryInst(self, inst: ElementwiseBinaryInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_BroadcastElementwiseBinaryInst(self, inst: BroadcastElementwiseBinaryInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_MmaDotInst(self, inst: MmaDotInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_SimtDotInst(self, inst: SimtDotInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_PrintValueInst(self, inst: PrintValueInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_FormatPrintInst(self, inst: FormatPrintInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ShuffleUpInst(self, inst: ShuffleUpInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ShuffleDownInst(self, inst: ShuffleDownInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ViewInst(self, inst: ViewInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_GlobalViewInst(self, inst: GlobalViewInst) -> Any:
-        return self.default_visit_Instruction(inst)
-
-    def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_CopyAsyncCommitGroupInst(self, inst: CopyAsyncCommitGroupInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_CopyAsyncWaitGroupInst(self, inst: CopyAsyncWaitGroupInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_CopyAsyncWaitAllInst(self, inst: CopyAsyncWaitAllInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_SyncThreadsInst(self, inst: SyncThreadsInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_SyncReduceThreadsInst(self, inst: SyncReduceThreadsInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ExitInst(self, inst: ExitInst) -> Union[Instruction, Stmt]:
-        return self.default_visit_Instruction(inst)
+    # instruction configs
+    def visit_InstructionConfig(self, inst_config: InstructionConfig) -> Any:
+        return inst_config
 
 
 class IRVisitor(IRFunctor):
@@ -691,103 +615,10 @@ class IRVisitor(IRFunctor):
         self.visit(layout.offset)
 
     # instructions
-    def default_visit_Instruction(self, inst: Instruction) -> None:
+    def visit_Instruction(self, inst: Instruction) -> None:
         self.visit(inst.output)
         self.visit(inst.inputs)
         self.visit(inst.attributes)
 
-    def visit_AllocateRegisterInst(self, inst: AllocateRegisterInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_AssignInst(self, inst: AssignInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_AllocateSharedInst(self, inst: AllocateSharedInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_FreeSharedInst(self, inst: FreeSharedInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadGlobalGenericInst(self, inst: LoadGlobalGenericInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadMatrixInst(self, inst: LoadMatrixInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadSharedInst(self, inst: LoadSharedInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_LoadSharedGenericInst(self, inst: LoadSharedGenericInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_StoreGlobalGenericInst(self, inst: StoreGlobalGenericInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_StoreSharedGenericInst(self, inst: StoreSharedGenericInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_CastInst(self, inst: CastInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ElementwiseUnaryInst(self, inst: ElementwiseUnaryInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ElementwiseBinaryInst(self, inst: ElementwiseBinaryInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_BroadcastElementwiseBinaryInst(self, inst: BroadcastElementwiseBinaryInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_MmaDotInst(self, inst: MmaDotInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_SimtDotInst(self, inst: SimtDotInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_PrintValueInst(self, inst: PrintValueInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_FormatPrintInst(self, inst: FormatPrintInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ShuffleUpInst(self, inst: ShuffleUpInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ShuffleDownInst(self, inst: ShuffleDownInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ViewInst(self, inst: ViewInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_GlobalViewInst(self, inst: GlobalViewInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_CopyAsyncCommitGroupInst(self, inst: CopyAsyncCommitGroupInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_CopyAsyncWaitGroupInst(self, inst: CopyAsyncWaitGroupInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_CopyAsyncWaitAllInst(self, inst: CopyAsyncWaitAllInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_SyncThreadsInst(self, inst: SyncThreadsInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_SyncReduceThreadsInst(self, inst: SyncReduceThreadsInst) -> None:
-        return self.default_visit_Instruction(inst)
-
-    def visit_ExitInst(self, inst: ExitInst) -> None:
-        return self.default_visit_Instruction(inst)
+    def visit_InstructionConfig(self, inst_config: InstructionConfig) -> None:
+        pass

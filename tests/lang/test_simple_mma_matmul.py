@@ -41,7 +41,7 @@ class Matmul(tilus.Script):
                 f_offset=lambda k, j: (offset_k + k) * self.n_size + offset_n + j,
                 f_mask=lambda k, j: offset_k + k < self.k_size and offset_n + j < self.n_size,
             )
-            acc = self.mma_dot(a, b, acc, mma_inst=self.mma.name, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
+            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
         acc_f16 = self.cast(acc, dtype=float16)
         self.store_global_generic(
             acc_f16,

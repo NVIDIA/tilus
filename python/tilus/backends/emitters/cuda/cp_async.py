@@ -5,17 +5,17 @@ from hidet.ir.expr import Expr, Var, cast, if_then_else
 from hidet.ir.primitives.cuda.cp_async import cp_async_commit_group, cp_async_wait_all, cp_async_wait_group
 from hidet.ir.type import DataType
 from hidet.ir.utils.index_transform import index_deserialize
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import uint32x2, uint32x4
 from tilus.extensions.hidet.ir.primitives.cuda.cp_async import cp_async
 from tilus.extensions.hidet.ir.tools import rewrite
-from tilus.ir.inst import CopyAsyncCommitGroupInst, CopyAsyncInst, CopyAsyncWaitAllInst, CopyAsyncWaitGroupInst
+from tilus.ir.instructions import CopyAsyncCommitGroupInst, CopyAsyncInst, CopyAsyncWaitAllInst, CopyAsyncWaitGroupInst
 from tilus.ir.tensor import SharedLayout, SharedTensor
 from tilus.target import nvgpu_sm80
 from tilus.utils import prod
 
 
-@register_inst_emitter(CopyAsyncInst, target=nvgpu_sm80)
+@register_emitter(CopyAsyncInst, target=nvgpu_sm80)
 class CopyAysncInstEmitter(BaseInstEmitter):
     def emit(self, inst: CopyAsyncInst) -> None:
         from tilus.ir.analyzers.value_analyzer import TensorInfo, analyze_info
@@ -180,19 +180,19 @@ class CopyAysncInstEmitter(BaseInstEmitter):
         return {16: uint32x4, 8: uint32x2, 4: uint32}[cp_size]
 
 
-@register_inst_emitter(CopyAsyncCommitGroupInst, target=nvgpu_sm80)
+@register_emitter(CopyAsyncCommitGroupInst, target=nvgpu_sm80)
 class CopyAysncCommitGroupInstEmitter(BaseInstEmitter):
     def emit(self, inst: CopyAsyncCommitGroupInst) -> None:
         self.append(cp_async_commit_group())
 
 
-@register_inst_emitter(CopyAsyncWaitGroupInst, target=nvgpu_sm80)
+@register_emitter(CopyAsyncWaitGroupInst, target=nvgpu_sm80)
 class CopyAysncWaitGroupInstEmitter(BaseInstEmitter):
     def emit(self, inst: CopyAsyncWaitGroupInst) -> None:
         self.append(cp_async_wait_group(inst.n))
 
 
-@register_inst_emitter(CopyAsyncWaitAllInst, target=nvgpu_sm80)
+@register_emitter(CopyAsyncWaitAllInst, target=nvgpu_sm80)
 class CopyAysncWaitAllInstEmitter(BaseInstEmitter):
     def emit(self, inst: CopyAsyncWaitAllInst) -> None:
         self.append(cp_async_wait_all())

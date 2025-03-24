@@ -6,7 +6,7 @@ from hidet.ir.expr import Expr, Var, cast, tensor_pointer_var, tensor_var, var
 from hidet.ir.primitives.cuda.half import fma_f16x2, sub_f16x2
 from hidet.ir.primitives.cuda.prmt import prmt
 from hidet.ir.type import Callable, DataType, PointerType, TensorPointerType, TensorType
-from tilus.backends.codegen import BaseInstEmitter, Codegen, register_inst_emitter
+from tilus.backends.codegen import BaseInstEmitter, Codegen, register_emitter
 from tilus.extensions.hidet.ir.dtypes import (
     float6_e3m2,
     float8_e4m3,
@@ -23,7 +23,7 @@ from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
 from tilus.extensions.hidet.ir.primitives.cuda.bfloat16 import mul_bf16x2
 from tilus.extensions.hidet.ir.primitives.cuda.half import mul_f16x2
 from tilus.extensions.hidet.ir.primitives.cuda.lop3 import lop3
-from tilus.ir.inst import CastInst
+from tilus.ir.instructions import CastInst
 from tilus.target import amdgpu_any, nvgpu_any
 from tilus.utils import cdiv
 
@@ -88,7 +88,7 @@ class CastInstBaseEmitter(BaseInstEmitter):
             self.buffer_store(buf=dst, indices=[i], value=value)  # implicit cast
 
 
-@register_inst_emitter(CastInst, target=nvgpu_any)
+@register_emitter(CastInst, target=nvgpu_any)
 class NvgpuCastInstEmitter(CastInstBaseEmitter):
     def __init__(self, codegen):
         super().__init__(codegen)
@@ -507,7 +507,7 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             self.buffer_store(dst_uint32, indices=[i], value=p)
 
 
-@register_inst_emitter(CastInst, target=amdgpu_any)
+@register_emitter(CastInst, target=amdgpu_any)
 class AmdgpuCastInstEmitter(CastInstBaseEmitter):
     def __init__(self, codegen):
         super().__init__(codegen)

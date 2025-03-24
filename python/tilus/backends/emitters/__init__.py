@@ -4,7 +4,7 @@ from . import (
     assign,
     cast,
     control,
-    cp_async,
+    cuda,
     debug,
     dot,
     elementwise,

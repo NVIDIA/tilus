@@ -20,7 +20,8 @@ from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir import RegisterTensor
 from tilus.ir.builders import IRBuilder, StmtBuilder
 from tilus.ir.func import Function, Metadata
-from tilus.ir.inst import AssignInst, Instruction
+from tilus.ir.inst import Instruction
+from tilus.ir.instructions import AssignInst
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.stmt import AssignStmt, DeclareStmt, EvaluateStmt, InstStmt, SeqStmt, Stmt
 from tilus.ir.tensor import Tensor

@@ -1,9 +1,8 @@
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import GlobalViewInst
-from tilus.target import gpgpu_any
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.ir.instructions import GlobalViewInst
 
 
-@register_inst_emitter(GlobalViewInst, target=gpgpu_any)
+@register_emitter(GlobalViewInst)
 class GlobalViewInstEmitter(BaseInstEmitter):
     def emit(self, inst: GlobalViewInst) -> None:
         self.assign(self.get_or_allocate_var(inst.global_output), inst.ptr)

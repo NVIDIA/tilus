@@ -3,16 +3,16 @@ from typing import List, Sequence
 from hidet.ir.dtypes import bfloat16, float16, float32, int4b, int8, int32, uint4b, uint8, uint32
 from hidet.ir.expr import Expr, cast, logical_and
 from hidet.ir.primitives.debug import printf
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import float6_e3m2, float8_e4m3
-from tilus.ir.inst import FormatPrintInst, PrintValueInst
+from tilus.ir.instructions import FormatPrintInst, PrintTensorInst
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.tensor import RegisterTensor, SharedLayout, SharedTensor
 from tilus.target import gpgpu_any
 from tilus.utils import prod
 
 
-@register_inst_emitter(PrintValueInst, target=gpgpu_any)
+@register_emitter(PrintTensorInst, target=gpgpu_any)
 class PrintValueInstEmitter(BaseInstEmitter):
     def print_left_bracket(self, indices: List[Expr], shape: List[int]) -> None:
         # left [
@@ -54,7 +54,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
                 indices.append(int32(0))
         return indices
 
-    def emit(self, inst: PrintValueInst) -> None:
+    def emit(self, inst: PrintTensorInst) -> None:
         default_fmt_mapping = {
             int4b: "%2d",
             uint4b: "%2d",
@@ -181,7 +181,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
             raise NotImplementedError()
 
 
-@register_inst_emitter(FormatPrintInst, target=gpgpu_any)
+@register_emitter(FormatPrintInst, target=gpgpu_any)
 class FormatPrintInstEmitter(BaseInstEmitter):
     def emit(self, inst: FormatPrintInst) -> None:
         self.sync()

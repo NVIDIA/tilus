@@ -37,7 +37,7 @@ class MatmulV1(tilus.Script):
 
             a = self.load_shared(sa, out_layout=self.mma.la)
             b = self.load_shared(sb, out_layout=self.mma.lb)
-            acc = self.mma_dot(a, b, acc, mma_inst=self.mma.name, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
+            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
             self.sync()
 
         self.free_shared(sa)

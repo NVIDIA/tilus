@@ -16,7 +16,8 @@ from tilus.extensions.hidet.ir.module import merge_ir_modules
 from tilus.extensions.hidet.ir.tools import rewrite
 from tilus.ir.func import Function
 from tilus.ir.functors import IRFunctor
-from tilus.ir.inst import FormatPrintInst, Instruction, PrintValueInst
+from tilus.ir.inst import Instruction
+from tilus.ir.instructions import FormatPrintInst, PrintTensorInst
 from tilus.ir.prog import Program
 from tilus.ir.stmt import (
     AssignStmt,
@@ -141,7 +142,7 @@ class BaseInstEmitter(StmtBuilder):
         raise NotImplementedError()
 
 
-def register_inst_emitter(
+def register_emitter(
     inst_cls: Type[Instruction], *, target: Optional[Target] = None
 ) -> Callable[[Type[BaseInstEmitter]], Type[BaseInstEmitter]]:
     assert issubclass(inst_cls, Instruction)
@@ -503,7 +504,7 @@ class Codegen(IRFunctor):
 
     def visit_Instruction(self, inst: Instruction) -> None:
         # insert a comment statement
-        skip_comment_instructions = (PrintValueInst, FormatPrintInst)
+        skip_comment_instructions = (PrintTensorInst, FormatPrintInst)
         if not isinstance(inst, skip_comment_instructions):
             self.builder.comment(str(self.printer(inst)), style="/*")
 

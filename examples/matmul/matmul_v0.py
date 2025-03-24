@@ -36,7 +36,7 @@ class MatmulV0(tilus.Script):
 
             a = self.load_global(ga, offsets=[offset_m, offset_k], dims=[0, 1], layout=self.mma.la)
             b = self.load_global(gb, offsets=[offset_k, offset_n], dims=[0, 1], layout=self.mma.lb)
-            acc = self.mma_dot(a, b, acc, mma_inst=self.mma.name, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
+            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
 
         acc_f16 = self.cast(acc, dtype=float16)
         gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])

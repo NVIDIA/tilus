@@ -1,15 +1,14 @@
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import SyncReduceThreadsInst, SyncThreadsInst
-from tilus.target import gpgpu_any, nvgpu_any
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.ir.instructions import SyncReduceThreadsInst, SyncThreadsInst
 
 
-@register_inst_emitter(SyncThreadsInst, target=gpgpu_any)
+@register_emitter(SyncThreadsInst)
 class SyncThreadsEmitter(BaseInstEmitter):
     def emit(self, inst: SyncThreadsInst) -> None:
         self.sync()
 
 
-@register_inst_emitter(SyncReduceThreadsInst, target=nvgpu_any)
+@register_emitter(SyncReduceThreadsInst)
 class SyncReduceThreadsEmitter(BaseInstEmitter):
     def emit(self, inst: SyncReduceThreadsInst) -> None:
         self.declare(inst.var, init=self.sync_reduce(inst.reduce_value, op=inst.reduce_op))

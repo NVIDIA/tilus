@@ -2,13 +2,12 @@ import operator
 
 from hidet.ir.expr import Expr, Var, if_then_else, tensor_var
 from hidet.ir.utils.broadcast_utils import broadcast_indices
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import BroadcastElementwiseBinaryInst, ElementwiseBinaryInst, ElementwiseUnaryInst
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.ir.instructions import BroadcastElementwiseBinaryInst, ElementwiseBinaryInst, ElementwiseUnaryInst
 from tilus.ir.tensor import RegisterTensor
-from tilus.target import gpgpu_any
 
 
-@register_inst_emitter(ElementwiseUnaryInst, target=gpgpu_any)
+@register_emitter(ElementwiseUnaryInst)
 class ElementwiseUnaryInstEmitter(BaseInstEmitter):
     def emit(self, inst: ElementwiseUnaryInst) -> None:
         name_mapping = {"relu": "relu", "clip": "clipped"}
@@ -35,7 +34,7 @@ class ElementwiseUnaryInstEmitter(BaseInstEmitter):
         return x
 
 
-@register_inst_emitter(ElementwiseBinaryInst, target=gpgpu_any)
+@register_emitter(ElementwiseBinaryInst)
 class ElementwiseBinaryInstEmitter(BaseInstEmitter):
     def emit(self, inst: ElementwiseBinaryInst) -> None:
         name_mapping = {"+": "added", "-": "diff", "*": "product", "/": "quotient"}
@@ -59,7 +58,7 @@ class ElementwiseBinaryInstEmitter(BaseInstEmitter):
             self.buffer_store(buf=z_var, indices=[i], value=op(x_var[x_local], y_var[y_local]))
 
 
-@register_inst_emitter(BroadcastElementwiseBinaryInst, target=gpgpu_any)
+@register_emitter(BroadcastElementwiseBinaryInst)
 class BroadcastElementwiseBinaryInstEmitter(BaseInstEmitter):
     def emit(self, inst: BroadcastElementwiseBinaryInst) -> None:
         name_mapping = {"+": "added", "-": "diff", "*": "product", "/": "quotient"}

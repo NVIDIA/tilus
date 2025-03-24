@@ -26,12 +26,12 @@ class Target:
 
     def supports(self, target):
         assert isinstance(target, Target)
-        # check whether the features used in self target are supported by the given target
-        if self == gpgpu_any:
+        # whether the features supported by the self target contains features in the target
+        if target == gpgpu_any:
             return True
         if self.kind != target.kind:
             return False
-        return self.properties.compute_capability <= target.properties.compute_capability
+        return self.properties.compute_capability >= target.properties.compute_capability
 
 
 """
@@ -114,7 +114,7 @@ def get_current_target() -> Target:
 
 
 def match_target(target: Target, target_templates: Sequence[Target]) -> Optional[Target]:
-    supported_targets = [tt for tt in target_templates if tt.supports(target)]
+    supported_targets = [tt for tt in target_templates if target.supports(tt)]
 
     if len(supported_targets) == 0:
         return None

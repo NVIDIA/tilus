@@ -467,6 +467,11 @@ class JitInstance:
             lines.extend(["  " + s for s in self.failed_scheduling[0].split("\n")])
             raise RuntimeError("\n".join(lines))
 
+    @staticmethod
+    def _create_link(link_path: Path, target_path: Path) -> None:
+        relative_path = relative_to_with_walk_up(link_path.parent, target=target_path)
+        os.symlink(relative_path, link_path)
+
     def build_programs(self):
         # build the programs in parallel
         transpiled_programs = self.transpiled_programs
@@ -514,10 +519,10 @@ class JitInstance:
             if not programs_dir.exists():
                 programs_dir.mkdir()
                 for idx, compiled_program in enumerate(self.compiled_programs):
-                    start_path = (programs_dir / str(idx)).resolve()
-                    target_path = compiled_program.program_dir.resolve()
-                    relative_path = relative_to_with_walk_up(start_path.parent, target=target_path)
-                    os.symlink(relative_path, start_path)
+                    self._create_link(
+                        link_path=(programs_dir / str(idx)).resolve(),
+                        target_path=compiled_program.program_dir.resolve(),
+                    )
 
             # write the schedule.txt
             schedule_path = self.cache_dir / "schedule.txt"
@@ -537,10 +542,9 @@ class JitInstance:
                 for idx, (failed_building, prog_cache_dir) in enumerate(self.failed_building):
                     with open(failed_building_dir / f"{idx}.txt", "w") as f:
                         f.write(failed_building)
-                    start_path = (failed_building_dir / f"{idx}").resolve()
-                    target_path = Path(prog_cache_dir).resolve()
-                    relative_path = relative_to_with_walk_up(start_path.parent, target=target_path)
-                    os.symlink(relative_path, start_path)
+                    self._create_link(
+                        link_path=(failed_building_dir / f"{idx}").resolve(), target_path=Path(prog_cache_dir).resolve()
+                    )
 
         # load the dispatch table from the cache dir
         self.load_dispatch_table()
@@ -587,14 +591,15 @@ class JitInstance:
                     latency.append(benchmark_func(lambda: compiled_func(*kernel_args), warmup=1, repeat=10))  # type: ignore
 
             best_latency = min(latency)
-            self.dispatch_table[tuning_key] = latency.index(best_latency)
+            best_program_idx = latency.index(best_latency)
+            self.dispatch_table[tuning_key] = best_program_idx
             self.dump_dispatch_table()
 
-            # write the benchmark results to timing
-            timing_dir = self.cache_dir / "timing"
-            tuning_report_path = timing_dir / "{}.txt".format("-".join(str(k) for k in tuning_key))
-            if not timing_dir.exists():
-                timing_dir.mkdir()
+            # write the benchmark results, and link to the optimal program
+            latency_dir = self.cache_dir / "latency" / "{}".format("-".join(str(k) for k in tuning_key))
+            if not latency_dir.exists():
+                latency_dir.mkdir(parents=True, exist_ok=True)
+            tuning_report_path = latency_dir / "report.txt"
             with open(tuning_report_path, "w") as f:
                 headers = ["index"] + list(self.schedules[self.valid_schedules[0]].keys()) + ["latency (ms)"]
                 rows = []
@@ -604,6 +609,10 @@ class JitInstance:
                 rows = sorted(rows, key=lambda x: x[-1])
                 with open(tuning_report_path, "w") as f:
                     f.write(tabulate.tabulate(rows, headers=headers, floatfmt=".2f"))
+            self._create_link(
+                link_path=latency_dir / str(best_program_idx),
+                target_path=self.compiled_programs[best_program_idx].program_dir,
+            )
 
         return self.compiled_programs[self.dispatch_table[tuning_key]]
 

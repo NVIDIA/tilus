@@ -5,9 +5,9 @@ from hidet.ir.expr import Constant, Expr
 from hidet.transforms.rule_based_simplifier import BoundAnalyzer, BoundInfo, RuleBasedSimplifier
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
-from tilus.ir.inst import (
+from tilus.ir.inst import Instruction
+from tilus.ir.instructions import (
     CopyAsyncInst,
-    Instruction,
     LoadGlobalGenericInst,
     StoreGlobalGenericInst,
 )
@@ -94,17 +94,17 @@ class BoundAwareSimplifyRewriter(IRRewriter):
     def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Instruction:
         for axis, extent in zip(inst.axes, inst.inputs[0].as_shared_tensor().shape):
             self.bound[axis] = BoundInfo(min_value=0, max_value=extent - 1)
-        return super().default_visit_Instruction(inst)
+        return super().visit_Instruction(inst)
 
     def visit_LoadGlobalGenericInst(self, inst: LoadGlobalGenericInst) -> Instruction:
         for axis, extent in zip(inst.axes, inst.register_output.shape):
             self.bound[axis] = BoundInfo(min_value=0, max_value=extent - 1)
-        return super().default_visit_Instruction(inst)
+        return super().visit_Instruction(inst)
 
     def visit_StoreGlobalGenericInst(self, inst: StoreGlobalGenericInst) -> Instruction:
         for axis, extent in zip(inst.axes, inst.inputs[0].as_register_tensor().shape):
             self.bound[axis] = BoundInfo(min_value=0, max_value=extent - 1)
-        return super().default_visit_Instruction(inst)
+        return super().visit_Instruction(inst)
 
 
 class BoundAwareSimplifyPass(Pass):

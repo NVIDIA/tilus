@@ -6,7 +6,8 @@ from tilus.extensions.hidet.ir.utils.index_transform import index_within_bound
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
-from tilus.ir.inst import Instruction, LoadGlobalInst, LoadSharedInst, StoreGlobalInst, StoreSharedInst
+from tilus.ir.inst import Instruction
+from tilus.ir.instructions import LoadGlobalInst, LoadSharedInst, StoreGlobalInst, StoreSharedInst
 from tilus.ir.layout import GlobalLayout
 from tilus.ir.stmt import Stmt
 from tilus.transforms.base import Pass
@@ -33,7 +34,7 @@ class LowerLoadStoreRewriter(IRRewriter):
         return f_offset, f_mask
 
     def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> Stmt:
-        inst = super().default_visit_Instruction(inst)
+        inst = super().visit_Instruction(inst)
 
         sb = StmtBuilder()
         global_tensor = inst.inputs[0].as_global_tensor()
@@ -48,7 +49,7 @@ class LowerLoadStoreRewriter(IRRewriter):
         return sb.flush_stmts()
 
     def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Stmt:
-        inst = super().default_visit_Instruction(inst)
+        inst = super().visit_Instruction(inst)
 
         sb = StmtBuilder()
         global_tensor = inst.inputs[0].as_global_tensor()
@@ -61,7 +62,7 @@ class LowerLoadStoreRewriter(IRRewriter):
         return sb.flush_stmts()
 
     def visit_LoadSharedInst(self, inst: LoadSharedInst) -> Union[Instruction, Stmt]:
-        inst = super().default_visit_Instruction(inst)
+        inst = super().visit_Instruction(inst)
 
         sb = StmtBuilder()
         register_tensor = inst.register_output
@@ -75,7 +76,7 @@ class LowerLoadStoreRewriter(IRRewriter):
         return sb.flush_stmts()
 
     def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Union[Instruction, Stmt]:
-        inst = super().default_visit_Instruction(inst)
+        inst = super().visit_Instruction(inst)
 
         sb = StmtBuilder()
         shared_tensor = inst.inputs[0].as_shared_tensor()

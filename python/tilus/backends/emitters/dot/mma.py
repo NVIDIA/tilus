@@ -4,16 +4,16 @@ from hidet.ir.dtypes import uint32
 from hidet.ir.expr import Expr, cast, var
 from hidet.ir.primitives.cuda.mma import MmaConfig as HidetMmaConfig
 from hidet.ir.utils.broadcast_utils import broadcast_indices
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.mma import mma_sync_v2
-from tilus.ir.inst import MmaConfig, MmaDotInst
+from tilus.ir.instructions.cuda import MmaDotConfig, MmaDotInst
 from tilus.target import nvgpu_sm70
 
 
-@register_inst_emitter(MmaDotInst, target=nvgpu_sm70)
+@register_emitter(MmaDotInst, target=nvgpu_sm70)
 class MmaDotInstEmitter(BaseInstEmitter):
     def emit(self, inst: MmaDotInst) -> None:  # type: ignore
-        mma: MmaConfig = MmaConfig.from_name(inst.mma_inst)
+        config: MmaDotConfig = inst.config
         a_value = inst.inputs[0].as_register_tensor()
         b_value = inst.inputs[1].as_register_tensor()
         c_value = inst.inputs[2].as_register_tensor()
@@ -37,9 +37,9 @@ class MmaDotInstEmitter(BaseInstEmitter):
                 spatial_indices: Tuple[Expr, Expr, Expr] = spatial_map(warp_spatial, ranks=[1, 2, 0])(warp_id)[0]
 
                 mma_indices = [
-                    (spatial_indices[0] * warp_repeat[0] + repeat_indices[0]) * mma.m,
-                    (spatial_indices[1] * warp_repeat[1] + repeat_indices[1]) * mma.n,
-                    (spatial_indices[2] * warp_repeat[2] + repeat_indices[2]) * (mma.k * mma.vec_k),
+                    (spatial_indices[0] * warp_repeat[0] + repeat_indices[0]) * config.m,
+                    (spatial_indices[1] * warp_repeat[1] + repeat_indices[1]) * config.n,
+                    (spatial_indices[2] * warp_repeat[2] + repeat_indices[2]) * (config.k * config.vec_k),
                 ]
 
                 a_indices = a_outer_indices + [mma_indices[0], mma_indices[2]]
@@ -64,14 +64,14 @@ class MmaDotInstEmitter(BaseInstEmitter):
                     init=cast(~d_buf[d_value.layout.global2local(d_indices, worker=self.current_worker)], ~uint32),
                 )
 
-                with self.for_range(mma.vec_k) as vk:
-                    hidet_mma: HidetMmaConfig = mma.hidet_mma_config()
+                with self.for_range(config.vec_k) as vk:
+                    hidet_mma: HidetMmaConfig = config.hidet_mma_config()
                     self.append(
                         mma_sync_v2(
                             config=hidet_mma,
                             d_reg_p=[d_regs + i for i in range(hidet_mma.c_regs)],
-                            a_reg_p=[a_regs + i * mma.vec_k + vk for i in range(hidet_mma.a_regs)],
-                            b_reg_p=[b_regs + i * mma.vec_k + vk for i in range(hidet_mma.b_regs)],
+                            a_reg_p=[a_regs + i * config.vec_k + vk for i in range(hidet_mma.a_regs)],
+                            b_reg_p=[b_regs + i * config.vec_k + vk for i in range(hidet_mma.b_regs)],
                             c_reg_p=[c_regs + i for i in range(hidet_mma.c_regs)],
                         )
                     )

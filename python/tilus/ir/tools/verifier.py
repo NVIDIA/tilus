@@ -8,7 +8,7 @@ from hidet.ir.expr import Constant, Expr
 from hidet.ir.tools.simplifier import Simplifier
 from hidet.utils.doc import Doc, NewLine
 from tilus.ir.functors import IRVisitor
-from tilus.ir.inst import LoadSharedInst
+from tilus.ir.instructions import LoadSharedInst
 from tilus.ir.node import IRNode
 from tilus.ir.prog import Program
 from tilus.ir.tools.printer import IRPrinter

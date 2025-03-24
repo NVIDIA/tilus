@@ -3,12 +3,17 @@ from typing import Optional, Union
 from hidet.ir.dtypes import boolean, uint8, uint16, uint32
 from hidet.ir.expr import Expr, Var, cast, if_then_else
 from hidet.ir.type import DataType
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes.vector import uint32x2, uint32x4
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.extensions.hidet.ir.tools.rewriter import rewrite
 from tilus.ir.analyzers.value_analyzer import TensorInfo, analyze_info
-from tilus.ir.inst import LoadGlobalGenericInst, LoadSharedGenericInst, StoreGlobalGenericInst, StoreSharedGenericInst
+from tilus.ir.instructions import (
+    LoadGlobalGenericInst,
+    LoadSharedGenericInst,
+    StoreGlobalGenericInst,
+    StoreSharedGenericInst,
+)
 from tilus.ir.layout import RegisterLayout
 from tilus.utils import gcd
 
@@ -75,10 +80,10 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
             return None
 
 
-@register_inst_emitter(LoadSharedGenericInst)
-@register_inst_emitter(LoadGlobalGenericInst)
-@register_inst_emitter(StoreSharedGenericInst)
-@register_inst_emitter(StoreGlobalGenericInst)
+@register_emitter(LoadSharedGenericInst)
+@register_emitter(LoadGlobalGenericInst)
+@register_emitter(StoreSharedGenericInst)
+@register_emitter(StoreGlobalGenericInst)
 class LoadGlobalGenericInstEmitter(LoadStoreInstBaseEmitter):
     def emit(
         self, inst: LoadGlobalGenericInst | LoadSharedGenericInst | StoreGlobalGenericInst | StoreSharedGenericInst

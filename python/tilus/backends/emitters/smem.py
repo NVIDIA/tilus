@@ -2,13 +2,12 @@ from hidet.ir.dtypes import int32
 from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.type import tensor_pointer_type
-from tilus.backends.codegen import BaseInstEmitter, register_inst_emitter
-from tilus.ir.inst import AllocateSharedInst, FreeSharedInst
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst
 from tilus.ir.tensor import SharedTensor
-from tilus.target import gpgpu_any
 
 
-@register_inst_emitter(AllocateSharedInst, target=gpgpu_any)
+@register_emitter(AllocateSharedInst)
 class AllocateSharedInstEmitter(BaseInstEmitter):
     def emit(self, inst: AllocateSharedInst) -> None:
         value: SharedTensor = inst.shared_output
@@ -25,7 +24,7 @@ class AllocateSharedInstEmitter(BaseInstEmitter):
         )
 
 
-@register_inst_emitter(FreeSharedInst, target=gpgpu_any)
+@register_emitter(FreeSharedInst)
 class FreeSharedInstEmitter(BaseInstEmitter):
     def emit(self, inst: FreeSharedInst) -> None:
         value: SharedTensor = inst.inputs[0].as_shared_tensor()

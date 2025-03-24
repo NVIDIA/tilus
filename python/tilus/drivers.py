@@ -74,9 +74,11 @@ def optimize_program(program: Program, options: BuildOptions, cache_dir: Path) -
         bound_aware_simplify_pass,
         inject_print_instruction_pass,
         lower_load_store_pass,
+        lower_to_load_matrix_pass,
     )
 
     transforms = [
+        lower_to_load_matrix_pass(),
         lower_load_store_pass(),
         bound_aware_simplify_pass(),
     ]
