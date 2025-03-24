@@ -70,6 +70,7 @@ def optimize_program(program: Program, options: BuildOptions, cache_dir: Path) -
     """
     from tilus.transforms import (
         PassContext,
+        analyze_scalar_pass,
         apply_transforms,
         bound_aware_simplify_pass,
         inject_print_instruction_pass,
@@ -81,6 +82,7 @@ def optimize_program(program: Program, options: BuildOptions, cache_dir: Path) -
         lower_to_load_matrix_pass(),
         lower_load_store_pass(),
         bound_aware_simplify_pass(),
+        analyze_scalar_pass(),
     ]
 
     if options.debug_block is not None:

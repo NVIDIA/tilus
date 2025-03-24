@@ -370,11 +370,8 @@ class Transpiler(PythonAstFunctor):
             return Function.create(
                 name=func_def.name,
                 params=func_params,
-                num_warps=warps,
-                num_blocks=blocks,
                 body=scope.flush_stmts(),
-                annotations={},
-                metadata=Metadata.create(divisibility),
+                metadata=Metadata.create(num_blocks=blocks, num_warps=warps, divisibility=divisibility),
             )
 
     def visit_Expr(self, expr: ast.Expr) -> None:

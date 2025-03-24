@@ -7,7 +7,7 @@ from hidet.ir.expr import Expr, Var
 from hidet.ir.type import BaseType
 from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir.builders.stmt_builder import StmtBuilder
-from tilus.ir.func import Function
+from tilus.ir.func import Function, Metadata
 from tilus.ir.stmt import SeqStmt
 
 
@@ -52,11 +52,8 @@ class FunctionBuilder(StmtBuilder):
             built_function = Function.create(
                 name=self.name,
                 params=self.params,
-                num_warps=self.num_warps,
-                num_blocks=num_blocks,
                 body=SeqStmt.create(self.builder._stack.pop()),
-                annotations={},
-                metadata=None,
+                metadata=Metadata.create(num_blocks=num_blocks, num_warps=self.num_warps),
             )
             self.builder._on_finish(built_function)
 

@@ -29,6 +29,19 @@ class SharedLayout(IRNode):
         axes: List[Var] = index_vars(num_vars=len(shape))
         return SharedLayout(shape=tuple(shape), size=size, axes=tuple(axes), offset=f_offset(axes))
 
+    def slice(self, offsets: Sequence[int], slice_dims: Sequence[int], slice_shape: Sequence[int]) -> SharedLayout:
+        assert len(set(slice_dims)) == len(slice_dims), "slice_dims must be unique"
+        assert len(slice_shape) == len(slice_dims), "slice_dims and slice_shape must have the same length"
+        assert len(slice_dims) <= len(self.shape), "slice_dims must be less than or equal to the number of dimensions"
+
+        def f_offset(axes: Sequence[Var]) -> Expr:
+            indices: List[Expr] = [int32(offset) for offset in offsets]
+            for dim, axis in zip(slice_dims, axes):
+                indices[dim] = indices[dim] + axis
+            return self(*indices)
+
+        return SharedLayout.create(shape=slice_shape, size=self.size, f_offset=f_offset)
+
     def simplify(self) -> SharedLayout:
         from tilus.extensions.hidet.transforms.rule_based_simplifier import BoundInfo, RuleBasedSimplifier
 

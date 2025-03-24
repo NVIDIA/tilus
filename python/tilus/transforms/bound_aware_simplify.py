@@ -7,7 +7,7 @@ from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import (
-    CopyAsyncInst,
+    CopyAsyncGenericInst,
     LoadGlobalGenericInst,
     StoreGlobalGenericInst,
 )
@@ -24,14 +24,6 @@ class BoundAwareSimplifyRewriter(IRRewriter):
         self.bound: Dict[Expr, BoundInfo] = self.analyzer.bound
 
     def visit_Function(self, func: Function) -> Function:
-        # annotate the bound information for parameters
-        # for param, attrs in func.param2attrs.items():
-        #     info = BoundInfo(min_value=attrs.lower, max_value=attrs.upper)
-        #     self.bound[param] = info
-
-        # analyze and annotate the bound information for virtual axes
-        # self.visit(func.block_mapping)
-
         return super().visit_Function(func)
 
     def visit_Expr(self, expr: Expr) -> Expr:
@@ -91,7 +83,7 @@ class BoundAwareSimplifyRewriter(IRRewriter):
 
     # instructions
 
-    def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Instruction:
+    def visit_CopyAsyncGenericInst(self, inst: CopyAsyncGenericInst) -> Instruction:
         for axis, extent in zip(inst.axes, inst.inputs[0].as_shared_tensor().shape):
             self.bound[axis] = BoundInfo(min_value=0, max_value=extent - 1)
         return super().visit_Instruction(inst)

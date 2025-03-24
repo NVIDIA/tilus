@@ -13,6 +13,7 @@ from tilus.ir.instructions import (
     BroadcastElementwiseBinaryInst,
     CastInst,
     CopyAsyncCommitGroupInst,
+    CopyAsyncGenericInst,
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
@@ -29,6 +30,7 @@ from tilus.ir.instructions import (
     LoadSharedInst,
     MmaDotInst,
     PrintTensorInst,
+    SharedSliceInst,
     ShuffleDownInst,
     ShuffleUpInst,
     SimtDotInst,
@@ -253,6 +255,9 @@ class IRFunctor:
     def visit_FreeSharedInst(self, inst: FreeSharedInst) -> Any:
         raise NotImplementedError()
 
+    def visit_SharedSliceInst(self, inst: SharedSliceInst) -> Any:
+        raise NotImplementedError()
+
     def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> Any:
         raise NotImplementedError()
 
@@ -319,6 +324,9 @@ class IRFunctor:
     def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Any:
         raise NotImplementedError()
 
+    def visit_CopyAsyncGenericInst(self, inst: CopyAsyncGenericInst) -> Any:
+        raise NotImplementedError()
+
     def visit_CopyAsyncCommitGroupInst(self, inst: CopyAsyncCommitGroupInst) -> Any:
         raise NotImplementedError()
 
@@ -378,25 +386,13 @@ class IRRewriter(IRFunctor):
 
     def visit_Function(self, func: Function) -> Function:
         body = self.visit(func.body)
-        # block_mapping = self.visit(func.block_mapping)
-        # weight_transforms = self.visit(func.weight_transforms)
-        if same_list(
-            [
-                body,
-            ],
-            [
-                func.body,
-            ],
-        ):
+        if body is func.body:
             return func
         else:
             return Function(
                 name=func.name,
                 params=func.params,
-                num_warps=func.num_warps,
-                num_blocks=func.num_blocks,
                 body=body,
-                annotations=func.annotations,
                 metadata=func.metadata,
             )
 

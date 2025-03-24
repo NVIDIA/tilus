@@ -2,6 +2,7 @@ from tilus.ir.inst import Instruction
 
 from .cuda import (
     CopyAsyncCommitGroupInst,
+    CopyAsyncGenericInst,
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
@@ -29,6 +30,7 @@ from .generic import (
     LoadSharedGenericInst,
     LoadSharedInst,
     PrintTensorInst,
+    SharedSliceInst,
     ShuffleDownInst,
     ShuffleUpInst,
     StoreGlobalGenericInst,

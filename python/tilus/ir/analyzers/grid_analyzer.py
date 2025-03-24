@@ -348,7 +348,7 @@ class TensorInfo:
         return TensorInfo(shape, infos)
 
 
-class ValueAnalyzer(IRFunctor):
+class GridAnalyzer(IRFunctor):
     """
     Given a variable, it may have multiple potential values
     a := 8
@@ -449,14 +449,14 @@ class ValueAnalyzer(IRFunctor):
         return self.visit_binary(e)
 
 
-def analyze_info(
+def analyze_grid(
     shape: Sequence[int], axes: Sequence[Var], var2info: Mapping[Var, TensorInfo], expr: Expr
 ) -> TensorInfo:
     """
     Given the mapping from axes -> value, we could construct a tensor with given shape. This function analyze the
     tensor information (TensorInfo) of this tensor.
     """
-    analyzer = ValueAnalyzer()
+    analyzer = GridAnalyzer()
     ret = analyzer.analyze(axes, shape, var2info, expr)
     return ret
 
@@ -481,4 +481,4 @@ if __name__ == "__main__":
     # )
     # e = ((((r0 * 32) + (u0 * 16)) + k) < 4096)
     e = k < 4096
-    analyze_info(shape=[1, 16, 16], axes=[i, j, k], var2info={}, expr=e)
+    analyze_grid(shape=[1, 16, 16], axes=[i, j, k], var2info={}, expr=e)

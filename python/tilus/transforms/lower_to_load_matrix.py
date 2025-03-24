@@ -10,11 +10,11 @@ We check whether the following conditions to determine whether we can lower a Lo
 
 from typing import Optional, Union
 
-from hidet.ir import Constant, DataType
+from hidet.ir import DataType
 from hidet.ir.expr import Expr, Var
 from tilus import RegisterLayout
 from tilus.extensions.hidet.ir.expr import index_vars
-from tilus.ir.analyzers.value_analyzer import TensorInfo, analyze_info
+from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
@@ -22,7 +22,6 @@ from tilus.ir.inst import Instruction
 from tilus.ir.instructions import LoadMatrixConfig, LoadSharedInst
 from tilus.ir.layout import divide
 from tilus.ir.stmt import Stmt
-from tilus.ir.utils import vector
 from tilus.target import get_current_target, nvgpu_sm75
 from tilus.transforms.base import Pass
 
@@ -58,27 +57,11 @@ class LowerToLoadMatrixRewriter(IRRewriter):
         if config is None:
             return inst
 
-        # check that all the elements in the output tensor will be loaded (i.e., the mask is always true)
-        shared_tensor = inst.shared_input
-        offsets: list[int] = []
-        for offset in inst.offsets:
-            if isinstance(offset, Constant):
-                offsets.append(int(offset))
-            else:
-                # we need to make sure that the mask is always true, if the offset is not a constant,
-                # the mask will be a runtime value, preventing us from lowering the instruction
-                return inst
-        if not all(vector(offsets) + vector(register_tensor.shape) <= vector(shared_tensor.shape)):
-            # the mask is not always true, we cannot lower the instruction
-            return inst
-
         # check the alignment and contiguity of the shared tensor address
+        shared_tensor = inst.shared_input
         axes: list[Var] = index_vars(num_vars=len(shared_tensor.shape))
-        shared_indices: list[Expr] = list(inst.offsets)
-        for i, dim in enumerate(inst.dims):
-            shared_indices[dim] = shared_indices[dim] + axes[i]
-        offset: Expr = shared_tensor.layout(*shared_indices)
-        tensor_info: TensorInfo = analyze_info(shape=register_tensor.shape, axes=axes, expr=offset, var2info={})
+        offset: Expr = shared_tensor.layout(*axes)
+        tensor_info: TensorInfo = analyze_grid(shape=register_tensor.shape, axes=axes, expr=offset, var2info={})
 
         if tensor_info.infos[-1].divisibility * config.nbytes % 16 != 0:
             # the shared tensor address is not aligned with 16 bytes for each row in the ldmatrix unit

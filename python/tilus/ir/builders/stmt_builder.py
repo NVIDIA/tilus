@@ -13,6 +13,7 @@ from tilus.ir.instructions import (
     AssignInst,
     CastInst,
     CopyAsyncCommitGroupInst,
+    CopyAsyncGenericInst,
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
@@ -30,6 +31,7 @@ from tilus.ir.instructions import (
     MmaDotConfig,
     MmaDotInst,
     PrintTensorInst,
+    SharedSliceInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
     StoreSharedGenericInst,
@@ -336,6 +338,17 @@ class StmtBuilder(StmtBuilderCore):
 
     def copy_async(
         self,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        evict: Optional[str] = None,
+    ) -> None:
+        inst = CopyAsyncInst.create(src=src, dst=dst, offsets=offsets, dims=dims, evict=evict)
+        self.append(inst)
+
+    def copy_async_generic(
+        self,
         *,
         dst: SharedTensor,
         ptr: Var,
@@ -343,7 +356,7 @@ class StmtBuilder(StmtBuilderCore):
         f_mask: Optional[Callable[[List[Var]], Expr]],
         evict: Optional[str] = None,
     ) -> None:
-        inst = CopyAsyncInst.create(dst, ptr, f_offset, f_mask, evict=evict)
+        inst = CopyAsyncGenericInst.create(dst, ptr, f_offset, f_mask, evict=evict)
         self.append(inst)
 
     def copy_async_wait_all(self):
@@ -424,41 +437,41 @@ class StmtBuilder(StmtBuilderCore):
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
 
-    def store_shared(
+    def shared_slice(
         self,
-        dst: SharedTensor,
-        src: RegisterTensor,
-        offsets: Optional[Sequence[Expr | int]] = None,
-        dims: Optional[Sequence[int]] = None,
-    ) -> None:
-        if dims is None:
-            dims = range(len(dst.shape))
-        if offsets is None:
-            offsets_ = [int32.zero for _ in range(len(dst.shape))]
-        else:
-            offsets_ = [as_expr(offset) for offset in offsets]
-        inst = StoreSharedInst.create(dst=dst, src=src, offsets=offsets_, dims=dims)
+        tensor: SharedTensor,
+        offsets: Sequence[int],
+        slice_dims: Sequence[int],
+        slice_shape: Sequence[int],
+    ) -> SharedTensor:
+        inst = SharedSliceInst.create(
+            tensor=tensor,
+            offsets=offsets,
+            dims=slice_dims,
+            shape=slice_shape,
+        )
         self.append(inst)
+        return inst.shared_output
 
     def load_shared(
         self,
         src: SharedTensor,
-        register_layout: RegisterLayout,
-        offsets: Optional[Sequence[Expr | int]] = None,
-        dims: Optional[Sequence[int]] = None,
+        output_layout: Optional[RegisterLayout] = None,
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        if dims is None:
-            dims = range(len(src.shape))
-        if offsets is None:
-            offsets_ = [int32.zero for _ in range(len(src.shape))]
-        else:
-            offsets_ = [as_expr(offset) for offset in offsets]
         if output is None:
-            output = RegisterTensor.create(dtype=src.dtype, layout=register_layout)
-        inst = LoadSharedInst.create(x=src, offsets=offsets_, dims=dims, output=output)
+            output = RegisterTensor.create(dtype=src.dtype, layout=output_layout)
+        inst = LoadSharedInst.create(x=src, output=output)
         self.append(inst)
         return inst.register_output
+
+    def store_shared(
+        self,
+        dst: SharedTensor,
+        src: RegisterTensor,
+    ) -> None:
+        inst = StoreSharedInst.create(dst=dst, src=src)
+        self.append(inst)
 
     def load_matrix(
         self,

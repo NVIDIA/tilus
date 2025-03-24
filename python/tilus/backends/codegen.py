@@ -136,7 +136,7 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def num_warps(self) -> int:
-        return self.codegen.program.num_warps
+        return self.codegen.function.metadata.num_warps
 
     def emit(self, inst: Instruction) -> None:
         raise NotImplementedError()
@@ -242,7 +242,7 @@ class Codegen(IRFunctor):
     def __init__(self) -> None:
         super().__init__()
         self._builder: Optional[FunctionBuilder] = None
-        self._program: Optional[Function] = None
+        self._function: Optional[Function] = None
         self.printer: IRPrinter = IRPrinter()
 
         # value mapping
@@ -273,9 +273,9 @@ class Codegen(IRFunctor):
         return self.visit(prog)
 
     @property
-    def program(self) -> Function:
-        assert self._program is not None
-        return self._program
+    def function(self) -> Function:
+        assert self._function is not None
+        return self._function
 
     @property
     def builder(self) -> FunctionBuilder:
@@ -283,7 +283,7 @@ class Codegen(IRFunctor):
         return self._builder
 
     def sync(self) -> None:
-        from tilus.ir.inst import SyncThreadsInst
+        from tilus.ir.instructions import SyncThreadsInst
 
         self.visit(SyncThreadsInst.create())
 
@@ -312,7 +312,7 @@ class Codegen(IRFunctor):
 
     def check_emitter_existence(self) -> None:
         failed_instructions: Set[str] = set()
-        for inst in collect_instructions(self.program):
+        for inst in collect_instructions(self.function):
             if resolve_inst_emitter(inst.__class__) is None:
                 failed_instructions.add(inst.__class__.__name__)
 
@@ -364,7 +364,7 @@ class Codegen(IRFunctor):
 
         # set the workspace
         sb = StmtBuilder()
-        remap = {prog_param: launch_param for prog_param, launch_param in zip(self.program.params, launch_func.params)}
+        remap = {prog_param: launch_param for prog_param, launch_param in zip(self.function.params, launch_func.params)}
         if not (isinstance(self.gmem_allocated, Constant) and int(self.gmem_allocated) == 0):
             sb += set_symbol_value_ptr(
                 self.GMEM_WORKSPACE_NAME,
@@ -391,10 +391,11 @@ class Codegen(IRFunctor):
         return updated_ir_module
 
     def visit_Function(self, func: Function) -> IRModule:
+        assert func.metadata.analysis is not None, "Function analysis is required for code generation"
         # warmup printer
         self.printer(func)
 
-        self._program = func
+        self._function = func
 
         self.check_emitter_existence()
 
@@ -402,8 +403,8 @@ class Codegen(IRFunctor):
             name=func.name + "_kernel",
             kind="cuda_kernel" if is_nvgpu() else "hip_kernel",
             label="",
-            grid_dim=self._program.num_blocks,
-            block_dim=func.num_warps * 32,
+            grid_dim=self._function.metadata.num_blocks,
+            block_dim=func.metadata.num_warps * 32,
             dynamic_smem_bytes=None,
             min_blocks=None,
         )
@@ -411,7 +412,7 @@ class Codegen(IRFunctor):
 
         # init for_thread_group stack
         self.thread_groups.num_groups = [1]
-        self.thread_groups.group_size = [func.num_warps * 32]
+        self.thread_groups.group_size = [func.metadata.num_warps * 32]
         self.thread_groups.current_worker = [threadIdx.x]
 
         # init pre-defined variables

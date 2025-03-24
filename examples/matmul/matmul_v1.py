@@ -32,9 +32,9 @@ class MatmulV1(tilus.Script):
 
         for offset_k in range(0, k_size, self.block_k):
             lda = self.load_global(ga, offsets=[offset_m, offset_k], shape=[self.block_m, self.block_k])
-            self.store_shared(sa, lda, offsets=[0, 0])
+            self.store_shared(sa, lda)
             ldb = self.load_global(gb, offsets=[offset_k, offset_n], shape=[self.block_k, self.block_n])
-            self.store_shared(sb, ldb, offsets=[0, 0])
+            self.store_shared(sb, ldb)
             self.sync()
 
             a = self.load_shared(sa, out_layout=self.mma.la)

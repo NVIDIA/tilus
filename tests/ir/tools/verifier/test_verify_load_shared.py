@@ -23,7 +23,6 @@ class DemoLoadShared(tilus.Script):
     [
         ([4, 4], [8, 8], False),
         ([8, 8], [8, 8], True),
-        ([16, 16], [8, 8], True),
     ],
 )
 def test_verify_load_shared(shared_shape, register_shape, success):

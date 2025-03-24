@@ -7,7 +7,7 @@ from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes.vector import uint32x2, uint32x4
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.extensions.hidet.ir.tools.rewriter import rewrite
-from tilus.ir.analyzers.value_analyzer import TensorInfo, analyze_info
+from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.instructions import (
     LoadGlobalGenericInst,
     LoadSharedGenericInst,
@@ -53,13 +53,13 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
         # analyze the offset and mask's value information (e.g., divisibility, constancy, etc.)
         var2info: dict[Var, TensorInfo] = {}
         # todo: add divisibility information for the variables used in global memory offset
-        offset_info = analyze_info(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.offset)
-        mask_info = analyze_info(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.mask)
+        offset_info = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.offset)
+        mask_info = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.mask)
 
         # analyze the register layout so that we can know how the elements are distributed stored in threads
         axes = index_vars(len(layout.shape) + 1)
         expr = layout.global2local(global_indices=axes[:-1], worker=axes[-1])
-        layout_info: TensorInfo = analyze_info(shape=layout.shape, axes=axes[:-1], var2info={}, expr=expr)
+        layout_info: TensorInfo = analyze_grid(shape=layout.shape, axes=axes[:-1], var2info={}, expr=expr)
 
         # enumerate each dimension and check whether we can vectorize on that dimension
         for i in range(len(regs_tensor.shape)):

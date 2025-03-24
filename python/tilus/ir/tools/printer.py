@@ -2,9 +2,10 @@ from typing import Any, Dict, List, Set, Tuple, Union
 
 from hidet.ir import BaseType
 from hidet.ir.expr import Expr, Var
+from hidet.ir.primitives.cuda.vars import blockIdx
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
 from tilus.extensions.hidet.utils.doc import doc_comment, doc_join_lines, doc_strip_parentheses
-from tilus.ir.func import Function
+from tilus.ir.func import Analysis, Function, Metadata
 from tilus.ir.functors import IRFunctor
 from tilus.ir.inst import Instruction, InstructionConfig
 from tilus.ir.layout import RegisterLayout
@@ -110,15 +111,19 @@ class IRPrinter(IRFunctor):
     def visit_Expr(self, expr: Expr) -> Doc:
         if isinstance(expr, Var):
             if expr not in self.var2name:
-                if expr.type.is_pointer():
-                    symbol = "%p"
-                    count = self.ptr_count
-                    self.ptr_count += 1
+                if expr in [blockIdx.x, blockIdx.y, blockIdx.z]:  # type: ignore
+                    name = expr.name
                 else:
-                    symbol = "%v"
-                    count = self.var_count
-                    self.var_count += 1
-                self.var2name[expr] = symbol + str(count)
+                    if expr.type.is_pointer():
+                        symbol = "%p"
+                        count = self.ptr_count
+                        self.ptr_count += 1
+                    else:
+                        symbol = "%v"
+                        count = self.var_count
+                        self.var_count += 1
+                    name = symbol + str(count)
+                self.var2name[expr] = name
                 self.printer.namer.obj_name[expr] = self.var2name[expr]
             return Text(self.var2name[expr])
         else:
@@ -135,46 +140,53 @@ class IRPrinter(IRFunctor):
 
         return doc
 
+    def visit_Analysis(self, analysis: Analysis) -> Doc:
+        doc = Doc()
+        if analysis.divisibility:
+            doc += NewLine() + "divisibility = {" + self.visit(analysis.divisibility) + "}"
+        if analysis.lower_bound:
+            doc += NewLine() + "lower_bound = {" + self.visit(analysis.lower_bound) + "}"
+        if analysis.upper_bound:
+            doc += NewLine() + "upper_bound = {" + self.visit(analysis.upper_bound) + "}"
+        return doc
+
+    def visit_FuncMetadata(self, metadata: Metadata) -> Doc:
+        doc = Doc()
+        doc += NewLine() + "num_blocks = [" + self.visit(metadata.num_blocks) + "]"
+        doc += NewLine() + "num_warps = " + self.visit(metadata.num_warps)
+        if metadata.param2divisibility:
+            doc += NewLine() + "param_divisibility = {" + self.visit(metadata.param2divisibility) + "}"
+        if metadata.analysis:
+            doc += NewLine() + "analysis = {"
+            doc += self.visit_Analysis(metadata.analysis).indent(4)
+            doc += NewLine() + "}"
+        doc = doc_comment(doc, "# ")
+        doc += NewLine()
+        return doc
+
     def visit_Function(self, func: Function) -> Doc:
         # head doc
         head_doc = doc_join_lines(
             seq=[self.visit(p) + ": " + self.printer(p.type) for p in func.params],
             left="def " + func.name + "(",
-            right=")",
+            right="):",
         )
 
-        # attr doc
-        num_blocks_doc = Text("num_blocks = ") + self.visit(func.num_blocks)
-        num_warps_doc = Text("num_warps = ") + self.visit(func.num_warps)
+        # metadata doc
+        metadata_doc = self.visit_FuncMetadata(func.metadata)
 
         # body doc
         body_doc = self.visit(func.body)
 
         # comment doc
+        key_comment_items = sorted([(v, k) for k, v in self.comment2key.items()], key=lambda kv: kv[0])
         comment_doc = doc_comment(
-            NewLine()
-            + doc_join(seq=[key + ": " + comment for comment, key in self.comment2key.items()], sep=NewLine()),
+            NewLine() + doc_join(seq=[key + ": " + comment for key, comment in key_comment_items], sep=NewLine()),
             "# ",
         )
 
-        # attributes parts
-        attributes_doc = doc_comment(
-            doc_join(
-                [
-                    num_blocks_doc,
-                    num_warps_doc,
-                    # weight_transform_doc,
-                    # divisibility_doc
-                ],
-                NewLine(),
-            ),
-            comment_string="# ",
-        )
-
         # combine them
-        doc = doc_join(
-            [head_doc, (NewLine() + attributes_doc).indent(4), (NewLine() + body_doc).indent(4), comment_doc], ""
-        )
+        doc = doc_join([head_doc, metadata_doc.indent(4), (NewLine() + body_doc).indent(4), comment_doc], "")
         return doc
 
     def visit_InstStmt(self, stmt: InstStmt) -> Doc:

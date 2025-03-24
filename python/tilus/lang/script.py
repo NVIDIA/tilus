@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing
-from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type
+from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
 from hidet.ir.expr import Expr, Var
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3
@@ -257,24 +257,54 @@ class Script:
         self,
         src: SharedTensor,
         *,
-        offsets: Optional[Sequence[Expr | int]] = None,
+        offsets: Optional[Sequence[int]] = None,
+        dims: Optional[Sequence[int]] = None,
         out_layout: Optional[RegisterLayout] = None,
-        slice_dims: Optional[Sequence[int]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        if slice_dims is None:
-            slice_dims = list(range(len(src.shape)))
-        return self._builder.load_shared(
-            src=src, register_layout=out_layout, offsets=offsets, dims=slice_dims, output=out
-        )
+        if offsets is not None:
+            if dims is None:
+                dims = list(range(len(src.shape)))
+            src = self._builder.shared_slice(src, offsets=offsets, slice_dims=dims, slice_shape=out_layout.shape)
+        return self._builder.load_shared(src=src, output_layout=out_layout, output=out)
 
     def store_shared(
-        self, dst: SharedTensor, src: RegisterTensor, *, offsets: Optional[Sequence[Expr | int]] = None
+        self,
+        dst: SharedTensor,
+        src: RegisterTensor,
+        *,
+        offsets: Optional[Sequence[int]] = None,
+        dims: Optional[Sequence[int]] = None,
     ) -> None:
-        self._builder.store_shared(dst=dst, src=src, offsets=offsets)
+        if offsets is not None:
+            assert len(offsets) == len(dst.shape)
+            if dims is None:
+                assert len(src.shape) == len(dst.shape)
+                dims = list(range(len(src.shape)))
+            dst = self._builder.shared_slice(dst, offsets=offsets, slice_dims=dims, slice_shape=src.shape)
+        self._builder.store_shared(dst=dst, src=src)
 
     def free_shared(self, tensor: SharedTensor) -> None:
         self._builder.free_shared(tensor)
+
+    def copy_async(
+        self,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        evict: Optional[str] = None,
+    ) -> None:
+        self._builder.copy_async(dst=dst, src=src, offsets=offsets, dims=dims, evict=evict)
+
+    def copy_async_wait_all(self):
+        self._builder.copy_async_wait_all()
+
+    def copy_async_commit_group(self):
+        self._builder.copy_async_commit_group()
+
+    def copy_async_wait_group(self, n: Union[Expr, int]) -> None:
+        self._builder.copy_async_wait_group(n)
 
     def mma_dot(
         self,

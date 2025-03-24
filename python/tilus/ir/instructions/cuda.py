@@ -6,10 +6,10 @@ from typing import Callable, Optional, Sequence
 
 from hidet.ir.dtypes import DataType, bf16, f16, f32, i8, i32
 from hidet.ir.expr import Expr, Var
-from tilus.extensions.hidet.ir.expr import index_vars
+from tilus.extensions.hidet.ir.expr import as_expr, index_vars
 from tilus.ir.inst import Instruction, InstructionConfig
-from tilus.ir.layout import RegisterLayout, SharedLayout, column_repeat, column_spatial, repeat, spatial
-from tilus.ir.tensor import RegisterTensor, SharedTensor
+from tilus.ir.layout import RegisterLayout, column_repeat, column_spatial, repeat, spatial
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor
 
 
 @dataclass(frozen=True, eq=False)
@@ -75,22 +75,31 @@ class SimtDotInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class CopyAsyncInst(Instruction):
+    offsets: tuple[Expr, ...]
+    dims: Optional[tuple[int, ...]]
+    evict: Optional[str]
+
+    @staticmethod
+    def create(
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        evict: Optional[str] = None,
+    ) -> CopyAsyncInst:
+        offsets_ = tuple(as_expr(offset) for offset in offsets)
+        return CopyAsyncInst(
+            output=None, inputs=(dst, src), offsets=offsets_, dims=tuple(dims) if dims else None, evict=evict
+        )
+
+
+@dataclass(frozen=True, eq=False)
+class CopyAsyncGenericInst(Instruction):
     ptr: Var
     axes: list[Var]
     offset: Expr
     mask: Optional[Expr]
     evict: Optional[str]
-
-    @staticmethod
-    def supports(
-        dtype: DataType,
-        shared_layout: SharedLayout,
-        ptr: Var,
-        f_offset: Callable[[list[Var]], Expr],
-        f_mask: Optional[Callable[[list[Var]], Expr]],
-        divisibility: dict[Var, int],
-    ) -> bool:
-        raise NotImplementedError()
 
     @staticmethod
     def create(
@@ -99,11 +108,13 @@ class CopyAsyncInst(Instruction):
         f_offset: Callable[[list[Var]], Expr],
         f_mask: Optional[Callable[[list[Var]], Expr]],
         evict: Optional[str] = None,
-    ) -> CopyAsyncInst:
+    ) -> CopyAsyncGenericInst:
         axes = index_vars(len(dst.shape))
         offset = f_offset(axes)
         mask = f_mask(axes) if f_mask else None
-        return CopyAsyncInst(output=None, inputs=(dst,), ptr=ptr, axes=axes, offset=offset, mask=mask, evict=evict)
+        return CopyAsyncGenericInst(
+            output=None, inputs=(dst,), ptr=ptr, axes=axes, offset=offset, mask=mask, evict=evict
+        )
 
 
 @dataclass(frozen=True, eq=False)

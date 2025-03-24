@@ -9,16 +9,21 @@ from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import uint32x2, uint32x4
 from tilus.extensions.hidet.ir.primitives.cuda.cp_async import cp_async
 from tilus.extensions.hidet.ir.tools import rewrite
-from tilus.ir.instructions import CopyAsyncCommitGroupInst, CopyAsyncInst, CopyAsyncWaitAllInst, CopyAsyncWaitGroupInst
+from tilus.ir.instructions import (
+    CopyAsyncCommitGroupInst,
+    CopyAsyncGenericInst,
+    CopyAsyncWaitAllInst,
+    CopyAsyncWaitGroupInst,
+)
 from tilus.ir.tensor import SharedLayout, SharedTensor
 from tilus.target import nvgpu_sm80
 from tilus.utils import prod
 
 
-@register_emitter(CopyAsyncInst, target=nvgpu_sm80)
+@register_emitter(CopyAsyncGenericInst, target=nvgpu_sm80)
 class CopyAysncInstEmitter(BaseInstEmitter):
-    def emit(self, inst: CopyAsyncInst) -> None:
-        from tilus.ir.analyzers.value_analyzer import TensorInfo, analyze_info
+    def emit(self, inst: CopyAsyncGenericInst) -> None:
+        from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 
         dst: SharedTensor = inst.inputs[0].as_shared_tensor()
         dtype: DataType = dst.dtype
@@ -26,18 +31,15 @@ class CopyAysncInstEmitter(BaseInstEmitter):
         shape: Sequence[int] = layout.shape
 
         # get shared info
-        shared_info: TensorInfo = analyze_info(shape=layout.shape, axes=layout.axes, var2info={}, expr=layout.offset)
+        shared_info: TensorInfo = analyze_grid(shape=layout.shape, axes=layout.axes, var2info={}, expr=layout.offset)
 
         # get global and mask info
         var2info: Dict[Var, TensorInfo] = {}
-        # for param, attr in self.codegen.program.param2attrs.items():
-        #     if attr.divisibility is not None:
-        #         var2info[param] = TensorInfo.from_divisiblity(shape=shape, divisibility=attr.divisibility)
-        # for var, divisibility in self.codegen.program.var2divisibility.items():
-        #     var2info[var] = TensorInfo.from_divisiblity(shape=shape, divisibility=divisibility)
-        global_info: TensorInfo = analyze_info(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.offset)
+        for var, divisibility in self.codegen.function.metadata.analysis.divisibility.items():
+            var2info[var] = TensorInfo.from_divisibility(shape=shape, divisibility=divisibility)
+        global_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.offset)
         inst_mask = inst.mask if inst.mask is not None else boolean.true
-        mask_info: TensorInfo = analyze_info(shape=shape, axes=inst.axes, var2info=var2info, expr=inst_mask)
+        mask_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst_mask)
 
         contiguous_dim: Optional[int] = None
         cp_size: Optional[int] = None

@@ -99,21 +99,13 @@ class IRVerifier(IRVisitor):
         self.diagnostics.append(Diagnostic(kind, context, message, items))
 
     def visit_LoadSharedInst(self, inst: LoadSharedInst) -> None:
-        if len(inst.offsets) != len(inst.register_output.shape):
-            self.error(
-                inst, "offsets {} rank does not match rank of output tensor {}.", inst.offsets, inst.register_output
-            )
-        if len(inst.offsets) != len(inst.shared_input.shape):
-            self.error(inst, "offsets {} rank does not match rank of input tensor {}.", inst.offsets, inst.shared_input)
-        offsets = vector(self.const_or_zero(offset) for offset in inst.offsets)
         shared_shape = vector(inst.shared_input.shape)
         register_shape = vector(inst.register_output.shape)
 
-        if any(offsets < 0) or any(offsets > shared_shape - register_shape):
+        if any(vector(shared_shape) != vector(register_shape)):
             self.error(
                 inst,
-                "offsets [{}] out of bounds, given shared shape [{}] and register shape [{}].",
-                inst.offsets,
+                "The shared tensor shape [{}] does not match the register tensor shape [{}].",
                 inst.shared_input.shape,
                 inst.register_output.shape,
             )

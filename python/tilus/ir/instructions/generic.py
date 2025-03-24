@@ -56,32 +56,40 @@ class StoreGlobalInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class LoadSharedInst(Instruction):
-    offsets: tuple[Expr, ...]
-    dims: tuple[int, ...]
-
     @staticmethod
-    def create(
-        x: SharedTensor,
-        offsets: Sequence[Expr],
-        dims: Sequence[int],
-        output: RegisterTensor,
-    ) -> LoadSharedInst:
-        return LoadSharedInst(output=output, inputs=(x,), offsets=tuple(offsets), dims=tuple(dims))
+    def create(x: SharedTensor, output: RegisterTensor) -> LoadSharedInst:
+        return LoadSharedInst(output=output, inputs=(x,))
 
 
 @dataclass(frozen=True, eq=False)
 class StoreSharedInst(Instruction):
-    offsets: tuple[Expr, ...]
-    dims: tuple[int, ...]
+    @staticmethod
+    def create(dst: SharedTensor, src: RegisterTensor) -> StoreSharedInst:
+        return StoreSharedInst(output=None, inputs=(dst, src))
+
+
+@dataclass(frozen=True, eq=False)
+class SharedSliceInst(Instruction):
+    offsets: tuple[int, ...]
+    dims: Optional[tuple[int, ...]]
 
     @staticmethod
     def create(
-        dst: SharedTensor,
-        src: RegisterTensor,
-        offsets: Sequence[Expr],
+        tensor: SharedTensor,
+        offsets: Sequence[int],
         dims: Sequence[int],
-    ) -> StoreSharedInst:
-        return StoreSharedInst(output=None, inputs=(dst, src), offsets=tuple(offsets), dims=tuple(dims))
+        shape: Sequence[int],
+    ) -> SharedSliceInst:
+        output = SharedTensor.create(
+            dtype=tensor.dtype,
+            layout=tensor.layout.slice(offsets=offsets, slice_dims=dims, slice_shape=shape),
+        )
+        return SharedSliceInst(
+            output=output,
+            inputs=(tensor,),
+            offsets=tuple(offsets),
+            dims=tuple(dims) if len(dims) < len(tensor.shape) else None,
+        )
 
 
 @dataclass(frozen=True, eq=False)
