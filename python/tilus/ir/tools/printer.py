@@ -176,11 +176,14 @@ class IRPrinter(IRFunctor):
             right="):",
         )
 
+        # first visit body to make sure the variable names are set in their definition order
+        body_doc = self.visit(func.body)
+
         # metadata doc
         doc += self.visit_FuncMetadata(func.metadata).indent(4)
 
         # body doc
-        doc += self.visit(func.body).indent(4)
+        doc += body_doc.indent(4)
 
         # comment doc
         key_comment_items = sorted([(v, k) for k, v in self.comment2key.items()], key=lambda kv: kv[0])

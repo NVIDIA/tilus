@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Mapping, Optional
+from typing import Optional
 
 from hidet.ir import Call
 from hidet.ir.expr import Add, Constant, Div, Expr, Mod, Multiply, Sub, Var
@@ -253,14 +253,15 @@ class ScalarSet:
 
 
 class ScalarSetAnalyzer(HidetIRFunctor):
-    def __init__(self, var2info: Mapping[Var, ScalarSet]):
+    def __init__(self, var2info: dict[Var, ScalarSet]):
         super().__init__()
         self.var2info = var2info
 
+    def __call__(self, expr: Expr) -> ScalarSet:
+        return super().visit(expr)
+
     def visit_Var(self, var: Var) -> ScalarSet:
-        # info = self.var2info.get(var, None)
-        # return info if info is not None else ScalarSet()
-        return self.var2info[var]
+        return self.var2info[var] if var in self.var2info else ScalarSet()
 
     def visit_Constant(self, constant: Constant) -> ScalarSet:
         if constant.type.is_integer():  # type: ignore
@@ -294,6 +295,14 @@ class ScalarSetAnalyzer(HidetIRFunctor):
             # a set contains all integers
             warnings.warn("Unknown function call in scalar analysis: {}, fallback to universe set.".format(func_name))
             return ScalarSet()
+
+    def visit_dispatch(self, node):
+        if isinstance(node, (Var, Add, Sub, Multiply, Div, Mod, Constant, Call)):
+            return super().visit_dispatch(node)
+        elif isinstance(node, Expr):
+            return ScalarSet()
+        else:
+            raise NotImplementedError(f"Unsupported node type: {type(node)}")
 
 
 def analyze_scalar(func: Function) -> Function:

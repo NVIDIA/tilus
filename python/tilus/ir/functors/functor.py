@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Dict, Hashable, List, Tuple, TypeVar, Union
+from typing import Any, Dict, Hashable, List, Mapping, Tuple, TypeVar, Union
 
 from hidet.ir.expr import Expr
 from hidet.ir.type import BaseType
@@ -523,9 +523,13 @@ class IRRewriter(IRFunctor):
     def visit_Instruction(self, inst: InstClsVar) -> InstClsVar:
         output = self.visit(inst.output)
         inputs = self.visit(inst.inputs)
-        attributes = self.visit(inst.attributes)
+        attributes: Mapping[str, Any] = {key: self.visit(value) for key, value in inst.attributes.items()}
 
-        if output is inst.output and inputs is inst.inputs and attributes is inst.attributes:
+        if (
+            output is inst.output
+            and inputs is inst.inputs
+            and all(a is b for a, b in zip(attributes.values(), inst.attributes.values()))
+        ):
             return inst
         else:
             return dataclasses.replace(inst, output=output, inputs=inputs, **attributes)

@@ -9,8 +9,13 @@ from tilus.ir.layout import reduce, spatial
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
+tilus.option.debug.dump_ir()
+tilus.utils.clear_cache()
 
 pd.set_option("display.float_format", lambda x: "%.3f" % x)
+pd.set_option("display.max_columns", None)
+pd.set_option("display.width", None)
+pd.set_option("display.max_rows", None)
 
 
 @tilus.autotune("warp_spatial", [[2, 4], [4, 2], [2, 2]])
@@ -18,6 +23,8 @@ pd.set_option("display.float_format", lambda x: "%.3f" % x)
 @tilus.autotune("num_stages", [3, 4, 5])
 @tilus.autotune("split_k_factor", [1, 2, 4, 8, 16])
 class MatmulV7(tilus.Script):
+    # debug_schedule = dict(warp_spatial=[4, 2], warp_repeat=[1, 8, 1], num_stages=5, split_k_factor=1)
+
     def __init__(
         self, warp_spatial: tuple[int, int], warp_repeat: tuple[int, int, int], num_stages: int, split_k_factor: int
     ):
@@ -130,16 +137,19 @@ class MatmulV7(tilus.Script):
 def main():
     torch.random.manual_seed(41)
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
-    workloads = [
-        [2048, 2048, 2048],
-        [4096, 4096, 4096],
-        [4097, 4096, 4096],
-        [1, 4096, 4096],
-        [2, 4096, 4096],
-        [3, 4096, 4096],
-        [16, 4096, 4096],
-        [32, 4096, 4096],
-    ]
+    workloads = []
+    for k, n in [
+        [4096, 4096 * 3],
+        # [4096, 4096],
+        # [4096, 14336 * 2],
+        # [14336, 4096],
+    ]:
+        for m in [
+            1,
+            # 16,
+            # 32
+        ]:
+            workloads.append([m, n, k])
 
     rows = []
     matmul = MatmulV7()
@@ -162,8 +172,31 @@ def main():
             flops = 2 * m * n * k / latency * 1e-9
             rows.append([m, n, k, name, latency, flops])
 
+        # Create initial DataFrame
         df = pandas.DataFrame(rows, columns=headers)
-        print(df)
+
+        # Post-process to combine torch and tilus results
+        df_pivot = df.pivot(index=["m", "n", "k"], columns="name", values=["latency (ms)", "gflops"])
+        df_pivot.columns = [f"{col[1]}_{col[0]}" for col in df_pivot.columns]
+        df_pivot = df_pivot.reset_index()
+
+        # Calculate speedup (torch latency / tilus latency)
+        df_pivot["speedup"] = df_pivot["torch_latency (ms)"] / df_pivot["tilus_latency (ms)"]
+
+        # Reorder columns for better readability
+        column_order = [
+            "m",
+            "n",
+            "k",
+            "torch_latency (ms)",
+            "torch_gflops",
+            "tilus_latency (ms)",
+            "tilus_gflops",
+            "speedup",
+        ]
+        df_pivot = df_pivot[column_order]
+
+        print(df_pivot)
 
 
 if __name__ == "__main__":
