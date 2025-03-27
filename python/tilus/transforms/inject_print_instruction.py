@@ -2,9 +2,7 @@ from dataclasses import dataclass, field
 from typing import Type
 
 from hidet.ir.dtypes import boolean, int32
-from hidet.ir.expr import Expr, cast, logical_and
-from hidet.ir.primitives import blockIdx
-from tilus.extensions.hidet.ir.expr import as_expr
+from hidet.ir.expr import Expr, as_expr, cast, logical_and
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
@@ -49,11 +47,7 @@ class InjectPrintInstructionRewriter(IRRewriter):
         self.cond: Expr = boolean.true
 
     def visit_Function(self, func: Function) -> Function:
-        self.cond = logical_and(
-            blockIdx.x == self.block_to_print[0],  # type: ignore[attr-defined]
-            blockIdx.y == self.block_to_print[1],  # type: ignore[attr-defined]
-            blockIdx.z == self.block_to_print[2],  # type: ignore[attr-defined]
-        )
+        self.cond = logical_and(*[a == b for a, b in zip(func.metadata.block_indices, self.block_to_print)])
 
         prog_text = str(self.vm_printer(func))
         func = super().visit_Function(func)

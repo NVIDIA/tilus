@@ -42,6 +42,8 @@ class ForThreadGroupStmt(Stmt):
     num_groups: int
     body: Stmt
 
+    # todo: this node is not used in the current implementation
+
 
 @dataclass(frozen=True, eq=False)
 class IfStmt(Stmt):
@@ -74,6 +76,17 @@ class DeclareStmt(Stmt):
 class AssignStmt(Stmt):
     var: Var
     value: Expr
+
+
+@dataclass(frozen=True, eq=False)
+class LetStmt(Stmt):
+    bind_vars: tuple[Var, ...]
+    bind_values: tuple[Expr, ...]
+    body: Stmt
+
+    @staticmethod
+    def create(bind_vars: Sequence[Var], bind_values: Sequence[Expr], body: Stmt) -> LetStmt:
+        return LetStmt(tuple(bind_vars), tuple(bind_values), body)
 
 
 @dataclass(frozen=True, eq=False)

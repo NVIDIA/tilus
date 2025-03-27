@@ -52,6 +52,7 @@ from tilus.ir.stmt import (
     ForThreadGroupStmt,
     IfStmt,
     InstStmt,
+    LetStmt,
     SeqStmt,
     Stmt,
     TensorPtrStmt,
@@ -119,6 +120,8 @@ class IRFunctor:
             ret = self.visit_BreakStmt(node)
         elif isinstance(node, DeclareStmt):
             ret = self.visit_DeclareStmt(node)
+        elif isinstance(node, LetStmt):
+            ret = self.visit_LetStmt(node)
         elif isinstance(node, AssignStmt):
             ret = self.visit_AssignStmt(node)
         elif isinstance(node, TensorPtrStmt):
@@ -210,6 +213,9 @@ class IRFunctor:
         raise NotImplementedError()
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> Any:
+        raise NotImplementedError()
+
+    def visit_LetStmt(self, stmt: LetStmt) -> Any:
         raise NotImplementedError()
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> Any:
@@ -446,6 +452,14 @@ class IRRewriter(IRFunctor):
         else:
             return DeclareStmt(stmt.var, init)
 
+    def visit_LetStmt(self, stmt: LetStmt) -> Stmt:
+        bind_values = self.visit(stmt.bind_values)
+        body = self.visit(stmt.body)
+        if bind_values is stmt.bind_values and body is stmt.body:
+            return stmt
+        else:
+            return LetStmt(stmt.bind_vars, bind_values, body)
+
     def visit_AssignStmt(self, stmt: AssignStmt) -> Stmt:
         value = self.visit(stmt.value)
         if value is stmt.value:
@@ -577,8 +591,11 @@ class IRVisitor(IRFunctor):
         self.visit(stmt.body)
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> None:
-        self.visit(stmt.var)
         self.visit(stmt.init)
+
+    def visit_LetStmt(self, stmt: LetStmt) -> Any:
+        self.visit(stmt.bind_values)
+        self.visit(stmt.body)
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:
         self.visit(stmt.var)

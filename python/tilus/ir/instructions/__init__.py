@@ -8,8 +8,10 @@ from .cuda import (
     CopyAsyncWaitGroupInst,
     LoadMatrixConfig,
     LoadMatrixInst,
+    LockSemaphoreInst,
     MmaDotConfig,
     MmaDotInst,
+    ReleaseSemaphoreInst,
     SimtDotInst,
 )
 from .generic import (

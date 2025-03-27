@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import json
+import logging
 import os
 import pickle
 import shutil
@@ -15,16 +16,18 @@ from tqdm import tqdm
 
 import tilus.option
 from hidet.ir import Constant
+from hidet.ir.expr import as_expr
 from hidet.ir.type import DataType, PointerType
 from hidet.runtime import CompiledFunction
 from hidet.utils.py import nocolor
 from tilus.drivers import BuildOptions, build_program, get_cache_dir
-from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir.prog import Program
 from tilus.lang.script import Script
 from tilus.runtime import CompiledProgram, load_compiled_program
 from tilus.utils import benchmark_func, relative_to_with_walk_up, to_snake_case
 from tilus.utils.multiprocess import parallel_imap
+
+logger = logging.getLogger(__name__)
 
 
 def span_space(space: Mapping[str, Sequence[Any]]) -> list[dict[str, Any]]:
@@ -381,6 +384,7 @@ class JitInstance:
             tqdm(
                 iterable=parallel_imap(func=JitInstance._instantiate_schedule, jobs=scheduling_jobs),
                 desc="[{}] {}".format("Scheduling", self.instance_name),
+                miniters=1,
                 total=len(scheduling_jobs),
                 ncols=100,
                 delay=1,
@@ -482,6 +486,7 @@ class JitInstance:
                 iterable=parallel_imap(func=JitInstance._build_program, jobs=building_jobs),
                 desc="[{}] {}".format("Building", self.instance_name),
                 total=len(building_jobs),
+                miniters=1,
                 ncols=100,
                 delay=1,
             )
@@ -583,8 +588,9 @@ class JitInstance:
                 for compiled_program in tqdm(
                     iterable=self.compiled_programs,
                     desc="[{}] {}{}".format("Tuning", self.instance_name, tuning_key_name),
+                    miniters=1,
+                    mininterval=0,
                     ncols=100,
-                    delay=1,
                 ):
                     kernel_args = [args[i] for i in self.call_params.kernel_params]
                     compiled_func = compiled_program.compiled_module.functions["launch"]

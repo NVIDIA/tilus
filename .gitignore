@@ -46,3 +46,7 @@ Thumbs.db
 /.test_cache
 
 /experiments
+
+/cache
+/examples/**/cache
+/tests/**/cache

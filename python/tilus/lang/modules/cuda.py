@@ -1,5 +1,7 @@
 from typing import Optional, Sequence
 
+import cuda.bindings.runtime as cudart
+
 from hidet.ir.dtypes import DataType
 from tilus import RegisterLayout
 from tilus.ir.instructions.cuda import MmaDotConfig
@@ -8,10 +10,20 @@ from tilus.utils import gcd, idiv, prod
 
 
 class cuda:
-    class mma:
+    class mma_configs:
         m16n8k16_f16_f32: MmaDotConfig = MmaDotConfig.m16n8k16_f16_f32()
         m16n8k16_f16_f16: MmaDotConfig = MmaDotConfig.m16n8k16_f16_f16()
         m16n8k16_bf16_f32: MmaDotConfig = MmaDotConfig.m16n8k16_bf16_f32()
+
+    class runtime:
+        _property_cache: dict[int, cudart.cudaDeviceProp] = {}
+
+        @staticmethod
+        def get_device_properties(device_id: Optional[int] = 0) -> cudart.cudaDeviceProp:
+            if device_id not in cuda.runtime._property_cache:
+                errno, prop = cudart.cudaGetDeviceProperties(device_id)
+                cuda.runtime._property_cache[device_id] = prop
+            return cuda.runtime._property_cache[device_id]
 
     @staticmethod
     def swizzled_shared_layout(dtype: DataType, *, m: int, n: int, bs: Optional[int] = None) -> SharedLayout:

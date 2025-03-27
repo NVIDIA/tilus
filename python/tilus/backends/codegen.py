@@ -27,6 +27,7 @@ from tilus.ir.stmt import (
     ForThreadGroupStmt,
     IfStmt,
     InstStmt,
+    LetStmt,
     SeqStmt,
     TensorPtrStmt,
     WhileStmt,
@@ -72,7 +73,7 @@ class BaseInstEmitter(StmtBuilder):
             self.append(syncthreads())
         else:
             if get_current_target().is_nvgpu():
-                from tilus.extensions.hidet.ir.primitives.cuda.barrier import barrier_sync
+                from hidet.ir.primitives.cuda.barrier import barrier_sync
 
                 barrier = self.codegen.thread_groups.num_levels() - 1
                 count = self.codegen.thread_groups.group_size[-1]
@@ -82,8 +83,8 @@ class BaseInstEmitter(StmtBuilder):
 
     def sync_reduce(self, value: Expr, op: str) -> Expr:
         if get_current_target().is_nvgpu():
+            from hidet.ir.primitives.cuda.barrier import barrier_sync
             from hidet.ir.primitives.cuda.sync import syncthreads_and, syncthreads_or
-            from tilus.extensions.hidet.ir.primitives.cuda.barrier import barrier_sync
 
             op2sync = {"and": syncthreads_and, "or": syncthreads_or}
             syncthreads_op = op2sync[op]
@@ -298,7 +299,7 @@ class Codegen(IRFunctor):
         self.smem_allocator.free(addr=self.shared_value_allocator_addr[value])
         del self.shared_value_allocator_addr[value]
 
-    def allocate_global_memory(self, nbytes: Expr, clean: bool) -> Expr:
+    def allocate_global_memory(self, nbytes: Expr | int, clean: bool) -> Expr:
         nbytes = (nbytes + 127) // 128 * 128  # align to 128 bytes
         if clean:
             ret = self.gmem_clean_base_ptr + self.gmem_clean_allocated
@@ -335,9 +336,9 @@ class Codegen(IRFunctor):
             self.smem_workspace = value
 
     def generate_launch_function(self, ir_module: IRModule, kernel_func: HidetFunction) -> IRModule:
+        from hidet.ir.primitives.runtime import set_symbol_value_ptr
         from hidet.ir.stmt import SeqStmt
         from hidet.transforms.generate_launch_func import add_launch_func
-        from tilus.extensions.hidet.ir.primitives.runtime import set_symbol_value_ptr
 
         add_launch_func(ir_module, kernel_func=kernel_func)
 
@@ -493,6 +494,10 @@ class Codegen(IRFunctor):
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> None:
         self.builder.declare(stmt.var, init=stmt.init)
+
+    def visit_LetStmt(self, stmt: LetStmt) -> None:
+        with self.builder.lets(bind_vars=stmt.bind_vars, values=stmt.bind_values):
+            self.visit(stmt.body)
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:
         self.builder.assign(stmt.var, value=stmt.value)

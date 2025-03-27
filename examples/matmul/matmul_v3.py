@@ -25,7 +25,7 @@ class MatmulV3(tilus.Script):
         warp_repeat: tuple[int, int, int],
     ):
         super().__init__()
-        self.mma = self.cuda.mma.m16n8k16_f16_f32
+        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
         self.block_m = self.mma.m * warp_spatial[0] * warp_repeat[0]
         self.block_n = self.mma.n * warp_spatial[1] * warp_repeat[1]
         self.block_k = self.mma.k * warp_repeat[2]

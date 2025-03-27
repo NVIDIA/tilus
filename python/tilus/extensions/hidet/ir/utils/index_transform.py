@@ -2,8 +2,7 @@ from typing import List, Optional, Sequence, Union
 from typing import cast as typing_cast
 
 from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, logical_and
-from tilus.extensions.hidet.ir.expr import as_expr
+from hidet.ir.expr import Expr, as_expr, logical_and
 
 
 def index_serialize(

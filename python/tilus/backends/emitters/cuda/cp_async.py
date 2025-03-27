@@ -37,9 +37,9 @@ class CopyAysncInstEmitter(BaseInstEmitter):
         var2info: Dict[Var, TensorInfo] = {}
         for var, divisibility in self.codegen.function.metadata.analysis.divisibility.items():
             var2info[var] = TensorInfo.from_divisibility(shape=shape, divisibility=divisibility)
-        global_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.offset)
         inst_mask = inst.mask if inst.mask is not None else boolean.true
         mask_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst_mask)
+        global_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.offset)
 
         contiguous_dim: Optional[int] = None
         cp_size: Optional[int] = None

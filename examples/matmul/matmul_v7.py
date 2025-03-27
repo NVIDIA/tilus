@@ -6,42 +6,36 @@ import tilus
 import torch
 from tilus import float16, float32, int32
 from tilus.ir.layout import reduce, spatial
-from tilus.utils import benchmark_func, prod
+from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
 
-pd.set_option("display.float_format", lambda x: "%.2f" % x)
+pd.set_option("display.float_format", lambda x: "%.3f" % x)
 
 
-@tilus.autotune("warp_spatial", [[1, 8], [2, 4], [4, 2], [8, 1], [1, 4], [2, 2], [4, 1]])
-@tilus.autotune(
-    "warp_repeat",
-    [[1, 4, 1], [4, 1, 1], [2, 2, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1]],
-)
-@tilus.autotune(
-    "num_stages",
-    [3, 4, 5],
-)
-class MatmulV6(tilus.Script):
-    debug_schedule = dict(
-        warp_spatial=[4, 2],
-        warp_repeat=[2, 4, 1],
-        num_stages=4,
-    )
-
-    def __init__(self, warp_spatial: tuple[int, int], warp_repeat: tuple[int, int, int], num_stages: int):
+@tilus.autotune("warp_spatial", [[2, 4], [4, 2], [2, 2]])
+@tilus.autotune("warp_repeat", [[8, 1, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1]])
+@tilus.autotune("num_stages", [3, 4, 5])
+@tilus.autotune("split_k_factor", [1, 2, 4, 8, 16])
+class MatmulV7(tilus.Script):
+    def __init__(
+        self, warp_spatial: tuple[int, int], warp_repeat: tuple[int, int, int], num_stages: int, split_k_factor: int
+    ):
         super().__init__()
-        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
-        self.block_m = self.mma.m * warp_spatial[0] * warp_repeat[0]
-        self.block_n = self.mma.n * warp_spatial[1] * warp_repeat[1]
-        self.block_k = self.mma.k * warp_repeat[2]
-        self.num_warps = prod(warp_spatial)
-
-        wsm, wsn = warp_spatial
-        wrm, wrn, wrk = warp_repeat
         self.warp_spatial = warp_spatial
         self.warp_repeat = warp_repeat
         self.num_stages = num_stages
+        self.split_k_factor = split_k_factor
+
+        wsm, wsn = warp_spatial
+        wrm, wrn, wrk = warp_repeat
+
+        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
+        self.block_m = self.mma.m * wsm * wrm
+        self.block_n = self.mma.n * wsn * wrn
+        self.block_k = self.mma.k * wrk
+        self.num_warps = wsm * wsn
+
         self.layout_ra = reduce(spatial(wsm, 1, wsn, ranks=[1, 0, 2]), dims=[2]).repeat(wrm, wrk) * self.mma.la
         self.layout_rb = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk, wrn) * self.mma.lb
         self.layout_rc = spatial(wsm, wsn).repeat(wrm, wrn) * self.mma.lc
@@ -50,8 +44,13 @@ class MatmulV6(tilus.Script):
         self.layout_sc = self.cuda.swizzled_shared_layout(dtype=float16, m=self.block_m, n=self.block_n)
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
-        self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
+        self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n), self.split_k_factor]
         self.attrs.warps = self.num_warps
+
+        # the k_size for each thread block
+        block_k_size = cdiv(cdiv(k_size, self.split_k_factor), self.block_k) * self.block_k
+        start_offset_k = self.blockIdx.z * block_k_size
+        end_offset_k = min(start_offset_k + block_k_size, k_size)
 
         block_m, block_n, block_k = self.block_m, self.block_n, self.block_k
         offset_m: int32 = block_m * self.blockIdx.x
@@ -64,7 +63,7 @@ class MatmulV6(tilus.Script):
         acc = self.register_tensor(dtype=float32, layout=self.layout_rc, init=0.0)
 
         for stage in range(self.num_stages - 1):
-            offset_k = stage * self.block_k
+            offset_k = start_offset_k + stage * self.block_k
             self.copy_async(src=ga, dst=sa[stage], offsets=[offset_m, offset_k])
             self.copy_async(src=gb, dst=sb[stage], offsets=[offset_k, offset_n])
             self.copy_async_commit_group()
@@ -74,7 +73,7 @@ class MatmulV6(tilus.Script):
 
         current_stage: int32 = 0
         preload_stage: int32 = self.num_stages - 1
-        for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
+        for offset_k in self.range(start_offset_k, end_offset_k, block_k, unroll=self.num_stages):
             # computation for current tile
             a = self.load_shared(sa[current_stage], out_layout=self.layout_ra)
             b = self.load_shared(sb[current_stage], out_layout=self.layout_rb)
@@ -92,33 +91,59 @@ class MatmulV6(tilus.Script):
             preload_stage = (preload_stage + 1) % self.num_stages
             self.sync()
 
+        # there might be on-fly copy_async in the pipeline, we need to wait for all of them
+        self.copy_async_wait_all()
+        self.sync()
         self.free_shared(sa)
         self.free_shared(sb)
 
-        # write back
-        gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
+        # cast the accumulator to float16 and change the register tensor's layout
         sc = self.shared_tensor(dtype=float16, layout=self.layout_sc)
-
         casted_acc = self.cast(acc, dtype=float16)
         self.store_shared(sc, casted_acc)
         self.sync()
-        c = self.load_shared(sc)
-        self.store_global(gc, c, offsets=[offset_m, offset_n])
+        rc = self.load_shared(sc)
         self.free_shared(sc)
+
+        m_blocks, n_blocks = cdiv(m_size, block_m), cdiv(n_size, block_n)
+        gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
+        if self.split_k_factor == 0:
+            self.store_global(gc, rc, offsets=[offset_m, offset_n])
+        else:
+            semaphores = self.global_tensor(dtype=int32, shape=[m_blocks, n_blocks], requires_clean=True)
+            semaphore: ~int32 = ~semaphores[self.blockIdx.x, self.blockIdx.y]
+
+            # load and accumulate the partial result in global memory
+            if self.blockIdx.z > 0:
+                self.lock_semaphore(semaphore, value=self.blockIdx.z)
+                partial_rc = self.load_global(gc, offsets=[offset_m, offset_n], layout=rc.layout)
+                self.add(rc, partial_rc, out=rc)
+
+            # store the result to global memory and release the semaphore
+            self.store_global(gc, rc, offsets=[offset_m, offset_n])
+
+            # release the semaphore
+            self.sync()  # we need to make sure the previous store_global is finished
+            self.release_semaphore(semaphore, value=(self.blockIdx.z + 1) % self.split_k_factor)
 
 
 def main():
+    torch.random.manual_seed(41)
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
         [2048, 2048, 2048],
         [4096, 4096, 4096],
         [4097, 4096, 4096],
+        [1, 4096, 4096],
+        [2, 4096, 4096],
+        [3, 4096, 4096],
+        [16, 4096, 4096],
+        [32, 4096, 4096],
     ]
 
     rows = []
+    matmul = MatmulV7()
     for m, n, k in workloads:
-        matmul = MatmulV6()
-
         a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
         b = (torch.rand(k, n, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
         c_actual = torch.empty(m, n, dtype=torch.float16).cuda()
@@ -137,8 +162,8 @@ def main():
             flops = 2 * m * n * k / latency * 1e-9
             rows.append([m, n, k, name, latency, flops])
 
-    df = pandas.DataFrame(rows, columns=headers)
-    print(df)
+        df = pandas.DataFrame(rows, columns=headers)
+        print(df)
 
 
 if __name__ == "__main__":

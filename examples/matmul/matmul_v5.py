@@ -23,9 +23,15 @@ pd.set_option("display.float_format", lambda x: "%.2f" % x)
     [3, 4, 5],
 )
 class MatmulV5(tilus.Script):
+    debug_schedule = dict(
+        warp_spatial=[4, 2],
+        warp_repeat=[2, 4, 1],
+        num_stages=4,
+    )
+
     def __init__(self, warp_spatial: tuple[int, int], warp_repeat: tuple[int, int, int], num_stages: int):
         super().__init__()
-        self.mma = self.cuda.mma.m16n8k16_f16_f32
+        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
         self.block_m = self.mma.m * warp_spatial[0] * warp_repeat[0]
         self.block_n = self.mma.n * warp_spatial[1] * warp_repeat[1]
         self.block_k = self.mma.k * warp_repeat[2]
@@ -67,12 +73,13 @@ class MatmulV5(tilus.Script):
 
         current_stage: int32 = 0
         preload_stage: int32 = self.num_stages - 1
-        start_k = (self.num_stages - 1) * block_k
-        for offset_k in self.range(start_k, k_size, block_k, unroll=self.num_stages):
+        for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
             # preload the next tile of A and B into shared memory
-            self.copy_async(src=ga, dst=sa[preload_stage], offsets=[offset_m, offset_k])
-            self.copy_async(src=gb, dst=sb[preload_stage], offsets=[offset_k, offset_n])
+            preload_offset_k = offset_k + (self.num_stages - 1) * block_k
+            self.copy_async(src=ga, dst=sa[preload_stage], offsets=[offset_m, preload_offset_k])
+            self.copy_async(src=gb, dst=sb[preload_stage], offsets=[preload_offset_k, offset_n])
             self.copy_async_commit_group()
+            self.copy_async_wait_group(n=self.num_stages - 2)
 
             # computation for current tile
             a = self.load_shared(sa[current_stage], out_layout=self.layout_ra)
@@ -96,8 +103,8 @@ def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
         [2048, 2048, 2048],
-        [4096, 4096, 4096],
-        [4097, 4096, 4096],
+        # [4096, 4096, 4096],
+        # [4097, 4096, 4096],
     ]
 
     rows = []
@@ -109,6 +116,10 @@ def main():
         c_actual = torch.empty(m, n, dtype=torch.float16).cuda()
         c_expect = a @ b
         matmul(m, n, k, a, b, c_actual)
+
+        print(c_expect)
+        print(c_actual)
+        print(c_actual - c_expect)
 
         # check correctness
         torch.testing.assert_close(c_expect, c_actual, atol=1e-2, rtol=1e-2)

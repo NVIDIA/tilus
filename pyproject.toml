@@ -91,6 +91,10 @@ module = ["hidet.*"]
 follow_untyped_imports = true
 
 [[tool.mypy.overrides]]
+module = ["cuda.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = ["tilus.extensions.hidet.ir.primitives.*"]
 disable_error_code = ["operator", "index"]
 

@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import warnings
 from typing import Mapping, Optional
 
-from hidet.ir.expr import Add, Constant, Div, Mod, Multiply, Sub, Var
+from hidet.ir import Call
+from hidet.ir.expr import Add, Constant, Div, Expr, Mod, Multiply, Sub, Var
 from hidet.ir.functors import IRFunctor as HidetIRFunctor
-from hidet.ir.primitives.cuda.vars import blockIdx
 from hidet.ir.type import DataType
 from tilus.ir.func import Analysis, Function
-from tilus.ir.stmt import AssignStmt, DeclareStmt, ForStmt
+from tilus.ir.stmt import AssignStmt, DeclareStmt, ForStmt, LetStmt
 from tilus.ir.tools import collect
 from tilus.utils import gcd
+
+# Suppress all repeated warnings
+warnings.filterwarnings("once")  # Shows each warning only once
 
 
 class ScalarSet:
@@ -142,18 +146,30 @@ class ScalarSet:
         div = self.divisibility * other.divisibility
 
         # Calculate bounds accounting for signs
-        bounds = []
-        if self.lower_bound is not None and other.lower_bound is not None:
-            bounds.append(self.lower_bound * other.lower_bound)
-        if self.lower_bound is not None and other.upper_bound is not None:
-            bounds.append(self.lower_bound * other.upper_bound)
-        if self.upper_bound is not None and other.lower_bound is not None:
-            bounds.append(self.upper_bound * other.lower_bound)
-        if self.upper_bound is not None and other.upper_bound is not None:
-            bounds.append(self.upper_bound * other.upper_bound)
-
-        lb = min(bounds) if bounds else None
-        ub = max(bounds) if bounds else None
+        if (
+            self.lower_bound is not None
+            and self.upper_bound is not None
+            and other.lower_bound is not None
+            and other.upper_bound is not None
+        ):
+            bounds = [
+                self.lower_bound * other.lower_bound,
+                self.lower_bound * other.upper_bound,
+                self.upper_bound * other.lower_bound,
+                self.upper_bound * other.upper_bound,
+            ]
+            lb = min(bounds) if bounds else None
+            ub = max(bounds) if bounds else None
+        elif (
+            self.lower_bound is not None
+            and self.lower_bound >= 0
+            and other.lower_bound is not None
+            and other.lower_bound is not None
+        ):
+            lb = self.lower_bound * other.lower_bound
+            ub = None
+        else:
+            lb = ub = None
 
         return ScalarSet(divisibility=div, lower_bound=lb, upper_bound=ub)
 
@@ -164,9 +180,9 @@ class ScalarSet:
         if other.is_constant():
             other_value = other.lower_bound
             div, lu, rb = 1, None, None
-            if other.lower_bound is not None:
+            if self.lower_bound is not None:
                 lu = self.lower_bound // other_value
-            if other.upper_bound is not None:
+            if self.upper_bound is not None:
                 rb = self.upper_bound // other_value
             div = self.divisibility // gcd(self.divisibility, other.lower_bound)
             return ScalarSet(divisibility=div, lower_bound=lu, upper_bound=rb)
@@ -207,6 +223,34 @@ class ScalarSet:
 
             return ScalarSet(divisibility=1, lower_bound=0, upper_bound=ub)
 
+    @staticmethod
+    def min(lhs: ScalarSet, rhs: ScalarSet) -> ScalarSet:
+        if lhs.is_empty() or rhs.is_empty():
+            return ScalarSet.empty_set()
+        result = ScalarSet()
+        result.divisibility = gcd(lhs.divisibility, rhs.divisibility)
+
+        if lhs.lower_bound is not None and rhs.lower_bound is not None:
+            result.lower_bound = min(lhs.lower_bound, rhs.lower_bound)
+
+        if lhs.upper_bound is not None and rhs.upper_bound is not None:
+            result.upper_bound = min(lhs.upper_bound, rhs.upper_bound)
+        return result
+
+    @staticmethod
+    def max(lhs: ScalarSet, rhs: ScalarSet) -> ScalarSet:
+        if lhs.is_empty() or rhs.is_empty():
+            return ScalarSet.empty_set()
+        result = ScalarSet()
+        result.divisibility = gcd(lhs.divisibility, rhs.divisibility)
+
+        if lhs.lower_bound is not None and rhs.lower_bound is not None:
+            result.lower_bound = max(lhs.lower_bound, rhs.lower_bound)
+
+        if lhs.upper_bound is not None and rhs.upper_bound is not None:
+            result.upper_bound = max(lhs.upper_bound, rhs.upper_bound)
+        return result
+
 
 class ScalarSetAnalyzer(HidetIRFunctor):
     def __init__(self, var2info: Mapping[Var, ScalarSet]):
@@ -214,8 +258,9 @@ class ScalarSetAnalyzer(HidetIRFunctor):
         self.var2info = var2info
 
     def visit_Var(self, var: Var) -> ScalarSet:
-        info = self.var2info.get(var, None)
-        return info if info is not None else ScalarSet()
+        # info = self.var2info.get(var, None)
+        # return info if info is not None else ScalarSet()
+        return self.var2info[var]
 
     def visit_Constant(self, constant: Constant) -> ScalarSet:
         if constant.type.is_integer():  # type: ignore
@@ -239,6 +284,17 @@ class ScalarSetAnalyzer(HidetIRFunctor):
     def visit_Mod(self, e: Mod) -> ScalarSet:
         return self.visit(e.a) % self.visit(e.b)
 
+    def visit_Call(self, e: Call) -> ScalarSet:
+        func_name = e.func_var.name
+        if func_name == "generic_min":
+            return ScalarSet.min(self.visit(e.args[0]), self.visit(e.args[1]))
+        elif func_name == "generic_max":
+            return ScalarSet.max(self.visit(e.args[0]), self.visit(e.args[1]))
+        else:
+            # a set contains all integers
+            warnings.warn("Unknown function call in scalar analysis: {}, fallback to universe set.".format(func_name))
+            return ScalarSet()
+
 
 def analyze_scalar(func: Function) -> Function:
     var2set: dict[Var, ScalarSet] = {}
@@ -251,24 +307,33 @@ def analyze_scalar(func: Function) -> Function:
             var2set[param] = ScalarSet(divisibility=metadata.param2divisibility[param], lower_bound=0)
 
     # update the scalar set of built-in variables
-    for i, var in enumerate([blockIdx.x, blockIdx.y, blockIdx.z]):  # type: ignore
+    for i, var in enumerate(metadata.block_indices):  # type: ignore
         if isinstance(metadata.num_blocks[i], Constant):
             var2set[var] = ScalarSet(lower_bound=0, upper_bound=int(metadata.num_blocks[i]) - 1)
         else:
             var2set[var] = ScalarSet(lower_bound=0)
 
     # collect all the statements that manipulate integer scalar values
-    stmts: list[DeclareStmt | ForStmt | AssignStmt] = []
+    stmts: list[DeclareStmt | LetStmt | ForStmt | AssignStmt] = []
     variables: list[Var] = []
-    for stmt in collect(func, types=[DeclareStmt, ForStmt, AssignStmt]):
-        if isinstance(stmt, AssignStmt) and isinstance(stmt.var.type, DataType) and stmt.var.type.is_integer():
-            stmts.append(stmt)
-        elif isinstance(stmt, DeclareStmt) and isinstance(stmt.var.type, DataType) and stmt.var.type.is_integer():
-            stmts.append(stmt)
-            variables.append(stmt.var)
+    for stmt in collect(func, types=[DeclareStmt, LetStmt, ForStmt, AssignStmt]):
+        if isinstance(stmt, AssignStmt):
+            if isinstance(stmt.var.type, DataType) and stmt.var.type.is_integer():
+                stmts.append(stmt)
+        elif isinstance(stmt, DeclareStmt):
+            if isinstance(stmt.var.type, DataType) and stmt.var.type.is_integer():
+                stmts.append(stmt)
+                variables.append(stmt.var)
         elif isinstance(stmt, ForStmt):
             stmts.append(stmt)
             variables.append(stmt.iter_var)
+        elif isinstance(stmt, LetStmt):
+            stmts.append(stmt)
+            for bind_var in stmt.bind_vars:
+                if isinstance(bind_var.type, DataType) and bind_var.type.is_integer():
+                    variables.append(bind_var)
+        else:
+            raise NotImplementedError()
 
     # initialize the scalar set of variables defined in the function body to be empty set
     for var in variables:
@@ -284,34 +349,49 @@ def analyze_scalar(func: Function) -> Function:
     #             | scalar_set(expr2)
     #             | scalar_set(expr3)
     # until the scalar set of each variable does not change, i.e., we reach a fixed point.
+    # printer = IRPrinter()
+    # print(printer(func))
+    # print("\n".join("{}: {}".format(printer(var), var2set[var]) for var in var2set))
     while True:
         updated = False
         for stmt in stmts:
             analyzer = ScalarSetAnalyzer(var2set)
-            if isinstance(stmt, AssignStmt):
-                union_set = var2set[stmt.var] | analyzer(stmt.value)
-                if var2set[stmt.var] != union_set:
-                    var2set[stmt.var] = union_set
-                    updated = True
-                    # print("update {}: {}".format(stmt.var, union_set))
-            elif isinstance(stmt, DeclareStmt):
-                if stmt.init is not None:
-                    union_set = var2set[stmt.var] | analyzer(stmt.init)
-                    if var2set[stmt.var] != union_set:
-                        var2set[stmt.var] = union_set
-                        updated = True
-                        # print("update {}: {}".format(stmt.var, union_set))
+            var_list: list[Var] = []
+            rhs_sets: list[ScalarSet] = []
+            if isinstance(stmt, (AssignStmt, DeclareStmt, LetStmt)):
+                value_list: list[Expr] = []
+                if isinstance(stmt, AssignStmt):
+                    var_list.append(stmt.var)
+                    value_list.append(stmt.value)
+                elif isinstance(stmt, DeclareStmt):
+                    if stmt.init is not None:
+                        var_list.append(stmt.var)
+                        value_list.append(stmt.init)
+                elif isinstance(stmt, LetStmt):
+                    for bind_var, bind_value in zip(stmt.bind_vars, stmt.bind_values):
+                        if isinstance(bind_var.type, DataType) and bind_var.type.is_integer():
+                            var_list.append(bind_var)
+                            value_list.append(bind_value)
+                else:
+                    assert False
+                for var, value in zip(var_list, value_list):
+                    rhs_sets.append(analyzer.visit(value))
             elif isinstance(stmt, ForStmt):
                 extent_info: ScalarSet = analyzer.visit(stmt.extent)
                 if extent_info.upper_bound is not None:
-                    range_set = ScalarSet(lower_bound=0, upper_bound=extent_info.upper_bound - 1)
-                    union_set = var2set[stmt.iter_var] | range_set
-                    if var2set[stmt.iter_var] != union_set:
-                        var2set[stmt.iter_var] = union_set
-                        updated = True
-                        # print("update {}: {}".format(stmt.iter_var, union_set))
+                    var_list.append(stmt.iter_var)
+                    rhs_sets.append(ScalarSet(lower_bound=0, upper_bound=extent_info.upper_bound - 1))
+                else:
+                    continue
             else:
                 assert False
+            original_sets = [var2set[var] for var in var_list]
+            union_sets = [original_set | rhs_set for original_set, rhs_set in zip(original_sets, rhs_sets)]
+            for var, original_set, union_set in zip(var_list, original_sets, union_sets):
+                if union_set != original_set:
+                    var2set[var] = union_set
+                    updated = True
+                    # print("{}: {} -> {}".format(printer(var), original_set, union_set))
         if not updated:
             break
 
@@ -321,7 +401,5 @@ def analyze_scalar(func: Function) -> Function:
         lower_bound={var: var2set[var].lower_bound for var in var2set if var2set[var].lower_bound is not None},
         upper_bound={var: var2set[var].upper_bound for var in var2set if var2set[var].upper_bound is not None},
     )
-    # print(analysis.divisibility)
-    # print(analysis.lower_bound)
-    # print(analysis.upper_bound)
-    return func.with_metadata(func.metadata.with_analysis(analysis))
+    ret = func.with_metadata(func.metadata.with_analysis(analysis))
+    return ret

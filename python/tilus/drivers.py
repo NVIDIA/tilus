@@ -68,22 +68,9 @@ def optimize_program(program: Program, options: BuildOptions, cache_dir: Path) -
     optimized_prog: Program
         The optimized program.
     """
-    from tilus.transforms import (
-        PassContext,
-        analyze_scalar_pass,
-        apply_transforms,
-        bound_aware_simplify_pass,
-        inject_print_instruction_pass,
-        lower_load_store_pass,
-        lower_to_load_matrix_pass,
-    )
+    from tilus.transforms import Pass, PassContext, apply_transforms, get_default_passes, inject_print_instruction_pass
 
-    transforms = [
-        lower_to_load_matrix_pass(),
-        lower_load_store_pass(),
-        bound_aware_simplify_pass(),
-        analyze_scalar_pass(),
-    ]
+    transforms: list[Pass] = get_default_passes()
 
     if options.debug_block is not None:
         transforms.append(inject_print_instruction_pass(block_to_print=options.debug_block))

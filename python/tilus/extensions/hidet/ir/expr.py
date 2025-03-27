@@ -1,30 +1,13 @@
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence
 
-from hidet.ir.dtypes import boolean, default_float_dtype, default_int_dtype
-from hidet.ir.expr import Constant, Dereference, Expr, Var, cast, var
-from hidet.ir.type import BaseType, string_type
+from hidet.ir.expr import Dereference, Expr, Var, as_expr, cast, var
+from hidet.ir.type import BaseType
 
 
 def deref(v: Expr, derefed_type: Optional[BaseType] = None) -> Expr:
     if derefed_type is not None:
         v = cast(v, ~derefed_type)
     return Dereference(v)
-
-
-def as_expr(obj: Union[float, bool, int, str, Expr]) -> Expr:
-    if isinstance(obj, Expr):
-        return obj
-    elif isinstance(obj, bool):
-        return boolean.constant(obj)
-    elif isinstance(obj, int):
-        assert default_int_dtype.min_value <= obj <= default_int_dtype.max_value, obj
-        return default_int_dtype.constant(obj)
-    elif isinstance(obj, float):
-        return default_float_dtype.constant(obj)
-    elif isinstance(obj, str):
-        return Constant(obj, const_type=string_type())
-    else:
-        raise ValueError(obj)
 
 
 def convert_sequence(seq: Sequence) -> tuple:

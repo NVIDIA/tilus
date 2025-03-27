@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import Callable, List, Optional, Sequence, Union
 
 from hidet.ir.dtypes import boolean, int32
-from hidet.ir.expr import Expr, Var
+from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.type import BaseType, DataType
-from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import (
+    AllocateGlobalInst,
     AllocateRegisterInst,
     AllocateSharedInst,
     AssignInst,
@@ -40,7 +40,8 @@ from tilus.ir.instructions import (
     SyncThreadsInst,
     ViewInst,
 )
-from tilus.ir.layout import GlobalLayout, RegisterLayout
+from tilus.ir.instructions.cuda import LockSemaphoreInst, ReleaseSemaphoreInst
+from tilus.ir.layout import GlobalLayout, RegisterLayout, global_repeat
 from tilus.ir.stmt import (
     AssignStmt,
     BreakStmt,
@@ -304,6 +305,24 @@ class StmtBuilder(StmtBuilderCore):
         inst = AllocateRegisterInst.create(output=output, f_init=wrapped_f_init)
         self.append(inst)
         return inst.register_output
+
+    def allocate_global(
+        self,
+        dtype: DataType,
+        shape: Optional[Sequence[int]] = None,
+        layout: Optional[GlobalLayout] = None,
+        *,
+        requires_clean: bool,
+    ) -> GlobalTensor:
+        if layout is None:
+            assert shape is not None
+            layout = global_repeat(*shape)
+        inst = AllocateGlobalInst.create(
+            output=GlobalTensor.create(dtype=dtype, layout=layout),
+            require_clean=requires_clean,
+        )
+        self.append(inst)
+        return inst.global_output
 
     def assign_register(self, output: RegisterTensor, x: RegisterTensor) -> None:
         inst = AssignInst.create(output, x)
@@ -580,6 +599,19 @@ class StmtBuilder(StmtBuilderCore):
         inst = LoadSharedGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
         self.append(inst)
         return inst.register_output
+
+    # semaphore
+    def lock_semaphore(self, semaphore: Expr, value: Expr | int) -> None:
+        if isinstance(value, int):
+            value = as_expr(value)
+        inst = LockSemaphoreInst.create(semaphore=semaphore, value=value)
+        self.append(inst)
+
+    def release_semaphore(self, semaphore: Expr, value: Expr | int) -> None:
+        if isinstance(value, int):
+            value = as_expr(value)
+        inst = ReleaseSemaphoreInst.create(semaphore=semaphore, value=value)
+        self.append(inst)
 
     # control operations
 

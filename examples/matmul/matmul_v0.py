@@ -14,7 +14,7 @@ pandas.set_option("display.float_format", lambda x: "%.2f" % x)
 class MatmulV0(tilus.Script):
     def __init__(self):
         super().__init__()
-        self.mma = self.cuda.mma.m16n8k16_f16_f32
+        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
 
         self.block_m = self.mma.m
         self.block_n = self.mma.n

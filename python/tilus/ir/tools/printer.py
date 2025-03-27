@@ -2,7 +2,6 @@ from typing import Any, Dict, List, Set, Tuple, Union
 
 from hidet.ir import BaseType
 from hidet.ir.expr import Expr, Var
-from hidet.ir.primitives.cuda.vars import blockIdx
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
 from tilus.extensions.hidet.utils.doc import doc_comment, doc_join_lines, doc_strip_parentheses
 from tilus.ir.func import Analysis, Function, Metadata
@@ -18,6 +17,7 @@ from tilus.ir.stmt import (
     ForThreadGroupStmt,
     IfStmt,
     InstStmt,
+    LetStmt,
     SeqStmt,
     TensorPtrStmt,
     WhileStmt,
@@ -41,6 +41,10 @@ class IRPrinter(IRFunctor):
         self.global_count: int = 0
         self.var_count: int = 0
         self.ptr_count: int = 0
+
+    def set_var_name(self, var: Var, name: str) -> None:
+        self.var2name[var] = name
+        self.printer.namer.obj_name[var] = name
 
     def add_key_comment(self, key_hint: str, comment: Any) -> str:
         comment = str(comment)
@@ -111,20 +115,16 @@ class IRPrinter(IRFunctor):
     def visit_Expr(self, expr: Expr) -> Doc:
         if isinstance(expr, Var):
             if expr not in self.var2name:
-                if expr in [blockIdx.x, blockIdx.y, blockIdx.z]:  # type: ignore
-                    name = expr.name
+                if expr.type.is_pointer():
+                    symbol = "%p"
+                    count = self.ptr_count
+                    self.ptr_count += 1
                 else:
-                    if expr.type.is_pointer():
-                        symbol = "%p"
-                        count = self.ptr_count
-                        self.ptr_count += 1
-                    else:
-                        symbol = "%v"
-                        count = self.var_count
-                        self.var_count += 1
-                    name = symbol + str(count)
-                self.var2name[expr] = name
-                self.printer.namer.obj_name[expr] = self.var2name[expr]
+                    symbol = "%v"
+                    count = self.var_count
+                    self.var_count += 1
+                name = symbol + str(count)
+                self.set_var_name(expr, name)
             return Text(self.var2name[expr])
         else:
             return self.printer(expr)
@@ -165,90 +165,114 @@ class IRPrinter(IRFunctor):
         return doc
 
     def visit_Function(self, func: Function) -> Doc:
+        for block_index in func.metadata.block_indices:
+            # we use blockIdx.x, blockIdx.y, blockIdx.z as default block indices name
+            self.set_var_name(block_index, block_index.name)
+
         # head doc
-        head_doc = doc_join_lines(
+        doc = doc_join_lines(
             seq=[self.visit(p) + ": " + self.printer(p.type) for p in func.params],
             left="def " + func.name + "(",
             right="):",
         )
 
         # metadata doc
-        metadata_doc = self.visit_FuncMetadata(func.metadata)
+        doc += self.visit_FuncMetadata(func.metadata).indent(4)
 
         # body doc
-        body_doc = self.visit(func.body)
+        doc += self.visit(func.body).indent(4)
 
         # comment doc
         key_comment_items = sorted([(v, k) for k, v in self.comment2key.items()], key=lambda kv: kv[0])
-        comment_doc = doc_comment(
-            NewLine() + doc_join(seq=[key + ": " + comment for key, comment in key_comment_items], sep=NewLine()),
-            "# ",
+        doc += NewLine()
+        doc += NewLine() + doc_comment(
+            doc_join(seq=[key + ": " + comment for key, comment in key_comment_items], sep=NewLine()), "# "
         )
 
-        # combine them
-        doc = doc_join([head_doc, metadata_doc.indent(4), (NewLine() + body_doc).indent(4), comment_doc], "")
         return doc
 
     def visit_InstStmt(self, stmt: InstStmt) -> Doc:
-        return self.visit(stmt.inst)
+        return NewLine() + self.visit(stmt.inst)
 
     def visit_SeqStmt(self, stmt: SeqStmt) -> Doc:
-        return doc_join([self.visit(node) for node in stmt.seq], NewLine())
+        doc = Doc()
+        for sub_stmt in stmt.seq:
+            doc += self.visit(sub_stmt)
+        return doc
 
     def visit_ForStmt(self, stmt: ForStmt) -> Doc:
-        head_doc = Doc()
+        doc = Doc()
         if stmt.unroll_factor:
             if stmt.unroll_factor == -1:
-                head_doc += "#pragma unroll"
+                doc += NewLine() + "#pragma unroll"
             else:
-                head_doc += "#pragma unroll {}".format(stmt.unroll_factor)
-            head_doc += NewLine()
-        head_doc += Text("for ") + self.visit(stmt.iter_var) + " in range(" + self.visit(stmt.extent) + "):"
-        body_doc = NewLine() + self.visit(stmt.body)
-        doc = head_doc + body_doc.indent(4)
+                doc += NewLine() + "#pragma unroll {}".format(stmt.unroll_factor)
+        doc += NewLine() + Text("for ") + self.visit(stmt.iter_var) + " in range(" + self.visit(stmt.extent) + "):"
+        doc += self.visit(stmt.body).indent(4)
         return doc
 
     def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt) -> Doc:
         head_doc = (
-            Text("for ")
+            NewLine()
+            + Text("for ")
             + self.printer(stmt.iter_var)
             + " in thread_groups(num_groups="
             + self.visit(stmt.num_groups)
             + "):"
         )
-        body_doc = NewLine() + self.visit(stmt.body)
+        body_doc = self.visit(stmt.body)
         doc = head_doc + body_doc.indent(4)
         return doc
 
     def visit_IfStmt(self, stmt: IfStmt) -> Doc:
-        head_doc = Text("if ") + self.visit(stmt.cond) + ":"
-        then_doc = (NewLine() + self.visit(stmt.then_body)).indent(4)
+        doc = NewLine() + Text("if ") + self.visit(stmt.cond) + ":"
+        doc += self.visit(stmt.then_body).indent(4)
         if stmt.else_body is not None:
-            else_doc = NewLine() + Text("else:")
-            else_doc += (NewLine() + self.visit(stmt.else_body)).indent(4)
-        else:
-            else_doc = Doc()
-
-        return head_doc + then_doc + else_doc
+            doc += NewLine() + Text("else:")
+            doc += self.visit(stmt.else_body).indent(4)
+        return doc
 
     def visit_WhileStmt(self, stmt: WhileStmt) -> Doc:
-        head_doc = Text("while ") + self.visit(stmt.cond) + ":"
-        body_doc = (NewLine() + self.visit(stmt.body)).indent(4)
-        doc = head_doc + body_doc
+        doc = NewLine() + Text("while ") + self.visit(stmt.cond) + ":"
+        doc += self.visit(stmt.body).indent(4)
         return doc
 
     def visit_BreakStmt(self, stmt: BreakStmt) -> Doc:
-        return Text("break")
+        return NewLine() + Text("break")
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> Doc:
-        return self.visit(stmt.var) + ": " + self.printer(stmt.var.type) + " = " + self.visit(stmt.init)
+        return (
+            NewLine()
+            + Text("declare ")
+            + self.visit(stmt.var)
+            + ": "
+            + self.printer(stmt.var.type)
+            + " = "
+            + self.visit(stmt.init)
+        )
+
+    def visit_LetStmt(self, stmt: LetStmt) -> Doc:
+        doc = Doc()
+        for bind_var, bind_value in zip(stmt.bind_vars, stmt.bind_values):
+            doc += (
+                NewLine()
+                + Text("let ")
+                + self.visit(bind_var)
+                + ": "
+                + self.printer(bind_var.type)
+                + " = "
+                + self.visit(bind_value)
+            )
+        doc += self.visit(stmt.body)
+        return doc
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> Doc:
-        return self.visit(stmt.var) + " = " + self.visit(stmt.value)
+        return NewLine() + self.visit(stmt.var) + " = " + self.visit(stmt.value)
 
     def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> Doc:
         return (
-            self.visit(stmt.ptr_var)
+            NewLine()
+            + self.visit(stmt.ptr_var)
             + ": "
             + self.printer(stmt.ptr_var.type)
             + " = "
@@ -270,6 +294,10 @@ class IRPrinter(IRFunctor):
         for k, v in inst.attributes.items():
             if v is None:
                 continue
+            if k == "axes" and isinstance(v, tuple) and all(isinstance(vv, Var) for vv in v):
+                axes = v
+                for i, axis in enumerate(axes):
+                    self.set_var_name(axis, f"u{i}")
             v_doc = doc_strip_parentheses(self.visit(v))
             if isinstance(v, (list, tuple)):
                 v_doc = "[" + v_doc + "]"
@@ -334,8 +362,7 @@ class IRPrinter(IRFunctor):
 
     def visit_SharedLayout(self, node: SharedLayout) -> Doc:
         for i, axis in enumerate(node.axes):
-            self.var2name[axis] = "u" + str(i)
-            self.printer.namer.obj_name[axis] = self.var2name[axis]
+            self.set_var_name(axis, "u" + str(i))
         items = [
             "shape=[" + self(node.shape) + "]",
             "axes=[" + self(node.axes) + "]",
@@ -346,8 +373,7 @@ class IRPrinter(IRFunctor):
 
     def visit_GlobalLayout(self, node: GlobalLayout) -> Doc:
         for i, axis in enumerate(node.axes):
-            self.var2name[axis] = "u" + str(i)
-            self.printer.namer.obj_name[axis] = self.var2name[axis]
+            self.set_var_name(axis, "u" + str(i))
         items = [
             "shape=[" + self(node.shape) + "]",
             "axes=[" + self(node.axes) + "]",

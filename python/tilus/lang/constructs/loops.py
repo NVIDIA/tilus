@@ -1,8 +1,7 @@
 from typing import Literal, Optional
 
-from hidet.ir.expr import Constant, Expr, Var
+from hidet.ir.expr import Constant, Expr, Var, as_expr
 from hidet.ir.tools import simplify
-from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir.builders import IRBuilder
 from tilus.ir.stmt import DeclareStmt, ForStmt, Stmt
 
@@ -55,7 +54,7 @@ class RangeLoop(TilusLoopIterable):
             assert loop_var.hint is not None
 
             with ib.for_range(
-                extent=(self.stop + (self.step - self.start - 1)) // self.step,
+                extent=(self.stop - self.start + (self.step - 1)) // self.step,
                 iter_name_hint=loop_var.hint + "_",
                 unroll_factor=unroll_factor,
             ) as i:

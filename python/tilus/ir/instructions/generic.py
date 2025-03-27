@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from typing import Callable, ClassVar, Optional, Sequence, Union
 
 from hidet.ir.dtypes import DataType, boolean, i32
-from hidet.ir.expr import Expr, Var
-from tilus.extensions.hidet.ir.expr import as_expr, index_vars
+from hidet.ir.expr import Expr, Var, as_expr
+from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.inst import Instruction
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
@@ -286,6 +287,9 @@ class AllocateGlobalInst(Instruction):
     @staticmethod
     def create(output: GlobalTensor, require_clean: bool) -> AllocateGlobalInst:
         return AllocateGlobalInst(output=output, inputs=(), require_clean=require_clean)
+
+    def with_output(self, global_output: GlobalTensor) -> AllocateGlobalInst:
+        return dataclasses.replace(self, output=global_output)
 
 
 @dataclass(frozen=True, eq=False)

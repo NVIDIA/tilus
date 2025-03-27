@@ -4,7 +4,7 @@ import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
 from hidet.ir.expr import Expr, Var
-from hidet.ir.primitives.cuda.vars import blockIdx, dim3
+from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
 from hidet.ir.type import DataType
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.instructions import MmaDotConfig
@@ -84,6 +84,7 @@ class Script:
         # the following attributes should be set by the user in the kernel function
         self.attrs: Attributes = Attributes()
         self.blockIdx: dim3 = blockIdx
+        self.gridDim: dim3 = gridDim
 
         # the following primitives could be used in the __init__ function to prepare the layouts
         self.cuda = cuda
@@ -162,6 +163,21 @@ class Script:
             layout = self.cuda.default_register_layout(num_warps=self.attrs.warps, dtype=dtype, shape=shape)
 
         return self._builder.allocate_register(dtype=dtype, layout=layout, f_init=f_init)
+
+    def global_tensor(
+        self,
+        dtype: DataType,
+        shape: Optional[Sequence[int]] = None,
+        layout: Optional[GlobalLayout] = None,
+        *,
+        requires_clean: bool,
+    ) -> GlobalTensor:
+        return self._builder.allocate_global(
+            dtype=dtype,
+            shape=shape,
+            layout=layout,
+            requires_clean=requires_clean,
+        )
 
     def shared_tensor(
         self,
@@ -360,6 +376,15 @@ class Script:
             f_offset=lambda args: f_offset(*args),
             f_mask=lambda args: f_mask(*args) if f_mask is not None else None,
         )
+
+    def add(self, lhs: RegisterTensor, rhs: RegisterTensor, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self._builder.add(lhs, rhs, out=out)
+
+    def lock_semaphore(self, semaphore: Expr, value: Expr | int) -> None:
+        self._builder.lock_semaphore(semaphore, value)
+
+    def release_semaphore(self, semaphore: Expr, value: Expr | int) -> None:
+        self._builder.release_semaphore(semaphore, value)
 
     def sync(self) -> None:
         self._builder.syncthreads()

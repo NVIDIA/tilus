@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Union
 
 from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var
+from hidet.ir.expr import Expr, Var, as_expr
+from hidet.ir.primitives.cuda.vars import blockIdx
 from hidet.ir.type import BaseType
-from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir.builders.stmt_builder import StmtBuilder
 from tilus.ir.func import Function, Metadata
 from tilus.ir.stmt import SeqStmt
@@ -53,7 +53,9 @@ class FunctionBuilder(StmtBuilder):
                 name=self.name,
                 params=self.params,
                 body=SeqStmt.create(self.builder._stack.pop()),
-                metadata=Metadata.create(num_blocks=num_blocks, num_warps=self.num_warps),
+                metadata=Metadata.create(
+                    num_blocks=num_blocks, block_indices=[blockIdx.x, blockIdx.y, blockIdx.z], num_warps=self.num_warps
+                ),
             )
             self.builder._on_finish(built_function)
 

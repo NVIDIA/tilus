@@ -6,24 +6,24 @@ import inspect
 import math
 import operator
 import types
-from typing import Any, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Type, Union
 
 import tilus.lang.constructs.loops
 from hidet import ir as hidet_ir
 from hidet.ir.analyzers import normalize_launch_dims
-from hidet.ir.expr import Constant, Var
+from hidet.ir.expr import Constant, Var, as_expr
+from hidet.ir.primitives.cuda.vars import blockIdx
 from hidet.ir.type import BaseType, data_type
 from hidet.lang.script import eliminate_decorators, eliminate_indent
 from hidet.lang.transpiler import HidetProgramError, PythonAstFunctor
 from tilus import ir as tilus_ir
-from tilus.extensions.hidet.ir.expr import as_expr
 from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.builders import IRBuilder, StmtBuilder
 from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import AssignInst
 from tilus.ir.layout import RegisterLayout
-from tilus.ir.stmt import AssignStmt, DeclareStmt, EvaluateStmt, InstStmt, SeqStmt, Stmt
+from tilus.ir.stmt import AssignStmt, DeclareStmt, EvaluateStmt, IfStmt, InstStmt, SeqStmt, Stmt
 from tilus.ir.tensor import GlobalTensor, Tensor
 from tilus.lang.constructs.loops import TilusLoopIterable
 from tilus.lang.script import Script
@@ -380,7 +380,12 @@ class Transpiler(PythonAstFunctor):
                 name=func_def.name,
                 params=func_params,
                 body=scope.flush_stmts(),
-                metadata=Metadata.create(num_blocks=blocks, num_warps=warps, divisibility=divisibility),
+                metadata=Metadata.create(
+                    num_blocks=blocks,
+                    block_indices=[blockIdx.x, blockIdx.y, blockIdx.z],  # type: ignore
+                    num_warps=warps,
+                    divisibility=divisibility,
+                ),
             )
 
     def visit_Expr(self, expr: ast.Expr) -> None:
@@ -623,7 +628,18 @@ class Transpiler(PythonAstFunctor):
         if isinstance(base, Sequence):
             return base[indices]
         elif isinstance(base, GlobalTensor):
-            raise TilusProgramError(self, expr, "Tilus Script does not support indexing/slicing on GlobalTensor.")
+            if (
+                isinstance(indices, Sequence)
+                and len(indices) == len(base.shape)
+                and not any(i is None or isinstance(i, slice) for i in indices)
+            ):
+                sb = StmtBuilder()
+                ptr = sb.tensor_ptr(tensor=base)
+                offset = base.layout(*indices)
+                self.current_scope.append(sb.flush_stmts())
+                return ptr[offset]
+            else:
+                raise TilusProgramError(self, expr, "Tilus Script does not support slicing on GlobalTensor.")
         elif isinstance(base, RegisterTensor):
             raise TilusProgramError(self, expr, "Tilus Script does not support indexing/slicing on RegisterTensor.")
         elif isinstance(base, SharedTensor):
@@ -695,7 +711,7 @@ class Transpiler(PythonAstFunctor):
                 cur_cond = py_op_dict[op_kind](front, current)
             cond = hidet_ir.logical_and(cond, cur_cond) if cond is not None else cur_cond
             front = current
-        assert isinstance(cond, hidet_ir.Expr)
+        cond = as_expr(cond)
         return cond
 
     def visit_For(self, stmt: ast.For) -> None:
@@ -747,3 +763,64 @@ class Transpiler(PythonAstFunctor):
         else:
             msg = "For loop iterable must be a one of the following types: \n1.\n  for ... in range(...): \n      ...\n"
             raise HidetProgramError(self, stmt.iter, msg)
+
+    def visit_If(self, stmt: ast.If) -> None:
+        cond = self.visit(stmt.test)
+
+        if isinstance(cond, hidet_ir.Constant):
+            cond = bool(cond)
+
+        if isinstance(cond, bool):
+            if cond:
+                for s in stmt.body:
+                    self.visit(s)
+            else:
+                for s in stmt.orelse:
+                    self.visit(s)
+        else:
+            with self.scope() as then_scope:
+                for s in stmt.body:
+                    self.visit(s)
+            with self.scope() as else_scope:
+                for s in stmt.orelse:
+                    self.visit(s)
+
+            then_body = then_scope.flush_stmts()
+            else_body = else_scope.flush_stmts() if len(stmt.orelse) > 0 else None
+            self.current_scope.append(IfStmt(cond=cond, then_body=then_body, else_body=else_body))
+
+    def visit_UnaryOp(self, expr: ast.UnaryOp) -> Union[hidet_ir.Node, hidet_ir.BaseType, float, int, str]:
+        value = self.visit(expr.operand)
+        if isinstance(value, hidet_ir.Node):
+            if isinstance(expr.op, ast.Not):
+                # not v
+                assert isinstance(value, hidet_ir.Expr)
+                return hidet_ir.logical_not(value)
+            elif isinstance(expr.op, ast.Invert):
+                # there are two cases for a ~ operator: ~something
+                # case 1: get the address of an expression
+                # case 2: get the pointer type that points to the given type
+                from hidet.ir.expr import Address
+                from hidet.ir.type import BaseType
+
+                if isinstance(value, BaseType):
+                    return ~value
+                else:
+                    assert isinstance(value, hidet_ir.Expr)
+                    return Address(value)
+            elif isinstance(expr.op, ast.UAdd):
+                # +v
+                return value
+            elif isinstance(expr.op, ast.USub):
+                # -v
+                assert isinstance(value, hidet_ir.Expr)
+                return -value
+            else:
+                raise HidetProgramError(self, expr, "Can not recognize unary operator.")
+        else:
+            op_dict: dict[Type[ast.unaryop], Callable] = {
+                ast.UAdd: operator.pos,
+                ast.USub: operator.neg,
+                ast.Not: operator.not_,
+            }
+            return op_dict[type(expr.op)](value)

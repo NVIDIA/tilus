@@ -7,8 +7,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from hidet.ir.dtypes import boolean, int32
-from hidet.ir.expr import Expr, logical_and
-from tilus.extensions.hidet.ir.expr import as_expr
+from hidet.ir.expr import Expr, as_expr, logical_and
 from tilus.extensions.hidet.ir.utils.index_transform import (
     index_add,
     index_deserialize,

@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Sequence
 
 from hidet.ir.dtypes import DataType, bf16, f16, f32, i8, i32
-from hidet.ir.expr import Expr, Var
-from tilus.extensions.hidet.ir.expr import as_expr, index_vars
+from hidet.ir.expr import Expr, Var, as_expr
+from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.inst import Instruction, InstructionConfig
 from tilus.ir.layout import RegisterLayout, column_repeat, column_spatial, repeat, spatial
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor
@@ -158,6 +158,32 @@ class LoadMatrixInst(Instruction):
         assert len(axes) == len(output.shape)
 
         return LoadMatrixInst(inputs=(), output=output, ptr=ptr, axes=tuple(axes), offset=offset, config=config)
+
+
+@dataclass(frozen=True, eq=False)
+class LockSemaphoreInst(Instruction):
+    semaphore: Expr
+    value: Expr
+
+    @staticmethod
+    def create(
+        semaphore: Expr,
+        value: Expr,
+    ) -> LockSemaphoreInst:
+        return LockSemaphoreInst(inputs=(), output=None, semaphore=semaphore, value=value)
+
+
+@dataclass(frozen=True, eq=False)
+class ReleaseSemaphoreInst(Instruction):
+    semaphore: Expr
+    value: Expr
+
+    @staticmethod
+    def create(
+        semaphore: Expr,
+        value: Expr,
+    ) -> ReleaseSemaphoreInst:
+        return ReleaseSemaphoreInst(inputs=(), output=None, semaphore=semaphore, value=value)
 
 
 @dataclass(frozen=True, eq=False)

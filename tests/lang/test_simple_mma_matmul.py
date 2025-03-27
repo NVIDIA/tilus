@@ -9,7 +9,7 @@ from tilus import float16, float32, int32
 class Matmul(tilus.Script):
     def __init__(self, n_size: int, k_size: int):
         super().__init__()
-        self.mma = self.cuda.mma.m16n8k16_f16_f32
+        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
         self.n_size = n_size
         self.k_size = k_size
         self.block_m = self.mma.m

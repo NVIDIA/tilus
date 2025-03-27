@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from enum import Enum
 
@@ -51,6 +52,9 @@ class RegisterTensor(Tensor):
     def shape(self) -> tuple[int, ...]:
         return self.layout.shape
 
+    def __add__(self, other: RegisterTensor) -> RegisterTensor:
+        raise RuntimeError("register_tensor + register_tensor could only be used in Tilus Script.")
+
 
 @dataclass(frozen=True, eq=False)
 class SharedTensor(Tensor):
@@ -91,3 +95,9 @@ class GlobalTensor(Tensor):
     @property
     def size(self) -> Expr:
         return self.layout.size
+
+    def __getitem__(self, indices: tuple[Expr | int, ...] | Expr | int) -> Expr:
+        raise RuntimeError("global_tensor[...] could only be used in Tilus Script.")
+
+    def with_layout(self, layout: GlobalLayout) -> GlobalTensor:
+        return dataclasses.replace(self, layout=layout)

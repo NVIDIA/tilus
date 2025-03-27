@@ -18,4 +18,5 @@ from tilus.lang.instantiated_script import InstantiatedScript
 from tilus.lang.script import Script, autotune
 
 from . import option, utils
+from .target import get_current_target
 from .version import __version__
