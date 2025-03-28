@@ -217,8 +217,8 @@ divisibility_key: tuple[int, ...]
 def _init_divisibility_key():
     global divisibility_key
     divisibility_key_list = []
-    multiples = [1, 8, 16, 32]
-    for n in range(max(multiples)):
+    multiples = [1]
+    for n in range(32):
         for m in reversed(multiples):
             if n % m == 0:
                 divisibility_key_list.append(m)
@@ -260,8 +260,8 @@ def extract_keys(args: Sequence[Any], const_params: list[int], tuning_params: li
     for i in tuning_params:
         arg: int = args[i]
         jit_key.append(divisibility_key[arg % 32])
-        arg_block = 2 ** max((arg.bit_length() - 2), 0)
-        tuning_key.append((arg - arg_block + 1) // arg_block * arg_block)
+        block = 1 << max((arg.bit_length() - 5), 0)
+        tuning_key.append((arg + block - 1) // block * block)
     return tuple(jit_key), tuple(tuning_key)
 
 
@@ -270,7 +270,7 @@ def construct_keys(const_params: Sequence[Any], tuning_params: Sequence[int]) ->
     tuning_key = []
     for arg in tuning_params:
         block = 1 << max((arg.bit_length() - 2), 0)
-        tuning_key.append((arg - block + 1) // block * block)
+        tuning_key.append((arg + block - 1) // block * block)
     return tuple(jit_key), tuple(tuning_key)
 
 

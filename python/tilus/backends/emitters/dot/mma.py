@@ -1,7 +1,7 @@
 from typing import Tuple
 
 from hidet.ir.dtypes import uint32
-from hidet.ir.expr import Expr, cast, var
+from hidet.ir.expr import Expr, cast, if_then_else, var
 from hidet.ir.primitives.cuda.mma import MmaConfig as HidetMmaConfig
 from hidet.ir.utils.broadcast_utils import broadcast_indices
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
@@ -57,7 +57,11 @@ class MmaDotInstEmitter(BaseInstEmitter):
                 )
                 c_regs = self.declare(
                     var("c_regs", ~uint32),
-                    init=cast(~c_buf[c_value.layout.global2local(c_indices, worker=self.current_worker)], ~uint32),
+                    init=if_then_else(  # we reduce over the warp_repeat[2] dimension locally
+                        repeat_indices[2] == 0,
+                        cast(~c_buf[c_value.layout.global2local(c_indices, worker=self.current_worker)], ~uint32),
+                        cast(~d_buf[d_value.layout.global2local(d_indices, worker=self.current_worker)], ~uint32),
+                    ),
                 )
                 d_regs = self.declare(
                     var("d_regs", ~uint32),
