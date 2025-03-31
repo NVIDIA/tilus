@@ -38,6 +38,10 @@ class RegisterLayout(IRNode):
     def __repr__(self):
         return str(self)
 
+    def __add__(self, other):
+        assert isinstance(other, RegisterLayout)
+        return concat(self, other)
+
     def __mul__(self, other):
         assert isinstance(other, RegisterLayout)
         return compose(self, other)
@@ -542,6 +546,93 @@ class ComposedRegisterLayout(RegisterLayout):
         )
 
 
+@dataclass(frozen=True, eq=False)
+class ConcatenatedRegisterLayout(RegisterLayout):
+    lhs: RegisterLayout
+    rhs: RegisterLayout
+
+    @staticmethod
+    def create(lhs: RegisterLayout, rhs: RegisterLayout) -> ConcatenatedRegisterLayout:
+        return ConcatenatedRegisterLayout(
+            shape=lhs.shape + rhs.shape,
+            local_size=lhs.local_size * rhs.local_size,
+            num_workers=lhs.num_workers * rhs.num_workers,
+            lhs=lhs,
+            rhs=rhs,
+        )
+
+    def is_simple(self) -> bool:
+        """
+        A layout is simple iff. each element is store in a single worker by one time.
+        """
+        return self.lhs.is_simple() and self.rhs.is_simple()
+
+    def global2local(self, global_indices: Sequence[Expr], worker: Expr) -> Expr:
+        """
+        Get the local index of the element stored in the given worker.
+        """
+        lhs_rank, rhs_rank = len(self.lhs.shape), len(self.rhs.shape)
+        lhs_global = [global_indices[i] for i in range(lhs_rank)]
+        rhs_global = [global_indices[i] for i in range(lhs_rank, lhs_rank + rhs_rank)]
+        lhs_local = self.lhs.global2local(lhs_global, worker)
+        rhs_local = self.rhs.global2local(rhs_global, worker)
+        return lhs_local * self.rhs.local_size + rhs_local
+
+    def global2worker(self, global_indices: Sequence[Expr]) -> List[Expr]:
+        """
+        Get the workers that are storing the given elements.
+        """
+        lhs_rank, rhs_rank = len(self.lhs.shape), len(self.rhs.shape)
+        lhs_global = [global_indices[i] for i in range(lhs_rank)]
+        rhs_global = [global_indices[i] for i in range(lhs_rank, lhs_rank + rhs_rank)]
+        lhs_workers = self.lhs.global2worker(lhs_global)
+        rhs_workers = self.rhs.global2worker(rhs_global)
+        return [
+            lhs_worker * self.rhs.num_workers + rhs_worker for lhs_worker in lhs_workers for rhs_worker in rhs_workers
+        ]
+
+    def local2global(self, local_index: Expr, worker: Expr) -> List[Expr]:
+        """
+        Get the global indices the element corresponds to (worker, local_index).
+        """
+        lhs_local = local_index // self.rhs.local_size
+        rhs_local = local_index % self.rhs.local_size
+        lhs_worker = worker // self.rhs.num_workers
+        rhs_worker = worker % self.rhs.num_workers
+        lhs_global = self.lhs.local2global(lhs_local, lhs_worker)
+        rhs_global = self.rhs.local2global(rhs_local, rhs_worker)
+        return lhs_global + rhs_global
+
+    def is_first_occurrence(self, local_index: Expr, worker: Expr) -> Expr:
+        """
+        Whether the global element stored in (worker, local_index) is the first occurrence in the layout
+        (e.g., either no other workers are storing the same element, or this worker is the smallest worker among
+        all the workers).
+        """
+        lhs_local = local_index // self.rhs.local_size
+        rhs_local = local_index % self.rhs.local_size
+        lhs_worker = worker // self.rhs.num_workers
+        rhs_worker = worker % self.rhs.num_workers
+        return logical_and(
+            self.lhs.is_first_occurrence(lhs_local, lhs_worker),
+            self.rhs.is_first_occurrence(rhs_local, rhs_worker),
+        )
+
+    def is_valid(self, global_indices: List[Expr], worker: Expr) -> Expr:
+        """
+        Whether the global element is stored in the given worker.
+        """
+        lhs_rank, rhs_rank = len(self.lhs.shape), len(self.rhs.shape)
+        lhs_global = [global_indices[i] for i in range(lhs_rank)]
+        rhs_global = [global_indices[i] for i in range(lhs_rank, lhs_rank + rhs_rank)]
+        lhs_worker = worker // self.rhs.num_workers
+        rhs_worker = worker % self.rhs.num_workers
+        return logical_and(
+            self.lhs.is_valid(lhs_global, worker=lhs_worker),
+            self.rhs.is_valid(rhs_global, worker=rhs_worker),
+        )
+
+
 def atom(
     *shape: int,
     workers: Sequence[int],
@@ -649,6 +740,10 @@ def expand(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
     if len(dims) == 0:
         return layout
     return ExpandRegisterLayout.create(layout, dims=dims)
+
+
+def concat(lhs: RegisterLayout, rhs: RegisterLayout) -> RegisterLayout:
+    pass
 
 
 def flatten(layout: RegisterLayout) -> RegisterLayout:

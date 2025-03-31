@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir.expr import Expr, Var
+from hidet.ir.expr import Constant, Expr, Var
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
 from hidet.ir.type import DataType
 from tilus.ir.builders import StmtBuilder
@@ -342,6 +342,16 @@ class Script:
     def cast(self, x: RegisterTensor, dtype: DataType) -> RegisterTensor:
         return self._builder.cast(x=x, dtype=dtype)
 
+    def view(
+        self,
+        x: RegisterTensor,
+        *,
+        layout: Optional[RegisterLayout] = None,
+        dtype: Optional[DataType] = None,
+        local_offset: Union[Expr, int] = 0,
+    ) -> RegisterTensor:
+        return self._builder.view(x=x, layout=layout, dtype=dtype, local_offset=local_offset)
+
     def load_global_generic(
         self,
         *,
@@ -394,6 +404,13 @@ class Script:
 
     def printf(self, fstring: str, *args: Expr | int | float) -> None:
         self._builder.printf(fstring, *args)
+
+    @staticmethod
+    def static_assert(cond: bool | Expr, msg: str) -> None:
+        if not isinstance(cond, Constant) and not isinstance(cond, bool):
+            raise ValueError("Static assert condition must be a constant")
+        if not cond:
+            raise AssertionError(msg)
 
 
 def autotune(arg_names: str, arg_values: Sequence[Any]) -> Callable[[Type[Script]], Any]:

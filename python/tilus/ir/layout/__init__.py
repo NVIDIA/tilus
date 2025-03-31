@@ -6,6 +6,7 @@ from .register_layout import (
     column_spatial,
     compose,
     compose_chain,
+    concat,
     divide,
     get_composition_chain,
     identity,

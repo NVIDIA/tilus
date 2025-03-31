@@ -26,6 +26,22 @@ class cuda:
             return cuda.runtime._property_cache[device_id]
 
     @staticmethod
+    def shared_layout(shape: Sequence[int]) -> SharedLayout:
+        """Generate a row-major shared layout.
+
+        Parameters
+        ----------
+        shape: Sequence[int]
+            The shape of the shared layout.
+
+        Returns
+        -------
+        shared_layout: SharedLayout
+            The row-major shared layout with the given shape.
+        """
+        return shared_repeat(*shape)
+
+    @staticmethod
     def swizzled_shared_layout(dtype: DataType, *, m: int, n: int, bs: Optional[int] = None) -> SharedLayout:
         """
         Generate a shared layout that could be used to generate ldmatrix instruction when using LoadSharedInst.
