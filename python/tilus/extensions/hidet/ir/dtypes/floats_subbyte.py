@@ -62,12 +62,6 @@ class FloatSubbyteType(FloatType):
     def mantissa_nbits(self):
         return self._mantissa_nbits
 
-    def is_float_subbyte(self) -> bool:
-        return True
-
-    def is_subbyte(self):
-        return True
-
     def finfo(self) -> FloatInfo:
         return FloatInfo(
             bits=self.nbits,

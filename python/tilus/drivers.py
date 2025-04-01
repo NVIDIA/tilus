@@ -106,7 +106,17 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         SaveIRInstrument,
         common_transforms,
         lower_with,
+        # the passes that needed for tilus-specific passes
+        resolve_primitive_func_pass,
     )
+    from tilus.extensions.hidet.transforms.add_explicit_cast import add_explicit_cast_pass
+    from tilus.extensions.hidet.transforms.lower_subbyte_type import lower_subbyte_type_pass
+
+    tilus_transforms = [
+        resolve_primitive_func_pass(),
+        add_explicit_cast_pass(),
+        lower_subbyte_type_pass(),
+    ]
 
     instruments: list[PassInstrument] = []
     if tilus.option.get_option("debug.dump_ir"):
@@ -114,7 +124,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         instruments.append(ProfileInstrument(str(cache_dir / "module" / "ir" / "lower_time.txt")))
 
     with PassContext(instruments):
-        return lower_with(ir_module, common_transforms)
+        return lower_with(ir_module, tilus_transforms + common_transforms)
 
 
 @functools.lru_cache(maxsize=1024)

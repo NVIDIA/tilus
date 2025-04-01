@@ -1,9 +1,9 @@
 from hidet.ir.dtypes.floats import FloatType, bfloat16, float16, float32, float64, tfloat32
 
-float8_e4m3 = FloatType(
+f8e4m3 = float8_e4m3 = FloatType(
     "float8_e4m3", "f8e4m3", 1, min_value=float(-448), max_value=float(448), eps=2 ** (-2), smallest_normal=2 ** (-6)
 )
-float8_e5m2 = FloatType(
+f8e5m2 = float8_e5m2 = FloatType(
     "float8_e5m2",
     "f8e5m2",
     1,
@@ -33,6 +33,6 @@ _exponent_bits = {
     "float8_e4m3": 4,
 }
 
-for float_dtype in [float64, float32, tfloat32, bfloat16, float16]:
-    float_dtype.mantissa_bits = _mantissa_bits[float_dtype.name]  # type: ignore
-    float_dtype.exponent_bits = _exponent_bits[float_dtype.name]  # type: ignore
+for float_dtype in [float64, float32, tfloat32, bfloat16, float16, float8_e5m2, float8_e4m3]:
+    float_dtype.mantissa_nbits = _mantissa_bits[float_dtype.name]  # type: ignore
+    float_dtype.exponent_nbits = _exponent_bits[float_dtype.name]  # type: ignore

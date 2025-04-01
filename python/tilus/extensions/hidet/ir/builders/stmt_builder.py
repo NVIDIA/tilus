@@ -21,7 +21,7 @@ class StmtBuilder(OriginalStmtBuilder):
         self.append(DeclareStmt(v, init=init, scope=scope))
         return v
 
-    def assertion(self, cond: Expr, msg: str) -> None:
+    def assertion(self, cond: Expr | bool, msg: str) -> None:
         self.append(AssertStmt(cond, msg))
 
     def comment(self, comment_string: str, style: str = "//") -> None:

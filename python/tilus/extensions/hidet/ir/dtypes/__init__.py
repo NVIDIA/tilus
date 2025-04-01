@@ -1,7 +1,37 @@
 # ruff: noqa: F401
 
-from .floats import float8_e4m3, float8_e5m2
+from hidet.ir.dtypes.integer_subbyte import (
+    i1,
+    i2,
+    i3,
+    i4,
+    int1b,
+    int2b,
+    int3b,
+    int4b,
+    u1,
+    u2,
+    u3,
+    u4,
+    uint1b,
+    uint2b,
+    uint3b,
+    uint4b,
+)
+
+from .floats import f8e4m3, f8e5m2, float8_e4m3, float8_e5m2
 from .floats_subbyte import (
+    f3e1m1,
+    f4e2m1,
+    f5e2m2,
+    f5e3m1,
+    f6e2m3,
+    f6e3m2,
+    f6e4m1,
+    f7e2m4,
+    f7e3m3,
+    f7e4m2,
+    f7e5m1,
     float3_e1m1,
     float4_e2m1,
     float5_e2m2,
@@ -15,17 +45,15 @@ from .floats_subbyte import (
     float7_e5m1,
 )
 from .integer_subbyte import (
-    int1b,
-    int2b,
-    int3b,
-    int4b,
+    i5,
+    i6,
+    i7,
     int5b,
     int6b,
     int7b,
-    uint1b,
-    uint2b,
-    uint3b,
-    uint4b,
+    u5,
+    u6,
+    u7,
     uint5b,
     uint6b,
     uint7b,

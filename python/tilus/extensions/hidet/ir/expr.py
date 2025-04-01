@@ -32,3 +32,7 @@ def index_vars(num_vars: int) -> List[Var]:
         return [var(default_names[i]) for i in range(num_vars)]
     else:
         return [var("i") for _ in range(num_vars)]
+
+
+def reinterpret(value: Expr, target_type: BaseType) -> Expr:
+    return cast(~value, ~target_type)[0]

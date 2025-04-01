@@ -1,9 +1,8 @@
 from hidet.ir.dtypes.floats import float16, float32
 from hidet.ir.dtypes.integer import int8, uint8, uint16, uint32, uint64
+from hidet.ir.dtypes.integer_subbyte import uint4b
 from hidet.ir.dtypes.vector import VectorType, float16x2, float32x2, float32x4, float32x8
 from hidet.ir.type import DataType
-
-from .integer_subbyte import uint4b
 
 float32x1 = VectorType(float32, 1)
 f32x1 = float32x1
