@@ -14,8 +14,7 @@ pandas.set_option("display.float_format", lambda x: "%.2f" % x)
 class MatmulV0(tilus.Script):
     def __init__(self):
         super().__init__()
-        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
-
+        self.mma = self.cuda.default_dot_config(operand_dtype=float16, acc_dtype=float32, num_warps=1, m=16, n=8, k=16)
         self.block_m = self.mma.m
         self.block_n = self.mma.n
         self.block_k = self.mma.k
@@ -37,7 +36,7 @@ class MatmulV0(tilus.Script):
 
             a = self.load_global(ga, offsets=[offset_m, offset_k], dims=[0, 1], layout=self.mma.la)
             b = self.load_global(gb, offsets=[offset_k, offset_n], dims=[0, 1], layout=self.mma.lb)
-            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
+            self.mma_dot(a, b, acc, output=acc)
 
         acc_f16 = self.cast(acc, dtype=float16)
         gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])

@@ -14,14 +14,14 @@ pandas.set_option("display.float_format", lambda x: "%.2f" % x)
 class MatmulV1(tilus.Script):
     def __init__(self):
         super().__init__()
-        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
+        self.mma = self.cuda.default_dot_config(float16, float32, num_warps=1, m=16, n=8, k=16)
         self.block_m = self.mma.m
         self.block_n = self.mma.n
         self.block_k = self.mma.k
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
-        self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
-        self.attrs.warps = 1
+        self.attrs.blocks = [self.utils.ceil_div(m_size, self.mma.m), self.utils.ceil_div(n_size, self.mma.n)]
+        self.attrs.warps = self.mma.num_warps
 
         offset_m: int32 = self.block_m * self.blockIdx.x
         offset_n: int32 = self.block_n * self.blockIdx.y
@@ -41,7 +41,7 @@ class MatmulV1(tilus.Script):
 
             a = self.load_shared(sa, out_layout=self.mma.la)
             b = self.load_shared(sb, out_layout=self.mma.lb)
-            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
+            self.mma_dot(a, b, acc, output=acc)
             self.sync()
 
         self.free_shared(sa)

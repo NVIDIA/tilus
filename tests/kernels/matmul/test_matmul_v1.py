@@ -9,8 +9,7 @@ from tilus import float16, float32, int32
 class MatmulV1(tilus.Script):
     def __init__(self):
         super().__init__()
-        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
-
+        self.mma = self.cuda.default_dot_config(float16, float32, num_warps=1, m=16, n=8, k=16)
         self.block_m = self.mma.m
         self.block_n = self.mma.n
         self.block_k = self.mma.k
@@ -37,7 +36,7 @@ class MatmulV1(tilus.Script):
 
             a = self.load_shared(sa, out_layout=self.mma.la)
             b = self.load_shared(sb, out_layout=self.mma.lb)
-            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
+            acc = self.mma_dot(a, b, acc)
             self.sync()
 
         self.free_shared(sa)

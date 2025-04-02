@@ -5,7 +5,6 @@ import pandas as pd
 import tilus
 import torch
 from tilus import float16, float32, int32
-from tilus.ir.layout import reduce, spatial
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
@@ -18,37 +17,42 @@ pd.set_option("display.width", None)
 pd.set_option("display.max_rows", None)
 
 
-@tilus.autotune("warp_spatial", [[2, 4], [4, 2], [2, 2]])
-@tilus.autotune("warp_repeat", [[8, 1, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1]])
+@tilus.autotune("num_warps", [4, 8])
+@tilus.autotune("block_m, block_n", [(128, 128), (128, 64), (64, 128), (32, 256)])
+@tilus.autotune("block_k", [16, 32])
 @tilus.autotune("num_stages", [3, 4, 5])
-@tilus.autotune("split_k_factor", [1, 2, 4, 8, 16])
+@tilus.autotune("split_k_factor", [1, 4, 12, 16])
 class MatmulV7(tilus.Script):
-    # debug_schedule = dict(warp_spatial=[4, 2], warp_repeat=[1, 8, 1], num_stages=5, split_k_factor=1)
+    debug_schedule = dict(
+        num_warps=4,
+        block_m=64,
+        block_n=128,
+        block_k=16,
+        num_stages=4,
+        split_k_factor=1,
+    )
 
     def __init__(
-        self, warp_spatial: tuple[int, int], warp_repeat: tuple[int, int, int], num_stages: int, split_k_factor: int
+        self,
+        num_warps,
+        block_m,
+        block_n,
+        block_k,
+        num_stages,
+        split_k_factor,
     ):
         super().__init__()
-        self.warp_spatial = warp_spatial
-        self.warp_repeat = warp_repeat
+        self.mma = self.cuda.default_dot_config(float16, float32, num_warps=num_warps, m=block_m, n=block_n, k=block_k)
+        self.block_m = block_m
+        self.block_n = block_n
+        self.block_k = block_k
+        self.num_warps = num_warps
         self.num_stages = num_stages
         self.split_k_factor = split_k_factor
 
-        wsm, wsn = warp_spatial
-        wrm, wrn, wrk = warp_repeat
-
-        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
-        self.block_m = self.mma.m * wsm * wrm
-        self.block_n = self.mma.n * wsn * wrn
-        self.block_k = self.mma.k * wrk
-        self.num_warps = wsm * wsn
-
-        self.layout_ra = reduce(spatial(wsm, 1, wsn, ranks=[1, 0, 2]), dims=[2]).repeat(wrm, wrk) * self.mma.la
-        self.layout_rb = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk, wrn) * self.mma.lb
-        self.layout_rc = spatial(wsm, wsn).repeat(wrm, wrn) * self.mma.lc
-        self.layout_sa = self.cuda.swizzled_shared_layout(dtype=float16, bs=num_stages, m=self.block_m, n=self.block_k)
-        self.layout_sb = self.cuda.swizzled_shared_layout(dtype=float16, bs=num_stages, m=self.block_k, n=self.block_n)
-        self.layout_sc = self.cuda.swizzled_shared_layout(dtype=float16, m=self.block_m, n=self.block_n)
+        self.layout_sa = self.cuda.swizzled_shared_layout(float16, shape=[num_stages, self.block_m, self.block_k])
+        self.layout_sb = self.cuda.swizzled_shared_layout(float16, shape=[num_stages, self.block_k, self.block_n])
+        self.layout_sc = self.cuda.swizzled_shared_layout(float16, shape=[self.block_m, self.block_n])
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
         self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n), self.split_k_factor]
@@ -67,7 +71,7 @@ class MatmulV7(tilus.Script):
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
         sa = self.shared_tensor(dtype=float16, layout=self.layout_sa)
         sb = self.shared_tensor(dtype=float16, layout=self.layout_sb)
-        acc = self.register_tensor(dtype=float32, layout=self.layout_rc, init=0.0)
+        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, init=0.0)
 
         for stage in range(self.num_stages - 1):
             offset_k = start_offset_k + stage * self.block_k
@@ -81,26 +85,25 @@ class MatmulV7(tilus.Script):
         current_stage: int32 = 0
         preload_stage: int32 = self.num_stages - 1
         for offset_k in self.range(start_offset_k, end_offset_k, block_k, unroll=self.num_stages):
-            # computation for current tile
-            a = self.load_shared(sa[current_stage], out_layout=self.layout_ra)
-            b = self.load_shared(sb[current_stage], out_layout=self.layout_rb)
-            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=self.warp_spatial, warp_repeat=self.warp_repeat)
-
             # preload the next tile of A and B into shared memory
             preload_offset_k = offset_k + (self.num_stages - 1) * block_k
-            self.copy_async(src=ga, dst=sa[preload_stage], offsets=[offset_m, preload_offset_k])
-            self.copy_async(src=gb, dst=sb[preload_stage], offsets=[preload_offset_k, offset_n])
+            if preload_offset_k < end_offset_k:
+                self.copy_async(src=ga, dst=sa[preload_stage], offsets=[offset_m, preload_offset_k])
+                self.copy_async(src=gb, dst=sb[preload_stage], offsets=[preload_offset_k, offset_n])
             self.copy_async_commit_group()
-            self.copy_async_wait_group(n=self.num_stages - 2)
+
+            # computation for current tile
+            a = self.load_shared(sa[current_stage], out_layout=self.mma.la)
+            b = self.load_shared(sb[current_stage], out_layout=self.mma.lb)
+            self.mma_dot(a, b, acc, output=acc)
 
             # update the stage
             current_stage = (current_stage + 1) % self.num_stages
             preload_stage = (preload_stage + 1) % self.num_stages
+            self.copy_async_wait_group(n=self.num_stages - 2)
             self.sync()
 
         # there might be on-fly copy_async in the pipeline, we need to wait for all of them
-        self.copy_async_wait_all()
-        self.sync()
         self.free_shared(sa)
         self.free_shared(sb)
 
@@ -140,14 +143,16 @@ def main():
     workloads = []
     for k, n in [
         [4096, 4096 * 3],
-        # [4096, 4096],
-        # [4096, 14336 * 2],
-        # [14336, 4096],
+        [4096, 4096],
+        [4096, 14336 * 2],
+        [14336, 4096],
     ]:
         for m in [
             1,
-            # 16,
-            # 32
+            16,
+            32,
+            4096,
+            4097,
         ]:
             workloads.append([m, n, k])
 

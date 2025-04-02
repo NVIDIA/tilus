@@ -5,41 +5,40 @@ import pandas as pd
 import tilus
 import torch
 from tilus import float16, float32, int32
-from tilus.ir.layout import reduce, spatial
-from tilus.utils import benchmark_func, prod
+from tilus.utils import benchmark_func
 
 tilus.option.cache_dir("./cache")
 
-pd.set_option("display.float_format", lambda x: "%.2f" % x)
+pd.set_option("display.float_format", lambda x: "%.3f" % x)
 
 
-@tilus.autotune("warp_spatial", [[1, 8], [2, 4], [4, 2], [8, 1], [1, 4], [2, 2], [4, 1]])
-@tilus.autotune(
-    "warp_repeat",
-    [[1, 4, 1], [4, 1, 1], [2, 2, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1]],
-)
+@tilus.autotune("num_warps", [4, 8])
+@tilus.autotune("block_m, block_n", [(128, 128), (128, 64), (64, 128)])
+@tilus.autotune("block_k", [16, 32])
 class MatmulV3(tilus.Script):
+    debug_schedule = dict(
+        num_warps=4,
+        block_m=128,
+        block_n=64,
+        block_k=16,
+    )
+
     def __init__(
         self,
-        warp_spatial: tuple[int, int],
-        warp_repeat: tuple[int, int, int],
+        num_warps,
+        block_m,
+        block_n,
+        block_k,
     ):
         super().__init__()
-        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
-        self.block_m = self.mma.m * warp_spatial[0] * warp_repeat[0]
-        self.block_n = self.mma.n * warp_spatial[1] * warp_repeat[1]
-        self.block_k = self.mma.k * warp_repeat[2]
-        self.num_warps = prod(warp_spatial)
+        self.mma = self.cuda.default_dot_config(float16, float32, num_warps=num_warps, m=block_m, n=block_n, k=block_k)
+        self.block_m = block_m
+        self.block_n = block_n
+        self.block_k = block_k
+        self.num_warps = num_warps
 
-        wsm, wsn = warp_spatial
-        wrm, wrn, wrk = warp_repeat
-        self.warp_spatial = warp_spatial
-        self.warp_repeat = warp_repeat
-        self.layout_ra = reduce(spatial(wsm, 1, wsn, ranks=[1, 0, 2]), dims=[2]).repeat(wrm, wrk) * self.mma.la
-        self.layout_rb = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk, wrn) * self.mma.lb
-        self.layout_rc = spatial(wsm, wsn).repeat(wrm, wrn) * self.mma.lc
-        self.layout_sa = self.cuda.swizzled_shared_layout(dtype=float16, m=self.block_m, n=self.block_k)
-        self.layout_sb = self.cuda.swizzled_shared_layout(dtype=float16, m=self.block_k, n=self.block_n)
+        self.layout_sa = self.cuda.swizzled_shared_layout(dtype=float16, shape=[self.block_m, self.block_k])
+        self.layout_sb = self.cuda.swizzled_shared_layout(dtype=float16, shape=[self.block_k, self.block_n])
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
         self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
@@ -52,7 +51,7 @@ class MatmulV3(tilus.Script):
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
         sa = self.shared_tensor(dtype=float16, layout=self.layout_sa)
         sb = self.shared_tensor(dtype=float16, layout=self.layout_sb)
-        acc = self.register_tensor(dtype=float32, layout=self.layout_rc, init=0.0)
+        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, init=0.0)
 
         for offset_k in range(0, k_size, self.block_k):
             lda = self.load_global(ga, offsets=[offset_m, offset_k], shape=[self.block_m, self.block_k])
@@ -61,9 +60,9 @@ class MatmulV3(tilus.Script):
             self.store_shared(sb, ldb)
             self.sync()
 
-            a = self.load_shared(sa, out_layout=self.layout_ra)
-            b = self.load_shared(sb, out_layout=self.layout_rb)
-            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=self.warp_spatial, warp_repeat=self.warp_repeat)
+            a = self.load_shared(sa, out_layout=self.mma.la)
+            b = self.load_shared(sb, out_layout=self.mma.lb)
+            self.mma_dot(a, b, acc, output=acc)
             self.sync()
 
         self.free_shared(sa)
@@ -93,7 +92,7 @@ def main():
         matmul(m, n, k, a, b, c_actual)
 
         # check correctness
-        torch.testing.assert_close(c_expect, c_actual, atol=1e-2, rtol=1e-2)
+        torch.testing.assert_close(c_expect, c_actual)
 
         # benchmark
         for name, func in [

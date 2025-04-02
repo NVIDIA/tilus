@@ -6,7 +6,6 @@ from . import (
     control,
     cuda,
     debug,
-    dot,
     elementwise,
     gmem,
     ldmatrix,

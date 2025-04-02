@@ -9,7 +9,7 @@ from tilus import float16, float32, int32
 class Matmul(tilus.Script):
     def __init__(self, n_size: int, k_size: int):
         super().__init__()
-        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
+        self.mma = self.cuda.atomic_mma_configs.m16n8k16_f16_f32
         self.n_size = n_size
         self.k_size = k_size
         self.block_m = self.mma.m
@@ -41,7 +41,7 @@ class Matmul(tilus.Script):
                 f_offset=lambda k, j: (offset_k + k) * self.n_size + offset_n + j,
                 f_mask=lambda k, j: offset_k + k < self.k_size and offset_n + j < self.n_size,
             )
-            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=(1, 1, 1), warp_repeat=(1, 1, 1))
+            acc = self.mma_dot(a, b, acc)
         acc_f16 = self.cast(acc, dtype=float16)
         self.store_global_generic(
             acc_f16,

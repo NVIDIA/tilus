@@ -9,7 +9,6 @@ from .cuda import (
     LoadMatrixConfig,
     LoadMatrixInst,
     LockSemaphoreInst,
-    MmaDotConfig,
     MmaDotInst,
     ReleaseSemaphoreInst,
     SimtDotInst,

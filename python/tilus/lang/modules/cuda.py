@@ -1,29 +1,143 @@
+import functools
+from dataclasses import dataclass
 from typing import Optional, Sequence
 
 import cuda.bindings.runtime as cudart
 
-from hidet.ir.dtypes import DataType
+from hidet.ir.dtypes import DataType, bfloat16, float16, float32
 from tilus import RegisterLayout
-from tilus.ir.instructions.cuda import MmaDotConfig
-from tilus.ir.layout import SharedLayout, auto_repeat_spatial, shared_compose, shared_repeat
+from tilus.backends.emitters.cuda.mma_dot import AtomicMmaConfig
+from tilus.ir.layout import SharedLayout, auto_repeat_spatial, reduce, shared_compose, shared_repeat, spatial
+from tilus.ir.utils import vector
 from tilus.utils import gcd, idiv, prod
 
 
+@dataclass(frozen=True, eq=False)
+class BlockMmaConfig:
+    operand_dtype: DataType
+    accumulator_dtype: DataType
+    m: int
+    n: int
+    k: int
+    num_warps: int
+    la: RegisterLayout
+    lb: RegisterLayout
+    lc: RegisterLayout
+
+
 class cuda:
-    class mma_configs:
-        m16n8k16_f16_f32: MmaDotConfig = MmaDotConfig.m16n8k16_f16_f32()
-        m16n8k16_f16_f16: MmaDotConfig = MmaDotConfig.m16n8k16_f16_f16()
-        m16n8k16_bf16_f32: MmaDotConfig = MmaDotConfig.m16n8k16_bf16_f32()
+    class atomic_mma_configs:
+        m16n8k16_f16_f32: AtomicMmaConfig = AtomicMmaConfig.m16n8k16_f16_f32()
+        m16n8k16_f16_f16: AtomicMmaConfig = AtomicMmaConfig.m16n8k16_f16_f16()
+        m16n8k16_bf16_f32: AtomicMmaConfig = AtomicMmaConfig.m16n8k16_bf16_f32()
+
+        @staticmethod
+        @functools.lru_cache
+        def from_dtypes(operand_dtype, accumulator_dtype):
+            table = {
+                (float16, float32): cuda.atomic_mma_configs.m16n8k16_f16_f32,
+                (float16, float16): cuda.atomic_mma_configs.m16n8k16_f16_f16,
+                (bfloat16, float32): cuda.atomic_mma_configs.m16n8k16_bf16_f32,
+            }
+            if (operand_dtype, accumulator_dtype) not in table:
+                raise ValueError(
+                    f"Unsupported MMA config for operand dtype {operand_dtype} and accumulator dtype {accumulator_dtype}"
+                )
+            return table[(operand_dtype, accumulator_dtype)]
 
     class runtime:
         _property_cache: dict[int, cudart.cudaDeviceProp] = {}
 
         @staticmethod
+        @functools.lru_cache
         def get_device_properties(device_id: Optional[int] = 0) -> cudart.cudaDeviceProp:
             if device_id not in cuda.runtime._property_cache:
                 errno, prop = cudart.cudaGetDeviceProperties(device_id)
                 cuda.runtime._property_cache[device_id] = prop
             return cuda.runtime._property_cache[device_id]
+
+    @staticmethod
+    @functools.lru_cache
+    def default_dot_config(
+        operand_dtype: DataType,
+        acc_dtype: DataType,
+        *,
+        num_warps: int,
+        m: int,
+        n: int,
+        k: int,
+    ) -> BlockMmaConfig:
+        atomic_mma = cuda.atomic_mma_configs.from_dtypes(operand_dtype, acc_dtype)
+        if any(vector(m, n, k) % vector(atomic_mma.m, atomic_mma.n, atomic_mma.k) != 0):
+            raise ValueError(f"block_m, block_n, block_k ({m}, {n}, {k}) must be multiples are illegal.")
+        mma_count_m = m // atomic_mma.m
+        mma_count_n = n // atomic_mma.n
+        mma_count_k = k // atomic_mma.k
+
+        spatial_repeat_candidates: list[tuple[tuple[int, int], tuple[int, int, int]]] = []
+        for wsm in range(1, num_warps + 1):
+            if num_warps % wsm != 0:
+                continue
+            wsn = num_warps // wsm
+            warp_spatial = (wsm, wsn)
+            if mma_count_m % wsm != 0 or mma_count_n % wsn != 0:
+                continue
+            warp_repeat = (mma_count_m // wsm, mma_count_n // wsn, mma_count_k)
+            spatial_repeat_candidates.append((warp_spatial, warp_repeat))
+
+        if len(spatial_repeat_candidates) == 0:
+            raise ValueError(f"Can not find a proper spatial repeat for block_m, block_n, block_k ({m}, {n}, {k})")
+
+        # for all spatial-repeat candidates, they share
+        #   1. number of mma instructions in total for the block: mma_count_m * mma_count_n * mma_count_k
+        #   2. number of warps: num_warps
+        #   3. number of mma instructions per warp: mma_count_m * mma_count_n * mma_count_k / num_warps
+        # they differ in
+        #   1. the register per warp
+        # we select the one with the minimum register per warp among all candidates
+        def count_registers(candidate: tuple[tuple[int, int], tuple[int, int, int]]) -> int:
+            # calculate the number of registers used by the candidate
+            _, (wrm, wrn, wrk) = candidate
+            a_bytes = wrm * wrk * atomic_mma.la.local_size * atomic_mma.operand_type.nbytes
+            b_bytes = wrn * wrk * atomic_mma.lb.local_size * atomic_mma.operand_type.nbytes
+            c_bytes = wrm * wrn * atomic_mma.lc.local_size * atomic_mma.acc_type.nbytes
+            return (a_bytes + b_bytes + c_bytes) // 4
+
+        best_candidate = min(spatial_repeat_candidates, key=count_registers)
+        estimate_registers = count_registers(best_candidate)
+        if estimate_registers >= 256 - 32:
+            raise ValueError("The register usage ({}) of given config is too high.".format(estimate_registers))
+        warp_spatial, warp_repeat = best_candidate
+        return cuda.mma_dot_config(atomic_mma, warp_spatial, warp_repeat)
+
+    @staticmethod
+    @functools.lru_cache
+    def mma_dot_config(
+        atomic_mma: AtomicMmaConfig,
+        warp_spatial: tuple[int, int],
+        warp_repeat: tuple[int, int, int],
+    ) -> BlockMmaConfig:
+        wsm, wsn = warp_spatial
+        wrm, wrn, wrk = warp_repeat
+        block_m = atomic_mma.m * wsm * wrm
+        block_n = atomic_mma.n * wsn * wrn
+        block_k = atomic_mma.k * wrk * atomic_mma.vec_k
+        num_warps = wsm * wsn
+        layout_ra = reduce(spatial(wsm, 1, wsn, ranks=[1, 0, 2]), dims=[2]).repeat(wrm, wrk) * atomic_mma.la
+        layout_rb = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk, wrn) * atomic_mma.lb
+        layout_rc = spatial(wsm, wsn).repeat(wrm, wrn) * atomic_mma.lc
+
+        return BlockMmaConfig(
+            operand_dtype=atomic_mma.operand_type,
+            accumulator_dtype=atomic_mma.acc_type,
+            m=block_m,
+            n=block_n,
+            k=block_k,
+            num_warps=num_warps,
+            la=layout_ra,
+            lb=layout_rb,
+            lc=layout_rc,
+        )
 
     @staticmethod
     def shared_layout(shape: Sequence[int]) -> SharedLayout:
@@ -42,7 +156,7 @@ class cuda:
         return shared_repeat(*shape)
 
     @staticmethod
-    def swizzled_shared_layout(dtype: DataType, *, m: int, n: int, bs: Optional[int] = None) -> SharedLayout:
+    def swizzled_shared_layout(dtype: DataType, *, shape: Sequence[int]) -> SharedLayout:
         """
         Generate a shared layout that could be used to generate ldmatrix instruction when using LoadSharedInst.
 
@@ -111,21 +225,22 @@ class cuda:
         dtype: DataType
             The element data type for both the shared memory and the register memory.
 
-        m: int
-            The number of rows in the shared memory.
-
-        n: int
-            The number of columns in the shared memory.
-
-        bs: Optional[int]
-            The batch size of the shared memory. When it's not None, the returned layout will have three dimensions
-            (bs, m, n). Default is None.
+        shape: Sequence[int]
+            The shape of the shared memory. The shape must have at least two dimensions.
 
         Returns
         -------
         shared_layout: SharedLayout
             The shared layout that could be used to generate ldmatrix instruction when using LoadSharedInst.
         """
+        return cuda._swizzled_shared_layout(dtype, shape=tuple(shape))
+
+    @staticmethod
+    @functools.lru_cache
+    def _swizzled_shared_layout(dtype: DataType, shape: tuple[int, ...]) -> SharedLayout:
+        if len(shape) < 2:
+            raise ValueError("The shape of swizzled shared layout must have at least two dimensions.")
+        m, n = shape[-2:]
         group_elements = idiv(16, dtype.nbytes)
         if m % 8 != 0 or n % group_elements != 0:
             raise ValueError("m must be a multiple of 8, and n must be a multiple of dtype.nbytes * 8.")
@@ -183,13 +298,21 @@ class cuda:
         layout = shared_compose(core, shared_repeat(1, group_elements))
         if m > layout.shape[0] or n > layout.shape[1]:
             layout = shared_compose(shared_repeat(m // layout.shape[0], n // layout.shape[1]), layout)
-        if bs is not None:
-            layout = layout.prepend_dim(extent=bs)
+        if len(shape) > 2:
+            for extent in reversed(shape[:-2]):
+                layout = layout.prepend_dim(extent=extent)
         return layout
 
     @staticmethod
     def default_register_layout(
         num_warps: int, dtype: DataType, shape: Sequence[int], vector_size: Optional[int] = None
+    ) -> RegisterLayout:
+        return cuda._default_register_layout(num_warps, dtype, tuple(shape), vector_size)
+
+    @staticmethod
+    @functools.lru_cache
+    def _default_register_layout(
+        num_warps: int, dtype: DataType, shape: tuple[int, ...], vector_size: Optional[int] = None
     ) -> RegisterLayout:
         num_threads = num_warps * 32
         num_elements = prod(shape)

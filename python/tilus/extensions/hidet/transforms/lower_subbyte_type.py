@@ -131,7 +131,7 @@ class AddressingAnalyzer(IRVisitor):
 
     def visit_Cast(self, e: Cast) -> Expr:
         self.visit(e.expr)
-        if is_addressable(e.target_type):
+        if is_addressable(e.target_type) and e.expr in self.buf2addr:
             addr = self.buf2addr[e.expr]
             self.buf2addr[e] = Addressing(
                 scope=addr.scope, type=get_base_type(e.target_type), base=e, offset=int32.zero

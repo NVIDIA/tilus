@@ -39,6 +39,8 @@ class StmtBuilder(OriginalStmtBuilder):
         iter_var = var("i")
         if isinstance(attr, str):
             attr = ForStmtAttr.parse(attr, num_loops=1)[0]
+        else:
+            attr = ForStmtAttr()
         return StmtScope(self, stmts=ForStmt(iter_var, extent, attr=attr), ret=iter_var)
 
     def while_loop(self, cond: Expr) -> StmtScope:

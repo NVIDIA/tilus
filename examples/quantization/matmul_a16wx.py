@@ -35,14 +35,14 @@ class QuantizedMatmulCommon(Script):
         tile_k, tile_n = weight_tile
         assert a_dtype in [float16, bfloat16], "this kernel only supports float16/bfloat16 as activation data type"
         if a_dtype == float16:
-            self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
+            self.atomic_mma = self.cuda.atomic_mma_configs.m16n8k16_f16_f32
         else:
-            self.mma = self.cuda.mma_configs.m16n8k16_bf16_f32
+            self.atomic_mma = self.cuda.atomic_mma_configs.m16n8k16_bf16_f32
         self.a_dtype = a_dtype
         self.b_dtype = b_dtype
         self.tile_k = weight_tile[0]
         self.tile_n = weight_tile[1]
-        self.tile_layout = repeat(tile_k // self.mma.k, tile_n // self.mma.n) * self.mma.lb
+        self.tile_layout = repeat(tile_k // self.atomic_mma.k, tile_n // self.atomic_mma.n) * self.atomic_mma.lb
 
         bits_per_threads = self.tile_layout.local_size * b_dtype.nbits
 
@@ -131,56 +131,49 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         self.group_size = group_size
         self.a_dtype = a_dtype
         self.b_dtype = b_dtype
-        self.warp_spatial = warp_spatial
-        self.warp_repeat = warp_repeat
+        self.warp_spatial = tuple(warp_spatial)
+        self.warp_repeat = tuple(warp_repeat)
         self.num_stages = num_stages
         self.split_k_factor = split_k_factor
+        self.mma = self.cuda.mma_dot_config(
+            atomic_mma=self.atomic_mma,
+            warp_spatial=self.warp_spatial,
+            warp_repeat=self.warp_repeat,
+        )
 
         wsm, wsn = warp_spatial
         wrm, wrn, wrk = warp_repeat
 
-        assert weight_tile[0] % self.mma.k == 0 and weight_tile[1] % self.mma.n == 0
-        tk, tn = weight_tile[0] // self.mma.k, weight_tile[1] // self.mma.n
+        assert weight_tile[0] % self.atomic_mma.k == 0 and weight_tile[1] % self.atomic_mma.n == 0
+        tk, tn = weight_tile[0] // self.atomic_mma.k, weight_tile[1] // self.atomic_mma.n
 
         assert wrk % tk == 0 and wrn % tn == 0, (wrk, tk, wrn, tn)
-        self.block_m = self.mma.m * wsm * wrm
-        self.block_n = self.mma.n * wsn * wrn
-        self.block_k = self.mma.k * wrk
+        self.block_m = self.atomic_mma.m * wsm * wrm
+        self.block_n = self.atomic_mma.n * wsn * wrn
+        self.block_k = self.atomic_mma.k * wrk
         self.num_warps = wsm * wsn
 
         k_tiles = wrk // tk
         n_tiles = wsn * wrn // tn
 
         # we make sure that each weight_tile will be loaded by one warp
-        assert wrk * self.mma.k % weight_tile[0] == 0
-        assert wrn * self.mma.n % weight_tile[1] == 0
+        assert wrk * self.atomic_mma.k % weight_tile[0] == 0
+        assert wrn * self.atomic_mma.n % weight_tile[1] == 0
 
         # make sure the group size is divisible by the block_k
         assert self.group_size % self.block_k == 0
 
-        # [block_m, block_k]
-        self.layout_ra = reduce(spatial(wsm, 1, wsn, ranks=[1, 0, 2]), dims=[2]).repeat(wrm, wrk) * self.mma.la
-
-        # [k_tiles, n_tiles]
-        layout_rb_head = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk // tk, wrn // tn)
-        # [k_tiles, n_tiles, tile_bytes]
-        self.layout_rb_flattened = layout_rb_head + self.flatten_tile_layout
-        # [block_k, block_n] = [tiles_k * tk * mma.k, tiles_n * tn * mma.n]
-        self.layout_rb = layout_rb_head * self.tile_layout
-
         self.tile_bytes = self.flatten_tile_layout.size
 
-        # [1, block_n]
-        self.layout_rs = reduce(self.layout_rb, dims=[0], squeeze_dims=False)
-
-        # [block_m, block_n]
-        self.layout_rc = spatial(wsm, wsn).repeat(wrm, wrn) * self.mma.lc
-
-        self.layout_sa = self.cuda.swizzled_shared_layout(
-            dtype=self.a_dtype, bs=num_stages, m=self.block_m, n=self.block_k
+        self.layout_rb_flattened = (
+            reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk // tk, wrn // tn)
+            + self.flatten_tile_layout
         )
+        self.layout_rs = reduce(self.mma.lb, dims=[0], squeeze_dims=False)
+
+        self.layout_sa = self.cuda.swizzled_shared_layout(self.a_dtype, shape=[num_stages, self.block_m, self.block_k])
         self.layout_sb = self.cuda.shared_layout(shape=[self.num_stages, k_tiles, n_tiles, self.tile_bytes])
-        self.layout_sc = self.cuda.swizzled_shared_layout(dtype=self.a_dtype, m=self.block_m, n=self.block_n)
+        self.layout_sc = self.cuda.swizzled_shared_layout(self.a_dtype, shape=[self.block_m, self.block_n])
         self.layout_ss = self.cuda.shared_layout(shape=[self.num_stages, 1, self.block_n])
 
     def __call__(
@@ -205,7 +198,7 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         sa = self.shared_tensor(dtype=self.a_dtype, layout=self.layout_sa)
         sb = self.shared_tensor(dtype=uint8, layout=self.layout_sb)
         ss = self.shared_tensor(dtype=self.a_dtype, layout=self.layout_ss)
-        acc = self.register_tensor(dtype=float32, layout=self.layout_rc, init=0.0)
+        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, init=0.0)
 
         for stage in range(self.num_stages - 1):
             offset_k = start_offset_k + stage * self.block_k
@@ -221,15 +214,13 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         preload_stage: int32 = self.num_stages - 1
         for offset_k in self.range(start_offset_k, end_offset_k, block_k, unroll=self.num_stages):
             # computation for current tile
-            a = self.load_shared(sa[current_stage], out_layout=self.layout_ra)
+            a = self.load_shared(sa[current_stage], out_layout=self.mma.la)
             scale = self.load_shared(ss[current_stage], out_layout=self.layout_rs)
             b_flattened = self.load_shared(sb[current_stage], out_layout=self.layout_rb_flattened)
-            b_low_precision = self.view(b_flattened, dtype=self.b_dtype, layout=self.layout_rb)
+            b_low_precision = self.view(b_flattened, dtype=self.b_dtype, layout=self.mma.lb)
             b_unscaled = self.cast(b_low_precision, dtype=self.a_dtype)
             b = b_unscaled * scale
-            # self.print_tensor('a ', a)
-            # self.print_tensor('b ', b)
-            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=self.warp_spatial, warp_repeat=self.warp_repeat)
+            self.mma_dot(a, b, acc, output=acc)
 
             # preload the next tile of A and B into shared memory
             preload_offset_k = offset_k + (self.num_stages - 1) * block_k
@@ -385,9 +376,7 @@ class QuantizedLinear(nn.Module):
 def main():
     headers = ["dtype", "m", "n", "k", "torch", "torch(TFLOPs)", "tilus", "tilus(TFLOPs)"]
     group_size = 128
-    workloads = [
-        [4097, 4096, 4096],
-    ]
+    workloads = []
     for k, n in [
         [4096, 4096 * 3],
         # [4096, 4096],

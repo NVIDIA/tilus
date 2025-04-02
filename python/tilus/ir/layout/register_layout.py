@@ -35,6 +35,9 @@ class RegisterLayout(IRNode):
     def size(self):
         return prod(self.shape)
 
+    def __str__(self):
+        raise NotImplementedError("the subclass of RegisterLayout should implement __str__ method")
+
     def __repr__(self):
         return str(self)
 
@@ -168,6 +171,13 @@ class RegisterLayout(IRNode):
 
     def column_repeat(self, *shape: int) -> RegisterLayout:
         return compose(self, column_repeat(*shape))
+
+    def get_worker_map(self) -> dict[tuple[int, ...], list[int]]:
+        ret = {}
+        for indices in itertools.product(*[range(extent) for extent in self.shape]):
+            workers = [int(w) for w in self.global2worker([int32(idx) for idx in indices])]
+            ret[indices] = workers
+        return ret
 
     def is_simple(self) -> bool:
         """

@@ -7,7 +7,6 @@ from hidet.ir.expr import Constant, Expr, Var
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
 from hidet.ir.type import DataType
 from tilus.ir.builders import StmtBuilder
-from tilus.ir.instructions import MmaDotConfig
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_repeat, global_strides
 from tilus.ir.prog import Program
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
@@ -330,13 +329,17 @@ class Script:
         c: RegisterTensor,
         /,
         *,
-        config: MmaDotConfig,
-        warp_spatial: Sequence[int],
-        warp_repeat: Sequence[int],
+        # config: MmaDotConfig,
+        # warp_spatial: Sequence[int],
+        # warp_repeat: Sequence[int],
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         return self._builder.mma_dot(
-            a, b, c, config=config, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
+            a,
+            b,
+            c,
+            # config=config, warp_spatial=warp_spatial, warp_repeat=warp_repeat,
+            output=output,
         )
 
     def cast(self, x: RegisterTensor, dtype: DataType) -> RegisterTensor:

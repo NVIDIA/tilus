@@ -5,48 +5,37 @@ import pandas as pd
 import tilus
 import torch
 from tilus import float16, float32, int32
-from tilus.ir.layout import reduce, spatial
-from tilus.utils import benchmark_func, prod
+from tilus.utils import benchmark_func
 
 tilus.option.cache_dir("./cache")
 
 pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
 
-@tilus.autotune("warp_spatial", [[1, 8], [2, 4], [4, 2], [8, 1], [1, 4], [2, 2], [4, 1]])
-@tilus.autotune(
-    "warp_repeat",
-    [[1, 4, 1], [4, 1, 1], [2, 2, 1], [1, 8, 1], [2, 4, 1], [4, 2, 1], [8, 1, 1]],
-)
-@tilus.autotune(
-    "num_stages",
-    [3, 4, 5],
-)
+@tilus.autotune("num_warps", [4, 8])
+@tilus.autotune("block_m, block_n", [(128, 128), (128, 64), (64, 128)])
+@tilus.autotune("block_k", [16, 32])
+@tilus.autotune("num_stages", [3, 4, 5])
 class MatmulV5(tilus.Script):
     debug_schedule = dict(
-        warp_spatial=[4, 2],
-        warp_repeat=[2, 4, 1],
+        num_warps=4,
+        block_m=128,
+        block_n=64,
+        block_k=16,
         num_stages=4,
     )
 
-    def __init__(self, warp_spatial: tuple[int, int], warp_repeat: tuple[int, int, int], num_stages: int):
+    def __init__(self, num_warps, block_m, block_n, block_k, num_stages):
         super().__init__()
-        self.mma = self.cuda.mma_configs.m16n8k16_f16_f32
-        self.block_m = self.mma.m * warp_spatial[0] * warp_repeat[0]
-        self.block_n = self.mma.n * warp_spatial[1] * warp_repeat[1]
-        self.block_k = self.mma.k * warp_repeat[2]
-        self.num_warps = prod(warp_spatial)
-
-        wsm, wsn = warp_spatial
-        wrm, wrn, wrk = warp_repeat
-        self.warp_spatial = warp_spatial
-        self.warp_repeat = warp_repeat
+        self.mma = self.cuda.default_dot_config(float16, float32, num_warps=num_warps, m=block_m, n=block_n, k=block_k)
+        self.block_m = block_m
+        self.block_n = block_n
+        self.block_k = block_k
+        self.num_warps = num_warps
         self.num_stages = num_stages
-        self.layout_ra = reduce(spatial(wsm, 1, wsn, ranks=[1, 0, 2]), dims=[2]).repeat(wrm, wrk) * self.mma.la
-        self.layout_rb = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk, wrn) * self.mma.lb
-        self.layout_rc = spatial(wsm, wsn).repeat(wrm, wrn) * self.mma.lc
-        self.layout_sa = self.cuda.swizzled_shared_layout(dtype=float16, bs=num_stages, m=self.block_m, n=self.block_k)
-        self.layout_sb = self.cuda.swizzled_shared_layout(dtype=float16, bs=num_stages, m=self.block_k, n=self.block_n)
+
+        self.layout_sa = self.cuda.swizzled_shared_layout(float16, shape=[self.num_stages, self.block_m, self.block_k])
+        self.layout_sb = self.cuda.swizzled_shared_layout(float16, shape=[self.num_stages, self.block_k, self.block_n])
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
         self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
@@ -60,7 +49,7 @@ class MatmulV5(tilus.Script):
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
         sa = self.shared_tensor(dtype=float16, layout=self.layout_sa)
         sb = self.shared_tensor(dtype=float16, layout=self.layout_sb)
-        acc = self.register_tensor(dtype=float32, layout=self.layout_rc, init=0.0)
+        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, init=0.0)
 
         for stage in range(self.num_stages - 1):
             offset_k = stage * self.block_k
@@ -79,16 +68,16 @@ class MatmulV5(tilus.Script):
             self.copy_async(src=ga, dst=sa[preload_stage], offsets=[offset_m, preload_offset_k])
             self.copy_async(src=gb, dst=sb[preload_stage], offsets=[preload_offset_k, offset_n])
             self.copy_async_commit_group()
-            self.copy_async_wait_group(n=self.num_stages - 2)
 
             # computation for current tile
-            a = self.load_shared(sa[current_stage], out_layout=self.layout_ra)
-            b = self.load_shared(sb[current_stage], out_layout=self.layout_rb)
-            acc = self.mma_dot(a, b, acc, config=self.mma, warp_spatial=self.warp_spatial, warp_repeat=self.warp_repeat)
+            a = self.load_shared(sa[current_stage], out_layout=self.mma.la)
+            b = self.load_shared(sb[current_stage], out_layout=self.mma.lb)
+            self.mma_dot(a, b, acc, output=acc)
 
             # update the stage
             current_stage = (current_stage + 1) % self.num_stages
             preload_stage = (preload_stage + 1) % self.num_stages
+            self.copy_async_wait_group(n=self.num_stages - 2)
             self.sync()
 
         self.free_shared(sa)
@@ -103,8 +92,8 @@ def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
         [2048, 2048, 2048],
-        # [4096, 4096, 4096],
-        # [4097, 4096, 4096],
+        [4096, 4096, 4096],
+        [4097, 4096, 4096],
     ]
 
     rows = []
@@ -117,12 +106,8 @@ def main():
         c_expect = a @ b
         matmul(m, n, k, a, b, c_actual)
 
-        print(c_expect)
-        print(c_actual)
-        print(c_actual - c_expect)
-
         # check correctness
-        torch.testing.assert_close(c_expect, c_actual, atol=1e-2, rtol=1e-2)
+        torch.testing.assert_close(c_expect, c_actual)
 
         # benchmark
         for name, func in [

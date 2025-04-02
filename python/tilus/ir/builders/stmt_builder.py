@@ -28,7 +28,6 @@ from tilus.ir.instructions import (
     LoadMatrixInst,
     LoadSharedGenericInst,
     LoadSharedInst,
-    MmaDotConfig,
     MmaDotInst,
     PrintTensorInst,
     SharedSliceInst,
@@ -443,15 +442,19 @@ class StmtBuilder(StmtBuilderCore):
         a: RegisterTensor,
         b: RegisterTensor,
         c: RegisterTensor,
-        config: MmaDotConfig,
-        warp_spatial: Sequence[int],
-        warp_repeat: Sequence[int],
+        # config: MmaDotConfig,
+        # warp_spatial: Sequence[int],
+        # warp_repeat: Sequence[int],
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if output is None:
             output = RegisterTensor.create(dtype=c.dtype, layout=c.layout)
         inst = MmaDotInst.create(
-            a=a, b=b, c=c, config=config, warp_spatial=warp_spatial, warp_repeat=warp_repeat, output=output
+            a=a,
+            b=b,
+            c=c,
+            # config=config, warp_spatial=warp_spatial, warp_repeat=warp_repeat,
+            output=output,
         )
         self.append(inst)
         return inst.register_output
