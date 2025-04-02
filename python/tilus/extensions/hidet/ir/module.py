@@ -35,10 +35,4 @@ def merge_ir_modules(modules: Sequence[IRModule]) -> IRModule:
         merged.linking_libs.extend([lib for lib in module.linking_libs if lib not in merged.linking_libs])
         merged.object_files.extend([file for file in module.object_files if file not in merged.object_files])
 
-        # merge attrs
-        # for key, value in module.attrs.items():
-        #     if key in merged.attrs and merged.attrs[key] != value:
-        #         raise ValueError("Attribute {} has already existed in module with a different value.".format(key))
-        #     merged.attrs[key] = value
-
     return merged

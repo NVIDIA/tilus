@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple, Union
 import tabulate
 
 from hidet.ir import Add, AssignStmt, BufferStoreStmt, Cast, DeclareStmt, LetStmt, Sub
+from hidet.ir.builders import StmtBuilder
 from hidet.ir.dtypes import boolean, float32, int32, int64, uint8, uint16, uint32
 from hidet.ir.dtypes.integer_subbyte import IntegerSubbyteType
 from hidet.ir.expr import Address, Call, Constant, Dereference, Expr, SymbolVar, TensorElement, Var, cast, var
@@ -15,7 +16,6 @@ from hidet.ir.tools import IRPrinter, TypeInfer, collect
 from hidet.ir.type import BaseType, DataType, PointerType, TensorPointerType, TensorType, type_equal
 from hidet.transforms.base import FunctionPass
 from hidet.utils import same_list
-from tilus.extensions.hidet.ir.builders import StmtBuilder
 from tilus.extensions.hidet.ir.primitives.cuda.cast import cast_subbyte_float_from_f32, cast_subbyte_float_to_f32
 from tilus.extensions.hidet.ir.primitives.cuda.subbyte import load_subbyte
 from tilus.extensions.hidet.ir.type import get_base_type, is_addressable
@@ -186,6 +186,8 @@ class AddressingAnalyzer(IRVisitor):
                 scope = DeclareScope.Host
             elif "dynamic_shared_memory" in func_name:
                 scope = DeclareScope.Shared
+            elif "get_ptr_symbol_value" in func_name:
+                scope = DeclareScope.Global
             else:
                 raise ValueError("Can not infer the scope of return value of function {}".format(func_name))
 

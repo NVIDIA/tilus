@@ -1,6 +1,6 @@
-from typing import List, Optional, Sequence
+from typing import List, Optional
 
-from hidet.ir.expr import Dereference, Expr, Var, as_expr, cast, var
+from hidet.ir.expr import Dereference, Expr, Var, cast, var
 from hidet.ir.type import BaseType
 
 
@@ -8,10 +8,6 @@ def deref(v: Expr, derefed_type: Optional[BaseType] = None) -> Expr:
     if derefed_type is not None:
         v = cast(v, ~derefed_type)
     return Dereference(v)
-
-
-def convert_sequence(seq: Sequence) -> tuple:
-    return tuple(convert_sequence(item) if isinstance(item, Sequence) else as_expr(item) for item in seq)
 
 
 def index_vars(num_vars: int) -> List[Var]:

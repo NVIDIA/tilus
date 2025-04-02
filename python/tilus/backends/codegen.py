@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Set, Tuple, Type
 
+from hidet.ir.builders import FunctionBuilder, StmtBuilder
 from hidet.ir.dtypes import int32, uint8
 from hidet.ir.expr import Constant, Expr, SymbolVar, Var, cast, tensor_pointer_var, tensor_var
 from hidet.ir.func import Function as HidetFunction
@@ -11,7 +12,6 @@ from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.primitives.cuda.vars import threadIdx
 from hidet.ir.stmt import DeclareScope
 from hidet.ir.type import void_p
-from tilus.extensions.hidet.ir.builders import FunctionBuilder, StmtBuilder
 from tilus.extensions.hidet.ir.module import merge_ir_modules
 from tilus.extensions.hidet.ir.tools import rewrite
 from tilus.ir.func import Function
@@ -250,7 +250,7 @@ class Codegen(IRFunctor):
         self.tensor2var: Dict[Tensor, Var] = {}
 
         # global memory management
-        self.gmem_base_ptr: Var = SymbolVar(dtype=~uint8, name=self.GMEM_WORKSPACE_NAME)  # type: ignore # todo: update hidet to allow SymbolVar supports pointer
+        self.gmem_base_ptr: Var = SymbolVar(dtype=~uint8, name=self.GMEM_WORKSPACE_NAME)  # type: ignore
         self.gmem_allocated: Expr = int32.zero
         self.gmem_maximum_allocated: Expr = int32.zero
         self.gmem_clean_base_ptr: Var = SymbolVar(dtype=~uint8, name=self.GMEM_CLEAN_WORKSPACE_NAME)  # type: ignore
@@ -339,8 +339,14 @@ class Codegen(IRFunctor):
         from hidet.ir.primitives.runtime import set_symbol_value_ptr
         from hidet.ir.stmt import SeqStmt
         from hidet.transforms.generate_launch_func import add_launch_func
+        from hidet.transforms.instantiate_symbols import InstantiateSymbolsRewriter
 
+        # add the launch function for the kernel function
         add_launch_func(ir_module, kernel_func=kernel_func)
+
+        # instantiate the symbols in the kernel function, like __gmem_workspace, etc.
+        instantiate_rewriter = InstantiateSymbolsRewriter()
+        ir_module = instantiate_rewriter(ir_module)
 
         launch_func = ir_module.functions["launch"]
         launch_func = HidetFunction(
@@ -386,7 +392,7 @@ class Codegen(IRFunctor):
         updated_ir_module = IRModule(
             functions={
                 launch_func.name: launch_func,
-                kernel_func.name: kernel_func,
+                kernel_func.name: ir_module.functions[kernel_func.name],
             },
         )
         return updated_ir_module
@@ -409,7 +415,7 @@ class Codegen(IRFunctor):
             dynamic_smem_bytes=None,
             min_blocks=None,
         )
-        self.builder.extend_params(func.params)
+        self.builder.extend_params(list(func.params))
 
         # init for_thread_group stack
         self.thread_groups.num_groups = [1]

@@ -254,7 +254,7 @@ class Transpiler(PythonAstFunctor):
                         raise TilusProgramError(
                             self, lhs, "Assignment between Value is only accepted for RegisterValue."
                         )
-                    from tilus.extensions.hidet.ir.type import type_equal
+                    from hidet.ir.type import type_equal
 
                     if not type_equal(lookup_result.dtype, rhs.dtype):
                         raise TilusProgramError(

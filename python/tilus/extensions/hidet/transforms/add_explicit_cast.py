@@ -52,7 +52,7 @@ class AddExplicitCastRewriter(IRRewriter):
 
     def visit_LaunchKernelStmt(self, stmt: LaunchKernelStmt) -> Stmt:
         func_type = stmt.func_var.type
-        assert isinstance(func_type, FuncType)
+        assert isinstance(func_type, FuncType) and len(func_type.param_types) == len(stmt.args)
         args = self.process_list(self.visit(stmt.args), func_type.param_types)
         if same_list(args, stmt.args):
             return stmt
