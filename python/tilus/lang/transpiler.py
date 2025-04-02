@@ -526,7 +526,7 @@ class Transpiler(PythonAstFunctor):
     def visit_List(self, expr: ast.List) -> list[Any]:
         return [self.visit(v) for v in expr.elts]
 
-    def visit_BinOp(self, expr: ast.BinOp) -> Union[hidet_ir.Expr, float, int, list, tuple, str]:
+    def visit_BinOp(self, expr: ast.BinOp) -> Union[hidet_ir.Expr, RegisterTensor, float, int, list, tuple, str]:
         from hidet import ir
 
         lhs = self.visit(expr.left)
@@ -560,6 +560,15 @@ class Transpiler(PythonAstFunctor):
             else:
                 type_name = type(expr.op).__name__
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
+        elif isinstance(lhs, RegisterTensor) and isinstance(rhs, RegisterTensor):
+            op_dict = {ast.Add: "+", ast.Mult: "*"}  # type: ignore
+            if type(expr.op) in op_dict:
+                sb = StmtBuilder()
+                output = sb.elementwise_binary(lhs, rhs, op_dict[type(expr.op)])  # type: ignore
+                self.current_scope.append(sb.flush_stmts())
+                return output
+            else:
+                raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type(expr.op)))
         else:
             raise HidetProgramError(
                 self, expr, "Can not apply operator {} to {} and {}.".format(expr.op, type(lhs), type(rhs))

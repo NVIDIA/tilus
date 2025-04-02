@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable, List, Optional, Sequence, Union
 
-from hidet.ir.dtypes import boolean, int32
+from hidet.ir.dtypes import boolean, int32, promote_type
 from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.type import BaseType, DataType
 from tilus.ir.inst import Instruction
@@ -393,6 +393,17 @@ class StmtBuilder(StmtBuilderCore):
     def elementwise_binary(
         self, x: RegisterTensor, y: RegisterTensor, op: str, *, out: Optional[RegisterTensor] = None
     ) -> RegisterTensor:
+        if out is None:
+            if all(a % b == 0 for a, b in zip(x.shape, y.shape)):
+                layout = x.layout
+            elif all(b % a == 0 for a, b in zip(x.shape, y.shape)):
+                layout = y.layout
+            else:
+                raise NotImplementedError()
+            if op in ["+", "-", "*", "/"]:
+                out = RegisterTensor.create(dtype=promote_type(x.dtype, y.dtype), layout=layout)
+            else:
+                raise NotImplementedError()
         inst = ElementwiseBinaryInst.create(x, y, op, output=out)
         self.append(inst)
         return inst.register_output

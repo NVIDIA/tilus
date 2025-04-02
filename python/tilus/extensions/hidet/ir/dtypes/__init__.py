@@ -1,5 +1,6 @@
 # ruff: noqa: F401
 
+from hidet.ir.dtypes import name2dtype, sname2dtype
 from hidet.ir.dtypes.integer_subbyte import (
     i1,
     i2,
@@ -59,3 +60,10 @@ from .integer_subbyte import (
     uint7b,
 )
 from .vector import uint32x1, uint32x2, uint32x4
+
+for dtype in [
+    uint32x4,
+    uint32x2,
+]:
+    name2dtype[dtype.name] = dtype
+    sname2dtype[dtype.short_name] = dtype

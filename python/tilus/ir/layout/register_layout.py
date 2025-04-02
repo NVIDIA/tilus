@@ -551,6 +551,9 @@ class ConcatenatedRegisterLayout(RegisterLayout):
     lhs: RegisterLayout
     rhs: RegisterLayout
 
+    def __str__(self):
+        return "concat({}, {})".format(str(self.lhs), str(self.rhs))
+
     @staticmethod
     def create(lhs: RegisterLayout, rhs: RegisterLayout) -> ConcatenatedRegisterLayout:
         return ConcatenatedRegisterLayout(
@@ -743,7 +746,7 @@ def expand(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
 
 
 def concat(lhs: RegisterLayout, rhs: RegisterLayout) -> RegisterLayout:
-    pass
+    return ConcatenatedRegisterLayout.create(lhs, rhs)
 
 
 def flatten(layout: RegisterLayout) -> RegisterLayout:

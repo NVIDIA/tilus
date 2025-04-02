@@ -55,6 +55,9 @@ class RegisterTensor(Tensor):
     def __add__(self, other: RegisterTensor) -> RegisterTensor:
         raise RuntimeError("register_tensor + register_tensor could only be used in Tilus Script.")
 
+    def __mul__(self, other: RegisterTensor) -> RegisterTensor:
+        raise RuntimeError("register_tensor * register_tensor could only be used in Tilus Script.")
+
 
 @dataclass(frozen=True, eq=False)
 class SharedTensor(Tensor):

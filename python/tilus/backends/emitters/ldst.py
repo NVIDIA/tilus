@@ -126,7 +126,7 @@ class LoadGlobalGenericInstEmitter(LoadStoreInstBaseEmitter):
                             self.buffer_store(buf=dst_ptr, indices=[i], value=src_ptr[i])
                     with self.otherwise():
                         with self.for_range(extent=num_units) as i:
-                            self.buffer_store(buf=dst_ptr, indices=[i], value=dtype.zero)
+                            self.buffer_store(buf=dst_ptr, indices=[i], value=unit_dtype.zero)
                 else:
                     dst_ptr, src_ptr = mem_ptr, reg_ptr
                     with self.if_then(mask):

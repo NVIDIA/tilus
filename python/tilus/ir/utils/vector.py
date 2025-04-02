@@ -83,9 +83,9 @@ class Vector(Generic[T]):
             rhs = [rhs]
         if len(lhs) != len(rhs) and len(lhs) != 1 and len(rhs) != 1:
             raise ValueError("Expect both vectors have the same length, or one of them is a scalar")
-        if len(lhs) == 1:
+        if len(lhs) == 1 and len(rhs) > 1:
             lhs = [lhs[0]] * len(rhs)
-        elif len(rhs) == 1:
+        elif len(rhs) == 1 and len(lhs) > 1:
             rhs = [rhs[0]] * len(lhs)
 
         return Vector([op(a, b) for a, b in zip(lhs, rhs)])

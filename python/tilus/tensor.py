@@ -64,7 +64,7 @@ class Tensor:
             value = cast(value, self.dtype)
         # set_slice(self, offsets=offsets, value=value)
 
-    def view(self, *, dtype: Optional[DataType] = None, shape: Optional[List[int]] = None) -> Tensor:
+    def view(self, *, dtype: Optional[DataType] = None, shape: Optional[Sequence[int]] = None) -> Tensor:
         return view(self, dtype, shape)
 
     def clone(self) -> Tensor:
@@ -149,7 +149,7 @@ def full(shape: List[int], fill_value: Union[float, int], dtype: DataType) -> Te
     return tensor
 
 
-def view(tensor: Tensor, dtype: Optional[DataType] = None, shape: Optional[List[int]] = None) -> Tensor:
+def view(tensor: Tensor, dtype: Optional[DataType] = None, shape: Optional[Sequence[int]] = None) -> Tensor:
     if dtype is None:
         dtype = tensor.dtype
     if shape is None:

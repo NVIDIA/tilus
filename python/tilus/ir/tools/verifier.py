@@ -102,7 +102,7 @@ class IRVerifier(IRVisitor):
         shared_shape = vector(inst.shared_input.shape)
         register_shape = vector(inst.register_output.shape)
 
-        if any(vector(shared_shape) != vector(register_shape)):
+        if len(shared_shape) != len(register_shape) or any(vector(shared_shape) != vector(register_shape)):
             self.error(
                 inst,
                 "The shared tensor shape [{}] does not match the register tensor shape [{}].",

@@ -14,22 +14,22 @@ class Instruction(IRNode):
 
     @property
     def shared_output(self) -> SharedTensor:
-        assert isinstance(self.output, SharedTensor)
+        assert isinstance(self.output, SharedTensor), self.output
         return self.output
 
     @property
     def register_output(self) -> RegisterTensor:
-        assert isinstance(self.output, RegisterTensor)
+        assert isinstance(self.output, RegisterTensor), self.output
         return self.output
 
     @property
     def register_or_shared_output(self) -> SharedTensor | RegisterTensor:
-        assert isinstance(self.output, SharedTensor) or isinstance(self.output, RegisterTensor)
+        assert isinstance(self.output, SharedTensor) or isinstance(self.output, RegisterTensor), self.output
         return self.output
 
     @property
     def global_output(self) -> GlobalTensor:
-        assert isinstance(self.output, GlobalTensor)
+        assert isinstance(self.output, GlobalTensor), self.output
         return self.output
 
     @property
