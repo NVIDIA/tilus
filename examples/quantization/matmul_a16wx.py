@@ -310,8 +310,13 @@ class QuantizedLinear(nn.Module):
             b_dtype=w_dtype,
         )
 
-        self.quantized_weight = torch.empty(size=[out_features * in_features * w_dtype.nbits // 8], dtype=torch.uint8)
-        self.scales = torch.empty(size=[in_features // group_size, out_features], dtype=dtype_to_torch(x_dtype))
+        self.quantized_weight = nn.Parameter(
+            torch.empty(size=[out_features * in_features * w_dtype.nbits // 8], dtype=torch.uint8), requires_grad=False
+        )
+        self.scales = nn.Parameter(
+            torch.empty(size=[in_features // group_size, out_features], dtype=dtype_to_torch(x_dtype)),
+            requires_grad=False,
+        )
 
     def load_and_quantize(self, weight: torch.Tensor):
         assert (self.out_features, self.in_features) == weight.shape, "weight shape mismatch"
@@ -352,7 +357,7 @@ class QuantizedLinear(nn.Module):
         )
 
         # save the scales type
-        self.scales = scales.view(in_channels // group_size, out_channels)
+        self.scales[:] = scales.view(in_channels // group_size, out_channels)
 
         # # validate the quantized weight
         # restored_weight = torch.empty_like(quantized_weight)
@@ -405,7 +410,7 @@ def main():
         for m, n, k in workloads:
             quantized_linear = QuantizedLinear(
                 x_dtype=float16, w_dtype=dtype, group_size=group_size, in_features=k, out_features=n
-            )
+            ).cuda()
             a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
             b = (torch.rand(k, n, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
             c_expect = a @ b
