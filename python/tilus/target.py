@@ -122,5 +122,6 @@ def match_target(target: Target, target_templates: Sequence[Target]) -> Optional
     return max(supported_targets, key=lambda tt: tt.properties.compute_capability)
 
 
-# cache the result in case the sub-process is forked and call it again, which will cause cuda initialization error
-get_current_target()
+def lazy_init():
+    # call this function before we use multiprocessing to cache the target
+    get_current_target()

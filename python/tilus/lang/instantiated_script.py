@@ -24,6 +24,7 @@ from tilus.drivers import BuildOptions, build_program, get_cache_dir
 from tilus.ir.prog import Program
 from tilus.lang.script import Script
 from tilus.runtime import CompiledProgram, load_compiled_program
+from tilus.target import lazy_init
 from tilus.utils import benchmark_func, relative_to_with_walk_up, to_snake_case
 from tilus.utils.multiprocess import parallel_imap
 
@@ -380,6 +381,7 @@ class JitInstance:
             scheduling_jobs.append((self.script_cls, self.call_params, schedule, name2const, name2divisibility))
 
         # instantiate the schedules into programs in parallel
+        lazy_init()
         for idx, item in enumerate(
             tqdm(
                 iterable=parallel_imap(func=JitInstance._instantiate_schedule, jobs=scheduling_jobs),
@@ -481,6 +483,8 @@ class JitInstance:
         transpiled_programs = self.transpiled_programs
         transpiled_schedules = self.transpiled_schedules
         building_jobs = [(program, self.build_options) for program in transpiled_programs]
+
+        lazy_init()
         for idx, item in enumerate(
             tqdm(
                 iterable=parallel_imap(func=JitInstance._build_program, jobs=building_jobs),
