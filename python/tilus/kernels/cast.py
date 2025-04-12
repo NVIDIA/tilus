@@ -15,7 +15,16 @@ class Cast(Script):
         super().__init__()
         self.src_dtype = src_dtype
         self.dst_dtype = dst_dtype
-        vector = lcm(lcm(src_dtype.nbits, dst_dtype.nbits), 8)
+        if src_dtype.nbits < 8 and dst_dtype.nbits < 8:
+            raise NotImplementedError()
+        elif src_dtype.nbits < 8:
+            vector = lcm(src_dtype.nbits, 8) // src_dtype.nbits
+        elif dst_dtype.nbits < 8:
+            vector = lcm(dst_dtype.nbits, 8) // dst_dtype.nbits
+        else:
+            bits = lcm(src_dtype.nbits, dst_dtype.nbits)
+            assert 128 % bits == 0
+            vector = 128 // bits
         self.layout = spatial(128).repeat(vector)
 
     def __call__(self, n: int32, src_ptr: void_p, dst_ptr: void_p):

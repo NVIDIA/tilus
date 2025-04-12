@@ -37,11 +37,20 @@ class FloatSubbyteType(FloatType):
         e_bits = self._exponent_nbits
         m_bits = self._mantissa_nbits
         e_bias = self._exponent_bias
+        if e_bits == 5:
+            # for float7_e5m1, float6_e5m0, etc.
+            # we use (11111)_exponent to represent 'inf'
+            max_value = math.pow(2.0, (1 << e_bits) - 1 - 1 - e_bias) * (2.0 - math.pow(2.0, -m_bits))
+        else:
+            # for other float types, we do not use (11111)_exponent to represent 'inf', instead
+            # we use all 1 exponent to represent normal numbers
+            max_value = math.pow(2.0, (1 << e_bits) - 1 - e_bias) * (2.0 - math.pow(2.0, -m_bits))
+
         return FloatInfo(
             bits=e_bits + m_bits + 1,
             eps=math.pow(2.0, -m_bits),
-            min=-math.pow(2.0, (1 << e_bits) - 1 - e_bias) * (2.0 - math.pow(2.0, -m_bits)),
-            max=math.pow(2.0, (1 << e_bits) - 1 - e_bias) * (2.0 - math.pow(2.0, -m_bits)),
+            min=-max_value,
+            max=max_value,
             smallest_normal=math.pow(2.0, 1 - e_bias),
             dtype=self,
         )
