@@ -232,7 +232,7 @@ class Script:
         offsets: Sequence[Expr],
         shape: Optional[Sequence[int]] = None,
         layout: Optional[RegisterLayout] = None,
-        dims: Optional[Sequence[int]] = None,
+        slice_dims: Optional[Sequence[int]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         match (shape, layout, out):
@@ -255,7 +255,7 @@ class Script:
             case _:
                 raise ValueError("Cannot specify any two of shape, layout, and out")
 
-        return self._builder.load_global(x=x, offsets=offsets, dims=dims, output=out)
+        return self._builder.load_global(x=x, offsets=offsets, dims=slice_dims, output=out)
 
     def store_global(
         self,
@@ -354,6 +354,32 @@ class Script:
         local_offset: Union[Expr, int] = 0,
     ) -> RegisterTensor:
         return self._builder.view(x=x, layout=layout, dtype=dtype, local_offset=local_offset)
+
+    def repeat(
+        self,
+        x: RegisterTensor,
+        repeats: Sequence[int],
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.repeat(
+            x=x,
+            repeats=repeats,
+            out=out,
+        )
+
+    def repeat_interleave(
+        self,
+        x: RegisterTensor,
+        repeats: Sequence[int],
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.repeat_interleave(
+            x=x,
+            repeats=repeats,
+            out=out,
+        )
 
     def load_global_generic(
         self,

@@ -13,5 +13,6 @@ from . import (
     shuffle,
     smem,
     sync,
+    transform,
     view,
 )

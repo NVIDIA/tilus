@@ -3,7 +3,7 @@ import operator
 from hidet.ir.expr import Expr, Var, if_then_else, tensor_var
 from hidet.ir.utils.broadcast_utils import broadcast_indices
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.ir.instructions import BroadcastElementwiseBinaryInst, ElementwiseBinaryInst, ElementwiseUnaryInst
+from tilus.ir.instructions import ElementwiseBinaryInst, ElementwiseUnaryInst
 from tilus.ir.tensor import RegisterTensor
 
 
@@ -58,30 +58,30 @@ class ElementwiseBinaryInstEmitter(BaseInstEmitter):
             self.buffer_store(buf=z_var, indices=[i], value=op(x_var[x_local], y_var[y_local]))
 
 
-@register_emitter(BroadcastElementwiseBinaryInst)
-class BroadcastElementwiseBinaryInstEmitter(BaseInstEmitter):
-    def emit(self, inst: BroadcastElementwiseBinaryInst) -> None:
-        name_mapping = {"+": "added", "-": "diff", "*": "product", "/": "quotient"}
-        op_var_name = name_mapping[inst.op]
-
-        r_value: RegisterTensor = inst.inputs[0].as_register_tensor()
-        s_expr: Expr = inst.s
-        z_value: RegisterTensor = inst.register_output
-        r_var: Var = self.tensor2var[r_value]
-        z_var: Var
-        if z_value in self.tensor2var:
-            z_var = self.tensor2var[z_value]
-        else:
-            z_var = self.declare(tensor_var(op_var_name, shape=[z_value.local_size], dtype=z_value.dtype))
-            self.tensor2var[z_value] = z_var
-        with self.for_range(extent=z_value.local_size) as i:
-            op_map = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv, "%": operator.mod}
-
-            def expr_op(x, y):
-                nonlocal op_map
-                if inst.tensor_left:
-                    return op_map[inst.op](x, y)
-                else:
-                    return op_map[inst.op](y, x)
-
-            self.buffer_store(buf=z_var, indices=[i], value=expr_op(r_var[i], s_expr))
+# @register_emitter(BroadcastElementwiseBinaryInst)
+# class BroadcastElementwiseBinaryInstEmitter(BaseInstEmitter):
+#     def emit(self, inst: BroadcastElementwiseBinaryInst) -> None:
+#         name_mapping = {"+": "added", "-": "diff", "*": "product", "/": "quotient"}
+#         op_var_name = name_mapping[inst.op]
+#
+#         r_value: RegisterTensor = inst.inputs[0].as_register_tensor()
+#         s_expr: Expr = inst.s
+#         z_value: RegisterTensor = inst.register_output
+#         r_var: Var = self.tensor2var[r_value]
+#         z_var: Var
+#         if z_value in self.tensor2var:
+#             z_var = self.tensor2var[z_value]
+#         else:
+#             z_var = self.declare(tensor_var(op_var_name, shape=[z_value.local_size], dtype=z_value.dtype))
+#             self.tensor2var[z_value] = z_var
+#         with self.for_range(extent=z_value.local_size) as i:
+#             op_map = {"+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv, "%": operator.mod}
+#
+#             def expr_op(x, y):
+#                 nonlocal op_map
+#                 if inst.tensor_left:
+#                     return op_map[inst.op](x, y)
+#                 else:
+#                     return op_map[inst.op](y, x)
+#
+#             self.buffer_store(buf=z_var, indices=[i], value=expr_op(r_var[i], s_expr))

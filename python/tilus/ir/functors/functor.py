@@ -10,7 +10,6 @@ from tilus.ir.instructions import (
     AllocateRegisterInst,
     AllocateSharedInst,
     AssignInst,
-    BroadcastElementwiseBinaryInst,
     CastInst,
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,
@@ -298,9 +297,6 @@ class IRFunctor:
         raise NotImplementedError()
 
     def visit_ElementwiseBinaryInst(self, inst: ElementwiseBinaryInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_BroadcastElementwiseBinaryInst(self, inst: BroadcastElementwiseBinaryInst) -> Any:
         raise NotImplementedError()
 
     def visit_MmaDotInst(self, inst: MmaDotInst) -> Any:

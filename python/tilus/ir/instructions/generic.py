@@ -204,15 +204,17 @@ class ElementwiseBinaryInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class BroadcastElementwiseBinaryInst(Instruction):
-    VALID_OPS: ClassVar[tuple[str, ...]] = ("+", "-", "*", "/", "%")
-    op: str
-    s: Expr
-    tensor_left: bool
-
+class RepeatInst(Instruction):
     @staticmethod
-    def create(tensor: RegisterTensor, scalar: Expr, op: str, tensor_left: bool) -> BroadcastElementwiseBinaryInst:
-        return BroadcastElementwiseBinaryInst(output=tensor, inputs=(tensor,), op=op, s=scalar, tensor_left=tensor_left)
+    def create(x: RegisterTensor, output: RegisterTensor) -> RepeatInst:
+        return RepeatInst(output=output, inputs=(x,))
+
+
+@dataclass(frozen=True, eq=False)
+class RepeatInterleaveInst(Instruction):
+    @staticmethod
+    def create(x: RegisterTensor, output: RegisterTensor) -> RepeatInterleaveInst:
+        return RepeatInterleaveInst(output=output, inputs=(x,))
 
 
 @dataclass(frozen=True, eq=False)

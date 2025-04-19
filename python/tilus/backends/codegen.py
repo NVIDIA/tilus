@@ -124,6 +124,10 @@ class BaseInstEmitter(StmtBuilder):
         return self.codegen.thread_groups.current_worker[-1]
 
     @property
+    def current_num_workers(self) -> int:
+        return self.codegen.thread_groups.group_size[-1]
+
+    @property
     def thread_groups(self):
         return self.codegen.thread_groups
 

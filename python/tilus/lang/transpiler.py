@@ -238,10 +238,10 @@ class Transpiler(PythonAstFunctor):
                         self.current_scope.append(stmt)
                         self.current_scope.bind(var_name, stmt.var)
                     else:
-                        if rhs is None:
-                            raise TilusProgramError(
-                                self, lhs, "Trying to assign None to a variable, which is not allowed."
-                            )
+                        # if rhs is None:
+                        #     raise TilusProgramError(
+                        #         self, lhs, "Trying to assign None to a variable, which is not allowed."
+                        #     )
                         self.current_scope.bind(var_name, rhs)
             else:
                 # assignment
@@ -722,6 +722,67 @@ class Transpiler(PythonAstFunctor):
             front = current
         cond = as_expr(cond)
         return cond
+
+    def visit_IfExp(self, expr: ast.IfExp) -> hidet_ir.Expr:
+        cond = self.visit(expr.test)
+
+        if isinstance(cond, hidet_ir.Constant) or isinstance(cond, (int, bool)):
+            cond = bool(cond)
+            if cond:
+                then_expr = self.visit(expr.body)
+                return then_expr
+            else:
+                else_expr = self.visit(expr.orelse)
+                return else_expr
+        else:
+            then_expr = self.visit(expr.body)
+            else_expr = self.visit(expr.orelse)
+            if not isinstance(then_expr, hidet_ir.Expr) or not isinstance(else_expr, hidet_ir.Expr):
+                raise HidetProgramError(self, expr, "Then and else expression must be hidet expression.")
+            return hidet_ir.expr.if_then_else(cond, then_expr, else_expr)
+
+    def visit_AugAssign(self, stmt: ast.AugAssign) -> None:
+        if isinstance(stmt.target, ast.Name):
+            target = ast.Name(stmt.target.id, ast.Load())
+            var_value = self.visit(target)
+        else:
+            raise HidetProgramError(self, stmt.target, "AugAssign only support variable name as target.")
+        value = self.visit(stmt.value)
+
+        sb = StmtBuilder()
+        if isinstance(var_value, RegisterTensor):
+            op_dict: Any = {
+                ast.Add: "+",
+                ast.Sub: "-",
+                ast.Mult: "*",
+                ast.Div: "/",
+                ast.Mod: "//",
+                ast.FloorDiv: "/",
+            }
+            op = op_dict[type(stmt.op)]
+            if isinstance(value, (int, float, hidet_ir.Expr)):
+                value = sb.allocate_register(dtype=var_value.dtype, layout=var_value.layout, f_init=lambda axes: value)
+            if isinstance(value, RegisterTensor):
+                sb.elementwise_binary(x=var_value, y=value, op=op, out=var_value)
+            else:
+                raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
+        elif isinstance(var_value, hidet_ir.Var) and isinstance(value, (int, float, hidet_ir.Expr)):
+            op_dict = {
+                ast.Add: operator.add,
+                ast.Sub: operator.sub,
+                ast.Mult: operator.mul,
+                ast.Div: operator.truediv,
+                ast.FloorDiv: operator.floordiv,
+                ast.Mod: operator.mod,
+                ast.RShift: operator.rshift,
+                ast.LShift: operator.lshift,
+                ast.BitXor: operator.xor,
+            }
+            sb.assign(var=var_value, value=op_dict[type(stmt.op)](var_value, value))
+        else:
+            raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
+
+        self.current_scope.append(sb.flush_stmts())
 
     def visit_For(self, stmt: ast.For) -> None:
         # create loop vars

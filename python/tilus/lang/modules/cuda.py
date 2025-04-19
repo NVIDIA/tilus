@@ -127,6 +127,21 @@ class cuda:
         layout_rb = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk, wrn) * atomic_mma.lb
         layout_rc = spatial(wsm, wsn).repeat(wrm, wrn) * atomic_mma.lc
 
+        def count_registers(candidate: tuple[tuple[int, int], tuple[int, int, int]]) -> int:
+            # calculate the number of registers used by the candidate
+            _, (wrm, wrn, wrk) = candidate
+            a_bytes = wrm * wrk * atomic_mma.la.local_size * atomic_mma.operand_type.nbytes
+            b_bytes = wrn * wrk * atomic_mma.lb.local_size * atomic_mma.operand_type.nbytes
+            c_bytes = wrm * wrn * atomic_mma.lc.local_size * atomic_mma.acc_type.nbytes
+            return (a_bytes + b_bytes + c_bytes) // 4
+
+        if count_registers((warp_spatial, warp_repeat)) >= 256 - 32:
+            raise ValueError(
+                "The register usage ({}) of given config is too high.".format(
+                    count_registers((warp_spatial, warp_repeat))
+                )
+            )
+
         return BlockMmaConfig(
             operand_dtype=atomic_mma.operand_type,
             accumulator_dtype=atomic_mma.acc_type,

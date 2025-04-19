@@ -34,8 +34,8 @@ class MatmulV0(tilus.Script):
         for k in range(k_blocks):
             offset_k = k * self.block_k
 
-            a = self.load_global(ga, offsets=[offset_m, offset_k], dims=[0, 1], layout=self.mma.la)
-            b = self.load_global(gb, offsets=[offset_k, offset_n], dims=[0, 1], layout=self.mma.lb)
+            a = self.load_global(ga, offsets=[offset_m, offset_k], slice_dims=[0, 1], layout=self.mma.la)
+            b = self.load_global(gb, offsets=[offset_k, offset_n], slice_dims=[0, 1], layout=self.mma.lb)
             self.mma_dot(a, b, acc, output=acc)
 
         acc_f16 = self.cast(acc, dtype=float16)

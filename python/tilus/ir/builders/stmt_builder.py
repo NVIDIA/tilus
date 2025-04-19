@@ -30,6 +30,7 @@ from tilus.ir.instructions import (
     LoadSharedInst,
     MmaDotInst,
     PrintTensorInst,
+    RepeatInterleaveInst,
     SharedSliceInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
@@ -40,6 +41,7 @@ from tilus.ir.instructions import (
     ViewInst,
 )
 from tilus.ir.instructions.cuda import LockSemaphoreInst, ReleaseSemaphoreInst
+from tilus.ir.instructions.generic import RepeatInst
 from tilus.ir.layout import GlobalLayout, RegisterLayout, global_repeat
 from tilus.ir.stmt import (
     AssignStmt,
@@ -404,6 +406,48 @@ class StmtBuilder(StmtBuilderCore):
             else:
                 raise NotImplementedError()
         inst = ElementwiseBinaryInst.create(x, y, op, output=out)
+        self.append(inst)
+        return inst.register_output
+
+    def repeat(
+        self,
+        x: RegisterTensor,
+        repeats: Sequence[int],
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        from tilus.ir.layout.register_layout import expand, repeat
+
+        if out is None:
+            layout = x.layout
+            if len(repeats) > len(layout.shape):
+                layout = expand(layout, dims=list(range(len(repeats) - len(layout.shape))))
+            if len(repeats) < len(layout.shape):
+                repeats = [1] * (len(layout.shape) - len(repeats)) + list(repeats)
+            layout = repeat(*repeats) * layout
+            out = RegisterTensor.create(dtype=x.dtype, layout=layout)
+        inst = RepeatInst.create(x=x, output=out)
+        self.append(inst)
+        return inst.register_output
+
+    def repeat_interleave(
+        self,
+        x: RegisterTensor,
+        repeats: Sequence[int],
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        from tilus.ir.layout.register_layout import expand, repeat
+
+        if out is None:
+            layout = x.layout
+            if len(repeats) > len(layout.shape):
+                layout = expand(layout, dims=list(range(len(repeats) - len(layout.shape))))
+            if len(repeats) < len(layout.shape):
+                repeats = [1] * (len(layout.shape) - len(repeats)) + list(repeats)
+            layout = layout * repeat(*repeats)
+            out = RegisterTensor.create(dtype=x.dtype, layout=layout)
+        inst = RepeatInterleaveInst.create(x=x, output=out)
         self.append(inst)
         return inst.register_output
 

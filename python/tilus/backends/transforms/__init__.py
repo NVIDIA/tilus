@@ -1,0 +1,1 @@
+from .inline_register_tensor import inline_register_tensor_pass

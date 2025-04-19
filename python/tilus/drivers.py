@@ -101,6 +101,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     optimized_ir_module: IRModule
         The optimized low-level IR module.
     """
+    from tilus.backends.transforms.inline_register_tensor import inline_register_tensor_pass
     from tilus.extensions.hidet.transforms import (
         PassContext,
         PassInstrument,
@@ -115,6 +116,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     from tilus.extensions.hidet.transforms.lower_subbyte_type import lower_subbyte_type_pass
 
     tilus_transforms = [
+        inline_register_tensor_pass(),
         resolve_primitive_func_pass(),
         add_explicit_cast_pass(),
         lower_subbyte_type_pass(),
