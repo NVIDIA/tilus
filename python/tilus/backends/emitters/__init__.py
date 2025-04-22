@@ -10,6 +10,7 @@ from . import (
     gmem,
     ldmatrix,
     ldst,
+    reduce,
     shuffle,
     smem,
     sync,

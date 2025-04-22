@@ -19,8 +19,8 @@ from tilus.utils import gcd
 
 
 class LoadStoreInstBaseEmitter(BaseInstEmitter):
-    @staticmethod
     def analyze_vectorization(
+        self,
         inst: Union[LoadGlobalGenericInst, StoreGlobalGenericInst, LoadSharedGenericInst, StoreSharedGenericInst],
     ) -> Optional[tuple[int, int]]:
         """
@@ -52,7 +52,8 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
 
         # analyze the offset and mask's value information (e.g., divisibility, constancy, etc.)
         var2info: dict[Var, TensorInfo] = {}
-        # todo: add divisibility information for the variables used in global memory offset
+        for var, divisibility in self.codegen.function.metadata.analysis.divisibility.items():
+            var2info[var] = TensorInfo.from_divisibility(shape=shape, divisibility=divisibility)
         offset_info = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.offset)
         mask_info = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.mask)
 

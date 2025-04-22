@@ -13,7 +13,7 @@ class AllocateSharedInstEmitter(BaseInstEmitter):
     def emit(self, inst: AllocateSharedInst) -> None:
         tensor: SharedTensor = inst.shared_output
 
-        allocator_addr = self.codegen.allocate_shared_value(tensor, nbytes=tensor.nbytes)
+        allocator_addr = self.codegen.allocate_shared_tensor(tensor, nbytes=tensor.nbytes)
         self.tensor2var[tensor] = self.declare_var(
             name="shared",
             tp=tensor_pointer_type(dtype=tensor.dtype, shape=[tensor.size]),

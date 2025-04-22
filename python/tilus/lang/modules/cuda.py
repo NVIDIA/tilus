@@ -337,7 +337,7 @@ class cuda:
             )
         elements_per_thread = num_elements // num_threads
         if vector_size is None:
-            vector_size = gcd(elements_per_thread, 4 // dtype.nbytes, shape[-1])
+            vector_size = gcd(elements_per_thread, 16 // dtype.nbytes, shape[-1])
         else:
             assert elements_per_thread % vector_size == 0
 

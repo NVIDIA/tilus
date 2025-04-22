@@ -503,7 +503,11 @@ class IRRewriter(IRFunctor):
         return layout
 
     def visit_SharedLayout(self, layout: SharedLayout) -> SharedLayout:
-        return layout
+        offset = self.visit(layout.offset)
+        if offset is layout.offset:
+            return layout
+        else:
+            return SharedLayout(shape=layout.shape, size=layout.size, axes=layout.axes, offset=offset)
 
     def visit_GlobalLayout(self, layout: GlobalLayout) -> GlobalLayout:
         shape = self.visit(layout.shape)

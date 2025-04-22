@@ -258,6 +258,23 @@ class ShuffleUpInst(ShuffleBaseInst):
 
 
 @dataclass(frozen=True, eq=False)
+class ReduceInst(Instruction):
+    dim: int
+    op: str
+    VALID_OPS: ClassVar[tuple[str, ...]] = ("sum", "max")
+
+    @staticmethod
+    def create(
+        x: RegisterTensor,
+        dim: int,
+        op: str,
+        output: RegisterTensor,
+    ) -> ReduceInst:
+        assert op in ReduceInst.VALID_OPS
+        return ReduceInst(output=output, inputs=(x,), dim=dim, op=op)
+
+
+@dataclass(frozen=True, eq=False)
 class ViewInst(Instruction):
     local_offset: Expr
 

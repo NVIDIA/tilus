@@ -18,6 +18,7 @@ from tilus.ir.func import Function
 from tilus.ir.functors import IRFunctor
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import FormatPrintInst, PrintTensorInst
+from tilus.ir.layout import shared_repeat
 from tilus.ir.prog import Program
 from tilus.ir.stmt import (
     AssignStmt,
@@ -32,7 +33,7 @@ from tilus.ir.stmt import (
     TensorPtrStmt,
     WhileStmt,
 )
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.ir.tools import IRPrinter
 from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.target import Target, get_current_target, gpgpu_any, match_target
@@ -142,6 +143,9 @@ class BaseInstEmitter(StmtBuilder):
     @property
     def num_warps(self) -> int:
         return self.codegen.function.metadata.num_warps
+
+    def request_shared_workspace(self, inst: Instruction) -> int:
+        return 0
 
     def emit(self, inst: Instruction) -> None:
         raise NotImplementedError()
@@ -292,7 +296,7 @@ class Codegen(IRFunctor):
 
         self.visit(SyncThreadsInst.create())
 
-    def allocate_shared_value(self, value: SharedTensor, nbytes: int) -> int:
+    def allocate_shared_tensor(self, value: SharedTensor, nbytes: int) -> int:
         addr: int = self.smem_allocator.allocate(nbytes)
         assert value not in self.shared_value_allocator_addr
         self.shared_value_allocator_addr[value] = addr
@@ -328,16 +332,18 @@ class Codegen(IRFunctor):
 
     def init_smem_workspace(self, program: Function) -> None:
         smem_workspace_nbytes: int = 0
-        # for inst in collect_instructions(program):    # todo: add this to emiter
-        #     smem_workspace_nbytes = max(smem_workspace_nbytes, inst.request_shared_workspace())
+        for inst in collect_instructions(program):  # todo: add this to emiter
+            # smem_workspace_nbytes = max(smem_workspace_nbytes, inst.request_shared_workspace())
+            emitter = resolve_inst_emitter(inst.__class__)(self)
+            smem_workspace_nbytes = max(smem_workspace_nbytes, emitter.request_shared_workspace(inst))
         if smem_workspace_nbytes > 0:
-            value = SharedTensor.create(dtype=uint8, layout=SharedLayout.repeat(smem_workspace_nbytes))
-            self.allocate_shared_value(value, nbytes=smem_workspace_nbytes)
-            self.tensor2var[value] = self.builder.declare(
+            smem_workspace = SharedTensor.create(dtype=uint8, layout=shared_repeat(smem_workspace_nbytes))
+            self.allocate_shared_tensor(smem_workspace, nbytes=smem_workspace_nbytes)
+            self.tensor2var[smem_workspace] = self.builder.declare(
                 v=Var("temp_smem", type=void_p),
-                init=dynamic_shared_memory(byte_offset=self.shared_value_allocator_addr[value], dtype=uint8),
+                init=dynamic_shared_memory(byte_offset=self.shared_value_allocator_addr[smem_workspace], dtype=uint8),
             )
-            self.smem_workspace = value
+            self.smem_workspace = smem_workspace
 
     def generate_launch_function(self, ir_module: IRModule, kernel_func: HidetFunction) -> IRModule:
         from hidet.ir.primitives.runtime import set_symbol_value_ptr
@@ -530,6 +536,12 @@ class Codegen(IRFunctor):
             raise RuntimeError("Can not resolve the emitter for instruction: {}".format(inst.__class__.__name__))
         emitter = emitter_cls(self)
         emitter.emit(inst)
+        if inst.output is not None and inst.output not in self.tensor2var:
+            raise RuntimeError(
+                "The emitter for instruction {} does not set the mapping for its output tensor.".format(
+                    inst.__class__.__name__
+                )
+            )
         self.builder.append(emitter.finish())
 
 

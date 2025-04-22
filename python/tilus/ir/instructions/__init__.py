@@ -30,6 +30,7 @@ from .generic import (
     LoadSharedGenericInst,
     LoadSharedInst,
     PrintTensorInst,
+    ReduceInst,
     RepeatInst,
     RepeatInterleaveInst,
     SharedSliceInst,

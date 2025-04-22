@@ -412,8 +412,13 @@ class JitInstance:
         option_text = str(self.build_options)
         hash_string = option_text + concatenated_program_text
         hash_key = hashlib.sha256(hash_string.encode()).hexdigest()[:8]
-        jit_name_items = [to_snake_case(self.script_cls.__name__)] + [str(key) for key in self.jit_key] + [hash_key]
-        self.cache_dir = Path(tilus.option.get_option("cache_dir")) / "scripts" / "-".join(jit_name_items)
+        jit_name_items = [str(key) for key in self.jit_key] + [hash_key]
+        self.cache_dir = (
+            Path(tilus.option.get_option("cache_dir"))
+            / "scripts"
+            / to_snake_case(self.script_cls.__name__)
+            / "-".join(jit_name_items)
+        )
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         lock_path = self.cache_dir / ".lock"

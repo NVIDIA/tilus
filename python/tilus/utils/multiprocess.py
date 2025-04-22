@@ -26,7 +26,7 @@ def _wrapped_func(job_index):
 
 
 def parallel_imap(func: Callable, jobs: Sequence[Any], num_workers: Optional[int] = None) -> Iterable[Any]:
-    if num_workers == 1:
+    if num_workers == 1 or len(jobs) <= 1:
         yield from map(func, jobs)
         return
 

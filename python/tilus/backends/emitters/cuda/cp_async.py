@@ -56,6 +56,9 @@ class CopyAysncInstEmitter(BaseInstEmitter):
                     continue
                 if mask_info.infos[dim].constancy * dtype.nbits % nbits != 0:
                     continue
+                if prod(shape) * dtype.nbits // nbits % 32 != 0 and nbytes != 4:
+                    # when possible, we hope at least use 32 threads to perform cp.async
+                    continue
                 contiguous_dim = dim
                 cp_size = nbytes
                 break

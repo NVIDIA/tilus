@@ -30,6 +30,7 @@ from tilus.ir.instructions import (
     LoadSharedInst,
     MmaDotInst,
     PrintTensorInst,
+    ReduceInst,
     RepeatInterleaveInst,
     SharedSliceInst,
     StoreGlobalGenericInst,
@@ -451,6 +452,22 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
+    def reduce(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        if out is None:
+            from tilus.ir.layout import reduce
+
+            out = RegisterTensor.create(dtype=x.dtype, layout=reduce(x.layout, dims=[dim], squeeze_dims=False))
+        inst = ReduceInst.create(x=x, output=out, dim=dim, op=op)
+        self.append(inst)
+        return inst.register_output
+
     def add(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_binary(x, y, "+", out=out)
 
@@ -596,12 +613,16 @@ class StmtBuilder(StmtBuilderCore):
         return inst.register_output
 
     def store_global(
-        self, dst: GlobalTensor, src: RegisterTensor, offsets: Sequence[Expr], dims: Optional[Sequence[int]] = None
+        self,
+        dst: GlobalTensor,
+        src: RegisterTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
     ) -> None:
         if dims is None:
             assert len(dst.shape) == len(src.shape)
             dims = list(range(len(dst.shape)))
-        inst = StoreGlobalInst.create(dst=dst, x=src, offsets=offsets, dims=dims)
+        inst = StoreGlobalInst.create(dst=dst, x=src, offsets=[as_expr(ofs) for ofs in offsets], dims=dims)
         self.append(inst)
 
     def store_global_generic(

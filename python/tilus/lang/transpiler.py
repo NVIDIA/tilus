@@ -26,7 +26,7 @@ from tilus.ir.layout import RegisterLayout
 from tilus.ir.stmt import AssignStmt, DeclareStmt, EvaluateStmt, IfStmt, InstStmt, SeqStmt, Stmt
 from tilus.ir.tensor import GlobalTensor, Tensor
 from tilus.lang.constructs.loops import TilusLoopIterable
-from tilus.lang.script import Script
+from tilus.lang.script import InstructionException, Script
 
 
 class TilusProgramError(HidetProgramError):
@@ -419,72 +419,75 @@ class Transpiler(PythonAstFunctor):
             # func(a=1, b=2, c=3)
             kwargs = {kwarg.arg: self.visit(kwarg.value) for kwarg in expr.keywords}
 
-        if isinstance(func, types.FunctionType):
-            # call python function
-            ret = func(*args, **kwargs)
-        elif isinstance(func, types.MethodType):
-            # call python class method
-            ret = func(*args, **kwargs)
-        elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):
-            # call python builtin method, such "a string".format(...) or max, min
-            from hidet import ir
-            from hidet.ir import primitives
+        try:
+            if isinstance(func, types.FunctionType):
+                # call python function
+                ret = func(*args, **kwargs)
+            elif isinstance(func, types.MethodType):
+                # call python class method
+                ret = func(*args, **kwargs)
+            elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):
+                # call python builtin method, such "a string".format(...) or max, min
+                from hidet import ir
+                from hidet.ir import primitives
 
-            if all(not isinstance(arg, ir.Node) for arg in args):
-                # pure python function call
-                return func(*args, **kwargs)
-            else:
-                if any(not isinstance(arg, (ir.Expr, int, float, bool)) for arg in args):
-                    # if any argument is not a valid expression
+                if all(not isinstance(arg, ir.Node) for arg in args):
+                    # pure python function call
                     return func(*args, **kwargs)
-                # overload hidet primitive, such as max, min
-                func_map = {
-                    builtins.max: (2, primitives.max),
-                    builtins.min: (2, primitives.min),
-                    math.exp: (1, primitives.exp),
-                    math.log: (1, primitives.log),
-                    math.sqrt: (1, primitives.sqrt),
-                    math.sin: (1, primitives.sin),
-                    math.cos: (1, primitives.cos),
-                    math.tan: (1, primitives.tan),
-                    math.asin: (1, primitives.asin),
-                    math.acos: (1, primitives.acos),
-                    math.atan: (1, primitives.atan),
-                    math.sinh: (1, primitives.sinh),
-                    math.cosh: (1, primitives.cosh),
-                    math.tanh: (1, primitives.tanh),
-                    math.asinh: (1, primitives.asinh),
-                    math.acosh: (1, primitives.acosh),
-                    math.atanh: (1, primitives.atanh),
-                    math.ceil: (1, primitives.ceil),
-                    math.floor: (1, primitives.floor),
-                    math.trunc: (1, primitives.trunc),
-                    math.isnan: (1, primitives.isnan),
-                    math.isinf: (1, primitives.isinf),
-                }
-                if len(kwargs) > 0:
-                    msg = "Hidet do not support calling builtin function with keyword argument."
-                    raise HidetProgramError(self, expr, msg)
-                if func in func_map:
-                    arity, hidet_func = func_map[func]  # type: ignore[index]
-                    if len(args) != arity:
-                        msg = f'Hidet builtin function "{func.__name__}" takes {arity} arguments.'
-                        raise HidetProgramError(self, expr, msg)
-                    return hidet_func(*args)  # type: ignore[operator]
                 else:
-                    raise HidetProgramError(
-                        self,
-                        expr,
-                        'Currently, do not support calling python builtin function "{}".'.format(func.__qualname__),
-                    )
-        else:
-            ret = func(*args, **kwargs)
-        builder_stack: list[list[Stmt]] = self._script._builder._stack
-        assert len(builder_stack) == 1
-        if len(builder_stack[0]) > 0:
-            self.current_scope.stmts.extend(builder_stack[0])
-            builder_stack[0].clear()
-        return ret
+                    if any(not isinstance(arg, (ir.Expr, int, float, bool)) for arg in args):
+                        # if any argument is not a valid expression
+                        return func(*args, **kwargs)
+                    # overload hidet primitive, such as max, min
+                    func_map = {
+                        builtins.max: (2, primitives.max),
+                        builtins.min: (2, primitives.min),
+                        math.exp: (1, primitives.exp),
+                        math.log: (1, primitives.log),
+                        math.sqrt: (1, primitives.sqrt),
+                        math.sin: (1, primitives.sin),
+                        math.cos: (1, primitives.cos),
+                        math.tan: (1, primitives.tan),
+                        math.asin: (1, primitives.asin),
+                        math.acos: (1, primitives.acos),
+                        math.atan: (1, primitives.atan),
+                        math.sinh: (1, primitives.sinh),
+                        math.cosh: (1, primitives.cosh),
+                        math.tanh: (1, primitives.tanh),
+                        math.asinh: (1, primitives.asinh),
+                        math.acosh: (1, primitives.acosh),
+                        math.atanh: (1, primitives.atanh),
+                        math.ceil: (1, primitives.ceil),
+                        math.floor: (1, primitives.floor),
+                        math.trunc: (1, primitives.trunc),
+                        math.isnan: (1, primitives.isnan),
+                        math.isinf: (1, primitives.isinf),
+                    }
+                    if len(kwargs) > 0:
+                        msg = "Hidet do not support calling builtin function with keyword argument."
+                        raise HidetProgramError(self, expr, msg)
+                    if func in func_map:
+                        arity, hidet_func = func_map[func]  # type: ignore[index]
+                        if len(args) != arity:
+                            msg = f'Hidet builtin function "{func.__name__}" takes {arity} arguments.'
+                            raise HidetProgramError(self, expr, msg)
+                        return hidet_func(*args)  # type: ignore[operator]
+                    else:
+                        raise HidetProgramError(
+                            self,
+                            expr,
+                            'Currently, do not support calling python builtin function "{}".'.format(func.__qualname__),
+                        )
+            else:
+                ret = func(*args, **kwargs)
+            builder_stack: list[list[Stmt]] = self._script._builder._stack
+            assert len(builder_stack) == 1
+            if len(builder_stack[0]) > 0:
+                self.current_scope.stmts.extend(builder_stack[0])
+                builder_stack[0].clear()
+            return ret
+        except InstructionException as e:
+            raise HidetProgramError(self, expr, str(e)) from e
 
     def visit_Attribute(self, expr: ast.Attribute) -> Any:
         from hidet.ir.primitives.cuda.vars import blockIdx

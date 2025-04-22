@@ -14,6 +14,10 @@ from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
 
 
+class InstructionException(Exception):
+    pass
+
+
 class Attributes:
     """
     Attributes of the script program.
@@ -253,7 +257,12 @@ class Script:
             case (None, None, _):
                 pass
             case _:
-                raise ValueError("Cannot specify any two of shape, layout, and out")
+                raise InstructionException("Cannot specify any two of shape, layout, and out")
+
+        if len(offsets) != len(x.shape):
+            raise InstructionException(
+                "The number of offsets must be equal to the number of dimensions of the global tensor"
+            )
 
         return self._builder.load_global(x=x, offsets=offsets, dims=slice_dims, output=out)
 
@@ -262,10 +271,10 @@ class Script:
         dst: GlobalTensor,
         x: RegisterTensor,
         *,
-        offsets: Sequence[Expr],
+        offsets: Sequence[Expr | int],
         slice_dims: Optional[Sequence[int]] = None,
     ) -> None:
-        self._builder.store_global(dst=dst, src=x, offsets=offsets, dims=slice_dims)
+        return self._builder.store_global(dst=dst, src=x, offsets=offsets, dims=slice_dims)
 
     def load_shared(
         self,
@@ -399,6 +408,22 @@ class Script:
             f_mask=lambda args: f_mask(*args) if f_mask is not None else None,
             out=out,
         )
+
+    def _reduce(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.reduce(x, dim=dim, op=op, out=out)
+
+    def sum(self, x: RegisterTensor, *, dim: int, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self._reduce(x, dim=dim, op="sum", out=out)
+
+    def max(self, x: RegisterTensor, *, dim: int, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self._reduce(x, dim=dim, op="max", out=out)
 
     def store_global_generic(
         self,

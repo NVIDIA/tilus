@@ -49,6 +49,7 @@ from hidet.transforms.normalize_const_tensor import normalize_const_tensor_pass
 from hidet.transforms.propagate_launch_bound import propagate_launch_bound_pass
 from hidet.transforms.resolve_generic_primitive_function import resolve_primitive_func_pass
 from hidet.transforms.rule_based_simplifier import rule_based_simplify_pass
+from hidet.transforms.simplify_addition_chain import simplify_addition_chain_pass
 from hidet.transforms.simplify_stmt import simplify_stmt_pass
 from hidet.transforms.spatial_simplification import spatial_simplification_pass
 from hidet.transforms.task_mapping_bound_check import task_mapping_bound_check
@@ -107,6 +108,7 @@ common_transforms = [
     inline_let_stmt_pass(),
     explicit_unroll_pass(),
     rule_based_simplify_pass(),
+    simplify_addition_chain_pass(),
     add_hints_pass(),
     inline_let_stmt_pass(),
     simplify_stmt_pass(),
