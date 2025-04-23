@@ -106,7 +106,9 @@ class LowerLoadStoreRewriter(IRRewriter):
 
         f_offset, f_mask = self.get_funcs(offsets=inst.offsets, dims=dims, layout=global_tensor.layout)
 
-        sb.copy_async_generic(dst=shared_tensor, ptr=ptr, f_offset=f_offset, f_mask=f_mask, evict=inst.evict)
+        sb.copy_async_generic(
+            dst=shared_tensor, ptr=ptr, f_offset=f_offset, f_mask=f_mask, evict=inst.evict, weak_mask=inst.weak_mask
+        )
         return sb.flush_stmts()
 
 

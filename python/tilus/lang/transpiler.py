@@ -26,7 +26,8 @@ from tilus.ir.layout import RegisterLayout
 from tilus.ir.stmt import AssignStmt, DeclareStmt, EvaluateStmt, IfStmt, InstStmt, SeqStmt, Stmt
 from tilus.ir.tensor import GlobalTensor, Tensor
 from tilus.lang.constructs.loops import TilusLoopIterable
-from tilus.lang.script import InstructionException, Script
+from tilus.lang.script import InstructionError, Script
+from tilus.utils import lcm
 
 
 class TilusProgramError(HidetProgramError):
@@ -131,7 +132,33 @@ class Transpiler(PythonAstFunctor):
         self.name2consts: dict[str, Constant] = {}
         self.name2divisibility: dict[str, int] = {}
 
+        # the follow attributes are used by the methods of Script class to communicate with the transpiler
+        self.func_params: list[Var] = []
+        self.var2divisibility: dict[Var, int] = {}
+
         self._script: Optional[Script] = None
+
+    def visit(self, node):
+        from hidet.ir.library.tune import ScheduleError
+
+        method = "visit_" + node.__class__.__name__
+        if hasattr(self, method):
+            visitor = getattr(self, method)
+        else:
+            msg = "The AST node {} is not supported in HidetScript.".format(node.__class__.__name__)
+            raise HidetProgramError(self, node, msg)
+
+        try:
+            return visitor(node)
+        except ScheduleError:
+            raise
+        except HidetProgramError:
+            raise
+        except InstructionError as e:
+            raise HidetProgramError(self, node, str(e)) from e
+        except Exception as e:
+            # import traceback
+            raise HidetProgramError(self, node, "Internal exception occurred during transpiling this ast node.") from e
 
     def scope(self) -> ScopeStack:
         return self.scope_stack
@@ -184,6 +211,7 @@ class Transpiler(PythonAstFunctor):
             env_scope.bind("self", script)
 
             script._builder = StmtBuilder()
+            script._transpiler = self
             self._script = script
 
             function = self.visit(parsed)
@@ -192,6 +220,7 @@ class Transpiler(PythonAstFunctor):
             # prevent loop reference
             self._script = None
             script._builder = None
+            script._transpiler = None
 
             return function
 
@@ -353,8 +382,19 @@ class Transpiler(PythonAstFunctor):
                 raise TilusProgramError(self, func_def.returns, "Tilus does not support return type annotation.")
 
             # process function body
+            self.func_params = func_params.copy()
+            self.var2divisibility = {}
             for stmt in func_def.body:
                 self.visit(stmt)
+
+            # the user might specify the divisibility of parameters in the function body
+            for var, div in self.var2divisibility.items():
+                assert var in func_params
+                divisibility[var] = lcm(divisibility.get(var, 1), div)
+
+            # reset
+            self.func_params = []
+            self.var2divisibility = {}
 
             # process the attributes
             attrs = self.script.attrs
@@ -425,7 +465,14 @@ class Transpiler(PythonAstFunctor):
                 ret = func(*args, **kwargs)
             elif isinstance(func, types.MethodType):
                 # call python class method
-                ret = func(*args, **kwargs)
+                method_self = func.__self__
+                if isinstance(method_self, RegisterTensor):
+                    method_name = func.__name__
+                    sb = self._script._builder
+                    args = [method_self, *args]
+                    ret = getattr(sb, method_name)(*args, **kwargs)
+                else:
+                    ret = func(*args, **kwargs)
             elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):
                 # call python builtin method, such "a string".format(...) or max, min
                 from hidet import ir
@@ -486,7 +533,7 @@ class Transpiler(PythonAstFunctor):
                 self.current_scope.stmts.extend(builder_stack[0])
                 builder_stack[0].clear()
             return ret
-        except InstructionException as e:
+        except InstructionError as e:
             raise HidetProgramError(self, expr, str(e)) from e
 
     def visit_Attribute(self, expr: ast.Attribute) -> Any:
@@ -563,11 +610,32 @@ class Transpiler(PythonAstFunctor):
             else:
                 type_name = type(expr.op).__name__
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
-        elif isinstance(lhs, RegisterTensor) and isinstance(rhs, RegisterTensor):
-            op_dict = {ast.Add: "+", ast.Mult: "*"}  # type: ignore
-            if type(expr.op) in op_dict:
-                sb = StmtBuilder()
-                output = sb.elementwise_binary(lhs, rhs, op_dict[type(expr.op)])  # type: ignore
+        elif isinstance(lhs, RegisterTensor) or isinstance(rhs, RegisterTensor):
+            sb = StmtBuilder()
+            if not isinstance(lhs, RegisterTensor):
+                lhs = sb.allocate_register(dtype=rhs.dtype, layout=rhs.layout, f_init=lambda _: rhs.dtype(lhs))
+            if not isinstance(rhs, RegisterTensor):
+                rhs = sb.allocate_register(dtype=lhs.dtype, layout=lhs.layout, f_init=lambda _: lhs.dtype(rhs))
+
+            assert isinstance(lhs, RegisterTensor) and isinstance(rhs, RegisterTensor)
+
+            inst_dict: dict[Any, Any] = {
+                ast.Add: "add",
+                ast.Sub: "sub",
+                ast.Mult: "mul",
+                ast.Div: "div",
+                ast.Mod: "mod",
+            }
+
+            f_compute_dict: dict[Any, Any] = {}
+            inst_name = inst_dict.get(type(expr.op), None)
+            f_compute = f_compute_dict.get(type(expr.op), None)
+            if inst_name is not None and hasattr(sb, inst_name):
+                output = getattr(sb, inst_name)(lhs, rhs)
+                self.current_scope.append(sb.flush_stmts())
+                return output
+            elif f_compute is not None:
+                output = sb.elementwise_binary(lhs, rhs, f_compute=f_compute)  # type: ignore
                 self.current_scope.append(sb.flush_stmts())
                 return output
             else:
@@ -754,19 +822,20 @@ class Transpiler(PythonAstFunctor):
 
         sb = StmtBuilder()
         if isinstance(var_value, RegisterTensor):
-            op_dict: Any = {
-                ast.Add: "+",
-                ast.Sub: "-",
-                ast.Mult: "*",
-                ast.Div: "/",
-                ast.Mod: "//",
-                ast.FloorDiv: "/",
-            }
-            op = op_dict[type(stmt.op)]
             if isinstance(value, (int, float, hidet_ir.Expr)):
                 value = sb.allocate_register(dtype=var_value.dtype, layout=var_value.layout, f_init=lambda axes: value)
-            if isinstance(value, RegisterTensor):
-                sb.elementwise_binary(x=var_value, y=value, op=op, out=var_value)
+            if isinstance(stmt.op, ast.Add):
+                sb.add(x=var_value, y=value, out=var_value)
+            elif isinstance(stmt.op, ast.Sub):
+                sb.sub(x=var_value, y=value, out=var_value)
+            elif isinstance(stmt.op, ast.Mult):
+                sb.mul(x=var_value, y=value, out=var_value)
+            elif isinstance(stmt.op, ast.Div):
+                sb.div(x=var_value, y=value, out=var_value)
+            elif isinstance(stmt.op, ast.FloorDiv):
+                sb.div(x=var_value, y=value, out=var_value)
+            elif isinstance(stmt.op, ast.Mod):
+                sb.mod(x=var_value, y=value, out=var_value)
             else:
                 raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
         elif isinstance(var_value, hidet_ir.Var) and isinstance(value, (int, float, hidet_ir.Expr)):

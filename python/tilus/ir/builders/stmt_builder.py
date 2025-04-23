@@ -1,48 +1,61 @@
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Type, Union
 
-from hidet.ir.dtypes import boolean, int32, promote_type
+from hidet.ir import primitives
+from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Expr, Var, as_expr
+from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
-from tilus.ir.inst import Instruction
-from tilus.ir.instructions import (
-    AllocateGlobalInst,
-    AllocateRegisterInst,
-    AllocateSharedInst,
-    AssignInst,
-    CastInst,
+from tilus.ir.inst import Instruction, InstructionError
+from tilus.ir.instructions.cuda import (
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
+    LoadMatrixConfig,
+    LoadMatrixInst,
+    LockSemaphoreInst,
+    MmaDotInst,
+    ReleaseSemaphoreInst,
+)
+from tilus.ir.instructions.generic import (
+    AddInst,
+    AllocateGlobalInst,
+    AllocateRegisterInst,
+    AllocateSharedInst,
+    AssignInst,
+    CastInst,
+    DivInst,
     ElementwiseBinaryInst,
+    ElementwiseUnaryInst,
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
-    LoadMatrixConfig,
-    LoadMatrixInst,
     LoadSharedGenericInst,
     LoadSharedInst,
-    MmaDotInst,
+    ModInst,
+    MulInst,
     PrintTensorInst,
     ReduceInst,
+    RepeatInst,
     RepeatInterleaveInst,
     SharedSliceInst,
+    SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
     StoreSharedGenericInst,
     StoreSharedInst,
+    SubInst,
     SyncReduceThreadsInst,
     SyncThreadsInst,
+    UnsqueezeInst,
     ViewInst,
 )
-from tilus.ir.instructions.cuda import LockSemaphoreInst, ReleaseSemaphoreInst
-from tilus.ir.instructions.generic import RepeatInst
 from tilus.ir.layout import GlobalLayout, RegisterLayout, global_repeat
 from tilus.ir.stmt import (
     AssignStmt,
@@ -342,6 +355,26 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
+    def squeeze(
+        self,
+        x: RegisterTensor,
+        dim: int | Sequence[int],
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        inst = SqueezeInst.create(x=x, dims=dim, out=out)
+        self.append(inst)
+        return inst.register_output
+
+    def unsqueeze(
+        self,
+        x: RegisterTensor,
+        dim: int | Sequence[int],
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        inst = UnsqueezeInst.create(x=x, dims=dim, out=out)
+        self.append(inst)
+        return inst.register_output
+
     def cast(
         self,
         x: RegisterTensor,
@@ -364,8 +397,9 @@ class StmtBuilder(StmtBuilderCore):
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         evict: Optional[str] = None,
+        weak_mask: bool = False,
     ) -> None:
-        inst = CopyAsyncInst.create(src=src, dst=dst, offsets=offsets, dims=dims, evict=evict)
+        inst = CopyAsyncInst.create(src=src, dst=dst, offsets=offsets, dims=dims, evict=evict, weak_mask=weak_mask)
         self.append(inst)
 
     def copy_async_generic(
@@ -376,8 +410,9 @@ class StmtBuilder(StmtBuilderCore):
         f_offset: Callable[[List[Var]], Expr],
         f_mask: Optional[Callable[[List[Var]], Expr]],
         evict: Optional[str] = None,
+        weak_mask: bool = False,
     ) -> None:
-        inst = CopyAsyncGenericInst.create(dst, ptr, f_offset, f_mask, evict=evict)
+        inst = CopyAsyncGenericInst.create(dst, ptr, f_offset, f_mask, evict=evict, weak_mask=weak_mask)
         self.append(inst)
 
     def copy_async_wait_all(self):
@@ -393,8 +428,17 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     def elementwise_binary(
-        self, x: RegisterTensor, y: RegisterTensor, op: str, *, out: Optional[RegisterTensor] = None
+        self,
+        x: RegisterTensor,
+        y: RegisterTensor,
+        *,
+        f_compute: Callable[[Var, Var], Expr],
+        out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        from hidet.ir.utils.broadcast_utils import can_mutually_broadcast
+
+        if not can_mutually_broadcast(x.shape, y.shape):
+            raise InstructionError(f"Cannot broadcast {x.shape} and {y.shape}")
         if out is None:
             if all(a % b == 0 for a, b in zip(x.shape, y.shape)):
                 layout = x.layout
@@ -402,11 +446,24 @@ class StmtBuilder(StmtBuilderCore):
                 layout = y.layout
             else:
                 raise NotImplementedError()
-            if op in ["+", "-", "*", "/"]:
-                out = RegisterTensor.create(dtype=promote_type(x.dtype, y.dtype), layout=layout)
-            else:
-                raise NotImplementedError()
-        inst = ElementwiseBinaryInst.create(x, y, op, output=out)
+            lhs = Var("x", x.dtype)
+            rhs = Var("y", y.dtype)
+            value = f_compute(lhs, rhs)
+            out = RegisterTensor.create(dtype=infer_type(value), layout=layout)
+
+        inst = ElementwiseBinaryInst.create(x, y, f_compute=f_compute, output=out)
+        self.append(inst)
+        return inst.register_output
+
+    def elementwise_unary(
+        self, x: RegisterTensor, *, f_compute: Callable[[Var], Expr], out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        if out is None:
+            arg: Var = Var("x", x.dtype)
+            value: Expr = f_compute(arg)
+            out = RegisterTensor.create(dtype=infer_type(value), layout=x.layout)
+
+        inst = ElementwiseUnaryInst.create(x=x, f_compute=f_compute, output=out)
         self.append(inst)
         return inst.register_output
 
@@ -417,12 +474,12 @@ class StmtBuilder(StmtBuilderCore):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from tilus.ir.layout.register_layout import expand, repeat
+        from tilus.ir.layout.register_layout import repeat, unsqueeze
 
         if out is None:
             layout = x.layout
             if len(repeats) > len(layout.shape):
-                layout = expand(layout, dims=list(range(len(repeats) - len(layout.shape))))
+                layout = unsqueeze(layout, dims=list(range(len(repeats) - len(layout.shape))))
             if len(repeats) < len(layout.shape):
                 repeats = [1] * (len(layout.shape) - len(repeats)) + list(repeats)
             layout = repeat(*repeats) * layout
@@ -438,12 +495,12 @@ class StmtBuilder(StmtBuilderCore):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from tilus.ir.layout.register_layout import expand, repeat
+        from tilus.ir.layout.register_layout import repeat, unsqueeze
 
         if out is None:
             layout = x.layout
             if len(repeats) > len(layout.shape):
-                layout = expand(layout, dims=list(range(len(repeats) - len(layout.shape))))
+                layout = unsqueeze(layout, dims=list(range(len(repeats) - len(layout.shape))))
             if len(repeats) < len(layout.shape):
                 repeats = [1] * (len(layout.shape) - len(repeats)) + list(repeats)
             layout = layout * repeat(*repeats)
@@ -468,20 +525,66 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
+    def _binary(
+        self,
+        x: RegisterTensor,
+        y: RegisterTensor,
+        inst_cls: Type[AddInst | SubInst | MulInst | DivInst | ModInst],
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        from hidet.ir.utils.broadcast_utils import can_mutually_broadcast
+
+        if not can_mutually_broadcast(x.shape, y.shape):
+            raise InstructionError(f"Cannot broadcast {x.shape} and {y.shape}")
+        if out is None:
+            if all(a % b == 0 for a, b in zip(x.shape, y.shape)):
+                layout = x.layout
+            elif all(b % a == 0 for a, b in zip(x.shape, y.shape)):
+                layout = y.layout
+            else:
+                raise NotImplementedError()
+            lhs = Var("x", x.dtype)
+            rhs = Var("y", y.dtype)
+            # used x as output to create inst_cls(), it is not used
+            value = inst_cls.create(x, y, x).f_compute(lhs, rhs)
+            out = RegisterTensor.create(dtype=infer_type(value), layout=layout)
+        inst = inst_cls.create(x=x, y=y, output=out)
+        self.append(inst)
+        return inst.register_output
+
     def add(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        return self.elementwise_binary(x, y, "+", out=out)
+        return self._binary(x, y, AddInst, out=out)
 
     def sub(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        return self.elementwise_binary(x, y, "-", out=out)
+        return self._binary(x, y, SubInst, out=out)
 
     def mul(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        return self.elementwise_binary(x, y, "*", out=out)
+        return self._binary(x, y, MulInst, out=out)
 
     def div(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        return self.elementwise_binary(x, y, "/", out=out)
+        return self._binary(x, y, DivInst, out=out)
 
     def mod(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        return self.elementwise_binary(x, y, "%", out=out)
+        return self._binary(x, y, ModInst, out=out)
+
+    def clip(
+        self,
+        x: RegisterTensor,
+        min: Expr | int | float,
+        max: Expr | int | float,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        min = x.dtype(min)
+        max = x.dtype(max)
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.max(primitives.min(arg, max), min), out=out)
+
+    def round(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.round(arg), out=out)
+
+    def abs(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.abs(arg), out=out)
 
     def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None, cond: Expr = boolean.true) -> None:
         inst = PrintTensorInst.create(tensor, cond=cond, msg=msg, fmt=fmt)

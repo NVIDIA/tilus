@@ -79,6 +79,13 @@ class CopyAsyncInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: Optional[tuple[int, ...]]
     evict: Optional[str]
+    weak_mask: bool
+    # weak_mask: whether to use the first element of each cp.async instruction as the mask of the whole instruction.
+    # By default, weak_mask=False, we require the mask is constant among all elements in the cp.async instruction.
+    # However, in some cases, the mask is not constant among the elements in the cp.async instruction.
+    # We have weak_mask to allow weak checking that only use the mask of the first element of each cp.async instruction
+    # as the mask of the instruction as a whole. there will not be illegal memory access, but it's the user's
+    # responsibility to not rely on the data in shared memory that is out-of-bounds in corresponding global memory.
 
     @staticmethod
     def create(
@@ -87,10 +94,16 @@ class CopyAsyncInst(Instruction):
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         evict: Optional[str] = None,
+        weak_mask: bool = False,
     ) -> CopyAsyncInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
         return CopyAsyncInst(
-            output=None, inputs=(dst, src), offsets=offsets_, dims=tuple(dims) if dims else None, evict=evict
+            output=None,
+            inputs=(dst, src),
+            offsets=offsets_,
+            dims=tuple(dims) if dims else None,
+            evict=evict,
+            weak_mask=weak_mask,
         )
 
 
@@ -101,6 +114,7 @@ class CopyAsyncGenericInst(Instruction):
     offset: Expr
     mask: Optional[Expr]
     evict: Optional[str]
+    weak_mask: bool
 
     @staticmethod
     def create(
@@ -109,12 +123,13 @@ class CopyAsyncGenericInst(Instruction):
         f_offset: Callable[[list[Var]], Expr],
         f_mask: Optional[Callable[[list[Var]], Expr]],
         evict: Optional[str] = None,
+        weak_mask: bool = False,
     ) -> CopyAsyncGenericInst:
         axes = index_vars(len(dst.shape))
         offset = f_offset(axes)
         mask = f_mask(axes) if f_mask else None
         return CopyAsyncGenericInst(
-            output=None, inputs=(dst,), ptr=ptr, axes=axes, offset=offset, mask=mask, evict=evict
+            output=None, inputs=(dst,), ptr=ptr, axes=axes, offset=offset, mask=mask, evict=evict, weak_mask=weak_mask
         )
 
 

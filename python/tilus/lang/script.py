@@ -3,19 +3,16 @@ from __future__ import annotations
 import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir.expr import Constant, Expr, Var
+from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
 from hidet.ir.type import DataType
 from tilus.ir.builders import StmtBuilder
+from tilus.ir.inst import InstructionError
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_repeat, global_strides
 from tilus.ir.prog import Program
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
-
-
-class InstructionException(Exception):
-    pass
 
 
 class Attributes:
@@ -82,7 +79,10 @@ class Script:
 
     def __init__(self) -> None:
         # builder used to append instructions
+        from tilus.lang.transpiler import Transpiler
+
         self._builder: Optional[StmtBuilder] = None
+        self._transpiler: Optional[Transpiler] = None
 
         # the following attributes should be set by the user in the kernel function
         self.attrs: Attributes = Attributes()
@@ -141,6 +141,45 @@ class Script:
 
         # the cast is to make the type checker happy
         return typing.cast(Iterable[Var], range(start, end, step, unroll=unroll))
+
+    def assume(self, cond: Expr | bool) -> None:
+        if isinstance(cond, bool):
+            if not cond:
+                raise InstructionError("The condition must be True")
+            return
+        if not isinstance(cond, Expr):
+            raise InstructionError("The condition must be a boolean expression")
+
+        # decompose the condition into conjuncture terms
+        stack = [cond]
+        terms: list[Expr] = []
+        while stack:
+            expr = stack.pop()
+            if isinstance(expr, LogicalAnd):
+                stack.append(expr.a)
+                stack.append(expr.b)
+            else:
+                terms.append(expr)
+
+        # analyze the conjunctures
+        for term in terms:
+            # a % c == 0
+            if (
+                isinstance(term, Equal)
+                and isinstance(term.a, Mod)
+                and isinstance(term.a.b, Constant)
+                and isinstance(term.a.a, Var)
+                and isinstance(term.b, Constant)
+                and term.b.value == 0
+            ):
+                a = term.a.a
+                if a not in self._transpiler.func_params:
+                    raise InstructionError(
+                        "We only allow to specify the divisibility of kernel parameter, got {}".format(a.name)
+                    )
+                self._transpiler.var2divisibility[a] = int(term.a.b.value)  # type: ignore[arg-type]
+            else:
+                raise InstructionError("Can not recognize the condition in assume: {}".format(term))
 
     def register_tensor(
         self,
@@ -257,10 +296,10 @@ class Script:
             case (None, None, _):
                 pass
             case _:
-                raise InstructionException("Cannot specify any two of shape, layout, and out")
+                raise InstructionError("Cannot specify any two of shape, layout, and out")
 
         if len(offsets) != len(x.shape):
-            raise InstructionException(
+            raise InstructionError(
                 "The number of offsets must be equal to the number of dimensions of the global tensor"
             )
 
@@ -285,12 +324,24 @@ class Script:
         out_layout: Optional[RegisterLayout] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        if offsets is not None:
-            if dims is None:
-                dims = list(range(len(src.shape)))
-            src = self._builder.shared_slice(src, offsets=offsets, slice_dims=dims, slice_shape=out_layout.shape)
         if out_layout is None and out is None:
             out_layout = self.cuda.default_register_layout(num_warps=self.attrs.warps, dtype=src.dtype, shape=src.shape)
+        elif out_layout is None:
+            out_layout = out.layout
+
+        assert len(out_layout.shape) <= len(src.shape)
+
+        if offsets is not None:
+            if dims is None:
+                dims = list(range(len(src.shape) - len(out_layout.shape), len(src.shape)))
+            else:
+                assert len(dims) == len(out_layout.shape)
+            if len(offsets) > len(src.shape):
+                raise InstructionError("The offsets rank must be less than or equal to the src rank")
+            if len(offsets) < len(src.shape):
+                # append 0 to the offsets to make it the same length as src.shape
+                offsets = list(offsets) + [0] * (len(src.shape) - len(offsets))
+            src = self._builder.shared_slice(src, offsets=offsets, slice_dims=dims, slice_shape=out_layout.shape)
         return self._builder.load_shared(src=src, output_layout=out_layout, output=out)
 
     def store_shared(
@@ -319,8 +370,9 @@ class Script:
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         evict: Optional[str] = None,
+        weak_mask: bool = False,
     ) -> None:
-        self._builder.copy_async(dst=dst, src=src, offsets=offsets, dims=dims, evict=evict)
+        self._builder.copy_async(dst=dst, src=src, offsets=offsets, dims=dims, evict=evict, weak_mask=weak_mask)
 
     def copy_async_wait_all(self):
         self._builder.copy_async_wait_all()
@@ -363,6 +415,50 @@ class Script:
         local_offset: Union[Expr, int] = 0,
     ) -> RegisterTensor:
         return self._builder.view(x=x, layout=layout, dtype=dtype, local_offset=local_offset)
+
+    def squeeze(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: int,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.squeeze(x, dim=dim, out=out)
+
+    def unsqueeze(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: int | Sequence[int],
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.unsqueeze(x, dim=dim, out=out)
+
+    def abs(
+        self,
+        x: RegisterTensor,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.abs(x, out=out)
+
+    def round(
+        self,
+        x: RegisterTensor,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.round(x, out=out)
+
+    def clip(
+        self,
+        x: RegisterTensor,
+        min: Expr | int | float,
+        max: Expr | int | float,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.clip(x=x, min=min, max=max, out=out)
 
     def repeat(
         self,
@@ -424,6 +520,9 @@ class Script:
 
     def max(self, x: RegisterTensor, *, dim: int, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self._reduce(x, dim=dim, op="max", out=out)
+
+    def min(self, x: RegisterTensor, *, dim: int, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self._reduce(x, dim=dim, op="min", out=out)
 
     def store_global_generic(
         self,

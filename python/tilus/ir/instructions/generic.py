@@ -4,8 +4,10 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Callable, ClassVar, Optional, Sequence, Union
 
+from hidet.ir import primitives
 from hidet.ir.dtypes import DataType, boolean, i32
 from hidet.ir.expr import Expr, Var, as_expr
+from hidet.ir.tools import rewrite
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.inst import Instruction
 from tilus.ir.layout import RegisterLayout
@@ -184,23 +186,133 @@ class CastInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class ElementwiseUnaryInst(Instruction):
-    VALID_OPS: ClassVar[tuple[str, ...]] = ("relu",)
-    op: str
-
-    @staticmethod
-    def create(x: RegisterTensor, op: str, output: RegisterTensor) -> ElementwiseUnaryInst:
-        return ElementwiseUnaryInst(output=output, inputs=(x,), op=op)
+class ElementwiseUnaryBaseInst(Instruction):
+    def f_compute(self, arg: Var) -> Expr:
+        raise NotImplementedError("f_compute should be implemented in subclasses")
 
 
 @dataclass(frozen=True, eq=False)
-class ElementwiseBinaryInst(Instruction):
-    VALID_OPS: ClassVar[tuple[str, ...]] = ("+", "-", "*", "/", "%")
-    op: str
+class ElementwiseUnaryInst(ElementwiseUnaryBaseInst):
+    arg: Var
+    value: Expr
 
     @staticmethod
-    def create(x: RegisterTensor, y: RegisterTensor, op: str, output: RegisterTensor) -> ElementwiseBinaryInst:
-        return ElementwiseBinaryInst(output=output, inputs=(x, y), op=op)
+    def create(x: RegisterTensor, f_compute: Callable[[Var], Expr], output: RegisterTensor) -> ElementwiseUnaryInst:
+        arg = Var("x", type=x.dtype)
+        value = f_compute(arg)
+        return ElementwiseUnaryInst(output=output, inputs=(x,), arg=arg, value=value)
+
+    def f_compute(self, arg: Var) -> Expr:
+        return rewrite(self.value, {self.arg: arg})
+
+
+@dataclass(frozen=True, eq=False)
+class NegInst(ElementwiseUnaryBaseInst):
+    @staticmethod
+    def create(x: RegisterTensor, output: RegisterTensor) -> NegInst:
+        return NegInst(output=output, inputs=(x,))
+
+    def f_compute(self, arg: Var) -> Expr:
+        return -arg
+
+
+@dataclass(frozen=True, eq=False)
+class AbsInst(ElementwiseUnaryBaseInst):
+    @staticmethod
+    def create(x: RegisterTensor, output: RegisterTensor) -> AbsInst:
+        return AbsInst(output=output, inputs=(x,))
+
+    def f_compute(self, arg: Var) -> Expr:
+        return primitives.abs(arg)
+
+
+@dataclass(frozen=True, eq=False)
+class ClipInst(ElementwiseUnaryBaseInst):
+    min: Expr
+    max: Expr
+
+    @staticmethod
+    def create(x: RegisterTensor, min: Expr | int | float, max: Expr | int | float, output: RegisterTensor) -> ClipInst:
+        min = x.dtype(min)
+        max = x.dtype(max)
+        return ClipInst(output=output, inputs=(x,), min=min, max=max)
+
+    def f_compute(self, arg: Var) -> Expr:
+        return primitives.min(primitives.max(arg, self.min), self.max)
+
+
+@dataclass(frozen=True, eq=False)
+class ElementwiseBinaryBaseInst(Instruction):
+    def f_compute(self, lhs: Var, rhs: Var) -> Expr:
+        raise NotImplementedError("f_compute should be implemented in subclasses")
+
+
+@dataclass(frozen=True, eq=False)
+class ElementwiseBinaryInst(ElementwiseBinaryBaseInst):
+    args: tuple[Var, Var]
+    value: Expr
+
+    @staticmethod
+    def create(
+        x: RegisterTensor, y: RegisterTensor, f_compute: Callable[[Var, Var], Expr], output: RegisterTensor
+    ) -> ElementwiseBinaryInst:
+        lhs = Var("x", type=x.dtype)
+        rhs = Var("y", type=y.dtype)
+        value = f_compute(lhs, rhs)
+        return ElementwiseBinaryInst(output=output, inputs=(x, y), args=(lhs, rhs), value=value)
+
+    def f_compute(self, lhs: Var, rhs: Var) -> Expr:
+        return rewrite(self.value, {self.args[0]: lhs, self.args[1]: rhs})
+
+
+@dataclass(frozen=True, eq=False)
+class AddInst(ElementwiseBinaryBaseInst):
+    @staticmethod
+    def create(x: RegisterTensor, y: RegisterTensor, output: RegisterTensor) -> AddInst:
+        return AddInst(output=output, inputs=(x, y))
+
+    def f_compute(self, lhs: Var, rhs: Var) -> Expr:
+        return lhs + rhs
+
+
+@dataclass(frozen=True, eq=False)
+class SubInst(ElementwiseBinaryBaseInst):
+    @staticmethod
+    def create(x: RegisterTensor, y: RegisterTensor, output: RegisterTensor) -> SubInst:
+        return SubInst(output=output, inputs=(x, y))
+
+    def f_compute(self, lhs: Var, rhs: Var) -> Expr:
+        return lhs - rhs
+
+
+@dataclass(frozen=True, eq=False)
+class MulInst(ElementwiseBinaryBaseInst):
+    @staticmethod
+    def create(x: RegisterTensor, y: RegisterTensor, output: RegisterTensor) -> MulInst:
+        return MulInst(output=output, inputs=(x, y))
+
+    def f_compute(self, lhs: Var, rhs: Var) -> Expr:
+        return lhs * rhs
+
+
+@dataclass(frozen=True, eq=False)
+class DivInst(ElementwiseBinaryBaseInst):
+    @staticmethod
+    def create(x: RegisterTensor, y: RegisterTensor, output: RegisterTensor) -> DivInst:
+        return DivInst(output=output, inputs=(x, y))
+
+    def f_compute(self, lhs: Var, rhs: Var) -> Expr:
+        return lhs / rhs
+
+
+@dataclass(frozen=True, eq=False)
+class ModInst(ElementwiseBinaryBaseInst):
+    @staticmethod
+    def create(x: RegisterTensor, y: RegisterTensor, output: RegisterTensor) -> ModInst:
+        return ModInst(output=output, inputs=(x, y))
+
+    def f_compute(self, lhs: Var, rhs: Var) -> Expr:
+        return lhs % rhs
 
 
 @dataclass(frozen=True, eq=False)
@@ -261,7 +373,7 @@ class ShuffleUpInst(ShuffleBaseInst):
 class ReduceInst(Instruction):
     dim: int
     op: str
-    VALID_OPS: ClassVar[tuple[str, ...]] = ("sum", "max")
+    VALID_OPS: ClassVar[tuple[str, ...]] = ("sum", "max", "min")
 
     @staticmethod
     def create(
@@ -290,6 +402,46 @@ class ViewInst(Instruction):
         layout = layout if layout else x.layout
         output = RegisterTensor.create(dtype=dtype, layout=layout)
         return ViewInst(output=output, inputs=(x,), local_offset=i32(local_offset))
+
+
+@dataclass(frozen=True, eq=False)
+class SqueezeInst(Instruction):
+    dims: tuple[int, ...]
+
+    @staticmethod
+    def create(
+        x: RegisterTensor,
+        *,
+        dims: Sequence[int] | int,
+        out: Optional[RegisterTensor] = None,
+    ) -> SqueezeInst:
+        if isinstance(dims, int):
+            dims = [dims]
+        if out is None:
+            from tilus.ir.layout.register_layout import squeeze
+
+            out = RegisterTensor.create(dtype=x.dtype, layout=squeeze(x.layout, dims))
+        return SqueezeInst(output=out, inputs=(x,), dims=tuple(dims))
+
+
+@dataclass(frozen=True, eq=False)
+class UnsqueezeInst(Instruction):
+    dims: tuple[int, ...]
+
+    @staticmethod
+    def create(
+        x: RegisterTensor,
+        *,
+        dims: Sequence[int] | int,
+        out: Optional[RegisterTensor] = None,
+    ) -> UnsqueezeInst:
+        if isinstance(dims, int):
+            dims = [dims]
+        if out is None:
+            from tilus.ir.layout.register_layout import unsqueeze
+
+            out = RegisterTensor.create(dtype=x.dtype, layout=unsqueeze(x.layout, dims))
+        return UnsqueezeInst(output=out, inputs=(x,), dims=tuple(dims))
 
 
 @dataclass(frozen=True, eq=False)

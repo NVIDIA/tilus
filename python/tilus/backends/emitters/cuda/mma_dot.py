@@ -99,9 +99,41 @@ class AtomicMmaConfig:
             n=8,
             k=16,
             vec_k=vec_k,
-            la=spatial(8, 4).repeat(1, 4),
-            lb=column_spatial(4, 8).repeat(4, 1),
+            la=spatial(8, 4).repeat(1, 4 * vec_k),
+            lb=column_spatial(4, 8).repeat(4 * vec_k, 1),
             lc=spatial(8, 4).repeat(1, 2),
+            operand_type=i8,
+            acc_type=i32,
+        )
+
+    @staticmethod
+    @functools.cache
+    def m16n8k16_i8_i32(vec_k: int = 1) -> AtomicMmaConfig:
+        return AtomicMmaConfig(
+            name="m16n8k16v{}_i8_i32".format(vec_k),
+            m=16,
+            n=8,
+            k=16,
+            vec_k=vec_k,
+            la=column_repeat(2, 1).spatial(8, 4).repeat(1, vec_k * 4),
+            lb=column_spatial(4, 8).repeat(vec_k * 4, 1),
+            lc=repeat(2, 1).spatial(8, 4).repeat(1, 2),
+            operand_type=i8,
+            acc_type=i32,
+        )
+
+    @staticmethod
+    @functools.cache
+    def m16n8k32_i8_i32(vec_k: int = 1) -> AtomicMmaConfig:
+        return AtomicMmaConfig(
+            name="m16n8k32v{}_i8_i32".format(vec_k),
+            m=16,
+            n=8,
+            k=32,
+            vec_k=vec_k,
+            la=column_repeat(2, 2).spatial(8, 4).repeat(1, vec_k * 4),
+            lb=repeat(2, 1).column_spatial(4, 8).repeat(vec_k * 4, 1),
+            lc=repeat(2, 1).spatial(8, 4).repeat(1, 2),
             operand_type=i8,
             acc_type=i32,
         )
@@ -115,6 +147,8 @@ class AtomicMmaConfig:
             config_list.append(AtomicMmaConfig.m16n8k16_f16_f16(vec_k))
             config_list.append(AtomicMmaConfig.m16n8k16_bf16_f32(vec_k))
             config_list.append(AtomicMmaConfig.m8n8k16_i8_i32(vec_k))
+            config_list.append(AtomicMmaConfig.m16n8k16_i8_i32(vec_k))
+            config_list.append(AtomicMmaConfig.m16n8k32_i8_i32(vec_k))
         return {config.name: config for config in config_list}
 
 

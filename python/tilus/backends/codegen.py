@@ -175,7 +175,12 @@ def register_emitter(
 
 def resolve_inst_emitter(inst_cls: Type[Instruction]) -> Optional[Type[BaseInstEmitter]]:
     target = get_current_target()
-    emitter_classes = BaseInstEmitter.REGISTRY.get(inst_cls, {})
+    emitter_classes = {}
+    for registry_inst_cls, registry_emitter_classes in BaseInstEmitter.REGISTRY.items():
+        if issubclass(inst_cls, registry_inst_cls):
+            emitter_classes.update(registry_emitter_classes)
+            break
+
     matched_target = match_target(target, list(emitter_classes))
     if matched_target is None:
         return None

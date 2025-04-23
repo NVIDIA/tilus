@@ -72,6 +72,12 @@ def _register_options():
         default_value=False,
         description="Whether to dump the IR during compilation.",
     )
+    _register_hidet_option(
+        "tilus.debug.launch_blocking",
+        type_hint="bool",
+        default_value=False,
+        description="Whether to block the launch of the kernel until the kernel is finished.",
+    )
 
 
 _register_options()
@@ -129,3 +135,15 @@ class debug:
             The flag to enable or disable dumping the IR. Default is True.
         """
         return _set_hidet_option("tilus.debug.dump_ir", enable)
+
+    @staticmethod
+    def launch_blocking(enabled: bool = True) -> None:
+        """
+        Enable or disable blocking the launch of the kernel until the kernel is finished.
+
+        Parameters
+        ----------
+        enabled: bool
+            The flag to enable or disable blocking the launch of the kernel. Default is True.
+        """
+        return _set_hidet_option("tilus.debug.launch_blocking", enabled)

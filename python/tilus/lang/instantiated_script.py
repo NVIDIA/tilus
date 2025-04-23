@@ -12,6 +12,7 @@ from typing import Any, Mapping, Optional, Sequence, Type
 
 import filelock
 import tabulate
+from cuda.bindings.runtime import cudaDeviceSynchronize
 from tqdm import tqdm
 
 import tilus.option
@@ -623,7 +624,7 @@ class JitInstance:
                     rows.append([i] + schedule_values + [latency[i]])
                 rows = sorted(rows, key=lambda x: x[-1])
                 with open(tuning_report_path, "w") as f:
-                    f.write(tabulate.tabulate(rows, headers=headers, floatfmt=".2f"))
+                    f.write(tabulate.tabulate(rows, headers=headers, floatfmt=".3f"))
             self._create_link(
                 link_path=latency_dir / str(best_program_idx),
                 target_path=self.compiled_programs[best_program_idx].program_dir,
@@ -672,6 +673,8 @@ class InstantiatedScript:
         self.jit_instances: dict[JitKey, JitInstance] = {}
         self.dispatch_table: dict[tuple[JitKey, TuningKey], CompiledFunction] = {}
 
+        self.launch_blocking: bool = tilus.option.get_option("debug.launch_blocking")
+
     def __call__(self, *args, **kwargs):
         if kwargs or self.with_default:
             # we allow the user to pass the keyword arguments to the script instance, or use the default values
@@ -699,7 +702,13 @@ class InstantiatedScript:
 
         # call the compiled function
         kernel_args = (args[i] for i in self.kernel_params)
-        return compiled_func(*kernel_args)
+        ret = compiled_func(*kernel_args)
+
+        # sync the device if the user wants to block the launch
+        if self.launch_blocking:
+            cudaDeviceSynchronize()
+
+        return ret
 
     def program(self) -> Program:
         programs = self.jit_instance_for().transpiled_programs

@@ -4,7 +4,7 @@ from typing import Optional, Sequence
 
 import cuda.bindings.runtime as cudart
 
-from hidet.ir.dtypes import DataType, bfloat16, float16, float32
+from hidet.ir.dtypes import DataType, bfloat16, float16, float32, int8, int32
 from tilus import RegisterLayout
 from tilus.backends.emitters.cuda.mma_dot import AtomicMmaConfig
 from tilus.ir.layout import SharedLayout, auto_repeat_spatial, reduce, shared_compose, shared_repeat, spatial
@@ -30,6 +30,9 @@ class cuda:
         m16n8k16_f16_f32: AtomicMmaConfig = AtomicMmaConfig.m16n8k16_f16_f32()
         m16n8k16_f16_f16: AtomicMmaConfig = AtomicMmaConfig.m16n8k16_f16_f16()
         m16n8k16_bf16_f32: AtomicMmaConfig = AtomicMmaConfig.m16n8k16_bf16_f32()
+        m8n8k16_i8_i32: AtomicMmaConfig = AtomicMmaConfig.m8n8k16_i8_i32()
+        m16n8k16_i8_i32: AtomicMmaConfig = AtomicMmaConfig.m16n8k16_i8_i32()
+        m16n8k32_i8_i32: AtomicMmaConfig = AtomicMmaConfig.m16n8k32_i8_i32()
 
         @staticmethod
         @functools.lru_cache
@@ -38,6 +41,7 @@ class cuda:
                 (float16, float32): cuda.atomic_mma_configs.m16n8k16_f16_f32,
                 (float16, float16): cuda.atomic_mma_configs.m16n8k16_f16_f16,
                 (bfloat16, float32): cuda.atomic_mma_configs.m16n8k16_bf16_f32,
+                (int8, int32): cuda.atomic_mma_configs.m16n8k32_i8_i32,
             }
             if (operand_dtype, accumulator_dtype) not in table:
                 raise ValueError(

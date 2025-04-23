@@ -324,7 +324,10 @@ class TensorInfo:
             if i == dim:
                 infos.append(DimensionInfo(value=None, continuity=extent, divisibility=0, constancy=1))
             else:
-                infos.append(DimensionInfo(value=None, continuity=1, divisibility=1, constancy=extent))
+                if shape[dim] == 1:
+                    infos.append(DimensionInfo(value=None, continuity=1, divisibility=0, constancy=extent))
+                else:
+                    infos.append(DimensionInfo(value=None, continuity=1, divisibility=1, constancy=extent))
         return TensorInfo(shape, infos)
 
     @staticmethod

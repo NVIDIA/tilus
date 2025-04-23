@@ -16,8 +16,8 @@ from tilus.ir.instructions import (
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
-    ElementwiseBinaryInst,
-    ElementwiseUnaryInst,
+    ElementwiseBinaryBaseInst,
+    ElementwiseUnaryBaseInst,
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
@@ -293,10 +293,10 @@ class IRFunctor:
     def visit_CastInst(self, inst: CastInst) -> Any:
         raise NotImplementedError()
 
-    def visit_ElementwiseUnaryInst(self, inst: ElementwiseUnaryInst) -> Any:
+    def visit_ElementwiseUnaryInst(self, inst: ElementwiseUnaryBaseInst) -> Any:
         raise NotImplementedError()
 
-    def visit_ElementwiseBinaryInst(self, inst: ElementwiseBinaryInst) -> Any:
+    def visit_ElementwiseBinaryInst(self, inst: ElementwiseBinaryBaseInst) -> Any:
         raise NotImplementedError()
 
     def visit_MmaDotInst(self, inst: MmaDotInst) -> Any:

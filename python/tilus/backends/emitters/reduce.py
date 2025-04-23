@@ -190,16 +190,20 @@ class ReduceInstEmitter(BaseInstEmitter):
             return dtype.zero
         elif op == "max":
             return dtype.min_value
+        elif op == "min":
+            return dtype.max_value
         else:
             raise NotImplementedError()
 
     def scalar_reduce(self, lhs: Expr, rhs: Expr, op: str) -> Expr:
+        from hidet.ir.primitives import max, min
+
         if op == "sum":
             return lhs + rhs
         elif op == "max":
-            from hidet.ir.primitives import max
-
             return max(lhs, rhs)
+        elif op == "min":
+            return min(lhs, rhs)
         else:
             raise NotImplementedError()
 

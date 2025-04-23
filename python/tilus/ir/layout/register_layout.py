@@ -391,12 +391,12 @@ class SqueezeRegisterLayout(RegisterLayout):
 
 
 @dataclass(frozen=True, eq=False)
-class ExpandRegisterLayout(RegisterLayout):
+class UnsqueezeRegisterLayout(RegisterLayout):
     base: RegisterLayout
     dims: tuple[int, ...]
 
     @staticmethod
-    def create(base: RegisterLayout, dims: Sequence[int]) -> ExpandRegisterLayout:
+    def create(base: RegisterLayout, dims: Sequence[int]) -> UnsqueezeRegisterLayout:
         shape = []
         cur = 0
         for dim in range(len(base.shape) + len(dims)):
@@ -405,12 +405,12 @@ class ExpandRegisterLayout(RegisterLayout):
             else:
                 shape.append(base.shape[cur])
                 cur += 1
-        return ExpandRegisterLayout(
+        return UnsqueezeRegisterLayout(
             shape=tuple(shape), local_size=base.local_size, num_workers=base.num_workers, base=base, dims=tuple(dims)
         )
 
     def __str__(self):
-        return "expand({}, dims={})".format(self.base, self.dims)
+        return "unsqueeze({}, dims={})".format(self.base, self.dims)
 
     def is_simple(self) -> bool:
         return self.base.is_simple()
@@ -696,13 +696,14 @@ def compose(outer: RegisterLayout, inner: Optional[RegisterLayout]) -> RegisterL
     if is_identity(inner):
         return outer
     if len(outer.shape) < len(inner.shape):
-        outer = expand(outer, list(range(len(inner.shape) - len(outer.shape))))
+        outer = unsqueeze(outer, list(range(len(inner.shape) - len(outer.shape))))
     if len(outer.shape) > len(inner.shape):
-        inner = expand(inner, list(range(len(outer.shape) - len(inner.shape))))
+        inner = unsqueeze(inner, list(range(len(outer.shape) - len(inner.shape))))
     return ComposedRegisterLayout.create(outer, inner)
 
 
 def squeeze(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
+    assert all(layout.shape[dim] == 1 for dim in dims), "Can only squeeze the dims with size == 1"
     if isinstance(layout, AtomRegisterLayout) and all(layout.workers[dim] == 1 for dim in dims):
         ranks = [layout.ranks[i] for i in range(len(layout.shape)) if i not in dims]
         worker_ranks = [layout.worker_ranks[i] for i in range(len(layout.shape)) if i not in dims]
@@ -718,41 +719,68 @@ def squeeze(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
     return SqueezeRegisterLayout.create(layout, dims)
 
 
-def _reduce(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
+def _reduce(layout: RegisterLayout, dims: Sequence[int], reduce_extents: Sequence[int]) -> RegisterLayout:
+    for dim, extent in zip(dims, reduce_extents):
+        assert layout.shape[dim] % extent == 0, "Cannot reduce layout {} on dim {} with extent {} (shape={})".format(
+            layout, dim, extent, layout.shape
+        )
+
     if isinstance(layout, AtomRegisterLayout):
+        dim2reduce_extent = {dim: extent for dim, extent in zip(dims, reduce_extents)}
         return AtomRegisterLayout.create(
-            shape=[d if i not in dims else 1 for i, d in enumerate(layout.shape)],
+            shape=[d if i not in dims else d // dim2reduce_extent[i] for i, d in enumerate(layout.shape)],
             workers=list(layout.workers),
             ranks=layout.ranks,
             worker_ranks=layout.worker_ranks,
         )
     elif isinstance(layout, ComposedRegisterLayout):
-        return ComposedRegisterLayout.create(outer=_reduce(layout.outer, dims), inner=_reduce(layout.inner, dims))
+        inner_dim_sizes = [layout.inner.shape[dim] for dim in dims]
+        inner_reduce_extents = [min(a, b) for a, b in zip(inner_dim_sizes, reduce_extents)]
+        outer_reduce_extents = [a // b for a, b in zip(reduce_extents, inner_reduce_extents)]
+        assert all(a * b == c for a, b, c in zip(inner_reduce_extents, outer_reduce_extents, reduce_extents))
+        return ComposedRegisterLayout.create(
+            outer=_reduce(layout.outer, dims, outer_reduce_extents),
+            inner=_reduce(layout.inner, dims, inner_reduce_extents),
+        )
     elif isinstance(layout, SqueezeRegisterLayout):
         base_dims = list(range(len(layout.base.shape)))
         squeezed_dims = [dim for dim in base_dims if dim not in layout.dims]
         new_reduce_dims = [squeezed_dims[dim] for dim in dims]
-        return SqueezeRegisterLayout.create(base=_reduce(layout.base, new_reduce_dims), dims=layout.dims)
-    elif isinstance(layout, ExpandRegisterLayout):
+        new_reduce_extents = reduce_extents
+        return SqueezeRegisterLayout.create(
+            base=_reduce(layout.base, new_reduce_dims, new_reduce_extents), dims=layout.dims
+        )
+    elif isinstance(layout, UnsqueezeRegisterLayout):
         base_dims_after_expanded = [dim for dim in range(len(layout.shape)) if dim not in layout.dims]
         base_dims_before_expanded = [dim for dim in range(len(layout.base.shape))]
         new_reduce_dims = [a for a, b in zip(base_dims_before_expanded, base_dims_after_expanded) if b in dims]
-        return ExpandRegisterLayout.create(base=_reduce(layout.base, new_reduce_dims), dims=layout.dims)
+        new_reduce_extents = [a for a, b in zip(reduce_extents, base_dims_after_expanded) if b in dims]
+        return UnsqueezeRegisterLayout.create(
+            base=_reduce(layout.base, new_reduce_dims, new_reduce_extents), dims=layout.dims
+        )
     else:
         raise NotImplementedError()
 
 
-def reduce(layout: RegisterLayout, dims: Sequence[int], squeeze_dims: bool = True) -> RegisterLayout:
+def reduce(
+    layout: RegisterLayout,
+    dims: Sequence[int],
+    *,
+    reduce_extents: Optional[Sequence[int]] = None,
+    squeeze_dims: bool = True,
+) -> RegisterLayout:
+    if reduce_extents is None:
+        reduce_extents = [layout.shape[dim] for dim in dims]
     if squeeze_dims:
-        return squeeze(_reduce(layout, dims), dims)
+        return squeeze(_reduce(layout, dims, reduce_extents), dims)
     else:
-        return _reduce(layout, dims)
+        return _reduce(layout, dims, reduce_extents)
 
 
-def expand(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
+def unsqueeze(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
     if len(dims) == 0:
         return layout
-    return ExpandRegisterLayout.create(layout, dims=dims)
+    return UnsqueezeRegisterLayout.create(layout, dims=dims)
 
 
 def concat(lhs: RegisterLayout, rhs: RegisterLayout) -> RegisterLayout:
@@ -942,7 +970,7 @@ def try_merge_atom_layouts(lhs: RegisterLayout, rhs: RegisterLayout) -> Optional
 
 def simplify(layout: RegisterLayout) -> RegisterLayout:
     if isinstance(layout, SqueezeRegisterLayout):
-        if isinstance(layout.base, ExpandRegisterLayout):
+        if isinstance(layout.base, UnsqueezeRegisterLayout):
             squeezed_dims: Set[int] = set(layout.dims)
             expanded_dims: Set[int] = set(layout.base.dims)
             common_dims = squeezed_dims & expanded_dims
@@ -954,15 +982,15 @@ def simplify(layout: RegisterLayout) -> RegisterLayout:
             if squeezed_dims:
                 ret = squeeze(ret, list(squeezed_dims))
             if expanded_dims:
-                ret = expand(ret, list(expanded_dims))
+                ret = unsqueeze(ret, list(expanded_dims))
             return ret
         else:
             return squeeze(simplify(layout.base), dims=layout.dims)
-    elif isinstance(layout, ExpandRegisterLayout):
+    elif isinstance(layout, UnsqueezeRegisterLayout):
         if isinstance(layout.base, SqueezeRegisterLayout):
             raise NotImplementedError()
         else:
-            return expand(simplify(layout.base), dims=layout.dims)
+            return unsqueeze(simplify(layout.base), dims=layout.dims)
     elif isinstance(layout, ComposedRegisterLayout):
         layout = compose(simplify(layout.outer), simplify(layout.inner))
         chain: List[RegisterLayout] = get_composition_chain(layout, fine_grained=False)

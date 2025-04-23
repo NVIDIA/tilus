@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
+from typing import Sequence
 
 from hidet.ir.expr import Expr
 from hidet.ir.type import DataType
@@ -52,11 +53,28 @@ class RegisterTensor(Tensor):
     def shape(self) -> tuple[int, ...]:
         return self.layout.shape
 
+    """
+    The following methods are used for type hinting in Tilus Script. The corresponding operations/methods will be
+    converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
+    """
+
     def __add__(self, other: RegisterTensor) -> RegisterTensor:
-        raise RuntimeError("register_tensor + register_tensor could only be used in Tilus Script.")
+        raise RuntimeError("tensor + tensor could only be used in Tilus Script.")
+
+    def __sub__(self, other: RegisterTensor) -> RegisterTensor:
+        raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
 
     def __mul__(self, other: RegisterTensor) -> RegisterTensor:
-        raise RuntimeError("register_tensor * register_tensor could only be used in Tilus Script.")
+        raise RuntimeError("tensor * tensor could only be used in Tilus Script.")
+
+    def __truediv__(self, other: RegisterTensor) -> RegisterTensor:
+        raise RuntimeError("tensor / tensor could only be used in Tilus Script.")
+
+    def squeeze(self, dim: int | Sequence[int]) -> RegisterTensor:
+        raise RuntimeError("tensor.squeeze(...) could only be used in Tilus Script.")
+
+    def unsqueeze(self, dim: int | Sequence[int]) -> RegisterTensor:
+        raise RuntimeError("tensor.unsqueeze(...) could only be used in Tilus Script.")
 
 
 @dataclass(frozen=True, eq=False)

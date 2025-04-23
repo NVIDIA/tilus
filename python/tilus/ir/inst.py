@@ -59,3 +59,9 @@ class Instruction(IRNode):
 @dataclass(frozen=True, eq=False)
 class InstructionConfig(IRNode):
     pass
+
+
+class InstructionError(Exception):
+    """
+    Exception raised when the parameters of an instruction are invalid.
+    """
