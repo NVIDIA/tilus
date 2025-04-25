@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import inspect
 import json
@@ -741,3 +743,51 @@ class InstantiatedScript:
             )
 
         return self.jit_instances[jit_key]
+
+
+class InstantiatedScriptCache:
+    cache: dict[Any, InstantiatedScript] = {}
+
+    @classmethod
+    def _is_hashable(cls, obj):
+        """
+        Check if the obj is hashable
+        """
+        try:
+            hash(obj)
+            return True
+        except TypeError:
+            return False
+
+    @classmethod
+    def _normalize_key(cls, obj):
+        """
+        Convert the obj to a key that can be hashed by python's hash function, and it contains all the information
+        needed to identify the object.
+        """
+        if isinstance(obj, (str, int, float, bytes)):
+            return obj
+        elif inspect.isclass(obj):
+            return obj
+        elif isinstance(obj, Sequence):
+            return tuple(cls._normalize_key(item) for item in obj)
+        elif isinstance(obj, Mapping):
+            items = []
+            for key, value in obj.items():
+                items.append((cls._normalize_key(key), cls._normalize_key(value)))
+            items = sorted(items, key=lambda x: x[0])
+            return tuple(items)
+        elif cls._is_hashable(obj):
+            return obj
+        else:
+            raise NotImplementedError(type(obj))
+
+    @classmethod
+    def get(
+        cls, script_cls: Type[Script], script_args: Sequence[Any], script_kwargs: Mapping[str, Any]
+    ) -> InstantiatedScript:
+        key = cls._normalize_key((script_cls, script_args, script_kwargs))
+        if key not in cls.cache:
+            instantiated_script = InstantiatedScript(script_cls, script_args, script_kwargs)
+            cls.cache[key] = instantiated_script
+        return cls.cache[key]

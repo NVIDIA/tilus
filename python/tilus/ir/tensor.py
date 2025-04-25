@@ -58,16 +58,16 @@ class RegisterTensor(Tensor):
     converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
     """
 
-    def __add__(self, other: RegisterTensor) -> RegisterTensor:
+    def __add__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         raise RuntimeError("tensor + tensor could only be used in Tilus Script.")
 
-    def __sub__(self, other: RegisterTensor) -> RegisterTensor:
+    def __sub__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
 
-    def __mul__(self, other: RegisterTensor) -> RegisterTensor:
+    def __mul__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         raise RuntimeError("tensor * tensor could only be used in Tilus Script.")
 
-    def __truediv__(self, other: RegisterTensor) -> RegisterTensor:
+    def __truediv__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         raise RuntimeError("tensor / tensor could only be used in Tilus Script.")
 
     def squeeze(self, dim: int | Sequence[int]) -> RegisterTensor:

@@ -68,11 +68,10 @@ class Script:
     debug_schedule: Optional[dict[str, Any]] = None
 
     def __new__(cls, *args, **kwargs):
-        from tilus.lang.instantiated_script import InstantiatedScript
+        from tilus.lang.instantiated_script import InstantiatedScriptCache
 
-        script_cls: Type[Script] = cls
-        return InstantiatedScript(
-            script_cls=script_cls,
+        return InstantiatedScriptCache.get(
+            script_cls=cls,
             script_args=args,
             script_kwargs=kwargs,
         )
