@@ -1,5 +1,5 @@
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.ir.instructions import RepeatInst, RepeatInterleaveInst, SqueezeInst, UnsqueezeInst
+from tilus.ir.instructions import RepeatInst, RepeatInterleaveInst, SqueezeInst, TransposeInst, UnsqueezeInst
 
 
 @register_emitter(RepeatInst)
@@ -75,6 +75,20 @@ class RepeatInterleaveInstEmitter(BaseInstEmitter):
 @register_emitter(SqueezeInst)
 class SqueezeUnsqueezeInstEmitter(BaseInstEmitter):
     def emit(self, inst: SqueezeInst) -> None:
+        src = inst.register_input
+        dst = inst.register_output
+
+        src_buf = self.tensor2var[src]
+        dst_buf = self.get_or_allocate_var(dst)
+
+        # emit the code
+        with self.for_range(dst.local_size, attr="u") as local:
+            self.buffer_store(dst_buf, indices=[local], value=src_buf[local])
+
+
+@register_emitter(TransposeInst)
+class TransposeInstEmitter(BaseInstEmitter):
+    def emit(self, inst: TransposeInst) -> None:
         src = inst.register_input
         dst = inst.register_output
 

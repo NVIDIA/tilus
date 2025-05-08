@@ -96,9 +96,11 @@ f6e2m3 = float6_e2m3 = FloatSubbyteType("float6_e2m3", "f6e2m3", 6, 2, 3)
 # float5
 f5e3m1 = float5_e3m1 = FloatSubbyteType("float5_e3m1", "f5e3m1", 5, 3, 1)
 f5e2m2 = float5_e2m2 = FloatSubbyteType("float5_e2m2", "f5e2m2", 5, 2, 2)
+f5e1m3 = float5_e1m3 = FloatSubbyteType("float5_e1m3", "f5e1m3", 5, 1, 3)
 
 # float4
 f4e2m1 = float4_e2m1 = FloatSubbyteType("float4_e2m1", "f4e2m1", 4, 2, 1)
+f4e1m2 = float4_e1m2 = FloatSubbyteType("float4_e1m2", "f4e1m2", 4, 1, 2)
 
 # float3
 f3e1m1 = float3_e1m1 = FloatSubbyteType("float3_e1m1", "f3e1m1", 3, 1, 1)

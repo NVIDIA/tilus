@@ -719,6 +719,51 @@ def squeeze(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
     return SqueezeRegisterLayout.create(layout, dims)
 
 
+def permute(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
+    assert len(dims) == len(layout.shape), "Invalid permutation dims {} for layout {}".format(dims, layout)
+    assert len(dims) == len(set(dims)), "Dims should be unique"
+    assert all(0 <= dim < len(layout.shape) for dim in dims), "Invalid permutation dims {} for layout {}".format(
+        dims, layout
+    )
+
+    if isinstance(layout, AtomRegisterLayout):
+        return AtomRegisterLayout.create(
+            shape=[layout.shape[dim] for dim in dims],
+            workers=[layout.workers[dim] for dim in dims],
+            ranks=[layout.ranks[dim] for dim in dims],
+            worker_ranks=[layout.worker_ranks[dim] for dim in dims],
+        )
+    elif isinstance(layout, ComposedRegisterLayout):
+        return ComposedRegisterLayout.create(
+            outer=permute(layout.outer, dims),
+            inner=permute(layout.inner, dims),
+        )
+    elif isinstance(layout, SqueezeRegisterLayout):
+        """
+        squeeze([4, 5, 1, 6], dims=[2]) => [4, 5, 6]
+        permute(squeeze([4, 5, 1, 6], dims=[2]), [2, 0, 1]) => [6, 4, 5]
+        => squeeze(permute([4, 5, 1, 6], [3, 0, 2, 1]), dims=[2])
+        """
+        base_permute_dims = []
+        remain_dims = [dim for dim in range(len(layout.base.shape)) if dim not in layout.dims]
+        permuted_remain_dims = [remain_dims[dim] for dim in dims]
+        for i in range(len(layout.base.shape)):
+            if i in layout.dims:
+                base_permute_dims.append(i)
+            else:
+                base_permute_dims.append(permuted_remain_dims[0])
+                permuted_remain_dims = permuted_remain_dims[1:]
+
+        return SqueezeRegisterLayout.create(
+            base=permute(layout.base, base_permute_dims),
+            dims=layout.dims,
+        )
+    elif isinstance(layout, UnsqueezeRegisterLayout):
+        raise NotImplementedError()
+    else:
+        raise NotImplementedError("Cannot permute layout {}".format(layout))
+
+
 def _reduce(layout: RegisterLayout, dims: Sequence[int], reduce_extents: Sequence[int]) -> RegisterLayout:
     for dim, extent in zip(dims, reduce_extents):
         assert layout.shape[dim] % extent == 0, "Cannot reduce layout {} on dim {} with extent {} (shape={})".format(
@@ -1062,3 +1107,9 @@ def auto_layout_for_efficient_ldst(num_threads: int, shape: List[int], dtype_nbi
     shape[-1] //= vec_size
     inner_repeat_shape = [1 for i in range(len(shape) - 1)] + [vec_size]
     return auto_repeat_spatial(num_threads, shape) * repeat(*inner_repeat_shape)
+
+
+if __name__ == "__main__":
+    layout = reduce(spatial(2, 4, 3), dims=[2]) * spatial(8, 4).repeat(1, 2)
+    print(layout)
+    print(permute(layout, [1, 0]))

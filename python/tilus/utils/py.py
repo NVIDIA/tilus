@@ -144,3 +144,24 @@ def relative_to_with_walk_up(source: Path, target: Path) -> Path:
         return Path(".")
 
     return Path(*relative_parts)
+
+
+def unique_file_name(pattern: str) -> Optional[str]:
+    """
+    Given a pattern like './results/exp/report_%d.txt' and returns a unique file name like `./results/exp/report_1.txt`
+    """
+    import os
+
+    if pattern.count("%d") == 0:
+        os.makedirs(os.path.dirname(pattern), exist_ok=True)
+        return pattern
+    else:
+        assert pattern.count("%d") == 1
+        os.makedirs(os.path.dirname(pattern), exist_ok=True)
+
+        i = 0
+        while True:
+            file_name = pattern % i
+            if not os.path.exists(file_name):
+                return file_name
+            i += 1

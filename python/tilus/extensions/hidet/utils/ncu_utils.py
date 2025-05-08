@@ -5,6 +5,7 @@ import os
 import pickle
 import subprocess
 import sys
+import traceback
 from typing import Any
 
 _nsys_path: str = "/usr/local/cuda/bin/ncu"
@@ -96,15 +97,19 @@ def ncu_run(func: Any, *args: Any, kernel_regex: str = ".*", **kwargs: Any) -> N
     with open(args_path, "wb") as f:
         pickle.dump((args, kwargs), f)
 
+    command = _ncu_template.format(
+        ncu_path=_nsys_path,
+        report_path=report_path,
+        kernel_regex=kernel_regex,
+        python_executable=sys.executable,
+        python_script=__file__,
+        args="{} {} {}".format(script_path, func_name, args_path),
+    )
+    print("Running Nsight Compute command:")
+    print(command.replace("--", "\n\t--"))
+
     status = subprocess.run(
-        _ncu_template.format(
-            ncu_path=_nsys_path,
-            report_path=report_path,
-            kernel_regex=kernel_regex,
-            python_executable=sys.executable,
-            python_script=__file__,
-            args="{} {} {}".format(script_path, func_name, args_path),
-        ),
+        command,
         shell=True,
     )
 
@@ -115,12 +120,18 @@ def ncu_run(func: Any, *args: Any, kernel_regex: str = ".*", **kwargs: Any) -> N
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("script_path", type=str)
-    parser.add_argument("func", type=str)
-    parser.add_argument("args", type=str)
-    args = parser.parse_args()
-    _ncu_run_func(args.script_path, args.func, args.args)
+    try:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("script_path", type=str)
+        parser.add_argument("func", type=str)
+        parser.add_argument("args", type=str)
+        args = parser.parse_args()
+        _ncu_run_func(args.script_path, args.func, args.args)
+    except Exception as e:
+        print("Error when running the script: {}".format(e))
+        print("Traceback:")
+        traceback.print_exc()
+        raise e
 
 
 if __name__ == "__main__":

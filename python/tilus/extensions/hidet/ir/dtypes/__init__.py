@@ -23,7 +23,9 @@ from hidet.ir.dtypes.integer_subbyte import (
 from .floats import f8e4m3, f8e5m2, float8_e4m3, float8_e5m2
 from .floats_subbyte import (
     f3e1m1,
+    f4e1m2,
     f4e2m1,
+    f5e1m3,
     f5e2m2,
     f5e3m1,
     f6e2m3,
@@ -34,7 +36,9 @@ from .floats_subbyte import (
     f7e4m2,
     f7e5m1,
     float3_e1m1,
+    float4_e1m2,
     float4_e2m1,
+    float5_e1m3,
     float5_e2m2,
     float5_e3m1,
     float6_e2m3,

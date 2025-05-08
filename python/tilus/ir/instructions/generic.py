@@ -445,6 +445,18 @@ class UnsqueezeInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
+class TransposeInst(Instruction):
+    @staticmethod
+    def create(x: RegisterTensor, out: Optional[RegisterTensor] = None) -> TransposeInst:
+        assert len(x.shape) == 2
+        if out is None:
+            from tilus.ir.layout.register_layout import permute
+
+            out = RegisterTensor.create(dtype=x.dtype, layout=permute(x.layout, [1, 0]))
+        return TransposeInst(output=out, inputs=(x,))
+
+
+@dataclass(frozen=True, eq=False)
 class AllocateSharedInst(Instruction):
     @staticmethod
     def create(output: SharedTensor) -> AllocateSharedInst:

@@ -12,11 +12,12 @@ from typing import Optional, Union
 
 from hidet.ir import DataType
 from hidet.ir.expr import Expr, Var
+from hidet.ir.tools import collect
 from tilus import RegisterLayout
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.builders import StmtBuilder
-from tilus.ir.func import Function
+from tilus.ir.func import Analysis, Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import LoadMatrixConfig, LoadSharedInst
@@ -27,6 +28,10 @@ from tilus.transforms.base import Pass
 
 
 class LowerToLoadMatrixRewriter(IRRewriter):
+    def __init__(self):
+        super().__init__()
+        self.analysis: Optional[Analysis] = None
+
     @staticmethod
     def get_load_matrix_config(dtype: DataType, register_layout: RegisterLayout) -> Optional[LoadMatrixConfig]:
         if len(register_layout.shape) != 2:
@@ -41,6 +46,10 @@ class LowerToLoadMatrixRewriter(IRRewriter):
                 continue
             return config
         return None
+
+    def visit_Function(self, func: Function) -> Function:
+        self.analysis = func.metadata.analysis
+        return super().visit_Function(func)
 
     def visit_LoadSharedInst(self, inst: LoadSharedInst) -> Union[Stmt, Instruction]:
         inst = super().visit_Instruction(inst)
@@ -61,7 +70,23 @@ class LowerToLoadMatrixRewriter(IRRewriter):
         shared_tensor = inst.shared_input
         axes: list[Var] = index_vars(num_vars=len(shared_tensor.shape))
         offset: Expr = shared_tensor.layout(*axes)
-        tensor_info: TensorInfo = analyze_grid(shape=register_tensor.shape, axes=axes, expr=offset, var2info={})
+        offset_used_vars = collect(offset, [Var], stop_when_found=True)
+        var2info = {}
+        shape = register_tensor.shape
+        for v in offset_used_vars:
+            if v in axes:
+                continue
+            if self.analysis is None:
+                continue
+            if (
+                v in self.analysis.lower_bound
+                and v in self.analysis.upper_bound
+                and self.analysis.lower_bound[v] == self.analysis.upper_bound[v]
+            ):
+                var2info[v] = TensorInfo.from_constant(shape=shape, value=self.analysis.lower_bound[v])
+            elif v in self.analysis.divisibility:
+                var2info[v] = TensorInfo.from_divisibility(shape=shape, divisibility=self.analysis.divisibility[v])
+        tensor_info: TensorInfo = analyze_grid(shape=shape, axes=axes, expr=offset, var2info=var2info)
 
         if tensor_info.infos[-1].divisibility * config.nbytes % 16 != 0:
             # the shared tensor address is not aligned with 16 bytes for each row in the ldmatrix unit

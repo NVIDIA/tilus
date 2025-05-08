@@ -14,6 +14,7 @@ def get_default_passes() -> list[Pass]:
     return [
         declare_to_let_pass(),
         lower_param_only_expr_pass(),
+        analyze_scalar_pass(),
         lower_to_load_matrix_pass(),
         lower_load_store_pass(),
         bound_aware_simplify_pass(),

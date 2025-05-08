@@ -53,6 +53,7 @@ from tilus.ir.instructions.generic import (
     SubInst,
     SyncReduceThreadsInst,
     SyncThreadsInst,
+    TransposeInst,
     UnsqueezeInst,
     ViewInst,
 )
@@ -506,6 +507,15 @@ class StmtBuilder(StmtBuilderCore):
             layout = layout * repeat(*repeats)
             out = RegisterTensor.create(dtype=x.dtype, layout=layout)
         inst = RepeatInterleaveInst.create(x=x, output=out)
+        self.append(inst)
+        return inst.register_output
+
+    def transpose(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        from tilus.ir.layout.register_layout import permute
+
+        if out is None:
+            out = RegisterTensor.create(dtype=x.dtype, layout=permute(x.layout, dims=[1, 0]))
+        inst = TransposeInst.create(x, out)
         self.append(inst)
         return inst.register_output
 

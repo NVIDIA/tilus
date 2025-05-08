@@ -10,6 +10,7 @@ from .register_layout import (
     divide,
     get_composition_chain,
     identity,
+    permute,
     reduce,
     repeat,
     simplify,

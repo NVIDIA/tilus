@@ -461,6 +461,28 @@ def analyze_grid(
     """
     analyzer = GridAnalyzer()
     ret = analyzer.analyze(axes, shape, var2info, expr)
+
+    debug = False
+    if debug:
+        print("=" * 20)
+        print("shape:", shape)
+        print("axes:", axes)
+        print("expr:", expr)
+        print("var2info:")
+        for var in var2info:
+            print(var)
+            print(var2info[var])
+            print()
+        print("ret:")
+        print(ret)
+        print()
+        print("===")
+        for expr in analyzer.memo:
+            print(expr)
+            print(analyzer.memo[expr])
+            print()
+        print("=" * 20)
+
     return ret
 
 

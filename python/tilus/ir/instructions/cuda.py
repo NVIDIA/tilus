@@ -13,34 +13,16 @@ from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor
 
 @dataclass(frozen=True, eq=False)
 class MmaDotInst(Instruction):
-    # warp_spatial: tuple[int, int, int]
-    # warp_repeat: tuple[int, int, int]
-    # config: MmaDotConfig
-
     @staticmethod
     def create(
         a: RegisterTensor,
         b: RegisterTensor,
         c: RegisterTensor,
-        # warp_spatial: Sequence[int],
-        # warp_repeat: Sequence[int],
-        # config: MmaDotConfig,
         output: RegisterTensor,
     ) -> MmaDotInst:
-        # if len(warp_spatial) == 2:
-        #     warp_spatial_ = (warp_spatial[0], warp_spatial[1], 1)
-        # elif len(warp_spatial) == 3:
-        #     warp_spatial_ = (warp_spatial[0], warp_spatial[1], warp_spatial[2])
-        # else:
-        #     raise ValueError("warp_spatial must have length 2 or 3")
-        # if len(warp_repeat) == 3:
-        #     warp_repeat_ = (warp_repeat[0], warp_repeat[1], warp_repeat[2])
-        # else:
-        #     raise ValueError("warp_repeat must have length 3")
         return MmaDotInst(
             output=output,
             inputs=(a, b, c),
-            # config=config, warp_spatial=warp_spatial_, warp_repeat=warp_repeat_
         )
 
 
@@ -212,6 +194,8 @@ class LoadMatrixConfig(InstructionConfig):
     @functools.cache
     def all() -> tuple[LoadMatrixConfig, ...]:
         return (
+            LoadMatrixConfig(1, False, spatial(8, 4).repeat(1, 4)),
             LoadMatrixConfig(2, False, spatial(8, 4).repeat(1, 2)),
+            LoadMatrixConfig(4, False, spatial(8, 4)),
             LoadMatrixConfig(2, True, column_spatial(4, 8).repeat(2, 1)),
         )

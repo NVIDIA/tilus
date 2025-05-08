@@ -76,6 +76,9 @@ class RegisterTensor(Tensor):
     def unsqueeze(self, dim: int | Sequence[int]) -> RegisterTensor:
         raise RuntimeError("tensor.unsqueeze(...) could only be used in Tilus Script.")
 
+    def transpose(self) -> RegisterTensor:
+        raise RuntimeError("tensor.transpose(...) could only be used in Tilus Script.")
+
 
 @dataclass(frozen=True, eq=False)
 class SharedTensor(Tensor):

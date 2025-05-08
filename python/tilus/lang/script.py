@@ -433,6 +433,14 @@ class Script:
     ) -> RegisterTensor:
         return self._builder.unsqueeze(x, dim=dim, out=out)
 
+    def transpose(
+        self,
+        x: RegisterTensor,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.transpose(x, out=out)
+
     def abs(
         self,
         x: RegisterTensor,

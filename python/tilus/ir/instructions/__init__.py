@@ -45,6 +45,7 @@ from .generic import (
     StoreSharedInst,
     SyncReduceThreadsInst,
     SyncThreadsInst,
+    TransposeInst,
     UnsqueezeInst,
     ViewInst,
 )

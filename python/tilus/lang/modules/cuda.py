@@ -24,6 +24,12 @@ class BlockMmaConfig:
     lb: RegisterLayout
     lc: RegisterLayout
 
+    @property
+    def lb_T(self) -> RegisterLayout:
+        from tilus.ir.layout import permute
+
+        return permute(self.lb, [1, 0])
+
 
 class cuda:
     class atomic_mma_configs:

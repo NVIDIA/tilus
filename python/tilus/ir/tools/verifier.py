@@ -8,7 +8,7 @@ from hidet.ir.expr import Constant, Expr
 from hidet.ir.tools.simplifier import Simplifier
 from hidet.utils.doc import Doc, NewLine
 from tilus.ir.functors import IRVisitor
-from tilus.ir.instructions import LoadSharedInst
+from tilus.ir.instructions import LoadSharedInst, StoreSharedInst
 from tilus.ir.node import IRNode
 from tilus.ir.prog import Program
 from tilus.ir.tools.printer import IRPrinter
@@ -108,6 +108,18 @@ class IRVerifier(IRVisitor):
                 "The shared tensor shape [{}] does not match the register tensor shape [{}].",
                 inst.shared_input.shape,
                 inst.register_output.shape,
+            )
+
+    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> None:
+        shared_shape = vector(inst.inputs[0].as_shared_tensor().shape)
+        register_shape = vector(inst.inputs[1].as_register_tensor().shape)
+
+        if len(shared_shape) != len(register_shape) or any(vector(shared_shape) != vector(register_shape)):
+            self.error(
+                inst,
+                "The shared tensor shape [{}] does not match the register tensor shape [{}].",
+                inst.inputs[0].as_shared_tensor().shape,
+                inst.inputs[1].as_register_tensor().shape,
             )
 
 
