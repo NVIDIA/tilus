@@ -264,7 +264,7 @@ def extract_keys(args: Sequence[Any], const_params: list[int], tuning_params: li
     for i in tuning_params:
         arg: int = args[i]
         jit_key.append(divisibility_key[arg % 32])
-        block = 1 << max((arg.bit_length() - 5), 0)
+        block = 1 << max((arg.bit_length() - 2), 0)
         tuning_key.append((arg + block - 1) // block * block)
     return tuple(jit_key), tuple(tuning_key)
 
