@@ -30,6 +30,7 @@ classifiers = [
 dependencies = [
     "hidet",
     "torch",
+    "tabulate",
 ]
 
 [project.optional-dependencies]
