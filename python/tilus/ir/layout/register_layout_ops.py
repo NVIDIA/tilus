@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional, Sequence
 
-from tilus.ir.layout.register_layout_v2 import (
+from tilus.ir.layout.register_layout import (
     LayoutOperationError,
     RegisterLayout,
     canonicalize_layout,
@@ -47,11 +47,11 @@ def spatial(*shape: int, ranks: Optional[Sequence[int]] = None) -> RegisterLayou
     return register_layout(shape=shape, mode_shape=shape, spatial_modes=spatial_modes, local_modes=[])
 
 
-def local(*shape: int, ranks: Optional[Sequence[int]] = None) -> RegisterLayout:
+def repeat(*shape: int, ranks: Optional[Sequence[int]] = None) -> RegisterLayout:
     """
-    Create a local layout.
+    Create a repeat layout.
 
-    A local layout is a layout that maps all dimensions to the local dimensions. The ranks of the dimensions are
+    A repeat layout is a layout that maps all dimensions to the local dimensions. The ranks of the dimensions are
     specified by the `ranks` parameter.
 
     Parameters
@@ -100,7 +100,7 @@ def column_spatial(*shape: int) -> RegisterLayout:
     return spatial(*shape, ranks=list(reversed(range(len(shape)))))
 
 
-def column_local(*shape: int) -> RegisterLayout:
+def column_repeat(*shape: int) -> RegisterLayout:
     """
     Create a local layout in column-major order.
 
@@ -114,7 +114,40 @@ def column_local(*shape: int) -> RegisterLayout:
     ret: RegisterLayout
         The local layout.
     """
-    return local(*shape, ranks=list(reversed(range(len(shape)))))
+    return repeat(*shape, ranks=list(reversed(range(len(shape)))))
+
+
+def squeeze(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
+    """
+    Squeeze the layout over the given dimensions.
+
+    The squeeze function will return a new layout with the dimensions specified in dims removed from the layout. The
+    specified dimensions must be in the range [0, len(layout.shape)), and the corresponding dimensions in the
+    layout must have size 1.
+
+    Parameters
+    ----------
+    layout: RegisterLayout
+        The layout to squeeze.
+
+    dims: Sequence[int]
+        The dimensions to squeeze. The dimensions must be in the range [0, len(layout.shape)).
+
+    Returns
+    -------
+    ret: RegisterLayout
+        The squeezed layout.
+    """
+    if len(dims) == 0:
+        return layout
+    if any(d < 0 or d >= len(layout.shape) for d in dims):
+        raise LayoutOperationError("Dims must be in range [0, {}), got {}".format(len(layout.shape), dims))
+    if len(dims) != len(set(dims)):
+        raise LayoutOperationError("Dims must be unique, got {}".format(dims))
+    if any(layout.shape[d] != 1 for d in dims):
+        raise LayoutOperationError("Dims must have size 1, got {}".format([layout.shape[d] for d in dims]))
+    shape = [layout.shape[i] for i in range(len(layout.shape)) if i not in dims]
+    return layout.with_shape(shape)
 
 
 def unsqueeze(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
@@ -204,13 +237,15 @@ def compose(outer: RegisterLayout, inner: RegisterLayout) -> RegisterLayout:
             current_inner += 1
             current_composed += 1
             mode_shape.append(inner.mode_shape[inner_mode])
-    thread_dims: list[int] = [outer_map[i] for i in outer.spatial_modes] + [inner_map[i] for i in inner.spatial_modes]
+    spatial_modes: list[int] = [outer_map[i] if i >= 0 else i for i in outer.spatial_modes] + [
+        inner_map[i] if i >= 0 else i for i in inner.spatial_modes
+    ]
     local_modes: list[int] = [outer_map[i] for i in outer.local_modes] + [inner_map[i] for i in inner.local_modes]
 
     return register_layout(
         shape=shape,
         mode_shape=mode_shape,
-        spatial_modes=thread_dims,
+        spatial_modes=spatial_modes,
         local_modes=local_modes,
     )
 
@@ -642,7 +677,7 @@ def auto_repeat_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayou
     assert remain_threads == 1
 
     repeat_shape = remain_shape
-    return local(*repeat_shape).spatial(*spatial_shape)
+    return repeat(*repeat_shape).spatial(*spatial_shape)
 
 
 def auto_vectorized_repeat_spatial(num_threads: int, shape: list[int], dtype_nbits: int) -> RegisterLayout:
@@ -669,4 +704,4 @@ def auto_vectorized_repeat_spatial(num_threads: int, shape: list[int], dtype_nbi
     shape = shape.copy()
     shape[-1] //= vec_size
     inner_repeat_shape = [1 for i in range(len(shape) - 1)] + [vec_size]
-    return auto_repeat_spatial(num_threads, shape) * local(*inner_repeat_shape)
+    return auto_repeat_spatial(num_threads, shape) * repeat(*inner_repeat_shape)

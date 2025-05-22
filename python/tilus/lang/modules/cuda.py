@@ -98,7 +98,7 @@ class cuda:
         if len(spatial_repeat_candidates) == 0:
             raise ValueError(f"Can not find a proper spatial repeat for block_m, block_n, block_k ({m}, {n}, {k})")
 
-        # for all spatial-repeat candidates, they share
+        # for all spatial-local candidates, they share
         #   1. number of mma instructions in total for the block: mma_count_m * mma_count_n * mma_count_k
         #   2. number of warps: num_warps
         #   3. number of mma instructions per warp: mma_count_m * mma_count_n * mma_count_k / num_warps

@@ -53,9 +53,9 @@ class MmaDotInstEmitter(BaseInstEmitter):
                     b_indices = b_outer_indices + [mma_indices[2] + k, mma_indices[1] + j]
                     c_indices = c_outer_indices + [mma_indices[0] + i, mma_indices[1] + j]
 
-                    a_local = a_value.layout.global2local(a_indices, self.current_worker)
-                    b_local = b_value.layout.global2local(b_indices, self.current_worker)
-                    c_local = c_value.layout.global2local(c_indices, self.current_worker)
+                    a_local = a_value.layout.get_local(a_indices)
+                    b_local = b_value.layout.get_local(b_indices)
+                    c_local = c_value.layout.get_local(c_indices)
 
                     aa = a_buf[a_local]
                     bb = b_buf[b_local]

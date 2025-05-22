@@ -1,7 +1,7 @@
 from typing import Optional, Union
 
 from hidet.ir.dtypes import boolean, uint8, uint16, uint32
-from hidet.ir.expr import Expr, Var, cast, if_then_else
+from hidet.ir.expr import Var, as_expr, cast, if_then_else
 from hidet.ir.type import DataType
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes.vector import uint32x2, uint32x4
@@ -58,9 +58,9 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
         mask_info = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.mask)
 
         # analyze the register layout so that we can know how the elements are distributed stored in threads
-        axes = index_vars(len(layout.shape) + 1)
-        expr = layout.global2local(global_indices=axes[:-1], worker=axes[-1])
-        layout_info: TensorInfo = analyze_grid(shape=layout.shape, axes=axes[:-1], var2info={}, expr=expr)
+        axes = index_vars(len(layout.shape))
+        expr = layout.get_local(global_indices=axes)
+        layout_info: TensorInfo = analyze_grid(shape=layout.shape, axes=axes, var2info={}, expr=as_expr(expr))
 
         # enumerate each dimension and check whether we can vectorize on that dimension
         for i in range(len(regs_tensor.shape)):
@@ -106,10 +106,10 @@ class LoadGlobalGenericInstEmitter(LoadStoreInstBaseEmitter):
                 start_i = vec_i * vector_bytes * 8 // dtype.nbits
 
                 # the corresponding global indices in the register tensor
-                global_indices: list[Expr] = layout.local2global(local_index=start_i, worker=self.current_worker)
+                global_indices = layout.get_global(local_index=start_i, spatial_index=self.current_worker)
 
                 # the offset and mask of this vector
-                rewrite_map = {axis: global_index for axis, global_index in zip(inst.axes, global_indices)}
+                rewrite_map = {axis: as_expr(global_index) for axis, global_index in zip(inst.axes, global_indices)}
                 offset = rewrite(inst.offset, rewrite_map=rewrite_map)
                 mask = rewrite(inst.mask, rewrite_map=rewrite_map) if inst.mask is not None else boolean.true
 
@@ -136,8 +136,8 @@ class LoadGlobalGenericInstEmitter(LoadStoreInstBaseEmitter):
 
         else:
             with self.for_range(extent=tensor.local_size) as i:
-                global_indices = layout.local2global(local_index=i, worker=self.current_worker)
-                rewrite_map = {axis: global_index for axis, global_index in zip(inst.axes, global_indices)}
+                global_indices = layout.get_global(local_index=i, spatial_index=self.current_worker)
+                rewrite_map = {axis: as_expr(global_index) for axis, global_index in zip(inst.axes, global_indices)}
                 offset = rewrite(inst.offset, rewrite_map=rewrite_map)
                 mask = rewrite(inst.mask, rewrite_map=rewrite_map) if inst.mask is not None else boolean.true
                 if isinstance(inst, (LoadGlobalGenericInst, LoadSharedGenericInst)):

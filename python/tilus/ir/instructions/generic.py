@@ -418,7 +418,7 @@ class SqueezeInst(Instruction):
         if isinstance(dims, int):
             dims = [dims]
         if out is None:
-            from tilus.ir.layout.register_layout import squeeze
+            from tilus.ir.layout.register_layout_ops import squeeze
 
             out = RegisterTensor.create(dtype=x.dtype, layout=squeeze(x.layout, dims))
         return SqueezeInst(output=out, inputs=(x,), dims=tuple(dims))
@@ -438,7 +438,7 @@ class UnsqueezeInst(Instruction):
         if isinstance(dims, int):
             dims = [dims]
         if out is None:
-            from tilus.ir.layout.register_layout import unsqueeze
+            from tilus.ir.layout.register_layout_ops import unsqueeze
 
             out = RegisterTensor.create(dtype=x.dtype, layout=unsqueeze(x.layout, dims))
         return UnsqueezeInst(output=out, inputs=(x,), dims=tuple(dims))
@@ -450,7 +450,7 @@ class TransposeInst(Instruction):
     def create(x: RegisterTensor, out: Optional[RegisterTensor] = None) -> TransposeInst:
         assert len(x.shape) == 2
         if out is None:
-            from tilus.ir.layout.register_layout import permute
+            from tilus.ir.layout.register_layout_ops import permute
 
             out = RegisterTensor.create(dtype=x.dtype, layout=permute(x.layout, [1, 0]))
         return TransposeInst(output=out, inputs=(x,))

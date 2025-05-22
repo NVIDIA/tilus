@@ -1,5 +1,5 @@
 import pytest
-from tilus.ir.layout.register_layout_v2 import canonicalize_layout, register_layout
+from tilus.ir.layout.register_layout import canonicalize_layout, register_layout
 
 
 @pytest.mark.parametrize(

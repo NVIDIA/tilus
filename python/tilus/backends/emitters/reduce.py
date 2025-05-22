@@ -6,7 +6,7 @@ import numpy as np
 
 from hidet.ir import DataType
 from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, cast, logical_and
+from hidet.ir.expr import Expr, as_expr, cast, logical_and
 from hidet.ir.primitives.cuda.shfl import shfl_down_sync, shfl_up_sync
 from hidet.ir.type import tensor_pointer_type
 from hidet.utils.py import is_power_of_two
@@ -172,17 +172,17 @@ class ReduceInstEmitter(BaseInstEmitter):
         assert all(a == b or b == 1 and i == inst.dim for i, (a, b) in enumerate(zip(shape, reduced_shape)))
 
         global_indices = index_vars(num_vars=len(shape))
-        workers = src.layout.global2worker(global_indices)
+        workers = src.layout.get_spatial(global_indices)
         if len(workers) > 1:
             raise ValueError("ReduceInstEmitter only supports single worker reduction currently.")
 
         # get the concrete layouts
         global_values: list[np.ndarray] = meshgrid(shape)
         var2values = {a: b for a, b in zip(global_indices, global_values)}
-        worker_values: np.ndarray = vectorized_evaluate(workers[0], var2values)
+        worker_values: np.ndarray = vectorized_evaluate(as_expr(workers[0]), var2values)
 
         return BlockReduceScheme.from_worker_array(
-            worker_array=worker_values, dim=inst.dim, num_threads=src.layout.num_workers
+            worker_array=worker_values, dim=inst.dim, num_threads=src.layout.spatial_size
         )
 
     def scalar_init_value(self, op: str, dtype: DataType) -> Expr:
@@ -215,9 +215,9 @@ class ReduceInstEmitter(BaseInstEmitter):
         with self.for_range(dst.layout.local_size, attr="u") as dst_local:
             self.buffer_store(dst_buf, indices=[dst_local], value=self.scalar_init_value(inst.op, dst.dtype))
         with self.for_range(src.layout.local_size, attr="u") as src_local:
-            global_indices = src.layout.local2global(src_local, worker=self.current_worker)
+            global_indices = src.layout.get_global(local_index=src_local, spatial_index=self.current_worker)
             global_indices[dim] = int32.zero
-            dst_local = dst.layout.global2local(global_indices, worker=self.current_worker)
+            dst_local = dst.layout.get_local(global_indices=global_indices)
             self.buffer_store(
                 dst_buf, indices=[dst_local], value=self.scalar_reduce(dst_buf[dst_local], src_buf[src_local], inst.op)
             )
@@ -286,12 +286,12 @@ class ReduceInstEmitter(BaseInstEmitter):
                 with self.if_then(red_warp_middle == 0):
                     # store the data from register to shared memory
                     with self.for_range(tensor.layout.local_size) as i:
-                        global_indices = tensor.layout.local2global(i, self.current_worker)
+                        global_indices = tensor.layout.get_global(local_index=i, spatial_index=self.current_worker)
                         self.buffer_store(smem_buf, indices=global_indices, value=regs_buf[i])
                 with self.otherwise():
                     # reduce and update shared memory
                     with self.for_range(tensor.layout.local_size) as i:
-                        global_indices = tensor.layout.local2global(i, self.current_worker)
+                        global_indices = tensor.layout.get_global(local_index=i, spatial_index=self.current_worker)
                         self.buffer_store(
                             smem_buf,
                             indices=global_indices,
@@ -301,7 +301,7 @@ class ReduceInstEmitter(BaseInstEmitter):
 
         # read the data from shared memory
         with self.for_range(tensor.layout.local_size) as i:
-            global_indices = tensor.layout.local2global(i, self.current_worker)
+            global_indices = tensor.layout.get_global(local_index=i, spatial_index=self.current_worker)
             self.buffer_store(regs_buf, indices=[i], value=smem_buf[global_indices])
         self.sync()
 

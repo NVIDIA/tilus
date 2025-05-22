@@ -6,7 +6,7 @@ from hidet.ir.primitives.debug import printf
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import float6_e3m2, float8_e4m3
 from tilus.ir.instructions import FormatPrintInst, PrintTensorInst
-from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout import RegisterLayout, locate_at
 from tilus.ir.tensor import RegisterTensor, SharedLayout, SharedTensor
 from tilus.target import gpgpu_any
 from tilus.utils import prod
@@ -77,7 +77,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
         cond = inst.cond
 
         if isinstance(tensor, RegisterTensor):
-            if self.thread_groups.group_size[-1] != tensor.layout.num_workers:
+            if self.thread_groups.group_size[-1] != tensor.layout.spatial_size:
                 # msg = (
                 #     'Trying to print a register tensor with layout: \n{}\nin a thread group with group size: {}'.format(
                 #         tensor.layout, self.thread_groups.group_size[-1]
@@ -106,17 +106,17 @@ class PrintValueInstEmitter(BaseInstEmitter):
                     with self.for_grid(squeezed_shape) as squeezed_indices:
                         self.print_left_bracket(squeezed_indices, squeezed_shape)
 
-                        if prod(layout.shape) != layout.local_size * layout.num_workers:
+                        if prod(layout.shape) != layout.local_size * layout.spatial_size:
                             with self.if_then(self.current_worker == 0):
                                 self.append(printf("{"))
                         self.sync()
 
                         # print the element
                         indices = self.restore_indices(squeezed_indices, squeezed_dims, shape)
-                        is_valid = layout.is_valid(global_indices=indices, worker=self.current_worker)
-                        with self.if_then(logical_and(self.current_worker < layout.num_workers, is_valid)):
+                        is_valid = locate_at(layout, global_indices=indices, spatial_index=self.current_worker)
+                        with self.if_then(logical_and(self.current_worker < layout.spatial_size, is_valid)):
                             buf = self.tensor2var[tensor]
-                            local_index = layout.global2local(indices, worker=self.current_worker)
+                            local_index = layout.get_local(indices)
                             data = buf[local_index]
                             if dtype.is_float():
                                 data = cast(data, float32)
@@ -125,14 +125,14 @@ class PrintValueInstEmitter(BaseInstEmitter):
                             else:
                                 raise NotImplementedError()
 
-                            if prod(layout.shape) == layout.local_size * layout.num_workers:
+                            if prod(layout.shape) == layout.local_size * layout.spatial_size:
                                 self.append(printf(fmt, data))
                             else:
                                 # multi threads store the same tensor
                                 self.append(printf("%3d:" + fmt + " ", self.current_worker, data))
                         self.sync()
 
-                        if prod(layout.shape) != layout.local_size * layout.num_workers:
+                        if prod(layout.shape) != layout.local_size * layout.spatial_size:
                             with self.if_then(self.current_worker == 0):
                                 self.append(printf("}"))
                         self.sync()

@@ -31,9 +31,9 @@ class RepeatInstEmitter(BaseInstEmitter):
 
         # emit the code
         with self.for_range(dst.local_size, attr="u") as local:
-            global_indices = dst.layout.local2global(local_index=local, worker=self.current_worker)
+            global_indices = dst.layout.get_global(local_index=local, spatial_index=self.current_worker)
             global_indices = [a // b for a, b in zip(global_indices, repeats)]
-            src_local = src.layout.global2local(global_indices, worker=self.current_worker)
+            src_local = src.layout.get_local(global_indices)
             self.buffer_store(dst_buf, indices=[local], value=src_buf[src_local])
 
 
@@ -65,9 +65,9 @@ class RepeatInterleaveInstEmitter(BaseInstEmitter):
 
         # emit the code
         with self.for_range(dst.local_size, attr="u") as local:
-            global_indices = dst.layout.local2global(local_index=local, worker=self.current_worker)
+            global_indices = dst.layout.get_global(local_index=local, spatial_index=self.current_worker)
             global_indices = [a % b for a, b in zip(global_indices, src.shape)]
-            src_local = src.layout.global2local(global_indices, worker=self.current_worker)
+            src_local = src.layout.get_local(global_indices)
             self.buffer_store(dst_buf, indices=[local], value=src_buf[src_local])
 
 

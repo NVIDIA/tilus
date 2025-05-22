@@ -13,7 +13,7 @@ class TestReduceKernel(tilus.Script):
 
     def __call__(self, out_ptr: ~int32):
         self.attrs.blocks = 1
-        self.attrs.warps = self.layout.num_workers // 32
+        self.attrs.warps = self.layout.spatial_size // 32
 
         a = self.register_tensor(
             dtype=int32, layout=self.layout, f_init=lambda indices: indices[0] * self.layout.shape[1] + indices[1]

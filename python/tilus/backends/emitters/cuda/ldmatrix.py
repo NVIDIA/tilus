@@ -39,7 +39,7 @@ class AllocateInstEmitter(BaseInstEmitter):
             lane_id = self.current_worker % 32
             warp_id = self.current_worker // 32
             lhs_indices = vector(
-                lhs_layout.local2global(local_index=vec_i * vector_size + lane_id // 8, worker=warp_id)
+                lhs_layout.get_global(local_index=vec_i * vector_size + lane_id // 8, spatial_index=warp_id)
             )
             rhs_indices = vector([lane_id % 8, 0])
             rhs_shape = vector(ldmatrix_layout.shape)

@@ -17,7 +17,7 @@ from tilus import (
     int32,
     uint8,
 )
-from tilus.ir.layout import reduce, repeat, spatial
+from tilus.ir.layout import concat, reduce, repeat, spatial
 from tilus.utils import benchmark_func, cdiv, dtype_to_torch, gcd
 from torch import nn
 
@@ -165,11 +165,11 @@ class QuantizedMatmul(QuantizedMatmulCommon):
 
         self.tile_bytes = self.flatten_tile_layout.size
 
-        self.layout_rb_flattened = (
-            reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk // tk, wrn // tn)
-            + self.flatten_tile_layout
+        self.layout_rb_flattened = concat(
+            reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk // tk, wrn // tn),
+            self.flatten_tile_layout,
         )
-        self.layout_rs = reduce(self.mma.lb, dims=[0], squeeze_dims=False)
+        self.layout_rs = reduce(self.mma.lb, dims=[0], keepdims=True)
 
         self.layout_sa = self.cuda.swizzled_shared_layout(self.a_dtype, shape=[num_stages, self.block_m, self.block_k])
         self.layout_sb = self.cuda.shared_layout(shape=[self.num_stages, k_tiles, n_tiles, self.tile_bytes])

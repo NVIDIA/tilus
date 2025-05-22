@@ -475,7 +475,7 @@ class StmtBuilder(StmtBuilderCore):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from tilus.ir.layout.register_layout import repeat, unsqueeze
+        from tilus.ir.layout.register_layout_ops import repeat, unsqueeze
 
         if out is None:
             layout = x.layout
@@ -496,7 +496,7 @@ class StmtBuilder(StmtBuilderCore):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from tilus.ir.layout.register_layout import repeat, unsqueeze
+        from tilus.ir.layout.register_layout_ops import repeat, unsqueeze
 
         if out is None:
             layout = x.layout
@@ -511,7 +511,7 @@ class StmtBuilder(StmtBuilderCore):
         return inst.register_output
 
     def transpose(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        from tilus.ir.layout.register_layout import permute
+        from tilus.ir.layout.register_layout_ops import permute
 
         if out is None:
             out = RegisterTensor.create(dtype=x.dtype, layout=permute(x.layout, dims=[1, 0]))
@@ -530,7 +530,7 @@ class StmtBuilder(StmtBuilderCore):
         if out is None:
             from tilus.ir.layout import reduce
 
-            out = RegisterTensor.create(dtype=x.dtype, layout=reduce(x.layout, dims=[dim], squeeze_dims=False))
+            out = RegisterTensor.create(dtype=x.dtype, layout=reduce(x.layout, dims=[dim], keepdims=True))
         inst = ReduceInst.create(x=x, output=out, dim=dim, op=op)
         self.append(inst)
         return inst.register_output

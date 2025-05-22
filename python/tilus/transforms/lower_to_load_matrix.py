@@ -22,6 +22,7 @@ from tilus.ir.functors import IRRewriter
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import LoadMatrixConfig, LoadSharedInst
 from tilus.ir.layout import divide
+from tilus.ir.layout.register_layout import LayoutOperationError
 from tilus.ir.stmt import Stmt
 from tilus.target import get_current_target, nvgpu_sm75
 from tilus.transforms.base import Pass
@@ -40,8 +41,9 @@ class LowerToLoadMatrixRewriter(IRRewriter):
             if dtype.nbytes != config.nbytes:
                 # condition 0) is not satisfied
                 continue
-            outer_layout: Optional[RegisterLayout] = divide(register_layout, config.ldmatrix_layout)
-            if outer_layout is None:
+            try:
+                divide(register_layout, config.ldmatrix_layout)
+            except LayoutOperationError:
                 # condition 1) is not satisfied
                 continue
             return config

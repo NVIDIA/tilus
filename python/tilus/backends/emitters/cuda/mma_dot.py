@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import itertools
 from dataclasses import dataclass
 
 from hidet.ir.dtypes import bf16, f16, f32, i8, i32, uint32
@@ -180,10 +181,18 @@ class MmaDotInstEmitter(BaseInstEmitter):
             assert outer_b.shape[1] == outer_c.shape[1] == outer_d.shape[1]  # n
             m_size, n_size, k_size = outer_a.shape[0], outer_c.shape[1], outer_a.shape[1]
 
-            a_workers: dict[tuple[int, int], list[int]] = outer_a.get_worker_map()
-            b_workers: dict[tuple[int, int], list[int]] = outer_b.get_worker_map()
-            c_workers: dict[tuple[int, int], list[int]] = outer_c.get_worker_map()
-            d_workers: dict[tuple[int, int], list[int]] = outer_d.get_worker_map()
+            a_workers: dict[tuple[int, int], list[int]] = {}
+            b_workers: dict[tuple[int, int], list[int]] = {}
+            c_workers: dict[tuple[int, int], list[int]] = {}
+            d_workers: dict[tuple[int, int], list[int]] = {}
+
+            for i, j in itertools.product(range(m_size), range(n_size)):
+                c_workers[(i, j)] = [int(s) for s in outer_c.get_spatial([i, j])]
+                d_workers[(i, j)] = [int(s) for s in outer_d.get_spatial([i, j])]
+            for i, k in itertools.product(range(m_size), range(k_size)):
+                a_workers[(i, k)] = [int(s) for s in outer_a.get_spatial([i, k])]
+            for k, j in itertools.product(range(k_size), range(n_size)):
+                b_workers[(k, j)] = [int(s) for s in outer_b.get_spatial([k, j])]
 
             for i in range(m_size):
                 for j in range(n_size):
@@ -218,16 +227,16 @@ class MmaDotInstEmitter(BaseInstEmitter):
 
         warp_id: Expr = self.current_worker // 32
         with self.for_range(outer_c.local_size) as c_outer_local:
-            c_outer_indices = outer_c.local2global(c_outer_local, worker=warp_id)
+            c_outer_indices = outer_c.get_global(local_index=c_outer_local, spatial_index=warp_id)
             d_outer_indices = c_outer_indices
             c_local = c_outer_local * config.lc.local_size
-            d_local = outer_d.global2local(d_outer_indices, worker=warp_id) * config.lc.local_size
+            d_local = outer_d.get_local(d_outer_indices) * config.lc.local_size
             with self.for_range(k_size) as k:
                 i, j = c_outer_indices
                 a_outer_indices = (i, k)
                 b_outer_indices = (k, j)
-                a_local = outer_a.global2local(a_outer_indices, worker=warp_id) * config.la.local_size
-                b_local = outer_b.global2local(b_outer_indices, worker=warp_id) * config.lb.local_size
+                a_local = outer_a.get_local(a_outer_indices) * config.la.local_size
+                b_local = outer_b.get_local(b_outer_indices) * config.lb.local_size
 
                 with self.for_range(config.vec_k) as k_inner:
                     a_regs = self.declare(var("a_regs", ~uint32), init=cast(~a_buf[a_local], ~uint32))
