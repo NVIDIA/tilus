@@ -8,7 +8,7 @@ from tilus.ir.layout.register_layout import (
     canonicalize_layout,
     register_layout,
 )
-from tilus.utils import gcd, is_power_of_two, prod
+from tilus.utils import gcd, prod
 
 
 def spatial(*shape: int, ranks: Optional[Sequence[int]] = None) -> RegisterLayout:
@@ -678,30 +678,3 @@ def auto_repeat_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayou
 
     repeat_shape = remain_shape
     return repeat(*repeat_shape).spatial(*spatial_shape)
-
-
-def auto_vectorized_repeat_spatial(num_threads: int, shape: list[int], dtype_nbits: int) -> RegisterLayout:
-    """
-    Given the number of threads and shape, and the dtype number of bits, generate a layout that is hardware-friendly
-    to load and write
-    """
-    assert is_power_of_two(dtype_nbits)
-    assert prod(shape) % num_threads == 0
-    elements = prod(shape)
-
-    def is_valid_vec_size(vec):
-        return (
-            vec * dtype_nbits <= 128
-            and vec % elements == 0
-            and elements // vec % num_threads == 0
-            and vec % shape[-1] == 0
-        )
-
-    vec_size = 1
-    while is_valid_vec_size(vec_size * 2):
-        vec_size *= 2
-
-    shape = shape.copy()
-    shape[-1] //= vec_size
-    inner_repeat_shape = [1 for i in range(len(shape) - 1)] + [vec_size]
-    return auto_repeat_spatial(num_threads, shape) * repeat(*inner_repeat_shape)
