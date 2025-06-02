@@ -1,3 +1,0 @@
-[submodule "hidet"]
-	path = hidet
-	url = git@github.com:CentML/hidet.git
