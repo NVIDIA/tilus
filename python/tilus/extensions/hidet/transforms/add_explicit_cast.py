@@ -9,6 +9,7 @@ from hidet.ir.tools import TypeInfer
 from hidet.ir.type import BaseType, DataType, FuncType, PointerType, type_equal
 from hidet.transforms.base import FunctionPass
 from hidet.utils import same_list
+
 from tilus.extensions.hidet.ir.type import get_base_type
 
 

@@ -6,6 +6,7 @@ import torch
 from tilus import float16, float32, int32
 from tilus.utils import benchmark_func
 
+tilus.option.debug.dump_ir()
 tilus.option.cache_dir("./cache")
 
 pandas.set_option("display.float_format", lambda x: "%.2f" % x)

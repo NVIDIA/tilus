@@ -6,7 +6,10 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Type
 from hidet.ir import BitwiseXor, DataType, Div, Equal, Mod
 from hidet.ir.expr import Add, BinaryExpr, Constant, Expr, LessEqual, LessThan, LogicalAnd, Multiply, Sub, Var
 from hidet.ir.functors import IRFunctor
+from hidet.ir.tools import collect
 from hidet.utils import gcd
+
+from tilus.ir.func import Analysis
 
 
 def compute_value(a: DimensionInfo, b: DimensionInfo, op: Callable[[int, int], int]) -> Optional[int]:
@@ -374,10 +377,10 @@ class GridAnalyzer(IRFunctor):
         self.var2info: Dict[Var, TensorInfo] = {}
 
     def analyze(
-        self, axes: Sequence[Var], shape: Sequence[int], var2value: Mapping[Var, TensorInfo], expr: Expr
+        self, axes: Sequence[Var], shape: Sequence[int], var2info: Mapping[Var, TensorInfo], expr: Expr
     ) -> TensorInfo:
         self.var2info.clear()
-        self.var2info.update(var2value)
+        self.var2info.update(var2info)
 
         # Initialize the value of each axis
         for dim, axis in enumerate(axes):
@@ -453,13 +456,38 @@ class GridAnalyzer(IRFunctor):
 
 
 def analyze_grid(
-    shape: Sequence[int], axes: Sequence[Var], var2info: Mapping[Var, TensorInfo], expr: Expr
+    shape: Sequence[int],
+    axes: Sequence[Var],
+    expr: Expr,
+    *,
+    var2info: Optional[Mapping[Var, TensorInfo]] = None,
+    analysis: Optional[Analysis] = None,
 ) -> TensorInfo:
     """
     Given the mapping from axes -> value, we could construct a tensor with given shape. This function analyze the
     tensor information (TensorInfo) of this tensor.
     """
     analyzer = GridAnalyzer()
+
+    if var2info is None:
+        var2info = {}
+    else:
+        var2info = dict(var2info)
+
+    if analysis is not None:
+        used_vars: list[Var] = collect(expr, [Var], stop_when_found=True)
+        for v in used_vars:
+            if v in axes:
+                continue
+            if (
+                v in analysis.lower_bound
+                and v in analysis.upper_bound
+                and analysis.lower_bound[v] == analysis.upper_bound[v]
+            ):
+                var2info[v] = TensorInfo.from_constant(shape=shape, value=analysis.lower_bound[v])
+            elif v in analysis.divisibility:
+                var2info[v] = TensorInfo.from_divisibility(shape=shape, divisibility=analysis.divisibility[v])
+
     ret = analyzer.analyze(axes, shape, var2info, expr)
 
     debug = False

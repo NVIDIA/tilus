@@ -6,6 +6,7 @@ from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.primitives.cuda.vars import blockIdx
 from hidet.ir.type import BaseType
+
 from tilus.ir.builders.stmt_builder import StmtBuilder
 from tilus.ir.func import Function, Metadata
 from tilus.ir.stmt import SeqStmt

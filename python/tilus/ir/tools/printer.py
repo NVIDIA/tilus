@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Set, Tuple, Union
 from hidet.ir import BaseType
 from hidet.ir.expr import Expr, Var
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
+
 from tilus.extensions.hidet.utils.doc import doc_comment, doc_join_lines, doc_strip_parentheses
 from tilus.ir.func import Analysis, Function, Metadata
 from tilus.ir.functors import IRFunctor
@@ -62,15 +63,17 @@ class IRPrinter(IRFunctor):
     def get_value_type(self, value: Tensor) -> Doc:
         if isinstance(value, RegisterTensor):
             doc = Text("register, ")
-            doc += self.printer(value.dtype) + "[" + self.visit(value.shape) + "], "
-            doc += "local_size={}".format(value.layout.local_size)
-            doc += ", {}".format(self.visit(value.layout))
+            doc += self.printer(value.dtype) + "[" + self.visit(value.shape) + "]"
+            if value.optional_layout is not None:
+                doc += ", local_size={}".format(value.layout.local_size)
+                doc += ", {}".format(self.visit(value.layout))
             return doc
         elif isinstance(value, SharedTensor):
             doc = Text("shared, ")
-            doc += self.printer(value.dtype) + "[" + self.visit(value.shape) + "], "
-            doc += "size={}".format(value.layout.size)
-            doc += ", {}".format(self.visit(value.layout))
+            doc += self.printer(value.dtype) + "[" + self.visit(value.shape) + "]"
+            if value.optional_layout is not None:
+                doc += ", size={}".format(value.layout.size)
+                doc += ", {}".format(self.visit(value.layout))
             return doc
         elif isinstance(value, GlobalTensor):
             doc = Text("global, ")
@@ -306,7 +309,7 @@ class IRPrinter(IRFunctor):
                 v_doc = "[" + v_doc + "]"
             elif isinstance(v, dict):
                 v_doc = "{" + v_doc + "}"
-            items.append("{}: {}".format(k, v_doc))
+            items.append("{}={}".format(k, v_doc))
         items = [str(item) for item in items]
         if sum(len(item) for item in items) >= 80:
             item_body = Doc()

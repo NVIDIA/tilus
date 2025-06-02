@@ -6,6 +6,7 @@ from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, U
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
 from hidet.ir.type import DataType
+
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.inst import InstructionError
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_repeat, global_strides
@@ -196,14 +197,7 @@ class Script:
             def f_init(_):
                 return dtype.constant(init)
 
-        if shape is None and layout is None:
-            raise ValueError("Must specify either shape or layout")
-        elif shape is not None and layout is not None:
-            raise ValueError("Cannot specify both shape and layout")
-        elif layout is None:
-            layout = self.cuda.default_register_layout(num_warps=self.attrs.warps, dtype=dtype, shape=shape)
-
-        return self._builder.allocate_register(dtype=dtype, layout=layout, f_init=f_init)
+        return self._builder.allocate_register(dtype=dtype, shape=shape, layout=layout, f_init=f_init)
 
     def global_tensor(
         self,
@@ -227,21 +221,7 @@ class Script:
         shape: Optional[Sequence[int]] = None,
         layout: Optional[SharedLayout] = None,
     ) -> SharedTensor:
-        from tilus.ir.layout.shared_layout import shared_repeat
-
-        match (shape, layout):
-            case (None, None):
-                raise ValueError("Must specify either shape or layout")
-            case (_, None):
-                assert isinstance(shape, Sequence)
-                layout = shared_repeat(*shape)
-            case (None, _):
-                pass
-            case _:
-                raise ValueError("Cannot specify both shape and layout")
-
-        assert layout is not None
-        return self._builder.allocate_shared(dtype=dtype, shared_layout=layout)
+        return self._builder.allocate_shared(dtype=dtype, shape=shape, layout=layout)
 
     def global_view(
         self,
@@ -277,32 +257,13 @@ class Script:
         slice_dims: Optional[Sequence[int]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        match (shape, layout, out):
-            case (None, None, None):
-                raise ValueError("Must specify one of shape, layout and out")
-            case (_, None, None):
-                from tilus.ir.layout import auto_repeat_spatial
-
-                if self.attrs.warps is None:
-                    raise ValueError(
-                        "Must specify the number of warps in th script so that load_global could use it "
-                        "to infer the register tensor layout"
-                    )
-                layout = auto_repeat_spatial(num_threads=self.attrs.warps * 32, shape=shape)  # type: ignore[arg-type]
-                out = RegisterTensor.create(dtype=x.dtype, layout=layout)
-            case (None, _, None):
-                out = RegisterTensor.create(dtype=x.dtype, layout=layout)  # type: ignore[arg-type]
-            case (None, None, _):
-                pass
-            case _:
-                raise InstructionError("Cannot specify any two of shape, layout, and out")
-
         if len(offsets) != len(x.shape):
             raise InstructionError(
                 "The number of offsets must be equal to the number of dimensions of the global tensor"
             )
-
-        return self._builder.load_global(x=x, offsets=offsets, dims=slice_dims, output=out)
+        return self._builder.load_global(
+            x=x, offsets=offsets, slice_dims=slice_dims, shape=shape, layout=layout, output=out
+        )
 
     def store_global(
         self,
@@ -318,30 +279,10 @@ class Script:
         self,
         src: SharedTensor,
         *,
-        offsets: Optional[Sequence[Expr | int]] = None,
-        dims: Optional[Sequence[int]] = None,
-        out_layout: Optional[RegisterLayout] = None,
+        layout: Optional[RegisterLayout] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        if out_layout is None and out is None:
-            out_layout = self.cuda.default_register_layout(num_warps=self.attrs.warps, dtype=src.dtype, shape=src.shape)
-        elif out_layout is None:
-            out_layout = out.layout
-
-        assert len(out_layout.shape) <= len(src.shape)
-
-        if offsets is not None:
-            if dims is None:
-                dims = list(range(len(src.shape) - len(out_layout.shape), len(src.shape)))
-            else:
-                assert len(dims) == len(out_layout.shape)
-            if len(offsets) > len(src.shape):
-                raise InstructionError("The offsets rank must be less than or equal to the src rank")
-            if len(offsets) < len(src.shape):
-                # append 0 to the offsets to make it the same length as src.shape
-                offsets = list(offsets) + [0] * (len(src.shape) - len(offsets))
-            src = self._builder.shared_slice(src, offsets=offsets, slice_dims=dims, slice_shape=out_layout.shape)
-        return self._builder.load_shared(src=src, output_layout=out_layout, output=out)
+        return self._builder.load_shared(src=src, layout=layout, output=out)
 
     def store_shared(
         self,

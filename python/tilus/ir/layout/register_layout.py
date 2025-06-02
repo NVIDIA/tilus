@@ -7,22 +7,15 @@ from functools import cached_property
 from typing import Sequence
 
 import tabulate
-
 from hidet import boolean
 from hidet.ir.expr import Expr, logical_and
 from hidet.utils import prod
+
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize, index_serialize
+from tilus.ir.layout.mfunction import MultiFunction, multi_function
 from tilus.ir.node import IRNode
 
 Int = int | Expr
-
-
-class LayoutOperationError(Exception):
-    """
-    Exception raised when a layout operation fails.
-    """
-
-    pass
 
 
 @dataclass(frozen=True, eq=False)
@@ -76,17 +69,9 @@ class RegisterLayout(IRNode):
 
     @cached_property
     def grouped_modes(self):
-        i = 0
-        grouped_modes = []
-        for s in self.shape:
-            group_modes = []
-            remaining = s
-            while remaining > 1:
-                remaining //= self.mode_shape[i]
-                group_modes.append(i)
-                i += 1
-            grouped_modes.append(group_modes)
-        return grouped_modes
+        from .utils import get_mode_groups
+
+        return get_mode_groups(self.shape, self.mode_shape)
 
     @cached_property
     def spatial_shape(self) -> list[int]:
@@ -107,6 +92,16 @@ class RegisterLayout(IRNode):
     @cached_property
     def size(self) -> int:
         return prod(self.shape)
+
+    def spatial_mfunction(self) -> MultiFunction:
+        """
+        Get the multi-function that maps the global indices to the spatial indices (serialized).
+        """
+        return multi_function(
+            shape=self.shape,
+            mode_shape=self.mode_shape,
+            modes=self.spatial_modes,
+        )
 
     def get_spatial(self, global_indices: Sequence[Int]) -> list[Expr]:
         mode_indices: list[Int] = []
@@ -186,6 +181,24 @@ class RegisterLayout(IRNode):
         from tilus.ir.layout.register_layout_ops import column_repeat, compose
 
         return compose(self, column_repeat(*shape))
+
+    def reduce_to(self, shape: Sequence[int]) -> RegisterLayout:
+        """
+        Reduce the layout to the given shape by removing the modes that are not in the shape.
+
+        Parameters
+        ----------
+        shape: Sequence[int]
+            The shape to reduce to.
+
+        Returns
+        -------
+        ret: RegisterLayout
+            The reduced layout.
+        """
+        from tilus.ir.layout.register_layout_ops import reduce_to
+
+        return reduce_to(self, shape)
 
 
 def validate_layout(

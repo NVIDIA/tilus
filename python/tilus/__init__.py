@@ -25,6 +25,7 @@ from hidet.ir.dtypes import (
     uint32,
     uint64,
 )
+
 from tilus.extensions.hidet.ir.dtypes import (
     f3e1m1,
     f4e2m1,
@@ -86,6 +87,6 @@ from tilus.lang.instantiated_script import InstantiatedScript
 from tilus.lang.script import Script, autotune
 from tilus.tensor import empty, from_torch, full, ones, rand, randint, randn, view_torch, zeros
 
-from . import kernels, option, utils
+from . import kernels, logging, option, utils
 from .target import get_current_target
 from .version import __version__

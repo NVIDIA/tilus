@@ -20,10 +20,9 @@ class PassContext:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is not None:
-            return None
-        assert PassContext._ctx is self
-        PassContext._ctx = None
+        if hasattr(PassContext, "_ctx"):
+            assert PassContext._ctx is self
+            PassContext._ctx = None
 
     def before_all_passes(self, program: Program) -> None:
         for instrument in self.instruments:

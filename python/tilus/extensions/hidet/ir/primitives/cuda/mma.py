@@ -6,6 +6,7 @@ from hidet.ir.primitives.cuda.mma import MmaConfig, mma_configs
 from hidet.ir.primitives.func import register_primitive_function
 from hidet.ir.stmt import asm
 from hidet.utils import initialize
+
 from tilus.extensions.hidet.ir.expr import deref
 
 

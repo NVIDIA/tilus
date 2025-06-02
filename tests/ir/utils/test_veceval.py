@@ -1,7 +1,6 @@
 import numpy as np
-from tilus.ir.utils.veceval import vectorized_evaluate
-
 from hidet.ir.expr import Var
+from tilus.ir.utils.veceval import vectorized_evaluate
 
 
 def test_vectorized_evaluate():

@@ -7,6 +7,7 @@ from hidet.ir.module import IRModule
 from hidet.ir.target import Target
 from hidet.ir.type import DataType
 from hidet.utils.doc import Doc, Text
+
 from tilus.extensions.hidet.ir.dtypes.vector import uint32x1, uint32x2, uint32x4
 
 

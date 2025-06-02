@@ -2,6 +2,7 @@ from typing import Any, Sequence, Union
 
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var
+
 from tilus import SharedLayout
 from tilus.extensions.hidet.ir.utils.index_transform import index_within_bound
 from tilus.ir.builders import StmtBuilder
@@ -42,7 +43,7 @@ class LowerLoadStoreRewriter(IRRewriter):
         register_tensor = inst.register_output
         ptr = sb.tensor_ptr(global_tensor)
 
-        f_offset, f_mask = self.get_funcs(offsets=inst.offsets, dims=inst.dims, layout=global_tensor.layout)
+        f_offset, f_mask = self.get_funcs(offsets=inst.offsets, dims=inst.slice_dims, layout=global_tensor.layout)
 
         self.memo[inst.register_output] = sb.load_global_generic(
             dtype=global_tensor.dtype, layout=register_tensor.layout, ptr=ptr, f_offset=f_offset, f_mask=f_mask

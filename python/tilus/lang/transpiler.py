@@ -8,7 +8,6 @@ import operator
 import types
 from typing import Any, Callable, Optional, Sequence, Tuple, Type, Union
 
-import tilus.lang.constructs.loops
 from hidet import ir as hidet_ir
 from hidet.ir.analyzers import normalize_launch_dims
 from hidet.ir.expr import Constant, Var, as_expr
@@ -16,6 +15,8 @@ from hidet.ir.primitives.cuda.vars import blockIdx
 from hidet.ir.type import BaseType, data_type
 from hidet.lang.script import eliminate_decorators, eliminate_indent
 from hidet.lang.transpiler import HidetProgramError, PythonAstFunctor
+
+import tilus.lang.constructs.loops
 from tilus import ir as tilus_ir
 from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.builders import IRBuilder, StmtBuilder

@@ -1,10 +1,11 @@
-from typing import Dict, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 from hidet.ir.dtypes import boolean, int32, uint32
 from hidet.ir.expr import Expr, Var, cast, if_then_else
 from hidet.ir.primitives.cuda.cp_async import cp_async_commit_group, cp_async_wait_all, cp_async_wait_group
 from hidet.ir.type import DataType
 from hidet.ir.utils.index_transform import index_deserialize
+
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import uint32x2, uint32x4
 from tilus.extensions.hidet.ir.primitives.cuda.cp_async import cp_async
@@ -29,17 +30,13 @@ class CopyAysncInstEmitter(BaseInstEmitter):
         dtype: DataType = dst.dtype
         layout: SharedLayout = dst.layout
         shape: Sequence[int] = layout.shape
+        analysis = self.codegen.function.metadata.analysis
 
-        # get shared info
-        shared_info: TensorInfo = analyze_grid(shape=layout.shape, axes=layout.axes, var2info={}, expr=layout.offset)
-
-        # get global and mask info
-        var2info: Dict[Var, TensorInfo] = {}
-        for var, divisibility in self.codegen.function.metadata.analysis.divisibility.items():
-            var2info[var] = TensorInfo.from_divisibility(shape=shape, divisibility=divisibility)
+        # get shared, global, and mask info
         inst_mask = inst.mask if inst.mask is not None else boolean.true
-        mask_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst_mask)
-        global_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.offset)
+        shared_info: TensorInfo = analyze_grid(shape=shape, axes=layout.axes, analysis=analysis, expr=layout.offset)
+        mask_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, analysis=analysis, expr=inst_mask)
+        global_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, analysis=analysis, expr=inst.offset)
 
         contiguous_dim: Optional[int] = None
         cp_size: Optional[int] = None

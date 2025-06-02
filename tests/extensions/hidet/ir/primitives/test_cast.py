@@ -1,8 +1,11 @@
 import functools
 
+import hidet
 import pytest
 import tabulate
 import torch
+from hidet.ir.dtypes import f32, uint8
+from hidet.lang import attrs
 from tilus.extensions.hidet.ir.dtypes import (
     float4_e2m1,
     float5_e2m2,
@@ -16,10 +19,6 @@ from tilus.extensions.hidet.ir.dtypes import (
     float7_e5m1,
 )
 from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
-
-import hidet
-from hidet.ir.dtypes import f32, uint8
-from hidet.lang import attrs
 
 
 @functools.cache

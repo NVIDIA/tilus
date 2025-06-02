@@ -11,11 +11,10 @@
 # limitations under the License.
 from pathlib import Path
 
+import hidet
 import pytest
 import tilus
 import tilus.utils
-
-import hidet
 
 
 def pytest_sessionstart(session):

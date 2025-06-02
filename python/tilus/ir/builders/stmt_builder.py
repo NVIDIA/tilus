@@ -7,6 +7,8 @@ from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
+from hidet.utils import same_list
+
 from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.instructions.cuda import (
     CopyAsyncCommitGroupInst,
@@ -307,7 +309,9 @@ class StmtBuilder(StmtBuilderCore):
     def allocate_register(
         self,
         dtype: DataType,
-        layout: RegisterLayout,
+        *,
+        shape: Optional[Sequence[int]] = None,
+        layout: Optional[RegisterLayout] = None,
         f_init: Optional[Callable[[Sequence[Var]], Union[Expr, float, int]]] = None,
     ) -> RegisterTensor:
         wrapped_f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
@@ -316,7 +320,7 @@ class StmtBuilder(StmtBuilderCore):
             def wrapped_f_init(axes: Sequence[Var]) -> Expr:
                 return as_expr(f_init(axes))
 
-        output = RegisterTensor.create(dtype, layout)
+        output = RegisterTensor.create(dtype, shape=shape, optional_layout=layout)
 
         inst = AllocateRegisterInst.create(output=output, f_init=wrapped_f_init)
         self.append(inst)
@@ -386,7 +390,7 @@ class StmtBuilder(StmtBuilderCore):
             return x
         inst = CastInst.create(
             x=x,
-            output=RegisterTensor.create(dtype=dtype, layout=x.layout),
+            output=RegisterTensor.create(dtype=dtype, shape=x.shape, optional_layout=x.optional_layout),
         )
         self.append(inst)
         return inst.register_output
@@ -450,7 +454,7 @@ class StmtBuilder(StmtBuilderCore):
             lhs = Var("x", x.dtype)
             rhs = Var("y", y.dtype)
             value = f_compute(lhs, rhs)
-            out = RegisterTensor.create(dtype=infer_type(value), layout=layout)
+            out = RegisterTensor.create(dtype=infer_type(value), optional_layout=layout)
 
         inst = ElementwiseBinaryInst.create(x, y, f_compute=f_compute, output=out)
         self.append(inst)
@@ -462,7 +466,7 @@ class StmtBuilder(StmtBuilderCore):
         if out is None:
             arg: Var = Var("x", x.dtype)
             value: Expr = f_compute(arg)
-            out = RegisterTensor.create(dtype=infer_type(value), layout=x.layout)
+            out = RegisterTensor.create(dtype=infer_type(value), optional_layout=x.layout)
 
         inst = ElementwiseUnaryInst.create(x=x, f_compute=f_compute, output=out)
         self.append(inst)
@@ -484,7 +488,7 @@ class StmtBuilder(StmtBuilderCore):
             if len(repeats) < len(layout.shape):
                 repeats = [1] * (len(layout.shape) - len(repeats)) + list(repeats)
             layout = repeat(*repeats) * layout
-            out = RegisterTensor.create(dtype=x.dtype, layout=layout)
+            out = RegisterTensor.create(dtype=x.dtype, optional_layout=layout)
         inst = RepeatInst.create(x=x, output=out)
         self.append(inst)
         return inst.register_output
@@ -505,7 +509,7 @@ class StmtBuilder(StmtBuilderCore):
             if len(repeats) < len(layout.shape):
                 repeats = [1] * (len(layout.shape) - len(repeats)) + list(repeats)
             layout = layout * repeat(*repeats)
-            out = RegisterTensor.create(dtype=x.dtype, layout=layout)
+            out = RegisterTensor.create(dtype=x.dtype, optional_layout=layout)
         inst = RepeatInterleaveInst.create(x=x, output=out)
         self.append(inst)
         return inst.register_output
@@ -514,7 +518,7 @@ class StmtBuilder(StmtBuilderCore):
         from tilus.ir.layout.register_layout_ops import permute
 
         if out is None:
-            out = RegisterTensor.create(dtype=x.dtype, layout=permute(x.layout, dims=[1, 0]))
+            out = RegisterTensor.create(dtype=x.dtype, optional_layout=permute(x.layout, dims=[1, 0]))
         inst = TransposeInst.create(x, out)
         self.append(inst)
         return inst.register_output
@@ -530,7 +534,7 @@ class StmtBuilder(StmtBuilderCore):
         if out is None:
             from tilus.ir.layout import reduce
 
-            out = RegisterTensor.create(dtype=x.dtype, layout=reduce(x.layout, dims=[dim], keepdims=True))
+            out = RegisterTensor.create(dtype=x.dtype, optional_layout=reduce(x.layout, dims=[dim], keepdims=True))
         inst = ReduceInst.create(x=x, output=out, dim=dim, op=op)
         self.append(inst)
         return inst.register_output
@@ -543,22 +547,17 @@ class StmtBuilder(StmtBuilderCore):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from hidet.ir.utils.broadcast_utils import can_mutually_broadcast
+        from hidet.ir.utils.broadcast_utils import broadcast_shape, can_mutually_broadcast
 
         if not can_mutually_broadcast(x.shape, y.shape):
             raise InstructionError(f"Cannot broadcast {x.shape} and {y.shape}")
         if out is None:
-            if all(a % b == 0 for a, b in zip(x.shape, y.shape)):
-                layout = x.layout
-            elif all(b % a == 0 for a, b in zip(x.shape, y.shape)):
-                layout = y.layout
-            else:
-                raise NotImplementedError()
             lhs = Var("x", x.dtype)
             rhs = Var("y", y.dtype)
             # used x as output to create inst_cls(), it is not used
             value = inst_cls.create(x, y, x).f_compute(lhs, rhs)
-            out = RegisterTensor.create(dtype=infer_type(value), layout=layout)
+            out_shape = [int(s) for s in broadcast_shape(x.shape, y.shape)]
+            out = RegisterTensor.create(dtype=infer_type(value), shape=out_shape)
         inst = inst_cls.create(x=x, y=y, output=out)
         self.append(inst)
         return inst.register_output
@@ -622,7 +621,7 @@ class StmtBuilder(StmtBuilderCore):
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if output is None:
-            output = RegisterTensor.create(dtype=c.dtype, layout=c.layout)
+            output = RegisterTensor.create(dtype=c.dtype, optional_layout=c.layout)
         inst = MmaDotInst.create(
             a=a,
             b=b,
@@ -635,8 +634,10 @@ class StmtBuilder(StmtBuilderCore):
 
     # shared value operations
 
-    def allocate_shared(self, dtype: DataType, shared_layout: SharedLayout) -> SharedTensor:
-        inst = AllocateSharedInst.create(output=SharedTensor.create(dtype=dtype, layout=shared_layout))
+    def allocate_shared(
+        self, dtype: DataType, shape: Sequence[int], layout: Optional[SharedLayout] = None
+    ) -> SharedTensor:
+        inst = AllocateSharedInst.create(output=SharedTensor.create(dtype=dtype, shape=shape, optional_layout=layout))
         self.append(inst)
         return inst.shared_output
 
@@ -664,11 +665,11 @@ class StmtBuilder(StmtBuilderCore):
     def load_shared(
         self,
         src: SharedTensor,
-        output_layout: Optional[RegisterLayout] = None,
+        layout: Optional[RegisterLayout] = None,
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if output is None:
-            output = RegisterTensor.create(dtype=src.dtype, layout=output_layout)
+            output = RegisterTensor.create(dtype=src.dtype, shape=src.shape, optional_layout=layout)
         inst = LoadSharedInst.create(x=src, output=output)
         self.append(inst)
         return inst.register_output
@@ -709,19 +710,26 @@ class StmtBuilder(StmtBuilderCore):
         self,
         x: GlobalTensor,
         offsets: Sequence[Expr],
-        dims: Optional[Sequence[int]] = None,
-        register_layout: Optional[RegisterLayout] = None,
+        slice_dims: Optional[Sequence[int]] = None,
+        shape: Optional[Sequence[int]] = None,
+        layout: Optional[RegisterLayout] = None,
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if output is None:
-            assert register_layout is not None
-            output = RegisterTensor.create(dtype=x.dtype, layout=register_layout)
+            output = RegisterTensor.create(dtype=x.dtype, shape=shape, optional_layout=layout)
         else:
-            assert register_layout is None
-        if dims is None:
+            if shape is not None and not same_list(shape, output.shape):
+                raise InstructionError(
+                    f"Shape mismatch: expected {output.shape}, but got {shape} for output of load_global"
+                )
+            if layout is not None and output.layout != layout:
+                raise InstructionError(
+                    f"Layout mismatch: expected {output.layout}, but got {layout} for output of load_global"
+                )
+        if slice_dims is None:
             assert len(x.shape) == len(output.shape)
-            dims = range(len(x.shape))
-        inst = LoadGlobalInst.create(x=x, offsets=offsets, dims=dims, output=output)
+            slice_dims = range(len(x.shape))
+        inst = LoadGlobalInst.create(x=x, offsets=offsets, slice_dims=slice_dims, output=output)
         self.append(inst)
         return inst.register_output
 
@@ -760,7 +768,7 @@ class StmtBuilder(StmtBuilderCore):
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if out is None:
-            out = RegisterTensor.create(dtype=dtype, layout=layout)
+            out = RegisterTensor.create(dtype=dtype, optional_layout=layout)
         inst = LoadGlobalGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
         self.append(inst)
         return inst.register_output
@@ -787,7 +795,7 @@ class StmtBuilder(StmtBuilderCore):
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if out is None:
-            out = RegisterTensor.create(dtype=dtype, layout=layout)
+            out = RegisterTensor.create(dtype=dtype, optional_layout=layout)
         inst = LoadSharedGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
         self.append(inst)
         return inst.register_output

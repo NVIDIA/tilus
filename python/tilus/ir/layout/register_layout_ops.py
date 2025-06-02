@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import Optional, Sequence
 
 from tilus.ir.layout.register_layout import (
-    LayoutOperationError,
     RegisterLayout,
     canonicalize_layout,
     register_layout,
 )
+from tilus.ir.layout.utils import LayoutOperationError
 from tilus.utils import gcd, prod
 
 
@@ -304,7 +304,8 @@ def reduce(
     """
     Reduce the layout over the given dimensions.
 
-    The reduce function will return a new layout with the dimensions specified in dims reduced to 1.
+    The reduce function will return a new layout with the dimensions specified in dims reduced to 1. The reduced
+    dimensions will be removed if `keepdims` is False, or set to 1 if `keepdims` is True.
 
     Parameters
     ----------
@@ -366,6 +367,32 @@ def reduce(
         spatial_modes=spatial_modes,
         local_modes=local_modes,
     )
+
+
+def reduce_to(
+    layout: RegisterLayout,
+    shape: Sequence[int],
+) -> RegisterLayout:
+    reduce_dims_keep_dims = []
+    reduce_dims = []
+
+    diff_rank = len(layout.shape) - len(shape)
+    for i in range(len(layout.shape)):
+        if i < diff_rank:
+            reduce_dims.append(i)
+        elif layout.shape[i] != shape[i - diff_rank] and shape[i - diff_rank] == 1:
+            reduce_dims_keep_dims.append(i)
+        elif layout.shape[i] == shape[i - diff_rank]:
+            # matched dimension
+            continue
+        else:
+            raise ValueError("can not broadcast output layout from input shape")
+
+    if reduce_dims_keep_dims:
+        layout = reduce(layout, reduce_dims_keep_dims, keepdims=True)
+    if reduce_dims:
+        layout = reduce(layout, reduce_dims, keepdims=False)
+    return layout
 
 
 def concat(lhs: RegisterLayout, rhs: RegisterLayout) -> RegisterLayout:
@@ -664,7 +691,11 @@ def divide(lhs: RegisterLayout, rhs: RegisterLayout) -> RegisterLayout:
 
 
 def auto_repeat_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayout:
-    assert prod(shape) % num_threads == 0
+    size = prod(shape)
+    assert size % num_threads == 0 or num_threads % size == 0, (
+        "Cannot auto repeat spatial layout with shape {} and num_threads {}".format(shape, num_threads)
+    )
+
     remain_shape = list(shape)
     remain_threads = num_threads
     spatial_shape = [1 for i in range(len(shape))]
@@ -674,7 +705,15 @@ def auto_repeat_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayou
         remain_threads //= spatial_shape[i]
         remain_shape[i] //= spatial_shape[i]
 
-    assert remain_threads == 1
-
     repeat_shape = remain_shape
-    return repeat(*repeat_shape).spatial(*spatial_shape)
+    ret = repeat(*repeat_shape).spatial(*spatial_shape)
+
+    if remain_threads != 1:
+        ret = register_layout(
+            shape=ret.shape,
+            mode_shape=ret.mode_shape,
+            spatial_modes=(-remain_threads,) + ret.spatial_modes,
+            local_modes=ret.local_modes,
+        )
+
+    return ret

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Mapping, Optional, Sequence
 
 from hidet.ir.expr import Expr, Var
+
 from tilus.ir.node import IRNode
 from tilus.ir.stmt import Stmt
 from tilus.ir.utils import frozendict
@@ -21,6 +22,10 @@ class Analysis:
         divisibility: Mapping[Var, int], lower_bound: Mapping[Var, int], upper_bound: Mapping[Var, int]
     ) -> Analysis:
         return Analysis(frozendict(divisibility), frozendict(lower_bound), frozendict(upper_bound))
+
+    @staticmethod
+    def empty() -> Analysis:
+        return Analysis(frozendict(), frozendict(), frozendict())
 
 
 @dataclass(frozen=True)

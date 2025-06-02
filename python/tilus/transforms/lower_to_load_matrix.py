@@ -13,6 +13,7 @@ from typing import Optional, Union
 from hidet.ir import DataType
 from hidet.ir.expr import Expr, Var
 from hidet.ir.tools import collect
+
 from tilus import RegisterLayout
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
@@ -22,7 +23,7 @@ from tilus.ir.functors import IRRewriter
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import LoadMatrixConfig, LoadSharedInst
 from tilus.ir.layout import divide
-from tilus.ir.layout.register_layout import LayoutOperationError
+from tilus.ir.layout.utils import LayoutOperationError
 from tilus.ir.stmt import Stmt
 from tilus.target import get_current_target, nvgpu_sm75
 from tilus.transforms.base import Pass

@@ -3,6 +3,7 @@ from typing import Type
 
 from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Expr, as_expr, cast, logical_and
+
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter

@@ -4,6 +4,7 @@ from hidet.ir.dtypes import DataType, f32, float32, uint8
 from hidet.ir.expr import Expr
 from hidet.ir.primitives.func import call_primitive_func, register_primitive_function
 from hidet.utils import initialize
+
 from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
 from tilus.extensions.hidet.ir.expr import reinterpret
 

@@ -70,8 +70,8 @@ class MatmulV5(tilus.Script):
             self.copy_async_commit_group()
 
             # computation for current tile
-            a = self.load_shared(sa[current_stage], out_layout=self.mma.la)
-            b = self.load_shared(sb[current_stage], out_layout=self.mma.lb)
+            a = self.load_shared(sa[current_stage], layout=self.mma.la)
+            b = self.load_shared(sb[current_stage], layout=self.mma.lb)
             self.mma_dot(a, b, acc, output=acc)
 
             # update the stage

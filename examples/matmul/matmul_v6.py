@@ -65,8 +65,8 @@ class MatmulV6(tilus.Script):
         preload_stage: int32 = self.num_stages - 1
         for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
             # computation for current tile
-            a = self.load_shared(sa[current_stage], out_layout=self.mma.la)
-            b = self.load_shared(sb[current_stage], out_layout=self.mma.lb)
+            a = self.load_shared(sa[current_stage], layout=self.mma.la)
+            b = self.load_shared(sb[current_stage], layout=self.mma.lb)
             self.mma_dot(a, b, acc, output=acc)
 
             # preload the next tile of A and B into shared memory

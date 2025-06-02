@@ -8,6 +8,7 @@ from hidet.ir import primitives
 from hidet.ir.dtypes import DataType, boolean, i32
 from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.tools import rewrite
+
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.inst import Instruction
 from tilus.ir.layout import RegisterLayout
@@ -29,7 +30,7 @@ class AllocateRegisterInst(Instruction):
     @staticmethod
     def create(output: RegisterTensor, f_init: Optional[Callable[[Sequence[Var]], Expr]]) -> AllocateRegisterInst:
         if f_init is not None:
-            axes = tuple(index_vars(num_vars=len(output.layout.shape)))
+            axes = tuple(index_vars(num_vars=len(output.shape)))
             init = f_init(axes)
         else:
             axes = None
@@ -40,11 +41,13 @@ class AllocateRegisterInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class LoadGlobalInst(Instruction):
     offsets: tuple[Expr, ...]
-    dims: tuple[int, ...]
+    slice_dims: tuple[int, ...]
 
     @staticmethod
-    def create(x: GlobalTensor, offsets: Sequence[Expr], dims: Sequence[int], output: RegisterTensor) -> LoadGlobalInst:
-        return LoadGlobalInst(output=output, inputs=(x,), offsets=tuple(offsets), dims=tuple(dims))
+    def create(
+        x: GlobalTensor, offsets: Sequence[Expr], slice_dims: Sequence[int], output: RegisterTensor
+    ) -> LoadGlobalInst:
+        return LoadGlobalInst(output=output, inputs=(x,), offsets=tuple(offsets), slice_dims=tuple(slice_dims))
 
 
 @dataclass(frozen=True, eq=False)
@@ -83,10 +86,7 @@ class SharedSliceInst(Instruction):
         dims: Sequence[int],
         shape: Sequence[int],
     ) -> SharedSliceInst:
-        output = SharedTensor.create(
-            dtype=tensor.dtype,
-            layout=tensor.layout.slice(offsets=offsets, slice_dims=dims, slice_shape=shape),
-        )
+        output = SharedTensor.create(dtype=tensor.dtype, shape=shape)
         return SharedSliceInst(
             output=output,
             inputs=(tensor,),
@@ -400,7 +400,7 @@ class ViewInst(Instruction):
     ) -> ViewInst:
         dtype = dtype if dtype else x.dtype
         layout = layout if layout else x.layout
-        output = RegisterTensor.create(dtype=dtype, layout=layout)
+        output = RegisterTensor.create(dtype=dtype, optional_layout=layout)
         return ViewInst(output=output, inputs=(x,), local_offset=i32(local_offset))
 
 
@@ -420,7 +420,7 @@ class SqueezeInst(Instruction):
         if out is None:
             from tilus.ir.layout.register_layout_ops import squeeze
 
-            out = RegisterTensor.create(dtype=x.dtype, layout=squeeze(x.layout, dims))
+            out = RegisterTensor.create(dtype=x.dtype, optional_layout=squeeze(x.layout, dims))
         return SqueezeInst(output=out, inputs=(x,), dims=tuple(dims))
 
 
@@ -440,7 +440,7 @@ class UnsqueezeInst(Instruction):
         if out is None:
             from tilus.ir.layout.register_layout_ops import unsqueeze
 
-            out = RegisterTensor.create(dtype=x.dtype, layout=unsqueeze(x.layout, dims))
+            out = RegisterTensor.create(dtype=x.dtype, optional_layout=unsqueeze(x.layout, dims))
         return UnsqueezeInst(output=out, inputs=(x,), dims=tuple(dims))
 
 
@@ -452,7 +452,7 @@ class TransposeInst(Instruction):
         if out is None:
             from tilus.ir.layout.register_layout_ops import permute
 
-            out = RegisterTensor.create(dtype=x.dtype, layout=permute(x.layout, [1, 0]))
+            out = RegisterTensor.create(dtype=x.dtype, optional_layout=permute(x.layout, [1, 0]))
         return TransposeInst(output=out, inputs=(x,))
 
 

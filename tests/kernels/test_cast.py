@@ -3,12 +3,11 @@ import struct
 import pytest
 import tilus
 import torch
+from hidet.ir.dtypes import bfloat16, float16, float32, int8, int16, int32
+from hidet.ir.dtypes.integer_subbyte import IntegerSubbyteType
 from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
 from tilus.utils import dtype_to_torch
 from tqdm import tqdm
-
-from hidet.ir.dtypes import bfloat16, float16, float32, int8, int16, int32
-from hidet.ir.dtypes.integer_subbyte import IntegerSubbyteType
 
 
 @pytest.mark.parametrize("src_dtype", [int32, int16, int8, float32, float16, bfloat16])

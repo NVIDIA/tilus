@@ -28,7 +28,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "hidet",
+    "hidet==0.6.0",
     "torch",
     "tabulate",
 ]

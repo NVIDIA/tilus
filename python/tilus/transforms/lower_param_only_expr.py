@@ -29,6 +29,7 @@ The algorithm is simple:
 
 from hidet.ir.expr import Expr, Var
 from hidet.ir.tools import collect
+
 from tilus.extensions.hidet.ir.tools import rewrite
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter

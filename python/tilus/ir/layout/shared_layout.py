@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Sequence
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var
 from hidet.utils import prod
+
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.extensions.hidet.ir.utils.index_transform import vector_mul
 from tilus.ir.node import IRNode
@@ -38,7 +39,7 @@ class SharedLayout(IRNode):
             indices: List[Expr] = list(offsets)
             for dim, axis in zip(slice_dims, axes):
                 indices[dim] = indices[dim] + axis
-            return self(*indices)
+            return self(*indices) - self(*offsets)
 
         return SharedLayout.create(shape=slice_shape, size=self.size, f_offset=f_offset)
 

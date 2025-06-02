@@ -15,14 +15,14 @@ from typing import Any, Mapping, Optional, Sequence, Type
 import filelock
 import tabulate
 from cuda.bindings.runtime import cudaDeviceSynchronize
-from tqdm import tqdm
-
-import tilus.option
 from hidet.ir import Constant
 from hidet.ir.expr import as_expr
 from hidet.ir.type import DataType, PointerType
 from hidet.runtime import CompiledFunction
 from hidet.utils.py import nocolor
+from tqdm import tqdm
+
+import tilus.option
 from tilus.drivers import BuildOptions, build_program, get_cache_dir
 from tilus.ir.prog import Program
 from tilus.lang.script import Script

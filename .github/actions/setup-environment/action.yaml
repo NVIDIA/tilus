@@ -6,9 +6,6 @@ inputs:
     description: Python version to set up
     required: false
     default: '3.10'
-  hidet-access-token:
-    description: Access token for Hidet repository
-    required: true
 
 outputs:
   wheel-path:
@@ -43,11 +40,6 @@ runs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ inputs.python-version }}
-
-    - name: Install Hidet
-      uses: ./.github/actions/install-hidet
-      with:
-        hidet-access-token: ${{ inputs.hidet-access-token }}
 
     - name: Install Tilus
       id: install-tilus  # Preserve the ID for output

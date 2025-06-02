@@ -3,6 +3,7 @@ from typing import Optional, Union
 from hidet.ir.dtypes import boolean, uint8, uint16, uint32
 from hidet.ir.expr import Var, as_expr, cast, if_then_else
 from hidet.ir.type import DataType
+
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes.vector import uint32x2, uint32x4
 from tilus.extensions.hidet.ir.expr import index_vars

@@ -22,7 +22,6 @@ jobs:
         uses: ./.github/actions/setup-environment
         with:
           python-version: '3.10'
-          hidet-access-token: ${{ secrets.CENTML_HIDET_ACCESS }}
 
       - name: Check format and lint
         run: |

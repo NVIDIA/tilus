@@ -5,6 +5,7 @@ from typing import Callable, Sequence
 
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var, as_expr
+
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.extensions.hidet.ir.utils.index_transform import index_multiply
 from tilus.ir.node import IRNode

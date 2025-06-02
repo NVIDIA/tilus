@@ -3,6 +3,7 @@ from typing import Any, Dict, Hashable, List, Mapping, Tuple, TypeVar, Union
 
 from hidet.ir.expr import Expr
 from hidet.ir.type import BaseType
+
 from tilus.ir.func import Function
 from tilus.ir.inst import Instruction, InstructionConfig
 from tilus.ir.instructions import (
@@ -479,18 +480,18 @@ class IRRewriter(IRFunctor):
             return WhileStmt(cond, body)
 
     def visit_RegisterTensor(self, tensor: RegisterTensor) -> RegisterTensor:
-        layout = self.visit(tensor.layout)
-        if layout is tensor.layout:
+        optional_layout = self.visit(tensor.optional_layout)
+        if optional_layout is tensor.optional_layout:
             return tensor
         else:
-            return RegisterTensor.create(dtype=tensor.dtype, layout=layout)
+            return RegisterTensor.create(dtype=tensor.dtype, shape=tensor.shape, optional_layout=optional_layout)
 
     def visit_SharedTensor(self, tensor: SharedTensor) -> SharedTensor:
-        layout = self.visit(tensor.layout)
-        if layout is tensor.layout:
+        optional_layout = self.visit(tensor.optional_layout)
+        if optional_layout is tensor.optional_layout:
             return tensor
         else:
-            return SharedTensor.create(dtype=tensor.dtype, layout=layout)
+            return SharedTensor.create(dtype=tensor.dtype, shape=tensor.shape, optional_layout=optional_layout)
 
     def visit_GlobalTensor(self, tensor: GlobalTensor) -> GlobalTensor:
         layout = self.visit(tensor.layout)
@@ -615,7 +616,7 @@ class IRVisitor(IRFunctor):
         pass
 
     def visit_SharedTensor(self, tensor: SharedTensor) -> None:
-        self.visit(tensor.layout)
+        self.visit(tensor.optional_layout)
 
     def visit_GlobalTensor(self, tensor: GlobalTensor) -> Any:
         self.visit(tensor.layout)

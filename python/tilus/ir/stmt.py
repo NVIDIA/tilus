@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Sequence
 
 from hidet.ir.expr import Expr, Var
+
 from tilus.ir.inst import Instruction
 from tilus.ir.node import IRNode
 from tilus.ir.tensor import Tensor

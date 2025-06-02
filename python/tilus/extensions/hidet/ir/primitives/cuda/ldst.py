@@ -70,6 +70,7 @@ def register_functions() -> None:
     # pylint: disable=function-redefined
     from hidet.lang import asm, attrs, cast, deref, script  # pylint: disable=import-outside-toplevel
     from hidet.lang.types import uint8, uint32, uint64, void_p
+
     from tilus.extensions.hidet.lang.types import uint16
 
     dtype: Optional[DataType] = None

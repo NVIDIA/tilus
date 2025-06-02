@@ -7,6 +7,7 @@ import tabulate
 from tilus.ir.prog import Program
 from tilus.ir.tools import IRPrinter
 from tilus.transforms.instruments.instrument import PassInstrument
+from tilus.transforms.instruments.utils.highlight import highlight
 
 
 class DumpIRInstrument(PassInstrument):
@@ -14,9 +15,9 @@ class DumpIRInstrument(PassInstrument):
         self.dump_dir: Path = dump_dir
         self.count: int = 0
         self.dump_dir.mkdir(parents=True, exist_ok=True)
-        self.lower_time_path: Path = self.dump_dir / "lower_time.txt"
         self.start_time: dict[str, float] = {}
         self.elapsed_time: dict[str, float] = {}
+        self.programs: dict[str, str] = {}
 
     def before_all_passes(self, program: Program) -> None:
         printer = IRPrinter()
@@ -24,8 +25,11 @@ class DumpIRInstrument(PassInstrument):
         shutil.rmtree(self.dump_dir, ignore_errors=True)
 
         self.dump_dir.mkdir(parents=True, exist_ok=True)
+        program_text = str(printer(program))
         with open(self.dump_dir / "0_Original.txt", "w") as f:
-            f.write(str(printer(program)))
+            f.write(program_text)
+
+        self.programs["0. Original"] = program_text
 
         self.count = 1
 
@@ -36,15 +40,23 @@ class DumpIRInstrument(PassInstrument):
         self.elapsed_time[pass_name] = time.time() - self.start_time[pass_name]
 
         printer = IRPrinter()
-        with open(self.dump_dir / f"{self.count}_{pass_name}.txt", "w") as f:
-            f.write(str(printer(program)))
+        file_name = f"{self.count}_{pass_name}"
+        program_text = str(printer(program))
+        with open(self.dump_dir / f"{file_name}.txt", "w") as f:
+            f.write(program_text)
+        self.programs[f"{self.count}. {pass_name}"] = program_text
 
         self.count += 1
 
     def after_all_passes(self, program: Program) -> None:
+        # output the lower time for each pass
         headers = ["Pass", "Time"]
         rows = []
         for name, elapsed_time in self.elapsed_time.items():
             rows.append([name, "{:.3f} seconds".format(elapsed_time)])
-        with open(self.lower_time_path, "w") as f:
+        with open(self.dump_dir / "lower_time.txt", "w") as f:
             f.write(tabulate.tabulate(rows, headers=headers))
+
+        # output the rendered programs to HTML
+        with open(self.dump_dir / "programs.html", "w", encoding="utf-8") as f:
+            f.write(highlight(self.programs))

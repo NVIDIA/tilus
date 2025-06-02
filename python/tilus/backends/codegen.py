@@ -12,6 +12,7 @@ from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.primitives.cuda.vars import threadIdx
 from hidet.ir.stmt import DeclareScope
 from hidet.ir.type import void_p
+
 from tilus.extensions.hidet.ir.module import merge_ir_modules
 from tilus.extensions.hidet.ir.tools import rewrite
 from tilus.ir.func import Function
@@ -342,7 +343,7 @@ class Codegen(IRFunctor):
             emitter = resolve_inst_emitter(inst.__class__)(self)
             smem_workspace_nbytes = max(smem_workspace_nbytes, emitter.request_shared_workspace(inst))
         if smem_workspace_nbytes > 0:
-            smem_workspace = SharedTensor.create(dtype=uint8, layout=shared_repeat(smem_workspace_nbytes))
+            smem_workspace = SharedTensor.create(dtype=uint8, optional_layout=shared_repeat(smem_workspace_nbytes))
             self.allocate_shared_tensor(smem_workspace, nbytes=smem_workspace_nbytes)
             self.tensor2var[smem_workspace] = self.builder.declare(
                 v=Var("temp_smem", type=void_p),

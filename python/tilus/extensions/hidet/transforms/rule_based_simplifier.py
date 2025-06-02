@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var
-from hidet.transforms.rule_based_simplifier import BoundAnalyzer, BoundInfo
+from hidet.transforms.rule_based_simplifier import BoundInfo
 from hidet.transforms.rule_based_simplifier import RuleBasedSimplifier as OriginalRuleBasedSimplifier
 from hidet.utils import repeat_until_converge
 
@@ -10,9 +10,9 @@ from hidet.utils import repeat_until_converge
 class RuleBasedSimplifier(OriginalRuleBasedSimplifier):
     def __init__(self, var2bound: Optional[Dict[Var, BoundInfo]]):
         super().__init__()
-        self.analyzer = BoundAnalyzer(var2bound)  # type: ignore
+        self.analyzer.bound.update(var2bound or {})  # type: ignore
 
-        e1, e2, c1, c2, ec1, ec2 = self.args
+        e1, e2, c1, c2, ic1, ic2, ec1, ec2 = self.args
 
         extra_patterns = [
             ((e1 + c1) - c2, e1 + (c1 - c2), c1 >= c2),

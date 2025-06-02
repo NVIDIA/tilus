@@ -39,8 +39,8 @@ class MatmulV1(tilus.Script):
             self.store_shared(sb, ldb)
             self.sync()
 
-            a = self.load_shared(sa, out_layout=self.mma.la)
-            b = self.load_shared(sb, out_layout=self.mma.lb)
+            a = self.load_shared(sa, layout=self.mma.la)
+            b = self.load_shared(sb, layout=self.mma.lb)
             self.mma_dot(a, b, acc, output=acc)
             self.sync()
 

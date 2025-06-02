@@ -3,6 +3,7 @@ Lightweight IR simplifier that used to clean up the IR after transformations.
 """
 
 from hidet.ir.expr import Expr, Var
+
 from tilus.ir.functors import IRRewriter
 from tilus.ir.prog import Program
 from tilus.ir.stmt import (

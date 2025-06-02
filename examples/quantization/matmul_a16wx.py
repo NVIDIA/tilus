@@ -3,6 +3,9 @@ import math
 import pandas
 import tilus
 import torch
+from hidet import bfloat16
+from hidet.ir.dtypes import int4b
+from hidet.ir.type import DataType, void_p
 from tilus import (
     Script,
     float3_e1m1,
@@ -20,10 +23,6 @@ from tilus import (
 from tilus.ir.layout import concat, reduce, repeat, spatial
 from tilus.utils import benchmark_func, cdiv, dtype_to_torch, gcd
 from torch import nn
-
-from hidet import bfloat16
-from hidet.ir.dtypes import int4b
-from hidet.ir.type import DataType, void_p
 
 tilus.option.cache_dir("./cache")
 # tilus.option.debug.dump_ir()
@@ -214,9 +213,9 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         preload_stage: int32 = self.num_stages - 1
         for offset_k in self.range(start_offset_k, end_offset_k, block_k, unroll=self.num_stages):
             # computation for current tile
-            a = self.load_shared(sa[current_stage], out_layout=self.mma.la)
-            scale = self.load_shared(ss[current_stage], out_layout=self.layout_rs)
-            b_flattened = self.load_shared(sb[current_stage], out_layout=self.layout_rb_flattened)
+            a = self.load_shared(sa[current_stage], layout=self.mma.la)
+            scale = self.load_shared(ss[current_stage], layout=self.layout_rs)
+            b_flattened = self.load_shared(sb[current_stage], layout=self.layout_rb_flattened)
             b_low_precision = self.view(b_flattened, dtype=self.b_dtype, layout=self.mma.lb)
             b_unscaled = self.cast(b_low_precision, dtype=self.a_dtype)
             b = b_unscaled * scale
@@ -263,7 +262,7 @@ class QuantizedMatmul(QuantizedMatmulCommon):
             # load and accumulate the partial result in global memory
             if self.blockIdx.z > 0:
                 self.lock_semaphore(semaphore, value=self.blockIdx.z)
-                partial_rc = self.load_global(gc, offsets=[offset_m, offset_n], layout=rc.layout)
+                partial_rc = self.load_global(gc, offsets=[offset_m, offset_n], shape=[block_m, block_n])
                 self.add(rc, partial_rc, out=rc)
 
             # store the result to global memory and release the semaphore

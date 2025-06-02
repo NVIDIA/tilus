@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
-
 from hidet.ir import DataType
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, as_expr, cast, logical_and
 from hidet.ir.primitives.cuda.shfl import shfl_down_sync, shfl_up_sync
 from hidet.ir.type import tensor_pointer_type
 from hidet.utils.py import is_power_of_two
+
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.instructions.generic import ReduceInst

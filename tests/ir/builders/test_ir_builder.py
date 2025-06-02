@@ -1,6 +1,5 @@
-from tilus.ir.builders import IRBuilder
-
 from hidet.ir.dtypes import int32
+from tilus.ir.builders import IRBuilder
 
 
 def test_program_builder():

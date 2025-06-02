@@ -4,6 +4,7 @@ from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Constant, Expr, LessEqual, LessThan
 from hidet.ir.functors import IRRewriter as HidetIRRewriter
 from hidet.transforms.rule_based_simplifier import BoundAnalyzer, BoundInfo, RuleBasedSimplifier
+
 from tilus.ir.analyzers import ScalarSet, ScalarSetAnalyzer, analyze_scalar
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
