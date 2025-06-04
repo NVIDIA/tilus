@@ -31,10 +31,11 @@ jobs:
         uses: ./.github/actions/setup-environment
         with:
           python-version: '3.10'
-          hidet-access-token: ${{ secrets.CENTML_HIDET_ACCESS }}
 
       - name: Run tests
         run: pytest ./tests
 
       - name: Run examples
-        run: bash .github/workflows/scripts/run-examples.sh
+        run: |
+          pip install -r ./examples/requirements.txt
+          bash .github/workflows/scripts/run-examples.sh

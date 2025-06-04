@@ -72,6 +72,26 @@ def has_missing_layouts(inst: Instruction) -> bool:
     )
 
 
+def has_inferred_layouts(inst: Instruction) -> bool:
+    """
+    Check if the instruction has any shared or register tensors with a layout set.
+
+    Parameters
+    ----------
+    inst: Instruction
+        The instruction to check.
+
+    Returns
+    -------
+    bool
+        True if the instruction has any shared or register tensors with a layout set, False otherwise.
+    """
+    operands = inst.inputs + ((inst.output,) if inst.output else ())
+    return any(
+        isinstance(tensor, (RegisterTensor, SharedTensor)) and tensor.optional_layout is not None for tensor in operands
+    )
+
+
 def has_shared_or_register_tensors(inst: Instruction) -> bool:
     """
     Check if the instruction has any shared or register tensors.
@@ -172,10 +192,31 @@ def infer_layout(func: Function) -> Function:
 
         # step 3: sort the instructions by their priority
         pairs: list[tuple[Instruction, Type[LayoutInferenceRule]]] = []
+        inst2order = {inst: i for i, inst in enumerate(instructions)}
         for inst in instructions:
             for rule in get_inference_rules(inst):
                 pairs.append((inst, rule))
-        pairs.sort(key=lambda pair: rule2order[pair[1]])
+
+        def pair_sort_key(pair: tuple[Instruction, Type[LayoutInferenceRule]]) -> tuple[int, int, int]:
+            """
+            Sort key for the instruction and rule pair based on the rule's order.
+            key:
+              no_layout_inferred: instructions with layout inferred should be processed first
+              rule_order: rules with lower order should be processed first
+              inst_order: instructions appear later in the function should be processed later
+            """
+            instruction, inference_rule = pair
+            return (
+                0 if has_inferred_layouts(instruction) else 1,
+                rule2order[inference_rule],
+                len(instructions) - inst2order[instruction],
+            )
+
+        pairs.sort(key=pair_sort_key)
+        # print("Sorted instruction and rule pairs:")
+        # for inst, rule in pairs:
+        #     print(f"  {inst} with rule {rule.__name__} ({pair_sort_key((inst, rule))})")
+        # print()
 
         # step 4: iterate over the sorted instructions and apply the rules to infer the layouts of the tensors
         found = False
@@ -194,7 +235,7 @@ def infer_layout(func: Function) -> Function:
                 rewrite_map: dict[SharedTensor | RegisterTensor, SharedTensor | RegisterTensor] = {}
                 for tensor, layout in mapping.items():
                     assert same_list(tensor.shape, layout.shape), (
-                        f"Layout shape does not match tensor shape: {tensor.shape} vs {layout.shape}"
+                        f"Layout shape does not match tensor shape: {tensor.shape} vs {layout.shape} for rule {rule.__name__} "
                     )
                     if isinstance(tensor, RegisterTensor) and isinstance(layout, RegisterLayout):
                         rewrite_map[tensor] = tensor.with_layout(layout)
@@ -207,7 +248,10 @@ def infer_layout(func: Function) -> Function:
                     printer = IRPrinter()
                     logger.debug("%s", str(printer(inst)))
                     for tensor, layout in mapping.items():
-                        logger.debug("  %s: %s", str(printer(tensor)), layout)
+                        if isinstance(layout, RegisterLayout):
+                            logger.debug("  %s: %s", str(printer(tensor)), layout)
+                        else:
+                            logger.debug("  %s: %s", str(printer(tensor)), printer.key2comment[str(printer(layout))])
                 found = True
                 break
         if not found:

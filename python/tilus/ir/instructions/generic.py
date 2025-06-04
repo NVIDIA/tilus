@@ -316,6 +316,13 @@ class ModInst(ElementwiseBinaryBaseInst):
 
 
 @dataclass(frozen=True, eq=False)
+class WhereInst(Instruction):
+    @staticmethod
+    def create(cond: RegisterTensor, x: RegisterTensor, y: RegisterTensor, output: RegisterTensor) -> WhereInst:
+        return WhereInst(output=output, inputs=(cond, x, y))
+
+
+@dataclass(frozen=True, eq=False)
 class RepeatInst(Instruction):
     @staticmethod
     def create(x: RegisterTensor, output: RegisterTensor) -> RepeatInst:
@@ -373,17 +380,19 @@ class ShuffleUpInst(ShuffleBaseInst):
 class ReduceInst(Instruction):
     dim: int
     op: str
+    keepdim: bool
     VALID_OPS: ClassVar[tuple[str, ...]] = ("sum", "max", "min")
 
     @staticmethod
     def create(
         x: RegisterTensor,
         dim: int,
+        keepdim: bool,
         op: str,
         output: RegisterTensor,
     ) -> ReduceInst:
         assert op in ReduceInst.VALID_OPS
-        return ReduceInst(output=output, inputs=(x,), dim=dim, op=op)
+        return ReduceInst(output=output, inputs=(x,), dim=dim, keepdim=keepdim, op=op)
 
 
 @dataclass(frozen=True, eq=False)

@@ -35,6 +35,7 @@ class IRPrinter(IRFunctor):
         self.tensor2name: Dict[Tensor, str] = {}
         self.var2name: Dict[Var, str] = {}
         self.comment2key: Dict[str, str] = {}
+        self.key2comment: Dict[str, str] = {}
         self.keys: Set[str] = set()
 
         self.shared_count: int = 0
@@ -57,6 +58,7 @@ class IRPrinter(IRFunctor):
             if key not in self.keys:
                 self.keys.add(key)
                 self.comment2key[comment] = key
+                self.key2comment[key] = comment
                 return key
             i += 1
 

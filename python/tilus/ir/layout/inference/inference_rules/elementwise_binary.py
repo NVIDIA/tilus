@@ -24,17 +24,14 @@ class BinaryRule(LayoutInferenceRule):
         elif c.optional_layout is not None:
             # c => a | b
             mapping = {}
-            if a.optional_layout is not None:
+            if a.optional_layout is None:
                 mapping[a] = c.layout.reduce_to(a.shape)
-            if b.optional_layout is not None:
+            if b.optional_layout is None:
                 mapping[b] = c.layout.reduce_to(b.shape)
             return mapping
-        elif a.optional_layout is not None and b.optional_layout is not None:
-            if same_list(a.shape, c.shape):
-                return {b: a.layout.reduce_to(b.shape), c: a.layout}
-            elif same_list(b.shape, c.shape):
-                return {a: b.layout.reduce_to(a.shape), c: b.layout}
-            else:
-                return {}
+        elif a.optional_layout is not None and same_list(a.shape, c.shape):
+            return {c: a.layout}
+        elif b.optional_layout is not None and same_list(b.shape, c.shape):
+            return {c: b.layout}
         else:
             return {}

@@ -1,6 +1,7 @@
 from tilus.ir.instructions import (
     AllocateRegisterInst,
     AllocateSharedInst,
+    CopyAsyncGenericInst,
     CopyAsyncInst,
     FormatPrintInst,
     FreeSharedInst,
@@ -18,7 +19,10 @@ from tilus.ir.instructions import (
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 
 
+@register_rule(CopyAsyncGenericInst)
+@register_rule(CopyAsyncInst)
 @register_rule(StoreGlobalGenericInst)
+@register_rule(StoreSharedInst)
 @register_rule(PrintTensorInst)
 @register_rule(FormatPrintInst)
 @register_rule(LoadGlobalInst)
@@ -37,8 +41,6 @@ class AlwaysOkayRule(LayoutValidationRule):
 
 
 # todo: the following instructions should have dedicated validation rules
-@register_rule(StoreSharedInst)
-@register_rule(CopyAsyncInst)
 class TemporaryAlwaysOkRule(LayoutValidationRule):
     @staticmethod
     def validate(inst: Instruction) -> bool:

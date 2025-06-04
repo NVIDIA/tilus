@@ -52,16 +52,14 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
         layout: RegisterLayout = regs_tensor.layout
 
         # analyze the offset and mask's value information (e.g., divisibility, constancy, etc.)
-        var2info: dict[Var, TensorInfo] = {}
-        for var, divisibility in self.codegen.function.metadata.analysis.divisibility.items():
-            var2info[var] = TensorInfo.from_divisibility(shape=shape, divisibility=divisibility)
-        offset_info = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.offset)
-        mask_info = analyze_grid(shape=shape, axes=inst.axes, var2info=var2info, expr=inst.mask)
+        analysis = self.codegen.function.metadata.analysis
+        offset_info = analyze_grid(shape=shape, axes=inst.axes, analysis=analysis, expr=inst.offset)
+        mask_info = analyze_grid(shape=shape, axes=inst.axes, analysis=analysis, expr=inst.mask)
 
         # analyze the register layout so that we can know how the elements are distributed stored in threads
         axes = index_vars(len(layout.shape))
         expr = layout.get_local(global_indices=axes)
-        layout_info: TensorInfo = analyze_grid(shape=layout.shape, axes=axes, var2info={}, expr=as_expr(expr))
+        layout_info: TensorInfo = analyze_grid(shape=layout.shape, axes=axes, analysis=analysis, expr=as_expr(expr))
 
         # enumerate each dimension and check whether we can vectorize on that dimension
         for i in range(len(regs_tensor.shape)):

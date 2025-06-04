@@ -16,4 +16,5 @@ from . import (
     sync,
     transform,
     view,
+    where,
 )

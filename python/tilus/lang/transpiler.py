@@ -614,9 +614,9 @@ class Transpiler(PythonAstFunctor):
         elif isinstance(lhs, RegisterTensor) or isinstance(rhs, RegisterTensor):
             sb = StmtBuilder()
             if not isinstance(lhs, RegisterTensor):
-                lhs = sb.allocate_register(dtype=rhs.dtype, layout=rhs.layout, f_init=lambda _: rhs.dtype(lhs))
+                lhs = sb.allocate_register(dtype=rhs.dtype, shape=rhs.shape, f_init=lambda _: rhs.dtype(lhs))
             if not isinstance(rhs, RegisterTensor):
-                rhs = sb.allocate_register(dtype=lhs.dtype, layout=lhs.layout, f_init=lambda _: lhs.dtype(rhs))
+                rhs = sb.allocate_register(dtype=lhs.dtype, shape=lhs.shape, f_init=lambda _: lhs.dtype(rhs))
 
             assert isinstance(lhs, RegisterTensor) and isinstance(rhs, RegisterTensor)
 

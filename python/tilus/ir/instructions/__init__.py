@@ -53,4 +53,5 @@ from .generic import (
     TransposeInst,
     UnsqueezeInst,
     ViewInst,
+    WhereInst,
 )

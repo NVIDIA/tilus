@@ -1,3 +1,2 @@
+from . import type_infer
 from .rewriter import rewrite
-
-__all__ = ["rewrite"]

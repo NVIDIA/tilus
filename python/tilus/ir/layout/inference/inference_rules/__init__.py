@@ -6,7 +6,10 @@ from . import (
     empty_rule,
     load_shared,
     mma_dot,
+    reduce,
     shared_slice,
     store_global,
     store_shared,
+    transpose,
+    where,
 )

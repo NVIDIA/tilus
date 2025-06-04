@@ -3,8 +3,10 @@ from __future__ import annotations
 import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var
+from hidet.ir.dtypes import boolean
+from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
+from hidet.ir.tools import infer_type
 from hidet.ir.type import DataType
 
 from tilus.ir.builders import StmtBuilder
@@ -273,6 +275,11 @@ class Script:
         offsets: Sequence[Expr | int],
         slice_dims: Optional[Sequence[int]] = None,
     ) -> None:
+        if slice_dims is not None and len(slice_dims) != len(x.shape):
+            raise InstructionError(
+                "The number of slice dimensions must be equal to the number of dimensions of the "
+                f"register tensor: {len(slice_dims)} vs {len(x.shape)}"
+            )
         return self._builder.store_global(dst=dst, src=x, offsets=offsets, dims=slice_dims)
 
     def load_shared(
@@ -292,6 +299,12 @@ class Script:
         offsets: Optional[Sequence[int]] = None,
         dims: Optional[Sequence[int]] = None,
     ) -> None:
+        if dst.dtype != src.dtype:
+            raise InstructionError(
+                "Cannot store shared tensor {}{} from register tensor {}{}: dtype mismatch".format(
+                    dst.dtype.name, list(dst.shape), src.dtype.name, list(src.shape)
+                )
+            )
         if offsets is not None:
             assert len(offsets) == len(dst.shape)
             if dims is None:
@@ -327,19 +340,30 @@ class Script:
         self,
         a: RegisterTensor,
         b: RegisterTensor,
-        c: RegisterTensor,
+        c: Optional[RegisterTensor] = None,
         /,
         *,
-        # config: MmaDotConfig,
-        # warp_spatial: Sequence[int],
-        # warp_repeat: Sequence[int],
+        acc_dtype: Optional[DataType] = None,
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        if c is None:
+            if acc_dtype is None:
+                raise InstructionError('mma_dot requires either "c" or "acc_dtype" to be specified')
+            m, n = a.shape[-2], b.shape[-1]
+            c = self._builder.allocate_register(
+                dtype=acc_dtype,
+                shape=[m, n],
+                f_init=lambda _: acc_dtype.constant(0),
+            )
+        else:
+            if acc_dtype is not None and acc_dtype != c.dtype:
+                raise InstructionError(
+                    "The dtype of the accumulator tensor 'c' must match the specified 'acc_dtype' if provided"
+                )
         return self._builder.mma_dot(
             a,
             b,
             c,
-            # config=config, warp_spatial=warp_spatial, warp_repeat=warp_repeat,
             output=output,
         )
 
@@ -389,6 +413,14 @@ class Script:
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         return self._builder.abs(x, out=out)
+
+    def exp(
+        self,
+        x: RegisterTensor,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.exp(x, out=out)
 
     def round(
         self,
@@ -458,19 +490,26 @@ class Script:
         x: RegisterTensor,
         *,
         dim: int,
+        keepdim: bool,
         op: str,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        return self._builder.reduce(x, dim=dim, op=op, out=out)
+        return self._builder.reduce(x, dim=dim, keepdim=keepdim, op=op, out=out)
 
-    def sum(self, x: RegisterTensor, *, dim: int, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        return self._reduce(x, dim=dim, op="sum", out=out)
+    def sum(
+        self, x: RegisterTensor, *, dim: int, keepdim: bool = False, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        return self._reduce(x, dim=dim, keepdim=keepdim, op="sum", out=out)
 
-    def max(self, x: RegisterTensor, *, dim: int, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        return self._reduce(x, dim=dim, op="max", out=out)
+    def max(
+        self, x: RegisterTensor, *, dim: int, keepdim: bool = False, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        return self._reduce(x, dim=dim, keepdim=keepdim, op="max", out=out)
 
-    def min(self, x: RegisterTensor, *, dim: int, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        return self._reduce(x, dim=dim, op="min", out=out)
+    def min(
+        self, x: RegisterTensor, *, dim: int, keepdim: bool = False, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        return self._reduce(x, dim=dim, keepdim=keepdim, op="min", out=out)
 
     def store_global_generic(
         self,
@@ -490,6 +529,32 @@ class Script:
 
     def add(self, lhs: RegisterTensor, rhs: RegisterTensor, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self._builder.add(lhs, rhs, out=out)
+
+    def maximum(self, lhs: RegisterTensor, rhs: RegisterTensor, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self._builder.maximum(lhs, rhs, out=out)
+
+    def where(
+        self,
+        condition: RegisterTensor,
+        x: RegisterTensor | Expr | int | float,
+        y: RegisterTensor | Expr | int | float,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        if not isinstance(condition, RegisterTensor):
+            cond_expr = as_expr(condition)
+            condition = self._builder.allocate_register(dtype=boolean, shape=(), f_init=lambda _: cond_expr)
+        if not isinstance(x, RegisterTensor):
+            x_expr = as_expr(x)
+            x = self._builder.allocate_register(dtype=infer_type(x), shape=(), f_init=lambda _: x_expr)
+        if not isinstance(y, RegisterTensor):
+            y_expr = as_expr(y)
+            y = self._builder.allocate_register(dtype=infer_type(y), shape=(), f_init=lambda _: y_expr)
+        if condition.dtype != boolean:
+            raise InstructionError("Condition must be a boolean tensor, got {}".format(condition.dtype))
+        if x.dtype != y.dtype:
+            raise InstructionError("The types of x and y must match, got {} and {}".format(x.dtype, y.dtype))
+        return self._builder.where(condition, x, y, out=out)
 
     def lock_semaphore(self, semaphore: Expr, value: Expr | int) -> None:
         self._builder.lock_semaphore(semaphore, value)

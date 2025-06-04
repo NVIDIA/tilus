@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Optional, Sequence
 
 from hidet.ir.expr import Expr
@@ -55,17 +56,17 @@ class RegisterTensor(Tensor):
                 )
         return RegisterTensor(dtype=dtype, shape=tuple(shape), optional_layout=optional_layout)
 
-    @property
+    @cached_property
     def layout(self) -> RegisterLayout:
         if self.optional_layout is None:
             raise ValueError("The layout of RegisterTensor is not defined yet.")
         return self.optional_layout
 
-    @property
+    @cached_property
     def size(self) -> int:
         return prod(self.shape)
 
-    @property
+    @cached_property
     def local_size(self) -> int:
         return self.layout.local_size
 

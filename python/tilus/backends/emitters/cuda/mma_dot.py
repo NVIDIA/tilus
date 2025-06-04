@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import itertools
-
 from hidet.ir.dtypes import uint32
 from hidet.ir.expr import Expr, cast, if_then_else, var
 
@@ -9,7 +7,7 @@ from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.mma import mma_sync_v2
 from tilus.ir.instructions.cuda import MmaDotInst
 from tilus.ir.instructions.cuda.mma_dot import AtomicMmaConfig
-from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout import LayoutOperationError, RegisterLayout
 from tilus.ir.tensor import RegisterTensor
 from tilus.target import nvgpu_sm70
 
@@ -20,50 +18,24 @@ class MmaDotInstEmitter(BaseInstEmitter):
     def resolve_mma_config(
         a: RegisterTensor, b: RegisterTensor, c: RegisterTensor, d: RegisterTensor
     ) -> tuple[AtomicMmaConfig, tuple[RegisterLayout, ...]]:
-        if a.dtype != b.dtype:
-            raise ValueError("a and b must have the same dtype, got {} and {}".format(a.dtype, b.dtype))
-        if c.dtype != d.dtype:
-            raise ValueError("c and d must have the same dtype, got {} and {}".format(c.dtype, d.dtype))
+        assert a.dtype == b.dtype and c.dtype == d.dtype
         for config in AtomicMmaConfig.all_configs().values():
             if a.dtype != config.operand_type or c.dtype != config.acc_type:
                 # dtype mismatch, skip
                 continue
-            outers = [
-                p / q
-                for p, q in zip([a.layout, b.layout, c.layout, d.layout], [config.la, config.lb, config.lc, config.lc])
-            ]
-            if any(outer is None for outer in outers):
+            try:
+                outers = [
+                    p / q
+                    for p, q in zip(
+                        [a.layout, b.layout, c.layout, d.layout], [config.la, config.lb, config.lc, config.lc]
+                    )
+                ]
+            except LayoutOperationError:
                 # layout not divisible, skip
                 continue
-            outer_a, outer_b, outer_c, outer_d = outers
-            assert len(outer_a.shape) == len(outer_b.shape) == len(outer_c.shape) == len(outer_d.shape) == 2
-            assert outer_a.shape[0] == outer_c.shape[0] == outer_d.shape[0]  # m
-            assert outer_a.shape[1] == outer_b.shape[0]  # k
-            assert outer_b.shape[1] == outer_c.shape[1] == outer_d.shape[1]  # n
-            m_size, n_size, k_size = outer_a.shape[0], outer_c.shape[1], outer_a.shape[1]
 
-            a_workers: dict[tuple[int, int], list[int]] = {}
-            b_workers: dict[tuple[int, int], list[int]] = {}
-            c_workers: dict[tuple[int, int], list[int]] = {}
-            d_workers: dict[tuple[int, int], list[int]] = {}
+            return config, tuple(outers)
 
-            for i, j in itertools.product(range(m_size), range(n_size)):
-                c_workers[(i, j)] = [int(s) for s in outer_c.get_spatial([i, j])]
-                d_workers[(i, j)] = [int(s) for s in outer_d.get_spatial([i, j])]
-            for i, k in itertools.product(range(m_size), range(k_size)):
-                a_workers[(i, k)] = [int(s) for s in outer_a.get_spatial([i, k])]
-            for k, j in itertools.product(range(k_size), range(n_size)):
-                b_workers[(k, j)] = [int(s) for s in outer_b.get_spatial([k, j])]
-
-            for i in range(m_size):
-                for j in range(n_size):
-                    assert len(c_workers[(i, j)]) == len(d_workers[(i, j)]) == 1
-                    assert c_workers[(i, j)][0] == d_workers[(i, j)][0]
-                    acc_worker = c_workers[(i, j)][0]
-                    for k in range(k_size):
-                        assert (i, k) in a_workers and acc_worker in a_workers[(i, k)]
-                        assert (k, j) in b_workers and acc_worker in b_workers[(k, j)]
-            return config, (outer_a, outer_b, outer_c, outer_d)
         msg = (
             "Can not resolve the mma config for\n"
             + " a: {}{} {}\n".format(a.dtype.name, list(a.shape), a.layout)

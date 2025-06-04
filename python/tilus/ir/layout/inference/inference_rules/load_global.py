@@ -33,12 +33,13 @@ class LoadGlobalRule(LayoutInferenceRule):
             offset = inst.offset
             mask = inst.mask
         else:
+            input_shape = inst.inputs[0].as_global_tensor().shape
             axes = index_vars(len(output.shape))
             global_offsets: list[Expr] = list(inst.offsets)
             for dim, axis in zip(inst.slice_dims, axes):
                 global_offsets[dim] = global_offsets[dim] + axis
             offset = inst.inputs[0].as_global_tensor().layout(*global_offsets)
-            mask = logical_and(*[logical_and(0 <= i, i < shape[dim]) for dim, i in enumerate(global_offsets)])
+            mask = logical_and(*[logical_and(0 <= i, i < input_shape[dim]) for dim, i in enumerate(global_offsets)])
         offset_info: TensorInfo = analyze_grid(shape=shape, axes=axes, expr=offset, analysis=ctx.analysis)
         mask_info: TensorInfo = analyze_grid(shape=shape, axes=axes, expr=mask, analysis=ctx.analysis)
 

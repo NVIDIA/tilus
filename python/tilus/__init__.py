@@ -1,6 +1,10 @@
+# ruff: noqa: I001  (do not sort imports, we need to import the extensions first)
+from . import extensions as _
+
 from hidet.ir.dtypes import (
     bf16,
     bfloat16,
+    boolean,
     f16,
     f32,
     f64,
@@ -25,6 +29,7 @@ from hidet.ir.dtypes import (
     uint32,
     uint64,
 )
+from hidet.ir.type import void_p
 
 from tilus.extensions.hidet.ir.dtypes import (
     f3e1m1,

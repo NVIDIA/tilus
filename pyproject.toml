@@ -54,10 +54,12 @@ Documentation = "https://hidet.org"
 line-length = 120
 
 [tool.ruff.lint]
-# Add the `line-too-long` rule to the enforced rule set.
 extend-select = [
 #    "D", # enforce docstring conventions
     "I", # isort rules that unify the import order
+]
+ignore = [
+    "E741",  # ambiguous variable name
 ]
 
 [tool.ruff.lint.pydocstyle]

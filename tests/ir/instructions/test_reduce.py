@@ -18,7 +18,7 @@ class TestReduceKernel(tilus.Script):
         a = self.register_tensor(
             dtype=int32, layout=self.layout, f_init=lambda indices: indices[0] * self.layout.shape[1] + indices[1]
         )
-        b = self.sum(a, dim=self.dim)
+        b = self.sum(a, dim=self.dim, keepdim=True)
         g_out = self.global_view(ptr=out_ptr, dtype=int32, shape=b.shape)
         self.store_global(g_out, b, offsets=[0, 0], slice_dims=[0, 1])
 
@@ -28,8 +28,15 @@ class TestReduceKernel(tilus.Script):
     "layout",
     [
         spatial(4, 8),
-        spatial(2, 4).spatial(4, 8).repeat(2, 2),
         spatial(4, 8).repeat(1, 2),
+        spatial(2, 2).repeat(1, 2).spatial(2, 1).repeat(2, 1).spatial(2, 2),
+        spatial(4, 32),
+        spatial(2, 4).spatial(2, 4),
+        spatial(2, 4).column_spatial(2, 4),
+        spatial(2, 4).spatial(2, 4).column_spatial(2, 1),
+        spatial(4, 4).spatial(2, 4).column_spatial(2, 1),
+        spatial(2, 4).spatial(4, 8),
+        spatial(2, 4).spatial(4, 8).repeat(2, 2),
         spatial(2, 4).repeat(2, 2).spatial(4, 8).repeat(2, 2),
     ],
 )

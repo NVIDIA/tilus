@@ -11,13 +11,19 @@ from .inference_rules.empty_rule import EmptyRule
 from .inference_rules.load_global import LoadGlobalRule
 from .inference_rules.load_shared import LoadSharedInferRegisterRule, LoadSharedInferSwizzledSharedRule
 from .inference_rules.mma_dot import MmaDotRule
+from .inference_rules.reduce import ReduceRule
 from .inference_rules.shared_slice import SharedSliceRule
 from .inference_rules.store_shared import StoreSharedSwizzleRule
+from .inference_rules.transpose import TransposeRule
+from .inference_rules.where import WhereRule
 
 inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [MmaDotRule],
     [BinaryRule, UnaryRule],
     [LoadGlobalRule],
+    [ReduceRule],
+    [TransposeRule],
+    [WhereRule],
     [AssignRule],
     [EmptyRule],
     # shared memory rules
@@ -27,7 +33,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [LoadSharedInferRegisterRule],
 ]
 
-rule2order = {}
+rule2order: dict[Type[LayoutInferenceRule], int] = {}
 
 
 @initialize()

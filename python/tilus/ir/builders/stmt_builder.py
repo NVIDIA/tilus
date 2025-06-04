@@ -7,6 +7,7 @@ from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
+from hidet.ir.utils import broadcast_shapes, can_broadcast
 from hidet.utils import same_list
 
 from tilus.ir.inst import Instruction, InstructionError
@@ -58,6 +59,7 @@ from tilus.ir.instructions.generic import (
     TransposeInst,
     UnsqueezeInst,
     ViewInst,
+    WhereInst,
 )
 from tilus.ir.layout import GlobalLayout, RegisterLayout, global_repeat
 from tilus.ir.stmt import (
@@ -440,21 +442,16 @@ class StmtBuilder(StmtBuilderCore):
         f_compute: Callable[[Var, Var], Expr],
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from hidet.ir.utils.broadcast_utils import can_mutually_broadcast
+        from hidet.ir.utils.broadcast_utils import broadcast_shapes, can_mutually_broadcast
 
         if not can_mutually_broadcast(x.shape, y.shape):
             raise InstructionError(f"Cannot broadcast {x.shape} and {y.shape}")
         if out is None:
-            if all(a % b == 0 for a, b in zip(x.shape, y.shape)):
-                layout = x.layout
-            elif all(b % a == 0 for a, b in zip(x.shape, y.shape)):
-                layout = y.layout
-            else:
-                raise NotImplementedError()
             lhs = Var("x", x.dtype)
             rhs = Var("y", y.dtype)
             value = f_compute(lhs, rhs)
-            out = RegisterTensor.create(dtype=infer_type(value), optional_layout=layout)
+            out_shape = [int(s) for s in broadcast_shapes([x.shape, y.shape])]
+            out = RegisterTensor.create(dtype=infer_type(value), shape=out_shape)
 
         inst = ElementwiseBinaryInst.create(x, y, f_compute=f_compute, output=out)
         self.append(inst)
@@ -466,7 +463,7 @@ class StmtBuilder(StmtBuilderCore):
         if out is None:
             arg: Var = Var("x", x.dtype)
             value: Expr = f_compute(arg)
-            out = RegisterTensor.create(dtype=infer_type(value), optional_layout=x.layout)
+            out = RegisterTensor.create(dtype=infer_type(value), shape=x.shape)
 
         inst = ElementwiseUnaryInst.create(x=x, f_compute=f_compute, output=out)
         self.append(inst)
@@ -515,10 +512,11 @@ class StmtBuilder(StmtBuilderCore):
         return inst.register_output
 
     def transpose(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        from tilus.ir.layout.register_layout_ops import permute
-
         if out is None:
-            out = RegisterTensor.create(dtype=x.dtype, optional_layout=permute(x.layout, dims=[1, 0]))
+            if len(x.shape) != 2:
+                raise InstructionError(f"Transpose is only supported for 2D tensors, got shape {x.shape}")
+            shape = [x.shape[1], x.shape[0]]
+            out = RegisterTensor.create(dtype=x.dtype, shape=shape)
         inst = TransposeInst.create(x, out)
         self.append(inst)
         return inst.register_output
@@ -528,14 +526,18 @@ class StmtBuilder(StmtBuilderCore):
         x: RegisterTensor,
         *,
         dim: int,
+        keepdim: bool,
         op: str,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if out is None:
-            from tilus.ir.layout import reduce
-
-            out = RegisterTensor.create(dtype=x.dtype, optional_layout=reduce(x.layout, dims=[dim], keepdims=True))
-        inst = ReduceInst.create(x=x, output=out, dim=dim, op=op)
+            shape = list(x.shape)
+            if keepdim:
+                shape[dim] = 1
+            else:
+                shape.pop(dim)
+            out = RegisterTensor.create(dtype=x.dtype, shape=shape)
+        inst = ReduceInst.create(x=x, output=out, dim=dim, op=op, keepdim=keepdim)
         self.append(inst)
         return inst.register_output
 
@@ -577,6 +579,22 @@ class StmtBuilder(StmtBuilderCore):
     def mod(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self._binary(x, y, ModInst, out=out)
 
+    def maximum(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_binary(x, y, f_compute=lambda a, b: primitives.max(a, b), out=out)
+
+    def where(
+        self, cond: RegisterTensor, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        if out is None:
+            out_shape = [int(s) for s in broadcast_shapes([cond.shape, x.shape, y.shape])]
+            out = RegisterTensor.create(dtype=y.dtype, shape=out_shape)
+        for operand in [x, y, cond]:
+            if not can_broadcast(operand.shape, out.shape):
+                raise InstructionError(f"Cannot broadcast {operand.shape} to {out.shape}")
+        inst = WhereInst.create(cond, x, y, output=out)
+        self.append(inst)
+        return inst.register_output
+
     def clip(
         self,
         x: RegisterTensor,
@@ -594,6 +612,9 @@ class StmtBuilder(StmtBuilderCore):
 
     def abs(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.abs(arg), out=out)
+
+    def exp(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.exp(arg), out=out)
 
     def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None, cond: Expr = boolean.true) -> None:
         inst = PrintTensorInst.create(tensor, cond=cond, msg=msg, fmt=fmt)
@@ -621,12 +642,11 @@ class StmtBuilder(StmtBuilderCore):
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if output is None:
-            output = RegisterTensor.create(dtype=c.dtype, optional_layout=c.layout)
+            output = RegisterTensor.create(dtype=c.dtype, shape=c.shape)
         inst = MmaDotInst.create(
             a=a,
             b=b,
             c=c,
-            # config=config, warp_spatial=warp_spatial, warp_repeat=warp_repeat,
             output=output,
         )
         self.append(inst)

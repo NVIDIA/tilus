@@ -55,6 +55,10 @@ from hidet.transforms.spatial_simplification import spatial_simplification_pass
 from hidet.transforms.task_mapping_bound_check import task_mapping_bound_check
 from hidet.transforms.unify_global_objects import unify_global_objects_pass
 
+from tilus.extensions.hidet.transforms.deadcode_elimination import (
+    deadcode_elimination_pass as lowlevel_deadcode_elimination_pass,
+)
+
 # predefined pass groups
 cute_generic_transforms: List[Pass] = [
     canonicalize_arithmetic_expression_pass(),
@@ -112,6 +116,7 @@ common_transforms = [
     add_hints_pass(),
     inline_let_stmt_pass(),
     simplify_stmt_pass(),
+    lowlevel_deadcode_elimination_pass(),
     annotate_header_and_libs_pass(),
 ]
 
