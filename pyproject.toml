@@ -8,17 +8,15 @@ description = "Tilus"
 dynamic = ["version"]
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
-license = { text = "Apache-2.0"}
-keywords = ["Deep Learning", "Machine Learning", "Neural Network", "Inference", "Compiler"]
+license = "Apache-2.0"
+keywords = ["GPU", "Compiler", "CUDA", "hidet", "tensor", "torch"]
 authors = [
     { name = "Hidet Team" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
