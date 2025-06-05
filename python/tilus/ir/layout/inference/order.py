@@ -8,7 +8,7 @@ from .inference_rules.cp_async import CopyAsyncRule
 from .inference_rules.elementwise_binary import BinaryRule
 from .inference_rules.elementwise_unary import UnaryRule
 from .inference_rules.empty_rule import EmptyRule
-from .inference_rules.load_global import LoadGlobalRule
+from .inference_rules.ldst_global import LoadGlobalRule, StoreGlobalRule
 from .inference_rules.load_shared import LoadSharedInferRegisterRule, LoadSharedInferSwizzledSharedRule
 from .inference_rules.mma_dot import MmaDotRule
 from .inference_rules.reduce import ReduceRule
@@ -25,6 +25,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [TransposeRule],
     [WhereRule],
     [AssignRule],
+    [StoreGlobalRule],
     [EmptyRule],
     # shared memory rules
     [LoadSharedInferSwizzledSharedRule, StoreSharedSwizzleRule],

@@ -58,7 +58,7 @@ class LowerLoadStoreRewriter(IRRewriter):
         register_tensor = inst.inputs[1].as_register_tensor()
         ptr = sb.tensor_ptr(global_tensor)
 
-        f_offset, f_mask = self.get_funcs(offsets=inst.offsets, dims=inst.dims, layout=global_tensor.layout)
+        f_offset, f_mask = self.get_funcs(offsets=inst.offsets, dims=inst.slice_dims, layout=global_tensor.layout)
 
         sb.store_global_generic(register_tensor, ptr=ptr, f_offset=f_offset, f_mask=f_mask)
         return sb.flush_stmts()

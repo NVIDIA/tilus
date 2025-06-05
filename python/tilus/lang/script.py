@@ -253,7 +253,7 @@ class Script:
         x: GlobalTensor,
         /,
         *,
-        offsets: Sequence[Expr],
+        offsets: Sequence[Expr | int],
         shape: Optional[Sequence[int]] = None,
         layout: Optional[RegisterLayout] = None,
         slice_dims: Optional[Sequence[int]] = None,

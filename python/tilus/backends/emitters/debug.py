@@ -1,6 +1,6 @@
 from typing import List, Sequence
 
-from hidet.ir.dtypes import bfloat16, float16, float32, int4b, int8, int32, uint4b, uint8, uint32
+from hidet.ir.dtypes import bfloat16, boolean, float16, float32, int4b, int8, int32, uint4b, uint8, uint32
 from hidet.ir.expr import Expr, cast, logical_and
 from hidet.ir.primitives.debug import printf
 
@@ -68,6 +68,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
             float16: "%5.2f",
             float32: "%6.3f",
             uint32: "%3u",
+            boolean: "%1d",
         }
         tensor = inst.inputs[0]
         dtype = tensor.dtype

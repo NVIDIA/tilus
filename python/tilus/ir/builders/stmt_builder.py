@@ -729,7 +729,7 @@ class StmtBuilder(StmtBuilderCore):
     def load_global(
         self,
         x: GlobalTensor,
-        offsets: Sequence[Expr],
+        offsets: Sequence[Expr | int],
         slice_dims: Optional[Sequence[int]] = None,
         shape: Optional[Sequence[int]] = None,
         layout: Optional[RegisterLayout] = None,
@@ -749,7 +749,9 @@ class StmtBuilder(StmtBuilderCore):
         if slice_dims is None:
             assert len(x.shape) == len(output.shape)
             slice_dims = range(len(x.shape))
-        inst = LoadGlobalInst.create(x=x, offsets=offsets, slice_dims=slice_dims, output=output)
+        inst = LoadGlobalInst.create(
+            x=x, offsets=[as_expr(ofs) for ofs in offsets], slice_dims=slice_dims, output=output
+        )
         self.append(inst)
         return inst.register_output
 

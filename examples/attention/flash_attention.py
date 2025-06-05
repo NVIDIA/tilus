@@ -6,27 +6,18 @@ from hidet.ir import DataType
 from tilus import boolean, f32, int32, void_p
 from tilus.utils import benchmark_func, cdiv
 
-tilus.logging.set_logging_level("DEBUG")
+# tilus.logging.set_logging_level("DEBUG")
 tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir()
 tilus.utils.clear_cache()
-
 pd.options.display.max_columns = None
 pd.options.display.width = 1000
 
 
-@tilus.autotune("num_warps", [4])
-@tilus.autotune("block_q", [64])
-@tilus.autotune("block_kv", [64])
+@tilus.autotune("num_warps", [2])
+@tilus.autotune("block_q", [16])
+@tilus.autotune("block_kv", [16])
 class FlashAttention(tilus.Script):
-    """
-    bs: block
-    num_heads: block
-
-    block_seq
-
-    """
-
     def __init__(
         self,
         dtype: DataType,
@@ -56,10 +47,14 @@ class FlashAttention(tilus.Script):
         head = self.blockIdx.y
         bs = self.blockIdx.z
 
-        gq = self.global_view(ptr=q_ptr, dtype=self.dtype, shape=[bs, seqlen, self.num_heads, self.head_size])
-        gk = self.global_view(ptr=k_ptr, dtype=self.dtype, shape=[bs, seqlen, self.num_heads_kv, self.head_size])
-        gv = self.global_view(ptr=v_ptr, dtype=self.dtype, shape=[bs, seqlen, self.num_heads_kv, self.head_size])
-        go = self.global_view(ptr=o_ptr, dtype=self.dtype, shape=[bs, seqlen, self.num_heads, self.head_size])
+        gq = self.global_view(ptr=q_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads, self.head_size])
+        gk = self.global_view(
+            ptr=k_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads_kv, self.head_size]
+        )
+        gv = self.global_view(
+            ptr=v_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads_kv, self.head_size]
+        )
+        go = self.global_view(ptr=o_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads, self.head_size])
 
         sk = self.shared_tensor(dtype=self.dtype, shape=[self.block_kv, self.head_size])
         sv = self.shared_tensor(dtype=self.dtype, shape=[self.block_kv, self.head_size])
@@ -78,9 +73,9 @@ class FlashAttention(tilus.Script):
         self.free_shared(sq)
 
         # accumulators
-        o = self.register_tensor(dtype=f32, shape=[self.block_q, self.head_size])
-        m = self.register_tensor(dtype=f32, shape=[self.block_q, 1])  # rowmax(score)
-        l = self.register_tensor(dtype=f32, shape=[self.block_q, 1])  # rowsum(exp(score - m))
+        o = self.register_tensor(dtype=f32, shape=[self.block_q, self.head_size], init=0.0)
+        m = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=-1e6)  # rowmax(score)
+        l = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=0.0)  # rowsum(exp(score - m))
 
         kv_offset_end = q_offset + self.block_q
         for kv_offset in range(0, kv_offset_end, self.block_kv):
@@ -112,12 +107,12 @@ class FlashAttention(tilus.Script):
                 shape=[self.block_q, self.block_kv],
                 f_init=lambda ij: ij[0] + q_offset >= ij[1] + kv_offset,
             )
-            score = score + self.where(mask, x=0.0, y=1e-6)
+            score = score + self.where(mask, x=0.0, y=-1e6)
 
             # online softmax
             cur_m = self.max(score, dim=1, keepdim=True)  # [block_q, 1]
             new_m = self.maximum(m, cur_m)  # [block_q, 1]
-            p = self.exp(self.exp(score - new_m))  # [block_q, block_kv]
+            p = self.exp(score - new_m)  # [block_q, block_kv]
             p_f16 = self.cast(p, dtype=self.dtype)  # [block_q, block_kv]
             cur_o = self.mma_dot(p_f16, rv, acc_dtype=f32)  # [block_q, head_size]
             o = o * self.exp(m - new_m) + cur_o  # [block_q, head_size]
@@ -230,12 +225,16 @@ def main():
     headers = ["bs", "seqlen", "num_heads", "head_size", "num_heads_kv", "name", "latency (ms)", "gflops"]
     data = []
     for bs, seqlen, num_heads, head_size, num_heads_kv in [
-        # [1, 8, 1, 64, 1],
-        [1, 4096, 32, 128, 8]
+        [1, 4096, 32, 128, 8],
+        # [1, 16, 1, 16, 1]
     ]:
         q = torch.rand(bs, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
         k = torch.rand(bs, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
         v = torch.rand(bs, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
+        # q = torch.ones(bs, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
+        # k = torch.ones(bs, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
+        # v = torch.ones(bs, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
+
         for name, runner in [
             ("flash-attn", flash_attention_baseline),
             ("tilus", flash_attention),
@@ -264,6 +263,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # flash_attention(0, 0, 0)
     main()
     # demo_flash_attention()
     # sanitizer_run(demo_flash_attention)
