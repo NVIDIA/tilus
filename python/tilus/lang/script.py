@@ -189,7 +189,7 @@ class Script:
         dtype: DataType,
         shape: Optional[Sequence[int]] = None,
         layout: Optional[RegisterLayout] = None,
-        f_init: Optional[Callable[[Sequence[Var]], Expr]] = None,
+        f_init: Optional[Callable[[Sequence[Var]], Expr | int | float | bool]] = None,
         init: Optional[Expr | int | float] = None,
     ) -> RegisterTensor:
         if f_init is not None and init is not None:
@@ -322,6 +322,7 @@ class Script:
         dims: Optional[Sequence[int]] = None,
         evict: Optional[str] = None,
         weak_mask: bool = False,
+        check_bounds: bool = True,
     ) -> None:
         if dims is None:
             if len(dst.shape) != len(src.shape):
@@ -590,6 +591,21 @@ class Script:
 
     def printf(self, fstring: str, *args: Expr | int | float) -> None:
         self._builder.printf(fstring, *args)
+
+    def assign(self, dst: RegisterTensor, src: RegisterTensor) -> None:
+        """
+        Assign the value of src to dst.
+
+        Parameters
+        ----------
+        dst: RegisterTensor
+            The destination tensor.
+        src: RegisterTensor
+            The source tensor.
+        """
+        if dst.dtype != src.dtype:
+            raise InstructionError("The dtypes of dst and src must match, got {} and {}".format(dst.dtype, src.dtype))
+        self._builder.assign_register(dst, src)
 
     @staticmethod
     def static_assert(cond: bool | Expr, msg: str) -> None:

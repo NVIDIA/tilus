@@ -447,13 +447,16 @@ class Transpiler(PythonAstFunctor):
             raise NotImplementedError(value)
 
     def visit_Call(self, expr: ast.Call) -> Any:
+        # prepare the func, args, and kwargs for the function call
+        #   func(*args, **kwargs)
         func = self.visit(expr.func)
-        args = []
+        args: list[Any] = []
         for arg in expr.args:
             if isinstance(arg, ast.Starred):
                 args.extend(self.visit(arg.value))
             else:
                 args.append(self.visit(arg))
+        kwargs: dict[str, Any]
         if len(expr.keywords) == 0:
             kwargs = {}
         elif len(expr.keywords) == 1 and expr.keywords[0].arg is None:
@@ -464,79 +467,199 @@ class Transpiler(PythonAstFunctor):
             kwargs = {kwarg.arg: self.visit(kwarg.value) for kwarg in expr.keywords}
 
         try:
-            if isinstance(func, types.FunctionType):
-                # call python function
-                ret = func(*args, **kwargs)
-            elif isinstance(func, types.MethodType):
-                # call python class method
-                method_self = func.__self__
-                if isinstance(method_self, RegisterTensor):
+            """
+            There are different kinds of function calls in Tilus Script:
+            1. inlined kernel procedure, it is a method of the user-defined Script subclass
+            2. (global, shared or register) tensor method, such as `tensor.to(dtype)`, etc. 
+            3. python builtin function, such as `max`, `min`, for scalar expressions.
+            4. other function/method calls
+            
+            We treat 1 to 3 specially, and call the function directly in 4.
+            """
+
+            if isinstance(func, types.MethodType):
+                f_self = func.__self__
+                f_func = func.__func__
+                if f_self is self.script and getattr(Script, f_func.__name__, None) is not f_func:
+                    # case 1.
+                    args = [f_self, *args]
+                    sig: inspect.Signature = inspect.signature(f_func)
+                    bound_args: inspect.BoundArguments = sig.bind(*args, **kwargs)
+
+                    with self.scope() as func_scope:
+                        # bind the parameters to the arguments in a new scope
+                        for param_name in sig.parameters:
+                            param: inspect.Parameter = sig.parameters[param_name]
+                            arg = bound_args.arguments[param_name]
+                            annotation = param.annotation
+                            if param_name == "self":
+                                continue
+                            if annotation is inspect.Parameter.empty:
+                                raise TilusProgramError(
+                                    self, expr, 'Parameter "{}" has no type annotation.'.format(param_name)
+                                )
+                            if isinstance(annotation, str):
+                                raise TilusProgramError(
+                                    self,
+                                    expr,
+                                    (
+                                        "A python string as parameter type annotation detected. \n"
+                                        'This is usually because "from __future__ import annotations" has been used.\n'
+                                        "Currently, tilus script is not compatible with this feature. \n"
+                                        "Please considering not using it in module that defines tilus script."
+                                    ),
+                                )
+                            if annotation in (RegisterTensor, SharedTensor, GlobalTensor):
+                                if not isinstance(arg, annotation):
+                                    raise TilusProgramError(
+                                        self,
+                                        expr,
+                                        'Parameter "{}" expects a {} but got {}.'.format(
+                                            param_name, annotation.__name__, type(arg).__name__
+                                        ),
+                                    )
+                                self.current_scope.bind(param_name, arg)
+                            elif isinstance(annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
+                                sb = StmtBuilder()
+                                if not isinstance(arg, (hidet_ir.Expr, int, bool, float)):
+                                    raise TilusProgramError(
+                                        self,
+                                        expr,
+                                        'Parameter "{}" expects an expression but got {}.'.format(
+                                            param_name, type(arg).__name__
+                                        ),
+                                    )
+                                var = sb.declare(type=annotation, init=as_expr(arg))
+                                self.current_scope.bind(param_name, var)
+                                self.current_scope.append(sb.flush_stmts())
+                            elif annotation in [bool, int, float]:
+                                if not isinstance(arg, annotation):
+                                    raise TilusProgramError(
+                                        self,
+                                        expr,
+                                        'Parameter "{}" expects a {} but got {}.'.format(
+                                            param_name, annotation.__name__, type(arg).__name__
+                                        ),
+                                    )
+                                self.current_scope.bind(param_name, arg)
+                            else:
+                                raise TilusProgramError(
+                                    self,
+                                    expr,
+                                    'Parameter "{}" has an unsupported type annotation: {}.\n'.format(
+                                        param_name, annotation
+                                    )
+                                    + "Currently, we only support data type, pointer, and tensors as type annotations.",
+                                )
+
+                        # process the body
+                        lines, start_line = inspect.getsourcelines(f_func)
+                        file: Optional[str] = inspect.getsourcefile(f_func)
+                        if file is None:
+                            raise RuntimeError(
+                                'Can not get the source file of the given function "{}".'.format(f_func.__name__)
+                            )
+
+                        source = "".join(lines)
+                        source, col_offset = eliminate_indent(source)
+                        source, inc_lineno = eliminate_decorators(source)
+                        start_line += inc_lineno
+                        parsed: ast.Module = ast.parse(source=source)
+                        func_defs = parsed.body
+                        assert len(func_defs) == 1 and isinstance(func_defs[0], ast.FunctionDef)
+                        func_def: ast.FunctionDef = func_defs[0]
+
+                        old = self.file, self.start_lineno, self.start_column
+                        self.file, self.start_lineno, self.start_column = file, start_line, col_offset
+                        for stmt in func_def.body:
+                            self.visit(stmt)
+                        self.file, self.start_lineno, self.start_column = old
+                    self.current_scope.append(func_scope.flush_stmts())
+                    ret = None
+                elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor)):
+                    # case 2
                     sb = self._script._builder
                     method_name = func.__name__
-                    if func.__func__ is RegisterTensor.to:
-                        dtype = args[0]
-                        ret = sb.cast(method_self, dtype=dtype)
-                    elif hasattr(sb, method_name):
-                        args = [method_self, *args]
-                        ret = getattr(sb, method_name)(*args, **kwargs)
+                    if isinstance(f_self, RegisterTensor):
+                        if func.__func__ is RegisterTensor.to:
+                            dtype = args[0]
+                            ret = sb.cast(f_self, dtype=dtype)
+                        elif hasattr(sb, method_name):
+                            args = [f_self, *args]
+                            ret = getattr(sb, method_name)(*args, **kwargs)
+                        else:
+                            raise NotImplementedError(f"RegisterTensor.{method_name} is not mapped yet.")
                     else:
-                        raise NotImplementedError(f"RegisterTensor.{method_name} is not mapped yet.")
+                        raise NotImplementedError(
+                            "Currently, only RegisterTensor methods are supported in Tilus Script."
+                        )
                 else:
+                    # case 4
                     ret = func(*args, **kwargs)
+            elif isinstance(func, types.FunctionType):
+                # case 4
+                ret = func(*args, **kwargs)
             elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):
-                # call python builtin method, such "a string".format(...) or max, min
+                # case 3
                 from hidet import ir
                 from hidet.ir import primitives
 
                 if all(not isinstance(arg, ir.Node) for arg in args):
                     # pure python function call
-                    return func(*args, **kwargs)
+                    ret = func(*args, **kwargs)
                 else:
                     if any(not isinstance(arg, (ir.Expr, int, float, bool)) for arg in args):
                         # if any argument is not a valid expression
-                        return func(*args, **kwargs)
-                    # overload hidet primitive, such as max, min
-                    func_map = {
-                        builtins.max: (2, primitives.max),
-                        builtins.min: (2, primitives.min),
-                        math.exp: (1, primitives.exp),
-                        math.log: (1, primitives.log),
-                        math.sqrt: (1, primitives.sqrt),
-                        math.sin: (1, primitives.sin),
-                        math.cos: (1, primitives.cos),
-                        math.tan: (1, primitives.tan),
-                        math.asin: (1, primitives.asin),
-                        math.acos: (1, primitives.acos),
-                        math.atan: (1, primitives.atan),
-                        math.sinh: (1, primitives.sinh),
-                        math.cosh: (1, primitives.cosh),
-                        math.tanh: (1, primitives.tanh),
-                        math.asinh: (1, primitives.asinh),
-                        math.acosh: (1, primitives.acosh),
-                        math.atanh: (1, primitives.atanh),
-                        math.ceil: (1, primitives.ceil),
-                        math.floor: (1, primitives.floor),
-                        math.trunc: (1, primitives.trunc),
-                        math.isnan: (1, primitives.isnan),
-                        math.isinf: (1, primitives.isinf),
-                    }
-                    if len(kwargs) > 0:
-                        msg = "Hidet do not support calling builtin function with keyword argument."
-                        raise HidetProgramError(self, expr, msg)
-                    if func in func_map:
-                        arity, hidet_func = func_map[func]  # type: ignore[index]
-                        if len(args) != arity:
-                            msg = f'Hidet builtin function "{func.__name__}" takes {arity} arguments.'
-                            raise HidetProgramError(self, expr, msg)
-                        return hidet_func(*args)  # type: ignore[operator]
+                        ret = func(*args, **kwargs)
                     else:
-                        raise HidetProgramError(
-                            self,
-                            expr,
-                            'Currently, do not support calling python builtin function "{}".'.format(func.__qualname__),
-                        )
+                        # overload hidet primitive, such as max, min
+                        func_map = {
+                            builtins.max: (2, primitives.max),
+                            builtins.min: (2, primitives.min),
+                            math.exp: (1, primitives.exp),
+                            math.log: (1, primitives.log),
+                            math.sqrt: (1, primitives.sqrt),
+                            math.sin: (1, primitives.sin),
+                            math.cos: (1, primitives.cos),
+                            math.tan: (1, primitives.tan),
+                            math.asin: (1, primitives.asin),
+                            math.acos: (1, primitives.acos),
+                            math.atan: (1, primitives.atan),
+                            math.sinh: (1, primitives.sinh),
+                            math.cosh: (1, primitives.cosh),
+                            math.tanh: (1, primitives.tanh),
+                            math.asinh: (1, primitives.asinh),
+                            math.acosh: (1, primitives.acosh),
+                            math.atanh: (1, primitives.atanh),
+                            math.ceil: (1, primitives.ceil),
+                            math.floor: (1, primitives.floor),
+                            math.trunc: (1, primitives.trunc),
+                            math.isnan: (1, primitives.isnan),
+                            math.isinf: (1, primitives.isinf),
+                        }
+                        if len(kwargs) > 0:
+                            msg = "Hidet do not support calling builtin function with keyword argument."
+                            raise HidetProgramError(self, expr, msg)
+                        if func in func_map:
+                            arity, hidet_func = func_map[func]  # type: ignore[index]
+                            if len(args) != arity:
+                                msg = f'Hidet builtin function "{func.__name__}" takes {arity} arguments.'
+                                raise HidetProgramError(self, expr, msg)
+                            ret = hidet_func(*args)  # type: ignore[operator]
+                        else:
+                            raise HidetProgramError(
+                                self,
+                                expr,
+                                'Currently, do not support calling python builtin function "{}".'.format(
+                                    func.__qualname__
+                                ),
+                            )
             else:
+                # case 4
                 ret = func(*args, **kwargs)
+
+            # some functions might update use the script builder to add new statements
+            # so we need to flush the builder stack to the current scope
             builder_stack: list[list[Stmt]] = self._script._builder._stack
             assert len(builder_stack) == 1
             if len(builder_stack[0]) > 0:
