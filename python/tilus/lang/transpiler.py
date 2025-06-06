@@ -440,6 +440,9 @@ class Transpiler(PythonAstFunctor):
         elif isinstance(value, Tensor):
             # do nothing
             return
+        elif isinstance(value, str):
+            # doc string, do nothing
+            return
         else:
             raise NotImplementedError(value)
 
@@ -468,10 +471,16 @@ class Transpiler(PythonAstFunctor):
                 # call python class method
                 method_self = func.__self__
                 if isinstance(method_self, RegisterTensor):
-                    method_name = func.__name__
                     sb = self._script._builder
-                    args = [method_self, *args]
-                    ret = getattr(sb, method_name)(*args, **kwargs)
+                    method_name = func.__name__
+                    if func.__func__ is RegisterTensor.to:
+                        dtype = args[0]
+                        ret = sb.cast(method_self, dtype=dtype)
+                    elif hasattr(sb, method_name):
+                        args = [method_self, *args]
+                        ret = getattr(sb, method_name)(*args, **kwargs)
+                    else:
+                        raise NotImplementedError(f"RegisterTensor.{method_name} is not mapped yet.")
                 else:
                     ret = func(*args, **kwargs)
             elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):

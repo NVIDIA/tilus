@@ -14,7 +14,6 @@ pd.options.display.width = 1000
 
 
 @tilus.autotune("num_warps", [4])
-@tilus.autotune("num_stages", [3])
 @tilus.autotune("block_q", [64])
 @tilus.autotune("block_kv", [64])
 class FlashAttention(tilus.Script):
@@ -25,7 +24,6 @@ class FlashAttention(tilus.Script):
         num_heads_kv: int,
         head_size: int,
         num_warps: int,
-        num_stages: int,
         block_q: int,
         block_kv: int,
     ):
@@ -35,7 +33,6 @@ class FlashAttention(tilus.Script):
         self.num_heads_kv = num_heads_kv
         self.head_size = head_size
         self.num_warps = num_warps
-        self.num_stages = num_stages
         self.block_q = block_q
         self.block_kv = block_kv
         self.score_scale = float(1.0 / np.sqrt(head_size))
@@ -51,6 +48,29 @@ class FlashAttention(tilus.Script):
         assert self.qk_config.lc == self.sv_config.la
 
     def __call__(self, batch_size: int, seqlen: int32, q_ptr: void_p, k_ptr: void_p, v_ptr: void_p, o_ptr: void_p):
+        """
+        ```
+            load query to register
+            cp_async k
+            cp_async_fence
+            for kv tile:
+                cp_async_wait(0)
+                sync()
+                cp_async v
+                cp_async_fence
+
+                score = mma(q, k)
+                apply mask to score
+
+                cp_async_wait(0)
+                sync()
+                cp_async k
+                cp_async_fence
+
+                p = apply online softmax to score
+                o = mma(p, v)
+        ```
+        """
         self.attrs.warps = self.num_warps
         self.attrs.blocks = cdiv(seqlen, self.block_q), self.num_heads, batch_size
 
@@ -63,7 +83,7 @@ class FlashAttention(tilus.Script):
         gv = self.global_view(v_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads_kv, self.head_size])
         go = self.global_view(o_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads, self.head_size])
 
-        # load query
+        # load query to register
         sq = self.shared_tensor(dtype=self.dtype, shape=[self.block_q, self.head_size])
         ldq = self.load_global(gq, offsets=[bs, q_offset, head, 0], shape=[self.block_q, self.head_size], dims=[1, 3])
         self.store_shared(sq, ldq)
@@ -77,37 +97,22 @@ class FlashAttention(tilus.Script):
         m = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=-1e6)  # rowmax(score)
         l = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=0.0)  # rowsum(exp(score - m))
 
-        sk = self.shared_tensor(dtype=self.dtype, shape=[self.num_stages, self.block_kv, self.head_size])
-        sv = self.shared_tensor(dtype=self.dtype, shape=[self.num_stages, self.block_kv, self.head_size])
-        for stage in range(self.num_stages - 1):
-            kv_offset = stage * self.block_kv
-            self.copy_async(gk, sk[stage], offsets=[bs, kv_offset, head // self.group_heads, 0], dims=[1, 3])
-            self.copy_async(gv, sv[stage], offsets=[bs, kv_offset, head // self.group_heads, 0], dims=[1, 3])
-            self.copy_async_commit_group()
+        sk = self.shared_tensor(dtype=self.dtype, shape=[self.block_kv, self.head_size])
+        sv = self.shared_tensor(dtype=self.dtype, shape=[self.block_kv, self.head_size])
 
-        self.copy_async_wait_group(self.num_stages - 2)
-        self.sync()
+        self.copy_async(gk, sk, offsets=[bs, 0, head // self.group_heads, 0], dims=[1, 3])
+        self.copy_async_commit_group()
 
         kv_offset_end = q_offset + self.block_q
-        current_stage: int32 = 0
-        preload_stage: int32 = self.num_stages - 1
         for kv_offset in range(0, kv_offset_end, self.block_kv):
-            # load the next stage
-            preload_kv_offset = kv_offset + (self.num_stages - 1) * self.block_kv
-            if preload_kv_offset < kv_offset_end:
-                self.copy_async(
-                    gk, sk[preload_stage], offsets=[bs, preload_kv_offset, head // self.group_heads, 0], dims=[1, 3]
-                )
-                self.copy_async(
-                    gv, sv[preload_stage], offsets=[bs, preload_kv_offset, head // self.group_heads, 0], dims=[1, 3]
-                )
+            # wait for the async copy of k to finish
+            self.copy_async_wait_group(0)
+            self.sync()
+            self.copy_async(gv, sv, offsets=[bs, kv_offset, head // self.group_heads, 0], dims=[1, 3])
             self.copy_async_commit_group()
-            self.copy_async_wait_group(self.num_stages - 2)
 
-            # compute the current stage
-            rk = self.load_shared(sk[current_stage])  # [block_kv, head_size]
-            rv = self.load_shared(sv[current_stage])  # [block_kv, head_size]
-
+            # issue the async copy for v and perform dot(q, k)
+            rk = self.load_shared(sk)  # [block_kv, head_size]
             score = self.mma_dot(rq, rk.transpose(), acc_dtype=f32) * self.score_scale  # [block_q, block_kv]
             self.annotate_layout(score, self.qk_config.lc)
             mask = self.register_tensor(
@@ -117,21 +122,27 @@ class FlashAttention(tilus.Script):
             )
             score = score + self.where(mask, x=0.0, y=-1e6)
 
+            # wait for the async copy of v to finish
+            self.copy_async_wait_group(0)
+            self.sync()
+            self.copy_async(gk, sk, offsets=[bs, kv_offset + self.block_kv, head // self.group_heads, 0], dims=[1, 3])
+            self.copy_async_commit_group()
+
+            # load v to register
+            rv = self.load_shared(sv)  # [block_kv, head_size]
+
             # online softmax
             cur_m = self.max(score, dim=1, keepdim=True)  # [block_q, 1]
             new_m = self.maximum(m, cur_m)  # [block_q, 1]
             p = self.exp(score - new_m)  # [block_q, block_kv]
-            p_f16 = self.cast(p, dtype=self.dtype)  # [block_q, block_kv]
-            cur_o = self.mma_dot(p_f16, rv, acc_dtype=f32)  # [block_q, head_size]
+            cur_o = self.mma_dot(p.to(self.dtype), rv, acc_dtype=f32)  # [block_q, head_size]
             self.annotate_layout(cur_o, self.sv_config.lc)
             o = o * self.exp(m - new_m) + cur_o  # [block_q, head_size]
             l = l * self.exp(m - new_m) + self.sum(p, dim=1, keepdim=True)  # [block_q, 1]
             m = new_m  # [block_q, 1]
 
-            current_stage = (current_stage + 1) % self.num_stages
-            preload_stage = (preload_stage + 1) % self.num_stages
-            self.sync()
-
+        self.copy_async_wait_group(0)
+        self.sync()
         self.free_shared(sk)
         self.free_shared(sv)
 
