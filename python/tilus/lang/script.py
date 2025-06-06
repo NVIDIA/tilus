@@ -256,16 +256,14 @@ class Script:
         offsets: Sequence[Expr | int],
         shape: Optional[Sequence[int]] = None,
         layout: Optional[RegisterLayout] = None,
-        slice_dims: Optional[Sequence[int]] = None,
+        dims: Optional[Sequence[int]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if len(offsets) != len(x.shape):
             raise InstructionError(
                 "The number of offsets must be equal to the number of dimensions of the global tensor"
             )
-        return self._builder.load_global(
-            x=x, offsets=offsets, slice_dims=slice_dims, shape=shape, layout=layout, output=out
-        )
+        return self._builder.load_global(x=x, offsets=offsets, dims=dims, shape=shape, layout=layout, output=out)
 
     def store_global(
         self,
@@ -325,6 +323,15 @@ class Script:
         evict: Optional[str] = None,
         weak_mask: bool = False,
     ) -> None:
+        if dims is None:
+            if len(dst.shape) != len(src.shape):
+                raise InstructionError(
+                    "The number of dimensions of the source global tensor must match the destination shared tensor if dims is not specified"
+                )
+        if len(offsets) != len(src.shape):
+            raise InstructionError(
+                "The number of offsets must be equal to the number of dimensions of the source global tensor"
+            )
         self._builder.copy_async(dst=dst, src=src, offsets=offsets, dims=dims, evict=evict, weak_mask=weak_mask)
 
     def copy_async_wait_all(self):
@@ -565,6 +572,19 @@ class Script:
     def sync(self) -> None:
         self._builder.syncthreads()
 
+    def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None:
+        """
+        Annotate the layout of a register tensor.
+
+        Parameters
+        ----------
+        tensor: RegisterTensor
+            The tensor to annotate.
+        layout: RegisterLayout
+            The layout to annotate the tensor with.
+        """
+        self._builder.annotate_layout(tensor, layout)
+
     def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None) -> None:
         self._builder.print_tensor(msg=msg, tensor=tensor, fmt=fmt)
 
@@ -585,9 +605,24 @@ def autotune(arg_names: str, arg_values: Sequence[Any]) -> Callable[[Type[Script
             script_cls._autotune_space = {}
         space = getattr(script_cls, "_autotune_space")
         names = [name.strip() for name in arg_names.split(",")]
+
+        # check names and arg_values
+        # 1. can not define the same name more than once
         if any(name in space for name in names):
             common_names = set(names) & set(space.keys())
             raise RuntimeError("Duplicated specification for parameters: {}".format(common_names))
+        # 2. the arg_values should match the names during unpacking
+        if not isinstance(arg_values, Sequence):
+            raise TypeError("The arg_values values must be a sequence")
+        for arg_value in arg_values:
+            if len(names) > 1:
+                if not isinstance(arg_value, Sequence) or len(arg_value) != len(names):
+                    raise TypeError(
+                        "Can not unpack the arg_values for arg_names\n"
+                        f"  arg_names: {arg_names}\n"
+                        f"  arg_value: {arg_value}"
+                    )
+
         space[arg_names] = arg_values
         setattr(script_cls, "_autotune_space", space)
 

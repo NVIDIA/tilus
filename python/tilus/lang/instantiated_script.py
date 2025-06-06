@@ -136,7 +136,12 @@ def generate_schedules(
             bound_args = signature.bind(*init_args, **init_kwargs)
             bound_args.apply_defaults()
         except TypeError as e:
-            raise TypeError("Could not instantiate the script with the arguments and tuning arguments: " + str(e))
+            stack = inspect.stack()
+            frame = stack[4]
+            raise TypeError(
+                str(e) + f'\n  File "{frame.filename}", line {frame.lineno}, in {frame.function}'
+                f"\n    {frame.code_context[0].strip()}"
+            ) from None
         schedule = dict(bound_args.arguments)
         schedule.pop("self")  # remove the 'self' argument
         schedules.append(schedule)

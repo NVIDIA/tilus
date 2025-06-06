@@ -68,15 +68,21 @@ class cuda:
 
     @staticmethod
     @functools.lru_cache
-    def default_dot_config(
+    def resolve_dot_config(
         operand_dtype: DataType,
         acc_dtype: DataType,
         *,
-        num_warps: int,
         m: int,
         n: int,
         k: int,
+        num_warps: Optional[int] = None,
+        warp_m: Optional[int] = None,
+        warp_n: Optional[int] = None,
     ) -> BlockMmaConfig:
+        if num_warps is None:
+            if warp_m is None or warp_n is None:
+                raise ValueError("num_warps must be specified if warp_m or warp_n is not specified.")
+            num_warps = warp_m * warp_n
         atomic_mma = cuda.atomic_mma_configs.from_dtypes(operand_dtype, acc_dtype)
         if any(vector(m, n, k) % vector(atomic_mma.m, atomic_mma.n, atomic_mma.k) != 0):
             raise ValueError(f"block_m, block_n, block_k ({m}, {n}, {k}) must be multiples are illegal.")
@@ -90,6 +96,10 @@ class cuda:
                 continue
             wsn = num_warps // wsm
             warp_spatial = (wsm, wsn)
+            if warp_m is not None and warp_m != wsm:
+                continue
+            if warp_n is not None and warp_n != wsn:
+                continue
             if mma_count_m % wsm != 0 or mma_count_n % wsn != 0:
                 continue
             warp_repeat = (mma_count_m // wsm, mma_count_n // wsn, mma_count_k)

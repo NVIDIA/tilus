@@ -9,7 +9,7 @@ from tilus import float16, float32, int32
 class MatmulV1(tilus.Script):
     def __init__(self):
         super().__init__()
-        self.mma = self.cuda.default_dot_config(float16, float32, num_warps=1, m=16, n=8, k=16)
+        self.mma = self.cuda.resolve_dot_config(float16, float32, num_warps=1, m=16, n=8, k=16)
         self.block_m = self.mma.m
         self.block_n = self.mma.n
         self.block_k = self.mma.k

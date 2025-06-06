@@ -1,5 +1,6 @@
 from tilus.ir.inst import Instruction
 
+from .annotation import AnnotateLayoutInst
 from .cuda import (
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,

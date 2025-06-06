@@ -37,5 +37,4 @@ jobs:
 
       - name: Run examples
         run: |
-          pip install -r ./examples/requirements.txt
           bash .github/workflows/scripts/run-examples.sh

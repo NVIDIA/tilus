@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
 
 from tilus.ir.node import IRNode
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
@@ -47,7 +47,7 @@ class Instruction(IRNode):
         return x
 
     @property
-    def attributes(self) -> Mapping[str, Any]:
+    def attributes(self) -> dict[str, Any]:
         attrs = {}
         for k, v in self.__dict__.items():
             if k in ["output", "inputs"]:

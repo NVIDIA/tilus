@@ -23,7 +23,7 @@ class MmaDotRule(LayoutInferenceRule):
         n = b.shape[1]
         k = a.shape[1]
 
-        mma = cuda.default_dot_config(operand_dtype=a.dtype, acc_dtype=c.dtype, num_warps=num_warps, m=m, n=n, k=k)
+        mma = cuda.resolve_dot_config(operand_dtype=a.dtype, acc_dtype=c.dtype, num_warps=num_warps, m=m, n=n, k=k)
         return {a: mma.la, b: mma.lb, c: mma.lc, d: mma.lc}
 
     @staticmethod

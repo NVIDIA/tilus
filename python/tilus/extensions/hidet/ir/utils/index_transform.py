@@ -19,6 +19,8 @@ def index_serialize(
     ranks is the fastest changing dimension. The dimension with the smallest value in ranks is the slowest changing
     dimension.
     """
+    if len(indices) != len(shape):
+        raise ValueError(f"Expect indices length {len(indices)} to match shape length {len(shape)}")
     if len(shape) == 0:
         return int32.zero
     if ranks is None:

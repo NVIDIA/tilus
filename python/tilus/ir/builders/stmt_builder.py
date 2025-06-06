@@ -11,6 +11,7 @@ from hidet.ir.utils import broadcast_shapes, can_broadcast
 from hidet.utils import same_list
 
 from tilus.ir.inst import Instruction, InstructionError
+from tilus.ir.instructions.annotation import AnnotateLayoutInst
 from tilus.ir.instructions.cuda import (
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,
@@ -730,7 +731,7 @@ class StmtBuilder(StmtBuilderCore):
         self,
         x: GlobalTensor,
         offsets: Sequence[Expr | int],
-        slice_dims: Optional[Sequence[int]] = None,
+        dims: Optional[Sequence[int]] = None,
         shape: Optional[Sequence[int]] = None,
         layout: Optional[RegisterLayout] = None,
         output: Optional[RegisterTensor] = None,
@@ -746,12 +747,10 @@ class StmtBuilder(StmtBuilderCore):
                 raise InstructionError(
                     f"Layout mismatch: expected {output.layout}, but got {layout} for output of load_global"
                 )
-        if slice_dims is None:
+        if dims is None:
             assert len(x.shape) == len(output.shape)
-            slice_dims = range(len(x.shape))
-        inst = LoadGlobalInst.create(
-            x=x, offsets=[as_expr(ofs) for ofs in offsets], slice_dims=slice_dims, output=output
-        )
+            dims = range(len(x.shape))
+        inst = LoadGlobalInst.create(x=x, offsets=[as_expr(ofs) for ofs in offsets], dims=dims, output=output)
         self.append(inst)
         return inst.register_output
 
@@ -853,4 +852,9 @@ class StmtBuilder(StmtBuilderCore):
 
     def exit(self) -> None:
         inst = ExitInst.create()
+        self.append(inst)
+
+    # annotations
+    def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None:
+        inst = AnnotateLayoutInst.create(tensor=tensor, layout=layout)
         self.append(inst)

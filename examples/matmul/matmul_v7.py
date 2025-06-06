@@ -42,7 +42,7 @@ class MatmulV7(tilus.Script):
         split_k_factor,
     ):
         super().__init__()
-        self.mma = self.cuda.default_dot_config(float16, float32, num_warps=num_warps, m=block_m, n=block_n, k=block_k)
+        self.mma = self.cuda.resolve_dot_config(float16, float32, num_warps=num_warps, m=block_m, n=block_n, k=block_k)
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k

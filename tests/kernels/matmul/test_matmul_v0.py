@@ -9,7 +9,7 @@ from tilus import float16, float32, int32
 class MatmulV0(tilus.Script):
     def __init__(self):
         super().__init__()
-        self.mma = self.cuda.default_dot_config(operand_dtype=float16, acc_dtype=float32, num_warps=1, m=16, n=8, k=16)
+        self.mma = self.cuda.resolve_dot_config(operand_dtype=float16, acc_dtype=float32, num_warps=1, m=16, n=8, k=16)
         self.block_m = self.mma.m
         self.block_n = self.mma.n
         self.block_k = self.mma.k
@@ -29,8 +29,8 @@ class MatmulV0(tilus.Script):
         for k in range(k_blocks):
             offset_k = k * self.block_k
 
-            a = self.load_global(ga, offsets=[offset_m, offset_k], slice_dims=[0, 1], layout=self.mma.la)
-            b = self.load_global(gb, offsets=[offset_k, offset_n], slice_dims=[0, 1], layout=self.mma.lb)
+            a = self.load_global(ga, offsets=[offset_m, offset_k], dims=[0, 1], layout=self.mma.la)
+            b = self.load_global(gb, offsets=[offset_k, offset_n], dims=[0, 1], layout=self.mma.lb)
             acc = self.mma_dot(a, b, acc)
 
         acc_f16 = self.cast(acc, dtype=float16)

@@ -41,23 +41,21 @@ class AllocateRegisterInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class LoadGlobalInst(Instruction):
     offsets: tuple[Expr, ...]
-    slice_dims: tuple[int, ...]
+    dims: tuple[int, ...]
 
     @staticmethod
-    def create(
-        x: GlobalTensor, offsets: Sequence[Expr], slice_dims: Sequence[int], output: RegisterTensor
-    ) -> LoadGlobalInst:
-        return LoadGlobalInst(output=output, inputs=(x,), offsets=tuple(offsets), slice_dims=tuple(slice_dims))
+    def create(x: GlobalTensor, offsets: Sequence[Expr], dims: Sequence[int], output: RegisterTensor) -> LoadGlobalInst:
+        return LoadGlobalInst(output=output, inputs=(x,), offsets=tuple(offsets), dims=tuple(dims))
 
 
 @dataclass(frozen=True, eq=False)
 class StoreGlobalInst(Instruction):
     offsets: tuple[Expr, ...]
-    slice_dims: tuple[int, ...]
+    dims: tuple[int, ...]
 
     @staticmethod
     def create(dst: GlobalTensor, x: RegisterTensor, offsets: Sequence[Expr], dims: Sequence[int]) -> StoreGlobalInst:
-        return StoreGlobalInst(output=None, inputs=(dst, x), offsets=tuple(offsets), slice_dims=tuple(dims))
+        return StoreGlobalInst(output=None, inputs=(dst, x), offsets=tuple(offsets), dims=tuple(dims))
 
 
 @dataclass(frozen=True, eq=False)

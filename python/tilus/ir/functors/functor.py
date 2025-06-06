@@ -6,42 +6,6 @@ from hidet.ir.type import BaseType
 
 from tilus.ir.func import Function
 from tilus.ir.inst import Instruction, InstructionConfig
-from tilus.ir.instructions import (
-    AllocateGlobalInst,
-    AllocateRegisterInst,
-    AllocateSharedInst,
-    AssignInst,
-    CastInst,
-    CopyAsyncCommitGroupInst,
-    CopyAsyncGenericInst,
-    CopyAsyncInst,
-    CopyAsyncWaitAllInst,
-    CopyAsyncWaitGroupInst,
-    ElementwiseBinaryBaseInst,
-    ElementwiseUnaryBaseInst,
-    ExitInst,
-    FormatPrintInst,
-    FreeSharedInst,
-    GlobalViewInst,
-    LoadGlobalGenericInst,
-    LoadGlobalInst,
-    LoadMatrixInst,
-    LoadSharedGenericInst,
-    LoadSharedInst,
-    MmaDotInst,
-    PrintTensorInst,
-    SharedSliceInst,
-    ShuffleDownInst,
-    ShuffleUpInst,
-    SimtDotInst,
-    StoreGlobalGenericInst,
-    StoreGlobalInst,
-    StoreSharedGenericInst,
-    StoreSharedInst,
-    SyncReduceThreadsInst,
-    SyncThreadsInst,
-    ViewInst,
-)
 from tilus.ir.layout import GlobalLayout, RegisterLayout
 from tilus.ir.prog import Program
 from tilus.ir.stmt import (
@@ -89,7 +53,7 @@ class IRFunctor:
         elif isinstance(node, Instruction):
             method_name = "visit_" + node.__class__.__name__
             visit_method = getattr(self.__class__, method_name, None)
-            if visit_method is None or visit_method is getattr(IRFunctor, method_name):
+            if visit_method is None:
                 ret = self.visit_Instruction(node)
             else:
                 ret = visit_method(self, node)
@@ -97,7 +61,7 @@ class IRFunctor:
         elif isinstance(node, InstructionConfig):
             method_name = "visit_" + node.__class__.__name__
             visit_method = getattr(self.__class__, method_name, None)
-            if visit_method is None or visit_method is getattr(IRFunctor, method_name):
+            if visit_method is None:
                 ret = self.visit_InstructionConfig(node)
             else:
                 ret = visit_method(self, node)
@@ -244,109 +208,109 @@ class IRFunctor:
     def visit_GlobalLayout(self, node: GlobalLayout) -> Any:
         raise NotImplementedError()
 
-    # instructions
-
-    def visit_AssignInst(self, inst: AssignInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_AllocateRegisterInst(self, inst: AllocateRegisterInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_AllocateGlobalInst(self, inst: AllocateGlobalInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_AllocateSharedInst(self, inst: AllocateSharedInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_FreeSharedInst(self, inst: FreeSharedInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_SharedSliceInst(self, inst: SharedSliceInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_LoadGlobalGenericInst(self, inst: LoadGlobalGenericInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_LoadMatrixInst(self, inst: LoadMatrixInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_LoadSharedInst(self, inst: LoadSharedInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_LoadSharedGenericInst(self, inst: LoadSharedGenericInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_StoreGlobalGenericInst(self, inst: StoreGlobalGenericInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_StoreSharedGenericInst(self, inst: StoreSharedGenericInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_CastInst(self, inst: CastInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_ElementwiseUnaryInst(self, inst: ElementwiseUnaryBaseInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_ElementwiseBinaryInst(self, inst: ElementwiseBinaryBaseInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_MmaDotInst(self, inst: MmaDotInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_SimtDotInst(self, inst: SimtDotInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_PrintTensorInst(self, inst: PrintTensorInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_FormatPrintInst(self, inst: FormatPrintInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_ShuffleUpInst(self, inst: ShuffleUpInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_ShuffleDownInst(self, inst: ShuffleDownInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_ViewInst(self, inst: ViewInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_GlobalViewInst(self, inst: GlobalViewInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_CopyAsyncGenericInst(self, inst: CopyAsyncGenericInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_CopyAsyncCommitGroupInst(self, inst: CopyAsyncCommitGroupInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_CopyAsyncWaitGroupInst(self, inst: CopyAsyncWaitGroupInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_CopyAsyncWaitAllInst(self, inst: CopyAsyncWaitAllInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_SyncThreadsInst(self, inst: SyncThreadsInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_SyncReduceThreadsInst(self, inst: SyncReduceThreadsInst) -> Any:
-        raise NotImplementedError()
-
-    def visit_ExitInst(self, inst: ExitInst) -> Any:
-        raise NotImplementedError()
+    # # instructions
+    #
+    # def visit_AssignInst(self, inst: AssignInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_AllocateRegisterInst(self, inst: AllocateRegisterInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_AllocateGlobalInst(self, inst: AllocateGlobalInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_AllocateSharedInst(self, inst: AllocateSharedInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_FreeSharedInst(self, inst: FreeSharedInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_SharedSliceInst(self, inst: SharedSliceInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_LoadGlobalInst(self, inst: LoadGlobalInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_LoadGlobalGenericInst(self, inst: LoadGlobalGenericInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_LoadMatrixInst(self, inst: LoadMatrixInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_LoadSharedInst(self, inst: LoadSharedInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_LoadSharedGenericInst(self, inst: LoadSharedGenericInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_StoreGlobalInst(self, inst: StoreGlobalInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_StoreGlobalGenericInst(self, inst: StoreGlobalGenericInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_StoreSharedGenericInst(self, inst: StoreSharedGenericInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_CastInst(self, inst: CastInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_ElementwiseUnaryInst(self, inst: ElementwiseUnaryBaseInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_ElementwiseBinaryInst(self, inst: ElementwiseBinaryBaseInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_MmaDotInst(self, inst: MmaDotInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_SimtDotInst(self, inst: SimtDotInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_PrintTensorInst(self, inst: PrintTensorInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_FormatPrintInst(self, inst: FormatPrintInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_ShuffleUpInst(self, inst: ShuffleUpInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_ShuffleDownInst(self, inst: ShuffleDownInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_ViewInst(self, inst: ViewInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_GlobalViewInst(self, inst: GlobalViewInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_CopyAsyncGenericInst(self, inst: CopyAsyncGenericInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_CopyAsyncCommitGroupInst(self, inst: CopyAsyncCommitGroupInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_CopyAsyncWaitGroupInst(self, inst: CopyAsyncWaitGroupInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_CopyAsyncWaitAllInst(self, inst: CopyAsyncWaitAllInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_SyncThreadsInst(self, inst: SyncThreadsInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_SyncReduceThreadsInst(self, inst: SyncReduceThreadsInst) -> Any:
+    #     raise NotImplementedError()
+    #
+    # def visit_ExitInst(self, inst: ExitInst) -> Any:
+    #     raise NotImplementedError()
 
 
 class IRRewriter(IRFunctor):
@@ -405,6 +369,8 @@ class IRRewriter(IRFunctor):
             return inst_or_stmt
         elif isinstance(inst_or_stmt, Instruction):
             return InstStmt(inst_or_stmt)
+        elif inst_or_stmt is None:
+            return SeqStmt(())
         else:
             raise ValueError(f"An instruction should be rewritten to an instruction or a statement, got {inst_or_stmt}")
 

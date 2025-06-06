@@ -22,7 +22,7 @@ def pytest_sessionstart(session):
     Called after the Session object has been created and before performing collection and entering the run test loop.
     """
     # set the cache directory to a subdirectory of the current directory
-    tilus.option.cache_dir(Path(tilus.option.get_option("cache_dir")) / ".." / ".test_cache")
+    tilus.option.cache_dir(Path(tilus.option.get_option("cache_dir")) / ".test_cache")
     print("Cache directory: {}".format(hidet.option.get_cache_dir()))
     tilus.utils.clear_cache()
 

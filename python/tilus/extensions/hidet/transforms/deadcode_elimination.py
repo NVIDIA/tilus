@@ -14,13 +14,14 @@ from hidet.ir import (
     Multiply,
     SeqStmt,
     Sub,
+    TensorElement,
 )
 from hidet.ir.expr import Address, BinaryExpr, Call, Expr, UnaryExpr, Var
 from hidet.ir.func import Function
 from hidet.ir.functors import IRRewriter, IRVisitor
 from hidet.ir.stmt import AssignStmt, EvaluateStmt, LetStmt, Stmt
 from hidet.transforms.base import FunctionPass
-from hidet.utils import same_list
+from hidet.utils import repeat_until_converge, same_list
 
 
 class DeadcodeAnalyzer(IRVisitor):
@@ -115,6 +116,12 @@ class DeadcodeAnalyzer(IRVisitor):
         self.visit(e.expr)
         self.no_side_effect[e] = self.no_side_effect[e.expr]
 
+    def visit_TensorElement(self, e: TensorElement) -> None:
+        self.visit(e.base)
+        for index in e.indices:
+            self.visit(index)
+        self.no_side_effect[e] = self.no_side_effect[e.base] and all(self.no_side_effect[index] for index in e.indices)
+
 
 class DeadcodeEliminationRewriter(IRRewriter):
     def __init__(self):
@@ -168,6 +175,12 @@ class DeadcodeEliminationRewriter(IRRewriter):
                 body=body,
             )
 
+    def visit_EvaluateStmt(self, stmt: EvaluateStmt) -> Stmt:
+        if self.analyzer.no_side_effect[stmt.expr]:
+            return SeqStmt([])
+        else:
+            return super().visit_EvaluateStmt(stmt)
+
 
 class DeadcodeEliminationPass(FunctionPass):
     """
@@ -177,7 +190,7 @@ class DeadcodeEliminationPass(FunctionPass):
 
     def process_func(self, func: Function) -> Function:
         rewriter = DeadcodeEliminationRewriter()
-        return rewriter.visit_Function(func)
+        return repeat_until_converge(rewriter, func, limit=5)
 
 
 def deadcode_elimination_pass() -> FunctionPass:

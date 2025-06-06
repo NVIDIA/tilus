@@ -6,17 +6,17 @@ from hidet.ir import DataType
 from tilus import boolean, f32, int32, void_p
 from tilus.utils import benchmark_func, cdiv
 
-# tilus.logging.set_logging_level("DEBUG")
 tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir()
-tilus.utils.clear_cache()
+# tilus.utils.clear_cache()
 pd.options.display.max_columns = None
 pd.options.display.width = 1000
 
 
-@tilus.autotune("num_warps", [2])
-@tilus.autotune("block_q", [16])
-@tilus.autotune("block_kv", [16])
+@tilus.autotune("num_warps", [4])
+@tilus.autotune("num_stages", [3])
+@tilus.autotune("block_q", [64])
+@tilus.autotune("block_kv", [64])
 class FlashAttention(tilus.Script):
     def __init__(
         self,
@@ -25,6 +25,7 @@ class FlashAttention(tilus.Script):
         num_heads_kv: int,
         head_size: int,
         num_warps: int,
+        num_stages: int,
         block_q: int,
         block_kv: int,
     ):
@@ -34,10 +35,20 @@ class FlashAttention(tilus.Script):
         self.num_heads_kv = num_heads_kv
         self.head_size = head_size
         self.num_warps = num_warps
+        self.num_stages = num_stages
         self.block_q = block_q
         self.block_kv = block_kv
         self.score_scale = float(1.0 / np.sqrt(head_size))
-        self.head_group_size = num_heads // num_heads_kv
+        self.group_heads = num_heads // num_heads_kv
+
+        # determine layout
+        self.qk_config = self.cuda.resolve_dot_config(
+            dtype, f32, m=block_q, n=block_kv, k=head_size, warp_m=num_warps, warp_n=1
+        )
+        self.sv_config = self.cuda.resolve_dot_config(
+            dtype, f32, m=block_q, n=head_size, k=block_kv, warp_m=num_warps, warp_n=1
+        )
+        assert self.qk_config.lc == self.sv_config.la
 
     def __call__(self, batch_size: int, seqlen: int32, q_ptr: void_p, k_ptr: void_p, v_ptr: void_p, o_ptr: void_p):
         self.attrs.warps = self.num_warps
@@ -47,28 +58,17 @@ class FlashAttention(tilus.Script):
         head = self.blockIdx.y
         bs = self.blockIdx.z
 
-        gq = self.global_view(ptr=q_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads, self.head_size])
-        gk = self.global_view(
-            ptr=k_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads_kv, self.head_size]
-        )
-        gv = self.global_view(
-            ptr=v_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads_kv, self.head_size]
-        )
-        go = self.global_view(ptr=o_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads, self.head_size])
-
-        sk = self.shared_tensor(dtype=self.dtype, shape=[self.block_kv, self.head_size])
-        sv = self.shared_tensor(dtype=self.dtype, shape=[self.block_kv, self.head_size])
+        gq = self.global_view(q_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads, self.head_size])
+        gk = self.global_view(k_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads_kv, self.head_size])
+        gv = self.global_view(v_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads_kv, self.head_size])
+        go = self.global_view(o_ptr, dtype=self.dtype, shape=[batch_size, seqlen, self.num_heads, self.head_size])
 
         # load query
         sq = self.shared_tensor(dtype=self.dtype, shape=[self.block_q, self.head_size])
-        self.store_shared(
-            sq,
-            self.load_global(
-                gq, offsets=[bs, q_offset, head, 0], shape=[self.block_q, self.head_size], slice_dims=[1, 3]
-            ),
-        )
+        ldq = self.load_global(gq, offsets=[bs, q_offset, head, 0], shape=[self.block_q, self.head_size], dims=[1, 3])
+        self.store_shared(sq, ldq)
         self.sync()
-        rq = self.load_shared(sq)
+        rq = self.load_shared(sq)  # [block_q, head_size]
         self.sync()
         self.free_shared(sq)
 
@@ -77,31 +77,39 @@ class FlashAttention(tilus.Script):
         m = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=-1e6)  # rowmax(score)
         l = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=0.0)  # rowsum(exp(score - m))
 
-        kv_offset_end = q_offset + self.block_q
-        for kv_offset in range(0, kv_offset_end, self.block_kv):
-            self.store_shared(
-                sk,
-                self.load_global(
-                    gk,
-                    offsets=[bs, kv_offset, head // self.head_group_size, 0],
-                    shape=[self.block_kv, self.head_size],
-                    slice_dims=[1, 3],
-                ),
-            )
-            self.store_shared(
-                sv,
-                self.load_global(
-                    gv,
-                    offsets=[bs, kv_offset, head // self.head_group_size, 0],
-                    shape=[self.block_kv, self.head_size],
-                    slice_dims=[1, 3],
-                ),
-            )
-            self.sync()
+        sk = self.shared_tensor(dtype=self.dtype, shape=[self.num_stages, self.block_kv, self.head_size])
+        sv = self.shared_tensor(dtype=self.dtype, shape=[self.num_stages, self.block_kv, self.head_size])
+        for stage in range(self.num_stages - 1):
+            kv_offset = stage * self.block_kv
+            self.copy_async(gk, sk[stage], offsets=[bs, kv_offset, head // self.group_heads, 0], dims=[1, 3])
+            self.copy_async(gv, sv[stage], offsets=[bs, kv_offset, head // self.group_heads, 0], dims=[1, 3])
+            self.copy_async_commit_group()
 
-            rk = self.load_shared(sk)  # [block_kv, head_size]
-            rv = self.load_shared(sv)  # [block_kv, head_size]
+        self.copy_async_wait_group(self.num_stages - 2)
+        self.sync()
+
+        kv_offset_end = q_offset + self.block_q
+        current_stage: int32 = 0
+        preload_stage: int32 = self.num_stages - 1
+        for kv_offset in range(0, kv_offset_end, self.block_kv):
+            # load the next stage
+            preload_kv_offset = kv_offset + (self.num_stages - 1) * self.block_kv
+            if preload_kv_offset < kv_offset_end:
+                self.copy_async(
+                    gk, sk[preload_stage], offsets=[bs, preload_kv_offset, head // self.group_heads, 0], dims=[1, 3]
+                )
+                self.copy_async(
+                    gv, sv[preload_stage], offsets=[bs, preload_kv_offset, head // self.group_heads, 0], dims=[1, 3]
+                )
+            self.copy_async_commit_group()
+            self.copy_async_wait_group(self.num_stages - 2)
+
+            # compute the current stage
+            rk = self.load_shared(sk[current_stage])  # [block_kv, head_size]
+            rv = self.load_shared(sv[current_stage])  # [block_kv, head_size]
+
             score = self.mma_dot(rq, rk.transpose(), acc_dtype=f32) * self.score_scale  # [block_q, block_kv]
+            self.annotate_layout(score, self.qk_config.lc)
             mask = self.register_tensor(
                 dtype=boolean,
                 shape=[self.block_q, self.block_kv],
@@ -115,9 +123,13 @@ class FlashAttention(tilus.Script):
             p = self.exp(score - new_m)  # [block_q, block_kv]
             p_f16 = self.cast(p, dtype=self.dtype)  # [block_q, block_kv]
             cur_o = self.mma_dot(p_f16, rv, acc_dtype=f32)  # [block_q, head_size]
+            self.annotate_layout(cur_o, self.sv_config.lc)
             o = o * self.exp(m - new_m) + cur_o  # [block_q, head_size]
             l = l * self.exp(m - new_m) + self.sum(p, dim=1, keepdim=True)  # [block_q, 1]
             m = new_m  # [block_q, 1]
+
+            current_stage = (current_stage + 1) % self.num_stages
+            preload_stage = (preload_stage + 1) % self.num_stages
             self.sync()
 
         self.free_shared(sk)
@@ -199,14 +211,17 @@ def flash_attention_reference(
     return o
 
 
-def flash_attention_baseline(
+def flash_attention_flash_attn(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
 ):
-    from flash_attn import flash_attn_func
+    try:
+        from flash_attn import flash_attn_func
 
-    return flash_attn_func(q, k, v, causal=True)
+        return flash_attn_func(q, k, v, causal=True)
+    except ImportError:
+        return flash_attention_reference(q, k, v)
 
 
 def demo_flash_attention():
@@ -221,41 +236,40 @@ def demo_flash_attention():
         torch.cuda.synchronize()
 
 
-def main():
-    headers = ["bs", "seqlen", "num_heads", "head_size", "num_heads_kv", "name", "latency (ms)", "gflops"]
+def main(bench=True):
+    headers = ["batch_size", "seqlen", "num_heads", "head_size", "num_heads_kv", "name", "latency (ms)", "gflops"]
     data = []
-    for bs, seqlen, num_heads, head_size, num_heads_kv in [
+    for batch_size, seqlen, num_heads, head_size, num_heads_kv in [
         [1, 4096, 32, 128, 8],
-        # [1, 16, 1, 16, 1]
     ]:
-        q = torch.rand(bs, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
-        k = torch.rand(bs, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
-        v = torch.rand(bs, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
-        # q = torch.ones(bs, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
-        # k = torch.ones(bs, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
-        # v = torch.ones(bs, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
-
+        q = torch.rand(batch_size, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
+        k = torch.rand(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
+        v = torch.rand(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
         for name, runner in [
-            ("flash-attn", flash_attention_baseline),
+            ("flash-attn", flash_attention_flash_attn),
             ("tilus", flash_attention),
         ]:
             print(
-                f"Running {name} with bs={bs}, seqlen={seqlen}, num_heads={num_heads}, head_size={head_size}, num_heads_kv={num_heads_kv}"
+                f"Running {name} with batch_size={batch_size}, seqlen={seqlen}, num_heads={num_heads}, head_size={head_size}, num_heads_kv={num_heads_kv}"
             )
             actual = runner(q, k, v)
             expected = flash_attention_reference(q, k, v)
 
             torch.testing.assert_close(actual, expected, atol=1e-2, rtol=1e-2)
-            latency = benchmark_func(
-                lambda: runner(q, k, v),
-                warmup=5,
-                repeat=20,
+            latency = (
+                benchmark_func(
+                    lambda: runner(q, k, v),
+                    warmup=5,
+                    repeat=20,
+                )
+                if bench
+                else float("nan")
             )
-            gflops = 2 * bs * num_heads * seqlen * head_size * seqlen / latency * 1e-9
-            data.append([bs, seqlen, num_heads, head_size, num_heads_kv, name, latency, gflops])
+            gflops = 2 * batch_size * num_heads * seqlen * head_size * seqlen / latency * 1e-9
+            data.append([batch_size, seqlen, num_heads, head_size, num_heads_kv, name, latency, gflops])
     df = pd.DataFrame(data, columns=headers)
     df_pivot = df.pivot(
-        index=["bs", "seqlen", "num_heads", "head_size", "num_heads_kv"],
+        index=["batch_size", "seqlen", "num_heads", "head_size", "num_heads_kv"],
         columns="name",
         values=["latency (ms)", "gflops"],
     ).reset_index()
@@ -263,7 +277,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # flash_attention(0, 0, 0)
     main()
-    # demo_flash_attention()
-    # sanitizer_run(demo_flash_attention)
+    # ncu_run(main, bench=False)
+    # ncu_run(main, bench=False, kernel_regex='flash_fwd|flash_attention')

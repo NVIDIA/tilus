@@ -58,7 +58,7 @@ class ReduceInstEmitter(BaseInstEmitter):
         reduced_local_dims = [dim for dim, mode in enumerate(layout.local_modes) if mode in reduced_modes]
 
         src_local_shape = src.layout.local_shape
-        dst_local_shape = dst.layout.local_shape
+        dst_local_shape = [size for dim, size in enumerate(src_local_shape) if dim not in reduced_local_dims]
         with self.for_range(src.layout.local_size, attr="u") as src_local:
             src_local_indices = index_deserialize(src_local, shape=src_local_shape)
             dst_local_indices = [index for dim, index in enumerate(src_local_indices) if dim not in reduced_local_dims]

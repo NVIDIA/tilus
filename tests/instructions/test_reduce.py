@@ -2,7 +2,7 @@ import pytest
 import tilus
 import torch
 from tilus import int32
-from tilus.ir.layout import RegisterLayout, spatial
+from tilus.ir.layout import RegisterLayout, register_layout, spatial
 
 
 class TestReduceKernel(tilus.Script):
@@ -38,6 +38,9 @@ class TestReduceKernel(tilus.Script):
         spatial(2, 4).spatial(4, 8),
         spatial(2, 4).spatial(4, 8).repeat(2, 2),
         spatial(2, 4).repeat(2, 2).spatial(4, 8).repeat(2, 2),
+        register_layout(
+            shape=[32, 16], mode_shape=[2, 2, 8, 2, 4, 2], spatial_modes=[-4, 2, 4], local_modes=[0, 3, 1, 5]
+        ),
     ],
 )
 def test_reduce_instruction(dim: int, layout: RegisterLayout):

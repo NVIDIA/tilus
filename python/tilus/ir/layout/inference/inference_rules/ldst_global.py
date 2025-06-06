@@ -44,7 +44,7 @@ class LoadStoreGlobalRule(LayoutInferenceRule):
             global_shape = inst.inputs[0].as_global_tensor().shape
             global_offsets: list[Expr] = list(inst.offsets)
             axes = index_vars(len(tensor.shape))
-            for dim, axis in zip(inst.slice_dims, axes):
+            for dim, axis in zip(inst.dims, axes):
                 global_offsets[dim] = global_offsets[dim] + axis
             offset = inst.inputs[0].as_global_tensor().layout(*global_offsets)
             mask = logical_and(*[logical_and(0 <= i, i < global_shape[dim]) for dim, i in enumerate(global_offsets)])
