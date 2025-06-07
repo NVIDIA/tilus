@@ -280,6 +280,7 @@ def construct_keys(const_params: Sequence[Any], tuning_params: Sequence[int]) ->
     for arg in tuning_params:
         block = 1 << max((arg.bit_length() - 2), 0)
         tuning_key.append((arg + block - 1) // block * block)
+        jit_key.append(divisibility_key[arg % 32])
     return tuple(jit_key), tuple(tuning_key)
 
 

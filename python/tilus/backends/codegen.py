@@ -12,6 +12,7 @@ from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.primitives.cuda.vars import threadIdx
 from hidet.ir.stmt import DeclareScope
 from hidet.ir.type import void_p
+from hidet.utils.doc import Doc, Text
 
 from tilus.extensions.hidet.ir.module import merge_ir_modules
 from tilus.extensions.hidet.ir.tools import rewrite
@@ -241,6 +242,11 @@ class SharedMemoryAllocator:
         del self.addr2nbytes[addr]
 
 
+class CommentInlinedIRPrinter(IRPrinter):
+    def add_key_comment(self, key_hint: str, comment: str | Doc) -> Doc:
+        return Text(comment) if isinstance(comment, str) else comment
+
+
 class Codegen(IRFunctor):
     GMEM_WORKSPACE_NAME = "__gmem_workspace"
     GMEM_CLEAN_WORKSPACE_NAME = "__gmem_clean_workspace"
@@ -258,7 +264,7 @@ class Codegen(IRFunctor):
         super().__init__()
         self._builder: Optional[FunctionBuilder] = None
         self._function: Optional[Function] = None
-        self.printer: IRPrinter = IRPrinter()
+        self.printer: IRPrinter = CommentInlinedIRPrinter()
 
         # value mapping
         self.tensor2var: Dict[Tensor, Var] = {}

@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Set, Tuple, Union
 
 from hidet.ir import BaseType
 from hidet.ir.expr import Expr, Var
+from hidet.ir.tools import IRPrinter as HidetIRPrinter
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
 
 from tilus.extensions.hidet.utils.doc import doc_comment, doc_join_lines, doc_strip_parentheses
@@ -28,8 +29,6 @@ from tilus.ir.tensor import GlobalLayout, GlobalTensor, RegisterTensor, SharedLa
 
 class IRPrinter(IRFunctor):
     def __init__(self) -> None:
-        from hidet.ir.tools import IRPrinter as HidetIRPrinter
-
         super().__init__()
         self.printer = HidetIRPrinter()
         self.tensor2name: Dict[Tensor, str] = {}
@@ -38,6 +37,7 @@ class IRPrinter(IRFunctor):
         self.key2comment: Dict[str, str] = {}
         self.keys: Set[str] = set()
 
+        self.in_function: bool = False
         self.shared_count: int = 0
         self.register_count: int = 0
         self.global_count: int = 0
@@ -48,18 +48,22 @@ class IRPrinter(IRFunctor):
         self.var2name[var] = name
         self.printer.namer.obj_name[var] = name
 
-    def add_key_comment(self, key_hint: str, comment: Any) -> str:
-        comment = str(comment)
-        if comment in self.comment2key:
-            return self.comment2key[comment]
+    def add_key_comment(self, key_hint: str, comment: str | Doc) -> Doc:
+        comment_doc: Doc = Text(comment) if isinstance(comment, str) else comment
+        comment_str: str = str(comment_doc)
+        if not self.in_function:
+            return comment_doc
+
+        if comment_str in self.comment2key:
+            return Text(self.comment2key[comment_str])
         i = 0
         while True:
             key = key_hint + "_" + str(i)
             if key not in self.keys:
                 self.keys.add(key)
-                self.comment2key[comment] = key
-                self.key2comment[key] = comment
-                return key
+                self.comment2key[comment_str] = key
+                self.key2comment[key] = comment_str
+                return Text(key)
             i += 1
 
     def get_value_type(self, value: Tensor) -> Doc:
@@ -182,7 +186,9 @@ class IRPrinter(IRFunctor):
         )
 
         # first visit body to make sure the variable names are set in their definition order
+        self.in_function = True
         body_doc = self.visit(func.body)
+        self.in_function = False
 
         # metadata doc
         doc += self.visit_FuncMetadata(func.metadata).indent(4)
@@ -366,7 +372,14 @@ class IRPrinter(IRFunctor):
         return Text(self.tensor2name[tensor])
 
     def visit_RegisterLayout(self, layout: RegisterLayout) -> Doc:
-        return Text(self.add_key_comment("layout", str(layout)))
+        items = [
+            "shape=[" + self(layout.shape) + "]",
+            "mode_shape=[" + self(layout.mode_shape) + "]",
+            "spatial_modes=[" + self(layout.spatial_modes) + "]",
+            "local_modes=[" + self(layout.local_modes) + "]",
+        ]
+        doc = Text("RegisterLayout(") + doc_join(items, ", ") + ")"
+        return self.add_key_comment("layout", doc)
 
     def visit_SharedLayout(self, node: SharedLayout) -> Doc:
         for i, axis in enumerate(node.axes):
@@ -377,7 +390,7 @@ class IRPrinter(IRFunctor):
             "offset=" + self(node.offset),
         ]
         doc = Text("SharedLayout(") + doc_join(items, ", ") + ")"
-        return Text(self.add_key_comment("shared_layout", doc))
+        return self.add_key_comment("shared_layout", doc)
 
     def visit_GlobalLayout(self, node: GlobalLayout) -> Doc:
         for i, axis in enumerate(node.axes):
@@ -388,4 +401,47 @@ class IRPrinter(IRFunctor):
             "offset=" + self(node.offset),
         ]
         doc = Text("GlobalLayout(") + doc_join(items, ", ") + ")"
-        return Text(self.add_key_comment("global_layout", doc))
+        return self.add_key_comment("global_layout", doc)
+
+
+class PrintContext:
+    _printer_stack: list[IRPrinter] = []
+
+    def __init__(self) -> None:
+        self.printer = IRPrinter()
+
+    def __enter__(self):
+        self.enter()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.exit()
+
+    def enter(self):
+        """
+        Enter the print context.
+        """
+        self._printer_stack.append(self.printer)
+
+    def exit(self):
+        """
+        Exit the print context.
+        """
+        if not self._printer_stack or self._printer_stack[-1] is not self.printer:
+            raise RuntimeError()
+        self._printer_stack.pop()
+
+    @staticmethod
+    def current() -> IRPrinter:
+        """
+        Get the current print context.
+        """
+        if not PrintContext._printer_stack:
+            return IRPrinter()
+        return PrintContext._printer_stack[-1]
+
+
+def print_context() -> PrintContext:
+    """
+    Create a new print context for printing IR nodes.
+    """
+    return PrintContext()
