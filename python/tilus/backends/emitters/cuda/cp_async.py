@@ -51,10 +51,8 @@ class CopyAysncInstEmitter(BaseInstEmitter):
                     continue
                 if shared_info.infos[dim].divisibility * dtype.nbits % nbits != 0:
                     continue
-                if not inst.weak_mask:
-                    # only check the mask constancy in weak_mask is False
-                    if mask_info.infos[dim].constancy * dtype.nbits % nbits != 0:
-                        continue
+                if mask_info.infos[dim].constancy * dtype.nbits % nbits != 0:
+                    continue
                 if prod(shape) * dtype.nbits // nbits % 32 != 0 and nbytes != 4:
                     # when possible, we hope at least use 32 threads to perform cp.async
                     continue
@@ -73,7 +71,6 @@ class CopyAysncInstEmitter(BaseInstEmitter):
                 "global_info": str(global_info),
                 "shared_info": str(shared_info),
                 "mask_info": str(mask_info),
-                "weak_mask": str(inst.weak_mask),
             }
             raise ValueError(
                 "The layout/offset/mask is not valid in cp async instruction:\n{}".format(

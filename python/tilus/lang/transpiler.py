@@ -24,7 +24,7 @@ from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import AssignInst
 from tilus.ir.layout import RegisterLayout
-from tilus.ir.stmt import AssignStmt, DeclareStmt, EvaluateStmt, IfStmt, InstStmt, SeqStmt, Stmt
+from tilus.ir.stmt import AssignStmt, BreakStmt, DeclareStmt, EvaluateStmt, IfStmt, InstStmt, SeqStmt, Stmt, WhileStmt
 from tilus.ir.tensor import GlobalTensor, Tensor
 from tilus.lang.constructs.loops import TilusLoopIterable
 from tilus.lang.script import InstructionError, Script
@@ -486,6 +486,7 @@ class Transpiler(PythonAstFunctor):
                     sig: inspect.Signature = inspect.signature(f_func)
                     bound_args: inspect.BoundArguments = sig.bind(*args, **kwargs)
 
+                    ret = None
                     with self.scope() as func_scope:
                         # bind the parameters to the arguments in a new scope
                         for param_name in sig.parameters:
@@ -571,11 +572,17 @@ class Transpiler(PythonAstFunctor):
 
                         old = self.file, self.start_lineno, self.start_column
                         self.file, self.start_lineno, self.start_column = file, start_line, col_offset
-                        for stmt in func_def.body:
+                        for i, stmt in enumerate(func_def.body):
+                            if isinstance(stmt, ast.Return):
+                                if i != len(func_def.body) - 1:
+                                    raise TilusProgramError(
+                                        self, stmt, "Return statement must be the last statement in a tilus procedure."
+                                    )
+                                ret = self.visit(stmt.value)
+                                continue
                             self.visit(stmt)
                         self.file, self.start_lineno, self.start_column = old
                     self.current_scope.append(func_scope.flush_stmts())
-                    ret = None
                 elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor)):
                     # case 2
                     sb = self._script._builder
@@ -1093,9 +1100,21 @@ class Transpiler(PythonAstFunctor):
             else:
                 raise HidetProgramError(self, expr, "Can not recognize unary operator.")
         else:
-            op_dict: dict[Type[ast.unaryop], Callable] = {
+            op_dict: dict[Any, Callable] = {
                 ast.UAdd: operator.pos,
                 ast.USub: operator.neg,
                 ast.Not: operator.not_,
             }
             return op_dict[type(expr.op)](value)
+
+    def visit_While(self, stmt: ast.While) -> None:
+        cond = self.visit(stmt.test)
+        with self.scope() as while_scope:
+            for s in stmt.body:
+                self.visit(s)
+        body = while_scope.flush_stmts()
+        while_stmt = WhileStmt(cond=as_expr(cond), body=body)
+        self.current_scope.append(while_stmt)
+
+    def visit_Break(self, stmt: ast.Break) -> None:
+        self.current_scope.append(BreakStmt())

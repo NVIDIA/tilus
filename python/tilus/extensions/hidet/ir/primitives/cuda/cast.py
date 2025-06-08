@@ -7,6 +7,7 @@ from hidet.utils import initialize
 
 from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
 from tilus.extensions.hidet.ir.expr import reinterpret
+from tilus.extensions.hidet.ir.primitives.cuda.float32 import mul as f32_mul
 
 
 def register_float_cast_functions(dtype: FloatSubbyteType) -> None:
@@ -93,25 +94,6 @@ def register_float_cast_functions(dtype: FloatSubbyteType) -> None:
         # assemble the sub-byte float number
         return uint8(sign | (exp_value << mantissa_nbits) | mantissa)
 
-        # sign: uint32 = (src_uint32 >> (32 - nbits)) & (1 << (nbits - 1))
-        # exponents: int32 = (src_uint32 >> 23) & ((1 << 8) - 1)
-        # e_adjust: int32 = 128 - (1 << (exponent_nbits - 1))
-        # mantissa: uint32 = uint32(0)
-        #
-        # if exponents > e_adjust:
-        #     mantissa = (src_uint32 & uint32((1 << 23) - 1)) >> (23 - mantissa_nbits)
-        #     exponents = ((exponents - e_adjust) & ((1 << exponent_nbits) - 1)) << mantissa_nbits
-        # elif exponents + mantissa_nbits <= e_adjust:
-        #     mantissa = uint32(0)
-        #     exponents = int32(0)
-        # else:
-        #     mantissa = ((src_uint32 & uint32((1 << 23) - 1)) | uint32(0x800000)) >> (
-        #         24 - mantissa_nbits + e_adjust - exponents
-        #     )
-        #     exponents = int32(0)
-        #
-        # return uint8(sign | exponents | mantissa)
-
     @no_type_check
     @script
     def cast_to_f32_(src: uint8) -> f32:
@@ -120,13 +102,11 @@ def register_float_cast_functions(dtype: FloatSubbyteType) -> None:
 
         sign: uint32 = (src & uint8(1 << (nbits - 1))) << (32 - nbits)
         exponent_mantissa: uint32 = (src & uint8((1 << (nbits - 1)) - 1)) << (23 - mantissa_nbits)
-        # printf("exponent_mantissa: %#01X\n", exponent_mantissa)
         dst_uint32: uint32 = sign | exponent_mantissa
         dst_f32: f32 = reinterpret(dst_uint32, float32)
-        # printf("dst_f32: %f\n",dst_f32)
         e_adjust_pow_uint32: uint32 = uint32(pow2_of_float_as_uint32(128 - (1 << (exponent_nbits - 1))))
-        # printf("e_adjust_pow_uint32: %f\n",dst_f32)
-        dst_f32 = dst_f32 * reinterpret(e_adjust_pow_uint32, float32)
+        # we can not flush the subnormal to zero
+        dst_f32 = f32_mul(dst_f32, reinterpret(e_adjust_pow_uint32, float32), ftz=False)
 
         return dst_f32
 

@@ -405,9 +405,11 @@ class StmtBuilder(StmtBuilderCore):
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         evict: Optional[str] = None,
-        weak_mask: bool = False,
+        check_bounds: bool = True,
     ) -> None:
-        inst = CopyAsyncInst.create(src=src, dst=dst, offsets=offsets, dims=dims, evict=evict, weak_mask=weak_mask)
+        inst = CopyAsyncInst.create(
+            src=src, dst=dst, offsets=offsets, dims=dims, evict=evict, check_bounds=check_bounds
+        )
         self.append(inst)
 
     def copy_async_generic(
@@ -418,9 +420,8 @@ class StmtBuilder(StmtBuilderCore):
         f_offset: Callable[[List[Var]], Expr],
         f_mask: Optional[Callable[[List[Var]], Expr]],
         evict: Optional[str] = None,
-        weak_mask: bool = False,
     ) -> None:
-        inst = CopyAsyncGenericInst.create(dst, ptr, f_offset, f_mask, evict=evict, weak_mask=weak_mask)
+        inst = CopyAsyncGenericInst.create(dst, ptr, f_offset, f_mask, evict=evict)
         self.append(inst)
 
     def copy_async_wait_all(self):
@@ -616,6 +617,9 @@ class StmtBuilder(StmtBuilderCore):
 
     def exp(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.exp(arg), out=out)
+
+    def exp2(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.math.exp2(arg), out=out)
 
     def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None, cond: Expr = boolean.true) -> None:
         inst = PrintTensorInst.create(tensor, cond=cond, msg=msg, fmt=fmt)

@@ -248,10 +248,7 @@ def infer_layout(func: Function) -> Function:
                     printer = IRPrinter()
                     logger.debug("%s", str(printer(inst)))
                     for tensor, layout in mapping.items():
-                        if isinstance(layout, RegisterLayout):
-                            logger.debug("  %s: %s", str(printer(tensor)), layout)
-                        else:
-                            logger.debug("  %s: %s", str(printer(tensor)), printer.key2comment[str(printer(layout))])
+                        logger.debug("  %s: %s", str(printer(tensor)), layout)
                 found = True
                 break
         if not found:

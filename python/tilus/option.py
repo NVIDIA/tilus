@@ -7,22 +7,6 @@ from hidet.option import register_option as _register_hidet_option
 from hidet.option import set_option as _set_hidet_option
 
 
-def _configure_hidet():
-    """
-    Configure hidet options for tilus.
-    """
-    import hidet.option
-
-    """
-    We disable the -ftz flag (flush-to-zero) of nvcc compilation flag used by hidet, since it's required by our
-    casting from low-precision data types (e.g., int6b or float6e3m2) to 16/32 bit floating point data types.
-    """
-    hidet.option.cuda.build.use_ftz(False)
-
-
-_configure_hidet()
-
-
 def _get_default_cache_dir() -> str:
     """Get the default cache directory by checking if the current file is inside a Git repository.
 

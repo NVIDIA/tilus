@@ -50,7 +50,7 @@ def set_logging_level(level: str) -> None:
         handler.setLevel(new_level)
 
 
-def get_logger(name: str = None) -> logging.Logger:
+def get_logger(name: str) -> logging.Logger:
     """
     Get a logger instance. If name is provided, it becomes a child logger.
 
@@ -59,11 +59,9 @@ def get_logger(name: str = None) -> logging.Logger:
     name: str or None
         Optional name for sub-logger. If None, returns the main app logger.
     """
-    if name is None or name.startswith(LOGGER_NAME):
-        full_name = LOGGER_NAME
-    else:
-        raise RuntimeError(f"Logger name '{name}' must start with '{LOGGER_NAME}' or be None.")
-    return logging.getLogger(full_name)
+    if not name.startswith(LOGGER_NAME):
+        raise RuntimeError(f"Logger name '{name}' must start with '{LOGGER_NAME}'.")
+    return logging.getLogger(name)
 
 
 # Initialize on module import if desired

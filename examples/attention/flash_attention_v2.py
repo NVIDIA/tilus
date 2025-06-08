@@ -10,7 +10,7 @@ from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir()
-tilus.utils.clear_cache()
+# tilus.utils.clear_cache()
 pd.options.display.max_columns = None
 pd.options.display.width = 1000
 
@@ -49,6 +49,33 @@ class FlashAttention(tilus.Script):
         )
         assert self.qk_config.lc == self.sv_config.la
 
+    def apply_mask(self, score: RegisterTensor, q_offset: int32, kv_offset: int32):
+        mask = self.register_tensor(
+            dtype=boolean,
+            shape=[self.block_q, self.block_kv],
+            f_init=lambda ij: ij[0] + q_offset >= ij[1] + kv_offset,
+        )
+        self.assign(score, score + self.where(mask, x=0.0, y=-1e6))
+
+    def softmax_rescale(
+        self, score: RegisterTensor, m: RegisterTensor, l: RegisterTensor, o: RegisterTensor
+    ) -> RegisterTensor:
+        """
+        o: f32[block_q, head_size]
+        m: f32[block_q, 1]  # rowmax(score)
+        l: f32[block_q, 1]  # rowsum(exp(score - m))
+        score: f32[block_q, block_kv]
+        """
+        scale = self.score_scale * 1.4426950408889634  # log2(e) * score_scale
+        cur_m = self.max(score, dim=1, keepdim=True) * scale  # [block_q, 1]
+        new_m = self.maximum(m, cur_m)  # [block_q, 1]
+        rp = self.exp2(score * scale - new_m)  # [block_q, block_kv]
+        m_scale = self.exp2(m - new_m)
+        self.assign(o, o * m_scale)
+        self.assign(l, l * m_scale + self.sum(rp, dim=1, keepdim=True))
+        self.assign(m, new_m)
+        return rp.to(self.dtype)
+
     def attention_iteration(
         self,
         bs: int32,
@@ -75,16 +102,11 @@ class FlashAttention(tilus.Script):
 
         # issue the async copy for v and perform dot(q, k)
         rk = self.load_shared(sk)  # [block_kv, head_size]
-        score = self.mma_dot(rq, rk.transpose(), acc_dtype=f32) * self.score_scale  # [block_q, block_kv]
+        score = self.mma_dot(rq, rk.transpose(), acc_dtype=f32)  # [block_q, block_kv]
         self.annotate_layout(score, self.qk_config.lc)
 
         if check_bounds:
-            mask = self.register_tensor(
-                dtype=boolean,
-                shape=[self.block_q, self.block_kv],
-                f_init=lambda ij: ij[0] + q_offset >= ij[1] + kv_offset,
-            )
-            score = score + self.where(mask, x=0.0, y=-1e6)
+            self.apply_mask(score, q_offset, kv_offset)  # apply causal mask
 
         # wait for the async copy of v to finish
         self.copy_async_wait_group(0)
@@ -102,15 +124,12 @@ class FlashAttention(tilus.Script):
         rv = self.load_shared(sv)  # [block_kv, head_size]
 
         # online softmax
-        cur_m = self.max(score, dim=1, keepdim=True)  # [block_q, 1]
-        new_m = self.maximum(m, cur_m)  # [block_q, 1]
-        p = self.exp(score - new_m)  # [block_q, block_kv]
-        cur_o = self.mma_dot(p.to(self.dtype), rv, acc_dtype=f32)  # [block_q, head_size]
-        self.annotate_layout(cur_o, self.sv_config.lc)
+        rp = self.softmax_rescale(score, m=m, l=l, o=o)
 
-        self.assign(o, o * self.exp(m - new_m) + cur_o)
-        self.assign(l, l * self.exp(m - new_m) + self.sum(p, dim=1, keepdim=True))
-        self.assign(m, new_m)
+        # pv
+        cur_o = self.mma_dot(rp, rv, acc_dtype=f32)  # [block_q, head_size]
+        self.annotate_layout(cur_o, self.sv_config.lc)
+        self.assign(o, o + cur_o)
 
     def __call__(self, batch_size: int, seqlen: int32, q_ptr: void_p, k_ptr: void_p, v_ptr: void_p, o_ptr: void_p):
         """
@@ -168,23 +187,13 @@ class FlashAttention(tilus.Script):
         self.copy_async(gk, sk, offsets=[bs, 0, head // self.group_heads, 0], dims=[1, 3])
         self.copy_async_commit_group()
 
-        kv_offset_end = q_offset + self.block_q
-        for kv_offset in range(0, kv_offset_end, self.block_kv):
-            self.attention_iteration(
-                bs=bs,
-                kv_offset=kv_offset,
-                q_offset=q_offset,
-                head=head,
-                gk=gk,
-                gv=gv,
-                rq=rq,
-                sk=sk,
-                sv=sv,
-                o=o,
-                m=m,
-                l=l,
-                check_bounds=True,
-            )
+        kv_offset_inner_end = (q_offset + 1 - self.block_kv) // self.block_kv * self.block_kv
+        for kv_offset in range(0, kv_offset_inner_end, self.block_kv):
+            self.attention_iteration(bs, kv_offset, q_offset, head, gk, gv, rq, sk, sv, o, m, l, check_bounds=False)
+
+        kv_offset_end = q_offset + self.block_kv
+        for kv_offset in range(kv_offset_inner_end, kv_offset_end, self.block_kv):
+            self.attention_iteration(bs, kv_offset, q_offset, head, gk, gv, rq, sk, sv, o, m, l, check_bounds=True)
 
         self.copy_async_wait_group(0)
         self.sync()
@@ -335,4 +344,4 @@ def main(bench=True):
 if __name__ == "__main__":
     main()
     # ncu_run(main, bench=False)
-    # ncu_run(main, bench=False, kernel_regex='flash_fwd|flash_attention')
+    # ncu_run(main, bench=False, kernel_regex="flash_fwd|flash_attention")

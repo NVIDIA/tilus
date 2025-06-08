@@ -16,6 +16,7 @@ from hidet.utils.doc import Doc, Text
 
 from tilus.extensions.hidet.ir.module import merge_ir_modules
 from tilus.extensions.hidet.ir.tools import rewrite
+from tilus.extensions.hidet.ir.tools.verifier import verify as verify_ir_module
 from tilus.ir.func import Function
 from tilus.ir.functors import IRFunctor
 from tilus.ir.inst import Instruction
@@ -604,4 +605,8 @@ def generate_ir_module(prog: Program) -> IRModule:
     """
     codegen = ProgramCodegen()
     ir_module: IRModule = codegen(prog)
+
+    # verify the IR module
+    verify_ir_module(ir_module)
+
     return ir_module

@@ -25,15 +25,6 @@ class RegisterLayout(IRNode):
     spatial_modes: tuple[int, ...]
     local_modes: tuple[int, ...]
 
-    def __str__(self):
-        items = {
-            "shape": list(self.shape),
-            "mode_shape": list(self.mode_shape),
-            "spatial_modes": list(self.spatial_modes),
-            "local_modes": list(self.local_modes),
-        }
-        return "RegisterLayout(" + ", ".join(f"{k}={v}" for k, v in items.items()) + ")"
-
     def __mul__(self, other):
         if not isinstance(other, RegisterLayout):
             raise TypeError(f"Cannot multiply {type(self)} with {type(other)}")

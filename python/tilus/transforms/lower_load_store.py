@@ -1,5 +1,6 @@
 from typing import Any, Sequence, Union
 
+from hidet import boolean
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var
 
@@ -18,7 +19,7 @@ from tilus.transforms.base import Pass
 class LowerLoadStoreRewriter(IRRewriter):
     @staticmethod
     def get_funcs(
-        offsets: tuple[Expr, ...], dims: tuple[int, ...], layout: GlobalLayout | SharedLayout
+        offsets: tuple[Expr, ...], dims: tuple[int, ...], layout: GlobalLayout | SharedLayout, check_bounds: bool = True
     ) -> tuple[Any, Any]:
         def f_global_indices(indices: Sequence[Var]) -> list[Expr]:
             global_indices: list[Expr] = list(offsets)
@@ -30,6 +31,8 @@ class LowerLoadStoreRewriter(IRRewriter):
             return layout(*f_global_indices(indices))
 
         def f_mask(indices: Sequence[Var]) -> Expr:
+            if not check_bounds:
+                return boolean.true
             global_indices = f_global_indices(indices)
             return index_within_bound(global_indices, 0, layout.shape)
 
@@ -105,11 +108,11 @@ class LowerLoadStoreRewriter(IRRewriter):
 
         dims = tuple(range(len(shared_tensor.shape))) if inst.dims is None else inst.dims
 
-        f_offset, f_mask = self.get_funcs(offsets=inst.offsets, dims=dims, layout=global_tensor.layout)
-
-        sb.copy_async_generic(
-            dst=shared_tensor, ptr=ptr, f_offset=f_offset, f_mask=f_mask, evict=inst.evict, weak_mask=inst.weak_mask
+        f_offset, f_mask = self.get_funcs(
+            offsets=inst.offsets, dims=dims, layout=global_tensor.layout, check_bounds=inst.check_bounds
         )
+
+        sb.copy_async_generic(dst=shared_tensor, ptr=ptr, f_offset=f_offset, f_mask=f_mask, evict=inst.evict)
         return sb.flush_stmts()
 
 

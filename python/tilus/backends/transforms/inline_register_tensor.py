@@ -1,7 +1,7 @@
 # mypy: disable-error-code="attr-defined"
 from hidet.ir import ForStmt, Function
 from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, TensorElement, Var
+from hidet.ir.expr import Address, Expr, TensorElement, Var
 from hidet.ir.functors import IRRewriter, IRVisitor
 from hidet.ir.primitives.cuda.vars import blockDim, blockIdx, gridDim, threadIdx
 from hidet.ir.stmt import BufferStoreStmt, DeclareScope, DeclareStmt, SeqStmt, Stmt
@@ -44,9 +44,8 @@ class RegisterTensorCollector(IRVisitor):
 
     def __init__(self):
         super().__init__()
-        self.register_tensors: list[
-            Var
-        ] = []  # the 1-d register tensors that is only used in BufferStoreStmt (as lhs) or TensorElement (as base)
+        # the 1-d register tensors that is only used in BufferStoreStmt (as lhs) or TensorElement (as base)
+        self.register_tensors: list[Var] = []
 
     def visit_Var(self, e: Var) -> None:
         if e in self.register_tensors:
@@ -70,6 +69,14 @@ class RegisterTensorCollector(IRVisitor):
 
     def visit_TensorElement(self, e: TensorElement) -> None:
         self.visit(e.indices)
+
+    def visit_Address(self, e: Address) -> None:
+        # we should exclude buf used like ~buf[xxx]
+        if isinstance(e.expr, TensorElement):
+            base = e.expr.base
+            if isinstance(base, Var) and base in self.register_tensors:
+                self.register_tensors.remove(base)
+        super().visit_Address(e)
 
 
 class RegisterTensorFilter(IRVisitor):

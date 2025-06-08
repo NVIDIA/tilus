@@ -110,7 +110,7 @@ class Script:
         """
         raise RuntimeError("This method should never be called. See InstantiatedScript.program instead.")
 
-    def jit_instance(self, *args, **kwargs):
+    def jit_instance_for(self, *args: object, **kwargs: object) -> Any:
         """
         Instantiate the script program with the specified arguments and keyword arguments.
 
@@ -321,7 +321,6 @@ class Script:
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         evict: Optional[str] = None,
-        weak_mask: bool = False,
         check_bounds: bool = True,
     ) -> None:
         if dims is None:
@@ -333,7 +332,7 @@ class Script:
             raise InstructionError(
                 "The number of offsets must be equal to the number of dimensions of the source global tensor"
             )
-        self._builder.copy_async(dst=dst, src=src, offsets=offsets, dims=dims, evict=evict, weak_mask=weak_mask)
+        self._builder.copy_async(dst=dst, src=src, offsets=offsets, dims=dims, evict=evict, check_bounds=check_bounds)
 
     def copy_async_wait_all(self):
         self._builder.copy_async_wait_all()
@@ -368,6 +367,13 @@ class Script:
                 raise InstructionError(
                     "The dtype of the accumulator tensor 'c' must match the specified 'acc_dtype' if provided"
                 )
+        if not (len(a.shape) == len(b.shape) == len(c.shape) == 2):
+            raise InstructionError("mma_dot requires 2D tensors for a, b, and c")
+        if a.shape[1] != b.shape[0] or a.shape[0] != c.shape[0] or b.shape[1] != c.shape[1]:
+            raise InstructionError(
+                "The shapes of a, b, and c must match for dot: "
+                f"a: {a.shape}, b: {b.shape}, c: {c.shape} (expected a.shape[1] == b.shape[0] and a.shape[0] == c.shape[0] and b.shape[1] == c.shape[1])"
+            )
         return self._builder.mma_dot(
             a,
             b,
@@ -429,6 +435,14 @@ class Script:
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         return self._builder.exp(x, out=out)
+
+    def exp2(
+        self,
+        x: RegisterTensor,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        return self._builder.exp2(x, out=out)
 
     def round(
         self,
