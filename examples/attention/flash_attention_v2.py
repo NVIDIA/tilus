@@ -10,6 +10,7 @@ from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir()
+tilus.logging.set_logging_level("debug")
 # tilus.utils.clear_cache()
 pd.options.display.max_columns = None
 pd.options.display.width = 1000

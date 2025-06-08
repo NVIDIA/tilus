@@ -8,7 +8,6 @@ from . import (
     debug,
     elementwise,
     gmem,
-    ldmatrix,
     ldst,
     reduce,
     shuffle,

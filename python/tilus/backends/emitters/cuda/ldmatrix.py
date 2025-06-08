@@ -1,8 +1,9 @@
 from typing import Mapping
 
-from hidet.ir.dtypes import uint32
+from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import Expr, cast, deref
 from hidet.ir.node import Node
+from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from hidet.ir.primitives.cuda.mma import ldmatrix
 from hidet.ir.tools import rewrite
 
@@ -15,7 +16,7 @@ from tilus.utils import gcd
 
 
 @register_emitter(LoadMatrixInst, target=nvgpu_sm75)
-class AllocateInstEmitter(BaseInstEmitter):
+class LoadMatrixInstEmitter(BaseInstEmitter):
     def emit(self, inst: LoadMatrixInst) -> None:
         tensor = inst.register_output
         layout = tensor.layout
@@ -27,6 +28,9 @@ class AllocateInstEmitter(BaseInstEmitter):
 
         vector_size: int = gcd(lhs_layout.local_size, 4)
         num_vectors: int = lhs_layout.local_size // vector_size
+
+        dtype = inst.output.dtype
+        smem_base_addr = self.declare_var("smem_addr", tp=int32, init=cvta_generic_to_shared(generic_addr=inst.ptr))
 
         with self.for_range(num_vectors) as vec_i:
             # load vector_size times of 8x16 bytes of data for each iteration,
@@ -48,6 +52,6 @@ class AllocateInstEmitter(BaseInstEmitter):
 
             rewrite_map: Mapping[Node, Node] = {axis: index for axis, index in zip(inst.axes, shared_indices)}
             offset = rewrite(inst.offset, rewrite_map=rewrite_map)
-            smem_addr = inst.ptr + offset
+            smem_addr = smem_base_addr + offset * dtype.nbytes
 
-            self.append(ldmatrix(regs=regs, smem_addr=smem_addr, trans=inst.config.trans))
+            self.append(ldmatrix(regs=regs, smem_addr=smem_addr, shared_space_addr=True, trans=inst.config.trans))

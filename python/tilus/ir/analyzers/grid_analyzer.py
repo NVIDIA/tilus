@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import logging
 import operator
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Type
 
 from hidet.ir import BitwiseXor, DataType, Div, Equal, Mod
 from hidet.ir.expr import Add, BinaryExpr, Constant, Expr, LessEqual, LessThan, LogicalAnd, Multiply, Sub, Var
 from hidet.ir.functors import IRFunctor
+from hidet.ir.layout import is_power_of_two
 from hidet.ir.tools import collect
 from hidet.utils import gcd
 
+import tilus.logging
 from tilus.ir.func import Analysis
+
+logger = tilus.logging.get_logger(__name__)
 
 
 def compute_value(a: DimensionInfo, b: DimensionInfo, op: Callable[[int, int], int]) -> Optional[int]:
@@ -107,6 +112,17 @@ class DimensionInfo:
             continuity = 1
             constancy = gcd(self.constancy, other.constancy)
             divisibility = self.divisibility * other.divisibility
+        elif self.constancy > 1 and other.continuity > 1:
+            #   self: 8, 8, 8, 8, 16, 16, 16, 16
+            #  other: 0, 1, 4, 6,  8,  9, 12, 13
+            # result: 0, 8, 32, 48, 128, 144, 192, 208
+            continuity = 1
+            constancy = 1
+            divisibility = self.divisibility
+        elif self.continuity > 1 and other.constancy > 1:
+            continuity = 1
+            constancy = 1
+            divisibility = other.divisibility
         else:
             continuity, constancy, divisibility = 1, 1, 1
         return DimensionInfo(
@@ -251,6 +267,28 @@ class DimensionInfo:
             continuity = 1
             constancy = gcd(self.constancy, other.constancy)
             divisibility = 1
+        elif (
+            self.continuity > 1
+            and is_power_of_two(self.continuity)
+            and other.constancy > 1
+            and is_power_of_two(other.constancy)
+            and is_power_of_two(other.divisibility)
+            and self.continuity % other.divisibility == 0
+        ):
+            continuity = gcd(self.continuity, other.constancy, other.divisibility)
+            constancy = 1
+            divisibility = gcd(self.divisibility, other.divisibility)
+        elif (
+            other.continuity > 1
+            and is_power_of_two(other.continuity)
+            and self.constancy > 1
+            and is_power_of_two(self.constancy)
+            and is_power_of_two(self.divisibility)
+            and other.continuity % self.divisibility == 0
+        ):
+            continuity = gcd(self.constancy, self.divisibility, other.continuity)
+            constancy = 1
+            divisibility = gcd(self.divisibility, other.divisibility)
         else:
             continuity, constancy, divisibility = 1, 1, 1
         return DimensionInfo(
@@ -278,8 +316,8 @@ class TensorInfo:
         divisibility = [dim.divisibility for dim in self.infos]
         value = [dim.value for dim in self.infos]
 
-        return "tensor(shape={}, continuity={}, divisibility={}, constancy={}, value={})".format(
-            self.shape, continuity, divisibility, constancy, value
+        return "tensor(shape={}, continuity={}, constancy={}, divisibility={}, value={})".format(
+            self.shape, continuity, constancy, divisibility, value
         )
 
     def __getitem__(self, item):
@@ -490,26 +528,18 @@ def analyze_grid(
 
     ret = analyzer.analyze(axes, shape, var2info, expr)
 
-    debug = False
-    if debug:
-        print("=" * 20)
-        print("shape:", shape)
-        print("axes:", axes)
-        print("expr:", expr)
-        print("var2info:")
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("shape: %s", shape)
+        logger.debug("axes: %s", axes)
+        logger.debug("expr: %s", expr)
+        logger.debug("var2info: %s", var2info)
         for var in var2info:
-            print(var)
-            print(var2info[var])
-            print()
-        print("ret:")
-        print(ret)
-        print()
-        print("===")
+            logger.debug("%s: %s", var, var2info[var])
+        logger.debug("ret: %s", ret)
         for expr in analyzer.memo:
-            print(expr)
-            print(analyzer.memo[expr])
-            print()
-        print("=" * 20)
+            logger.debug("expr: %s", expr)
+            logger.debug("      %s", analyzer.memo[expr])
+        logger.debug("=" * 20)
 
     return ret
 
