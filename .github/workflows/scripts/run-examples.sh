@@ -12,9 +12,7 @@ failed_count=0
 run_script() {
     local script="$1"
     local output
-    echo "Running $script..."
-    echo "Command: python \"$script\""
-    
+
     # Run the script and capture both stdout and stderr
     if output=$(python "$script" 2>&1); then
         echo "✓ $script passed"
@@ -33,24 +31,12 @@ run_script() {
 echo "Running all Python examples..."
 echo "----------------------------------------"
 
-# Debug: Print current directory
-echo "Current directory: $(pwd)"
-
-# Debug: Print if examples directory exists
-if [ -d "examples" ]; then
-    echo "Examples directory exists"
-else
-    echo "Examples directory does not exist!"
-    exit 1
-fi
-
 # Find all Python files
-pyfiles=$(find examples -type f -name "*.py")
+pyfiles=$(find examples -type f -name "*.py" | sort)
 echo "Found $(echo "$pyfiles" | wc -l) Python files"
 
 # Loop through each file more traditionally
 for script in $pyfiles; do
-    echo "Found: $script"
     ((total_scripts++))
     
     if ! run_script "$script"; then

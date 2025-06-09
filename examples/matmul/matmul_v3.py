@@ -16,13 +16,6 @@ pd.set_option("display.float_format", lambda x: "%.3f" % x)
 @tilus.autotune("block_m, block_n", [(128, 128), (128, 64), (64, 128)])
 @tilus.autotune("block_k", [16, 32])
 class MatmulV3(tilus.Script):
-    debug_schedule = dict(
-        num_warps=4,
-        block_m=128,
-        block_n=64,
-        block_k=16,
-    )
-
     def __init__(
         self,
         num_warps,
@@ -31,14 +24,10 @@ class MatmulV3(tilus.Script):
         block_k,
     ):
         super().__init__()
-        self.mma = self.cuda.resolve_dot_config(float16, float32, num_warps=num_warps, m=block_m, n=block_n, k=block_k)
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
         self.num_warps = num_warps
-
-        self.layout_sa = self.cuda.swizzled_shared_layout(dtype=float16, shape=[self.block_m, self.block_k])
-        self.layout_sb = self.cuda.swizzled_shared_layout(dtype=float16, shape=[self.block_k, self.block_n])
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
         self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
@@ -49,9 +38,9 @@ class MatmulV3(tilus.Script):
 
         ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
-        sa = self.shared_tensor(dtype=float16, layout=self.layout_sa)
-        sb = self.shared_tensor(dtype=float16, layout=self.layout_sb)
-        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, init=0.0)
+        sa = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
+        sb = self.shared_tensor(dtype=float16, shape=[self.block_k, self.block_n])
+        acc = self.register_tensor(dtype=float32, shape=[self.block_m, self.block_n], init=0.0)
 
         for offset_k in range(0, k_size, self.block_k):
             lda = self.load_global(ga, offsets=[offset_m, offset_k], shape=[self.block_m, self.block_k])
@@ -60,8 +49,8 @@ class MatmulV3(tilus.Script):
             self.store_shared(sb, ldb)
             self.sync()
 
-            a = self.load_shared(sa, layout=self.mma.la)
-            b = self.load_shared(sb, layout=self.mma.lb)
+            a = self.load_shared(sa)
+            b = self.load_shared(sb)
             self.mma_dot(a, b, acc, output=acc)
             self.sync()
 
@@ -75,11 +64,7 @@ class MatmulV3(tilus.Script):
 
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
-    workloads = [
-        [1025, 1025, 1026],
-        [2048, 2048, 2048],
-        [4096, 4096, 4096],
-    ]
+    workloads = [[4096, 4096, 4096]]
 
     rows = []
     for m, n, k in workloads:

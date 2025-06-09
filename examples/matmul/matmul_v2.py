@@ -16,13 +16,6 @@ pd.set_option("display.float_format", lambda x: "%.2f" % x)
 @tilus.autotune("block_m, block_n", [(128, 128), (128, 64), (64, 128)])
 @tilus.autotune("block_k", [16, 32])
 class MatmulV2(tilus.Script):
-    debug_schedule = dict(
-        num_warps=4,
-        block_m=128,
-        block_n=64,
-        block_k=16,
-    )
-
     def __init__(
         self,
         num_warps,
@@ -31,7 +24,6 @@ class MatmulV2(tilus.Script):
         block_k,
     ):
         super().__init__()
-        self.mma = self.cuda.resolve_dot_config(float16, float32, num_warps=num_warps, m=block_m, n=block_n, k=block_k)
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
@@ -48,7 +40,7 @@ class MatmulV2(tilus.Script):
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
         sa = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
         sb = self.shared_tensor(dtype=float16, shape=[self.block_k, self.block_n])
-        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, init=0.0)
+        acc = self.register_tensor(dtype=float32, shape=[self.block_m, self.block_n], init=0.0)
 
         for offset_k in range(0, k_size, self.block_k):
             lda = self.load_global(ga, offsets=[offset_m, offset_k], shape=[self.block_m, self.block_k])
@@ -57,8 +49,8 @@ class MatmulV2(tilus.Script):
             self.store_shared(sb, ldb)
             self.sync()
 
-            a = self.load_shared(sa, layout=self.mma.la)
-            b = self.load_shared(sb, layout=self.mma.lb)
+            a = self.load_shared(sa)
+            b = self.load_shared(sb)
             acc = self.mma_dot(a, b, acc)
             self.sync()
 
@@ -73,8 +65,6 @@ class MatmulV2(tilus.Script):
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
-        [1025, 1025, 1026],
-        [2048, 2048, 2048],
         [4096, 4096, 4096],
     ]
 

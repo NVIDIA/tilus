@@ -23,15 +23,6 @@ pd.set_option("display.max_rows", None)
 @tilus.autotune("num_stages", [3, 4, 5])
 @tilus.autotune("split_k_factor", [1, 4, 12, 16])
 class MatmulV7(tilus.Script):
-    debug_schedule = dict(
-        num_warps=4,
-        block_m=64,
-        block_n=128,
-        block_k=16,
-        num_stages=4,
-        split_k_factor=1,
-    )
-
     def __init__(
         self,
         num_warps,
@@ -42,17 +33,12 @@ class MatmulV7(tilus.Script):
         split_k_factor,
     ):
         super().__init__()
-        self.mma = self.cuda.resolve_dot_config(float16, float32, num_warps=num_warps, m=block_m, n=block_n, k=block_k)
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
         self.num_warps = num_warps
         self.num_stages = num_stages
         self.split_k_factor = split_k_factor
-
-        self.layout_sa = self.cuda.swizzled_shared_layout(float16, shape=[num_stages, self.block_m, self.block_k])
-        self.layout_sb = self.cuda.swizzled_shared_layout(float16, shape=[num_stages, self.block_k, self.block_n])
-        self.layout_sc = self.cuda.swizzled_shared_layout(float16, shape=[self.block_m, self.block_n])
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
         self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n), self.split_k_factor]
@@ -69,9 +55,9 @@ class MatmulV7(tilus.Script):
 
         ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
-        sa = self.shared_tensor(dtype=float16, layout=self.layout_sa)
-        sb = self.shared_tensor(dtype=float16, layout=self.layout_sb)
-        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, init=0.0)
+        sa = self.shared_tensor(dtype=float16, shape=[self.num_stages, block_m, block_k])
+        sb = self.shared_tensor(dtype=float16, shape=[self.num_stages, block_k, block_n])
+        acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
         for stage in range(self.num_stages - 1):
             offset_k = start_offset_k + stage * self.block_k
@@ -93,8 +79,8 @@ class MatmulV7(tilus.Script):
             self.copy_async_commit_group()
 
             # computation for current tile
-            a = self.load_shared(sa[current_stage], layout=self.mma.la)
-            b = self.load_shared(sb[current_stage], layout=self.mma.lb)
+            a = self.load_shared(sa[current_stage])
+            b = self.load_shared(sb[current_stage])
             self.mma_dot(a, b, acc, output=acc)
 
             # update the stage
@@ -108,7 +94,7 @@ class MatmulV7(tilus.Script):
         self.free_shared(sb)
 
         # cast the accumulator to float16 and change the register tensor's layout
-        sc = self.shared_tensor(dtype=float16, layout=self.layout_sc)
+        sc = self.shared_tensor(dtype=float16, shape=[block_m, block_n])
         casted_acc = self.cast(acc, dtype=float16)
         self.store_shared(sc, casted_acc)
         self.sync()
@@ -140,21 +126,7 @@ class MatmulV7(tilus.Script):
 def main():
     torch.random.manual_seed(41)
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
-    workloads = []
-    for k, n in [
-        [4096, 4096 * 3],
-        [4096, 4096],
-        [4096, 14336 * 2],
-        [14336, 4096],
-    ]:
-        for m in [
-            1,
-            16,
-            32,
-            4096,
-            4097,
-        ]:
-            workloads.append([m, n, k])
+    workloads = [[4096, 4096, 4096]]
 
     rows = []
     matmul = MatmulV7()

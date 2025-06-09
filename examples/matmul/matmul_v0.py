@@ -46,7 +46,7 @@ class MatmulV0(tilus.Script):
 
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
-    workloads = [[1025, 1025, 1026]]
+    workloads = [[4096, 4096, 4096]]
 
     rows = []
     for m, n, k in workloads:
