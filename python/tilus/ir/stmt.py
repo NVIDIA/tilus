@@ -68,6 +68,11 @@ class BreakStmt(Stmt):
 
 
 @dataclass(frozen=True, eq=False)
+class ReturnStmt(Stmt):
+    pass
+
+
+@dataclass(frozen=True, eq=False)
 class DeclareStmt(Stmt):
     var: Var
     init: Optional[Expr]

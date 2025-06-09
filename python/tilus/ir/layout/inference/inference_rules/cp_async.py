@@ -11,4 +11,4 @@ class CopyAsyncRule(LayoutInferenceRule):
     def inference(
         ctx: LayoutInferenceContext, inst: CopyAsyncGenericInst | CopyAsyncInst
     ) -> dict[RegisterTensor, RegisterLayout]:
-        raise NotImplementedError()
+        return {}

@@ -424,10 +424,13 @@ class SqueezeInst(Instruction):
     ) -> SqueezeInst:
         if isinstance(dims, int):
             dims = [dims]
+        if not all(0 <= dim < len(x.shape) for dim in dims):
+            raise ValueError(f"Invalid dimensions {dims} for tensor with shape {x.shape}")
         if out is None:
-            from tilus.ir.layout.register_layout_ops import squeeze
-
-            out = RegisterTensor.create(dtype=x.dtype, optional_layout=squeeze(x.layout, dims))
+            if any(x.shape[dim] != 1 for dim in dims):
+                raise ValueError(f"Cannot squeeze dimensions {dims} from tensor with shape {x.shape}")
+            shape = [dim for i, dim in enumerate(x.shape) if i not in dims]
+            out = RegisterTensor.create(dtype=x.dtype, shape=shape)
         return SqueezeInst(output=out, inputs=(x,), dims=tuple(dims))
 
 
@@ -445,9 +448,15 @@ class UnsqueezeInst(Instruction):
         if isinstance(dims, int):
             dims = [dims]
         if out is None:
-            from tilus.ir.layout.register_layout_ops import unsqueeze
-
-            out = RegisterTensor.create(dtype=x.dtype, optional_layout=unsqueeze(x.layout, dims))
+            shape = []
+            cur = 0
+            for i in range(len(x.shape) + len(dims)):
+                if i in dims:
+                    shape.append(1)
+                else:
+                    shape.append(x.shape[cur])
+                    cur += 1
+            out = RegisterTensor.create(dtype=x.dtype, shape=shape)
         return UnsqueezeInst(output=out, inputs=(x,), dims=tuple(dims))
 
 

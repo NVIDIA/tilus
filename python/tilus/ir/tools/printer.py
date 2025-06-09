@@ -20,6 +20,7 @@ from tilus.ir.stmt import (
     IfStmt,
     InstStmt,
     LetStmt,
+    ReturnStmt,
     SeqStmt,
     TensorPtrStmt,
     WhileStmt,
@@ -253,6 +254,9 @@ class IRPrinter(IRFunctor):
 
     def visit_BreakStmt(self, stmt: BreakStmt) -> Doc:
         return NewLine() + Text("break")
+
+    def visit_ReturnStmt(self, stmt: ReturnStmt) -> Any:
+        return NewLine() + Text("return")
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> Doc:
         return (

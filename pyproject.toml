@@ -39,6 +39,7 @@ dev = [
     "types-tabulate",
     "types-tqdm",
     "pandas",
+    "nvidia-ml-py",  # for locking GPU clocks
 ]
 
 [project.urls]

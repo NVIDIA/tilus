@@ -9,11 +9,16 @@ from .inference_rules.elementwise_binary import BinaryRule
 from .inference_rules.elementwise_unary import UnaryRule
 from .inference_rules.empty_rule import EmptyRule
 from .inference_rules.ldst_global import LoadGlobalRule, StoreGlobalRule
-from .inference_rules.load_shared import LoadSharedInferRegisterRule, LoadSharedInferSwizzledSharedRule
+from .inference_rules.load_shared import (
+    LoadSharedInferRegisterRule,
+    LoadSharedInferRowMajorSharedRule,
+    LoadSharedInferSwizzledSharedRule,
+)
 from .inference_rules.mma_dot import MmaDotRule
 from .inference_rules.reduce import ReduceRule
 from .inference_rules.shared_slice import SharedSliceRule
 from .inference_rules.store_shared import StoreSharedSwizzleRule
+from .inference_rules.transform import SqueezeRule, UnsqueezeRule
 from .inference_rules.transpose import TransposeRule
 from .inference_rules.where import WhereRule
 
@@ -22,7 +27,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [BinaryRule, UnaryRule],
     [LoadGlobalRule],
     [ReduceRule],
-    [TransposeRule],
+    [TransposeRule, SqueezeRule, UnsqueezeRule],
     [WhereRule],
     [AssignRule],
     [StoreGlobalRule],
@@ -32,6 +37,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [SharedSliceRule],
     [CopyAsyncRule],
     [LoadSharedInferRegisterRule],
+    [LoadSharedInferRowMajorSharedRule],
 ]
 
 rule2order: dict[Type[LayoutInferenceRule], int] = {}

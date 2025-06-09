@@ -25,13 +25,13 @@ from tilus.ir.layout import shared_repeat
 from tilus.ir.prog import Program
 from tilus.ir.stmt import (
     AssignStmt,
-    BreakStmt,
     DeclareStmt,
     ForStmt,
     ForThreadGroupStmt,
     IfStmt,
     InstStmt,
     LetStmt,
+    ReturnStmt,
     SeqStmt,
     TensorPtrStmt,
     WhileStmt,
@@ -518,9 +518,6 @@ class Codegen(IRFunctor):
 
             self.sync()
 
-    def visit_BreakStmt(self, stmt: BreakStmt) -> None:
-        self.builder.brk()
-
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> None:
         self.builder.declare(stmt.var, init=stmt.init)
 
@@ -533,6 +530,9 @@ class Codegen(IRFunctor):
 
     def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> None:
         self.builder.declare(stmt.ptr_var, self.tensor2var[stmt.tensor])
+
+    def visit_ReturnStmt(self, stmt: ReturnStmt) -> None:
+        self.builder.ret()
 
     def visit_InstStmt(self, stmt: InstStmt) -> None:
         self.visit(stmt.inst)

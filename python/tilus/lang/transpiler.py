@@ -24,7 +24,18 @@ from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import AssignInst
 from tilus.ir.layout import RegisterLayout
-from tilus.ir.stmt import AssignStmt, BreakStmt, DeclareStmt, EvaluateStmt, IfStmt, InstStmt, SeqStmt, Stmt, WhileStmt
+from tilus.ir.stmt import (
+    AssignStmt,
+    BreakStmt,
+    DeclareStmt,
+    EvaluateStmt,
+    IfStmt,
+    InstStmt,
+    ReturnStmt,
+    SeqStmt,
+    Stmt,
+    WhileStmt,
+)
 from tilus.ir.tensor import GlobalTensor, Tensor
 from tilus.lang.constructs.loops import TilusLoopIterable
 from tilus.lang.script import InstructionError, Script
@@ -948,7 +959,9 @@ class Transpiler(PythonAstFunctor):
         else:
             then_expr = self.visit(expr.body)
             else_expr = self.visit(expr.orelse)
-            if not isinstance(then_expr, hidet_ir.Expr) or not isinstance(else_expr, hidet_ir.Expr):
+            if not isinstance(then_expr, (hidet_ir.Expr, int, bool, float)) or not isinstance(
+                else_expr, (hidet_ir.Expr, int, bool, float)
+            ):
                 raise HidetProgramError(self, expr, "Then and else expression must be hidet expression.")
             return hidet_ir.expr.if_then_else(cond, then_expr, else_expr)
 
@@ -1118,3 +1131,8 @@ class Transpiler(PythonAstFunctor):
 
     def visit_Break(self, stmt: ast.Break) -> None:
         self.current_scope.append(BreakStmt())
+
+    def visit_Return(self, stmt: ast.Return) -> None:
+        if stmt.value is not None:
+            raise TilusProgramError(self, stmt, "Return statement in Tilus Script does not support returning a value.")
+        self.current_scope.append(ReturnStmt())

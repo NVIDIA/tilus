@@ -1,1 +1,12 @@
-from . import always_ok, assign, elementwise_binary, elementwise_unary, mma_dot, reduce, transpose, view, where
+from . import (
+    always_ok,
+    assign,
+    elementwise_binary,
+    elementwise_unary,
+    mma_dot,
+    reduce,
+    transform,
+    transpose,
+    view,
+    where,
+)

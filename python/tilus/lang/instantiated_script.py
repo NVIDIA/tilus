@@ -689,6 +689,11 @@ class InstantiatedScript:
             bound_args = self.params.signature.bind(*args, **kwargs)
             bound_args.apply_defaults()
             args = bound_args.args
+        else:
+            if len(args) != len(self.params.param_names):
+                raise ValueError(
+                    "The number of arguments should be {}, but got {}.".format(len(self.params.param_names), len(args))
+                )
 
         # extract the JIT key and the tuning key
         keys = extract_keys(args, self.const_params, self.tuning_params)

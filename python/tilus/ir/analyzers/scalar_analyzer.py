@@ -257,7 +257,7 @@ class ScalarSet:
             lb, ub = 0, mod_value - 1
             if self.lower_bound is not None and self.upper_bound is not None:
                 if self.lower_bound >= 0 and self.upper_bound < mod_value:
-                    lb = max(lb, mod_value)
+                    lb = max(lb, self.lower_bound)
                     ub = min(ub, self.upper_bound)
 
             return ScalarSet(
@@ -498,7 +498,6 @@ def analyze_scalar(func: Function) -> Function:
                     assert False
                 for var, value in zip(var_list, value_list):
                     rhs_sets.append(analyzer.visit(value))
-                    # rhs_sets.append(analyze_scalar_set(analyzer, cache, var2set, value))
             elif isinstance(stmt, ForStmt):
                 extent_info: ScalarSet = analyzer.visit(stmt.extent)
                 var_list.append(stmt.iter_var)
@@ -533,8 +532,9 @@ def analyze_scalar(func: Function) -> Function:
         if scalar_set.is_empty():
             empty_set_vars.append(var)
     if len(empty_set_vars) > 0:
+        func_string = str(printer(func))
         vars = ", ".join(str(printer(var)) for var in empty_set_vars)
-        raise ValueError("Found the following variables with empty scalar sets: {}".format(vars))
+        raise ValueError("Found the following variables with empty scalar sets: {}\n\n{}".format(vars, func_string))
 
     # collect the final result
     analysis = Analysis.create(

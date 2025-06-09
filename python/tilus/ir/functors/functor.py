@@ -17,6 +17,7 @@ from tilus.ir.stmt import (
     IfStmt,
     InstStmt,
     LetStmt,
+    ReturnStmt,
     SeqStmt,
     Stmt,
     TensorPtrStmt,
@@ -82,6 +83,8 @@ class IRFunctor:
             ret = self.visit_WhileStmt(node)
         elif isinstance(node, BreakStmt):
             ret = self.visit_BreakStmt(node)
+        elif isinstance(node, ReturnStmt):
+            ret = self.visit_ReturnStmt(node)
         elif isinstance(node, DeclareStmt):
             ret = self.visit_DeclareStmt(node)
         elif isinstance(node, LetStmt):
@@ -174,6 +177,9 @@ class IRFunctor:
         raise NotImplementedError()
 
     def visit_BreakStmt(self, stmt: BreakStmt) -> Any:
+        raise NotImplementedError()
+
+    def visit_ReturnStmt(self, stmt: ReturnStmt) -> Any:
         raise NotImplementedError()
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> Any:
@@ -302,6 +308,9 @@ class IRRewriter(IRFunctor):
             return IfStmt(cond, then_body, else_body)
 
     def visit_BreakStmt(self, stmt: BreakStmt) -> Stmt:
+        return stmt
+
+    def visit_ReturnStmt(self, stmt: ReturnStmt) -> Stmt:
         return stmt
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> Stmt:
@@ -451,6 +460,9 @@ class IRVisitor(IRFunctor):
             self.visit(stmt.else_body)
 
     def visit_BreakStmt(self, stmt: BreakStmt) -> None:
+        pass
+
+    def visit_ReturnStmt(self, stmt: ReturnStmt) -> None:
         pass
 
     def visit_WhileStmt(self, stmt: WhileStmt) -> None:

@@ -41,6 +41,25 @@ class LoadSharedInferSwizzledSharedRule(LayoutInferenceRule):
 @register_rule(LoadMatrixInst)
 @register_rule(LoadSharedInst)
 @register_rule(LoadSharedGenericInst)
+class LoadSharedInferRowMajorSharedRule(LayoutInferenceRule):
+    @staticmethod
+    def inference(
+        ctx: LayoutInferenceContext, inst: LoadSharedInst | LoadSharedGenericInst | LoadMatrixInst
+    ) -> dict[SharedTensor, SharedLayout]:
+        a = inst.shared_input
+        b = inst.register_output
+
+        if not (a.optional_layout is None and b.optional_layout is not None):
+            return {}
+
+        from tilus.ir.layout.shared_layout import shared_repeat
+
+        return {a: shared_repeat(*a.shape)}
+
+
+@register_rule(LoadMatrixInst)
+@register_rule(LoadSharedInst)
+@register_rule(LoadSharedGenericInst)
 class LoadSharedInferRegisterRule(LayoutInferenceRule):
     @staticmethod
     def inference(

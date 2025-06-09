@@ -10,6 +10,7 @@ from . import (
     reduce,
     shared_slice,
     store_shared,
+    transform,
     transpose,
     where,
 )
