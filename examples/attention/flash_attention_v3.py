@@ -387,12 +387,13 @@ def main(bench=True):
             print(
                 f"Running {name} with batch_size={batch_size}, seqlen={seqlen}, num_heads={num_heads}, head_size={head_size}, num_heads_kv={num_heads_kv}"
             )
-            actual = runner(q, k, v)
             try:
+                actual = runner(q, k, v)
                 expected = flash_attention_reference(q, k, v)
                 torch.testing.assert_close(actual, expected, atol=1e-2, rtol=1e-2)
             except torch.OutOfMemoryError:
-                pass
+                print("Out of memory, skipping this configuration.")
+                continue
 
             latency = (
                 benchmark_func(
