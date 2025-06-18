@@ -68,6 +68,25 @@ from .vector import uint32x1, uint32x2, uint32x4
 for dtype in [
     uint32x4,
     uint32x2,
+    float7_e2m4,
+    float7_e3m3,
+    float7_e4m2,
+    float7_e5m1,
+    float6_e2m3,
+    float6_e3m2,
+    float6_e4m1,
+    float5_e1m3,
+    float5_e2m2,
+    float5_e3m1,
+    float4_e1m2,
+    float4_e2m1,
+    float3_e1m1,
+    int5b,
+    int6b,
+    int7b,
+    uint5b,
+    uint6b,
+    uint7b,
 ]:
     name2dtype[dtype.name] = dtype
     sname2dtype[dtype.short_name] = dtype

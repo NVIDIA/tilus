@@ -9,7 +9,7 @@ from tilus.ir.tensor import GlobalTensor
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
-# tilus.option.debug.dump_ir()
+tilus.option.debug.dump_ir()
 # tilus.logging.set_logging_level("debug")
 # tilus.utils.clear_cache()
 pd.options.display.max_columns = None
@@ -19,9 +19,18 @@ pd.options.display.width = 1000
 @tilus.autotune("num_warps", [4, 8])
 @tilus.autotune("block_q", [32, 64, 128])
 @tilus.autotune("block_kv", [32, 64, 128])
-@tilus.autotune("split_kv", [128, 256, 512, 1024, 2048, 4096])
+@tilus.autotune("split_kv", [-1, 128, 256, 512, 1024, 2048, 4096])
+@tilus.autotune("keep_q_in_regs", [False])
 class FlashAttention(tilus.Script):
     LOG2_E = 1.4426950408889634  # log2(e)
+
+    debug_schedule = dict(
+        num_warps=4,
+        block_q=64,
+        block_kv=64,
+        split_kv=-1,
+        keep_q_in_regs=False,
+    )
 
     def __init__(
         self,
@@ -33,6 +42,7 @@ class FlashAttention(tilus.Script):
         block_q: int,
         block_kv: int,
         split_kv: int,
+        keep_q_in_regs: bool,
     ):
         super().__init__()
         self.dtype: DataType = dtype
@@ -43,6 +53,7 @@ class FlashAttention(tilus.Script):
         self.block_q = block_q
         self.block_kv = block_kv
         self.split_kv = split_kv
+        self.keep_q_in_regs = keep_q_in_regs
         self.score_scale = float(1.0 / np.sqrt(head_size))
         self.group_heads = num_heads // num_heads_kv
 
@@ -51,13 +62,9 @@ class FlashAttention(tilus.Script):
         )
 
         # determine layout
-        self.qk_config = self.cuda.resolve_dot_config(
-            dtype, f32, m=block_q, n=block_kv, k=head_size, warp_m=num_warps, warp_n=1
-        )
         self.sv_config = self.cuda.resolve_dot_config(
             dtype, f32, m=block_q, n=head_size, k=block_kv, warp_m=num_warps, warp_n=1
         )
-        assert self.qk_config.lc == self.sv_config.la
 
     def apply_mask(self, score: RegisterTensor, q_offset: int32, kv_offset: int32):
         mask = self.register_tensor(
@@ -88,6 +95,7 @@ class FlashAttention(tilus.Script):
         head: int32,
         gk: GlobalTensor,
         gv: GlobalTensor,
+        sq: SharedTensor,  # f16[block_q, head_size]
         rq: RegisterTensor,  # f16[block_q, head_size]
         sk: SharedTensor,  # f16[block_kv, head_size],
         sv: SharedTensor,  # f16[block_kv, head_size],
@@ -98,6 +106,8 @@ class FlashAttention(tilus.Script):
     ):
         # wait for the async copy of k to finish
         self.copy_async_wait_group(0)
+        if not self.keep_q_in_regs:
+            self.load_shared(sq, out=rq)
         self.sync()
         self.copy_async(
             gv, sv, offsets=[bs, kv_offset, head // self.group_heads, 0], dims=[1, 3], check_bounds=check_bounds
@@ -107,7 +117,6 @@ class FlashAttention(tilus.Script):
         # issue the async copy for v and perform dot(q, k)
         rk = self.load_shared(sk)  # [block_kv, head_size]
         score = self.mma_dot(rq, rk.transpose(), acc_dtype=f32)  # [block_q, block_kv]
-        self.annotate_layout(score, self.qk_config.lc)
 
         if check_bounds:
             self.apply_mask(score, q_offset, kv_offset)  # apply causal mask
@@ -161,12 +170,13 @@ class FlashAttention(tilus.Script):
 
         # load query to register
         sq = self.shared_tensor(dtype=self.dtype, shape=[self.block_q, self.head_size])
-        ldq = self.load_global(gq, offsets=[bs, q_offset, head, 0], shape=[self.block_q, self.head_size], dims=[1, 3])
-        self.store_shared(sq, ldq)
+        self.copy_async(gq, sq, offsets=[bs, q_offset, head, 0], dims=[1, 3], check_bounds=True)
+        self.copy_async_wait_all()
         self.sync()
-        rq = self.load_shared(sq)  # [block_q, head_size]
-        self.sync()
-        self.free_shared(sq)
+        rq = self.register_tensor(dtype=self.dtype, shape=[self.block_q, self.head_size])
+        if self.keep_q_in_regs:
+            self.load_shared(sq, out=rq)  # [block_q, head_size]
+            self.free_shared(sq)
 
         # accumulators
         o = self.register_tensor(dtype=f32, shape=[self.block_q, self.head_size], init=0.0)
@@ -183,18 +193,20 @@ class FlashAttention(tilus.Script):
         if self.split_kv != -1:
             kv_offset_inner_end = min(kv_offset_inner_end, kv_start_offset + self.split_kv)
         for kv_offset in range(kv_start_offset, kv_offset_inner_end, self.block_kv):
-            self.attention_iteration(bs, kv_offset, q_offset, head, gk, gv, rq, sk, sv, o, m, l, check_bounds=False)
+            self.attention_iteration(bs, kv_offset, q_offset, head, gk, gv, sq, rq, sk, sv, o, m, l, check_bounds=False)
 
         kv_offset_end = q_offset + self.block_q
         if self.split_kv != -1:
             kv_offset_end = min(kv_offset_end, kv_start_offset + self.split_kv)
         for kv_offset in range(kv_offset_inner_end, kv_offset_end, self.block_kv):
-            self.attention_iteration(bs, kv_offset, q_offset, head, gk, gv, rq, sk, sv, o, m, l, check_bounds=True)
+            self.attention_iteration(bs, kv_offset, q_offset, head, gk, gv, sq, rq, sk, sv, o, m, l, check_bounds=True)
 
         self.copy_async_wait_group(0)
         self.sync()
         self.free_shared(sk)
         self.free_shared(sv)
+        if not self.keep_q_in_regs:
+            self.free_shared(sq)
 
         # o: [block_q, head_size]
         # m: [block_q, 1]
@@ -366,16 +378,16 @@ def main(bench=True):
     headers = ["batch_size", "seqlen", "num_heads", "head_size", "num_heads_kv", "name", "latency (ms)", "gflops"]
     data = []
     for batch_size, seqlen, num_heads, head_size, num_heads_kv in [
-        [1, 512, 32, 128, 8],
-        [1, 1024, 32, 128, 8],
-        [1, 2048, 32, 128, 8],
-        [1, 4096, 32, 128, 8],
-        [1, 8192, 32, 128, 8],
-        [1, 512, 64, 128, 8],
-        [1, 1024, 64, 128, 8],
-        [1, 2048, 64, 128, 8],
+        # [1, 512, 32, 128, 8],
+        # [1, 1024, 32, 128, 8],
+        # [1, 2048, 32, 128, 8],
+        # [1, 4096, 32, 128, 8],
+        # [1, 8192, 32, 128, 8],
+        # [1, 512, 64, 128, 8],
+        # [1, 1024, 64, 128, 8],
+        # [1, 2048, 64, 128, 8],
         [1, 4096, 64, 128, 8],
-        [1, 8192, 64, 128, 8],
+        # [1, 8192, 64, 128, 8],
     ]:
         q = torch.rand(batch_size, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
         k = torch.rand(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
@@ -389,11 +401,15 @@ def main(bench=True):
             )
             try:
                 actual = runner(q, k, v)
-                expected = flash_attention_reference(q, k, v)
-                torch.testing.assert_close(actual, expected, atol=1e-2, rtol=1e-2)
             except torch.OutOfMemoryError:
                 print("Out of memory, skipping this configuration.")
                 continue
+
+            try:
+                expected = flash_attention_reference(q, k, v)
+                torch.testing.assert_close(actual, expected, atol=1e-2, rtol=1e-2)
+            except torch.OutOfMemoryError:
+                pass
 
             latency = (
                 benchmark_func(
@@ -422,5 +438,4 @@ def main(bench=True):
 
 if __name__ == "__main__":
     main()
-    # ncu_run(main, bench=False)
     # ncu_run(main, bench=False, kernel_regex="flash_fwd|flash_attention")

@@ -16,7 +16,7 @@ from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr
 from hidet.ir.func import Function
 from hidet.ir.primitives.cuda.funcs import call_cuda
-from hidet.ir.primitives.func import register_primitive_function
+from hidet.ir.primitives.func import primitive_func_pool, register_primitive_function
 from hidet.ir.stmt import asm
 from hidet.ir.type import void_p
 from hidet.utils import initialize
@@ -95,6 +95,57 @@ def register_cp_async():
 
                     assert isinstance(cuda_cp_async, Function)
                     register_primitive_function(name=cuda_cp_async.name, func_or_type=cuda_cp_async)
+
+
+@initialize()
+def register_cp_async_commit_group():
+    from hidet.lang import attrs, script
+
+    @no_type_check
+    @script
+    def cuda_cp_async_commit_group():
+        attrs.func_name = "cuda_cp_async_commit_group"
+        attrs.func_kind = "cuda_internal"
+        asm("cp.async.commit_group;", is_volatile=True)
+
+    assert isinstance(cuda_cp_async_commit_group, Function)
+    del primitive_func_pool.name2func[cuda_cp_async_commit_group.name]
+    register_primitive_function(cuda_cp_async_commit_group.name, cuda_cp_async_commit_group)
+
+
+@initialize()
+def register_cp_async_wait_group():
+    from hidet.lang import attrs, script
+
+    for groups in range(10):
+        func_name = "cuda_cp_async_wait_group_{}".format(groups)
+
+        @no_type_check
+        @script
+        def cuda_cp_async_wait_group():
+            attrs.func_name = func_name
+            attrs.func_kind = "cuda_internal"
+            asm("cp.async.wait_group {};".format(groups), is_volatile=True)
+
+        assert isinstance(cuda_cp_async_wait_group, Function)
+        del primitive_func_pool.name2func[cuda_cp_async_wait_group.name]
+        register_primitive_function(cuda_cp_async_wait_group.name, cuda_cp_async_wait_group)
+
+
+@initialize()
+def register_cp_async_wait_all():
+    from hidet.lang import attrs, script
+
+    @no_type_check
+    @script
+    def cuda_cp_async_wait_all():
+        attrs.func_name = "cuda_cp_async_wait_all"
+        attrs.func_kind = "cuda_internal"
+        asm("cp.async.wait_all;", is_volatile=True)
+
+    assert isinstance(cuda_cp_async_wait_all, Function)
+    del primitive_func_pool.name2func[cuda_cp_async_wait_all.name]
+    register_primitive_function(cuda_cp_async_wait_all.name, cuda_cp_async_wait_all)
 
 
 def cp_async(

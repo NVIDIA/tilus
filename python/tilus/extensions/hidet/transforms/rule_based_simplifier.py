@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from hidet.ir import logical_and
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var
 from hidet.transforms.rule_based_simplifier import BoundInfo
@@ -23,6 +24,11 @@ class RuleBasedSimplifier(OriginalRuleBasedSimplifier):
             (e1 / c1 % c2, e1 % (c1 * c2) / c1),
             (e1 / c1 * c1 + e1 % c1, e1),
             (e1 % c1 / c2 * c2 + e1 % c2, e1 % c1, c1 % c2 == 0),
+            (
+                (e1 * ic1) ^ (e2 * ic2),
+                (e1 * (ic1 // 2)) ^ (e2 * (ic2 // 2)) * 2,
+                logical_and(ic1 % 2 == 0, ic2 % 2 == 0),
+            ),
         ]
 
         extra_bound_patterns = [

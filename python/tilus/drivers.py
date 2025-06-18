@@ -99,25 +99,74 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     optimized_ir_module: IRModule
         The optimized low-level IR module.
     """
+    from hidet.transforms import lower_with
+    from hidet.transforms.add_explicit_cast import add_explicit_cast_pass
+    from hidet.transforms.add_hints import add_hints_pass
+    from hidet.transforms.annotate_header_and_libs import annotate_header_and_libs_pass
+    from hidet.transforms.base import PassContext
+    from hidet.transforms.check_launch_configuration import check_launch_configuration_pass
+    from hidet.transforms.declare_to_let import declare_to_let_pass
+    from hidet.transforms.expand_let_expr import expand_let_expr_pass
+    from hidet.transforms.explicit_unroll import explicit_unroll_pass
+    from hidet.transforms.flatten_tensor_index import flatten_tensor_index_pass
+    from hidet.transforms.flatten_tensor_slice import flatten_tensor_slice_pass
+    from hidet.transforms.generate_launch_func import generate_launch_func_pass
+    from hidet.transforms.import_primitive_functions import import_primitive_functions_pass
+    from hidet.transforms.inline_function import inline_function_pass
+    from hidet.transforms.inline_let_stmt import inline_let_stmt_pass
+    from hidet.transforms.instantiate_symbols import instantiate_symbols_pass
+    from hidet.transforms.instruments import PassInstrument, ProfileInstrument, SaveIRInstrument
+    from hidet.transforms.lower_integer_subbyte import lower_integer_subbyte_pass
+    from hidet.transforms.lower_special_cast import lower_special_cast_pass
+    from hidet.transforms.propagate_launch_bound import propagate_launch_bound_pass
+    from hidet.transforms.resolve_generic_primitive_function import resolve_primitive_func_pass
+    from hidet.transforms.rule_based_simplifier import rule_based_simplify_pass
+    from hidet.transforms.simplify_addition_chain import simplify_addition_chain_pass
+    from hidet.transforms.simplify_stmt import simplify_stmt_pass
+    from hidet.transforms.unify_global_objects import unify_global_objects_pass
+
     from tilus.backends.transforms.inline_register_tensor import inline_register_tensor_pass
-    from tilus.extensions.hidet.transforms import (
-        PassContext,
-        PassInstrument,
-        ProfileInstrument,
-        SaveIRInstrument,
-        common_transforms,
-        lower_with,
-        # the passes that needed for tilus-specific passes
-        resolve_primitive_func_pass,
+    from tilus.extensions.hidet.transforms.add_explicit_cast import (
+        add_explicit_cast_pass as tilus_add_explicit_cast_pass,
     )
-    from tilus.extensions.hidet.transforms.add_explicit_cast import add_explicit_cast_pass
+    from tilus.extensions.hidet.transforms.deadcode_elimination import deadcode_elimination_pass
     from tilus.extensions.hidet.transforms.lower_subbyte_type import lower_subbyte_type_pass
 
-    tilus_transforms = [
+    transforms = [
+        unify_global_objects_pass(),
         inline_register_tensor_pass(),
         resolve_primitive_func_pass(),
-        add_explicit_cast_pass(),
+        tilus_add_explicit_cast_pass(),
         lower_subbyte_type_pass(),
+        generate_launch_func_pass(),
+        propagate_launch_bound_pass(),
+        flatten_tensor_slice_pass(),
+        flatten_tensor_index_pass(),
+        declare_to_let_pass(),
+        rule_based_simplify_pass(),  # make ir more readable
+        lower_special_cast_pass(),
+        inline_function_pass(),
+        resolve_primitive_func_pass(),
+        import_primitive_functions_pass(),
+        resolve_primitive_func_pass(),
+        import_primitive_functions_pass(),
+        lower_integer_subbyte_pass(),
+        add_explicit_cast_pass(),
+        declare_to_let_pass(),
+        instantiate_symbols_pass(),
+        import_primitive_functions_pass(),
+        check_launch_configuration_pass(),
+        # simplification
+        expand_let_expr_pass(),
+        inline_let_stmt_pass(),
+        explicit_unroll_pass(),
+        rule_based_simplify_pass(),
+        simplify_addition_chain_pass(),
+        add_hints_pass(),
+        inline_let_stmt_pass(),
+        simplify_stmt_pass(),
+        deadcode_elimination_pass(),
+        annotate_header_and_libs_pass(),
     ]
 
     instruments: list[PassInstrument] = []
@@ -126,7 +175,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         instruments.append(ProfileInstrument(str(cache_dir / "module" / "ir" / "lower_time.txt")))
 
     with PassContext(instruments):
-        return lower_with(ir_module, tilus_transforms + common_transforms)
+        return lower_with(ir_module, transforms)
 
 
 @functools.lru_cache(maxsize=1024)
