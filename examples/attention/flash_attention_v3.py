@@ -4,14 +4,14 @@ import tilus
 import torch
 from hidet.ir import DataType
 from tilus import boolean, f32, int32, void_p
+from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.tensor import GlobalTensor
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir()
-# tilus.logging.set_logging_level("debug")
-# tilus.utils.clear_cache()
+tilus.utils.clear_cache()
 pd.options.display.max_columns = None
 pd.options.display.width = 1000
 
@@ -437,5 +437,5 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    main()
-    # ncu_run(main, bench=False, kernel_regex="flash_fwd|flash_attention")
+    # main()
+    ncu_run(main, bench=False, kernel_regex="flash_fwd|flash_attention")

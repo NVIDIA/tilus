@@ -449,3 +449,16 @@ def print_context() -> PrintContext:
     Create a new print context for printing IR nodes.
     """
     return PrintContext()
+
+
+def use_standalone_printer(decorated):
+    """
+    A decorator to use a standalone IRPrinter instance for the decorated function.
+    This is useful when you want to print IR nodes without affecting the global print context.
+    """
+
+    def wrapper(*args, **kwargs):
+        with print_context():
+            return decorated(*args, **kwargs)
+
+    return wrapper

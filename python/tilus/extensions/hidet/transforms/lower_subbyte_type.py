@@ -706,7 +706,13 @@ class LowerSubbyteTypeRewriter(IRRewriter):
             ret = sb.declare_var("casted_type", dst_type, init=cast(uint8_ptr, dst_type))
             self.append_prologue_stmt(sb.finish())
             return ret
-
+        elif (
+            is_addressable(src_type)
+            and not is_subbyte(get_base_type(src_type))
+            and is_addressable(dst_type)
+            and is_subbyte(get_base_type(dst_type))
+        ):
+            return Cast(self.visit(e.expr), ~uint8)
         return super().visit_Cast(e)
 
 

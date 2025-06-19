@@ -279,9 +279,12 @@ class StmtBuilderCore:
     def assign(self, var: Var, value: Expr) -> None:
         self.append(AssignStmt(var, value))
 
-    def tensor_ptr(self, tensor: Tensor) -> Var:
-        ptr_var = Var("v", type=~tensor.dtype)
-        self.append(TensorPtrStmt(ptr_var, tensor))
+    def tensor_ptr(self, tensor: Tensor, space: str = "generic") -> Var:
+        if space in ["generic", "global"]:
+            ptr_var = Var("v", type=~tensor.dtype)
+        else:
+            ptr_var = Var("v", int32)
+        self.append(TensorPtrStmt(ptr_var, tensor, space=space))
         return ptr_var
 
     def append(self, inst_or_stmt: Union[Instruction, Stmt]) -> None:
@@ -709,14 +712,14 @@ class StmtBuilder(StmtBuilderCore):
 
     def load_matrix(
         self,
-        ptr: Var,
+        smem_addr: Var,
         axes: Sequence[Var],
         offset: Expr,
         config: LoadMatrixConfig,
         output: RegisterTensor,
     ) -> RegisterTensor:
         inst = LoadMatrixInst.create(
-            ptr=ptr,
+            smem_addr=smem_addr,
             axes=axes,
             offset=offset,
             config=config,

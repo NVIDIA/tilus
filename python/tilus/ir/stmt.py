@@ -105,6 +105,7 @@ class EvaluateStmt(Stmt):
 class TensorPtrStmt(Stmt):
     ptr_var: Var
     tensor: Tensor
+    space: str  # 'generic', 'shared', 'global', 'local'
 
 
 @dataclass(frozen=True, eq=False)

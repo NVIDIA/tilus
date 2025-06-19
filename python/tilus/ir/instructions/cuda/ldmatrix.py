@@ -13,14 +13,14 @@ from tilus.ir.tensor import RegisterTensor
 
 @dataclass(frozen=True, eq=False)
 class LoadMatrixInst(Instruction):
-    ptr: Var
+    smem_addr: Var
     axes: tuple[Var, ...]
     offset: Expr
     config: LoadMatrixConfig
 
     @staticmethod
     def create(
-        ptr: Var,
+        smem_addr: Var,
         axes: Sequence[Var],
         offset: Expr,
         config: LoadMatrixConfig,
@@ -28,7 +28,9 @@ class LoadMatrixInst(Instruction):
     ) -> LoadMatrixInst:
         assert len(axes) == len(output.shape)
 
-        return LoadMatrixInst(inputs=(), output=output, ptr=ptr, axes=tuple(axes), offset=offset, config=config)
+        return LoadMatrixInst(
+            inputs=(), output=output, smem_addr=smem_addr, axes=tuple(axes), offset=offset, config=config
+        )
 
 
 @dataclass(frozen=True, eq=False)

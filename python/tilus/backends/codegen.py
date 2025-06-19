@@ -529,7 +529,17 @@ class Codegen(IRFunctor):
         self.builder.assign(stmt.var, value=stmt.value)
 
     def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> None:
-        self.builder.declare(stmt.ptr_var, self.tensor2var[stmt.tensor])
+        if stmt.space in ["generic", "global"]:
+            self.builder.declare(stmt.ptr_var, self.tensor2var[stmt.tensor])
+        elif stmt.space == "local":
+            raise NotImplementedError("Local tensor pointer is not supported yet.")
+        elif stmt.space == "shared":
+            if not isinstance(stmt.tensor, SharedTensor):
+                raise ValueError("Expected a SharedTensor for shared tensor pointer, got: {}".format(stmt.tensor))
+            shared_tensor: SharedTensor = stmt.tensor
+            self.builder.declare(stmt.ptr_var, self.shared_tensor_shared_space_addr[shared_tensor])
+        else:
+            raise ValueError("Unknown tensor pointer space: {}".format(stmt.space))
 
     def visit_ReturnStmt(self, stmt: ReturnStmt) -> None:
         self.builder.ret()

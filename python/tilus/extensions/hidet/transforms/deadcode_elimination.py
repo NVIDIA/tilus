@@ -169,11 +169,15 @@ class DeadcodeEliminationRewriter(IRRewriter):
         if same_list(bind_vars, stmt.bind_vars) and same_list(bind_values, stmt.bind_values) and body is stmt.body:
             return stmt
         else:
-            return LetStmt(
-                bind_vars=bind_vars,
-                bind_values=bind_values,
-                body=body,
-            )
+            if len(bind_vars) == 0:
+                assert len(bind_values) == 0
+                return body
+            else:
+                return LetStmt(
+                    bind_vars=bind_vars,
+                    bind_values=bind_values,
+                    body=body,
+                )
 
     def visit_EvaluateStmt(self, stmt: EvaluateStmt) -> Stmt:
         if self.analyzer.no_side_effect[stmt.expr]:

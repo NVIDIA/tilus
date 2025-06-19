@@ -340,7 +340,7 @@ class IRRewriter(IRFunctor):
         if tensor is stmt.tensor:
             return stmt
         else:
-            return TensorPtrStmt(stmt.ptr_var, tensor)
+            return TensorPtrStmt(stmt.ptr_var, tensor, stmt.space)
 
     def visit_WhileStmt(self, stmt: WhileStmt) -> Stmt:
         cond = self.visit(stmt.cond)

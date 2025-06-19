@@ -1,6 +1,6 @@
 from typing import List, Sequence
 
-from hidet.ir import BufferStoreStmt
+from hidet.ir import BufferStoreStmt, TensorPointerType
 from hidet.ir.expr import Call, Expr, cast
 from hidet.ir.func import Function
 from hidet.ir.functors import IRRewriter
@@ -22,7 +22,7 @@ class AddExplicitCastRewriter(IRRewriter):
         source_type = self.type_infer(expr)
 
         # If we are doing pointer cast and the two types are different
-        cond1 = isinstance(target_type, PointerType) and not type_equal(source_type, target_type)
+        cond1 = isinstance(target_type, (TensorPointerType, PointerType)) and not type_equal(source_type, target_type)
 
         # If we are assigning one data type to another data type
         cond2 = (

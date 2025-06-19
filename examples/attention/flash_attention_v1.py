@@ -16,6 +16,12 @@ pd.options.display.width = 1000
 @tilus.autotune("block_q", [64])
 @tilus.autotune("block_kv", [64])
 class FlashAttention(tilus.Script):
+    debug_schedule = dict(
+        num_warps=4,
+        block_q=64,
+        block_kv=64,
+    )
+
     def __init__(
         self,
         dtype: DataType,

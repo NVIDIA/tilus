@@ -3,7 +3,6 @@ from typing import Mapping
 from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import Expr, cast, deref
 from hidet.ir.node import Node
-from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from hidet.ir.primitives.cuda.mma import ldmatrix
 from hidet.ir.tools import rewrite
 
@@ -30,7 +29,7 @@ class LoadMatrixInstEmitter(BaseInstEmitter):
         num_vectors: int = lhs_layout.local_size // vector_size
 
         dtype = inst.output.dtype
-        smem_base_addr = self.declare_var("smem_addr", tp=int32, init=cvta_generic_to_shared(generic_addr=inst.ptr))
+        smem_base_addr = self.declare_var("smem_addr", tp=int32, init=inst.smem_addr)
 
         with self.for_range(num_vectors, attr="u") as vec_i:
             # load vector_size times of 8x16 bytes of data for each iteration,

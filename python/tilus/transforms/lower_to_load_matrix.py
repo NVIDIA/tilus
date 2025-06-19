@@ -101,7 +101,11 @@ class LowerToLoadMatrixRewriter(IRRewriter):
         # we satisfy all the conditions to lower the instruction
         sb = StmtBuilder()
         sb.load_matrix(
-            ptr=sb.tensor_ptr(shared_tensor), axes=axes, offset=offset, config=config, output=inst.register_output
+            smem_addr=sb.tensor_ptr(shared_tensor, space="shared"),
+            axes=axes,
+            offset=offset,
+            config=config,
+            output=inst.register_output,
         )
         return sb.flush_stmts()
 

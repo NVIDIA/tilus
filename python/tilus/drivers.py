@@ -105,7 +105,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     from hidet.transforms.annotate_header_and_libs import annotate_header_and_libs_pass
     from hidet.transforms.base import PassContext
     from hidet.transforms.check_launch_configuration import check_launch_configuration_pass
-    from hidet.transforms.declare_to_let import declare_to_let_pass
     from hidet.transforms.expand_let_expr import expand_let_expr_pass
     from hidet.transforms.explicit_unroll import explicit_unroll_pass
     from hidet.transforms.flatten_tensor_index import flatten_tensor_index_pass
@@ -130,6 +129,8 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         add_explicit_cast_pass as tilus_add_explicit_cast_pass,
     )
     from tilus.extensions.hidet.transforms.deadcode_elimination import deadcode_elimination_pass
+    from tilus.extensions.hidet.transforms.declare_to_let import declare_to_let_pass
+    from tilus.extensions.hidet.transforms.lower_affine_to_recurence import lower_affine_to_recurrence_pass
     from tilus.extensions.hidet.transforms.lower_subbyte_type import lower_subbyte_type_pass
 
     transforms = [
@@ -162,6 +163,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         explicit_unroll_pass(),
         rule_based_simplify_pass(),
         simplify_addition_chain_pass(),
+        lower_affine_to_recurrence_pass(),
         add_hints_pass(),
         inline_let_stmt_pass(),
         simplify_stmt_pass(),

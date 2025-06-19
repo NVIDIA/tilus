@@ -25,7 +25,7 @@ from tilus.utils import benchmark_func, cdiv, dtype_to_torch, gcd
 from torch import nn
 
 tilus.option.cache_dir("./cache")
-# tilus.option.debug.dump_ir()
+tilus.option.debug.dump_ir()
 
 
 class QuantizedMatmulCommon(Script):
