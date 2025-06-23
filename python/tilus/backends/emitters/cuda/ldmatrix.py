@@ -31,7 +31,7 @@ class LoadMatrixInstEmitter(BaseInstEmitter):
         dtype = inst.output.dtype
         smem_base_addr = self.declare_var("smem_addr", tp=int32, init=inst.smem_addr)
 
-        with self.for_range(num_vectors, attr="u") as vec_i:
+        with self.for_range(num_vectors, attr="u+") as vec_i:
             # load vector_size times of 8x16 bytes of data for each iteration,
 
             # get the registers

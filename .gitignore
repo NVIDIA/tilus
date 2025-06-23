@@ -53,3 +53,5 @@ Thumbs.db
 
 *.ncu-rep
 **/sanitizer-reports/
+**/nsys-reports/
+**/ncu-reports/

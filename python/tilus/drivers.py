@@ -119,7 +119,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     from hidet.transforms.lower_special_cast import lower_special_cast_pass
     from hidet.transforms.propagate_launch_bound import propagate_launch_bound_pass
     from hidet.transforms.resolve_generic_primitive_function import resolve_primitive_func_pass
-    from hidet.transforms.rule_based_simplifier import rule_based_simplify_pass
     from hidet.transforms.simplify_addition_chain import simplify_addition_chain_pass
     from hidet.transforms.simplify_stmt import simplify_stmt_pass
     from hidet.transforms.unify_global_objects import unify_global_objects_pass
@@ -130,8 +129,10 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     )
     from tilus.extensions.hidet.transforms.deadcode_elimination import deadcode_elimination_pass
     from tilus.extensions.hidet.transforms.declare_to_let import declare_to_let_pass
+    from tilus.extensions.hidet.transforms.hoist_loop_invariants import hoist_loop_invariants_pass
     from tilus.extensions.hidet.transforms.lower_affine_to_recurence import lower_affine_to_recurrence_pass
     from tilus.extensions.hidet.transforms.lower_subbyte_type import lower_subbyte_type_pass
+    from tilus.extensions.hidet.transforms.rule_based_simplifier import rule_based_simplify_pass
 
     transforms = [
         unify_global_objects_pass(),
@@ -164,6 +165,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         rule_based_simplify_pass(),
         simplify_addition_chain_pass(),
         lower_affine_to_recurrence_pass(),
+        hoist_loop_invariants_pass(),
         add_hints_pass(),
         inline_let_stmt_pass(),
         simplify_stmt_pass(),

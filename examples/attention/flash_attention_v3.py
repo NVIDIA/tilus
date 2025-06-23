@@ -4,7 +4,6 @@ import tilus
 import torch
 from hidet.ir import DataType
 from tilus import boolean, f32, int32, void_p
-from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.tensor import GlobalTensor
 from tilus.utils import benchmark_func, cdiv
@@ -19,8 +18,8 @@ pd.options.display.width = 1000
 @tilus.autotune("num_warps", [4, 8])
 @tilus.autotune("block_q", [32, 64, 128])
 @tilus.autotune("block_kv", [32, 64, 128])
-@tilus.autotune("split_kv", [-1, 128, 256, 512, 1024, 2048, 4096])
-@tilus.autotune("keep_q_in_regs", [False])
+@tilus.autotune("split_kv", [-1, 512, 1024, 4096])
+@tilus.autotune("keep_q_in_regs", [False, True])
 class FlashAttention(tilus.Script):
     LOG2_E = 1.4426950408889634  # log2(e)
 
@@ -106,8 +105,6 @@ class FlashAttention(tilus.Script):
     ):
         # wait for the async copy of k to finish
         self.copy_async_wait_group(0)
-        if not self.keep_q_in_regs:
-            self.load_shared(sq, out=rq)
         self.sync()
         self.copy_async(
             gv, sv, offsets=[bs, kv_offset, head // self.group_heads, 0], dims=[1, 3], check_bounds=check_bounds
@@ -115,6 +112,8 @@ class FlashAttention(tilus.Script):
         self.copy_async_commit_group()
 
         # issue the async copy for v and perform dot(q, k)
+        if not self.keep_q_in_regs:
+            self.load_shared(sq, out=rq)
         rk = self.load_shared(sk)  # [block_kv, head_size]
         score = self.mma_dot(rq, rk.transpose(), acc_dtype=f32)  # [block_q, block_kv]
 
@@ -378,16 +377,16 @@ def main(bench=True):
     headers = ["batch_size", "seqlen", "num_heads", "head_size", "num_heads_kv", "name", "latency (ms)", "gflops"]
     data = []
     for batch_size, seqlen, num_heads, head_size, num_heads_kv in [
-        # [1, 512, 32, 128, 8],
-        # [1, 1024, 32, 128, 8],
-        # [1, 2048, 32, 128, 8],
-        # [1, 4096, 32, 128, 8],
-        # [1, 8192, 32, 128, 8],
-        # [1, 512, 64, 128, 8],
-        # [1, 1024, 64, 128, 8],
-        # [1, 2048, 64, 128, 8],
+        [1, 512, 32, 128, 8],
+        [1, 1024, 32, 128, 8],
+        [1, 2048, 32, 128, 8],
+        [1, 4096, 32, 128, 8],
+        [1, 8192, 32, 128, 8],
+        [1, 512, 64, 128, 8],
+        [1, 1024, 64, 128, 8],
+        [1, 2048, 64, 128, 8],
         [1, 4096, 64, 128, 8],
-        # [1, 8192, 64, 128, 8],
+        [1, 8192, 64, 128, 8],
     ]:
         q = torch.rand(batch_size, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
         k = torch.rand(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
@@ -437,5 +436,5 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    # main()
-    ncu_run(main, bench=False, kernel_regex="flash_fwd|flash_attention")
+    main()
+    # ncu_run(main, bench=False, kernel_regex="flash_fwd|flash_attention")
