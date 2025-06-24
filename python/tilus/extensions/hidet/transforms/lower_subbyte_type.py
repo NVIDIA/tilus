@@ -163,17 +163,18 @@ class AddressingAnalyzer(IRVisitor):
     def visit_AssignStmt(self, stmt: AssignStmt) -> Stmt:
         if is_addressable(stmt.var):
             self.visit(stmt.value)
-            value_addr = self.buf2addr[stmt.value]
-            if self.buf2addr[stmt.var].scope == DeclareScope.Default:
-                self.buf2addr[stmt.var].scope = value_addr.scope
-            else:
-                # we do not allow a pointer that can points to different scopes at different time
-                # check consistency
-                assert value_addr.scope == DeclareScope.Default or self.buf2addr[stmt.var].scope == value_addr.scope, (
-                    "Inconsistent scope for variable {}: {} vs {}".format(
+            if stmt.value in self.buf2addr:
+                value_addr = self.buf2addr[stmt.value]
+                if self.buf2addr[stmt.var].scope == DeclareScope.Default:
+                    self.buf2addr[stmt.var].scope = value_addr.scope
+                else:
+                    # we do not allow a pointer that can points to different scopes at different time
+                    # check consistency
+                    assert (
+                        value_addr.scope == DeclareScope.Default or self.buf2addr[stmt.var].scope == value_addr.scope
+                    ), "Inconsistent scope for variable {}: {} vs {}".format(
                         stmt.var.name, self.buf2addr[stmt.var].scope, value_addr.scope
                     )
-                )
         return super().visit_AssignStmt(stmt)
 
     def visit_Call(self, e: Call) -> Expr:

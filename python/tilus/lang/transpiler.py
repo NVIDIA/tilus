@@ -545,15 +545,15 @@ class Transpiler(PythonAstFunctor):
                                 self.current_scope.bind(param_name, var)
                                 self.current_scope.append(sb.flush_stmts())
                             elif annotation in [bool, int, float]:
-                                if not isinstance(arg, annotation):
+                                if not isinstance(arg, Constant) and not isinstance(arg, annotation):
                                     raise TilusProgramError(
                                         self,
                                         expr,
-                                        'Parameter "{}" expects a {} but got {}.'.format(
-                                            param_name, annotation.__name__, type(arg).__name__
+                                        'Parameter "{}" expects a constant but got {}.'.format(
+                                            param_name, type(arg).__name__
                                         ),
                                     )
-                                self.current_scope.bind(param_name, arg)
+                                self.current_scope.bind(param_name, annotation(arg))
                             else:
                                 raise TilusProgramError(
                                     self,

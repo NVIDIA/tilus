@@ -23,13 +23,13 @@ pd.options.display.width = 1000
 class FlashAttention(tilus.Script):
     LOG2_E = 1.4426950408889634  # log2(e)
 
-    debug_schedule = dict(
-        num_warps=4,
-        block_q=64,
-        block_kv=64,
-        split_kv=-1,
-        keep_q_in_regs=False,
-    )
+    # debug_schedule = dict(
+    #     num_warps=4,
+    #     block_q=64,
+    #     block_kv=64,
+    #     split_kv=-1,
+    #     keep_q_in_regs=False,
+    # )
 
     def __init__(
         self,
@@ -103,6 +103,8 @@ class FlashAttention(tilus.Script):
         l: RegisterTensor,  # f32[block_q, 1]
         check_bounds: bool,
     ):
+        if not self.keep_q_in_regs:
+            self.load_shared(sq, out=rq)
         # wait for the async copy of k to finish
         self.copy_async_wait_group(0)
         self.sync()
@@ -112,8 +114,6 @@ class FlashAttention(tilus.Script):
         self.copy_async_commit_group()
 
         # issue the async copy for v and perform dot(q, k)
-        if not self.keep_q_in_regs:
-            self.load_shared(sq, out=rq)
         rk = self.load_shared(sk)  # [block_kv, head_size]
         score = self.mma_dot(rq, rk.transpose(), acc_dtype=f32)  # [block_q, block_kv]
 
@@ -143,16 +143,16 @@ class FlashAttention(tilus.Script):
         self.annotate_layout(cur_o, self.sv_config.lc)
         self.assign(o, o + cur_o)
 
-    def __call__(
-        self, batch_size: int, q_len: int32, kv_len: int32, q_ptr: void_p, k_ptr: void_p, v_ptr: void_p, o_ptr: void_p
+    def main_loop(
+        self,
+        gq: GlobalTensor,
+        gk: GlobalTensor,
+        gv: GlobalTensor,
+        o: RegisterTensor,
+        m: RegisterTensor,
+        l: RegisterTensor,
     ):
-        self.attrs.warps = self.num_warps
-        self.attrs.blocks = (
-            cdiv(q_len, self.block_q),
-            cdiv(kv_len, self.split_kv) if self.split_kv != -1 else 1,
-            self.num_heads * batch_size,
-        )
-
+        # calculate offsets
         q_offset = self.blockIdx.x * self.block_q
         kv_start_offset = 0 if self.split_kv == -1 else self.blockIdx.y * self.split_kv
 
@@ -162,29 +162,23 @@ class FlashAttention(tilus.Script):
         head = self.blockIdx.z % self.num_heads
         bs = self.blockIdx.z // self.num_heads
 
-        gq = self.global_view(q_ptr, dtype=self.dtype, shape=[batch_size, q_len, self.num_heads, self.head_size])
-        gk = self.global_view(k_ptr, dtype=self.dtype, shape=[batch_size, kv_len, self.num_heads_kv, self.head_size])
-        gv = self.global_view(v_ptr, dtype=self.dtype, shape=[batch_size, kv_len, self.num_heads_kv, self.head_size])
-        go = self.global_view(o_ptr, dtype=self.dtype, shape=[batch_size, q_len, self.num_heads, self.head_size])
-
-        # load query to register
         sq = self.shared_tensor(dtype=self.dtype, shape=[self.block_q, self.head_size])
+        sk = self.shared_tensor(dtype=self.dtype, shape=[self.block_kv, self.head_size])
+        sv = self.shared_tensor(dtype=self.dtype, shape=[self.block_kv, self.head_size])
+
+        rq = self.register_tensor(dtype=self.dtype, shape=[self.block_q, self.head_size])
+
+        # copy q to shared memory
         self.copy_async(gq, sq, offsets=[bs, q_offset, head, 0], dims=[1, 3], check_bounds=True)
         self.copy_async_wait_all()
         self.sync()
-        rq = self.register_tensor(dtype=self.dtype, shape=[self.block_q, self.head_size])
+
+        # copy q to registers if not keeping in shared memory
         if self.keep_q_in_regs:
             self.load_shared(sq, out=rq)  # [block_q, head_size]
             self.free_shared(sq)
 
-        # accumulators
-        o = self.register_tensor(dtype=f32, shape=[self.block_q, self.head_size], init=0.0)
-        m = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=-1e6)  # rowmax(score)
-        l = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=0.0)  # rowsum(exp(score - m))
-
-        sk = self.shared_tensor(dtype=self.dtype, shape=[self.block_kv, self.head_size])
-        sv = self.shared_tensor(dtype=self.dtype, shape=[self.block_kv, self.head_size])
-
+        # issue a copy of gk
         self.copy_async(gk, sk, offsets=[bs, 0, head // self.group_heads, 0], dims=[1, 3])
         self.copy_async_commit_group()
 
@@ -207,12 +201,26 @@ class FlashAttention(tilus.Script):
         if not self.keep_q_in_regs:
             self.free_shared(sq)
 
+    def store_back(
+        self,
+        o: RegisterTensor,
+        l: RegisterTensor,
+        m: RegisterTensor,
+        o_ptr: void_p,
+        batch_size: int,
+        q_len: int32,
+    ):
         # o: [block_q, head_size]
         # m: [block_q, 1]
         # l: [block_q, 1]
+        go = self.global_view(o_ptr, dtype=self.dtype, shape=[batch_size, q_len, self.num_heads, self.head_size])
         o = o / l
         o_f16 = self.cast(o, dtype=self.dtype)  # [block_q, head_size]
         so = self.shared_tensor(dtype=self.dtype, shape=[self.block_q, self.head_size])
+
+        head = self.blockIdx.z % self.num_heads
+        q_offset = self.blockIdx.x * self.block_q
+        bs = self.blockIdx.z // self.num_heads
 
         if self.split_kv == -1:
             self.store_shared(so, o_f16)
@@ -284,6 +292,28 @@ class FlashAttention(tilus.Script):
                 value=self.blockIdx.y + 1 if (self.blockIdx.y + 1) * self.split_kv < q_offset + self.block_q else 0,
             )
         self.free_shared(so)
+
+    def __call__(
+        self, batch_size: int, q_len: int32, kv_len: int32, q_ptr: void_p, k_ptr: void_p, v_ptr: void_p, o_ptr: void_p
+    ):
+        self.attrs.warps = self.num_warps
+        self.attrs.blocks = (
+            cdiv(q_len, self.block_q),
+            cdiv(kv_len, self.split_kv) if self.split_kv != -1 else 1,
+            self.num_heads * batch_size,
+        )
+
+        gq = self.global_view(q_ptr, dtype=self.dtype, shape=[batch_size, q_len, self.num_heads, self.head_size])
+        gk = self.global_view(k_ptr, dtype=self.dtype, shape=[batch_size, kv_len, self.num_heads_kv, self.head_size])
+        gv = self.global_view(v_ptr, dtype=self.dtype, shape=[batch_size, kv_len, self.num_heads_kv, self.head_size])
+
+        o = self.register_tensor(dtype=f32, shape=[self.block_q, self.head_size], init=0.0)
+        m = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=-1e6)  # rowmax(score)
+        l = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=0.0)  # rowsum(exp(score - m))
+
+        self.main_loop(gq, gk, gv, o, m, l)
+
+        self.store_back(o, l, m, o_ptr=o_ptr, batch_size=batch_size, q_len=q_len)
 
 
 def flash_attention(

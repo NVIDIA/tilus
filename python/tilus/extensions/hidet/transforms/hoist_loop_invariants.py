@@ -58,20 +58,20 @@ class LoopInvariantsAnalyzer(IRVisitor):
         super().__init__()
         self.hasher: ExprHash = hasher
         self.loop_invariant_vars = loop_invariant_vars
-        self.invariants: list[Expr] = []
+        self.invariants: set[Expr] = set()
         self.invariant_ops: dict[Expr, int] = {}
         self.invariant_count: dict[HashSum, int] = defaultdict(int)
 
     def visit_Var(self, e: Var) -> None:
         if (e.name is not None and not isinstance(e.type, FuncType)) or e in self.loop_invariant_vars:
-            self.invariants.append(e)
+            self.invariants.add(e)
             self.invariant_ops[e] = 0
             self.invariant_count[self.hasher(e)] += 1
         else:
             return super().visit_Var(e)
 
     def visit_Constant(self, e: Constant) -> None:
-        self.invariants.append(e)
+        self.invariants.add(e)
         self.invariant_ops[e] = 0
         self.invariant_count[self.hasher(e)] += 1
 
@@ -79,7 +79,7 @@ class LoopInvariantsAnalyzer(IRVisitor):
         self.visit(e.a)
         self.visit(e.b)
         if e.a in self.invariants and e.b in self.invariants:
-            self.invariants.append(e)
+            self.invariants.add(e)
             self.invariant_ops[e] = self.invariant_ops[e.a] + self.invariant_ops[e.b] + 1
             self.invariant_count[self.hasher(e)] += 1
 
