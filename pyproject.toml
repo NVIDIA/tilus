@@ -42,6 +42,16 @@ dev = [
     "nvidia-ml-py",  # for locking GPU clocks
 ]
 
+docs = [
+    "jinja2",
+    "sphinx",
+    "sphinx-gallery",
+    "sphinx-copybutton",
+    "autodocsumm",
+    "sphinx-book-theme==1.1.4",
+    "matplotlib",
+]
+
 [project.urls]
 Homepage = "https://github.com/hidet-org/tilus"
 Documentation = "https://hidet.org"
