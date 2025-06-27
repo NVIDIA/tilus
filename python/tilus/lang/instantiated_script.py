@@ -444,8 +444,13 @@ class JitInstance:
             # write the source code of the script class to source.txt
             source_path = self.cache_dir / "source.txt"
             if not source_path.exists():
+                try:
+                    source_code = inspect.getsource(self.script_cls)
+                except OSError:
+                    # if the source code cannot be retrieved, we write an empty file
+                    source_code = "Source code not available."
                 with open(source_path, "w") as f:
-                    f.write(inspect.getsource(self.script_cls))
+                    f.write(source_code)
 
             # write the keys
             meta_path = self.cache_dir / "meta.json"

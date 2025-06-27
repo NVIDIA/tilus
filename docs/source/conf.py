@@ -2,6 +2,14 @@
 #
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
+import os
+import glob
+import shutil
+import sphinx_gallery.sorting
+
+import tilus.utils
+
+# from sphinx_gallery.sorting import FileNameSortKey
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -25,11 +33,22 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx_copybutton',
     'autodocsumm',
+    'sphinx_gallery.gen_gallery'
 ]
+
+autodoc_typehints = "description"
 
 templates_path = ['_templates']
 exclude_patterns = []
 
+sphinx_gallery_conf = {
+    'examples_dirs': ['../../examples/matmul'],
+    'gallery_dirs': ['getting-started/matmul'],
+    'filename_pattern': r'.*\.py',
+    # 'ignore_pattern': r'/cache($|/)',
+    'within_subsection_order': sphinx_gallery.sorting.FileNameSortKey,
+    'download_all_examples': True,
+}
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -43,3 +62,10 @@ html_theme_options = {
 }
 html_static_path = ['_static']
 html_permalinks_icon = "<span>¶</span>"
+
+
+# -- Clean the cache --
+cache_dirs = glob.glob('../../examples/**/cache/', recursive=True)
+for path in cache_dirs:
+    if os.path.isdir(path):
+        shutil.rmtree(path, ignore_errors=True)

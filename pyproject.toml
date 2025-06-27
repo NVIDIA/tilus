@@ -40,9 +40,8 @@ dev = [
     "types-tqdm",
     "pandas",
     "nvidia-ml-py",  # for locking GPU clocks
-]
 
-docs = [
+    # for documentation
     "jinja2",
     "sphinx",
     "sphinx-gallery",

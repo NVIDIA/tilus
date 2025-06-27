@@ -49,7 +49,12 @@ class LowerLoadStoreRewriter(IRRewriter):
         f_offset, f_mask = self.get_funcs(offsets=inst.offsets, dims=inst.dims, layout=global_tensor.layout)
 
         self.memo[inst.register_output] = sb.load_global_generic(
-            dtype=global_tensor.dtype, layout=register_tensor.layout, ptr=ptr, f_offset=f_offset, f_mask=f_mask
+            dtype=global_tensor.dtype,
+            shape=register_tensor.shape,
+            layout=register_tensor.layout,
+            ptr=ptr,
+            f_offset=f_offset,
+            f_mask=f_mask,
         )
         return sb.flush_stmts()
 

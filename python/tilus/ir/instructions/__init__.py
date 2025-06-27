@@ -7,10 +7,10 @@ from .cuda import (
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
+    DotInst,
     LoadMatrixConfig,
     LoadMatrixInst,
     LockSemaphoreInst,
-    MmaDotInst,
     ReleaseSemaphoreInst,
     SimtDotInst,
 )

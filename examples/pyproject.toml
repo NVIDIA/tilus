@@ -1,0 +1,18 @@
+[tool.ruff]
+# Inherit everything from the parent config…
+extend = "../pyproject.toml"
+
+# …but override what we care about.
+line-length = 100
+
+[tool.ruff.lint]
+ignore = [
+    "E402",  # Module level import not at top of file
+]
+
+[tool.pandas]
+display.max_rows = 100
+display.precision = 4
+display.float_format = ".3f"
+display.max_columns = 100
+display.width = 1000

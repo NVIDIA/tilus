@@ -1,17 +1,17 @@
-from tilus.ir.instructions import MmaDotInst
+from tilus.ir.instructions import DotInst
 from tilus.ir.instructions.cuda.mma_dot import AtomicMmaConfig
 from tilus.ir.layout import LayoutOperationError, divide
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 
 
-@register_rule(MmaDotInst)
+@register_rule(DotInst)
 class MmaDotRule(LayoutValidationRule):
     """
     Layout inference rule for MMA dot instructions.
     """
 
     @staticmethod
-    def validate(inst: MmaDotInst) -> bool:
+    def validate(inst: DotInst) -> bool:
         from tilus.ir.layout.mfunction_ops import identity
 
         a = inst.inputs[0].as_register_tensor()

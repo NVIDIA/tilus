@@ -23,25 +23,25 @@ class Matmul(tilus.Script):
         offset_m: int32 = self.block_m * self.blockIdx.x
         offset_n: int32 = self.block_n * self.blockIdx.y
 
-        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, f_init=lambda indices: float32.zero)
+        acc = self.register_tensor(dtype=float32, shape=self.mma.lc.shape, init=lambda indices: float32.zero)
         k_blocks = self.utils.ceil_div(self.k_size, self.block_k)
         for k in range(k_blocks):
             offset_k = k * self.block_k
             a = self.load_global_generic(
                 dtype=float16,
-                layout=self.mma.la,
+                shape=self.mma.la.shape,
                 ptr=a_ptr,
                 f_offset=lambda i, k: (offset_m + i) * self.k_size + offset_k + k,
                 f_mask=lambda i, k: offset_m + i < m_size and offset_k + k < self.k_size,
             )
             b = self.load_global_generic(
                 dtype=float16,
-                layout=self.mma.lb,
+                shape=self.mma.lb.shape,
                 ptr=b_ptr,
                 f_offset=lambda k, j: (offset_k + k) * self.n_size + offset_n + j,
                 f_mask=lambda k, j: offset_k + k < self.k_size and offset_n + j < self.n_size,
             )
-            acc = self.mma_dot(a, b, acc)
+            acc = self.dot(a, b, acc)
         acc_f16 = self.cast(acc, dtype=float16)
         self.store_global_generic(
             acc_f16,

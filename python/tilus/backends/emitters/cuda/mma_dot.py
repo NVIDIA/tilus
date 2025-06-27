@@ -5,15 +5,15 @@ from hidet.ir.expr import Expr, cast, if_then_else, var
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.mma import mma_sync_v2
-from tilus.ir.instructions.cuda import MmaDotInst
+from tilus.ir.instructions.cuda import DotInst
 from tilus.ir.instructions.cuda.mma_dot import AtomicMmaConfig
 from tilus.ir.layout import LayoutOperationError, RegisterLayout
 from tilus.ir.tensor import RegisterTensor
 from tilus.target import nvgpu_sm70
 
 
-@register_emitter(MmaDotInst, target=nvgpu_sm70)
-class MmaDotInstEmitter(BaseInstEmitter):
+@register_emitter(DotInst, target=nvgpu_sm70)
+class DotInstEmitter(BaseInstEmitter):
     @staticmethod
     def resolve_mma_config(
         a: RegisterTensor, b: RegisterTensor, c: RegisterTensor, d: RegisterTensor
@@ -45,7 +45,7 @@ class MmaDotInstEmitter(BaseInstEmitter):
         )
         raise RuntimeError(msg)
 
-    def emit(self, inst: MmaDotInst) -> None:  # type: ignore
+    def emit(self, inst: DotInst) -> None:  # type: ignore
         a_tensor = inst.inputs[0].as_register_tensor()
         b_tensor = inst.inputs[1].as_register_tensor()
         c_tensor = inst.inputs[2].as_register_tensor()

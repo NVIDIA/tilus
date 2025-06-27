@@ -1,11 +1,11 @@
-from tilus.ir.instructions import MmaDotInst
+from tilus.ir.instructions import DotInst
 from tilus.ir.instructions.cuda.mma_dot import AtomicMmaConfig
 from tilus.ir.layout import LayoutOperationError, RegisterLayout, divide
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.tensor import RegisterTensor
 
 
-@register_rule(MmaDotInst)
+@register_rule(DotInst)
 class MmaDotRule(LayoutInferenceRule):
     """
     Layout inference rule for MMA dot instructions.
@@ -51,7 +51,7 @@ class MmaDotRule(LayoutInferenceRule):
         raise ValueError("No suitable MMA configuration found for the given layouts.")
 
     @staticmethod
-    def inference(ctx: LayoutInferenceContext, inst: MmaDotInst) -> dict[RegisterTensor, RegisterLayout]:
+    def inference(ctx: LayoutInferenceContext, inst: DotInst) -> dict[RegisterTensor, RegisterLayout]:
         a = inst.inputs[0].as_register_tensor()
         b = inst.inputs[1].as_register_tensor()
         c = inst.inputs[2].as_register_tensor()

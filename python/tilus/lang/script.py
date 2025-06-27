@@ -19,55 +19,46 @@ from tilus.lang.modules.utils import utils
 
 
 class Attributes:
-    """
-    Attributes of the script program.
+    """Attributes of the script program."""
 
-    Attributes
-    ----------
-    blocks: Optional[Sequence[Expr | int] | Expr | int]
-        The number of blocks.
-    warps: Optional[int]
-        The number of warps, must between 1 and 32.
-    """
+    _blocks: Optional[Sequence[Expr | int] | Expr | int] = None
+    _warps: Optional[int] = None
 
-    blocks: Optional[Sequence[Expr | int] | Expr | int] = None
-    warps: Optional[int] = None
+    @property
+    def blocks(self) -> Sequence[Expr | int] | Expr | int | None:
+        """The number of blocks."""
+        return self._blocks
 
-    def __setattr__(self, key, value):
-        """Check the validity of the attribute value."""
-        if key == "warps":
-            if value is None:
-                pass
-            elif not isinstance(value, int):
-                raise ValueError("The number of warps must be an integer")
-            elif value <= 0:
-                raise ValueError("The number of warps must be positive")
-            elif value > 32:
-                raise ValueError("The number of warps must be less than or equal to 32")
-        elif key == "blocks":
-            if value is None:
-                pass
-            elif not isinstance(value, (int, Expr)) and not isinstance(value, Sequence):
-                raise ValueError("The number of blocks must be an integer or a sequence of integers")
-            elif isinstance(value, Sequence):
-                if not all(isinstance(v, (int, Expr)) for v in value):
-                    raise ValueError("The number of blocks must be an integer or a sequence of integers")
+    @blocks.setter
+    def blocks(self, value: Sequence[Expr | int] | Expr | int) -> None:
+        self._blocks = value
+
+    @property
+    def warps(self) -> Optional[int]:
+        """The number of warps."""
+        return self._warps
+
+    @warps.setter
+    def warps(self, value: int) -> None:
+        if value is None:
+            self._warps = None
+        elif not isinstance(value, int):
+            raise ValueError("The number of warps must be an integer")
+        elif value <= 0:
+            raise ValueError("The number of warps must be positive")
+        elif value > 32:
+            raise ValueError("The number of warps must be less than or equal to 32")
         else:
-            raise ValueError(f"Unknown attribute {key}")
-        super().__setattr__(key, value)
-
-    def __getattribute__(self, key):
-        ret = super().__getattribute__(key)
-        if ret is None:
-            raise ValueError("The function attribute {} must be set in the script program".format(key))
-        return ret
+            self._warps = value
 
 
 class Script:
+    """A script is a user-defined kernel function that can be compiled and executed on the GPU."""
+
     # the compiled program will print the instruction output of the specified block
     debug_block: Optional[tuple[int, int, int]] = None
 
-    # specify the schedule used for debugging, this will override any autotune space
+    # specify the schedule used for debugging. it will override any autotune space
     debug_schedule: Optional[dict[str, Any]] = None
 
     def __new__(cls, *args, **kwargs):
@@ -86,14 +77,14 @@ class Script:
         self._builder: Optional[StmtBuilder] = None
         self._transpiler: Optional[Transpiler] = None
 
-        # the following attributes should be set by the user in the kernel function
-        self.attrs: Attributes = Attributes()
-        self.blockIdx: dim3 = blockIdx
-        self.gridDim: dim3 = gridDim
+        self._attrs: Attributes = Attributes()
 
         # the following primitives could be used in the __init__ function to prepare the layouts
         self.cuda = cuda
         self.utils = utils
+
+    def __call__(self, *args, **kwargs):
+        raise RuntimeError("This method should never be called.")
 
     def program(self) -> Program:
         """
@@ -127,6 +118,25 @@ class Script:
             The JIT instance for the script with given arguments.
         """
         raise RuntimeError("This method should never be called. See InstantiatedScript.jit_instance instead.")
+
+    # the following properties should only be access in the __call__ function
+    @property
+    def attrs(self) -> Attributes:
+        """Kernel attributes like number of blocks and warps.
+
+        See :py:class:`Attributes <tilus.lang.Attributes>` for more details.
+        """
+        return self._attrs
+
+    @property
+    def blockIdx(self) -> dim3:
+        """Get the block index of the current thread block."""
+        return blockIdx
+
+    @property
+    def gridDim(self) -> dim3:
+        """Get the grid dimension of the kernel."""
+        return gridDim
 
     # the following functions should only be called in the __call__ function to construct the script program
 
@@ -187,17 +197,49 @@ class Script:
         self,
         *,
         dtype: DataType,
-        shape: Optional[Sequence[int]] = None,
+        shape: Sequence[int],
         layout: Optional[RegisterLayout] = None,
-        f_init: Optional[Callable[[Sequence[Var]], Expr | int | float | bool]] = None,
-        init: Optional[Expr | int | float] = None,
+        init: Optional[Callable[[Sequence[Var]], Expr | int | float | bool] | Expr | int | float] = None,
     ) -> RegisterTensor:
-        if f_init is not None and init is not None:
-            raise ValueError("Cannot specify both f_init and init")
-        elif f_init is None and init is not None:
+        """Create a register tensor.
 
-            def f_init(_):
-                return dtype.constant(init)
+        This instruction allocates a register tensor with the specified data type, shape, (optional) layout, and
+        (optional) initialization value.
+
+        When `layout` is not provided, the layout of the register tensor will be automatically inferred based on the
+        operations performed on it.
+
+        If `init` is not provided, the register tensor will be uninitialized. If `init` is provided, it can be a
+        scalar value (e.g., `int`, `float`, `bool`, or a scalar expression) that will be used to initialize all elements
+        of the register tensor. It can also be a callable function that takes a sequence of index variables (i, j, ...)
+        and returns a scalar expression based on these indices. The element at index (i, j, ...) will be initialized
+        with the value returned by this function. When the data type of the value is not identical to the data type of
+        the register tensor, the value will be cast to the data type of the register tensor.
+
+        Parameters
+        ----------
+        dtype: DataType
+            The data type of the tensor elements.
+        shape: Sequence[int]
+            The shape of the tensor.
+        layout: RegisterLayout, optional
+            The layout of the tensor. If not provided, the layout will be inferred based on the operations performed on it.
+        init: Callable[[Sequence[Var]], Expr | int | float | bool] | Expr | int | float, optional
+            The initialization value or function to initialize the tensor elements.
+
+        Returns
+        -------
+        tensor: RegisterTensor
+            The allocated register tensor.
+        """
+        if init is None:
+            f_init = None
+        elif isinstance(init, (float, int, bool, Expr)):
+            f_init = lambda _: dtype.constant(init)  # noqa: E731
+        elif callable(init):
+            f_init = init
+        else:
+            raise ValueError("init must be a callable, int, float, bool, or Expr, got {}".format(type(init)))
 
         return self._builder.allocate_register(dtype=dtype, shape=shape, layout=layout, f_init=f_init)
 
@@ -230,10 +272,36 @@ class Script:
         ptr: Expr,
         *,
         dtype: DataType,
-        shape: Optional[Sequence[Expr | int]] = None,
+        shape: Sequence[Expr | int],
         strides: Optional[Sequence[Expr | int]] = None,
         layout: Optional[GlobalLayout] = None,
     ) -> GlobalTensor:
+        """Create a global tensor view.
+
+        There are three ways to specify the layout:
+
+        - `layout`: If provided, it overrides the shape and strides parameters.
+        - `shape`: If provided, it defines the shape of the tensor and assume a compact row-major strides.
+        - `shape` and `strides`: If provided, they define the shape and strides of the tensor.
+
+        Parameters
+        ----------
+        ptr: Expr
+            The pointer to the global memory, which should be a pointer expression to the first element of the tensor.
+        dtype: DataType
+            The data type of the tensor elements.
+        shape: Sequence[Expr | int]
+            The shape of the tensor.
+        strides: Sequence[Expr | int], optional
+            The strides of the tensor. If not provided, it is assumed to be compact row-major layout.
+        layout: GlobalLayout, optional
+            The layout of the tensor. If provided, it overrides the shape and strides parameters.
+
+        Returns
+        -------
+        ret: GlobalTensor
+            The global tensor view created.
+        """
         if layout is not None:
             assert shape is None and strides is None, "Cannot specify both layout and shape/strides"
             layout = layout
@@ -259,6 +327,43 @@ class Script:
         dims: Optional[Sequence[int]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Load a slice of global tensor into a register tensor.
+
+        This instruction loads a slice of the global tensor `x` into a register tensor, given the `offsets` for each
+        dimension of the global tensor and the `shape` of the slice to be loaded.
+
+        When we only slice over a subset of the dimensions of the global tensor, we can specify the `dims` parameter to
+        indicate which dimensions are being sliced.
+
+        The optional `layout` parameter can be used to specify the layout of the register tensor.
+
+        When `out` is provided, the loaded data will be stored in the `out` register tensor, otherwise a new register
+        tensor will be allocated.
+
+        Parameters
+        ----------
+        x: GlobalTensor
+            The global tensor to load from.
+        offsets: Sequence[Expr | int]
+            The offsets for each dimension of the global tensor. The length of this sequence must match the number
+            of dimensions of the global tensor.
+        shape: Sequence[int], optional
+            The shape of the slice to be loaded. If not provided, the shape of the global tensor will be used.
+        layout: RegisterLayout, optional
+            The layout of the register tensor. If not provided, the layout will be inferred based on the operations
+            performed on it. When provided, its shape must match the `shape` parameter.
+        dims: Sequence[int], optional
+            The dimensions of the global tensor that are being sliced. If not provided, it is assumed that all
+            dimensions are being sliced. The length of this sequence must match the number of dimensions of the
+            register tensor being loaded into.
+        out: RegisterTensor, optional
+            The register tensor to store the loaded data into. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the loaded data from the global tensor.
+        """
         if len(offsets) != len(x.shape):
             raise InstructionError(
                 "The number of offsets must be equal to the number of dimensions of the global tensor"
@@ -271,14 +376,39 @@ class Script:
         x: RegisterTensor,
         *,
         offsets: Sequence[Expr | int],
-        slice_dims: Optional[Sequence[int]] = None,
+        dims: Optional[Sequence[int]] = None,
     ) -> None:
-        if slice_dims is not None and len(slice_dims) != len(x.shape):
+        """Store a register tensor into a slice of a global tensor.
+
+        This instruction stores the contents of the register tensor `x` into a slice of the global tensor `dst`.
+
+        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the
+        register tensor will be stored. The length of this sequence must match the number of dimensions of the global
+        tensor.
+
+        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
+        the global tensor corresponds to the first dimension of the register tensor, dim[1] to the second, and so on.
+        If `dims` is not provided, it is assumed to be range(len(dst.shape)), meaning all dimensions of the global tensor
+        are being sliced in the same order as the register tensor. When provided, the length of this sequence must
+        match the number of dimensions of the register tensor being stored.
+
+        Parameters
+        ----------
+        dst: GlobalTensor
+            The global tensor to store into.
+        x: RegisterTensor
+            The register tensor to store into the global tensor.
+        offsets: Sequence[Expr | int]
+            The offsets for each dimension of the global tensor where the register tensor will be stored.
+        dims: Sequence[int], optional
+            The dimensions of the global tensor that are being sliced.
+        """
+        if dims is not None and len(dims) != len(x.shape):
             raise InstructionError(
                 "The number of slice dimensions must be equal to the number of dimensions of the "
-                f"register tensor: {len(slice_dims)} vs {len(x.shape)}"
+                f"register tensor: {len(dims)} vs {len(x.shape)}"
             )
-        return self._builder.store_global(dst=dst, src=x, offsets=offsets, dims=slice_dims)
+        return self._builder.store_global(dst=dst, src=x, offsets=offsets, dims=dims)
 
     def load_shared(
         self,
@@ -343,7 +473,7 @@ class Script:
     def copy_async_wait_group(self, n: Union[Expr, int]) -> None:
         self._builder.copy_async_wait_group(n)
 
-    def mma_dot(
+    def dot(
         self,
         a: RegisterTensor,
         b: RegisterTensor,
@@ -351,8 +481,47 @@ class Script:
         /,
         *,
         acc_dtype: Optional[DataType] = None,
-        output: Optional[RegisterTensor] = None,
+        out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Dot product.
+
+        This instruction computes the dot product: `out = a @ b + c`.
+
+        The `a`, `b` and (optional) `c` tensors must be 2D register tensors, where
+
+        - `a` has shape [m, k]
+        - `b` has shape [k, n]
+        - `c` has shape [m, n]
+
+        If `c` is not provided, it's assumed to be a zero-initialized accumulator tensor with `acc_dtype` as its data
+        type. If both `c` and `acc_dtype` are not provided, an error is raised.
+
+        The `out` tensor is optional. If provided, it will be used to store the result of the dot product. If not
+        provided, a new register tensor will be allocated to hold the result.
+
+        The data type of the `c` and `out` must be the same and match the `acc_dtype` if they are provided.
+
+        Parameters
+        ----------
+        a: RegisterTensor
+            The first input tensor with shape [m, k].
+        b: RegisterTensor
+            The second input tensor with shape [k, n].
+        c: RegisterTensor, optional
+            The accumulator tensor with shape [m, n]. If not provided, a zero-initialized tensor will be used.
+        acc_dtype: DataType, optional
+            The data type of the accumulation computation. If `c` is not provided, this is used to determine the
+            data type of the `c` tensor. If `c` is provided, it must match the data type of `c`.
+        out: RegisterTensor, optional
+            The output tensor to store the result of the dot product. If not provided, a new register tensor will be
+            allocated to hold the result.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The result of the dot product, which is a register tensor with shape [m, n]. It will be `out` if provided,
+            or a new register tensor if not.
+        """
         if c is None:
             if acc_dtype is None:
                 raise InstructionError('mma_dot requires either "c" or "acc_dtype" to be specified')
@@ -374,14 +543,28 @@ class Script:
                 "The shapes of a, b, and c must match for dot: "
                 f"a: {a.shape}, b: {b.shape}, c: {c.shape} (expected a.shape[1] == b.shape[0] and a.shape[0] == c.shape[0] and b.shape[1] == c.shape[1])"
             )
-        return self._builder.mma_dot(
+        return self._builder.dot(
             a,
             b,
             c,
-            output=output,
+            output=out,
         )
 
     def cast(self, x: RegisterTensor, dtype: DataType) -> RegisterTensor:
+        """Cast a register tensor to a different data type.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to be cast.
+        dtype: DataType
+            The target data type to cast the register tensor to.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor with the specified data type.
+        """
         return self._builder.cast(x=x, dtype=dtype)
 
     def view(
@@ -492,18 +675,20 @@ class Script:
         self,
         *,
         dtype: DataType,
-        layout: RegisterLayout,
+        shape: Sequence[int],
         ptr: Var,
         f_offset: Callable[..., Expr | int],
         f_mask: Optional[Callable[..., Expr | int | bool]] = None,
+        layout: Optional[RegisterLayout] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         return self._builder.load_global_generic(
             dtype=dtype,
-            layout=layout,
+            shape=shape,
             ptr=ptr,
             f_offset=lambda args: f_offset(*args),
             f_mask=lambda args: f_mask(*args) if f_mask is not None else None,
+            layout=layout,
             out=out,
         )
 

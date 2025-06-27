@@ -55,3 +55,13 @@ Thumbs.db
 **/sanitizer-reports/
 **/nsys-reports/
 **/ncu-reports/
+
+
+# python cProfile result
+*.prof
+*.pclprof
+
+# sphinx generated
+**/generated/
+**/sg_execution_times.rst
+docs/source/getting-started/matmul/

@@ -32,7 +32,9 @@ class QuantizedMatmulCommon(Script):
     def __init__(self, weight_tile: tuple[int, int], a_dtype: DataType, b_dtype: DataType):
         super().__init__()
         tile_k, tile_n = weight_tile
-        assert a_dtype in [float16, bfloat16], "this kernel only supports float16/bfloat16 as activation data type"
+        assert a_dtype in [float16, bfloat16], (
+            "this kernel only supports float16/bfloat16 as activation data type"
+        )
         if a_dtype == float16:
             self.atomic_mma = self.cuda.atomic_mma_configs.m16n8k16_f16_f32
         else:
@@ -41,7 +43,9 @@ class QuantizedMatmulCommon(Script):
         self.b_dtype = b_dtype
         self.tile_k = weight_tile[0]
         self.tile_n = weight_tile[1]
-        self.tile_layout = repeat(tile_k // self.atomic_mma.k, tile_n // self.atomic_mma.n) * self.atomic_mma.lb
+        self.tile_layout = (
+            repeat(tile_k // self.atomic_mma.k, tile_n // self.atomic_mma.n) * self.atomic_mma.lb
+        )
 
         bits_per_threads = self.tile_layout.local_size * b_dtype.nbits
 
@@ -72,9 +76,18 @@ class QuantizedMatmulChangeLayout(QuantizedMatmulCommon):
         g_dst = self.global_view(
             dst_ptr,
             dtype=uint8,
-            shape=[k_size // self.tile_k, n_size // self.tile_n, self.flatten_tile_layout.shape[0]],
+            shape=[
+                k_size // self.tile_k,
+                n_size // self.tile_n,
+                self.flatten_tile_layout.shape[0],
+            ],
         )
-        self.store_global(g_dst, r_dst, offsets=[self.blockIdx.x, self.blockIdx.y, 0], slice_dims=[2])
+        self.store_global(
+            g_dst,
+            r_dst,
+            offsets=[self.blockIdx.x, self.blockIdx.y, 0],
+            dims=[2],
+        )
 
 
 class QuantizedMatmulRestoreLayout(QuantizedMatmulCommon):
@@ -90,12 +103,20 @@ class QuantizedMatmulRestoreLayout(QuantizedMatmulCommon):
         g_src = self.global_view(
             src_ptr,
             dtype=uint8,
-            shape=[k_size // self.tile_k, n_size // self.tile_n, self.flatten_tile_layout.shape[0]],
+            shape=[
+                k_size // self.tile_k,
+                n_size // self.tile_n,
+                self.flatten_tile_layout.shape[0],
+            ],
         )
-        r_src = self.load_global(g_src, offsets=[self.blockIdx.x, self.blockIdx.y, 0], layout=self.flatten_tile_layout)
+        r_src = self.load_global(
+            g_src,
+            offsets=[self.blockIdx.x, self.blockIdx.y, 0],
+            layout=self.flatten_tile_layout,
+        )
         r_dst = self.view(r_src, layout=self.tile_layout, dtype=self.b_dtype)
         g_dst = self.global_view(dst_ptr, dtype=self.b_dtype, shape=[k_size, n_size])
-        self.store_global(g_dst, r_dst, offsets=[offset_k, offset_n], slice_dims=[2])
+        self.store_global(g_dst, r_dst, offsets=[offset_k, offset_n], dims=[2])
 
 
 @tilus.autotune("warp_spatial", [[1, 4], [1, 8], [2, 4]])
@@ -123,8 +144,12 @@ class QuantizedMatmul(QuantizedMatmulCommon):
     ):
         super().__init__(weight_tile=weight_tile, a_dtype=a_dtype, b_dtype=b_dtype)
 
-        assert a_dtype.is_any_float16(), "this kernel only supports float16/bfloat16 as activation data type"
-        assert 1 <= b_dtype.nbits <= 8, "this kernel only supports dtype with 1-8 bits as weight data type"
+        assert a_dtype.is_any_float16(), (
+            "this kernel only supports float16/bfloat16 as activation data type"
+        )
+        assert 1 <= b_dtype.nbits <= 8, (
+            "this kernel only supports dtype with 1-8 bits as weight data type"
+        )
 
         self.weight_tile = weight_tile
         self.group_size = group_size
@@ -144,7 +169,10 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         wrm, wrn, wrk = warp_repeat
 
         assert weight_tile[0] % self.atomic_mma.k == 0 and weight_tile[1] % self.atomic_mma.n == 0
-        tk, tn = weight_tile[0] // self.atomic_mma.k, weight_tile[1] // self.atomic_mma.n
+        tk, tn = (
+            weight_tile[0] // self.atomic_mma.k,
+            weight_tile[1] // self.atomic_mma.n,
+        )
 
         assert wrk % tk == 0 and wrn % tn == 0, (wrk, tk, wrn, tn)
         self.block_m = self.atomic_mma.m * wsm * wrm
@@ -170,15 +198,32 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         )
         self.layout_rs = reduce(self.mma.lb, dims=[0], keepdims=True)
 
-        self.layout_sa = self.cuda.swizzled_shared_layout(self.a_dtype, shape=[num_stages, self.block_m, self.block_k])
-        self.layout_sb = self.cuda.shared_layout(shape=[self.num_stages, k_tiles, n_tiles, self.tile_bytes])
-        self.layout_sc = self.cuda.swizzled_shared_layout(self.a_dtype, shape=[self.block_m, self.block_n])
+        self.layout_sa = self.cuda.swizzled_shared_layout(
+            self.a_dtype, shape=[num_stages, self.block_m, self.block_k]
+        )
+        self.layout_sb = self.cuda.shared_layout(
+            shape=[self.num_stages, k_tiles, n_tiles, self.tile_bytes]
+        )
+        self.layout_sc = self.cuda.swizzled_shared_layout(
+            self.a_dtype, shape=[self.block_m, self.block_n]
+        )
         self.layout_ss = self.cuda.shared_layout(shape=[self.num_stages, 1, self.block_n])
 
     def __call__(
-        self, m_size: int32, n_size: int, k_size: int, a_ptr: void_p, b_ptr: void_p, scale_ptr: void_p, c_ptr: void_p
+        self,
+        m_size: int32,
+        n_size: int,
+        k_size: int,
+        a_ptr: void_p,
+        b_ptr: void_p,
+        scale_ptr: void_p,
+        c_ptr: void_p,
     ):
-        self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n), self.split_k_factor]
+        self.attrs.blocks = [
+            cdiv(m_size, self.block_m),
+            cdiv(n_size, self.block_n),
+            self.split_k_factor,
+        ]
         self.attrs.warps = self.num_warps
 
         # the k_size for each thread block
@@ -191,19 +236,41 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         offset_n: int32 = block_n * self.blockIdx.y
 
         ga = self.global_view(a_ptr, dtype=self.a_dtype, shape=[m_size, k_size])
-        gb = self.global_view(b_ptr, dtype=uint8, shape=[k_size // self.tile_k, n_size // self.tile_n, self.tile_bytes])
-        gs = self.global_view(scale_ptr, dtype=self.a_dtype, shape=[k_size // self.group_size, n_size])
+        gb = self.global_view(
+            b_ptr,
+            dtype=uint8,
+            shape=[
+                k_size // self.tile_k,
+                n_size // self.tile_n,
+                self.tile_bytes,
+            ],
+        )
+        gs = self.global_view(
+            scale_ptr,
+            dtype=self.a_dtype,
+            shape=[k_size // self.group_size, n_size],
+        )
 
         sa = self.shared_tensor(dtype=self.a_dtype, layout=self.layout_sa)
         sb = self.shared_tensor(dtype=uint8, layout=self.layout_sb)
         ss = self.shared_tensor(dtype=self.a_dtype, layout=self.layout_ss)
-        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, init=0.0)
+        acc = self.register_tensor(
+            dtype=float32, shape=[self.block_m, self.block_n], layout=self.mma.lc, init=0.0
+        )
 
         for stage in range(self.num_stages - 1):
             offset_k = start_offset_k + stage * self.block_k
             self.copy_async(src=ga, dst=sa[stage], offsets=[offset_m, offset_k])
-            self.copy_async(src=gb, dst=sb[stage], offsets=[offset_k // self.tile_k, offset_n // self.tile_n, 0])
-            self.copy_async(src=gs, dst=ss[stage], offsets=[offset_k // self.group_size, offset_n])
+            self.copy_async(
+                src=gb,
+                dst=sb[stage],
+                offsets=[offset_k // self.tile_k, offset_n // self.tile_n, 0],
+            )
+            self.copy_async(
+                src=gs,
+                dst=ss[stage],
+                offsets=[offset_k // self.group_size, offset_n],
+            )
             self.copy_async_commit_group()
 
         self.copy_async_wait_group(n=self.num_stages - 2)
@@ -219,15 +286,29 @@ class QuantizedMatmul(QuantizedMatmulCommon):
             b_low_precision = self.view(b_flattened, dtype=self.b_dtype, layout=self.mma.lb)
             b_unscaled = self.cast(b_low_precision, dtype=self.a_dtype)
             b = b_unscaled * scale
-            self.mma_dot(a, b, acc, output=acc)
+            self.dot(a, b, acc, out=acc)
 
             # preload the next tile of A and B into shared memory
             preload_offset_k = offset_k + (self.num_stages - 1) * block_k
-            self.copy_async(src=ga, dst=sa[preload_stage], offsets=[offset_m, preload_offset_k])
             self.copy_async(
-                src=gb, dst=sb[preload_stage], offsets=[preload_offset_k // self.tile_k, offset_n // self.tile_n, 0]
+                src=ga,
+                dst=sa[preload_stage],
+                offsets=[offset_m, preload_offset_k],
             )
-            self.copy_async(src=gs, dst=ss[preload_stage], offsets=[preload_offset_k // self.group_size, offset_n])
+            self.copy_async(
+                src=gb,
+                dst=sb[preload_stage],
+                offsets=[
+                    preload_offset_k // self.tile_k,
+                    offset_n // self.tile_n,
+                    0,
+                ],
+            )
+            self.copy_async(
+                src=gs,
+                dst=ss[preload_stage],
+                offsets=[preload_offset_k // self.group_size, offset_n],
+            )
             self.copy_async_commit_group()
             self.copy_async_wait_group(n=self.num_stages - 2)
 
@@ -256,13 +337,17 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         if self.split_k_factor == 0:
             self.store_global(gc, rc, offsets=[offset_m, offset_n])
         else:
-            semaphores = self.global_tensor(dtype=int32, shape=[m_blocks, n_blocks], requires_clean=True)
+            semaphores = self.global_tensor(
+                dtype=int32, shape=[m_blocks, n_blocks], requires_clean=True
+            )
             semaphore: ~int32 = ~semaphores[self.blockIdx.x, self.blockIdx.y]
 
             # load and accumulate the partial result in global memory
             if self.blockIdx.z > 0:
                 self.lock_semaphore(semaphore, value=self.blockIdx.z)
-                partial_rc = self.load_global(gc, offsets=[offset_m, offset_n], shape=[block_m, block_n])
+                partial_rc = self.load_global(
+                    gc, offsets=[offset_m, offset_n], shape=[block_m, block_n]
+                )
                 self.add(rc, partial_rc, out=rc)
 
             # store the result to global memory and release the semaphore
@@ -274,9 +359,18 @@ class QuantizedMatmul(QuantizedMatmulCommon):
 
 
 class QuantizedLinear(nn.Module):
-    def __init__(self, x_dtype: DataType, w_dtype: DataType, group_size: int, in_features: int, out_features: int):
+    def __init__(
+        self,
+        x_dtype: DataType,
+        w_dtype: DataType,
+        group_size: int,
+        in_features: int,
+        out_features: int,
+    ):
         super().__init__()
-        assert x_dtype in [float16, bfloat16], "this kernel only supports float16/bfloat16 as activation data type"
+        assert x_dtype in [float16, bfloat16], (
+            "this kernel only supports float16/bfloat16 as activation data type"
+        )
         assert w_dtype.is_float() or (w_dtype.is_integer() and w_dtype.min_value < 0), (
             "this kernel only supports symmetric quantization, which requires signed quantized weight"
         )
@@ -310,16 +404,27 @@ class QuantizedLinear(nn.Module):
         )
 
         self.quantized_weight = nn.Parameter(
-            torch.empty(size=[out_features * in_features * w_dtype.nbits // 8], dtype=torch.uint8), requires_grad=False
+            torch.empty(
+                size=[out_features * in_features * w_dtype.nbits // 8],
+                dtype=torch.uint8,
+            ),
+            requires_grad=False,
         )
         self.scales = nn.Parameter(
-            torch.empty(size=[in_features // group_size, out_features], dtype=dtype_to_torch(x_dtype)),
+            torch.empty(
+                size=[in_features // group_size, out_features],
+                dtype=dtype_to_torch(x_dtype),
+            ),
             requires_grad=False,
         )
 
     def load_and_quantize(self, weight: torch.Tensor):
         assert (self.out_features, self.in_features) == weight.shape, "weight shape mismatch"
-        out_channels, in_channels, group_size = self.out_features, self.in_features, self.group_size
+        out_channels, in_channels, group_size = (
+            self.out_features,
+            self.in_features,
+            self.group_size,
+        )
 
         # convert weight to float32 cuda tensor with shape [in_channels, out_channels]
         weight = weight.cuda().float().transpose(1, 0).contiguous()
@@ -330,7 +435,8 @@ class QuantizedLinear(nn.Module):
         # get the maximum abs value of each group: [in_channels // group_size, 1, out_channels]
         max_weight: torch.Tensor = weight.abs().max(dim=1, keepdim=True)[0]
         scales = torch.max(
-            max_weight / float(self.w_dtype.max_value), torch.tensor(1e-6, dtype=weight.dtype, device=weight.device)
+            max_weight / float(self.w_dtype.max_value),
+            torch.tensor(1e-6, dtype=weight.dtype, device=weight.device),
         )
         scales = scales.to(dtype=dtype_to_torch(self.x_dtype))
 
@@ -338,21 +444,30 @@ class QuantizedLinear(nn.Module):
         quantized_weight = weight / scales
 
         # clamp the quantized weight to the range of the quantized type
-        quantized_weight = torch.clamp(quantized_weight, float(self.w_dtype.min_value), float(self.w_dtype.max_value))
+        quantized_weight = torch.clamp(
+            quantized_weight,
+            float(self.w_dtype.min_value),
+            float(self.w_dtype.max_value),
+        )
 
         # rounding to nearest number in the quantized type, but the data type is still float32
         if self.w_dtype.is_integer():
             quantized_weight = torch.round(quantized_weight)
         else:
             # for floating-point quantized weight, the rounding will be done in the casting
-            quantized_weight = tilus.from_torch(quantized_weight).to(self.w_dtype).to(tilus.float32).torch()
+            quantized_weight = (
+                tilus.from_torch(quantized_weight).to(self.w_dtype).to(tilus.float32).torch()
+            )
 
         # convert the quantized weight to the quantized type
         quantized_weight = tilus.from_torch(quantized_weight).to(self.w_dtype).storage
 
         # change the layout of quantized weight, and store it to the self.quantized_weight
         self.change_layout_kernel(
-            self.in_features, self.out_features, quantized_weight.data_ptr(), self.quantized_weight.data_ptr()
+            self.in_features,
+            self.out_features,
+            quantized_weight.data_ptr(),
+            self.quantized_weight.data_ptr(),
         )
 
         # save the scales type
@@ -378,7 +493,16 @@ class QuantizedLinear(nn.Module):
 
 
 def main():
-    headers = ["dtype", "m", "n", "k", "torch", "torch(TFLOPs)", "tilus", "tilus(TFLOPs)"]
+    headers = [
+        "dtype",
+        "m",
+        "n",
+        "k",
+        "torch",
+        "torch(TFLOPs)",
+        "tilus",
+        "tilus(TFLOPs)",
+    ]
     group_size = 128
     workloads = []
     for k, n in [
@@ -408,7 +532,11 @@ def main():
     for dtype in dtypes:
         for m, n, k in workloads:
             quantized_linear = QuantizedLinear(
-                x_dtype=float16, w_dtype=dtype, group_size=group_size, in_features=k, out_features=n
+                x_dtype=float16,
+                w_dtype=dtype,
+                group_size=group_size,
+                in_features=k,
+                out_features=n,
             ).cuda()
             a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
             b = (torch.rand(k, n, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)

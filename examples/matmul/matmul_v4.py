@@ -1,15 +1,15 @@
+"""
+Matmul v4
+=========
+"""
+
 import math
 
 import pandas
-import pandas as pd
 import tilus
 import torch
 from tilus import float16, float32, int32
 from tilus.utils import benchmark_func
-
-tilus.option.cache_dir("./cache")
-
-pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
 
 @tilus.autotune("num_warps", [4, 8])
@@ -29,8 +29,19 @@ class MatmulV4(tilus.Script):
         self.block_k = block_k
         self.num_warps = num_warps
 
-    def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
-        self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
+    def __call__(
+        self,
+        m_size: int32,
+        n_size: int,
+        k_size: int,
+        a_ptr: ~float16,
+        b_ptr: ~float16,
+        c_ptr: ~float16,
+    ):
+        self.attrs.blocks = [
+            self.utils.ceil_div(m_size, self.block_m),
+            self.utils.ceil_div(n_size, self.block_n),
+        ]
         self.attrs.warps = self.num_warps
 
         block_m, block_n, block_k = self.block_m, self.block_n, self.block_k
@@ -51,7 +62,7 @@ class MatmulV4(tilus.Script):
 
             a = self.load_shared(sa)
             b = self.load_shared(sb)
-            self.mma_dot(a, b, acc, output=acc)
+            self.dot(a, b, acc, out=acc)
             self.sync()
 
         self.free_shared(sa)

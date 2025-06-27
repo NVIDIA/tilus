@@ -12,15 +12,15 @@ from tilus.ir.tensor import RegisterTensor
 
 
 @dataclass(frozen=True, eq=False)
-class MmaDotInst(Instruction):
+class DotInst(Instruction):
     @staticmethod
     def create(
         a: RegisterTensor,
         b: RegisterTensor,
         c: RegisterTensor,
         output: RegisterTensor,
-    ) -> MmaDotInst:
-        return MmaDotInst(
+    ) -> DotInst:
+        return DotInst(
             output=output,
             inputs=(a, b, c),
         )

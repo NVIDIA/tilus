@@ -16,11 +16,14 @@ class TestReduceKernel(tilus.Script):
         self.attrs.warps = self.layout.spatial_size // 32
 
         a = self.register_tensor(
-            dtype=int32, layout=self.layout, f_init=lambda indices: indices[0] * self.layout.shape[1] + indices[1]
+            dtype=int32,
+            shape=self.layout.shape,
+            layout=self.layout,
+            init=lambda indices: indices[0] * self.layout.shape[1] + indices[1],
         )
         b = self.sum(a, dim=self.dim, keepdim=True)
         g_out = self.global_view(ptr=out_ptr, dtype=int32, shape=b.shape)
-        self.store_global(g_out, b, offsets=[0, 0], slice_dims=[0, 1])
+        self.store_global(g_out, b, offsets=[0, 0], dims=[0, 1])
 
 
 @pytest.mark.parametrize("dim", [0, 1])

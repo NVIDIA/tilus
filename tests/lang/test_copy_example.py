@@ -20,6 +20,7 @@ class MemoryCopy(tilus.Script):
 
         loaded_regs = self.load_global_generic(
             dtype=float32,
+            shape=self.layout.shape,
             layout=self.layout,
             ptr=src_ptr,
             f_offset=lambda i: bi * self.block_size + i,

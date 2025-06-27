@@ -1,15 +1,17 @@
+"""
+Matmul v2
+=========
+"""
+
 import math
 
 import pandas
-import pandas as pd
 import tilus
 import torch
 from tilus import float16, float32, int32
 from tilus.utils import benchmark_func
 
 tilus.option.cache_dir("./cache")
-
-pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
 
 @tilus.autotune("num_warps", [4, 8])
@@ -29,8 +31,19 @@ class MatmulV2(tilus.Script):
         self.block_k = block_k
         self.num_warps = num_warps
 
-    def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
-        self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
+    def __call__(
+        self,
+        m_size: int32,
+        n_size: int,
+        k_size: int,
+        a_ptr: ~float16,
+        b_ptr: ~float16,
+        c_ptr: ~float16,
+    ):
+        self.attrs.blocks = [
+            self.utils.ceil_div(m_size, self.block_m),
+            self.utils.ceil_div(n_size, self.block_n),
+        ]
         self.attrs.warps = self.num_warps
 
         offset_m: int32 = self.block_m * self.blockIdx.x
@@ -43,15 +56,23 @@ class MatmulV2(tilus.Script):
         acc = self.register_tensor(dtype=float32, shape=[self.block_m, self.block_n], init=0.0)
 
         for offset_k in range(0, k_size, self.block_k):
-            lda = self.load_global(ga, offsets=[offset_m, offset_k], shape=[self.block_m, self.block_k])
+            lda = self.load_global(
+                ga,
+                offsets=[offset_m, offset_k],
+                shape=[self.block_m, self.block_k],
+            )
             self.store_shared(sa, lda)
-            ldb = self.load_global(gb, offsets=[offset_k, offset_n], shape=[self.block_k, self.block_n])
+            ldb = self.load_global(
+                gb,
+                offsets=[offset_k, offset_n],
+                shape=[self.block_k, self.block_n],
+            )
             self.store_shared(sb, ldb)
             self.sync()
 
             a = self.load_shared(sa)
             b = self.load_shared(sb)
-            acc = self.mma_dot(a, b, acc)
+            acc = self.dot(a, b, acc)
             self.sync()
 
         self.free_shared(sa)

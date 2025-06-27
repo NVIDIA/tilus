@@ -1,3 +1,8 @@
+"""
+Matmul v1
+=========
+"""
+
 import math
 
 import pandas
@@ -8,8 +13,6 @@ from tilus.utils import benchmark_func
 
 tilus.option.cache_dir("./cache")
 
-pandas.set_option("display.float_format", lambda x: "%.2f" % x)
-
 
 class MatmulV1(tilus.Script):
     def __init__(self):
@@ -19,8 +22,19 @@ class MatmulV1(tilus.Script):
         self.block_n = self.mma.n
         self.block_k = self.mma.k
 
-    def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
-        self.attrs.blocks = [self.utils.ceil_div(m_size, self.mma.m), self.utils.ceil_div(n_size, self.mma.n)]
+    def __call__(
+        self,
+        m_size: int32,
+        n_size: int,
+        k_size: int,
+        a_ptr: ~float16,
+        b_ptr: ~float16,
+        c_ptr: ~float16,
+    ):
+        self.attrs.blocks = [
+            self.utils.ceil_div(m_size, self.mma.m),
+            self.utils.ceil_div(n_size, self.mma.n),
+        ]
         self.attrs.warps = self.mma.num_warps
 
         offset_m: int32 = self.block_m * self.blockIdx.x
@@ -30,18 +44,28 @@ class MatmulV1(tilus.Script):
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
         sa = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
         sb = self.shared_tensor(dtype=float16, shape=[self.block_k, self.block_n])
-        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, init=0.0)
+        acc = self.register_tensor(
+            dtype=float32, shape=self.mma.lc.shape, layout=self.mma.lc, init=0.0
+        )
 
         for offset_k in range(0, k_size, self.block_k):
-            lda = self.load_global(ga, offsets=[offset_m, offset_k], shape=[self.block_m, self.block_k])
+            lda = self.load_global(
+                ga,
+                offsets=[offset_m, offset_k],
+                shape=[self.block_m, self.block_k],
+            )
             self.store_shared(sa, lda)
-            ldb = self.load_global(gb, offsets=[offset_k, offset_n], shape=[self.block_k, self.block_n])
+            ldb = self.load_global(
+                gb,
+                offsets=[offset_k, offset_n],
+                shape=[self.block_k, self.block_n],
+            )
             self.store_shared(sb, ldb)
             self.sync()
 
             a = self.load_shared(sa, layout=self.mma.la)
             b = self.load_shared(sb, layout=self.mma.lb)
-            self.mma_dot(a, b, acc, output=acc)
+            self.dot(a, b, acc, out=acc)
             self.sync()
 
         self.free_shared(sa)

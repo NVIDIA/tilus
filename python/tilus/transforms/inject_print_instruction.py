@@ -12,10 +12,10 @@ from tilus.ir.instructions import (
     AllocateRegisterInst,
     AllocateSharedInst,
     CastInst,
+    DotInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
     LoadSharedInst,
-    MmaDotInst,
     StoreGlobalInst,
 )
 from tilus.ir.stmt import ForStmt, Stmt
@@ -34,7 +34,7 @@ PRINT_CONFIGS: dict[Type[Instruction], PrintConfig] = {
     LoadGlobalInst: PrintConfig(output=True),
     LoadGlobalGenericInst: PrintConfig(output=True),
     LoadSharedInst: PrintConfig(output=True),
-    MmaDotInst: PrintConfig(output=True),
+    DotInst: PrintConfig(output=True),
     CastInst: PrintConfig(output=True),
     StoreGlobalInst: PrintConfig(inputs=[0]),
 }

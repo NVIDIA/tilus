@@ -107,7 +107,7 @@ class LoadGlobalGenericInst(Instruction):
         f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]],
         output: RegisterTensor,
     ) -> LoadGlobalGenericInst:
-        axes = tuple(index_vars(num_vars=len(output.layout.shape)))
+        axes = tuple(index_vars(num_vars=len(output.shape)))
         offset = as_expr(f_offset(axes))
         mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
         return LoadGlobalGenericInst(output=output, inputs=tuple(), ptr=ptr, axes=axes, offset=offset, mask=mask)
@@ -127,7 +127,7 @@ class StoreGlobalGenericInst(Instruction):
         f_offset: Callable[[Sequence[Var]], Expr | int],
         f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
     ) -> StoreGlobalGenericInst:
-        axes = tuple(index_vars(num_vars=len(x.layout.shape)))
+        axes = tuple(index_vars(num_vars=len(x.shape)))
         offset = as_expr(f_offset(axes))
         mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
         return StoreGlobalGenericInst(output=None, inputs=(x,), ptr=ptr, axes=axes, offset=offset, mask=mask)
@@ -147,7 +147,7 @@ class LoadSharedGenericInst(Instruction):
         f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]],
         output: RegisterTensor,
     ) -> LoadSharedGenericInst:
-        axes = tuple(index_vars(num_vars=len(output.layout.shape)))
+        axes = tuple(index_vars(num_vars=len(output.shape)))
         offset = as_expr(f_offset(axes))
         mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
         return LoadSharedGenericInst(output=output, inputs=tuple(), ptr=ptr, axes=axes, offset=offset, mask=mask)

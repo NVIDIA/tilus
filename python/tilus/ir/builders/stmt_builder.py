@@ -18,10 +18,10 @@ from tilus.ir.instructions.cuda import (
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
+    DotInst,
     LoadMatrixConfig,
     LoadMatrixInst,
     LockSemaphoreInst,
-    MmaDotInst,
     ReleaseSemaphoreInst,
 )
 from tilus.ir.instructions.generic import (
@@ -639,7 +639,7 @@ class StmtBuilder(StmtBuilderCore):
     def printf(self, fstring: str, *expressions: Expr | int | float | str, cond: Optional[Expr] = None) -> None:
         self.format_print(fstring=fstring, expressions=expressions, cond=cond)
 
-    def mma_dot(
+    def dot(
         self,
         a: RegisterTensor,
         b: RegisterTensor,
@@ -651,7 +651,7 @@ class StmtBuilder(StmtBuilderCore):
     ) -> RegisterTensor:
         if output is None:
             output = RegisterTensor.create(dtype=c.dtype, shape=c.shape)
-        inst = MmaDotInst.create(
+        inst = DotInst.create(
             a=a,
             b=b,
             c=c,
@@ -789,14 +789,15 @@ class StmtBuilder(StmtBuilderCore):
         self,
         *,
         dtype: DataType,
-        layout: RegisterLayout,
+        shape: Sequence[int],
         ptr: Var,
         f_offset: Callable[[Sequence[Var]], Expr | int],
         f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
+        layout: Optional[RegisterLayout] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if out is None:
-            out = RegisterTensor.create(dtype=dtype, optional_layout=layout)
+            out = RegisterTensor.create(dtype=dtype, shape=shape, optional_layout=layout)
         inst = LoadGlobalGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
         self.append(inst)
         return inst.register_output

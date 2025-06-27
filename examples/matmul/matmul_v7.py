@@ -1,20 +1,15 @@
+"""
+Matmul v7
+=========
+"""
+
 import math
 
 import pandas
-import pandas as pd
 import tilus
 import torch
 from tilus import float16, float32, int32
 from tilus.utils import benchmark_func, cdiv
-
-tilus.option.cache_dir("./cache")
-tilus.option.debug.dump_ir()
-tilus.utils.clear_cache()
-
-pd.set_option("display.float_format", lambda x: "%.3f" % x)
-pd.set_option("display.max_columns", None)
-pd.set_option("display.width", None)
-pd.set_option("display.max_rows", None)
 
 
 @tilus.autotune("num_warps", [4, 8])
@@ -40,8 +35,20 @@ class MatmulV7(tilus.Script):
         self.num_stages = num_stages
         self.split_k_factor = split_k_factor
 
-    def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
-        self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n), self.split_k_factor]
+    def __call__(
+        self,
+        m_size: int32,
+        n_size: int,
+        k_size: int,
+        a_ptr: ~float16,
+        b_ptr: ~float16,
+        c_ptr: ~float16,
+    ):
+        self.attrs.blocks = [
+            cdiv(m_size, self.block_m),
+            cdiv(n_size, self.block_n),
+            self.split_k_factor,
+        ]
         self.attrs.warps = self.num_warps
 
         # the k_size for each thread block
@@ -74,14 +81,22 @@ class MatmulV7(tilus.Script):
             # preload the next tile of A and B into shared memory
             preload_offset_k = offset_k + (self.num_stages - 1) * block_k
             if preload_offset_k < end_offset_k:
-                self.copy_async(src=ga, dst=sa[preload_stage], offsets=[offset_m, preload_offset_k])
-                self.copy_async(src=gb, dst=sb[preload_stage], offsets=[preload_offset_k, offset_n])
+                self.copy_async(
+                    src=ga,
+                    dst=sa[preload_stage],
+                    offsets=[offset_m, preload_offset_k],
+                )
+                self.copy_async(
+                    src=gb,
+                    dst=sb[preload_stage],
+                    offsets=[preload_offset_k, offset_n],
+                )
             self.copy_async_commit_group()
 
             # computation for current tile
             a = self.load_shared(sa[current_stage])
             b = self.load_shared(sb[current_stage])
-            self.mma_dot(a, b, acc, output=acc)
+            self.dot(a, b, acc, out=acc)
 
             # update the stage
             current_stage = (current_stage + 1) % self.num_stages
@@ -106,13 +121,17 @@ class MatmulV7(tilus.Script):
         if self.split_k_factor == 0:
             self.store_global(gc, rc, offsets=[offset_m, offset_n])
         else:
-            semaphores = self.global_tensor(dtype=int32, shape=[m_blocks, n_blocks], requires_clean=True)
+            semaphores = self.global_tensor(
+                dtype=int32, shape=[m_blocks, n_blocks], requires_clean=True
+            )
             semaphore: ~int32 = ~semaphores[self.blockIdx.x, self.blockIdx.y]
 
             # load and accumulate the partial result in global memory
             if self.blockIdx.z > 0:
                 self.lock_semaphore(semaphore, value=self.blockIdx.z)
-                partial_rc = self.load_global(gc, offsets=[offset_m, offset_n], shape=[block_m, block_n])
+                partial_rc = self.load_global(
+                    gc, offsets=[offset_m, offset_n], shape=[block_m, block_n]
+                )
                 self.add(rc, partial_rc, out=rc)
 
             # store the result to global memory and release the semaphore
@@ -126,7 +145,9 @@ class MatmulV7(tilus.Script):
 def main():
     torch.random.manual_seed(41)
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
-    workloads = [[4096, 4096, 4096]]
+    workloads = [
+        [4096, 4096, 4096],
+    ]
 
     rows = []
     matmul = MatmulV7()
@@ -153,7 +174,11 @@ def main():
         df = pandas.DataFrame(rows, columns=headers)
 
         # Post-process to combine torch and tilus results
-        df_pivot = df.pivot(index=["m", "n", "k"], columns="name", values=["latency (ms)", "gflops"])
+        df_pivot = df.pivot(
+            index=["m", "n", "k"],
+            columns="name",
+            values=["latency (ms)", "gflops"],
+        )
         df_pivot.columns = [f"{col[1]}_{col[0]}" for col in df_pivot.columns]
         df_pivot = df_pivot.reset_index()
 

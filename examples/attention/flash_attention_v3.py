@@ -23,13 +23,13 @@ pd.options.display.width = 1000
 class FlashAttention(tilus.Script):
     LOG2_E = 1.4426950408889634  # log2(e)
 
-    # debug_schedule = dict(
-    #     num_warps=4,
-    #     block_q=64,
-    #     block_kv=64,
-    #     split_kv=-1,
-    #     keep_q_in_regs=False,
-    # )
+    debug_schedule = dict(
+        num_warps=4,
+        block_q=64,
+        block_kv=64,
+        split_kv=-1,
+        keep_q_in_regs=False,
+    )
 
     def __init__(
         self,
@@ -69,7 +69,7 @@ class FlashAttention(tilus.Script):
         mask = self.register_tensor(
             dtype=boolean,
             shape=[self.block_q, self.block_kv],
-            f_init=lambda ij: ij[0] + q_offset >= ij[1] + kv_offset,
+            init=lambda ij: ij[0] + q_offset >= ij[1] + kv_offset,
         )
         self.assign(score, score + self.where(mask, x=0.0, y=-1e6))
 
@@ -109,13 +109,17 @@ class FlashAttention(tilus.Script):
         self.copy_async_wait_group(0)
         self.sync()
         self.copy_async(
-            gv, sv, offsets=[bs, kv_offset, head // self.group_heads, 0], dims=[1, 3], check_bounds=check_bounds
+            gv,
+            sv,
+            offsets=[bs, kv_offset, head // self.group_heads, 0],
+            dims=[1, 3],
+            check_bounds=check_bounds,
         )
         self.copy_async_commit_group()
 
         # issue the async copy for v and perform dot(q, k)
         rk = self.load_shared(sk)  # [block_kv, head_size]
-        score = self.mma_dot(rq, rk.transpose(), acc_dtype=f32)  # [block_q, block_kv]
+        score = self.dot(rq, rk.transpose(), acc_dtype=f32)  # [block_q, block_kv]
 
         if check_bounds:
             self.apply_mask(score, q_offset, kv_offset)  # apply causal mask
@@ -139,7 +143,7 @@ class FlashAttention(tilus.Script):
         rp = self.softmax_rescale(score, m=m, l=l, o=o)
 
         # pv
-        cur_o = self.mma_dot(rp, rv, acc_dtype=f32)  # [block_q, head_size]
+        cur_o = self.dot(rp, rv, acc_dtype=f32)  # [block_q, head_size]
         self.annotate_layout(cur_o, self.sv_config.lc)
         self.assign(o, o + cur_o)
 
@@ -186,13 +190,17 @@ class FlashAttention(tilus.Script):
         if self.split_kv != -1:
             kv_offset_inner_end = min(kv_offset_inner_end, kv_start_offset + self.split_kv)
         for kv_offset in range(kv_start_offset, kv_offset_inner_end, self.block_kv):
-            self.attention_iteration(bs, kv_offset, q_offset, head, gk, gv, sq, rq, sk, sv, o, m, l, check_bounds=False)
+            self.attention_iteration(
+                bs, kv_offset, q_offset, head, gk, gv, sq, rq, sk, sv, o, m, l, check_bounds=False
+            )
 
         kv_offset_end = q_offset + self.block_q
         if self.split_kv != -1:
             kv_offset_end = min(kv_offset_end, kv_start_offset + self.split_kv)
         for kv_offset in range(kv_offset_inner_end, kv_offset_end, self.block_kv):
-            self.attention_iteration(bs, kv_offset, q_offset, head, gk, gv, sq, rq, sk, sv, o, m, l, check_bounds=True)
+            self.attention_iteration(
+                bs, kv_offset, q_offset, head, gk, gv, sq, rq, sk, sv, o, m, l, check_bounds=True
+            )
 
         self.copy_async_wait_group(0)
         self.sync()
@@ -213,7 +221,9 @@ class FlashAttention(tilus.Script):
         # o: [block_q, head_size]
         # m: [block_q, 1]
         # l: [block_q, 1]
-        go = self.global_view(o_ptr, dtype=self.dtype, shape=[batch_size, q_len, self.num_heads, self.head_size])
+        go = self.global_view(
+            o_ptr, dtype=self.dtype, shape=[batch_size, q_len, self.num_heads, self.head_size]
+        )
         o = o / l
         o_f16 = self.cast(o, dtype=self.dtype)  # [block_q, head_size]
         so = self.shared_tensor(dtype=self.dtype, shape=[self.block_q, self.head_size])
@@ -229,7 +239,7 @@ class FlashAttention(tilus.Script):
                 go,
                 self.load_shared(so),
                 offsets=[bs, q_offset, head, 0],
-                slice_dims=[1, 3],
+                dims=[1, 3],
             )
         else:
             num_q_blocks = cdiv(q_len, self.block_q)
@@ -237,10 +247,14 @@ class FlashAttention(tilus.Script):
                 dtype=int32, shape=[num_q_blocks, batch_size, self.num_heads], requires_clean=True
             )
             gm = self.global_tensor(
-                dtype=f32, shape=[num_q_blocks, batch_size, self.num_heads, self.block_q], requires_clean=False
+                dtype=f32,
+                shape=[num_q_blocks, batch_size, self.num_heads, self.block_q],
+                requires_clean=False,
             )
             gl = self.global_tensor(
-                dtype=f32, shape=[num_q_blocks, batch_size, self.num_heads, self.block_q], requires_clean=False
+                dtype=f32,
+                shape=[num_q_blocks, batch_size, self.num_heads, self.block_q],
+                requires_clean=False,
             )
             semaphore = ~semaphores[self.blockIdx.x, bs, head]
 
@@ -278,9 +292,24 @@ class FlashAttention(tilus.Script):
             self.sync()
 
             # store the results to global memory and release the semaphore
-            self.store_global(go, self.load_shared(so), offsets=[bs, q_offset, head, 0], slice_dims=[1, 3])
-            self.store_global(gm, self.load_shared(sm), offsets=[self.blockIdx.x, bs, head, 0], slice_dims=[3])
-            self.store_global(gl, self.load_shared(sl), offsets=[self.blockIdx.x, bs, head, 0], slice_dims=[3])
+            self.store_global(
+                go,
+                self.load_shared(so),
+                offsets=[bs, q_offset, head, 0],
+                dims=[1, 3],
+            )
+            self.store_global(
+                gm,
+                self.load_shared(sm),
+                offsets=[self.blockIdx.x, bs, head, 0],
+                dims=[3],
+            )
+            self.store_global(
+                gl,
+                self.load_shared(sl),
+                offsets=[self.blockIdx.x, bs, head, 0],
+                dims=[3],
+            )
             self.sync()
 
             self.free_shared(sm)
@@ -289,12 +318,21 @@ class FlashAttention(tilus.Script):
             # release the semaphore
             self.release_semaphore(
                 semaphore,
-                value=self.blockIdx.y + 1 if (self.blockIdx.y + 1) * self.split_kv < q_offset + self.block_q else 0,
+                value=self.blockIdx.y + 1
+                if (self.blockIdx.y + 1) * self.split_kv < q_offset + self.block_q
+                else 0,
             )
         self.free_shared(so)
 
     def __call__(
-        self, batch_size: int, q_len: int32, kv_len: int32, q_ptr: void_p, k_ptr: void_p, v_ptr: void_p, o_ptr: void_p
+        self,
+        batch_size: int,
+        q_len: int32,
+        kv_len: int32,
+        q_ptr: void_p,
+        k_ptr: void_p,
+        v_ptr: void_p,
+        o_ptr: void_p,
     ):
         self.attrs.warps = self.num_warps
         self.attrs.blocks = (
@@ -303,13 +341,21 @@ class FlashAttention(tilus.Script):
             self.num_heads * batch_size,
         )
 
-        gq = self.global_view(q_ptr, dtype=self.dtype, shape=[batch_size, q_len, self.num_heads, self.head_size])
-        gk = self.global_view(k_ptr, dtype=self.dtype, shape=[batch_size, kv_len, self.num_heads_kv, self.head_size])
-        gv = self.global_view(v_ptr, dtype=self.dtype, shape=[batch_size, kv_len, self.num_heads_kv, self.head_size])
+        gq = self.global_view(
+            q_ptr, dtype=self.dtype, shape=[batch_size, q_len, self.num_heads, self.head_size]
+        )
+        gk = self.global_view(
+            k_ptr, dtype=self.dtype, shape=[batch_size, kv_len, self.num_heads_kv, self.head_size]
+        )
+        gv = self.global_view(
+            v_ptr, dtype=self.dtype, shape=[batch_size, kv_len, self.num_heads_kv, self.head_size]
+        )
 
         o = self.register_tensor(dtype=f32, shape=[self.block_q, self.head_size], init=0.0)
         m = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=-1e6)  # rowmax(score)
-        l = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=0.0)  # rowsum(exp(score - m))
+        l = self.register_tensor(
+            dtype=f32, shape=[self.block_q, 1], init=0.0
+        )  # rowsum(exp(score - m))
 
         self.main_loop(gq, gk, gv, o, m, l)
 
@@ -341,9 +387,12 @@ def flash_attention(
         The output tensor of shape (bs, seqlen, num_heads, head_size).
     """
     out = torch.empty_like(q)
-    FlashAttention(dtype=tilus.float16, num_heads=q.size(2), num_heads_kv=k.size(2), head_size=q.size(3))(
-        q.size(0), q.size(1), k.size(1), q, k, v, out
-    )
+    FlashAttention(
+        dtype=tilus.float16,
+        num_heads=q.size(2),
+        num_heads_kv=k.size(2),
+        head_size=q.size(3),
+    )(q.size(0), q.size(1), k.size(1), q, k, v, out)
     return out
 
 
@@ -370,10 +419,14 @@ def flash_attention_reference(
     score = torch.bmm(q, k.mT) / np.sqrt(head_size)  # [bs * num_heads, seqlen, seqlen]
     causal_mask = torch.tril(torch.ones(seqlen, seqlen, dtype=torch.bool), diagonal=0).to(q.device)
     causal_mask = causal_mask.unsqueeze(0)  # [1, seqlen, seqlen]
-    causal_mask = causal_mask.expand(bs * num_heads, seqlen, seqlen).contiguous()  # [bs * num_heads, seqlen, seqlen]
+    causal_mask = causal_mask.expand(
+        bs * num_heads, seqlen, seqlen
+    ).contiguous()  # [bs * num_heads, seqlen, seqlen]
     score = score.masked_fill(causal_mask == 0, float("-inf"))
 
-    o = torch.bmm(torch.softmax(score.float(), dim=-1).to(q.dtype), v)  # [bs * num_heads, seqlen, head_size]
+    o = torch.bmm(
+        torch.softmax(score.float(), dim=-1).to(q.dtype), v
+    )  # [bs * num_heads, seqlen, head_size]
     o = o.reshape(bs, num_heads, seqlen, head_size).transpose(1, 2).contiguous()
     return o
 
@@ -404,7 +457,16 @@ def demo_flash_attention():
 
 
 def main(bench=True):
-    headers = ["batch_size", "seqlen", "num_heads", "head_size", "num_heads_kv", "name", "latency (ms)", "gflops"]
+    headers = [
+        "batch_size",
+        "seqlen",
+        "num_heads",
+        "head_size",
+        "num_heads_kv",
+        "name",
+        "latency (ms)",
+        "gflops",
+    ]
     data = []
     for batch_size, seqlen, num_heads, head_size, num_heads_kv in [
         [1, 512, 32, 128, 8],
@@ -450,10 +512,27 @@ def main(bench=True):
                 else float("nan")
             )
             gflops = 2 * batch_size * num_heads * seqlen * head_size * seqlen / latency * 1e-9
-            data.append([batch_size, seqlen, num_heads, head_size, num_heads_kv, name, latency, gflops])
+            data.append(
+                [
+                    batch_size,
+                    seqlen,
+                    num_heads,
+                    head_size,
+                    num_heads_kv,
+                    name,
+                    latency,
+                    gflops,
+                ]
+            )
     df = pd.DataFrame(data, columns=headers)
     df_pivot = df.pivot(
-        index=["batch_size", "seqlen", "num_heads", "head_size", "num_heads_kv"],
+        index=[
+            "batch_size",
+            "seqlen",
+            "num_heads",
+            "head_size",
+            "num_heads_kv",
+        ],
         columns="name",
         values=["latency (ms)", "gflops"],
     ).reset_index()

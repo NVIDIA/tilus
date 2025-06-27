@@ -1,15 +1,15 @@
+"""
+Matmul v5
+=========
+"""
+
 import math
 
 import pandas
-import pandas as pd
 import tilus
 import torch
 from tilus import float16, float32, int32
 from tilus.utils import benchmark_func
-
-tilus.option.cache_dir("./cache")
-
-pd.set_option("display.float_format", lambda x: "%.2f" % x)
 
 
 @tilus.autotune("num_warps", [4, 8])
@@ -25,8 +25,19 @@ class MatmulV5(tilus.Script):
         self.num_warps = num_warps
         self.num_stages = num_stages
 
-    def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
-        self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
+    def __call__(
+        self,
+        m_size: int32,
+        n_size: int,
+        k_size: int,
+        a_ptr: ~float16,
+        b_ptr: ~float16,
+        c_ptr: ~float16,
+    ):
+        self.attrs.blocks = [
+            self.utils.ceil_div(m_size, self.block_m),
+            self.utils.ceil_div(n_size, self.block_n),
+        ]
         self.attrs.warps = self.num_warps
 
         block_m, block_n, block_k = self.block_m, self.block_n, self.block_k
@@ -53,14 +64,22 @@ class MatmulV5(tilus.Script):
         for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
             # preload the next tile of A and B into shared memory
             preload_offset_k = offset_k + (self.num_stages - 1) * block_k
-            self.copy_async(src=ga, dst=sa[preload_stage], offsets=[offset_m, preload_offset_k])
-            self.copy_async(src=gb, dst=sb[preload_stage], offsets=[preload_offset_k, offset_n])
+            self.copy_async(
+                src=ga,
+                dst=sa[preload_stage],
+                offsets=[offset_m, preload_offset_k],
+            )
+            self.copy_async(
+                src=gb,
+                dst=sb[preload_stage],
+                offsets=[preload_offset_k, offset_n],
+            )
             self.copy_async_commit_group()
 
             # computation for current tile
             a = self.load_shared(sa[current_stage])
             b = self.load_shared(sb[current_stage])
-            self.mma_dot(a, b, acc, output=acc)
+            self.dot(a, b, acc, out=acc)
 
             # update the stage
             current_stage = (current_stage + 1) % self.num_stages

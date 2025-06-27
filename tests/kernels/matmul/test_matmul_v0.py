@@ -9,10 +9,9 @@ from tilus import float16, float32, int32
 class MatmulV0(tilus.Script):
     def __init__(self):
         super().__init__()
-        self.mma = self.cuda.resolve_dot_config(operand_dtype=float16, acc_dtype=float32, num_warps=1, m=16, n=8, k=16)
-        self.block_m = self.mma.m
-        self.block_n = self.mma.n
-        self.block_k = self.mma.k
+        self.block_m = 16
+        self.block_n = 8
+        self.block_k = 16
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
         self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
@@ -23,15 +22,15 @@ class MatmulV0(tilus.Script):
 
         ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
-        acc = self.register_tensor(dtype=float32, layout=self.mma.lc, f_init=lambda indices: float32.zero)
+        acc = self.register_tensor(dtype=float32, shape=[self.block_m, self.block_n], init=lambda indices: float32.zero)
 
         k_blocks = self.utils.ceil_div(k_size, self.block_k)
         for k in range(k_blocks):
             offset_k = k * self.block_k
 
-            a = self.load_global(ga, offsets=[offset_m, offset_k], dims=[0, 1], layout=self.mma.la)
-            b = self.load_global(gb, offsets=[offset_k, offset_n], dims=[0, 1], layout=self.mma.lb)
-            acc = self.mma_dot(a, b, acc)
+            a = self.load_global(ga, offsets=[offset_m, offset_k], shape=[self.block_m, self.block_k])
+            b = self.load_global(gb, offsets=[offset_k, offset_n], shape=[self.block_k, self.block_n])
+            acc = self.dot(a, b, acc)
 
         acc_f16 = self.cast(acc, dtype=float16)
         gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
