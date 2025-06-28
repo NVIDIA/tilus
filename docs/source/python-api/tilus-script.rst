@@ -25,15 +25,22 @@ Script Attributes and Variables
    blockIdx
    gridDim
 
+Tensor Creation and Free
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-Tensor Creation
-~~~~~~~~~~~~~~~
+.. hint::
+   :class: margin
+
+   Please submit an feature request if your kernel requires additional instructions.
+
 
 .. autosummary::
    :toctree: generated
 
    global_view
    register_tensor
+   shared_tensor
+   free_shared
 
 
 Load and Store Instructions
@@ -44,6 +51,8 @@ Load and Store Instructions
 
    load_global
    store_global
+   load_shared
+   store_shared
 
 
 Linear Algebra Instructions
@@ -61,3 +70,11 @@ Transform Instructions
    :toctree: generated
 
    cast
+
+Synchronization Instruction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated
+
+   sync

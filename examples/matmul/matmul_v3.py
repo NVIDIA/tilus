@@ -1,6 +1,6 @@
 """
-Matmul v3
-=========
+Matmul with Async Copy
+======================
 """
 
 import math
@@ -10,8 +10,6 @@ import tilus
 import torch
 from tilus import float16, float32, int32
 from tilus.utils import benchmark_func
-
-tilus.option.cache_dir("./cache")
 
 
 @tilus.autotune("num_warps", [4, 8])
@@ -46,28 +44,20 @@ class MatmulV3(tilus.Script):
         ]
         self.attrs.warps = self.num_warps
 
-        offset_m: int32 = self.block_m * self.blockIdx.x
-        offset_n: int32 = self.block_n * self.blockIdx.y
+        block_m, block_n, block_k = self.block_m, self.block_n, self.block_k
+        offset_m: int32 = block_m * self.blockIdx.x
+        offset_n: int32 = block_n * self.blockIdx.y
 
         ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
-        sa = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
-        sb = self.shared_tensor(dtype=float16, shape=[self.block_k, self.block_n])
-        acc = self.register_tensor(dtype=float32, shape=[self.block_m, self.block_n], init=0.0)
+        sa = self.shared_tensor(dtype=float16, shape=[block_m, block_k])
+        sb = self.shared_tensor(dtype=float16, shape=[block_k, block_n])
+        acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
-        for offset_k in range(0, k_size, self.block_k):
-            lda = self.load_global(
-                ga,
-                offsets=[offset_m, offset_k],
-                shape=[self.block_m, self.block_k],
-            )
-            self.store_shared(sa, lda)
-            ldb = self.load_global(
-                gb,
-                offsets=[offset_k, offset_n],
-                shape=[self.block_k, self.block_n],
-            )
-            self.store_shared(sb, ldb)
+        for offset_k in range(0, k_size, block_k):
+            self.copy_async(src=ga, dst=sa, offsets=[offset_m, offset_k])
+            self.copy_async(src=gb, dst=sb, offsets=[offset_k, offset_n])
+            self.copy_async_wait_all()
             self.sync()
 
             a = self.load_shared(sa)
@@ -85,7 +75,9 @@ class MatmulV3(tilus.Script):
 
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
-    workloads = [[4096, 4096, 4096]]
+    workloads = [
+        [4096, 4096, 4096],
+    ]
 
     rows = []
     for m, n, k in workloads:

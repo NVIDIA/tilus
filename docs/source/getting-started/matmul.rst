@@ -15,5 +15,3 @@ We start with a naive kernel and, by adding one optimization per version, reach 
    matmul/matmul_v3
    matmul/matmul_v4
    matmul/matmul_v5
-   matmul/matmul_v6
-   matmul/matmul_v7

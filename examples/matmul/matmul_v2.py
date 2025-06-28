@@ -1,17 +1,52 @@
 """
-Matmul v2
-=========
+Matmul with Auto-tuning
+=======================
+
+In previous versions of the matmul kernel, we manually set the hyperparameters such as `block_m`, `block_n`, and
+`block_k`. However, these hyperparameters can significantly affect the performance of the kernel, and finding the
+optimal values for them can be a tedious and time-consuming process.
+
+In tilus, we can use the :meth:`tilus.autotune` decorator to annotate the search space of the hyperparameters and let tilus
+automatically search for the best configuration:
+
+.. code-block:: python
+
+   @tilus.autotune("arg_name1", [v11, v12, v12])
+   @tilus.autotune("arg_name2, arg_name3", [(v21, v31), (v22, v32)])
+   class AwesomeKernel(tilus.Script):
+       def __init__(self, user_arg, arg_name1, arg_name2, arg_name3):
+           super().__init__()
+           ... # use the hyperparameters to perform compilation-time preparations
+
+The above example defines a space contains 5 configurations for (`arg_name1`, `arg_name2`, `arg_name3`):
+
+- (v11, v21, v31)
+- (v11, v22, v32)
+- (v12, v21, v31)
+- (v12, v22, v32)
+- (v13, v21, v31)
+- (v13, v22, v32)
+
+When we instantiate the `AwesomeKernel` class, we only need to provide the `user_arg` and the rest of the parameters
+will be automatically tuned by tilus:
+
+.. code-block:: python
+
+    kernel = AwesomeKernel(user_arg)
+
+Tilus will use all configurations to instantiate the kernel, run each of them, and
+automatically select the best configuration based on the performance of the kernel for the given input data.
 """
 
-import math
-
-import pandas
 import tilus
-import torch
 from tilus import float16, float32, int32
-from tilus.utils import benchmark_func
 
-tilus.option.cache_dir("./cache")
+# %%
+# Annotate Schedule Space
+# ~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Resuing the same kernel implementation as in the previous example, we can use the :meth:`tilus.autotune` decorator to
+# annotate the search space of the hyperparameters like `num_warps`, `block_m`, `block_n`, and `block_k`, as shown below:
 
 
 @tilus.autotune("num_warps", [4, 8])
@@ -26,10 +61,10 @@ class MatmulV2(tilus.Script):
         block_k,
     ):
         super().__init__()
+        self.num_warps = num_warps
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
-        self.num_warps = num_warps
 
     def __call__(
         self,
@@ -83,6 +118,17 @@ class MatmulV2(tilus.Script):
         self.store_global(gc, casted_acc, offsets=[offset_m, offset_n])
 
 
+# %%
+# Launch the Kernel
+# ~~~~~~~~~~~~~~~~~
+
+import math
+
+import pandas
+import torch
+from tilus.utils import benchmark_func
+
+
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
@@ -116,6 +162,13 @@ def main():
     df = pandas.DataFrame(rows, columns=headers)
     print(df)
 
+
+# %%
+# In the main function, we define the kernel by instantiating the `MatmulV2` class. There is no compilation in this
+# step. We invoke the kernel by calling it like ``matmul(m, n, k, a, b, c_actual)``, the kernel will trigger the
+# autotuning process, which will compile the kernel with all the configurations defined in the :meth:`tilus.autotune`
+# decorator, run the kernel of each configuration on the given arguments, and automatically select the best
+# configuration. The autotuning happens only once, and the compiled kernel will be cached for future invocations.
 
 if __name__ == "__main__":
     main()

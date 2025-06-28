@@ -48,8 +48,8 @@ class MatmulV0(tilus.Script):
         super().__init__()
         # we define three hyperparameters: ``block_m``, ``block_n``, and ``block_k`` to determine the tile size on
         # m, n, and k dimensions for each `thread block` of the kernel.
-        self.block_m = 16
-        self.block_n = 16
+        self.block_m = 64
+        self.block_n = 64
         self.block_k = 16
 
     def __call__(

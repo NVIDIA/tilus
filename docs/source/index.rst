@@ -8,9 +8,12 @@ Welcome to tilus's documentation!
    getting-started/install
    getting-started/matmul
 
+
 .. toctree::
    :maxdepth: 1
    :caption: Python API
 
+   python-api/tilus
    python-api/tilus-script
    python-api/tilus-lang-attributes
+   python-api/tilus-ir/__index__

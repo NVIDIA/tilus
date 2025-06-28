@@ -1,6 +1,6 @@
 """
-Matmul v4
-=========
+Matmul with Software Pipelining
+===============================
 """
 
 import math
@@ -15,19 +15,15 @@ from tilus.utils import benchmark_func
 @tilus.autotune("num_warps", [4, 8])
 @tilus.autotune("block_m, block_n", [(128, 128), (128, 64), (64, 128)])
 @tilus.autotune("block_k", [16, 32])
+@tilus.autotune("num_stages", [3, 4, 5])
 class MatmulV4(tilus.Script):
-    def __init__(
-        self,
-        num_warps,
-        block_m,
-        block_n,
-        block_k,
-    ):
+    def __init__(self, num_warps, block_m, block_n, block_k, num_stages):
         super().__init__()
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
         self.num_warps = num_warps
+        self.num_stages = num_stages
 
     def __call__(
         self,
@@ -50,19 +46,45 @@ class MatmulV4(tilus.Script):
 
         ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
-        sa = self.shared_tensor(dtype=float16, shape=[block_m, block_k])
-        sb = self.shared_tensor(dtype=float16, shape=[block_k, block_n])
+        sa = self.shared_tensor(dtype=float16, shape=[self.num_stages, block_m, block_k])
+        sb = self.shared_tensor(dtype=float16, shape=[self.num_stages, block_k, block_n])
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
-        for offset_k in range(0, k_size, block_k):
-            self.copy_async(src=ga, dst=sa, offsets=[offset_m, offset_k])
-            self.copy_async(src=gb, dst=sb, offsets=[offset_k, offset_n])
-            self.copy_async_wait_all()
-            self.sync()
+        for stage in range(self.num_stages - 1):
+            offset_k = stage * self.block_k
+            self.copy_async(src=ga, dst=sa[stage], offsets=[offset_m, offset_k])
+            self.copy_async(src=gb, dst=sb[stage], offsets=[offset_k, offset_n])
+            self.copy_async_commit_group()
 
-            a = self.load_shared(sa)
-            b = self.load_shared(sb)
+        self.copy_async_wait_group(n=self.num_stages - 2)
+        self.sync()
+
+        current_stage: int32 = 0
+        preload_stage: int32 = self.num_stages - 1
+        for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
+            # computation for current tile
+            a = self.load_shared(sa[current_stage])
+            b = self.load_shared(sb[current_stage])
             self.dot(a, b, acc, out=acc)
+
+            # preload the next tile of A and B into shared memory
+            preload_offset_k = offset_k + (self.num_stages - 1) * block_k
+            self.copy_async(
+                src=ga,
+                dst=sa[preload_stage],
+                offsets=[offset_m, preload_offset_k],
+            )
+            self.copy_async(
+                src=gb,
+                dst=sb[preload_stage],
+                offsets=[preload_offset_k, offset_n],
+            )
+            self.copy_async_commit_group()
+
+            # update the stage
+            current_stage = (current_stage + 1) % self.num_stages
+            preload_stage = (preload_stage + 1) % self.num_stages
+            self.copy_async_wait_group(n=self.num_stages - 2)
             self.sync()
 
         self.free_shared(sa)

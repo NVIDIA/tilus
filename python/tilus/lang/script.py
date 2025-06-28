@@ -265,6 +265,25 @@ class Script:
         shape: Optional[Sequence[int]] = None,
         layout: Optional[SharedLayout] = None,
     ) -> SharedTensor:
+        """Allocate a shared tensor.
+
+        This instruction allocates a shared tensor with the specified data type, shape, and (optional) layout.
+
+        Parameters
+        ----------
+        dtype: DataType
+            The data type of the tensor elements.
+        shape: Sequence[int]
+            The shape of the tensor.
+        layout: SharedLayout, optional
+            The layout of the tensor. If not provided, the layout will be inferred based on the operations performed
+            on it.
+
+        Returns
+        -------
+        ret: SharedTensor
+            The allocated shared tensor.
+        """
         return self._builder.allocate_shared(dtype=dtype, shape=shape, layout=layout)
 
     def global_view(
@@ -318,7 +337,7 @@ class Script:
 
     def load_global(
         self,
-        x: GlobalTensor,
+        src: GlobalTensor,
         /,
         *,
         offsets: Sequence[Expr | int],
@@ -342,7 +361,7 @@ class Script:
 
         Parameters
         ----------
-        x: GlobalTensor
+        src: GlobalTensor
             The global tensor to load from.
         offsets: Sequence[Expr | int]
             The offsets for each dimension of the global tensor. The length of this sequence must match the number
@@ -364,16 +383,16 @@ class Script:
         ret: RegisterTensor
             The register tensor containing the loaded data from the global tensor.
         """
-        if len(offsets) != len(x.shape):
+        if len(offsets) != len(src.shape):
             raise InstructionError(
                 "The number of offsets must be equal to the number of dimensions of the global tensor"
             )
-        return self._builder.load_global(x=x, offsets=offsets, dims=dims, shape=shape, layout=layout, output=out)
+        return self._builder.load_global(x=src, offsets=offsets, dims=dims, shape=shape, layout=layout, output=out)
 
     def store_global(
         self,
         dst: GlobalTensor,
-        x: RegisterTensor,
+        src: RegisterTensor,
         *,
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
@@ -396,19 +415,19 @@ class Script:
         ----------
         dst: GlobalTensor
             The global tensor to store into.
-        x: RegisterTensor
+        src: RegisterTensor
             The register tensor to store into the global tensor.
         offsets: Sequence[Expr | int]
             The offsets for each dimension of the global tensor where the register tensor will be stored.
         dims: Sequence[int], optional
             The dimensions of the global tensor that are being sliced.
         """
-        if dims is not None and len(dims) != len(x.shape):
+        if dims is not None and len(dims) != len(src.shape):
             raise InstructionError(
                 "The number of slice dimensions must be equal to the number of dimensions of the "
-                f"register tensor: {len(dims)} vs {len(x.shape)}"
+                f"register tensor: {len(dims)} vs {len(src.shape)}"
             )
-        return self._builder.store_global(dst=dst, src=x, offsets=offsets, dims=dims)
+        return self._builder.store_global(dst=dst, src=src, offsets=offsets, dims=dims)
 
     def load_shared(
         self,
@@ -417,6 +436,23 @@ class Script:
         layout: Optional[RegisterLayout] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Load a shared tensor into a register tensor.
+
+        Parameters
+        ----------
+        src: SharedTensor
+            The shared tensor to load from.
+        layout: RegisterLayout, optional
+            The layout of the register tensor. If not provided, the layout will be inferred based on the operations
+            performed on it. When provided, its shape must match the shape of the shared tensor.
+        out: RegisterTensor, optional
+            The register tensor to store the loaded data into. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the loaded data from the shared tensor.
+        """
         return self._builder.load_shared(src=src, layout=layout, output=out)
 
     def store_shared(
@@ -427,6 +463,23 @@ class Script:
         offsets: Optional[Sequence[int]] = None,
         dims: Optional[Sequence[int]] = None,
     ) -> None:
+        """Store a register tensor into a shared tensor.
+
+        This instruction stores the contents of the register tensor `src` into a slice of the shared tensor `dst`.
+
+        Parameters
+        ----------
+        dst: SharedTensor
+            The shared tensor to store into.
+        src: RegisterTensor
+            The register tensor to store into the shared tensor.
+        offsets: Sequence[int], optional
+            The offsets for each dimension of the shared tensor where the register tensor will be stored.
+        dims: Sequence[int], optional
+            The dimensions of the shared tensor that are being sliced. If not provided, it is assumed that all
+            dimensions are being sliced in the same order as the register tensor. The length of this sequence must
+            match the number of dimensions of the register tensor being stored.
+        """
         if dst.dtype != src.dtype:
             raise InstructionError(
                 "Cannot store shared tensor {}{} from register tensor {}{}: dtype mismatch".format(
@@ -442,6 +495,13 @@ class Script:
         self._builder.store_shared(dst=dst, src=src)
 
     def free_shared(self, tensor: SharedTensor) -> None:
+        """Free a shared tensor.
+
+        Parameters
+        ----------
+        tensor: SharedTensor
+            The shared tensor to free.
+        """
         self._builder.free_shared(tensor)
 
     def copy_async(
@@ -770,6 +830,10 @@ class Script:
         self._builder.release_semaphore(semaphore, value)
 
     def sync(self) -> None:
+        """Perform a synchronization.
+
+        The thread block will continue execution only after all previous instructions finished executing.
+        """
         self._builder.syncthreads()
 
     def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None:
@@ -815,6 +879,22 @@ class Script:
 
 
 def autotune(arg_names: str, arg_values: Sequence[Any]) -> Callable[[Type[Script]], Any]:
+    """Annotate an autotune subspace for a tilus script.
+
+    Parameters
+    ----------
+    arg_names: str
+        The names of the arguments for autotuning, separated by commas.
+    arg_values: Sequence[Any]
+        The sequence of the choices for the autotune parameters. Each choice can be a single value or a sequence of
+        values that match the names in `arg_names`.
+
+    Returns
+    -------
+    ret: Callable[[Type[Script]], Type[Script]]
+        The decorator that can be applied to a tilus script class for the marking of autotune parameters.
+    """
+
     def decorator(script_cls):
         if not hasattr(script_cls, "_autotune_space"):
             script_cls._autotune_space = {}

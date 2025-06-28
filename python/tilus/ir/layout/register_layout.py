@@ -20,6 +20,20 @@ Int = int | Expr
 
 @dataclass(frozen=True, eq=False)
 class RegisterLayout(IRNode):
+    """Layout for register tensor.
+
+    Parameters
+    ----------
+    shape: tuple[int, ...]
+        The shape of the layout, which is the shape of the register tensor.
+    mode_shape: tuple[int, ...]
+        The size of each mode.
+    spatial_modes: tuple[int, ...]
+        The spatial modes.
+    local_modes: tuple[int, ...]
+        The local modes.
+    """
+
     shape: tuple[int, ...]
     mode_shape: tuple[int, ...]
     spatial_modes: tuple[int, ...]
