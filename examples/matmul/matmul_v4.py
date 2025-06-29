@@ -1,6 +1,40 @@
 """
 Matmul with Software Pipelining
 ===============================
+
+This example demonstrates how to implement a matrix multiplication kernel using software pipelining in tilus.
+
+There is a well-known optimization technique called software pipelining that allows us to overlap the computation
+and memory operations in a loop. Without this optimization, the kernel has the following logic::
+
+    for i in range(N):
+       async_load(i)
+       sync
+
+       compute(i)
+       sync
+
+The data loading and computation are done sequentially for this thread block, preventing the GPU from fully utilizing
+both resources at the same time. Running multiple thread blocks on a single SM can help to alleviate this issue. But
+since the matrix multiplication uses a lot of registers and shared memory, the number of thread blocks that can run
+on a single SM is limited. It makes it necessary to use software pipelining to improve the performance of the kernel.
+The core idea of software pipelining is to overlap the data loading and computation::
+
+    async_load(0)
+    for i in range(N):
+       if i < N - 1:
+           async_load(i + 1)
+       compute(i)
+       sync
+
+This way, the data loading for the next iteration is done while the current iteration is being computed, allowing
+the GPU to utilize both memory and compute resources more efficiently.
+
+You can also find more details in works like `ALCOP <https://arxiv.org/abs/2210.16691>`_ and
+`Hidet <https://arxiv.org/abs/2210.09603>`_.
+
+
+The following example implements a matrix multiplication kernel using software pipelining.
 """
 
 import math
@@ -99,6 +133,7 @@ def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
         [4096, 4096, 4096],
+        [1024, 1024, 14336],
     ]
 
     rows = []
@@ -126,6 +161,8 @@ def main():
     df = pandas.DataFrame(rows, columns=headers)
     print(df)
 
+
+# %%
 
 if __name__ == "__main__":
     main()

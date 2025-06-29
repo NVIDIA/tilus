@@ -74,7 +74,11 @@ class FlashAttention(tilus.Script):
         self.assign(score, score + self.where(mask, x=0.0, y=-1e6))
 
     def softmax_rescale(
-        self, score: RegisterTensor, m: RegisterTensor, l: RegisterTensor, o: RegisterTensor
+        self,
+        score: RegisterTensor,
+        m: RegisterTensor,
+        l: RegisterTensor,
+        o: RegisterTensor,
     ) -> RegisterTensor:
         scale = self.score_scale * self.LOG2_E  # log2(e) * score_scale
         cur_m = self.max(score, dim=1, keepdim=True) * scale  # [block_q, 1]
@@ -173,7 +177,9 @@ class FlashAttention(tilus.Script):
         rq = self.register_tensor(dtype=self.dtype, shape=[self.block_q, self.head_size])
 
         # copy q to shared memory
-        self.copy_async(gq, sq, offsets=[bs, q_offset, head, 0], dims=[1, 3], check_bounds=True)
+        self.copy_async(
+            gq, sq, offsets=[bs, q_offset, head, 0], dims=[1, 3], check_bounds=True
+        )
         self.copy_async_wait_all()
         self.sync()
 
@@ -188,10 +194,25 @@ class FlashAttention(tilus.Script):
 
         kv_offset_inner_end = (q_offset + 1) // self.block_kv * self.block_kv
         if self.split_kv != -1:
-            kv_offset_inner_end = min(kv_offset_inner_end, kv_start_offset + self.split_kv)
+            kv_offset_inner_end = min(
+                kv_offset_inner_end, kv_start_offset + self.split_kv
+            )
         for kv_offset in range(kv_start_offset, kv_offset_inner_end, self.block_kv):
             self.attention_iteration(
-                bs, kv_offset, q_offset, head, gk, gv, sq, rq, sk, sv, o, m, l, check_bounds=False
+                bs,
+                kv_offset,
+                q_offset,
+                head,
+                gk,
+                gv,
+                sq,
+                rq,
+                sk,
+                sv,
+                o,
+                m,
+                l,
+                check_bounds=False,
             )
 
         kv_offset_end = q_offset + self.block_q
@@ -199,7 +220,20 @@ class FlashAttention(tilus.Script):
             kv_offset_end = min(kv_offset_end, kv_start_offset + self.split_kv)
         for kv_offset in range(kv_offset_inner_end, kv_offset_end, self.block_kv):
             self.attention_iteration(
-                bs, kv_offset, q_offset, head, gk, gv, sq, rq, sk, sv, o, m, l, check_bounds=True
+                bs,
+                kv_offset,
+                q_offset,
+                head,
+                gk,
+                gv,
+                sq,
+                rq,
+                sk,
+                sv,
+                o,
+                m,
+                l,
+                check_bounds=True,
             )
 
         self.copy_async_wait_group(0)
@@ -222,7 +256,9 @@ class FlashAttention(tilus.Script):
         # m: [block_q, 1]
         # l: [block_q, 1]
         go = self.global_view(
-            o_ptr, dtype=self.dtype, shape=[batch_size, q_len, self.num_heads, self.head_size]
+            o_ptr,
+            dtype=self.dtype,
+            shape=[batch_size, q_len, self.num_heads, self.head_size],
         )
         o = o / l
         o_f16 = self.cast(o, dtype=self.dtype)  # [block_q, head_size]
@@ -244,7 +280,9 @@ class FlashAttention(tilus.Script):
         else:
             num_q_blocks = cdiv(q_len, self.block_q)
             semaphores = self.global_tensor(
-                dtype=int32, shape=[num_q_blocks, batch_size, self.num_heads], requires_clean=True
+                dtype=int32,
+                shape=[num_q_blocks, batch_size, self.num_heads],
+                requires_clean=True,
             )
             gm = self.global_tensor(
                 dtype=f32,
@@ -280,9 +318,9 @@ class FlashAttention(tilus.Script):
                 lhs_ll = lhs_l * self.exp(lhs_m - m)
                 rhs_ll = rhs_l * self.exp(rhs_m - m)
                 l = lhs_ll + rhs_ll
-                o_f16 = lhs_o * self.cast(lhs_ll / l, dtype=self.dtype) + rhs_o * self.cast(
-                    rhs_ll / l, dtype=self.dtype
-                )
+                o_f16 = lhs_o * self.cast(
+                    lhs_ll / l, dtype=self.dtype
+                ) + rhs_o * self.cast(rhs_ll / l, dtype=self.dtype)
                 self.sync()
 
             # store the results to so and load it
@@ -342,17 +380,27 @@ class FlashAttention(tilus.Script):
         )
 
         gq = self.global_view(
-            q_ptr, dtype=self.dtype, shape=[batch_size, q_len, self.num_heads, self.head_size]
+            q_ptr,
+            dtype=self.dtype,
+            shape=[batch_size, q_len, self.num_heads, self.head_size],
         )
         gk = self.global_view(
-            k_ptr, dtype=self.dtype, shape=[batch_size, kv_len, self.num_heads_kv, self.head_size]
+            k_ptr,
+            dtype=self.dtype,
+            shape=[batch_size, kv_len, self.num_heads_kv, self.head_size],
         )
         gv = self.global_view(
-            v_ptr, dtype=self.dtype, shape=[batch_size, kv_len, self.num_heads_kv, self.head_size]
+            v_ptr,
+            dtype=self.dtype,
+            shape=[batch_size, kv_len, self.num_heads_kv, self.head_size],
         )
 
-        o = self.register_tensor(dtype=f32, shape=[self.block_q, self.head_size], init=0.0)
-        m = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=-1e6)  # rowmax(score)
+        o = self.register_tensor(
+            dtype=f32, shape=[self.block_q, self.head_size], init=0.0
+        )
+        m = self.register_tensor(
+            dtype=f32, shape=[self.block_q, 1], init=-1e6
+        )  # rowmax(score)
         l = self.register_tensor(
             dtype=f32, shape=[self.block_q, 1], init=0.0
         )  # rowsum(exp(score - m))
@@ -404,10 +452,14 @@ def flash_attention_reference(
     bs, seqlen, num_heads, head_size = q.size()
     _, _, num_heads_kv, _ = k.size()
     assert q.size(0) == k.size(0) == v.size(0), "Batch size must match for q, k, and v."
-    assert q.size(1) == k.size(1) == v.size(1), "Sequence length must match for q, k, and v."
+    assert q.size(1) == k.size(1) == v.size(1), (
+        "Sequence length must match for q, k, and v."
+    )
     assert q.size(3) == k.size(3) == v.size(3), "Head size must match for q, k, and v."
     assert k.size(2) == v.size(2), "Number of heads in k and v must match."
-    assert num_heads % num_heads_kv == 0, "Number of heads must be divisible by number of kv heads."
+    assert num_heads % num_heads_kv == 0, (
+        "Number of heads must be divisible by number of kv heads."
+    )
 
     k = torch.repeat_interleave(k, num_heads // num_heads_kv, dim=2)
     v = torch.repeat_interleave(v, num_heads // num_heads_kv, dim=2)
@@ -417,7 +469,9 @@ def flash_attention_reference(
     v = torch.transpose(v, 1, 2).reshape(bs * num_heads, seqlen, head_size)
 
     score = torch.bmm(q, k.mT) / np.sqrt(head_size)  # [bs * num_heads, seqlen, seqlen]
-    causal_mask = torch.tril(torch.ones(seqlen, seqlen, dtype=torch.bool), diagonal=0).to(q.device)
+    causal_mask = torch.tril(torch.ones(seqlen, seqlen, dtype=torch.bool), diagonal=0).to(
+        q.device
+    )
     causal_mask = causal_mask.unsqueeze(0)  # [1, seqlen, seqlen]
     causal_mask = causal_mask.expand(
         bs * num_heads, seqlen, seqlen
@@ -480,9 +534,15 @@ def main(bench=True):
         [1, 4096, 64, 128, 8],
         [1, 8192, 64, 128, 8],
     ]:
-        q = torch.rand(batch_size, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
-        k = torch.rand(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
-        v = torch.rand(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
+        q = torch.rand(
+            batch_size, seqlen, num_heads, head_size, dtype=torch.float16
+        ).cuda()
+        k = torch.rand(
+            batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16
+        ).cuda()
+        v = torch.rand(
+            batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16
+        ).cuda()
         for name, runner in [
             ("flash-attn", flash_attention_flash_attn),
             ("tilus", flash_attention),
@@ -511,7 +571,9 @@ def main(bench=True):
                 if bench
                 else float("nan")
             )
-            gflops = 2 * batch_size * num_heads * seqlen * head_size * seqlen / latency * 1e-9
+            gflops = (
+                2 * batch_size * num_heads * seqlen * head_size * seqlen / latency * 1e-9
+            )
             data.append(
                 [
                     batch_size,

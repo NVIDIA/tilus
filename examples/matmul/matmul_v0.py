@@ -65,9 +65,7 @@ class MatmulV0(tilus.Script):
             cdiv(m_size, self.block_m),  # the x dimension size of the grid
             cdiv(n_size, self.block_n),  # the y dimension size of the grid
         ]
-        self.attrs.warps = (
-            1  # the number of warps per thread block, must be a compile-time known integer
-        )
+        self.attrs.warps = 1  # the number of warps per thread block, must be a compile-time known integer
 
         # define two int32 variables to store the offsets of the m and n dimensions for the current thread block.
         offset_m: int32 = self.block_m * self.blockIdx.x
@@ -78,7 +76,9 @@ class MatmulV0(tilus.Script):
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
 
         # create a register tensor `acc` to accumulate the results of the matrix multiplication.
-        acc = self.register_tensor(dtype=float32, shape=[self.block_m, self.block_n], init=0.0)
+        acc = self.register_tensor(
+            dtype=float32, shape=[self.block_m, self.block_n], init=0.0
+        )
 
         # iterate over the k dimension in blocks of size `block_k`.
         for k in range(cdiv(k_size, self.block_k)):

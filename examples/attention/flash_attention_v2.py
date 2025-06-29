@@ -238,8 +238,12 @@ class FlashAttention(tilus.Script):
         self.free_shared(sq)
 
         # accumulators
-        o = self.register_tensor(dtype=f32, shape=[self.block_q, self.head_size], init=0.0)
-        m = self.register_tensor(dtype=f32, shape=[self.block_q, 1], init=-1e6)  # rowmax(score)
+        o = self.register_tensor(
+            dtype=f32, shape=[self.block_q, self.head_size], init=0.0
+        )
+        m = self.register_tensor(
+            dtype=f32, shape=[self.block_q, 1], init=-1e6
+        )  # rowmax(score)
         l = self.register_tensor(
             dtype=f32, shape=[self.block_q, 1], init=0.0
         )  # rowsum(exp(score - m))
@@ -347,10 +351,14 @@ def flash_attention_reference(
     bs, seqlen, num_heads, head_size = q.size()
     _, _, num_heads_kv, _ = k.size()
     assert q.size(0) == k.size(0) == v.size(0), "Batch size must match for q, k, and v."
-    assert q.size(1) == k.size(1) == v.size(1), "Sequence length must match for q, k, and v."
+    assert q.size(1) == k.size(1) == v.size(1), (
+        "Sequence length must match for q, k, and v."
+    )
     assert q.size(3) == k.size(3) == v.size(3), "Head size must match for q, k, and v."
     assert k.size(2) == v.size(2), "Number of heads in k and v must match."
-    assert num_heads % num_heads_kv == 0, "Number of heads must be divisible by number of kv heads."
+    assert num_heads % num_heads_kv == 0, (
+        "Number of heads must be divisible by number of kv heads."
+    )
 
     k = torch.repeat_interleave(k, num_heads // num_heads_kv, dim=2)
     v = torch.repeat_interleave(v, num_heads // num_heads_kv, dim=2)
@@ -360,7 +368,9 @@ def flash_attention_reference(
     v = torch.transpose(v, 1, 2).reshape(bs * num_heads, seqlen, head_size)
 
     score = torch.bmm(q, k.mT) / np.sqrt(head_size)  # [bs * num_heads, seqlen, seqlen]
-    causal_mask = torch.tril(torch.ones(seqlen, seqlen, dtype=torch.bool), diagonal=0).to(q.device)
+    causal_mask = torch.tril(torch.ones(seqlen, seqlen, dtype=torch.bool), diagonal=0).to(
+        q.device
+    )
     causal_mask = causal_mask.unsqueeze(0)  # [1, seqlen, seqlen]
     causal_mask = causal_mask.expand(
         bs * num_heads, seqlen, seqlen
@@ -424,9 +434,15 @@ def main(bench=True):
         [1, 4096, 64, 128, 8],
         [1, 8192, 64, 128, 8],
     ]:
-        q = torch.rand(batch_size, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
-        k = torch.rand(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
-        v = torch.rand(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
+        q = torch.rand(
+            batch_size, seqlen, num_heads, head_size, dtype=torch.float16
+        ).cuda()
+        k = torch.rand(
+            batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16
+        ).cuda()
+        v = torch.rand(
+            batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16
+        ).cuda()
         # q = torch.ones(batch_size, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
         # k = torch.ones(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
         # v = torch.ones(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
@@ -471,7 +487,9 @@ def main(bench=True):
                 if bench
                 else float("nan")
             )
-            gflops = 2 * batch_size * num_heads * seqlen * head_size * seqlen / latency * 1e-9
+            gflops = (
+                2 * batch_size * num_heads * seqlen * head_size * seqlen / latency * 1e-9
+            )
             data.append(
                 [
                     batch_size,

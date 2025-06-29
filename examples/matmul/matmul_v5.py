@@ -1,15 +1,51 @@
 """
 Matmul with Split-K
 ===================
+
+This example demonstrates how to implement a matrix multiplication kernel using split-K optimization in tilus.
+
+In previous examples, we use a single thread block to compute a tile of the output matrix C. This approach works well
+for workloads with large m and n dimensions since there are enough C tiles to saturate the GPU. However, for workloads
+with small m and n dimensions and large k dimension, it's more efficient to split the k dimension into multiple segments
+and assign each segment to a separate thread block. After that, we can aggregate the results from these thread blocks
+that compute the same C tile to get the final result.
+
+There are mainly two ways to implement the split-K optimization: 1) using a separate kernel to perform the aggregation,
+or 2) implementing the aggregation logic in the same kernel that computes the C tile with semaphores. In this example,
+we will implement the second approach.
+
+We will use several new tilus instructions:
+
+.. currentmodule:: tilus.Script
+
+.. autosummary::
+
+    global_tensor
+    lock_semaphore
+    release_semaphore
+
+We use :meth:`global_tensor` to create a global tensor that will be used to store the semaphores for each C tile.
+Its shape is ``[cdiv(m_size, block_m), cdiv(n_size, block_n)]``, where ``block_m`` and ``block_n`` are the dimensions
+of the C tile. All thread blocks that compute the same C tile will use the same semaphore to synchronize the aggregation
+of the results.
+
+After we launched the kernel, all thread blocks will compute their accumulated result for the C tile. If ``k_size``
+equals to 1024 and we split it into 4 segments (i.e., ``split_k_factor=4``), then each thread block will compute over
+a k segment of size 256. We name the 4 blocks as ``0, 1, 2, 3``. The first thread block directly stores its result
+to the C matrix, while the other thread blocks will wait until the semaphore becomes to their block index. After
+the first thread block stores its result, it releases the semaphore with the value of 1, allowing the second thread
+block to aggregate its result with the first one. The second thread block will then store the aggregated result
+to the C matrix and release the semaphore with the value of 2, allowing the third thread block to aggregate its result
+with the first two. This process continues until all thread blocks have aggregated their results and stored the final
+result to the C matrix. The last thread block will release the semaphore with the value of 0, to satisfy the requirement
+of :meth:`global_tensor` with ``requires_clean=True``.
+
+The following example implements above logic in the matrix multiplication kernel:
 """
 
-import math
-
-import pandas
 import tilus
-import torch
 from tilus import float16, float32, int32
-from tilus.utils import benchmark_func, cdiv
+from tilus.utils import cdiv
 
 
 @tilus.autotune("num_warps", [4, 8])
@@ -52,7 +88,9 @@ class MatmulV5(tilus.Script):
         self.attrs.warps = self.num_warps
 
         # the k_size for each thread block
-        block_k_size = cdiv(cdiv(k_size, self.split_k_factor), self.block_k) * self.block_k
+        block_k_size = (
+            cdiv(cdiv(k_size, self.split_k_factor), self.block_k) * self.block_k
+        )
         start_offset_k = self.blockIdx.z * block_k_size
         end_offset_k = min(start_offset_k + block_k_size, k_size)
 
@@ -77,7 +115,9 @@ class MatmulV5(tilus.Script):
 
         current_stage: int32 = 0
         preload_stage: int32 = self.num_stages - 1
-        for offset_k in self.range(start_offset_k, end_offset_k, block_k, unroll=self.num_stages):
+        for offset_k in self.range(
+            start_offset_k, end_offset_k, block_k, unroll=self.num_stages
+        ):
             # computation for current tile
             a = self.load_shared(sa[current_stage])
             b = self.load_shared(sb[current_stage])
@@ -139,19 +179,31 @@ class MatmulV5(tilus.Script):
 
             # release the semaphore
             self.sync()  # we need to make sure the previous store_global is finished
-            self.release_semaphore(semaphore, value=(self.blockIdx.z + 1) % self.split_k_factor)
+            self.release_semaphore(
+                semaphore, value=(self.blockIdx.z + 1) % self.split_k_factor
+            )
+
+
+# %%
+
+import math
+
+import pandas
+import torch
+from tilus.utils import benchmark_func
 
 
 def main():
-    torch.random.manual_seed(41)
     headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
     workloads = [
         [4096, 4096, 4096],
+        [4096, 4096, 14336],
     ]
 
     rows = []
-    matmul = MatmulV5()
     for m, n, k in workloads:
+        matmul = MatmulV5()
+
         a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
         b = (torch.rand(k, n, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
         c_actual = torch.empty(m, n, dtype=torch.float16).cuda()
@@ -159,7 +211,7 @@ def main():
         matmul(m, n, k, a, b, c_actual)
 
         # check correctness
-        torch.testing.assert_close(c_expect, c_actual, atol=1e-2, rtol=1e-2)
+        torch.testing.assert_close(c_expect, c_actual)
 
         # benchmark
         for name, func in [
@@ -170,36 +222,11 @@ def main():
             flops = 2 * m * n * k / latency * 1e-9
             rows.append([m, n, k, name, latency, flops])
 
-        # Create initial DataFrame
-        df = pandas.DataFrame(rows, columns=headers)
+    df = pandas.DataFrame(rows, columns=headers)
+    print(df)
 
-        # Post-process to combine torch and tilus results
-        df_pivot = df.pivot(
-            index=["m", "n", "k"],
-            columns="name",
-            values=["latency (ms)", "gflops"],
-        )
-        df_pivot.columns = [f"{col[1]}_{col[0]}" for col in df_pivot.columns]
-        df_pivot = df_pivot.reset_index()
 
-        # Calculate speedup (torch latency / tilus latency)
-        df_pivot["speedup"] = df_pivot["torch_latency (ms)"] / df_pivot["tilus_latency (ms)"]
-
-        # Reorder columns for better readability
-        column_order = [
-            "m",
-            "n",
-            "k",
-            "torch_latency (ms)",
-            "torch_gflops",
-            "tilus_latency (ms)",
-            "tilus_gflops",
-            "speedup",
-        ]
-        df_pivot = df_pivot[column_order]
-
-        print(df_pivot)
-
+# %%
 
 if __name__ == "__main__":
     main()

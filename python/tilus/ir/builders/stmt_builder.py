@@ -335,9 +335,9 @@ class StmtBuilder(StmtBuilderCore):
     def allocate_global(
         self,
         dtype: DataType,
-        shape: Optional[Sequence[int]] = None,
-        layout: Optional[GlobalLayout] = None,
+        shape: Sequence[int | Expr],
         *,
+        layout: Optional[GlobalLayout] = None,
         requires_clean: bool,
     ) -> GlobalTensor:
         if layout is None:

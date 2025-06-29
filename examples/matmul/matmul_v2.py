@@ -88,7 +88,9 @@ class MatmulV2(tilus.Script):
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
         sa = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
         sb = self.shared_tensor(dtype=float16, shape=[self.block_k, self.block_n])
-        acc = self.register_tensor(dtype=float32, shape=[self.block_m, self.block_n], init=0.0)
+        acc = self.register_tensor(
+            dtype=float32, shape=[self.block_m, self.block_n], init=0.0
+        )
 
         for offset_k in range(0, k_size, self.block_k):
             lda = self.load_global(

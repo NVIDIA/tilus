@@ -29,7 +29,9 @@ tilus.option.debug.dump_ir()
 
 
 class QuantizedMatmulCommon(Script):
-    def __init__(self, weight_tile: tuple[int, int], a_dtype: DataType, b_dtype: DataType):
+    def __init__(
+        self, weight_tile: tuple[int, int], a_dtype: DataType, b_dtype: DataType
+    ):
         super().__init__()
         tile_k, tile_n = weight_tile
         assert a_dtype in [float16, bfloat16], (
@@ -44,7 +46,8 @@ class QuantizedMatmulCommon(Script):
         self.tile_k = weight_tile[0]
         self.tile_n = weight_tile[1]
         self.tile_layout = (
-            repeat(tile_k // self.atomic_mma.k, tile_n // self.atomic_mma.n) * self.atomic_mma.lb
+            repeat(tile_k // self.atomic_mma.k, tile_n // self.atomic_mma.n)
+            * self.atomic_mma.lb
         )
 
         bits_per_threads = self.tile_layout.local_size * b_dtype.nbits
@@ -62,8 +65,12 @@ class QuantizedMatmulCommon(Script):
 
 class QuantizedMatmulChangeLayout(QuantizedMatmulCommon):
     def __call__(self, k_size: int, n_size: int, src_ptr: void_p, dst_ptr: void_p):
-        self.static_assert(k_size % self.tile_k == 0, "k_size must be divisible by tile_k")
-        self.static_assert(n_size % self.tile_n == 0, "n_size must be divisible by tile_n")
+        self.static_assert(
+            k_size % self.tile_k == 0, "k_size must be divisible by tile_k"
+        )
+        self.static_assert(
+            n_size % self.tile_n == 0, "n_size must be divisible by tile_n"
+        )
         self.attrs.warps = 1
         self.attrs.blocks = [k_size // self.tile_k, n_size // self.tile_n]
 
@@ -71,7 +78,9 @@ class QuantizedMatmulChangeLayout(QuantizedMatmulCommon):
         offset_n = self.blockIdx.y * self.tile_n
 
         g_src = self.global_view(src_ptr, dtype=self.b_dtype, shape=[k_size, n_size])
-        r_src = self.load_global(g_src, offsets=[offset_k, offset_n], layout=self.tile_layout)
+        r_src = self.load_global(
+            g_src, offsets=[offset_k, offset_n], layout=self.tile_layout
+        )
         r_dst = self.view(r_src, layout=self.flatten_tile_layout, dtype=uint8)
         g_dst = self.global_view(
             dst_ptr,
@@ -92,8 +101,12 @@ class QuantizedMatmulChangeLayout(QuantizedMatmulCommon):
 
 class QuantizedMatmulRestoreLayout(QuantizedMatmulCommon):
     def __call__(self, k_size: int, n_size: int, src_ptr: void_p, dst_ptr: void_p):
-        self.static_assert(k_size % self.tile_k == 0, "k_size must be divisible by tile_k")
-        self.static_assert(n_size % self.tile_n == 0, "n_size must be divisible by tile_n")
+        self.static_assert(
+            k_size % self.tile_k == 0, "k_size must be divisible by tile_k"
+        )
+        self.static_assert(
+            n_size % self.tile_n == 0, "n_size must be divisible by tile_n"
+        )
         self.attrs.warps = 1
         self.attrs.blocks = [k_size // self.tile_k, n_size // self.tile_n]
 
@@ -168,7 +181,10 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         wsm, wsn = warp_spatial
         wrm, wrn, wrk = warp_repeat
 
-        assert weight_tile[0] % self.atomic_mma.k == 0 and weight_tile[1] % self.atomic_mma.n == 0
+        assert (
+            weight_tile[0] % self.atomic_mma.k == 0
+            and weight_tile[1] % self.atomic_mma.n == 0
+        )
         tk, tn = (
             weight_tile[0] // self.atomic_mma.k,
             weight_tile[1] // self.atomic_mma.n,
@@ -193,7 +209,9 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         self.tile_bytes = self.flatten_tile_layout.size
 
         self.layout_rb_flattened = concat(
-            reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk // tk, wrn // tn),
+            reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(
+                wrk // tk, wrn // tn
+            ),
             self.flatten_tile_layout,
         )
         self.layout_rs = reduce(self.mma.lb, dims=[0], keepdims=True)
@@ -227,7 +245,9 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         self.attrs.warps = self.num_warps
 
         # the k_size for each thread block
-        block_k_size = cdiv(cdiv(k_size, self.split_k_factor), self.block_k) * self.block_k
+        block_k_size = (
+            cdiv(cdiv(k_size, self.split_k_factor), self.block_k) * self.block_k
+        )
         start_offset_k = self.blockIdx.z * block_k_size
         end_offset_k = min(start_offset_k + block_k_size, k_size)
 
@@ -255,7 +275,10 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         sb = self.shared_tensor(dtype=uint8, layout=self.layout_sb)
         ss = self.shared_tensor(dtype=self.a_dtype, layout=self.layout_ss)
         acc = self.register_tensor(
-            dtype=float32, shape=[self.block_m, self.block_n], layout=self.mma.lc, init=0.0
+            dtype=float32,
+            shape=[self.block_m, self.block_n],
+            layout=self.mma.lc,
+            init=0.0,
         )
 
         for stage in range(self.num_stages - 1):
@@ -278,12 +301,18 @@ class QuantizedMatmul(QuantizedMatmulCommon):
 
         current_stage: int32 = 0
         preload_stage: int32 = self.num_stages - 1
-        for offset_k in self.range(start_offset_k, end_offset_k, block_k, unroll=self.num_stages):
+        for offset_k in self.range(
+            start_offset_k, end_offset_k, block_k, unroll=self.num_stages
+        ):
             # computation for current tile
             a = self.load_shared(sa[current_stage], layout=self.mma.la)
             scale = self.load_shared(ss[current_stage], layout=self.layout_rs)
-            b_flattened = self.load_shared(sb[current_stage], layout=self.layout_rb_flattened)
-            b_low_precision = self.view(b_flattened, dtype=self.b_dtype, layout=self.mma.lb)
+            b_flattened = self.load_shared(
+                sb[current_stage], layout=self.layout_rb_flattened
+            )
+            b_low_precision = self.view(
+                b_flattened, dtype=self.b_dtype, layout=self.mma.lb
+            )
             b_unscaled = self.cast(b_low_precision, dtype=self.a_dtype)
             b = b_unscaled * scale
             self.dot(a, b, acc, out=acc)
@@ -355,7 +384,9 @@ class QuantizedMatmul(QuantizedMatmulCommon):
 
             # release the semaphore
             self.sync()  # we need to make sure the previous store_global is finished
-            self.release_semaphore(semaphore, value=(self.blockIdx.z + 1) % self.split_k_factor)
+            self.release_semaphore(
+                semaphore, value=(self.blockIdx.z + 1) % self.split_k_factor
+            )
 
 
 class QuantizedLinear(nn.Module):
@@ -374,7 +405,9 @@ class QuantizedLinear(nn.Module):
         assert w_dtype.is_float() or (w_dtype.is_integer() and w_dtype.min_value < 0), (
             "this kernel only supports symmetric quantization, which requires signed quantized weight"
         )
-        assert in_features % group_size == 0, "out_features must be divisible by group_size"
+        assert in_features % group_size == 0, (
+            "out_features must be divisible by group_size"
+        )
         assert in_features * out_features * w_dtype.nbits % 8 == 0, (
             "in_features * out_features * w_dtype.nbits must be divisible by 8"
         )
@@ -419,7 +452,9 @@ class QuantizedLinear(nn.Module):
         )
 
     def load_and_quantize(self, weight: torch.Tensor):
-        assert (self.out_features, self.in_features) == weight.shape, "weight shape mismatch"
+        assert (self.out_features, self.in_features) == weight.shape, (
+            "weight shape mismatch"
+        )
         out_channels, in_channels, group_size = (
             self.out_features,
             self.in_features,
@@ -456,7 +491,10 @@ class QuantizedLinear(nn.Module):
         else:
             # for floating-point quantized weight, the rounding will be done in the casting
             quantized_weight = (
-                tilus.from_torch(quantized_weight).to(self.w_dtype).to(tilus.float32).torch()
+                tilus.from_torch(quantized_weight)
+                .to(self.w_dtype)
+                .to(tilus.float32)
+                .torch()
             )
 
         # convert the quantized weight to the quantized type
@@ -479,7 +517,9 @@ class QuantizedLinear(nn.Module):
         # tilus.from_torch(restored_weight).view(dtype=self.w_dtype, shape=(self.in_features, self.out_features))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = torch.empty(size=[x.size(0), self.out_features], dtype=x.dtype, device=x.device)
+        out = torch.empty(
+            size=[x.size(0), self.out_features], dtype=x.dtype, device=x.device
+        )
         self.quantized_matmul_kernel(
             x.size(0),
             self.out_features,

@@ -45,8 +45,6 @@ sphinx_gallery_conf = {
     'examples_dirs': ['../../examples/matmul'],
     'gallery_dirs': ['getting-started/matmul'],
     'filename_pattern': r'.*\.py',
-    "ignore_pattern": r"/cache/",  # Unix-style paths
-    'within_subsection_order': sphinx_gallery.sorting.FileNameSortKey,
     'download_all_examples': True,
 }
 

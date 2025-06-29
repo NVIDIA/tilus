@@ -246,11 +246,40 @@ class Script:
     def global_tensor(
         self,
         dtype: DataType,
-        shape: Optional[Sequence[int]] = None,
-        layout: Optional[GlobalLayout] = None,
+        shape: Sequence[int | Expr],
         *,
+        layout: Optional[GlobalLayout] = None,
         requires_clean: bool,
     ) -> GlobalTensor:
+        """Allocate a global tensor.
+
+        This instruction allocates a global tensor with the specified data type, shape, layout, and whether it requires
+        to be all zeros. All thread blocks in the kernel must agree on the shape and layout of the global tensor. The
+        global tensor will be shared across all thread blocks in the kernel. The lifetime of the global tensor is
+        the entire kernel execution, and it will be automatically freed when the kernel finishes.
+
+        The `requires_clean` parameter indicates whether the global tensor should be initialized to all zeros.
+
+        - If it is set to `True`, the global tensor will be initialized to all zeros. We require the kernel to reset
+          the global tensor to all zeros after the kernel finishes.
+        - If it is set to `False`, the global tensor will be uninitialized, and its contents are undefined.
+
+        Parameters
+        ----------
+        dtype: DataType
+            The data type of the tensor elements.
+        shape: Sequence[int | Expr]
+            The shape of the tensor. The shape can be a sequence of integers or integer expressions.
+        layout: GlobalLayout, optional
+            The layout of the tensor. If not provided, the layout will be row-major compact layout by default.
+        requires_clean: bool
+            Whether the global tensor should be initialized to all zeros.
+
+        Returns
+        -------
+        ret: GlobalTensor
+            The allocated global tensor.
+        """
         return self._builder.allocate_global(
             dtype=dtype,
             shape=shape,
@@ -513,6 +542,60 @@ class Script:
         evict: Optional[str] = None,
         check_bounds: bool = True,
     ) -> None:
+        """Copy from global to shared tensor asynchronously.
+
+        This instruction issues an asynchronous  copy of a tile from a global tensor to a shared tensor. The `src` parameter
+        specifies the global tensor to copy from, while the `dst` parameter specifies the shared tensor to copy to.
+
+        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
+        will be copied from. The length of this sequence must match the rank of the global tensor.
+
+        The `dims` parameter specifies which dimensions of the global tensor are being sliced. If not provided, it is
+        assumed that all dimensions are being sliced in the same order as the shared tensor. The length of this sequence
+        must match the number of dimensions of the shared tensor being copied to.
+
+        The `evict` parameter can be used to specify the eviction policy. When we use this instruction, the data in
+        the global memory will be cached. We can use the `evict` parameter to specify the eviction policy for the cached
+        data of this instruction.
+
+        It's valid to specify the loading elements out of bounds of the global tensor, in which case, we will perform
+        bound checking and fill the out-of-bounds elements with zero in the shared tensor. The bound checking might
+        introduce some overhead, especially when the user make sure that the accessed global elements are always in
+        bounds but our compiler cannot infer it. In this case, we can set `check_bounds` to `False` to skip the bound
+        checking. It's the user's responsibility to ensure that the accessed global elements are always in bounds when
+        `check_bounds` is set to `False`.
+
+        Parameters
+        ----------
+        src: GlobalTensor
+            The global tensor to copy from.
+        dst: SharedTensor
+            The shared tensor to copy to.
+        offsets: Sequence[Expr | int]
+            The offsets for each dimension of the global tensor where the tile will be copied from. The length of this
+            sequence must match the number of dimensions of the global tensor.
+        dims: Sequence[int], optional
+            The dimensions of the global tensor that are being sliced when the rank of shared tensor is less than the
+            rank of the global tensor. If not provided, it is assumed that all dimensions are being sliced in the
+            same order as the shared tensor. The length of this sequence must match the number of dimensions of the
+            shared tensor being copied to.
+        evict: str, optional
+            The eviction policy for the cached data of this instruction. If not provided, the default eviction
+            policy `evict_normal` is used, which is to evict the cached data when the shared memory is full. The
+            eviction policy can be one of
+
+            The candidates are:
+
+            - 'evict_normal': Evict the cached data when the shared memory is full.
+            - 'evict_first': Evict the cached data of this instruction first when an eviction is needed. This policy is
+              suitable for streaming data where the data is only needed once and will not be reused.
+
+        check_bounds: bool, optional
+            Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
+            elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,
+            it will be filled with zero in the shared tensor. When set to `False`, the bound checking will be skipped,
+            and the user must ensure that the accessed global elements are always in bounds. The default value is `True`.
+        """
         if dims is None:
             if len(dst.shape) != len(src.shape):
                 raise InstructionError(
@@ -525,12 +608,40 @@ class Script:
         self._builder.copy_async(dst=dst, src=src, offsets=offsets, dims=dims, evict=evict, check_bounds=check_bounds)
 
     def copy_async_wait_all(self):
+        """Wait for all copy_async instructions to complete.
+
+        This instruction is equivalent to:
+
+        .. code-block:: python
+
+            self.copy_async_commit_group()
+            self.copy_async_wait_group(0)
+
+        """
         self._builder.copy_async_wait_all()
 
     def copy_async_commit_group(self):
+        """Commit async copies into a group.
+
+        This instruction commits all the pending asynchronous copy operations into a group.
+
+        """
         self._builder.copy_async_commit_group()
 
     def copy_async_wait_group(self, n: Union[Expr, int]) -> None:
+        """Wait the completion of asynchronous copy groups.
+
+        This instruction waits for the completion of asynchronous copy groups. The `n` parameter specifies the maximum
+        number of asynchronous copy groups that can be unfinished at the same time. If `n` is 0, it will wait until all
+        asynchronous copy groups are finished. If `n` is greater than 0, it will wait until at least `n` asynchronous
+        copy groups are finished, allowing up to `n` asynchronous copy groups to be unfinished at the same time.
+
+        Parameters
+        ----------
+        n: Union[Expr, int]
+            The maximum number of asynchronous copy groups that can be unfinished at the same time. If `n` is 0,
+            it will wait until all asynchronous copy groups are finished.
+        """
         self._builder.copy_async_wait_group(n)
 
     def dot(
@@ -824,9 +935,37 @@ class Script:
         return self._builder.where(condition, x, y, out=out)
 
     def lock_semaphore(self, semaphore: Expr, value: Expr | int) -> None:
+        """Lock semaphore with a specified value.
+
+        This instruction locks the given semaphore with a specified value. It will block the thread until the semaphore
+        is set to the specified value. The semaphore is a global int32 variable and `semaphore` should be an expression
+        that evaluates to the address of the semaphore variable.
+
+        Parameters
+        ----------
+        semaphore: Expr
+            The expression that evaluates to the address of the semaphore variable.
+        value: Expr | int
+            The value to lock the semaphore with. This can be an integer or an expression that evaluates to an 32-bit
+            signed integer.
+        """
         self._builder.lock_semaphore(semaphore, value)
 
     def release_semaphore(self, semaphore: Expr, value: Expr | int) -> None:
+        """Release semaphore with a specified value.
+
+        This instruction releases the given semaphore with a specified value. It will set the semaphore to the
+        specified value and make it visible to other thread blocks. The semaphore is a global int32 variable and
+        `semaphore` should be an expression that evaluates to the address of the semaphore variable.
+
+        Parameters
+        ----------
+        semaphore: Expr
+            The expression that evaluates to the address of the semaphore variable.
+        value: Expr | int
+            The value to release the semaphore with. This can be an integer or an expression that evaluates to an
+            32-bit signed integer.
+        """
         self._builder.release_semaphore(semaphore, value)
 
     def sync(self) -> None:

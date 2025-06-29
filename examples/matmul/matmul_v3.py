@@ -1,6 +1,31 @@
 """
 Matmul with Async Copy
 ======================
+
+On NVIDIA Ampere and newer architectures, NVIDIA introduced hardware support for asynchronous copy from global memory
+to shared memory without using register as an intermediate buffer. In tilus, we introduced block-level instructions
+to support this feature, allowing us to implement a more efficient matrix multiplication kernel.
+
+.. currentmodule:: tilus.Script
+
+.. autosummary::
+
+    copy_async
+    copy_async_wait_all
+
+
+.. currentmodule:: tilus.Script
+
+The :meth:`copy_async` instruction copies a tile from global memory to shared memory asynchronously. This instruction
+is asynchronous, meaning that the copy operation will not block the execution of the kernel. We can use :meth:`copy_async_wait_all`
+to wait for all asynchronous copy operations to complete. The completion of this wait instruction guarantees that
+the data is available in shared memory for subsequent computations. However, this instruction itself does not synchronize
+the threads in the block, so we still need to use the :meth:`sync` instruction to make sure :meth:`copy_async_wait_all` is completed before
+we proceed with the computation.
+
+We used both instructions in the following matmul kernel implementation. It is similar to the previous version but
+uses asynchronous copy to load the tiles of matrices A and B into shared memory. It does not use registers as an
+intermediate buffer.
 """
 
 import math
@@ -55,9 +80,14 @@ class MatmulV3(tilus.Script):
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
         for offset_k in range(0, k_size, block_k):
+            # issue asynchronous copy instructions to load tiles of A and B
             self.copy_async(src=ga, dst=sa, offsets=[offset_m, offset_k])
             self.copy_async(src=gb, dst=sb, offsets=[offset_k, offset_n])
+
+            # wait for all asynchronous copy operations to complete
             self.copy_async_wait_all()
+
+            # synchronize threads in the block to ensure data is available in shared memory
             self.sync()
 
             a = self.load_shared(sa)
@@ -104,6 +134,8 @@ def main():
     df = pandas.DataFrame(rows, columns=headers)
     print(df)
 
+
+# %%
 
 if __name__ == "__main__":
     main()
