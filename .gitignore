@@ -64,4 +64,3 @@ Thumbs.db
 # sphinx generated
 **/generated/
 **/sg_execution_times.rst
-docs/source/getting-started/matmul/

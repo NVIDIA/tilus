@@ -87,6 +87,7 @@ from tilus.extensions.hidet.ir.dtypes import (
     uint6b,
     uint7b,
 )
+from hidet.ir.type import DataType
 from tilus.ir.layout import RegisterLayout, SharedLayout
 from tilus.lang.instantiated_script import InstantiatedScript
 from tilus.lang.script import Script, autotune

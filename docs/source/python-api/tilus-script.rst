@@ -29,77 +29,26 @@ Attributes and Variables
 Instructions
 ------------
 
-Tensor Creation and Free
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. hint::
-   :class: margin
-
-   Please submit an feature request if your kernel requires additional instructions.
-
-
-.. autosummary::
-   :toctree: generated
-
-   global_view
-   register_tensor
-   shared_tensor
-   global_tensor
-   free_shared
-
-
-Load and Store Instructions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: generated
-
-   load_global
-   store_global
-   load_shared
-   store_shared
-
-
-Asynchronous Copy Instructions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autosummary::
-   :toctree: generated
-
-   copy_async
-   copy_async_commit_group
-   copy_async_wait_group
-   copy_async_wait_all
-
-
-Linear Algebra Instructions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: generated
-
-   dot
-
-Transform Instructions
-~~~~~~~~~~~~~~~~~~~~~~
-
 .. autosummary::
    :toctree: generated
 
    cast
-
-Atomic and Semaphore Instructions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autosummary::
-    :toctree: generated
-
-    lock_semaphore
-    release_semaphore
-
-Synchronization Instruction
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: generated
-
+   copy_async
+   copy_async_commit_group
+   copy_async_wait_all
+   copy_async_wait_group
+   dot
+   free_shared
+   global_tensor
+   global_view
+   load_global
+   load_shared
+   lock_semaphore
+   register_tensor
+   release_semaphore
+   shared_tensor
+   squeeze
+   store_global
+   store_shared
    sync
+   unsqueeze

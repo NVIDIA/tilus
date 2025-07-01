@@ -481,16 +481,14 @@ class StmtBuilder(StmtBuilderCore):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from tilus.ir.layout.register_layout_ops import repeat, unsqueeze
-
         if out is None:
-            layout = x.layout
-            if len(repeats) > len(layout.shape):
-                layout = unsqueeze(layout, dims=list(range(len(repeats) - len(layout.shape))))
-            if len(repeats) < len(layout.shape):
-                repeats = [1] * (len(layout.shape) - len(repeats)) + list(repeats)
-            layout = repeat(*repeats) * layout
-            out = RegisterTensor.create(dtype=x.dtype, optional_layout=layout)
+            shape: Sequence[int] = x.shape
+            if len(repeats) > len(shape):
+                shape = [1] * (len(repeats) - len(shape)) + list(shape)
+            if len(repeats) < len(shape):
+                repeats = [1] * (len(shape) - len(repeats)) + list(repeats)
+            shape = [a * b for a, b in zip(shape, repeats)]
+            out = RegisterTensor.create(dtype=x.dtype, shape=shape)
         inst = RepeatInst.create(x=x, output=out)
         self.append(inst)
         return inst.register_output
@@ -511,7 +509,7 @@ class StmtBuilder(StmtBuilderCore):
             if len(repeats) < len(layout.shape):
                 repeats = [1] * (len(layout.shape) - len(repeats)) + list(repeats)
             layout = layout * repeat(*repeats)
-            out = RegisterTensor.create(dtype=x.dtype, optional_layout=layout)
+            out = RegisterTensor.create(dtype=x.dtype, shape=layout.shape, optional_layout=layout)
         inst = RepeatInterleaveInst.create(x=x, output=out)
         self.append(inst)
         return inst.register_output
@@ -824,7 +822,7 @@ class StmtBuilder(StmtBuilderCore):
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if out is None:
-            out = RegisterTensor.create(dtype=dtype, optional_layout=layout)
+            out = RegisterTensor.create(dtype=dtype, shape=layout.shape, optional_layout=layout)
         inst = LoadSharedGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
         self.append(inst)
         return inst.register_output

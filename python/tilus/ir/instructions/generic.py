@@ -407,7 +407,7 @@ class ViewInst(Instruction):
     ) -> ViewInst:
         dtype = dtype if dtype else x.dtype
         layout = layout if layout else x.layout
-        output = RegisterTensor.create(dtype=dtype, optional_layout=layout)
+        output = RegisterTensor.create(dtype=dtype, shape=layout.shape, optional_layout=layout)
         return ViewInst(output=output, inputs=(x,), local_offset=i32(local_offset))
 
 
@@ -466,9 +466,7 @@ class TransposeInst(Instruction):
     def create(x: RegisterTensor, out: Optional[RegisterTensor] = None) -> TransposeInst:
         assert len(x.shape) == 2
         if out is None:
-            from tilus.ir.layout.register_layout_ops import permute
-
-            out = RegisterTensor.create(dtype=x.dtype, optional_layout=permute(x.layout, [1, 0]))
+            out = RegisterTensor.create(dtype=x.dtype, shape=(x.shape[1], x.shape[0]))
         return TransposeInst(output=out, inputs=(x,))
 
 

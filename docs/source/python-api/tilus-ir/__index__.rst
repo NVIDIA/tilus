@@ -1,6 +1,26 @@
 tilus.ir
 ========
 
+.. currentmodule:: tilus.ir
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Scalar and Pointer Types
+
+    datatype
+    pointer
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Tensor
+
+    tensor
+    register_tensor
+    shared_tensor
+    global_tensor
+
 .. toctree::
     :maxdepth: 1
     :caption: Layouts
@@ -8,13 +28,4 @@ tilus.ir
     register_layout
     shared_layout
     global_layout
-
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Tensor
-
-    register_tensor
-    shared_tensor
-    global_tensor
 

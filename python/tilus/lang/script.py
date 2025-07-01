@@ -752,9 +752,25 @@ class Script:
         self,
         x: RegisterTensor,
         *,
-        dim: int,
+        dim: int | Sequence[int],
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Squeeze a dimension of a register tensor with size 1.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to squeeze.
+        dim: int | Sequence[int]
+            The dimension(s) to squeeze out. The dimension(s) must have size 1.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor with the specified dimension squeezed out.
+        """
         return self._builder.squeeze(x, dim=dim, out=out)
 
     def unsqueeze(
@@ -764,6 +780,25 @@ class Script:
         dim: int | Sequence[int],
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Unsqueeze a dimension of a register tensor.
+
+        This instruction adds a new dimension of size 1 to the register tensor at the specified position. The
+        `dim` parameter is the position where the new dimension will be added in the output tensor.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to unsqueeze.
+        dim: int | Sequence[int]
+            The dimension(s) to unsqueeze. If a single integer is provided, it specifies the position of the new
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor with the specified dimension(s) unsqueezed.
+        """
         return self._builder.unsqueeze(x, dim=dim, out=out)
 
     def transpose(

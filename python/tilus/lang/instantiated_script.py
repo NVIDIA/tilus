@@ -446,7 +446,7 @@ class JitInstance:
             if not source_path.exists():
                 try:
                     source_code = inspect.getsource(self.script_cls)
-                except OSError:
+                except Exception:
                     # if the source code cannot be retrieved, we write an empty file
                     source_code = "Source code not available."
                 with open(source_path, "w") as f:

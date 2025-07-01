@@ -193,7 +193,8 @@ class Transpiler(PythonAstFunctor):
         lines, start_line = inspect.getsourcelines(method)
         file: Optional[str] = inspect.getsourcefile(method)
         if file is None:
-            raise RuntimeError('Can not get the source file of the given function "{}".'.format(method.__name__))
+            file = ""
+            # raise RuntimeError('Can not get the source file of the given function "{}".'.format(method.__name__))
 
         source = "".join(lines)
         source, col_offset = eliminate_indent(source)
@@ -714,7 +715,7 @@ class Transpiler(PythonAstFunctor):
                 if name in builtins.__dict__:
                     # access builtin functions such as max, min
                     return getattr(builtins, name)
-                raise HidetProgramError(self, expr, "Trying to access variable without definition.")
+                raise HidetProgramError(self, expr, "Trying to access variable without definition: {}".format(name))
             return var
         elif isinstance(expr.ctx, ast.Del):
             raise HidetProgramError(self, expr, "Hidet does not support del statement.")

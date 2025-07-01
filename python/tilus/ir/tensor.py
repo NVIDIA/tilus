@@ -15,6 +15,14 @@ from tilus.utils import nbytes_from_nbits, prod
 
 @dataclass(frozen=True, eq=False)
 class Tensor:
+    """Base class for all tensor types in Tilus.
+
+    Attributes
+    ----------
+    dtype: DataType
+        The data type of the tensor elements.
+    """
+
     dtype: DataType
 
     def as_register_tensor(self) -> RegisterTensor:
@@ -36,13 +44,41 @@ class Tensor:
 
 @dataclass(frozen=True, eq=False)
 class RegisterTensor(Tensor):
+    """A tensor that resides in the register memory.
+
+    Attributes
+    ----------
+    shape: tuple[int, ...]
+        The shape of the tensor.
+    optional_layout: Optional[RegisterLayout]
+        The layout of the tensor, which is optional. When not provided, the layout will be automatically inferred
+        with compiler pass.
+    """
+
     shape: tuple[int, ...]
     optional_layout: Optional[RegisterLayout] = None
 
     @staticmethod
     def create(
-        dtype: DataType, *, shape: Optional[Sequence[int]] = None, optional_layout: Optional[RegisterLayout] = None
+        dtype: DataType, *, shape: Sequence[int], optional_layout: Optional[RegisterLayout] = None
     ) -> RegisterTensor:
+        """
+        Create a RegisterTensor with the given dtype, shape, and optional layout.
+
+        Parameters
+        ----------
+        dtype: DataType
+            The data type of the tensor elements.
+        shape: Sequence[int]
+            The shape of the tensor.
+        optional_layout: RegisterLayout, optional
+            The layout of the tensor. If not provided, the layout will be inferred later.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The created RegisterTensor instance.
+        """
         if shape is None and optional_layout is None:
             raise ValueError("Either shape or layout must be provided to create a RegisterTensor.")
         elif shape is None:
@@ -58,29 +94,68 @@ class RegisterTensor(Tensor):
 
     @cached_property
     def layout(self) -> RegisterLayout:
+        """Get the layout of the RegisterTensor.
+
+        Returns
+        -------
+        ret: RegisterLayout
+            The layout of the RegisterTensor.
+
+        Raises
+        ------
+        ValueError
+            If the layout of the RegisterTensor is not defined yet.
+        """
         if self.optional_layout is None:
             raise ValueError("The layout of RegisterTensor is not defined yet.")
         return self.optional_layout
 
     @cached_property
     def size(self) -> int:
+        """Get the number of elements in the RegisterTensor.
+
+        Returns
+        -------
+        ret: int
+            The number of elements in the RegisterTensor.
+        """
         return prod(self.shape)
 
     @cached_property
     def local_size(self) -> int:
+        """Get the number of elements stored in each thread.
+
+        Returns
+        -------
+        ret: int
+            The number of elements stored in each thread.
+        """
         return self.layout.local_size
 
     def with_layout(self, layout: RegisterLayout) -> RegisterTensor:
-        """
-        Create a new RegisterTensor with the given layout.
+        """Create a new RegisterTensor with the given layout.
+
+        Parameters
+        ----------
+        layout: RegisterLayout
+            The layout to be used for the new RegisterTensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new RegisterTensor instance with the specified layout.
         """
         if not same_list(self.shape, layout.shape):
             raise ValueError(f"Shape mismatch: provided shape {self.shape} does not match layout shape {layout.shape}.")
         return dataclasses.replace(self, optional_layout=layout)
 
     def has_layout(self) -> bool:
-        """
-        Check if the RegisterTensor has a layout defined.
+        """Check if the RegisterTensor has a layout defined.
+
+        Returns
+        -------
+        ret: bool
+            True if the RegisterTensor has a layout defined, False otherwise.
         """
         return self.optional_layout is not None
 
@@ -90,18 +165,84 @@ class RegisterTensor(Tensor):
     """
 
     def __add__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform addition with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to add to this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the addition.
+        """
         raise RuntimeError("tensor + tensor could only be used in Tilus Script.")
 
     def __sub__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform subtraction with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to subtract from this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the subtraction.
+
+        """
         raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
 
     def __mul__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform multiplication with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to multiply with this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the multiplication.
+        """
         raise RuntimeError("tensor * tensor could only be used in Tilus Script.")
 
     def __truediv__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform division with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to divide this tensor by.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the division.
+        """
         raise RuntimeError("tensor / tensor could only be used in Tilus Script.")
 
     def squeeze(self, dim: int | Sequence[int]) -> RegisterTensor:
+        """Squeeze the tensor by removing dimensions of size 1.
+
+        Parameters
+        ----------
+        dim: int | Sequence[int]
+            The dimension(s) to squeeze. If an integer is provided, it will squeeze that specific dimension.
+            If a sequence of integers is provided, it will squeeze all specified dimensions.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor with the specified dimensions squeezed.
+
+        See Also
+        --------
+        :py:func:`~tilus.Script.squeeze`
+        """
         raise RuntimeError("tensor.squeeze(...) could only be used in Tilus Script.")
 
     def unsqueeze(self, dim: int | Sequence[int]) -> RegisterTensor:

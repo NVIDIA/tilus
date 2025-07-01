@@ -37,16 +37,20 @@ extensions = [
 ]
 
 autodoc_typehints = "description"
+autoclass_content = 'class'
+autodoc_class_signature = 'separated'
+autodoc_member_order = 'alphabetical'
 
 templates_path = ['_templates']
 exclude_patterns = []
 
 sphinx_gallery_conf = {
     'examples_dirs': ['../../examples/matmul'],
-    'gallery_dirs': ['getting-started/matmul'],
+    'gallery_dirs': ['getting-started/tutorials/matmul'],
     'filename_pattern': r'.*\.py',
     'download_all_examples': True,
 }
+
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -58,5 +62,5 @@ html_theme_options = {
     "use_repository_button": True,
     "show_navbar_depth": 1,
 }
-html_static_path = ['_static']
+# html_static_path = ['_static']
 html_permalinks_icon = "<span>¶</span>"
