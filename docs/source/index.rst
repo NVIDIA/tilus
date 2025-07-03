@@ -13,6 +13,7 @@ Additional features include automatic tuning, caching, and a Pythonic interface 
 .. toctree::
    :maxdepth: 1
    :caption: Getting Started
+   :numbered:
 
    getting-started/install
    getting-started/tutorials/__init__
@@ -20,6 +21,7 @@ Additional features include automatic tuning, caching, and a Pythonic interface 
 .. toctree::
    :maxdepth: 1
    :caption: Programming Guides
+   :numbered:
 
    programming-guides/overview
    programming-guides/tilus-script
@@ -28,6 +30,7 @@ Additional features include automatic tuning, caching, and a Pythonic interface 
    programming-guides/control-flow
    programming-guides/cache
    programming-guides/autotuning
+   programming-guides/layout-system/__init__
    programming-guides/low-precision-support
 
 .. toctree::
@@ -35,6 +38,6 @@ Additional features include automatic tuning, caching, and a Pythonic interface 
    :caption: Python API
 
    python-api/tilus
+   python-api/tilus-option
    python-api/tilus-script
-   python-api/tilus-lang-attributes
    python-api/tilus-ir/__index__

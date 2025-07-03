@@ -1,5 +1,5 @@
 """
-Matmul with Shared Memory
+Use Shared Memory
 =========================
 
 On modern GPUs, shared memory is a limited resource that can be used to store data that is frequently accessed by

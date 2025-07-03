@@ -1,6 +1,6 @@
 """
-Matmul with Software Pipelining
-===============================
+Software Pipelining
+===================
 
 This example demonstrates how to implement a matrix multiplication kernel using software pipelining in tilus.
 

@@ -1,6 +1,6 @@
 """
-Matmul with Auto-tuning
-=======================
+Auto-tuning
+===========
 
 In previous versions of the matmul kernel, we manually set the hyperparameters such as `block_m`, `block_n`, and
 `block_k`. However, these hyperparameters can significantly affect the performance of the kernel, and finding the

@@ -149,12 +149,88 @@ class Script:
         *,
         unroll: Optional[Literal["all"] | int],
     ) -> Iterable[Var]:
+        """Create an iterator used in a for loop.
+
+        This function creates an iterator that can be used in a for loop. It is similar to the built-in `range` function,
+        but provides additional control like unrolling the loop.
+
+
+        Parameters
+        ----------
+        start: Expr | int
+            The starting value of the iterator.
+        end: Expr | int, optional
+            The end value of the iterator. If not provided, it is assumed to be 0 and `start` is used as the end value.
+        step: Expr | int, optional
+            The step value of the iterator. If not provided, it defaults to 1.
+        unroll: Literal["all"] | int, optional
+            The unrolling factor for the loop. If set to "all", the loop will be fully unrolled. If set to an integer,
+            the loop will be unrolled by that factor. If not provided, no unrolling hint will be applied.
+
+        Returns
+        -------
+        ret: Iterable[Var]
+            The iterator that can be used in a for loop. It yields `Var` objects representing the loop indices.
+
+        Examples
+        --------
+
+        We can use this function to create a for loop iterator, similar to the built-in `range` function:
+
+        .. code-block:: python
+
+            # the following two loops are equivalent
+            for i in range(10):
+                ...
+            for i in self.range(10):
+                ...
+
+            # we can also specify the start, end, and step values
+            for i in range(1, 10, 2):
+                ...
+            for i in self.range(1, 10, 2):
+                ...
+
+            # we can also specify the unrolling factor
+            # unroll the loop completely
+            for i in self.range(1, 10, 2, unroll="all"):
+                ...
+
+            # or unroll the loop by a factor of 4
+            for i in self.range(1, 10, 2, unroll=4):
+                ...
+
+        """
         from tilus.lang.constructs.loops import range
 
         # the cast is to make the type checker happy
         return typing.cast(Iterable[Var], range(start, end, step, unroll=unroll))
 
     def assume(self, cond: Expr | bool) -> None:
+        """Compiler hint to assume a condition is true.
+
+        This method is used to provide a condition that the compiler can assume to be true. It is typically used
+        to provide additional information to the compiler for optimization purposes.
+
+        The condition can be a boolean expression with the following forms:
+
+        - term
+        - term [and term]*
+
+        where `term` can be one of the following forms:
+
+        - a % c == 0, where `a` is a kernel parameter and `c` is a constant.
+
+        Parameters
+        ----------
+        cond: Expr | bool
+            The condition to assume. It must be an expression that evaluates to a boolean value or a boolean value.
+
+        Raises
+        ------
+        InstructionError
+            If the condition is not a boolean expression or if it cannot be recognized.
+        """
         if isinstance(cond, bool):
             if not cond:
                 raise InstructionError("The condition must be True")
@@ -744,9 +820,36 @@ class Script:
         *,
         layout: Optional[RegisterLayout] = None,
         dtype: Optional[DataType] = None,
-        local_offset: Union[Expr, int] = 0,
     ) -> RegisterTensor:
-        return self._builder.view(x=x, layout=layout, dtype=dtype, local_offset=local_offset)
+        """View register tensor with a different layout or data type.
+
+        This instruction allows you to reinterpret a register tensor with a different layout or data type without
+        changing its underlying data.
+
+        The `layout` parameter specifies the new layout of the register tensor, while the `dtype` parameter specifies
+        the new data type.
+
+        There is a requirement for the `layout` and `dtype` parameters:
+
+          x.dtype.nbits * x.layout.local_size == dtype.nbits * layout.local_size
+
+        This means that the total number of bits stored in each thread must remain the same after reinterpretation.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to reinterpret.
+        layout: RegisterLayout, optional
+            The new layout of the register tensor. If not provided, the layout will remain unchanged.
+        dtype: DataType, optional
+            The new data type of the register tensor. If not provided, the data type will remain unchanged.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor with the specified layout and/or data type.
+        """
+        return self._builder.view(x=x, layout=layout, dtype=dtype, local_offset=0)
 
     def squeeze(
         self,
@@ -807,6 +910,26 @@ class Script:
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Transpose a 2-D register tensor.
+
+        This instruction transposes a 2-D register tensor, swapping its first and second dimensions. This instruction
+        does not change the underlying data of the tensor, but only changes how the data is accessed. Thus, no
+        communication is needed between threads in the thread block.
+
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to transpose. It must be a 2-D tensor.
+
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The transposed register tensor. The shape of the output tensor will be [x.shape[1], x.shape[0]].
+        """
         return self._builder.transpose(x, out=out)
 
     def abs(
@@ -815,6 +938,24 @@ class Script:
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Compute the absolute value of a register tensor.
+
+        This instruction computes the absolute value of each element in the register tensor `x`. The result is a new
+        register tensor with the same dtype, shape, and layout as `x`.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to compute the absolute value of.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the absolute values of the elements in `x`. The shape and dtype of the
+            output tensor will be the same as that of `x`.
+        """
         return self._builder.abs(x, out=out)
 
     def exp(
@@ -823,6 +964,24 @@ class Script:
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Compute the exponential of each element.
+
+        This instruction computes the natural exponential of each element in the register tensor `x`. The result is a
+        new register tensor with the same dtype, shape, and layout as `x`.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to compute the exponential of.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the exponential values of the elements in `x`. The shape and dtype of the
+            output tensor will be the same as that of `x`.
+        """
         return self._builder.exp(x, out=out)
 
     def exp2(
@@ -831,6 +990,24 @@ class Script:
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Compute the base-2 exponential of each element.
+
+        This instruction computes the base-2 exponential of each element in the register tensor `x`. The result is a
+        new register tensor with the same dtype, shape, and layout as `x`.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to compute the base-2 exponential of.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the base-2 exponential values of the elements in `x`. The shape and dtype of the
+            output tensor will be the same as that of `x`.
+        """
         return self._builder.exp2(x, out=out)
 
     def round(
@@ -839,6 +1016,25 @@ class Script:
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Round each element to the nearest integer.
+
+        This instruction rounds each element in the register tensor `x` to the nearest integer. The result is a new
+        register tensor with the same dtype, shape, and layout as `x`. We use the "round-to-nearest-even" rounding mode.
+        This means that if the fractional part of a number is exactly 0.5, it will be rounded to the nearest even integer.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to round.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the rounded values of the elements in `x`. The shape and dtype of the
+            output tensor will be the same as that of `x`.
+        """
         return self._builder.round(x, out=out)
 
     def clip(
@@ -849,6 +1045,29 @@ class Script:
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Clip the values of a register tensor to a specified range.
+
+        This instruction clips the values of the register tensor `x` to the range specified by `min` and `max`. The
+        resulting values will be in the range [min, max]. The result is a new register tensor with the same
+        dtype, shape, and layout as `x`.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to clip.
+        min: Expr | int | float
+            The minimum value to clip the elements of `x` to. Any value less than `min` will be set to `min`.
+        max: Expr | int | float
+            The maximum value to clip the elements of `x` to. Any value greater than `max` will be set to `max`.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the clipped values of the elements in `x`. The shape and dtype of the
+            output tensor will be the same as that of `x`.
+        """
         return self._builder.clip(x=x, min=min, max=max, out=out)
 
     def repeat(
@@ -858,6 +1077,45 @@ class Script:
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Repeat elements of a register tensor along its dimensions.
+
+        This instruction repeats the elements of the register tensor `x` along each dimension according to the
+        `repeats` parameter. The `repeats` parameter is a sequence of integers, where each integer specifies how many
+        times to repeat the elements along the corresponding dimension of `x`.
+
+        The difference between :py:meth:`repeat` and :py:meth:`repeat_interleave`
+        is similar to the `torch.Tensor.repeat` function vs. `torch.Tensor.repeat_interleave`.
+
+        Use one dimension tensor as an example:
+
+        .. code-block:: python
+
+           a = [1, 2, 3]
+           repeat(a, [2])  # Output: [1, 2, 3, 1, 2, 3]
+           repeat_interleave(a, [2])  # Output: [1, 1, 2, 2, 3, 3]
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to repeat.
+        repeats: Sequence[int]
+            The number of times to repeat the elements along each dimension of `x`. If the length of `repeats` is less
+            than the number of dimensions of `x`, it will be padded with 1s for the beginning dimensions. If it is
+            longer, we will expand the `x` tensor with 1s in the beginning dimensions to match the length of
+            `repeats`.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the repeated elements of `x`. The shape of the output tensor will be
+            determined by the `repeats` parameter, and its dtype will be the same as that of `x`.
+
+        See Also
+        --------
+        :py:meth:`torch.Tensor.repeat`: A similar function in PyTorch.
+        """
         return self._builder.repeat(
             x=x,
             repeats=repeats,
@@ -871,6 +1129,40 @@ class Script:
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Repeat elements of a register tensor along its dimensions.
+
+        This instruction repeats each element of the register tensor `x` according to the `repeats` parameter. The
+        `repeats` parameter is a sequence of integers, where each integer specifies how many times to repeat the
+        corresponding element of `x`.
+
+        The difference between :py:meth:`repeat` and :py:meth:`repeat_interleave`
+        is similar to the `torch.Tensor.repeat` function vs. `torch.Tensor.repeat_interleave`.
+
+        Use one dimension tensor as an example:
+
+        .. code-block:: python
+
+           a = [1, 2, 3]
+           repeat(a, [2])  # Output: [1, 2, 3, 1, 2, 3]
+           repeat_interleave(a, [2])  # Output: [1, 1, 2, 2, 3, 3]
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to repeat.
+        repeats: Sequence[int]
+            The number of times to repeat each element of `x`. If the length of `repeats` is less than the number
+            of dimensions of `x`, it will be padded with 1s for the beginning dimensions. If it is longer, we will
+            expand the `x` tensor with 1s in the beginning dimensions to match the length of `repeats`.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the repeated elements of `x`. The shape of the output tensor will be
+            determined by the `repeats` parameter, and its dtype will be the same as that of `x`.
+        """
         return self._builder.repeat_interleave(
             x=x,
             repeats=repeats,
@@ -912,16 +1204,89 @@ class Script:
     def sum(
         self, x: RegisterTensor, *, dim: int, keepdim: bool = False, out: Optional[RegisterTensor] = None
     ) -> RegisterTensor:
+        """Sum the elements along a specified dimension.
+
+        This instruction computes the sum of the elements in the register tensor `x` along the specified dimension `dim`.
+        If `keepdim` is set to `True`, the output tensor will have the same number of dimensions as the input tensor,
+        with the specified dimension reduced to size 1. If `keepdim` is set to `False`, the output tensor will have
+        the specified dimension removed, resulting in a tensor with one less dimension.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to reduce.
+        dim: int
+            The dimension along which to compute the sum. This should be a valid dimension index for the tensor.
+        keepdim: bool, optional
+            Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
+            same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
+            the output tensor will have the specified dimension removed, resulting in a tensor with one less dimension.
+            Default is `False`.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the sum of the elements along the specified dimension.
+        """
         return self._reduce(x, dim=dim, keepdim=keepdim, op="sum", out=out)
 
     def max(
         self, x: RegisterTensor, *, dim: int, keepdim: bool = False, out: Optional[RegisterTensor] = None
     ) -> RegisterTensor:
+        """Compute the maximum value along a dimension.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to reduce.
+        dim: int
+            The dimension along which to compute the maximum value. This should be a valid dimension index for the tensor.
+        keepdim: bool, optional
+            Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
+            same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
+            the output tensor will have the specified dimension removed, resulting in a tensor with one less dimension.
+            Default is `False`.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the maximum value along the specified dimension.
+        """
         return self._reduce(x, dim=dim, keepdim=keepdim, op="max", out=out)
 
     def min(
         self, x: RegisterTensor, *, dim: int, keepdim: bool = False, out: Optional[RegisterTensor] = None
     ) -> RegisterTensor:
+        """Compute the minimum value along a dimension.
+
+        This instruction computes the minimum value of the elements in the register tensor `x` along the specified
+        dimension `dim`. If `keepdim` is set to `True`, the output tensor will have the same number of dimensions as
+        the input tensor, with the specified dimension reduced to size 1. If `keepdim` is set to `False`, the output
+        tensor will have the specified dimension removed, resulting in a tensor with one less dimension.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to reduce.
+        dim: int
+            The dimension along which to compute the minimum value. This should be a valid dimension index for the tensor.
+        keepdim: bool, optional
+            Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
+            same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
+            the output tensor will have the specified dimension removed, resulting in a tensor with one less dimension.
+            Default is `False`.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the minimum value along the specified dimension.
+        """
         return self._reduce(x, dim=dim, keepdim=keepdim, op="min", out=out)
 
     def store_global_generic(
@@ -941,9 +1306,57 @@ class Script:
         )
 
     def add(self, lhs: RegisterTensor, rhs: RegisterTensor, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        """Add two register tensors element-wise.
+
+        This instruction computes the element-wise addition of two register tensors `lhs` and `rhs`. The result is a new
+        register tensor with the same dtype.
+
+        This instruction supports broadcasting, so if the shapes of `lhs` and `rhs` are not the same, they will be
+        broadcasted to a common shape before performing the addition. The broadcasting rules are similar to those in
+        NumPy and PyTorch, where dimensions of size 1 can be expanded to match the other tensor's shape.
+
+        Parameters
+        ----------
+        lhs: RegisterTensor
+            The left-hand side register tensor to add.
+        rhs: RegisterTensor
+            The right-hand side register tensor to add.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the element-wise sum of `lhs` and `rhs`. The shape of the output
+            tensor will be determined by the broadcasting rules applied to `lhs` and `rhs`.
+        """
         return self._builder.add(lhs, rhs, out=out)
 
     def maximum(self, lhs: RegisterTensor, rhs: RegisterTensor, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        """Compute the element-wise maximum.
+
+        This instruction computes the element-wise maximum of two register tensors `lhs` and `rhs`. The result is a new
+        register tensor with the same dtype.
+
+        This instruction supports broadcasting, so if the shapes of `lhs` and `rhs` are not the same, they will be
+        broadcasted to a common shape before performing the maximum operation. The broadcasting rules are similar to
+        those in NumPy and PyTorch, where dimensions of size 1 can be expanded to match the other tensor's shape.
+
+        Parameters
+        ----------
+        lhs: RegisterTensor
+            The left-hand side register tensor to compare.
+        rhs: RegisterTensor
+            The right-hand side register tensor to compare.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the element-wise maximum of `lhs` and `rhs`. The shape of the output
+            tensor will be determined by the broadcasting rules applied to `lhs` and `rhs`.
+        """
         return self._builder.maximum(lhs, rhs, out=out)
 
     def where(
@@ -954,6 +1367,38 @@ class Script:
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
+        """Select elements from two tensors based on a condition.
+
+        This instruction selects elements from two tensors `x` and `y` based on a boolean condition tensor. For each
+        element in the condition tensor, if the condition is `True`, the corresponding element from `x` is selected,
+        otherwise the corresponding element from `y` is selected. The result is a new register tensor with the same
+        dtype as `x` and `y`.
+
+        This instruction supports broadcasting, so if the shapes of `x` and `y` are not the same, they will be
+        broadcasted to a common shape before performing the selection. The broadcasting rules are similar to those in
+        NumPy and PyTorch, where dimensions of size 1 can be expanded to match the other tensor's shape.
+
+        Parameters
+        ----------
+        condition: RegisterTensor
+            The boolean register tensor that determines which elements to select from `x` and `y`. Its shape must match
+            the shape of `x` and `y` after broadcasting.
+        x: RegisterTensor | Expr | int | float
+            The register tensor or expression to select elements from when the condition is `True`. If `x` is not a
+            register tensor, it will be converted to a zero-dimensional register tensor with the same dtype as `y`.
+        y: RegisterTensor | Expr | int | float
+            The register tensor or expression to select elements from when the condition is `False`. If `y` is not a
+            register tensor, it will be converted to a zero-dimensional register tensor with the same dtype as `x`.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the selected elements based on the condition. The shape of the output tensor
+            will be determined by the broadcasting rules applied to `x` and `y`. The dtype of the output tensor will be
+            the same as that of `x` and `y`.
+        """
         if not isinstance(condition, RegisterTensor):
             cond_expr = as_expr(condition)
             condition = self._builder.allocate_register(dtype=boolean, shape=(), f_init=lambda _: cond_expr)
@@ -1011,8 +1456,13 @@ class Script:
         self._builder.syncthreads()
 
     def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None:
-        """
-        Annotate the layout of a register tensor.
+        """Annotate the layout of a register tensor.
+
+        This instruction annotates the layout of a register tensor with a specified layout. The `layout` parameter
+        is an instance of `RegisterLayout` that defines how the tensor's data is organized among the threads in the
+        thread block.
+
+        This layout will be used to guide the layout inference process.
 
         Parameters
         ----------
@@ -1024,14 +1474,60 @@ class Script:
         self._builder.annotate_layout(tensor, layout)
 
     def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None) -> None:
+        """Print a tensor with a message.
+
+        This instruction prints the contents of a tensor along with a message. The `msg` parameter is a string that
+        will be printed before the tensor contents.
+
+        The `fmt` parameter is an optional format string that specifies how the tensor elements should be formatted when
+        printed.
+
+        Parameters
+        ----------
+        msg: str
+            The message to print before the tensor contents.
+        tensor: Tensor
+            The tensor to print. It can be any tensor type, including `RegisterTensor`, `GlobalTensor`, or `SharedTensor`.
+        fmt: str
+            The format string to use when printing the tensor elements. If not provided, a default format will be used.
+            It should be a valid format specifier in C-style format used in `printf` function.
+            The default format is determined according to the data type of the tensor elements.
+
+            - int32: "%5d"
+            - float16: "%5.2f"
+            - float32: "%6.3f"
+            - boolean: "%1d"
+        """
         self._builder.print_tensor(msg=msg, tensor=tensor, fmt=fmt)
 
     def printf(self, fstring: str, *args: Expr | int | float) -> None:
+        """Print a formatted string.
+
+        This instruction prints a formatted string to the standard output. The `fstring` parameter is a format string
+        that specifies how the output should be formatted. The `args` parameter is a variable-length argument list that
+        contains the values to be formatted according to the `fstring`.
+
+        Parameters
+        ----------
+        fstring: str
+            The format string that specifies how the output should be formatted. It can contain format specifiers
+            similar to those used in C-style `printf` function.
+        args: Expr | int | float
+            The values to be formatted according to the `fstring`. These can be expressions, integers, or floats.
+            The number and types of `args` should match the format specifiers in `fstring`.
+
+        See Also
+        --------
+        :c:func:`printf`: The C-style printf function for formatted output. For its documentation, refer to the
+        `printf reference <https://cplusplus.com/reference/cstdio/printf/>`_.
+
+        """
         self._builder.printf(fstring, *args)
 
     def assign(self, dst: RegisterTensor, src: RegisterTensor) -> None:
-        """
-        Assign the value of src to dst.
+        """Assign the value of src tensor to dst tensor.
+
+        This instruction copies the contents of the source register tensor `src` to the destination register tensor `dst`.
 
         Parameters
         ----------

@@ -111,7 +111,7 @@ class debug:
     @staticmethod
     def dump_ir(enable: bool = True) -> None:
         """
-        Enable or disable dumping the IR during compilation.
+        Whether to dump the IR during compilation.
 
         Parameters
         ----------
@@ -123,7 +123,7 @@ class debug:
     @staticmethod
     def launch_blocking(enabled: bool = True) -> None:
         """
-        Enable or disable blocking the launch of the kernel until the kernel is finished.
+        Whether to block the launch of the kernel until the kernel is finished.
 
         Parameters
         ----------

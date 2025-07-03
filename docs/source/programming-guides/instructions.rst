@@ -1,9 +1,8 @@
 Instructions
 ============
 
-
-Supported Instructions
------------------------
+Tilus provides a set of instructions for working with tensors maintained by the thread block. These instructions allow
+you to create, copy, and compute tensors in global, shared, and register memory.
 
 Tensor Creation and Free
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -52,12 +51,41 @@ Linear Algebra Instructions
 
    dot
 
+Elementwise Arithmetic Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+
+   add
+   exp
+   exp2
+   abs
+   maximum
+   round
+   where
+
 Transform Instructions
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
 
+   assign
    cast
+   squeeze
+   unsqueeze
+   repeat
+   repeat_interleave
+   view
+   transpose
+
+Reduction Instructions
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+
+   max
+   min
+   sum
 
 Atomic and Semaphore Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -74,3 +102,13 @@ Synchronization Instruction
 
    sync
 
+
+Miscellaneous Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+
+   assume
+   annotate_layout
+   print_tensor
+   printf

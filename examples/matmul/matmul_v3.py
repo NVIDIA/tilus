@@ -1,6 +1,6 @@
 """
-Matmul with Async Copy
-======================
+Use Async Copy
+==============
 
 On NVIDIA Ampere and newer architectures, NVIDIA introduced hardware support for asynchronous copy from global memory
 to shared memory without using register as an intermediate buffer. In tilus, we introduced block-level instructions

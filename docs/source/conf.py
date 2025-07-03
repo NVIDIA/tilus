@@ -51,6 +51,10 @@ sphinx_gallery_conf = {
     'download_all_examples': True,
 }
 
+intersphinx_mapping = {
+    # 'python': ('https://docs.python.org/3', None),
+    # 'torch': ('https://pytorch.org/docs/stable/', None), # Use 'stable' or a specific version
+}
 
 
 # -- Options for HTML output -------------------------------------------------

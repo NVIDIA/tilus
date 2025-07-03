@@ -5,7 +5,7 @@ Tilus Script is a flexible scripting language designed for simplifying the GPU d
 performance. It is a domain-specific language (DSL) embedded in Python, allowing developers to write GPU kernels in a
 more intuitive and Pythonic way.
 
-To define a kernel in Tilus Script, you create a subclass of ``tilus.Script`` and implement the ``__init__`` and
+To define a kernel in Tilus Script, you create a subclass of :py:class:`tilus.Script` and implement the ``__init__`` and
 ``__call__`` method.
 
 .. code-block:: python

@@ -1,6 +1,6 @@
 """
-Matmul with Split-K
-===================
+Split-K
+=======
 
 This example demonstrates how to implement a matrix multiplication kernel using split-K optimization in tilus.
 

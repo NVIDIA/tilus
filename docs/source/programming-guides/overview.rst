@@ -10,7 +10,7 @@ of the Tilus programming model and its key features.
 Hello World
 -----------
 
-To write a kernel with Tilus Script, we can define a subclass of ``tilus.Script`` and implement the ``__call__`` method.
+To write a kernel with Tilus Script, we can define a subclass of :py:class:`tilus.Script` and implement the ``__call__`` method.
 
 .. testsetup:: python
 
