@@ -12,16 +12,7 @@ Hello World
 
 To write a kernel with Tilus Script, we can define a subclass of :py:class:`tilus.Script` and implement the ``__call__`` method.
 
-.. testsetup:: python
-
-    # we use wurlitzer to redirect the output to file-descriptor 1 (stdout) and 2 (stderr) to sys.stdout and sys.stderr
-    # so that sphinx doctest can capture the output of the kernel.
-    from wurlitzer import pipes
-    import sys
-    ctx = pipes(sys.stdout, sys.stderr)
-    ctx.__enter__()
-
-.. testcode:: python
+.. code-block:: python
 
     import torch
     import tilus
@@ -43,7 +34,7 @@ To write a kernel with Tilus Script, we can define a subclass of :py:class:`tilu
 
 Output:
 
-.. testoutput:: python
+.. code-block:: text
 
     Hello, World!
 

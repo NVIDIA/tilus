@@ -10,7 +10,7 @@ from hidet.ir.type import DataType
 from hidet.utils import same_list
 
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout
-from tilus.utils import nbytes_from_nbits, prod
+from tilus.utils import nbytes_from_nbits
 
 
 @dataclass(frozen=True, eq=False)
@@ -48,6 +48,8 @@ class RegisterTensor(Tensor):
 
     Attributes
     ----------
+    dtype: DataType
+        The data type of the tensor elements.
     shape: tuple[int, ...]
         The shape of the tensor.
     optional_layout: Optional[RegisterLayout]
@@ -109,17 +111,6 @@ class RegisterTensor(Tensor):
         if self.optional_layout is None:
             raise ValueError("The layout of RegisterTensor is not defined yet.")
         return self.optional_layout
-
-    @cached_property
-    def size(self) -> int:
-        """Get the number of elements in the RegisterTensor.
-
-        Returns
-        -------
-        ret: int
-            The number of elements in the RegisterTensor.
-        """
-        return prod(self.shape)
 
     @cached_property
     def local_size(self) -> int:
@@ -257,6 +248,19 @@ class RegisterTensor(Tensor):
 
 @dataclass(frozen=True, eq=False)
 class SharedTensor(Tensor):
+    """A tensor that resides in the shared memory.
+
+    Attributes
+    ----------
+    dtype: DataType
+        The data type of the tensor elements.
+    shape: tuple[int, ...]
+        The shape of the tensor.
+    optional_layout: SharedLayout, optional
+        The layout of the tensor, which is optional. When not provided, the layout will be automatically inferred
+        with compiler pass.
+    """
+
     shape: tuple[int, ...]
     optional_layout: Optional[SharedLayout]
 
@@ -282,12 +286,36 @@ class SharedTensor(Tensor):
 
     @property
     def layout(self) -> SharedLayout:
+        """Get the layout of the SharedTensor.
+
+        This property returns the layout of the SharedTensor. If the layout is not defined, it raises a ValueError.
+
+        Returns
+        -------
+        ret: SharedLayout
+            The layout of the SharedTensor.
+
+        Raises
+        ------
+        ValueError
+            If the SharedTensor does not have a layout defined.
+        """
         if self.optional_layout is None:
             raise ValueError("SharedTensor does not have a layout defined.")
         return self.optional_layout
 
     @property
     def size(self) -> int:
+        """Get the size of the SharedTensor.
+
+        This property returns the storage size of the tensor as an expression, in the unit of number of elements.
+        If the SharedTensor is not compact, it may not be equal to the product of the shape dimensions.
+
+        Returns
+        -------
+        ret: int
+            The size of the SharedTensor, which is the number of elements it contains.
+        """
         return self.layout.size
 
     @property
@@ -308,6 +336,17 @@ class SharedTensor(Tensor):
 
 @dataclass(frozen=True, eq=False)
 class GlobalTensor(Tensor):
+    """A tensor that resides in the global memory.
+
+    Attributes
+    ----------
+    dtype: DataType
+        The data type of the tensor elements.
+
+    layout: GlobalLayout
+        The layout of the tensor, which defines how the tensor is stored in global memory.
+    """
+
     layout: GlobalLayout
 
     @staticmethod
@@ -316,13 +355,49 @@ class GlobalTensor(Tensor):
 
     @property
     def shape(self) -> tuple[Expr, ...]:
+        """Get the shape of the global tensor.
+
+        This property returns the shape of the tensor as a tuple of expressions.
+
+        Returns
+        -------
+        ret: tuple[Expr, ...]
+            The shape of the global tensor.
+        """
         return self.layout.shape
 
     @property
     def size(self) -> Expr:
+        """Get the size of the global tensor.
+
+        This property returns the storage size of the tensor as an expression, in the unit of number of elements.
+        If the global tensor is not compact, it may not be equal to the product of the shape dimensions.
+
+        Returns
+        -------
+        ret: Expr
+            The size of the global tensor.
+        """
         return self.layout.size
 
     def __getitem__(self, indices: tuple[Expr | int, ...] | Expr | int) -> Expr:
+        """Access the global tensor with the given indices.
+
+        This method allows you to access elements of the global tensor using indices.
+
+        **This method is intended to be used in Tilus Script only.**
+
+        Parameters
+        ----------
+        indices: tuple[Expr | int, ...] | Expr | int
+            The indices to access the global tensor.
+
+
+        Returns
+        -------
+        ret: Expr
+            An expression representing the accessed element of the global tensor.
+        """
         raise RuntimeError("global_tensor[...] could only be used in Tilus Script.")
 
     def with_layout(self, layout: GlobalLayout) -> GlobalTensor:

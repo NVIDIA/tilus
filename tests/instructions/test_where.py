@@ -2,7 +2,7 @@ import pytest
 import tilus
 import torch
 from tilus import boolean, int32
-from tilus.ir.layout import RegisterLayout, repeat, spatial
+from tilus.ir.layout import RegisterLayout, local, spatial
 from tilus.utils import cdiv
 
 
@@ -34,7 +34,7 @@ class TestWhereKernel(tilus.Script):
         self.store_global(go, ro, offsets=[m_offset, n_offset])
 
 
-@pytest.mark.parametrize("m, n, layout", [[16, 16, spatial(4, 8)], [128, 128, repeat(2, 2).spatial(4, 8).repeat(2, 2)]])
+@pytest.mark.parametrize("m, n, layout", [[16, 16, spatial(4, 8)], [128, 128, local(2, 2).spatial(4, 8).local(2, 2)]])
 def test_where(
     m: int,
     n: int,

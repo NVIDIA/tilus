@@ -3,7 +3,7 @@ from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.analyzers.grid_analyzer import analyze_grid
 from tilus.ir.instructions import LoadMatrixInst, LoadSharedGenericInst, LoadSharedInst
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig
-from tilus.ir.layout import LayoutOperationError, rl_ops
+from tilus.ir.layout import LayoutOperationError, ops
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.utils import gcd
 
@@ -26,7 +26,7 @@ class LoadSharedInferSwizzledSharedRule(LayoutInferenceRule):
             if config.nbytes != a.dtype.nbytes:
                 continue
             try:
-                rl_ops.divide(b.layout, config.ldmatrix_layout)
+                ops.divide(b.layout, config.ldmatrix_layout)
             except LayoutOperationError:
                 continue
 
@@ -52,9 +52,9 @@ class LoadSharedInferRowMajorSharedRule(LayoutInferenceRule):
         if not (a.optional_layout is None and b.optional_layout is not None):
             return {}
 
-        from tilus.ir.layout.shared_layout import shared_repeat
+        from tilus.ir.layout.shared_layout import shared_row_major
 
-        return {a: shared_repeat(*a.shape)}
+        return {a: shared_row_major(*a.shape)}
 
 
 @register_rule(LoadMatrixInst)
@@ -92,9 +92,7 @@ class LoadSharedInferRegisterRule(LayoutInferenceRule):
                 lhs_shape = list(shared.shape)
                 lhs_shape[dim] = shared.shape[dim] // factor
                 rhs_shape = [1 if i != dim else factor for i in range(len(shared.shape))]
-                layout = rl_ops.auto_repeat_spatial(num_threads=ctx.num_threads, shape=lhs_shape) * rl_ops.repeat(
-                    *rhs_shape
-                )
+                layout = ops.auto_local_spatial(num_threads=ctx.num_threads, shape=lhs_shape) * ops.local(*rhs_shape)
                 return {register: layout}
 
-        return {register: rl_ops.auto_repeat_spatial(num_threads=ctx.num_threads, shape=shared.shape)}
+        return {register: ops.auto_local_spatial(num_threads=ctx.num_threads, shape=shared.shape)}

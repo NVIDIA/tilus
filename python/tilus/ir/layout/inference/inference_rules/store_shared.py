@@ -2,7 +2,7 @@ from tilus import SharedLayout
 from tilus.ir import SharedTensor
 from tilus.ir.instructions import StoreSharedGenericInst, StoreSharedInst
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig
-from tilus.ir.layout import LayoutOperationError, rl_ops
+from tilus.ir.layout import LayoutOperationError, ops
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 
 
@@ -23,7 +23,7 @@ class StoreSharedSwizzleRule(LayoutInferenceRule):
             if config.nbytes != a.dtype.nbytes:
                 continue
             try:
-                rl_ops.divide(b.layout, config.ldmatrix_layout)
+                ops.divide(b.layout, config.ldmatrix_layout)
             except LayoutOperationError:
                 continue
 

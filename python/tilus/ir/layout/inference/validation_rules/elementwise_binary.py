@@ -1,6 +1,6 @@
 from tilus.ir.instructions import AddInst, DivInst, ElementwiseBinaryInst, Instruction, ModInst, MulInst, SubInst
-from tilus.ir.layout import mf_ops
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
+from tilus.ir.mfunction import ops
 from tilus.ir.tensor import RegisterTensor
 
 
@@ -19,7 +19,7 @@ class BinaryRule(LayoutValidationRule):
             x: RegisterTensor = inst.inputs[i].as_register_tensor()
             y: RegisterTensor = inst.register_output
 
-            fa = mf_ops.identity(y.shape).collapse_by_shape(x.shape) * x.layout.spatial_mfunction()
+            fa = ops.identity(y.shape).collapse_by_shape(x.shape) * x.layout.spatial_mfunction()
             fb = y.layout.spatial_mfunction()
 
             if not fa.cover(fb):

@@ -14,12 +14,46 @@ from tilus.ir.node import IRNode
 
 @dataclass(frozen=True, eq=False)
 class SharedLayout(IRNode):
+    """The layout for shared tensor.
+
+    Attributes
+    ----------
+    shape: tuple[int, ...]
+        The shape of the shared tensor. Each dimension is a constant integer.
+    size: int
+        The storage size of the shared tensor, in number of elements. If the layout is a `compact` layout, size
+        should be equal to the product of the shape dimensions. Otherwise, it can be either larger (in case of padding)
+        or smaller (in case of sharing data for different elements) than the product of the shape dimensions. The
+        size must be a constant integer.
+    axes: tuple[Var, ...]
+        The axes of the shared tensor. Each axis is a variable that represents the index of the corresponding dimension.
+        It should have the same length as the shape.
+    offset: Expr
+        The offset expression of the shared tensor based on the axes. It is an expression that computes the offset
+        of the shared tensor based on the axes. Only the axes and variables that are invariant in the lifetime of the
+        given corresponding shared tensor with this layout can be used in the expression.
+    """
+
     shape: tuple[int, ...]
     size: int
     axes: tuple[Var, ...]
     offset: Expr
 
     def __call__(self, *indices: Expr) -> Expr:
+        """Compute the offset on given indices.
+
+        This method computes the offset of an element in the shared tensor with the given indices.
+
+        Parameters
+        ----------
+        indices: Sequence[Expr]
+            The indices of the shared tensor. The length of the indices should match the number of axes in the layout.
+
+        Returns
+        -------
+        ret: Expr
+            The computed offset of the shared tensor element at the given indices.
+        """
         assert len(indices) == len(self.axes)
         from hidet.ir.tools import rewrite
 
@@ -27,6 +61,28 @@ class SharedLayout(IRNode):
 
     @staticmethod
     def create(shape: Sequence[int], size: int, f_offset: Callable[[Sequence[Var]], Expr]) -> SharedLayout:
+        """Create a shared layout.
+
+        This method creates a shared layout with the given shape, size, and a function to compute the offset based on
+        the axes. The shape must be a sequence of constant integers, and the size must be a constant integer that is
+        larger than the maximum possible offset computed by the `f_offset` function.
+
+        Parameters
+        ----------
+        shape: Sequence[int]
+            The shape of the shared tensor. Each dimension is a constant integer.
+        size: int
+            The storage size of the shared tensor, in number of elements.
+        f_offset: Callable[[Sequence[Var]], Expr]
+            The function that computes the offset of the shared tensor based on the axes. It takes a sequence of
+            axes (variables) and returns an expression that computes the offset. The function must ensure that the
+            size is larger than the maximum possible offset computed by this function.
+
+        Returns
+        -------
+        ret: SharedLayout
+            A shared layout with the specified shape, size, axes, and offset.
+        """
         axes: List[Var] = index_vars(num_vars=len(shape))
         return SharedLayout(shape=tuple(shape), size=size, axes=tuple(axes), offset=f_offset(axes))
 
@@ -124,15 +180,55 @@ def _shared_compose(lhs: SharedLayout, rhs: SharedLayout) -> SharedLayout:
     return SharedLayout.create(shape=shape, size=size, f_offset=f_offset)
 
 
-def shared_repeat(*shape: int) -> SharedLayout:
+def shared_row_major(*shape: int) -> SharedLayout:
+    """Create a shared layout with row-major order.
+
+    Parameters
+    ----------
+    shape: Sequence[int]
+        The shape of the shared tensor. Each dimension is a constant integer.
+
+    Returns
+    -------
+    ret: SharedLayout
+        A shared layout with the specified shape in row-major order.
+    """
     return _generic_repeat(shape=list(shape), ranks=list(range(len(shape))))
 
 
-def shared_column_repeat(*shape: int) -> SharedLayout:
+def shared_column_major(*shape: int) -> SharedLayout:
+    """Create a shared layout with column-major order.
+
+    Parameters
+    ----------
+    shape: Sequence[int]
+        The shape of the shared tensor. Each dimension is a constant integer.
+
+    Returns
+    -------
+    ret: SharedLayout
+        A shared layout with the specified shape in column-major order.
+    """
     return _generic_repeat(shape=list(shape), ranks=list(reversed(range(len(shape)))))
 
 
 def shared_compose(lhs: SharedLayout, rhs: SharedLayout, *others: SharedLayout) -> SharedLayout:
+    """Compose multiple shared layouts together.
+
+    Parameters
+    ----------
+    lhs: SharedLayout
+        The first shared layout to compose.
+    rhs: SharedLayout
+        The second shared layout to compose.
+    others: Sequence[SharedLayout]
+        The additional shared layouts to compose with the first two. It can be empty.
+
+    Returns
+    -------
+    ret: SharedLayout
+        The composed shared layout.
+    """
     if len(others) == 0:
         return _shared_compose(lhs, rhs)
     else:

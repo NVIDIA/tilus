@@ -1,5 +1,5 @@
 import pytest
-from tilus.ir.layout.register_layout_ops import compose, register_layout, repeat, spatial
+from tilus.ir.layout.register_layout_ops import compose, local, register_layout, spatial
 
 
 @pytest.mark.parametrize(
@@ -7,7 +7,7 @@ from tilus.ir.layout.register_layout_ops import compose, register_layout, repeat
     [
         [
             spatial(2, 4),
-            repeat(2, 1),
+            local(2, 1),
             register_layout(shape=[4, 4], mode_shape=[2, 2, 4], spatial_modes=[0, 2], local_modes=[1]),
         ],
     ],

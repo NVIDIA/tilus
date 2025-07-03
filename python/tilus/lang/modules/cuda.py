@@ -9,7 +9,7 @@ from hidet.ir.expr import Var, as_expr
 from tilus import RegisterLayout
 from tilus.backends.emitters.cuda.mma_dot import AtomicMmaConfig
 from tilus.extensions.hidet.ir.expr import index_vars
-from tilus.ir.layout import SharedLayout, auto_repeat_spatial, reduce, shared_compose, shared_repeat, spatial
+from tilus.ir.layout import SharedLayout, auto_local_spatial, reduce, shared_compose, shared_row_major, spatial
 from tilus.ir.utils import vector
 from tilus.utils import gcd, idiv, prod
 
@@ -145,9 +145,9 @@ class cuda:
         block_n = atomic_mma.n * wsn * wrn
         block_k = atomic_mma.k * wrk * atomic_mma.vec_k
         num_warps = wsm * wsn
-        layout_ra = reduce(spatial(wsm, 1, wsn, ranks=[1, 0, 2]), dims=[2]).repeat(wrm, wrk) * atomic_mma.la
-        layout_rb = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(wrk, wrn) * atomic_mma.lb
-        layout_rc = spatial(wsm, wsn).repeat(wrm, wrn) * atomic_mma.lc
+        layout_ra = reduce(spatial(wsm, 1, wsn, ranks=[1, 0, 2]), dims=[2]).local(wrm, wrk) * atomic_mma.la
+        layout_rb = reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).local(wrk, wrn) * atomic_mma.lb
+        layout_rc = spatial(wsm, wsn).local(wrm, wrn) * atomic_mma.lc
 
         def count_registers(candidate: tuple[tuple[int, int], tuple[int, int, int]]) -> int:
             # calculate the number of registers used by the candidate
@@ -190,7 +190,7 @@ class cuda:
         shared_layout: SharedLayout
             The row-major shared layout with the given shape.
         """
-        return shared_repeat(*shape)
+        return shared_row_major(*shape)
 
     @staticmethod
     def swizzled_shared_layout(dtype: DataType, *, shape: Sequence[int]) -> SharedLayout:
@@ -295,7 +295,7 @@ class cuda:
             6 7 4 5 2 3 0 1
             7 6 5 4 3 2 1 0
             """
-            core = shared_repeat(rows, columns).swizzle(dim=1, regards_dim=0, log_step=0)
+            core = shared_row_major(rows, columns).swizzle(dim=1, regards_dim=0, log_step=0)
         elif columns % 4 == 0:
             """
             0 1 2 3
@@ -307,7 +307,7 @@ class cuda:
             3 2 1 0
             7 6 5 4
             """
-            core = shared_repeat(rows, 4).swizzle(dim=1, regards_dim=0, log_step=1)
+            core = shared_row_major(rows, 4).swizzle(dim=1, regards_dim=0, log_step=1)
         elif columns % 2 == 0:
             """
             0 1
@@ -319,7 +319,7 @@ class cuda:
             5 4
             7 6
             """
-            core = shared_repeat(rows, 2).swizzle(dim=1, regards_dim=0, log_step=2)
+            core = shared_row_major(rows, 2).swizzle(dim=1, regards_dim=0, log_step=2)
         else:
             """
             0 
@@ -331,10 +331,10 @@ class cuda:
             6
             7
             """
-            core = shared_repeat(rows, 1)
-        layout = shared_compose(core, shared_repeat(1, group_elements))
+            core = shared_row_major(rows, 1)
+        layout = shared_compose(core, shared_row_major(1, group_elements))
         if m > layout.shape[0] or n > layout.shape[1]:
-            layout = shared_compose(shared_repeat(m // layout.shape[0], n // layout.shape[1]), layout)
+            layout = shared_compose(shared_row_major(m // layout.shape[0], n // layout.shape[1]), layout)
         if len(shape) > 2:
             for extent in reversed(shape[:-2]):
                 layout = layout.prepend_dim(extent=extent)
@@ -398,6 +398,6 @@ class cuda:
             vector_shape[-1] = shape[-1] // vector_size
             repeat_shape = [1 for _ in shape]
             repeat_shape[-1] = vector_size
-            return auto_repeat_spatial(num_threads=num_threads, shape=vector_shape).repeat(*repeat_shape)
+            return auto_local_spatial(num_threads=num_threads, shape=vector_shape).local(*repeat_shape)
         else:
-            return auto_repeat_spatial(num_threads=num_threads, shape=shape)
+            return auto_local_spatial(num_threads=num_threads, shape=shape)

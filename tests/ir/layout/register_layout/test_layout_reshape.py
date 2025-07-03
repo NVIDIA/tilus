@@ -7,7 +7,7 @@ from tilus.ir.layout.register_layout_ops import register_layout, reshape, spatia
     [
         [spatial(2, 4), [2, 2, 2], spatial(2, 2, 2)],
         [
-            spatial(2, 4).repeat(3, 2).spatial(6, 8),
+            spatial(2, 4).local(3, 2).spatial(6, 8),
             [2, 3, 6, 4, 2, 8],
             register_layout(
                 shape=[2, 3, 6, 4, 2, 8], mode_shape=[2, 3, 6, 4, 2, 8], spatial_modes=[0, 3, 2, 5], local_modes=[1, 4]

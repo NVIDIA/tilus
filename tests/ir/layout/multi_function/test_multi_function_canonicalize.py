@@ -1,5 +1,5 @@
 import pytest
-from tilus.ir.layout.mfunction import canonicalize, multi_function
+from tilus.ir.mfunction import canonicalize, multi_function
 
 
 @pytest.mark.parametrize(

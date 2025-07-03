@@ -167,18 +167,18 @@ class MultiFunction:
         )
 
     def collapse(self, dims: Sequence[int]) -> MultiFunction:
-        from tilus.ir.layout.mfunction_ops import collapse
+        from tilus.ir.mfunction.ops import collapse
 
         return collapse(self, dims)
 
     def collapse_by_shape(self, shape: Sequence[int]) -> MultiFunction:
-        from tilus.ir.layout.mfunction_ops import collapse_by_shape
+        from tilus.ir.mfunction.ops import collapse_by_shape
 
         return collapse_by_shape(self, shape)
 
     def cover(self, other: MultiFunction) -> bool:
         """Check whether this multi-function covers another multi-function."""
-        from tilus.ir.layout.mfunction_ops import cover
+        from tilus.ir.mfunction.ops import cover
 
         return cover(self, other)
 

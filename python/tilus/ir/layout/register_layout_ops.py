@@ -20,8 +20,8 @@ def spatial(*shape: int, ranks: Optional[Sequence[int]] = None) -> RegisterLayou
 
     Parameters
     ----------
-    shape: Sequence[int]
-        The shape of the layout.
+    *shape
+        The shape of the layout. Each entry in shape must be a positive constant integer.
 
     ranks: Sequence[int], optional
         The ranks of the dimensions. The ranks must be unique and in the range [0, len(shape)). If not specified,
@@ -47,17 +47,17 @@ def spatial(*shape: int, ranks: Optional[Sequence[int]] = None) -> RegisterLayou
     return register_layout(shape=shape, mode_shape=shape, spatial_modes=spatial_modes, local_modes=[])
 
 
-def repeat(*shape: int, ranks: Optional[Sequence[int]] = None) -> RegisterLayout:
+def local(*shape: int, ranks: Optional[Sequence[int]] = None) -> RegisterLayout:
     """
-    Create a repeat layout.
+    Create a local layout.
 
-    A repeat layout is a layout that maps all dimensions to the local dimensions. The ranks of the dimensions are
+    A local layout is a layout that maps all dimensions to the local dimensions. The ranks of the dimensions are
     specified by the `ranks` parameter.
 
     Parameters
     ----------
-    shape: Sequence[int]
-        The shape of the layout.
+    shape:
+        The shape of the layout. Each entry in shape must be a positive constant integer.
 
     ranks: Sequence[int], optional
         The ranks of the dimensions. The ranks must be unique and in the range [0, len(shape)). If not specified,
@@ -89,8 +89,8 @@ def column_spatial(*shape: int) -> RegisterLayout:
 
     Parameters
     ----------
-    shape: Sequence[int]
-        The shape of the layout.
+    *shape:
+        The shape of the layout. Each entry must be a constant integer.
 
     Returns
     -------
@@ -100,21 +100,21 @@ def column_spatial(*shape: int) -> RegisterLayout:
     return spatial(*shape, ranks=list(reversed(range(len(shape)))))
 
 
-def column_repeat(*shape: int) -> RegisterLayout:
+def column_local(*shape: int) -> RegisterLayout:
     """
     Create a local layout in column-major order.
 
     Parameters
     ----------
-    shape: Sequence[int]
-        The shape of the layout.
+    *shape:
+        The shape of the layout. Each entry nust be a constant integer.
 
     Returns
     -------
     ret: RegisterLayout
         The local layout.
     """
-    return repeat(*shape, ranks=list(reversed(range(len(shape)))))
+    return local(*shape, ranks=list(reversed(range(len(shape)))))
 
 
 def squeeze(layout: RegisterLayout, dims: Sequence[int]) -> RegisterLayout:
@@ -690,10 +690,27 @@ def divide(lhs: RegisterLayout, rhs: RegisterLayout) -> RegisterLayout:
     )
 
 
-def auto_repeat_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayout:
+def auto_local_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayout:
+    """Create a local(...).spatial(...) layout
+
+    This function automatically determines a composition of the local and spatial layouts, based on the number of threads
+    and the shape of the composed layout.
+
+    Parameters
+    ----------
+    num_threads: int
+        The number of threads to be used for the spatial layout. This should be a positive integer.
+    shape: Sequence[int]
+        The shape of the composed layout. Each entry in shape must be a positive constant integer.
+
+    Returns
+    -------
+    ret: RegisterLayout
+        The layout that is a composition of local and spatial layouts.
+    """
     size = prod(shape)
     assert size % num_threads == 0 or num_threads % size == 0, (
-        "Cannot auto repeat spatial layout with shape {} and num_threads {}".format(shape, num_threads)
+        "Cannot auto local spatial layout with shape {} and num_threads {}".format(shape, num_threads)
     )
 
     remain_shape = list(shape)
@@ -705,8 +722,8 @@ def auto_repeat_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayou
         remain_threads //= spatial_shape[i]
         remain_shape[i] //= spatial_shape[i]
 
-    repeat_shape = remain_shape
-    ret = repeat(*repeat_shape).spatial(*spatial_shape)
+    local_shape = remain_shape
+    ret = local(*local_shape).spatial(*spatial_shape)
 
     if remain_threads != 1:
         ret = register_layout(

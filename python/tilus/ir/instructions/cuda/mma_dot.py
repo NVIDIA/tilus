@@ -7,7 +7,7 @@ from hidet.ir.dtypes import bf16, f16, f32, i8, i32
 from hidet.ir.type import DataType
 
 from tilus.ir.inst import Instruction
-from tilus.ir.layout import RegisterLayout, column_repeat, column_spatial, repeat, spatial
+from tilus.ir.layout import RegisterLayout, column_local, column_spatial, local, spatial
 from tilus.ir.tensor import RegisterTensor
 
 
@@ -63,9 +63,9 @@ class AtomicMmaConfig:
             n=8,
             k=16,
             vec_k=vec_k,
-            la=column_repeat(2, 2).spatial(8, 4).repeat(1, vec_k * 2),
-            lb=repeat(2, 1).column_spatial(4, 8).repeat(vec_k * 2, 1),
-            lc=repeat(2, 1).spatial(8, 4).repeat(1, 2),
+            la=column_local(2, 2).spatial(8, 4).local(1, vec_k * 2),
+            lb=local(2, 1).column_spatial(4, 8).local(vec_k * 2, 1),
+            lc=local(2, 1).spatial(8, 4).local(1, 2),
             operand_type=f16,
             acc_type=f16,
         )
@@ -79,9 +79,9 @@ class AtomicMmaConfig:
             n=8,
             k=16,
             vec_k=vec_k,
-            la=column_repeat(2, 2).spatial(8, 4).repeat(1, vec_k * 2),
-            lb=repeat(2, 1).column_spatial(4, 8).repeat(vec_k * 2, 1),
-            lc=repeat(2, 1).spatial(8, 4).repeat(1, 2),
+            la=column_local(2, 2).spatial(8, 4).local(1, vec_k * 2),
+            lb=local(2, 1).column_spatial(4, 8).local(vec_k * 2, 1),
+            lc=local(2, 1).spatial(8, 4).local(1, 2),
             operand_type=f16,
             acc_type=f32,
         )
@@ -95,9 +95,9 @@ class AtomicMmaConfig:
             n=8,
             k=16,
             vec_k=vec_k,
-            la=column_repeat(2, 2).spatial(8, 4).repeat(1, vec_k * 2),
-            lb=repeat(2, 1).column_spatial(4, 8).repeat(vec_k * 2, 1),
-            lc=repeat(2, 1).spatial(8, 4).repeat(1, 2),
+            la=column_local(2, 2).spatial(8, 4).local(1, vec_k * 2),
+            lb=local(2, 1).column_spatial(4, 8).local(vec_k * 2, 1),
+            lc=local(2, 1).spatial(8, 4).local(1, 2),
             operand_type=bf16,
             acc_type=f32,
         )
@@ -111,9 +111,9 @@ class AtomicMmaConfig:
             n=8,
             k=16,
             vec_k=vec_k,
-            la=spatial(8, 4).repeat(1, 4 * vec_k),
-            lb=column_spatial(4, 8).repeat(4 * vec_k, 1),
-            lc=spatial(8, 4).repeat(1, 2),
+            la=spatial(8, 4).local(1, 4 * vec_k),
+            lb=column_spatial(4, 8).local(4 * vec_k, 1),
+            lc=spatial(8, 4).local(1, 2),
             operand_type=i8,
             acc_type=i32,
         )
@@ -127,9 +127,9 @@ class AtomicMmaConfig:
             n=8,
             k=16,
             vec_k=vec_k,
-            la=column_repeat(2, 1).spatial(8, 4).repeat(1, vec_k * 4),
-            lb=column_spatial(4, 8).repeat(vec_k * 4, 1),
-            lc=repeat(2, 1).spatial(8, 4).repeat(1, 2),
+            la=column_local(2, 1).spatial(8, 4).local(1, vec_k * 4),
+            lb=column_spatial(4, 8).local(vec_k * 4, 1),
+            lc=local(2, 1).spatial(8, 4).local(1, 2),
             operand_type=i8,
             acc_type=i32,
         )
@@ -143,9 +143,9 @@ class AtomicMmaConfig:
             n=8,
             k=32,
             vec_k=vec_k,
-            la=column_repeat(2, 2).spatial(8, 4).repeat(1, vec_k * 4),
-            lb=repeat(2, 1).column_spatial(4, 8).repeat(vec_k * 4, 1),
-            lc=repeat(2, 1).spatial(8, 4).repeat(1, 2),
+            la=column_local(2, 2).spatial(8, 4).local(1, vec_k * 4),
+            lb=local(2, 1).column_spatial(4, 8).local(vec_k * 4, 1),
+            lc=local(2, 1).spatial(8, 4).local(1, 2),
             operand_type=i8,
             acc_type=i32,
         )

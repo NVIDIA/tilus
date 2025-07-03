@@ -20,7 +20,7 @@ from tilus import (
     int32,
     uint8,
 )
-from tilus.ir.layout import concat, reduce, repeat, spatial
+from tilus.ir.layout import concat, local, reduce, spatial
 from tilus.utils import benchmark_func, cdiv, dtype_to_torch, gcd
 from torch import nn
 
@@ -46,7 +46,7 @@ class QuantizedMatmulCommon(Script):
         self.tile_k = weight_tile[0]
         self.tile_n = weight_tile[1]
         self.tile_layout = (
-            repeat(tile_k // self.atomic_mma.k, tile_n // self.atomic_mma.n)
+            local(tile_k // self.atomic_mma.k, tile_n // self.atomic_mma.n)
             * self.atomic_mma.lb
         )
 
@@ -60,7 +60,7 @@ class QuantizedMatmulCommon(Script):
         inner_size = gcd(bytes_per_threads, 16)
         outer_size = bytes_per_threads // inner_size
 
-        self.flatten_tile_layout = repeat(outer_size).spatial(32).repeat(inner_size)
+        self.flatten_tile_layout = local(outer_size).spatial(32).local(inner_size)
 
 
 class QuantizedMatmulChangeLayout(QuantizedMatmulCommon):
@@ -209,7 +209,7 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         self.tile_bytes = self.flatten_tile_layout.size
 
         self.layout_rb_flattened = concat(
-            reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).repeat(
+            reduce(spatial(1, wsn, wsm, ranks=[0, 2, 1]), dims=[2]).local(
                 wrk // tk, wrn // tn
             ),
             self.flatten_tile_layout,

@@ -21,7 +21,7 @@ from tilus.ir.func import Function
 from tilus.ir.functors import IRFunctor
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import FormatPrintInst, PrintTensorInst
-from tilus.ir.layout import shared_repeat
+from tilus.ir.layout import shared_row_major
 from tilus.ir.prog import Program
 from tilus.ir.stmt import (
     AssignStmt,
@@ -350,7 +350,7 @@ class Codegen(IRFunctor):
             emitter = resolve_inst_emitter(inst.__class__)(self)
             smem_workspace_nbytes = max(smem_workspace_nbytes, emitter.request_shared_workspace(inst))
         if smem_workspace_nbytes > 0:
-            smem_workspace = SharedTensor.create(dtype=uint8, optional_layout=shared_repeat(smem_workspace_nbytes))
+            smem_workspace = SharedTensor.create(dtype=uint8, optional_layout=shared_row_major(smem_workspace_nbytes))
             self.allocate_shared_tensor(smem_workspace, nbytes=smem_workspace_nbytes)
             self.tensor2var[smem_workspace] = self.builder.declare(
                 v=Var("temp_smem", type=void_p),

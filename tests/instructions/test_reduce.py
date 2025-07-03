@@ -31,16 +31,16 @@ class TestReduceKernel(tilus.Script):
     "layout",
     [
         spatial(4, 8),
-        spatial(4, 8).repeat(1, 2),
-        spatial(2, 2).repeat(1, 2).spatial(2, 1).repeat(2, 1).spatial(2, 2),
+        spatial(4, 8).local(1, 2),
+        spatial(2, 2).local(1, 2).spatial(2, 1).local(2, 1).spatial(2, 2),
         spatial(4, 32),
         spatial(2, 4).spatial(2, 4),
         spatial(2, 4).column_spatial(2, 4),
         spatial(2, 4).spatial(2, 4).column_spatial(2, 1),
         spatial(4, 4).spatial(2, 4).column_spatial(2, 1),
         spatial(2, 4).spatial(4, 8),
-        spatial(2, 4).spatial(4, 8).repeat(2, 2),
-        spatial(2, 4).repeat(2, 2).spatial(4, 8).repeat(2, 2),
+        spatial(2, 4).spatial(4, 8).local(2, 2),
+        spatial(2, 4).local(2, 2).spatial(4, 8).local(2, 2),
         register_layout(
             shape=[32, 16], mode_shape=[2, 2, 8, 2, 4, 2], spatial_modes=[-4, 2, 4], local_modes=[0, 3, 1, 5]
         ),

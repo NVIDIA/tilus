@@ -26,7 +26,7 @@ class Cast(Script):
             bits = lcm(src_dtype.nbits, dst_dtype.nbits)
             assert 128 % bits == 0
             vector = 128 // bits
-        self.layout = spatial(128).repeat(vector)
+        self.layout = spatial(128).local(vector)
 
     def __call__(self, n: int32, src_ptr: void_p, dst_ptr: void_p):
         self.attrs.warps = 4

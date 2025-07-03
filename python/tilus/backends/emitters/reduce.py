@@ -13,7 +13,7 @@ from hidet.utils.py import is_power_of_two
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize, index_serialize
 from tilus.ir.instructions.generic import ReduceInst
-from tilus.ir.layout import RegisterLayout, SharedLayout, shared_repeat
+from tilus.ir.layout import RegisterLayout, SharedLayout, shared_row_major
 from tilus.ir.tensor import RegisterTensor
 from tilus.target import nvgpu_any
 from tilus.utils import prod
@@ -209,7 +209,7 @@ class ReduceInstEmitter(BaseInstEmitter):
             [mode_size for mode_size, mode_kind in zip(lane_mode_shape, lane_mode_kinds) if mode_kind == "spatial"]
         )
         local_part_size = inst.register_output.layout.local_size
-        return shared_repeat(warp_part_size, lane_part_size, local_part_size)
+        return shared_row_major(warp_part_size, lane_part_size, local_part_size)
 
     def get_smem_idx(self, inst, warp_id, lane_id, local_id, shared_layout):
         warp_mode_shape, warp_mode_kinds, lane_mode_shape, lane_mode_kinds = self.analyze_modes(inst)

@@ -28,7 +28,7 @@ We can use the following instructions to load and store global tensors:
 
 **Load and Store**
 
-.. autosummary:::
+.. autosummary::
 
     load_global
     store_global

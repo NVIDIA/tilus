@@ -43,8 +43,8 @@ class LoadMatrixConfig(InstructionConfig):
     @functools.cache
     def all() -> tuple[LoadMatrixConfig, ...]:
         return (
-            LoadMatrixConfig(1, False, spatial(8, 4).repeat(1, 4)),
-            LoadMatrixConfig(2, False, spatial(8, 4).repeat(1, 2)),
+            LoadMatrixConfig(1, False, spatial(8, 4).local(1, 4)),
+            LoadMatrixConfig(2, False, spatial(8, 4).local(1, 2)),
             LoadMatrixConfig(4, False, spatial(8, 4)),
-            LoadMatrixConfig(2, True, column_spatial(4, 8).repeat(2, 1)),
+            LoadMatrixConfig(2, True, column_spatial(4, 8).local(2, 1)),
         )

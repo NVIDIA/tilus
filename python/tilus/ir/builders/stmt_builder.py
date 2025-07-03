@@ -62,7 +62,7 @@ from tilus.ir.instructions.generic import (
     ViewInst,
     WhereInst,
 )
-from tilus.ir.layout import GlobalLayout, RegisterLayout, global_repeat
+from tilus.ir.layout import GlobalLayout, RegisterLayout, global_row_major
 from tilus.ir.stmt import (
     AssignStmt,
     BreakStmt,
@@ -342,7 +342,7 @@ class StmtBuilder(StmtBuilderCore):
     ) -> GlobalTensor:
         if layout is None:
             assert shape is not None
-            layout = global_repeat(*shape)
+            layout = global_row_major(*shape)
         inst = AllocateGlobalInst.create(
             output=GlobalTensor.create(dtype=dtype, layout=layout),
             require_clean=requires_clean,
@@ -500,7 +500,7 @@ class StmtBuilder(StmtBuilderCore):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from tilus.ir.layout.register_layout_ops import repeat, unsqueeze
+        from tilus.ir.layout.register_layout_ops import local, unsqueeze
 
         if out is None:
             layout = x.layout
@@ -508,7 +508,7 @@ class StmtBuilder(StmtBuilderCore):
                 layout = unsqueeze(layout, dims=list(range(len(repeats) - len(layout.shape))))
             if len(repeats) < len(layout.shape):
                 repeats = [1] * (len(layout.shape) - len(repeats)) + list(repeats)
-            layout = layout * repeat(*repeats)
+            layout = layout * local(*repeats)
             out = RegisterTensor.create(dtype=x.dtype, shape=layout.shape, optional_layout=layout)
         inst = RepeatInterleaveInst.create(x=x, output=out)
         self.append(inst)

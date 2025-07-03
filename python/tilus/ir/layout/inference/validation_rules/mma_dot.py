@@ -12,7 +12,7 @@ class MmaDotRule(LayoutValidationRule):
 
     @staticmethod
     def validate(inst: DotInst) -> bool:
-        from tilus.ir.layout.mfunction_ops import identity
+        from tilus.ir.mfunction.ops import identity
 
         a = inst.inputs[0].as_register_tensor()
         b = inst.inputs[1].as_register_tensor()

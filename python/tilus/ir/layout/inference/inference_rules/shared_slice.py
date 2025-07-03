@@ -2,7 +2,7 @@ from tilus import SharedLayout
 from tilus.ir import SharedTensor
 from tilus.ir.instructions import SharedSliceInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
-from tilus.ir.layout.shared_layout import shared_compose, shared_repeat
+from tilus.ir.layout.shared_layout import shared_compose, shared_row_major
 
 
 @register_rule(SharedSliceInst)
@@ -20,6 +20,6 @@ class SharedSliceRule(LayoutInferenceRule):
             outer_shape = []
             for i in range(len(a.shape)):
                 outer_shape.append(a.shape[i] // b_layout.shape[i])
-            return {a: shared_compose(shared_repeat(*outer_shape), b_layout).simplify()}
+            return {a: shared_compose(shared_row_major(*outer_shape), b_layout).simplify()}
         else:
             return {}

@@ -1,6 +1,6 @@
 from tilus.ir.instructions import WhereInst
-from tilus.ir.layout import mf_ops
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
+from tilus.ir.mfunction import ops
 from tilus.ir.tensor import RegisterTensor
 
 
@@ -15,7 +15,7 @@ class WhereRule(LayoutValidationRule):
         for operand in [cond, x, y]:
             out: RegisterTensor = inst.register_output
 
-            fa = mf_ops.identity(out.shape).collapse_by_shape(operand.shape) * operand.layout.spatial_mfunction()
+            fa = ops.identity(out.shape).collapse_by_shape(operand.shape) * operand.layout.spatial_mfunction()
             fb = out.layout.spatial_mfunction()
 
             if not fa.cover(fb):

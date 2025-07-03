@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from tilus.ir.layout.mfunction import MultiFunction, multi_function
 from tilus.ir.layout.utils import LayoutOperationError, get_mode_groups
+from tilus.ir.mfunction.mfunction import MultiFunction, multi_function
 from tilus.utils import gcd, prod
 
 

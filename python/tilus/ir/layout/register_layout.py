@@ -12,7 +12,7 @@ from hidet.ir.expr import Expr, logical_and
 from hidet.utils import prod
 
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize, index_serialize
-from tilus.ir.layout.mfunction import MultiFunction, multi_function
+from tilus.ir.mfunction import MultiFunction, multi_function
 from tilus.ir.node import IRNode
 
 Int = int | Expr
@@ -22,7 +22,7 @@ Int = int | Expr
 class RegisterLayout(IRNode):
     """Layout for register tensor.
 
-    Parameters
+    Attributes
     ----------
     shape: tuple[int, ...]
         The shape of the layout, which is the shape of the register tensor.
@@ -167,10 +167,10 @@ class RegisterLayout(IRNode):
         return global_indices
 
     # operations
-    def repeat(self, *shape: int) -> RegisterLayout:
-        from tilus.ir.layout.register_layout_ops import compose, repeat
+    def local(self, *shape: int) -> RegisterLayout:
+        from tilus.ir.layout.register_layout_ops import compose, local
 
-        return compose(self, repeat(*shape))
+        return compose(self, local(*shape))
 
     def spatial(self, *shape: int) -> RegisterLayout:
         from tilus.ir.layout.register_layout_ops import compose, spatial
@@ -183,9 +183,9 @@ class RegisterLayout(IRNode):
         return compose(self, column_spatial(*shape))
 
     def column_local(self, *shape: int) -> RegisterLayout:
-        from tilus.ir.layout.register_layout_ops import column_repeat, compose
+        from tilus.ir.layout.register_layout_ops import column_local, compose
 
-        return compose(self, column_repeat(*shape))
+        return compose(self, column_local(*shape))
 
     def reduce_to(self, shape: Sequence[int]) -> RegisterLayout:
         """

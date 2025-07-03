@@ -5,7 +5,7 @@ from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.instructions import LoadGlobalGenericInst, LoadGlobalInst, StoreGlobalGenericInst, StoreGlobalInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
-from tilus.ir.layout.register_layout_ops import auto_repeat_spatial
+from tilus.ir.layout.register_layout_ops import auto_local_spatial
 from tilus.ir.tensor import RegisterTensor
 from tilus.utils import gcd, prod
 
@@ -70,10 +70,10 @@ class LoadStoreGlobalRule(LayoutInferenceRule):
                 lhs_shape = list(shape)
                 lhs_shape[dim] = shape[dim] // factor
                 rhs_shape = [1 if i != dim else factor for i in range(len(shape))]
-                return {tensor: auto_repeat_spatial(num_threads=num_threads, shape=lhs_shape).repeat(*rhs_shape)}
+                return {tensor: auto_local_spatial(num_threads=num_threads, shape=lhs_shape).local(*rhs_shape)}
 
         # fall back to a default layout
-        return {tensor: auto_repeat_spatial(num_threads=num_threads, shape=shape)}
+        return {tensor: auto_local_spatial(num_threads=num_threads, shape=shape)}
 
 
 @register_rule(LoadGlobalGenericInst)

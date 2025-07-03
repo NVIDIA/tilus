@@ -67,10 +67,10 @@ class MmaDotRule(LayoutInferenceRule):
             m, n = outer_d.shape
             if a.optional_layout is None:
                 k = a.shape[1] // (config.k * config.vec_k)
-                mapping[a] = outer_d.reduce_to([m, 1]).repeat(1, k) * config.la
+                mapping[a] = outer_d.reduce_to([m, 1]).local(1, k) * config.la
             if b.optional_layout is None:
                 k = b.shape[0] // (config.k * config.vec_k)
-                mapping[b] = outer_d.reduce_to([1, n]).repeat(k, 1) * config.lb
+                mapping[b] = outer_d.reduce_to([1, n]).local(k, 1) * config.lb
             if c.optional_layout is None:
                 mapping[c] = d.layout
             return mapping

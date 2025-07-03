@@ -11,7 +11,7 @@ from hidet.ir.type import DataType
 
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.inst import InstructionError
-from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_repeat, global_strides
+from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_row_major, global_strides
 from tilus.ir.prog import Program
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.modules.cuda import cuda
@@ -433,7 +433,7 @@ class Script:
             assert shape is not None, "Must specify shape when layout is not provided"
             if strides is None:
                 # assume compact row-major layout
-                layout = global_repeat(*shape)
+                layout = global_row_major(*shape)
             else:
                 assert len(shape) == len(strides), "Shape and strides must have the same length"
                 layout = global_strides(shape, strides)
