@@ -8,6 +8,7 @@
 
 Additional features include automatic tuning, caching, and a Pythonic interface for ease of use.
 
+Tilus is proununced as tie-lus, /ˈtaɪləs/.
 
 Please cite the following paper if you use Tilus in your work:
 
