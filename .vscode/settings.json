@@ -1,5 +1,5 @@
 {
-    "explorer.excludeGitIgnore": true,
+    "explorer.excludeGitIgnore": false,
     "python.analysis.diagnosticSeverityOverrides": {
         "reportInvalidTypeForm": "none" // Tilus rely on variables as type hints
     }
