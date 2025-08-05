@@ -20,8 +20,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Check for changes in test-relevant directories
         id: changed-tests
