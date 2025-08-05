@@ -75,7 +75,7 @@ jobs:
   docs:
     needs: check-changes
     if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_docs == 'true'
-    runs-on: ubuntu-latest
+    runs-on: linux-amd64-gpu-l4-latest-1
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -94,7 +94,7 @@ jobs:
   examples:
     needs: check-changes
     if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_examples == 'true'
-    runs-on: ubuntu-latest
+    runs-on: linux-amd64-gpu-l4-latest-1
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
