@@ -30,7 +30,7 @@ jobs:
           files: |
             tests/**
             python/**
-          since_last_remote_commit: false
+          sha: 'main'
 
       - name: Check for changes in examples
         id: changed-examples
@@ -39,7 +39,7 @@ jobs:
           files: |
             python/**
             examples/**
-          since_last_remote_commit: false
+          sha: 'main'
         
       - name: Check for changes in docs
         id: changed-docs
@@ -48,7 +48,7 @@ jobs:
           files: |
             python/**
             docs/**
-          since_last_remote_commit: false
+          sha: 'main'
 
   tests:
     needs: check-changes
