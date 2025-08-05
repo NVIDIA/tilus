@@ -17,6 +17,7 @@ runs:
   steps:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+      if: hashFiles('/etc/buildkit/buildkitd.toml') != ''
       with:
         buildkitd-config: /etc/buildkit/buildkitd.toml
     - name: Install git and cmake
@@ -47,6 +48,7 @@ runs:
     
     - name: Setup proxy cache
       uses: nv-gha-runners/setup-proxy-cache@main
+      if: hashFiles('/etc/buildkit/buildkitd.toml') != ''
 
     - name: Install Tilus
       id: install-tilus  # Preserve the ID for output
