@@ -8,6 +8,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write 
+
 jobs:
   build:
     if: github.repository == 'NVIDIA/tilus'
