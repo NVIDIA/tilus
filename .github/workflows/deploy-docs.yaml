@@ -1,0 +1,50 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.repository == 'NVIDIA/tilus'
+    continue-on-error: true
+    runs-on: yaoyao-centml
+    container:
+      image: nvidia/cuda:12.6.2-devel-ubuntu22.04
+      options: --gpus all
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup and Install Tilus
+        id: setup-and-install
+        uses: ./.github/actions/setup-environment
+        with:
+          python-version: '3.10'
+
+      - name: Build docs
+        run: |
+          cd docs
+          make html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_build/html
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
