@@ -1,0 +1,58 @@
+name: Deploy Wheel to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write  # For trusted publishing to PyPI
+
+jobs:
+  build-wheel:
+    if: github.repository == 'NVIDIA/tilus'
+    runs-on: linux-amd64-gpu-l4-latest-1
+    container:
+      image: nvidia/cuda:12.6.2-devel-ubuntu22.04
+      options: --gpus all
+    outputs:
+      wheel-path: ${{ steps.setup-and-install.outputs.wheel-path }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup and Install Tilus
+        id: setup-and-install
+        uses: ./.github/actions/setup-environment
+        with:
+          python-version: '3.10'
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tilus-wheel
+          path: dist/*.whl
+          retention-days: 7
+
+  deploy-to-pypi:
+    needs: build-wheel
+    # Only deploy to PyPI if triggered by release (not manual workflow_dispatch)
+    if: github.repository == 'NVIDIA/tilus' && github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/tilus
+    steps:
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tilus-wheel
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
