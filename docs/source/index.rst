@@ -31,7 +31,6 @@ Additional features include automatic tuning, caching, and a Pythonic interface 
    programming-guides/cache
    programming-guides/autotuning
    programming-guides/layout-system/__init__
-   programming-guides/low-precision-support
 
 .. toctree::
    :maxdepth: 1

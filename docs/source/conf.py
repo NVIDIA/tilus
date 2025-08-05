@@ -66,5 +66,8 @@ html_theme_options = {
     "use_repository_button": True,
     "show_navbar_depth": 1,
 }
-# html_static_path = ['_static']
+html_static_path = ['_static']
+html_css_files = [
+    'custom.css',
+]
 html_permalinks_icon = "<span>¶</span>"

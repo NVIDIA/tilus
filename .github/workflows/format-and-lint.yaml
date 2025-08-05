@@ -12,7 +12,7 @@ concurrency:
 jobs:
   format-and-lint:
     if: github.repository == 'NVIDIA/tilus'
-    runs-on: linux-amd64-cpu16
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
