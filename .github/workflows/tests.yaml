@@ -28,7 +28,7 @@ jobs:
           files: |
             tests/**
             python/**
-          sha: 'main'
+          base_sha: 'main'
 
       - name: Check for changes in examples
         id: changed-examples
@@ -37,7 +37,7 @@ jobs:
           files: |
             python/**
             examples/**
-          sha: 'main'
+          base_sha: 'main'
         
       - name: Check for changes in docs
         id: changed-docs
@@ -46,7 +46,7 @@ jobs:
           files: |
             python/**
             docs/**
-          sha: 'main'
+          base_sha: 'main'
 
   tests:
     needs: check-changes
