@@ -109,11 +109,25 @@ jobs:
         run: |
           bash .github/workflows/scripts/run-examples.sh
 
-  skip-tests:
-    needs: check-changes
-    if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_tests != 'true'
+  all-functional-tests:
+    name: All Functional Tests
+    needs: [tests, docs, examples]
+    if: always() && github.repository == 'NVIDIA/tilus'
     runs-on: ubuntu-latest
     steps:
-      - name: Skip tests
+      - name: Check job results
         run: |
-          echo "No changes detected in tests, python, docs, or examples directories. Skipping tests."
+          echo "Tests result: ${{ needs.tests.result }}"
+          echo "Docs result: ${{ needs.docs.result }}"
+          echo "Examples result: ${{ needs.examples.result }}"
+          
+          # Check if any required job failed
+          if [[ "${{ needs.tests.result }}" == "failure" ]] || [[ "${{ needs.docs.result }}" == "failure" ]] || [[ "${{ needs.examples.result }}" == "failure" ]]; then
+            echo "One or more functional tests failed"
+            exit 1
+          elif [[ "${{ needs.tests.result }}" == "cancelled" ]] || [[ "${{ needs.docs.result }}" == "cancelled" ]] || [[ "${{ needs.examples.result }}" == "cancelled" ]]; then
+            echo "One or more functional tests were cancelled"
+            exit 1
+          else
+            echo "All functional tests passed or were skipped"
+          fi
