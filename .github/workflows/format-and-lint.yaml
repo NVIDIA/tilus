@@ -2,20 +2,20 @@ name: Format & Lint
 
 on:
   push:
-    branches: [main]
-  pull_request:
+    branches: 
+      - "pull-request/[0-9]+"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  group: ${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
   format-and-lint:
-    if: github.repository == 'hidet-org/tilus'
-    runs-on: ubuntu-latest
+    if: github.repository == 'NVIDIA/tilus'
+    runs-on: linux-amd64-cpu16
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup and Install Tilus
         id: setup-and-install

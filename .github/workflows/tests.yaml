@@ -2,29 +2,50 @@ name: Tests
 
 on:
   push:
-    branches: [main]
-  pull_request:
+    branches: 
+      - "pull-request/[0-9]+"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  group: ${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
+  check-changes:
+    if: github.repository == 'NVIDIA/tilus'
+    runs-on: ubuntu-latest
+    outputs:
+      should_run_tests: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes in test-relevant directories
+        id: changed-files
+        uses: step-security/changed-files@v46
+        with:
+          files: |
+            tests/**
+            python/**
+            docs/**
+            examples/**
+
   tests:
-    if: github.repository == 'hidet-org/tilus'
+    needs: check-changes
+    if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_tests == 'true'
     continue-on-error: true
     strategy:
       matrix:
         runner: 
-          - group: "arc-l4"
-          - yaoyao-workstation
+          - linux-amd64-gpu-l4-latest-1
     runs-on: ${{ matrix.runner }}
     container:
       image: nvidia/cuda:12.6.2-devel-ubuntu22.04
       options: --gpus all
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup and Install Tilus
         id: setup-and-install
@@ -38,3 +59,12 @@ jobs:
       - name: Run examples
         run: |
           bash .github/workflows/scripts/run-examples.sh
+
+  skip-tests:
+    needs: check-changes
+    if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_tests != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip tests
+        run: |
+          echo "No changes detected in tests, python, docs, or examples directories. Skipping tests."
