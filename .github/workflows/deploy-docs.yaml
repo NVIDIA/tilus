@@ -18,7 +18,7 @@ jobs:
     continue-on-error: true
     runs-on: linux-amd64-gpu-l4-latest-1
     container:
-      image: https://dc.local.gha-runners.nvidia.com/nvidia/cuda:12.6.2-devel-ubuntu22.04
+      image: cuda:12.6.2-devel-ubuntu22.04
       options: --gpus all
     steps:
       - name: Checkout Repository
