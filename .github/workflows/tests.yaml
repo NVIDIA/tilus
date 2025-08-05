@@ -1,4 +1,4 @@
-name: Tests
+name: PR Tests
 
 on:
   push:
@@ -14,7 +14,9 @@ jobs:
     if: github.repository == 'NVIDIA/tilus'
     runs-on: ubuntu-latest
     outputs:
-      should_run_tests: ${{ steps.changed-files.outputs.any_changed }}
+      should_run_tests: ${{ steps.changed-tests.outputs.any_changed }}
+      should_run_examples: ${{ steps.changed-examples.outputs.any_changed }}
+      should_run_docs: ${{ steps.changed-docs.outputs.any_changed }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -22,14 +24,28 @@ jobs:
           fetch-depth: 0
 
       - name: Check for changes in test-relevant directories
-        id: changed-files
+        id: changed-tests
         uses: step-security/changed-files@v46
         with:
           files: |
             tests/**
             python/**
-            docs/**
+
+      - name: Check for changes in examples
+        id: changed-examples
+        uses: step-security/changed-files@v46
+        with:
+          files: |
+            python/**
             examples/**
+        
+      - name: Check for changes in docs
+        id: changed-docs
+        uses: step-security/changed-files@v46
+        with:
+          files: |
+            python/**
+            docs/**
 
   tests:
     needs: check-changes
@@ -56,15 +72,62 @@ jobs:
       - name: Run tests
         run: pytest ./tests
 
+  docs:
+    needs: check-changes
+    if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_docs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup and Install Tilus
+        id: setup-and-install
+        uses: ./.github/actions/setup-environment
+        with:
+          python-version: '3.10'
+
+      - name: Build docs
+        run: |
+          cd docs
+          make html
+
+  examples:
+    needs: check-changes
+    if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_examples == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup and Install Tilus
+        id: setup-and-install
+        uses: ./.github/actions/setup-environment
+        with:
+          python-version: '3.10'
+
       - name: Run examples
         run: |
           bash .github/workflows/scripts/run-examples.sh
 
-  skip-tests:
-    needs: check-changes
-    if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_tests != 'true'
+  all-functional-tests:
+    name: All Functional Tests
+    needs: [tests, docs, examples]
+    if: always() && github.repository == 'NVIDIA/tilus'
     runs-on: ubuntu-latest
     steps:
-      - name: Skip tests
+      - name: Check job results
         run: |
-          echo "No changes detected in tests, python, docs, or examples directories. Skipping tests."
+          echo "Tests result: ${{ needs.tests.result }}"
+          echo "Docs result: ${{ needs.docs.result }}"
+          echo "Examples result: ${{ needs.examples.result }}"
+          
+          # Check if any required job failed
+          if [[ "${{ needs.tests.result }}" == "failure" ]] || [[ "${{ needs.docs.result }}" == "failure" ]] || [[ "${{ needs.examples.result }}" == "failure" ]]; then
+            echo "One or more functional tests failed"
+            exit 1
+          elif [[ "${{ needs.tests.result }}" == "cancelled" ]] || [[ "${{ needs.docs.result }}" == "cancelled" ]] || [[ "${{ needs.examples.result }}" == "cancelled" ]]; then
+            echo "One or more functional tests were cancelled"
+            exit 1
+          else
+            echo "All functional tests passed or were skipped"
+          fi
