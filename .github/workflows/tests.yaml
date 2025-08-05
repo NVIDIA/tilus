@@ -46,7 +46,7 @@ jobs:
           files: |
             python/**
             docs/**
-          sha: 'main'
+          base_sha: 'main'
 
   tests:
     needs: check-changes
