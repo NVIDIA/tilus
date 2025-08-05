@@ -44,10 +44,10 @@ Dive Deeper
 We also have detailed sections on different aspects of the Tilus programming model. To learn more about Tilus, you can
 explore the following sections:
 
-- :doc:`tilus-script`: learn about the Tilus script syntax and how to write Tilus scripts.
-- :doc:`type-system/__init__`:
-- :doc:`instructions`:
-- :doc:`control-flow`:
-- :doc:`cache`:
-- :doc:`autotuning`:
-- :doc:`low-precision-support`:
+- :doc:`tilus-script`
+- :doc:`type-system/__init__`
+- :doc:`instructions`
+- :doc:`control-flow`
+- :doc:`cache`
+- :doc:`autotuning`
+- :doc:`low-precision-support`
