@@ -79,6 +79,9 @@ jobs:
     needs: check-changes
     if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_docs == 'true'
     runs-on: linux-amd64-gpu-l4-latest-1
+    container:
+      image: nvidia/cuda:12.6.2-devel-ubuntu22.04
+      options: --gpus all
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -98,6 +101,9 @@ jobs:
     needs: check-changes
     if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_examples == 'true'
     runs-on: linux-amd64-gpu-l4-latest-1
+    container:
+      image: nvidia/cuda:12.6.2-devel-ubuntu22.04
+      options: --gpus all
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
