@@ -15,8 +15,8 @@ import tilus.utils
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'tilus'
-copyright = '2025, hidet.org'
-author = 'hidet.org'
+copyright = '2025, NVIDIA'
+author = 'NVIDIA'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
