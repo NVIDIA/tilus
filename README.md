@@ -19,9 +19,10 @@ pip install tilus
 ```
 
 ### Usage
-To get started, refer to the [tutorials]() to learn how to program kernels with Tilus. 
 
-You can also find more examples [here](https://github.com/NVIDIA/tilus/tree/main/examples).
+- **Tutorials**: To get started, refer to the [tutorials]() to learn how to program kernels with Tilus. 
+- **Examples**: You can also find more examples [here](https://github.com/NVIDIA/tilus/tree/main/examples).
+- **Programming Guide**: You can learn more on different topics in the [programming guide]().
 
 ## Research
 This project is based on the following research paper:
