@@ -36,7 +36,7 @@ This project is based on the following research paper:
 
 ## Acknowledgement
 We would like to acknowledge the following projects for their influence on Tilus's design and development:
-- **Hidet**: We build Tilus on top of the Hidet IR and runtime, which allows us to write a compiler in pure Python.
-- **TVM**: Hidet's initial IR was adopted from TVM.
-- **Triton**: We were inspired by its core idea of defining kernels at a thread-block granularity and operating on tiles.
-- **Hexcute**: This project provided the idea of using automatic layout inference to simplify programming.
+- **Hidet**: We take Hidet IR as our low-level target and reuse its runtime system.
+- **TVM**: Hidet's initial IR was adopted from TVM, and we also learned a lot from TVM on how to build a compiler.
+- **Triton**: The core idea of defining kernels at a thread-block level and working with tiles was inspired by Triton. 
+- **Hexcute**: We adopted the idea of using automatic layout inference to make programming simpler, a technique pioneered by this project. 
