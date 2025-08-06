@@ -39,4 +39,4 @@ We would like to acknowledge the following projects for their influence on Tilus
 - **Hidet**: We take Hidet IR as our low-level target and reuse its runtime system.
 - **TVM**: Hidet's initial IR was adopted from TVM, and we also learned a lot from TVM on how to build a compiler.
 - **Triton**: The core idea of defining kernels at a thread-block level and working with tiles was inspired by Triton. 
-- **Hexcute**: We adopted the idea of using automatic layout inference to make programming simpler from Hexcute.
+- **Hexcute**: We adopted the idea of using automatic layout inference to simplify programming from Hexcute.
