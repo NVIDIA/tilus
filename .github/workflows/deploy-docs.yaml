@@ -16,7 +16,7 @@ jobs:
   build:
     if: github.repository == 'NVIDIA/tilus'
     continue-on-error: true
-    runs-on: linux-amd64-gpu-l4-latest-1
+    runs-on: yaoyao-centml
     container:
       image: nvidia/cuda:12.6.2-devel-ubuntu22.04
       options: --gpus all
