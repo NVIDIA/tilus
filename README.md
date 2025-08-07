@@ -1,4 +1,5 @@
 # Tilus: A Tile-Level GPU Kernel Programming Language
+[Documentation](https://nvidia.github.io/tilus/index.html) | [Paper](https://arxiv.org/abs/2504.12984)
 
 **Tilus** is a powerful domain-specific language (DSL) for GPU programming that offers:
 
@@ -20,11 +21,11 @@ pip install tilus
 
 ### Usage
 
-To get started, refer to the [tutorials]() to learn how to program kernels with Tilus. 
+To get started, refer to the [tutorials](https://nvidia.github.io/tilus/getting-started/tutorials/__init__.html) to learn how to program kernels with Tilus. 
 
 You can also check more [examples](https://github.com/NVIDIA/tilus/tree/main/examples) of using Tilus.
 
-You can learn more on different topics in the [programming guide]().
+You can learn more on different topics in the [programming guide](https://nvidia.github.io/tilus/programming-guides/overview.html).
 
 ## Research
 This project is based on the following research paper:
