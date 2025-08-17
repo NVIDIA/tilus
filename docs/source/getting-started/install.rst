@@ -12,7 +12,7 @@ If you want to install the latest development version, you can clone the reposit
 
 .. code-block:: bash
 
-    git clone git@github.com:hidet-org/tilus.git
+    git clone git@github.com:NVIDIA/tilus.git
     cd tilus
     pip install -e .
 
