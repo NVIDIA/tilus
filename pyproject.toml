@@ -53,7 +53,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/NVIDIA/tilus"
-Documentation = "https://hidet.org"
+Documentation = "https://nvidia.github.io/tilus"
 
 [tool.setuptools_scm]
 
