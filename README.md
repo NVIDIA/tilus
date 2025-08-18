@@ -18,10 +18,12 @@ Install Tilus using `pip`:
 ```
 pip install tilus 
 ```
-Tilus depends on `cuda-python`. If your GPU driver is older than **580.65.06**, you will need to install an older version of cuda-python to ensure compatibility.
-```
-pip install tilus "cuda-python<13"
-```
+
+> [!NOTE]  
+> Tilus depends on `cuda-python`. If your GPU driver is older than **580.65.06**, you will need to install an older version of cuda-python to ensure compatibility.
+> ```
+> pip install tilus "cuda-python<13"
+> ```
 
 ### Usage
 
