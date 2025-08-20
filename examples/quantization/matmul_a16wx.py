@@ -599,9 +599,9 @@ def main():
                 ("tilus", lambda: quantized_linear(a)),
             ]:
                 latency = benchmark_func(func, warmup=5, repeat=20)
-                flops = 2 * m * n * k / latency * 1e-9
+                tflops = 2 * m * n * k / latency * 1e-9
                 row.append("{:.3f}".format(latency))
-                row.append("{:.2f}".format(flops))
+                row.append("{:.2f}".format(tflops))
             rows.append(row)
 
             df = pandas.DataFrame(rows, columns=headers)

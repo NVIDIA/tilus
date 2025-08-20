@@ -106,7 +106,7 @@ class MatmulV3(tilus.Script):
 
 
 def main():
-    headers = ["m", "n", "k", "name", "latency (ms)", "gflops"]
+    headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     workloads = [
         [4096, 4096, 4096],
     ]
@@ -130,8 +130,8 @@ def main():
             ("tilus", lambda: matmul(m, n, k, a, b, c_actual)),
         ]:
             latency = benchmark_func(func, warmup=5, repeat=20)
-            flops = 2 * m * n * k / latency * 1e-9
-            rows.append([m, n, k, name, latency, flops])
+            tflops = 2 * m * n * k / latency * 1e-9
+            rows.append([m, n, k, name, latency, tflops])
 
     df = pandas.DataFrame(rows, columns=headers)
     print(df)
