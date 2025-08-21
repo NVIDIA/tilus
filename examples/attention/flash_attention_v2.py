@@ -421,7 +421,7 @@ def main(bench=True):
         "num_heads_kv",
         "name",
         "latency (ms)",
-        "gflops",
+        "tflops",
     ]
     data = []
     for batch_size, seqlen, num_heads, head_size, num_heads_kv in [
@@ -489,7 +489,7 @@ def main(bench=True):
                 if bench
                 else float("nan")
             )
-            gflops = (
+            tflops = (
                 2 * batch_size * num_heads * seqlen * head_size * seqlen / latency * 1e-9
             )
             data.append(
@@ -501,7 +501,7 @@ def main(bench=True):
                     num_heads_kv,
                     name,
                     latency,
-                    gflops,
+                    tflops,
                 ]
             )
     df = pd.DataFrame(data, columns=headers)
@@ -514,7 +514,7 @@ def main(bench=True):
             "num_heads_kv",
         ],
         columns="name",
-        values=["latency (ms)", "gflops"],
+        values=["latency (ms)", "tflops"],
     ).reset_index()
     print(df_pivot)
 
