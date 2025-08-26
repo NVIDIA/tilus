@@ -18,7 +18,7 @@ import logging
 import operator
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Type
 
-from hidet.ir import BitwiseXor, DataType, Div, Equal, Mod
+from hidet.ir import BitwiseXor, DataType, Div, Equal, Mod, TensorElement
 from hidet.ir.expr import Add, BinaryExpr, Constant, Expr, LessEqual, LessThan, LogicalAnd, Multiply, Sub, Var
 from hidet.ir.functors import IRFunctor
 from hidet.ir.layout import is_power_of_two
@@ -420,7 +420,7 @@ class GridAnalyzer(IRFunctor):
     value(b) = merge(value(16), value(a) + value(4))
     value(c) = merge(value(b), value(a) + value(b))
 
-    This class implements an iterative algorithm to solve the above equations.
+    This class implements an iterative algorithm to solve the above equations to find a fixed point.
     """
 
     def __init__(self) -> None:
@@ -454,6 +454,10 @@ class GridAnalyzer(IRFunctor):
             return TensorInfo.from_constant(self.shape, value=int(e.value))
         else:
             return TensorInfo.from_constant(self.shape, value=None)
+
+    def visit_TensorElement(self, e: TensorElement) -> TensorInfo:
+        # we do not do any assumption on tensor elements
+        return TensorInfo.from_constant(self.shape, value=None)
 
     def visit_binary(self, e: BinaryExpr) -> TensorInfo:
         a = self.visit(e.a)

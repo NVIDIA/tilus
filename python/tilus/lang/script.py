@@ -161,7 +161,7 @@ class Script:
         step: Optional[Expr | int] = None,
         /,
         *,
-        unroll: Optional[Literal["all"] | int],
+        unroll: Optional[Literal["all"] | int] = None,
     ) -> Iterable[Var]:
         """Create an iterator used in a for loop.
 
@@ -289,7 +289,7 @@ class Script:
         dtype: DataType,
         shape: Sequence[int],
         layout: Optional[RegisterLayout] = None,
-        init: Optional[Callable[[Sequence[Var]], Expr | int | float | bool] | Expr | int | float] = None,
+        init: Optional[Callable[[Var, ...], Expr | int | float | bool] | Expr | int | float] = None,  # type: ignore [misc]
     ) -> RegisterTensor:
         """Create a register tensor.
 
@@ -314,7 +314,7 @@ class Script:
             The shape of the tensor.
         layout: RegisterLayout, optional
             The layout of the tensor. If not provided, the layout will be inferred based on the operations performed on it.
-        init: Callable[[Sequence[Var]], Expr | int | float | bool] | Expr | int | float, optional
+        init: Callable[[Var, ...], Expr | int | float | bool] | Expr | int | float, optional
             The initialization value or function to initialize the tensor elements.
 
         Returns
@@ -322,14 +322,18 @@ class Script:
         tensor: RegisterTensor
             The allocated register tensor.
         """
-        if init is None:
-            f_init = None
-        elif isinstance(init, (float, int, bool, Expr)):
-            f_init = lambda _: dtype.constant(init)  # noqa: E731
-        elif callable(init):
-            f_init = init
+
+        if init is not None:
+
+            def f_init(indices):
+                if isinstance(init, (float, int, bool, Expr)):
+                    return dtype.constant(init)  # noqa: E731
+                elif callable(init):
+                    return init(*indices)
+                else:
+                    raise ValueError("init must be a callable, int, float, bool, or Expr, got {}".format(type(init)))
         else:
-            raise ValueError("init must be a callable, int, float, bool, or Expr, got {}".format(type(init)))
+            f_init = None
 
         return self._builder.allocate_register(dtype=dtype, shape=shape, layout=layout, f_init=f_init)
 
