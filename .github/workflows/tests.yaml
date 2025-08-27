@@ -114,6 +114,7 @@ jobs:
 
       - name: Install example dependencies
         run: |
+          pip install wheel
           pip install flash-attn --no-build-isolation 
 
       - name: Run examples
