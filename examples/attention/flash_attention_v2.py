@@ -70,7 +70,7 @@ class FlashAttention(tilus.Script):
         mask = self.register_tensor(
             dtype=boolean,
             shape=[self.block_q, self.block_kv],
-            init=lambda ij: ij[0] + q_offset >= ij[1] + kv_offset,
+            init=lambda i, j: i + q_offset >= j + kv_offset,
         )
         self.assign(score, score + self.where(mask, x=0.0, y=-1e6))
 
