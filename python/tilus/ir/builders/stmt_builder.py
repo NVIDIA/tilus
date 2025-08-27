@@ -569,7 +569,7 @@ class StmtBuilder(StmtBuilderCore):
         from hidet.ir.utils.broadcast_utils import broadcast_shape, can_mutually_broadcast
 
         if not can_mutually_broadcast(x.shape, y.shape):
-            raise InstructionError(f"Cannot broadcast {x.shape} and {y.shape}")
+            raise InstructionError(f"Cannot broadcast shape {x.shape} and {y.shape} (op={inst_cls.__name__})")
         if out is None:
             lhs = Var("x", x.dtype)
             rhs = Var("y", y.dtype)

@@ -29,8 +29,6 @@ from typing import Any, Mapping, Optional, Sequence, Type
 import filelock
 import tabulate
 from cuda.bindings.runtime import cudaDeviceSynchronize
-from hidet.ir import Constant
-from hidet.ir.expr import as_expr
 from hidet.ir.type import DataType, PointerType
 from hidet.runtime import CompiledFunction
 from hidet.utils.py import nocolor
@@ -362,12 +360,10 @@ class JitInstance:
             script__init__(script_obj, **schedule)
 
             transpiler = Transpiler()
-            name2consts: dict[str, Constant] = {}
+            name2consts: dict[str, Any] = {}
             for idx in call_params.const_params:
                 name = call_params.param_names[idx]
-                const = as_expr(name2const_py[name])
-                assert isinstance(const, Constant)
-                name2consts[name] = const
+                name2consts[name] = name2const_py[name]
 
             function = transpiler.transpile(script_obj, name2consts=name2consts, name2divisibility=name2divisibility)
             function = function.with_name(to_snake_case(script_cls.__name__))

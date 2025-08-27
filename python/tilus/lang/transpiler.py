@@ -155,7 +155,7 @@ class Transpiler(PythonAstFunctor):
         self.ib = IRBuilder()
         self.scope_stack = ScopeStack()
         self.type_annotations: dict[str, Any] = {}
-        self.name2consts: dict[str, Constant] = {}
+        self.name2consts: dict[str, Union[int, float, str, Any]] = {}
         self.name2divisibility: dict[str, int] = {}
 
         # the follow attributes are used by the methods of Script class to communicate with the transpiler
@@ -200,7 +200,7 @@ class Transpiler(PythonAstFunctor):
         return self._script
 
     def transpile(
-        self, script: Script, name2consts: dict[str, Constant], name2divisibility: dict[str, int]
+        self, script: Script, name2consts: dict[str, Union[int, float, str, Any]], name2divisibility: dict[str, int]
     ) -> Function:
         # Extract the source code of given function
         method = script.__class__.__call__
@@ -284,15 +284,19 @@ class Transpiler(PythonAstFunctor):
                 else:
                     if type_annotation is not None and rhs is not None:
                         resolved_annotation = self.visit(type_annotation)
-                        if not isinstance(resolved_annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
-                            raise TilusProgramError(
-                                self, lhs, "Invalid type annotation: {}".format(resolved_annotation)
-                            )
-                        if not isinstance(rhs, hidet_ir.Expr):
-                            rhs = as_expr(rhs)
-                        stmt = DeclareStmt(var=Var(hint=var_name, type=resolved_annotation), init=rhs)
-                        self.current_scope.append(stmt)
-                        self.current_scope.bind(var_name, stmt.var)
+                        if resolved_annotation in (int, str, float):
+                            rhs = resolved_annotation(rhs)
+                            self.current_scope.bind(var_name, rhs)
+                        else:
+                            if not isinstance(resolved_annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
+                                raise TilusProgramError(
+                                    self, lhs, "Invalid type annotation: {}".format(resolved_annotation)
+                                )
+                            if not isinstance(rhs, hidet_ir.Expr):
+                                rhs = as_expr(rhs)
+                            stmt = DeclareStmt(var=Var(hint=var_name, type=resolved_annotation), init=rhs)
+                            self.current_scope.append(stmt)
+                            self.current_scope.bind(var_name, stmt.var)
                     else:
                         # if rhs is None:
                         #     raise TilusProgramError(
@@ -874,6 +878,8 @@ class Transpiler(PythonAstFunctor):
         if isinstance(base, Sequence):
             return base[indices]
         elif isinstance(base, GlobalTensor):
+            if not isinstance(indices, Sequence):
+                indices = (indices,)
             if (
                 isinstance(indices, Sequence)
                 and len(indices) == len(base.shape)

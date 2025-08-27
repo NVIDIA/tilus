@@ -18,11 +18,10 @@ from typing import Optional, Sequence
 
 import cuda.bindings.runtime as cudart
 from hidet.ir.dtypes import DataType, bfloat16, float16, float32, int8, int32
-from hidet.ir.expr import Var, as_expr
+from hidet.ir.expr import as_expr
 
 from tilus import RegisterLayout
 from tilus.backends.emitters.cuda.mma_dot import AtomicMmaConfig
-from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.layout import SharedLayout, auto_local_spatial, reduce, shared_compose, shared_row_major, spatial
 from tilus.ir.utils import vector
 from tilus.utils import gcd, idiv, prod
@@ -364,24 +363,26 @@ class cuda:
         if m % 8 != 0 or n % group_elements != 0:
             raise ValueError("m must be a multiple of 8, and n must be a multiple of dtype.nbytes * 8.")
 
-        axes: list[Var] = index_vars(len(shape))
-        strides: list[int] = [prod(shape[i + 1 :]) for i in range(len(shape))]
+        def f_offset(axes):
+            strides: list[int] = [prod(shape[i + 1 :]) for i in range(len(shape))]
 
-        columns: int = n // group_elements
-        columns_vec_size: int = gcd(columns, 8)
+            columns: int = n // group_elements
+            columns_vec_size: int = gcd(columns, 8)
 
-        i, j = axes[-2:]
-        if columns_vec_size == 8:
-            i, j = i, j ^ ((i % 8) * group_elements)
-        elif columns_vec_size == 4:
-            i, j = i, j ^ (i // 2 % 4 * group_elements)
-        elif columns_vec_size == 2:
-            i, j = i, j ^ (i // 4 % 2 * group_elements)
-        else:
-            i, j = i, j
-        swizzled_axes = axes[:-2] + [i, j]
-        offset = as_expr(sum(axis * stride for axis, stride in zip(swizzled_axes, strides)))
-        layout = SharedLayout(shape=shape, size=prod(shape), axes=tuple(axes), offset=offset).simplify()
+            i, j = axes[-2:]
+            if columns_vec_size == 8:
+                i, j = i, j ^ ((i % 8) * group_elements)
+            elif columns_vec_size == 4:
+                i, j = i, j ^ (i // 2 % 4 * group_elements)
+            elif columns_vec_size == 2:
+                i, j = i, j ^ (i // 4 % 2 * group_elements)
+            else:
+                i, j = i, j
+            swizzled_axes = axes[:-2] + [i, j]
+            offset = as_expr(sum(axis * stride for axis, stride in zip(swizzled_axes, strides)))
+            return offset
+
+        layout = SharedLayout.create(shape=shape, size=prod(shape), f_offset=f_offset).simplify()
         return layout
 
     @staticmethod

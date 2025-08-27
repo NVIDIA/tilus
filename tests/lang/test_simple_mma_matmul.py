@@ -37,7 +37,7 @@ class Matmul(tilus.Script):
         offset_m: int32 = self.block_m * self.blockIdx.x
         offset_n: int32 = self.block_n * self.blockIdx.y
 
-        acc = self.register_tensor(dtype=float32, shape=self.mma.lc.shape, init=lambda indices: float32.zero)
+        acc = self.register_tensor(dtype=float32, shape=self.mma.lc.shape, init=lambda i, j: float32.zero)
         k_blocks = self.utils.ceil_div(self.k_size, self.block_k)
         for k in range(k_blocks):
             offset_k = k * self.block_k

@@ -33,7 +33,7 @@ class TestReduceKernel(tilus.Script):
             dtype=int32,
             shape=self.layout.shape,
             layout=self.layout,
-            init=lambda indices: indices[0] * self.layout.shape[1] + indices[1],
+            init=lambda i, j: i * self.layout.shape[1] + j,
         )
         b = self.sum(a, dim=self.dim, keepdim=True)
         g_out = self.global_view(ptr=out_ptr, dtype=int32, shape=b.shape)

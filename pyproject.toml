@@ -41,6 +41,9 @@ dev = [
     "pandas",
     "nvidia-ml-py",  # for locking GPU clocks
 
+    # for examples
+    "einops",
+
     # for documentation
     "jinja2",
     "sphinx",

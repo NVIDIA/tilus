@@ -36,7 +36,7 @@ class MatmulV0(tilus.Script):
 
         ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
-        acc = self.register_tensor(dtype=float32, shape=[self.block_m, self.block_n], init=lambda indices: float32.zero)
+        acc = self.register_tensor(dtype=float32, shape=[self.block_m, self.block_n], init=lambda i, j: float32.zero)
 
         k_blocks = self.utils.ceil_div(k_size, self.block_k)
         for k in range(k_blocks):

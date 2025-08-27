@@ -112,6 +112,11 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Install example dependencies
+        run: |
+          pip install wheel
+          pip install flash-attn --no-build-isolation 
+
       - name: Run examples
         run: |
           bash .github/workflows/scripts/run-examples.sh
