@@ -114,7 +114,7 @@ jobs:
 
       - name: Install example dependencies
         run: |
-          pip install -r examples/requirements.txt
+          pip install flash-attn --no-build-isolation 
 
       - name: Run examples
         run: |
