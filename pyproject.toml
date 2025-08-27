@@ -43,7 +43,6 @@ dev = [
 
     # for examples
     "einops",
-    "flash-attn",
 
     # for documentation
     "jinja2",

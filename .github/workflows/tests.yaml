@@ -112,6 +112,10 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Install example dependencies
+        run: |
+          pip install -r examples/requirements.txt
+
       - name: Run examples
         run: |
           bash .github/workflows/scripts/run-examples.sh
