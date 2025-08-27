@@ -40,7 +40,10 @@ dev = [
     "types-tqdm",
     "pandas",
     "nvidia-ml-py",  # for locking GPU clocks
+
+    # for examples
     "einops",
+    "flash-attn",
 
     # for documentation
     "jinja2",
