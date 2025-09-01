@@ -326,6 +326,7 @@ class JitInstance:
 
         self.dispatch_table: dict[TuningKey, int] = {}
         self.cache_dir: Path = Path()
+        self.cache_dir_lock: Path = Path()
 
         self._transpile_programs()
 
@@ -441,8 +442,8 @@ class JitInstance:
         )
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        lock_path = self.cache_dir / ".lock"
-        with filelock.FileLock(lock_path):
+        self.cache_dir_lock = self.cache_dir / ".lock"
+        with filelock.FileLock(self.cache_dir_lock):
             # write the failed schedules to the cache dir
             failed_scheduling_dir = self.cache_dir / "failed" / "scheduling"
             if not failed_scheduling_dir.exists() and self.failed_scheduling or len(self.compiled_programs) == 0:
@@ -551,8 +552,7 @@ class JitInstance:
             raise ValueError("Please specify the debug_schedule when debug_block is set. ")
 
         # initialize the script cache if it does not exist
-        lock_path = self.cache_dir / ".lock"
-        with filelock.FileLock(lock_path):
+        with filelock.FileLock(self.cache_dir_lock):
             # add soft link to the cache dirs of compiled programs
             programs_dir = self.cache_dir / "programs"
             if not programs_dir.exists():
@@ -585,8 +585,8 @@ class JitInstance:
                         link_path=(failed_building_dir / f"{idx}").resolve(), target_path=Path(prog_cache_dir).resolve()
                     )
 
-        # load the dispatch table from the cache dir
-        self.load_dispatch_table()
+            # load the dispatch table from the cache dir
+            self.load_dispatch_table()
 
         if len(self.compiled_programs) == 0:
             call_file = inspect.getsourcefile(self.script_cls.__call__)
@@ -613,49 +613,55 @@ class JitInstance:
 
         # check if the tuning key exists in the dispatch table
         if tuning_key not in self.dispatch_table:
-            latency: list[float] = []
-            if len(self.compiled_programs) == 1:
-                # we skip the benchmark if there is only one compiled program
-                latency.append(0.0)
-            else:
-                tuning_key_name = " " + "-".join([str(v) for v in tuning_key]) if tuning_key else ""
-                kernel_args = [
-                    args[i].clone() if isinstance(args[i], torch.Tensor) else args[i]
-                    for i in self.call_params.kernel_params
-                ]
-                for compiled_program in tqdm(
-                    iterable=self.compiled_programs,
-                    desc="[{}] {}{}".format("Tuning", self.instance_name, tuning_key_name),
-                    miniters=1,
-                    mininterval=0,
-                    ncols=60 + max(60, len(self.instance_name) + len(tuning_key_name)),
-                ):
-                    compiled_func = compiled_program.compiled_module.functions["launch"]
-                    latency.append(benchmark_func(lambda: compiled_func(*kernel_args), warmup=1, repeat=10))  # type: ignore
+            # load the dispatch table from the cache dir in case another process has updated it
+            with filelock.FileLock(self.cache_dir_lock):
+                self.load_dispatch_table()
+                if tuning_key in self.dispatch_table:
+                    return self.compiled_programs[self.dispatch_table[tuning_key]]
 
-            best_latency = min(latency)
-            best_program_idx = latency.index(best_latency)
-            self.dispatch_table[tuning_key] = best_program_idx
-            self.dump_dispatch_table()
+                # it's not in the dispatch table in memory nor in the cache dir
+                latency: list[float] = []
+                if len(self.compiled_programs) == 1:
+                    # we skip the benchmark if there is only one compiled program
+                    latency.append(0.0)
+                else:
+                    tuning_key_name = " " + "-".join([str(v) for v in tuning_key]) if tuning_key else ""
+                    kernel_args = [
+                        args[i].clone() if isinstance(args[i], torch.Tensor) else args[i]
+                        for i in self.call_params.kernel_params
+                    ]
+                    for compiled_program in tqdm(
+                        iterable=self.compiled_programs,
+                        desc="[{}] {}{}".format("Tuning", self.instance_name, tuning_key_name),
+                        miniters=1,
+                        mininterval=0,
+                        ncols=60 + max(60, len(self.instance_name) + len(tuning_key_name)),
+                    ):
+                        compiled_func = compiled_program.compiled_module.functions["launch"]
+                        latency.append(benchmark_func(lambda: compiled_func(*kernel_args), warmup=1, repeat=10))  # type: ignore
 
-            # write the benchmark results, and link to the optimal program
-            latency_dir = self.cache_dir / "latency" / "{}".format("-".join(str(k) for k in tuning_key))
-            if not latency_dir.exists():
+                best_latency = min(latency)
+                best_program_idx = latency.index(best_latency)
+                self.dispatch_table[tuning_key] = best_program_idx
+                self.dump_dispatch_table()
+
+                # write the benchmark results, and link to the optimal program
+                latency_dir = self.cache_dir / "latency" / "{}".format("-".join(str(k) for k in tuning_key))
                 latency_dir.mkdir(parents=True, exist_ok=True)
-            tuning_report_path = latency_dir / "report.txt"
-            with open(tuning_report_path, "w") as f:
-                headers = ["index"] + list(self.schedules[self.valid_schedules[0]].keys()) + ["latency (ms)"]
-                rows = []
-                for i in range(len(self.valid_schedules)):
-                    schedule_values = list(self.schedules[self.valid_schedules[i]].values())
-                    rows.append([i] + schedule_values + [latency[i]])
-                rows = sorted(rows, key=lambda x: x[-1])
+                tuning_report_path = latency_dir / "report.txt"
                 with open(tuning_report_path, "w") as f:
-                    f.write(tabulate.tabulate(rows, headers=headers, floatfmt=".3f"))
-            self._create_link(
-                link_path=latency_dir / str(best_program_idx),
-                target_path=self.compiled_programs[best_program_idx].program_dir,
-            )
+                    headers = ["index"] + list(self.schedules[self.valid_schedules[0]].keys()) + ["latency (ms)"]
+                    rows = []
+                    for i in range(len(self.valid_schedules)):
+                        schedule_values = list(self.schedules[self.valid_schedules[i]].values())
+                        rows.append([i] + schedule_values + [latency[i]])
+                    rows = sorted(rows, key=lambda x: x[-1])
+                    with open(tuning_report_path, "w") as f:
+                        f.write(tabulate.tabulate(rows, headers=headers, floatfmt=".3f"))
+                self._create_link(
+                    link_path=latency_dir / str(best_program_idx),
+                    target_path=self.compiled_programs[best_program_idx].program_dir,
+                )
 
         return self.compiled_programs[self.dispatch_table[tuning_key]]
 
