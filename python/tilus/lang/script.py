@@ -1055,6 +1055,32 @@ class Script:
         """
         return self._builder.round(x, out=out)
 
+    def sqrt(
+        self,
+        x: RegisterTensor,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        """Compute the square root of each element.
+
+        This instruction computes the square root of each element in the register tensor `x`. The result is a new
+        register tensor with the same dtype, shape, and layout as `x`.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to compute the square root of.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the square root values of the elements in `x`. The shape and dtype of the
+            output tensor will be the same as that of `x`.
+        """
+        return self._builder.sqrt(x, out=out)
+
     def clip(
         self,
         x: RegisterTensor,

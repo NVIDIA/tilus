@@ -547,17 +547,10 @@ def analyze_grid(
     ret = analyzer.analyze(axes, shape, var2info, expr)
 
     if logger.isEnabledFor(logging.DEBUG):
-        logger.debug("shape: %s", shape)
-        logger.debug("axes: %s", axes)
-        logger.debug("expr: %s", expr)
-        logger.debug("var2info: %s", var2info)
+        logger.debug("shape: %s, axes: %s, expr: %s", shape, axes, expr)
         for var in var2info:
             logger.debug("%s: %s", var, var2info[var])
         logger.debug("ret: %s", ret)
-        for expr in analyzer.memo:
-            logger.debug("expr: %s", expr)
-            logger.debug("      %s", analyzer.memo[expr])
-        logger.debug("=" * 20)
 
     return ret
 

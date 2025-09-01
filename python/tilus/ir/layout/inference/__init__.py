@@ -13,4 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from . import inference_rules, validation_rules
-from .inference import infer_layout
+from .inference import infer_layout, verify_layouts

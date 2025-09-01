@@ -627,6 +627,9 @@ class StmtBuilder(StmtBuilderCore):
     def round(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.round(arg), out=out)
 
+    def sqrt(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.sqrt(arg), out=out)
+
     def abs(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.abs(arg), out=out)
 

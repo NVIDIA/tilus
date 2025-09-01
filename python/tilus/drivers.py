@@ -131,6 +131,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     from hidet.transforms.instruments import PassInstrument, ProfileInstrument, SaveIRInstrument
     from hidet.transforms.lower_integer_subbyte import lower_integer_subbyte_pass
     from hidet.transforms.lower_special_cast import lower_special_cast_pass
+    from hidet.transforms.lower_task_mapping import lower_task_mapping_pass
     from hidet.transforms.propagate_launch_bound import propagate_launch_bound_pass
     from hidet.transforms.resolve_generic_primitive_function import resolve_primitive_func_pass
     from hidet.transforms.simplify_addition_chain import simplify_addition_chain_pass
@@ -159,6 +160,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         flatten_tensor_slice_pass(),
         flatten_tensor_index_pass(),
         declare_to_let_pass(),
+        lower_task_mapping_pass(),
         rule_based_simplify_pass(),  # make ir more readable
         lower_special_cast_pass(),
         inline_function_pass(),
