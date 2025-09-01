@@ -144,7 +144,11 @@ def infer_layout(func: Function) -> Function:
         The function with inferred layouts for shared and register tensors. All shared and register tensors in the
         program will have their layouts set.
     """
-    logger.debug("Inferring register layouts for function %s", func.name)
+    printer = IRPrinter()
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("Inferring register layouts for function %s", func.name)
+        printer(func)
+
     ctx = LayoutInferenceContext(
         num_warps=func.metadata.num_warps,
         num_threads=func.metadata.num_warps * 32,
@@ -186,23 +190,7 @@ def infer_layout(func: Function) -> Function:
 
         # step 2: check if all shared and register tensors in the program have a layout set
         if len(instructions) == 0:
-            # step 2.1: if all instructions with a rule approved the layouts, we return the program
-            invalid_instructions = []
-            for inst in all_instructions:
-                if has_shared_or_register_tensors(inst) and not get_validation_rule(inst).validate(inst):
-                    invalid_instructions.append(inst)
-            if not invalid_instructions:
-                # all instructions have valid layouts, we can return the function
-                return func
-            else:
-                # step 2.2: if any instruction with a rule rejected the layouts, we raise a `LayoutInferenceError`
-                printer = IRPrinter()
-                lines = ["The following instructions have invalid layouts: "]
-                for inst in invalid_instructions:
-                    lines.append(f"  {printer(inst)}")
-                for comment, key in printer.comment2key.items():
-                    lines.append(f"  {key}: {comment}")
-                raise LayoutInferenceError("\n".join(lines))
+            return func
 
         # step 3: sort the instructions by their priority
         pairs: list[tuple[Instruction, Type[LayoutInferenceRule]]] = []
@@ -259,7 +247,6 @@ def infer_layout(func: Function) -> Function:
                         raise TypeError(f"Invalid layout type {type(layout)} for tensor {tensor}. ")
                 func = rewrite(func, rewrite_map)
                 if logger.isEnabledFor(logging.DEBUG):
-                    printer = IRPrinter()
                     logger.debug("%s", str(printer(inst)))
                     for tensor, layout in mapping.items():
                         logger.debug("  %s: %s", str(printer(tensor)), layout)
@@ -268,7 +255,6 @@ def infer_layout(func: Function) -> Function:
         if not found:
             # step 4.2: if no rule can infer a layout for any tensor, we stop and raise an error indicating
             # inference failure
-            printer = IRPrinter()
             func_doc = printer(func)
 
             tensors = set()
@@ -283,3 +269,42 @@ def infer_layout(func: Function) -> Function:
                 lines.append(f"  {printer(tensor)}: {tensor.dtype.name}{list(tensor.shape)}")
             lines.append(f"\nFunction:\n{func_doc}")
             raise LayoutInferenceError("\n".join(lines))
+
+
+def verify_layouts(func: Function) -> list[Instruction]:
+    """Verify the integrity of the layouts for each instruction.
+
+    This function checks all instructions in the given function to ensure that the layouts of shared and register tensors
+    are valid according to their respective validation rules. It collects and returns a list of instructions that
+    have invalid layouts.
+
+    Parameters
+    ----------
+    func: Function
+        The function to verify the layouts for.
+
+    Returns
+    -------
+    ret: list[Instruction]
+        A list of instructions that have invalid layouts. If all instructions have valid layouts, the list will be empty.
+    """
+    all_instructions = collect(func, types=[Instruction])
+    invalid_instructions = []
+    for inst in all_instructions:
+        if has_shared_or_register_tensors(inst) and not get_validation_rule(inst).validate(inst):
+            invalid_instructions.append(inst)
+    return invalid_instructions
+
+    # if not invalid_instructions:
+    #     # all instructions have valid layouts, we can return the function
+    #     return
+    #     return func
+    # else:
+    #     # step 2.2: if any instruction with a rule rejected the layouts, we raise a `LayoutInferenceError`
+    #     printer = IRPrinter()
+    #     lines = ["The following instructions have invalid layouts: "]
+    #     for inst in invalid_instructions:
+    #         lines.append(f"  {printer(inst)}")
+    #     for comment, key in printer.comment2key.items():
+    #         lines.append(f"  {key}: {comment}")
+    #     raise LayoutInferenceError("\n".join(lines))

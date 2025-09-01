@@ -28,6 +28,7 @@ from typing import Any, Mapping, Optional, Sequence, Type
 
 import filelock
 import tabulate
+import torch
 from cuda.bindings.runtime import cudaDeviceSynchronize
 from hidet.ir.type import DataType, PointerType
 from hidet.runtime import CompiledFunction
@@ -407,7 +408,7 @@ class JitInstance:
                 desc="[{}] {}".format("Scheduling", self.instance_name),
                 miniters=1,
                 total=len(scheduling_jobs),
-                ncols=100,
+                ncols=60 + max(60, len(self.instance_name)),
                 delay=1,
             )
         ):
@@ -520,7 +521,7 @@ class JitInstance:
                 desc="[{}] {}".format("Building", self.instance_name),
                 total=len(building_jobs),
                 miniters=1,
-                ncols=100,
+                ncols=60 + max(60, len(self.instance_name)),
                 delay=1,
             )
         ):
@@ -618,14 +619,17 @@ class JitInstance:
                 latency.append(0.0)
             else:
                 tuning_key_name = " " + "-".join([str(v) for v in tuning_key]) if tuning_key else ""
+                kernel_args = [
+                    args[i].clone() if isinstance(args[i], torch.Tensor) else args[i]
+                    for i in self.call_params.kernel_params
+                ]
                 for compiled_program in tqdm(
                     iterable=self.compiled_programs,
                     desc="[{}] {}{}".format("Tuning", self.instance_name, tuning_key_name),
                     miniters=1,
                     mininterval=0,
-                    ncols=100,
+                    ncols=60 + max(60, len(self.instance_name) + len(tuning_key_name)),
                 ):
-                    kernel_args = [args[i] for i in self.call_params.kernel_params]
                     compiled_func = compiled_program.compiled_module.functions["launch"]
                     latency.append(benchmark_func(lambda: compiled_func(*kernel_args), warmup=1, repeat=10))  # type: ignore
 
