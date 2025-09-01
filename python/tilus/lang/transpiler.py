@@ -32,6 +32,7 @@ from hidet.lang.transpiler import HidetProgramError, PythonAstFunctor
 
 import tilus.lang.constructs.loops
 from tilus import ir as tilus_ir
+from tilus.extensions.hidet.ir.tools.type_infer import infer_type
 from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.builders import IRBuilder, StmtBuilder
 from tilus.ir.func import Function, Metadata
@@ -925,46 +926,48 @@ class Transpiler(PythonAstFunctor):
         else:
             raise HidetProgramError(self, expr, "Can not recognize Constant {}".format(repr(expr.value)))
 
-    def visit_Compare(self, expr: ast.Compare) -> hidet_ir.Expr:
-        front = self.visit(expr.left)
-        op_dict = {
-            ast.And: hidet_ir.logical_and,
-            ast.Or: hidet_ir.logical_or,
-            ast.Eq: hidet_ir.equal,
-            ast.Gt: lambda a, b: hidet_ir.less_than(b, a),  # pylint: disable=arguments-out-of-order
-            ast.Lt: hidet_ir.less_than,
-            ast.GtE: lambda a, b: hidet_ir.less_equal(b, a),  # pylint: disable=arguments-out-of-order
-            ast.LtE: hidet_ir.less_equal,
-            ast.NotEq: hidet_ir.not_equal,
-        }
-        py_op_dict = {
-            ast.And: operator.and_,
-            ast.Or: operator.or_,
-            ast.Eq: operator.eq,
-            ast.Gt: operator.gt,
-            ast.Lt: operator.lt,
-            ast.GtE: operator.ge,
-            ast.LtE: operator.le,
-            ast.NotEq: operator.ne,
-            ast.In: lambda a, b: a in b,
-            ast.NotIn: lambda a, b: a not in b,
-        }
-        cond = None
-        comparators = [self.visit(v) for v in expr.comparators]
-        for op, current in zip(expr.ops, comparators):
-            op_kind = type(op)
-            if isinstance(front, hidet_ir.Node) or isinstance(current, hidet_ir.Node):
-                if op_kind not in op_dict:
-                    raise HidetProgramError(
-                        self, expr, "Currently, we do not support {} operator for hidet vars.".format(op_kind.__name__)
-                    )
-                cur_cond: Any = op_dict[op_kind](front, current)  # type: ignore[operator]
-            else:
-                cur_cond = py_op_dict[op_kind](front, current)
-            cond = hidet_ir.logical_and(cond, cur_cond) if cond is not None else cur_cond
-            front = current
-        cond = as_expr(cond)
-        return cond
+    def visit_Compare(self, expr: ast.Compare) -> Union[hidet_ir.Expr, RegisterTensor]:
+        operands = [self.visit(expr.left)] + [self.visit(v) for v in expr.comparators]
+
+        if any(isinstance(operand, RegisterTensor) for operand in operands):
+            sb = StmtBuilder()
+            operands = [
+                operand
+                if isinstance(operand, RegisterTensor)
+                else sb.allocate_register(dtype=infer_type(operand), shape=[], f_init=lambda axes: operand)
+                for operand in operands
+            ]
+            op_dict = {
+                ast.Eq: sb.equal,
+                ast.NotEq: sb.not_equal,
+                ast.Gt: sb.greater_than,
+                ast.Lt: sb.less_than,
+                ast.GtE: sb.greater_equal,
+                ast.LtE: sb.less_than,
+            }
+            left = operands.pop(0)
+            for op, right in zip(expr.ops, operands):
+                if type(op) not in op_dict:
+                    raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type(op)))
+                left = op_dict[type(op)](left, right)
+            self.current_scope.append(sb.flush_stmts())
+            return left
+        else:
+            operands = [as_expr(operand) for operand in operands]
+            op_dict: Any = {  # type: ignore[no-redef]
+                ast.Eq: hidet_ir.equal,
+                ast.NotEq: hidet_ir.not_equal,
+                ast.Gt: lambda a, b: hidet_ir.less_than(b, a),  # pylint: disable=arguments-out-of-order
+                ast.Lt: hidet_ir.less_than,
+                ast.GtE: lambda a, b: hidet_ir.less_equal(b, a),  # pylint: disable=arguments-out-of-order
+                ast.LtE: hidet_ir.less_equal,
+            }
+            left = operands.pop(0)
+            for op, right in zip(expr.ops, operands):
+                if type(op) not in op_dict:
+                    raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type(op)))
+                left = op_dict[type(op)](left, right)
+            return left
 
     def visit_IfExp(self, expr: ast.IfExp) -> hidet_ir.Expr:
         cond = self.visit(expr.test)
@@ -1105,9 +1108,23 @@ class Transpiler(PythonAstFunctor):
             else_body = else_scope.flush_stmts() if len(stmt.orelse) > 0 else None
             self.current_scope.append(IfStmt(cond=cond, then_body=then_body, else_body=else_body))
 
-    def visit_UnaryOp(self, expr: ast.UnaryOp) -> Union[hidet_ir.Node, hidet_ir.BaseType, float, int, str]:
+    def visit_UnaryOp(
+        self, expr: ast.UnaryOp
+    ) -> Union[RegisterTensor, hidet_ir.Node, hidet_ir.BaseType, float, int, str]:
         value = self.visit(expr.operand)
-        if isinstance(value, hidet_ir.Node):
+        if isinstance(value, RegisterTensor):
+            if isinstance(expr.op, ast.UAdd):
+                # +v
+                return value
+            elif isinstance(expr.op, ast.USub):
+                # -v
+                sb = StmtBuilder()
+                value = sb.neg(value)
+                self.current_scope.append(sb.flush_stmts())
+                return value
+            else:
+                raise HidetProgramError(self, expr, "Can not recognize unary operator for RegisterTensor.")
+        elif isinstance(value, hidet_ir.Node):
             if isinstance(expr.op, ast.Not):
                 # not v
                 assert isinstance(value, hidet_ir.Expr)

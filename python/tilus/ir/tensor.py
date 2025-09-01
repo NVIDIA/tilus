@@ -169,6 +169,24 @@ class RegisterTensor(Tensor):
     converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
     """
 
+    __hash__ = object.__hash__  # use default hash function
+
+    def __bool__(self):
+        # We return True for all RegisterTensor so that we can use `if inst.output` to check whether the instruction
+        # has an output tensor. We will handle the case of `if tensor:` in the Tilus Script transpiler differently to
+        # avoid ambiguity.
+        return True
+
+    def __neg__(self):
+        """Negate the tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the negation.
+        """
+        raise RuntimeError(" -tensor could only be used in Tilus Script.")
+
     def __add__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """Perform addition with another tensor or a scalar.
 
@@ -229,6 +247,81 @@ class RegisterTensor(Tensor):
             A new tensor that is the result of the division.
         """
         raise RuntimeError("tensor / tensor could only be used in Tilus Script.")
+
+    def __ge__(self, other):
+        """Greater than or equal to comparison.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to compare with this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the comparison.
+        """
+        raise RuntimeError("tensor >= tensor could only be used in Tilus Script.")
+
+    def __le__(self, other):
+        """Less than or equal to comparison.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to compare with this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the comparison.
+        """
+        raise RuntimeError("tensor <= tensor could only be used in Tilus Script.")
+
+    def __gt__(self, other):
+        """Greater than comparison.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to compare with this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the comparison.
+        """
+        raise RuntimeError("tensor > tensor could only be used in Tilus Script.")
+
+    def __lt__(self, other):
+        """Less than comparison.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to compare with this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the comparison.
+        """
+        raise RuntimeError("tensor < tensor could only be used in Tilus Script.")
+
+    def __eq__(self, other):
+        """Equal to comparison.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to compare with this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the comparison.
+        """
+        raise RuntimeError("tensor == tensor could only be used in Tilus Script.")
 
     def squeeze(self, dim: int | Sequence[int]) -> RegisterTensor:
         """Squeeze the tensor by removing dimensions of size 1.

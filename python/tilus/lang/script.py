@@ -1028,6 +1028,32 @@ class Script:
         """
         return self._builder.exp2(x, out=out)
 
+    def log(
+        self,
+        x: RegisterTensor,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        """Compute the natural logarithm of each element.
+
+        This instruction computes the natural logarithm of each element in the register tensor `x`. The result is a
+        new register tensor with the same dtype, shape, and layout as `x`.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to compute the natural logarithm of.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the natural logarithm values of the elements in `x`. The shape and dtype of the
+            output tensor will be the same as that of `x`.
+        """
+        return self._builder.log(x, out=out)
+
     def round(
         self,
         x: RegisterTensor,

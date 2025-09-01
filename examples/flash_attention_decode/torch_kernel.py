@@ -1,6 +1,45 @@
 import torch
 
 
+def fused_gdn_gating_torch(
+    A_log: torch.Tensor,
+    a: torch.Tensor,
+    dt_bias: torch.Tensor,
+    beta: float = 1.0,
+    threshold: float = 20.0,
+) -> torch.Tensor:
+    """
+    PyTorch implementation of the fused GDN gating computation.
+
+    Computes: g = -exp(A_log) * softplus(a + dt_bias)
+
+    Args:
+        A_log: Log of A parameter, shape [num_heads]
+        a: Input tensor, shape [batch, num_heads]
+        dt_bias: Bias parameter, shape [num_heads]
+        beta: Beta parameter for softplus (default: 1.0)
+        threshold: Threshold for numerical stability (default: 20.0)
+
+    Returns:
+        g: Output tensor, shape [batch, num_heads]
+    """
+    # Compute x = a + dt_bias
+    x = a.float() + dt_bias.float()
+
+    # Apply softplus with beta and threshold for numerical stability
+    # softplus_x = where(beta * x <= threshold, (1/beta) * log(1 + exp(beta * x)), x)
+    beta_x = beta * x
+    mask = beta_x <= threshold
+
+    # For numerical stability, use the approximation when beta*x > threshold
+    softplus_x = torch.where(mask, (1.0 / beta) * torch.log(1.0 + torch.exp(beta_x)), x)
+
+    # Compute final result: g = -exp(A_log) * softplus_x
+    g = -torch.exp(A_log.float()) * softplus_x
+
+    return g  # Return as float32 to match Triton implementation
+
+
 def fused_recurrent_gated_delta_rule_update_fwd_torch(
     q,
     k,

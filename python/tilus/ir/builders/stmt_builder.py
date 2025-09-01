@@ -18,7 +18,7 @@ from typing import Callable, List, Optional, Sequence, Type, Union
 
 from hidet.ir import primitives
 from hidet.ir.dtypes import boolean, int32
-from hidet.ir.expr import Expr, Var, as_expr
+from hidet.ir.expr import Equal, Expr, LessEqual, LessThan, NotEqual, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
 from hidet.ir.utils import broadcast_shapes, can_broadcast
@@ -596,6 +596,34 @@ class StmtBuilder(StmtBuilderCore):
     def mod(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self._binary(x, y, ModInst, out=out)
 
+    def less_than(
+        self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        return self.elementwise_binary(x, y, f_compute=lambda a, b: LessThan(a, b), out=out)
+
+    def less_equal(
+        self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        return self.elementwise_binary(x, y, f_compute=lambda a, b: LessEqual(a, b), out=out)
+
+    def greater_than(
+        self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        return self.elementwise_binary(x, y, f_compute=lambda a, b: LessThan(b, a), out=out)
+
+    def greater_equal(
+        self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        return self.elementwise_binary(x, y, f_compute=lambda a, b: LessEqual(b, a), out=out)
+
+    def equal(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_binary(x, y, f_compute=lambda a, b: Equal(a, b), out=out)
+
+    def not_equal(
+        self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        return self.elementwise_binary(x, y, f_compute=lambda a, b: NotEqual(a, b), out=out)
+
     def maximum(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_binary(x, y, f_compute=lambda a, b: primitives.max(a, b), out=out)
 
@@ -630,6 +658,9 @@ class StmtBuilder(StmtBuilderCore):
     def sqrt(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.sqrt(arg), out=out)
 
+    def neg(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: -arg, out=out)
+
     def abs(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.abs(arg), out=out)
 
@@ -638,6 +669,9 @@ class StmtBuilder(StmtBuilderCore):
 
     def exp2(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.math.exp2(arg), out=out)
+
+    def log(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.log(arg), out=out)
 
     def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None, cond: Expr = boolean.true) -> None:
         inst = PrintTensorInst.create(tensor, cond=cond, msg=msg, fmt=fmt)
