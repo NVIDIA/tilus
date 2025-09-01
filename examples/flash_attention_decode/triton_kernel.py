@@ -235,11 +235,57 @@ def fused_gdn_gating(
     beta: float = 1.0,
     threshold: float = 20.0,
 ) -> torch.Tensor:
-    batch, num_heads = a.shape
-    seq_len = 1
+    # Handle both 2D (batch, num_heads) and 3D (batch, seq_len, num_heads) inputs
+    if a.ndim == 2:
+        batch, num_heads = a.shape
+        seq_len = 1
+    elif a.ndim == 3:
+        batch, seq_len, num_heads = a.shape
+    else:
+        raise ValueError(f"Expected 2D or 3D input tensor, got {a.ndim}D")
+
     grid = (batch, seq_len, triton.cdiv(num_heads, 8))
     g = torch.empty_like(a, dtype=torch.float32)
     fused_gdn_gating_kernel[grid](
         g, A_log, a, dt_bias, seq_len, num_heads, beta, threshold, 8, num_warps=1
     )
     return g
+
+
+def sigmoid_gating_delta_rule_update_triton(
+    A_log: torch.Tensor,
+    a: torch.Tensor,
+    dt_bias: torch.Tensor,
+    softplus_beta: float,
+    softplus_threshold: float,
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    b: torch.Tensor,
+    scale: float,
+    initial_state_source: torch.Tensor,
+    initial_state_indices: torch.Tensor,
+    use_qk_l2norm_in_kernel: bool = False,
+    cu_seqlens: Optional[torch.Tensor] = None,
+):
+    beta = b.sigmoid()
+    g = fused_gdn_gating(
+        A_log=A_log,
+        a=a,
+        dt_bias=dt_bias,
+        beta=softplus_beta,
+        threshold=softplus_threshold,
+    )
+    o = fused_recurrent_gated_delta_rule_update_fwd_triton(
+        q=q,
+        k=k,
+        v=v,
+        g=g,
+        beta=beta,
+        scale=scale,
+        initial_state_source=initial_state_source,
+        initial_state_indices=initial_state_indices,
+        use_qk_l2norm_in_kernel=use_qk_l2norm_in_kernel,
+        cu_seqlens=cu_seqlens,
+    )
+    return o

@@ -15,13 +15,13 @@ def fused_gdn_gating_torch(
 
     Args:
         A_log: Log of A parameter, shape [num_heads]
-        a: Input tensor, shape [batch, num_heads]
+        a: Input tensor, shape [batch, num_heads] or [batch, seq_len, num_heads]
         dt_bias: Bias parameter, shape [num_heads]
         beta: Beta parameter for softplus (default: 1.0)
         threshold: Threshold for numerical stability (default: 20.0)
 
     Returns:
-        g: Output tensor, shape [batch, num_heads]
+        g: Output tensor, same shape as input a
     """
     # Compute x = a + dt_bias
     x = a.float() + dt_bias.float()
@@ -129,5 +129,76 @@ def fused_recurrent_gated_delta_rule_update_fwd_torch(
                         initial_state_source[idx, hv] = h_state.to(
                             initial_state_source.dtype
                         )
+
+    return o
+
+
+def sigmoid_gating_delta_rule_update_torch(
+    A_log: torch.Tensor,
+    a: torch.Tensor,
+    dt_bias: torch.Tensor,
+    softplus_beta: float,
+    softplus_threshold: float,
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    b: torch.Tensor,
+    scale: float,
+    initial_state_source: torch.Tensor,
+    initial_state_indices: torch.Tensor,
+    use_qk_l2norm_in_kernel: bool = False,
+    cu_seqlens: torch.Tensor = None,
+):
+    """
+    PyTorch implementation of sigmoid gating delta rule update.
+
+    This function combines sigmoid gating computation with the fused recurrent
+    gated delta rule update, similar to the Triton implementation.
+
+    Args:
+        A_log: Log of A parameter for gating computation
+        a: Input tensor for gating computation
+        dt_bias: Bias parameter for gating computation
+        softplus_beta: Beta parameter for softplus in gating
+        softplus_threshold: Threshold for numerical stability in softplus
+        q: Query tensor
+        k: Key tensor
+        v: Value tensor
+        b: Tensor to apply sigmoid to get beta
+        scale: Scaling factor for queries
+        initial_state_source: Initial hidden states
+        initial_state_indices: Indices for initial states
+        use_qk_l2norm_in_kernel: Whether to apply L2 normalization to q and k
+        cu_seqlens: Cumulative sequence lengths (optional, for variable length)
+
+    Returns:
+        o: Output tensor from the delta rule update
+    """
+    # Apply sigmoid to b to get beta
+    beta = torch.sigmoid(b)
+
+    # Compute gating values using the fused GDN gating function
+    g = fused_gdn_gating_torch(
+        A_log=A_log,
+        a=a,
+        dt_bias=dt_bias,
+        beta=softplus_beta,
+        threshold=softplus_threshold,
+    )
+
+    beta, g = beta.unsqueeze(0), g.unsqueeze(0)  # Add batch dim if needed
+
+    # Apply the fused recurrent gated delta rule update
+    o = fused_recurrent_gated_delta_rule_update_fwd_torch(
+        q=q,
+        k=k,
+        v=v,
+        g=g,
+        beta=beta,
+        scale=scale,
+        initial_state_source=initial_state_source,
+        initial_state_indices=initial_state_indices,
+        use_qk_l2norm_in_kernel=use_qk_l2norm_in_kernel,
+    )
 
     return o
