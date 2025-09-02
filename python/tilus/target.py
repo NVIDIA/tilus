@@ -83,6 +83,9 @@ nvgpu_sm80 = Target("nvgpu", "sm80", TargetProperties(compute_capability=(8, 0),
 nvgpu_sm86 = Target("nvgpu", "sm86", TargetProperties(compute_capability=(8, 6), shared_memory_per_block=99 * 1024))
 nvgpu_sm89 = Target("nvgpu", "sm89", TargetProperties(compute_capability=(8, 9), shared_memory_per_block=99 * 1024))
 nvgpu_sm90 = Target("nvgpu", "sm90", TargetProperties(compute_capability=(9, 0), shared_memory_per_block=227 * 1024))
+nvgpu_sm100 = Target("nvgpu", "sm100", TargetProperties(compute_capability=(10, 0), shared_memory_per_block=227 * 1024))
+nvgpu_sm110 = Target("nvgpu", "sm110", TargetProperties(compute_capability=(11, 0), shared_memory_per_block=227 * 1024))
+nvgpu_sm120 = Target("nvgpu", "sm120", TargetProperties(compute_capability=(12, 0), shared_memory_per_block=99 * 1024))
 
 
 @functools.cache
@@ -103,7 +106,7 @@ def get_current_target() -> Target:
                 "We do not support this configuration yet."
             )
         major, minor = cuda.compute_capability()
-        nvgpu_targets = [nvgpu_sm70, nvgpu_sm75, nvgpu_sm80, nvgpu_sm86, nvgpu_sm89, nvgpu_sm90]
+        nvgpu_targets = [nvgpu_sm70, nvgpu_sm75, nvgpu_sm80, nvgpu_sm86, nvgpu_sm89, nvgpu_sm90, nvgpu_sm100, nvgpu_sm110, nvgpu_sm120]
         target_map = {t.properties.compute_capability: t for t in nvgpu_targets}
         return target_map[(major, minor)]
     elif has_amdgpu:
