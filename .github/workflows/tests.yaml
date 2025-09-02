@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check for changes in test-relevant directories
         id: changed-tests
@@ -28,7 +30,8 @@ jobs:
           files: |
             tests/**
             python/**
-          base_sha: 'main'
+            pyproject.toml
+          base_sha: 'origin/main'
 
       - name: Check for changes in examples
         id: changed-examples
@@ -37,7 +40,8 @@ jobs:
           files: |
             python/**
             examples/**
-          base_sha: 'main'
+            pyproject.toml
+          base_sha: 'origin/main'
         
       - name: Check for changes in docs
         id: changed-docs
@@ -46,7 +50,8 @@ jobs:
           files: |
             python/**
             docs/**
-          base_sha: 'main'
+            pyproject.toml
+          base_sha: 'origin/main'
 
   tests:
     needs: check-changes
@@ -63,6 +68,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup and Install Tilus
         id: setup-and-install
@@ -83,6 +90,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup and Install Tilus
         id: setup-and-install
@@ -105,6 +114,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup and Install Tilus
         id: setup-and-install
