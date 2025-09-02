@@ -28,6 +28,7 @@ jobs:
           files: |
             tests/**
             python/**
+            pyproject.toml
           base_sha: 'main'
 
       - name: Check for changes in examples
@@ -37,6 +38,7 @@ jobs:
           files: |
             python/**
             examples/**
+            pyproject.toml
           base_sha: 'main'
         
       - name: Check for changes in docs
@@ -46,6 +48,7 @@ jobs:
           files: |
             python/**
             docs/**
+            pyproject.toml
           base_sha: 'main'
 
   tests:
