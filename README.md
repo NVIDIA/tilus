@@ -38,7 +38,7 @@ This project is based on the following research paper:
 
 ```bibtex
 @article{ding2025tilus,
-  title={Tilus: A Virtual Machine for Arbitrary Low-Precision GPGPU Computation in LLM Serving},
+  title={Tilus: A Tile-Level GPGPU Programming Language for Low-Precision Computation},
   author={Ding, Yaoyao and Hou, Bohan and Zhang, Xiao and Lin, Allan and
     Chen, Tianqi and Hao, Cody Yu and Wang, Yida and Pekhimenko, Gennady},
   journal={arXiv preprint arXiv:2504.12984},
