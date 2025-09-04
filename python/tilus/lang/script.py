@@ -36,6 +36,7 @@ class Attributes:
     """Attributes of the script program."""
 
     _blocks: Optional[Sequence[Expr | int] | Expr | int] = None
+    _blocks_per_cluster: Optional[Sequence[Expr | int] | int] = (1, 1, 1)
     _warps: Optional[int] = None
 
     @property
@@ -45,7 +46,21 @@ class Attributes:
 
     @blocks.setter
     def blocks(self, value: Sequence[Expr | int] | Expr | int) -> None:
+        if not (isinstance(value, Sequence) and len(value) in [1, 2, 3]) and not isinstance(value, (int, Expr)):
+            raise ValueError("Expect 1d/2d/3d number of blocks, got {}".format(value))
         self._blocks = value
+
+    @property
+    def blocks_per_cluster(self) -> Sequence[Expr | int] | int | None:
+        """The number of blocks per cluster."""
+        return self._blocks_per_cluster
+
+    @blocks_per_cluster.setter
+    def blocks_per_cluster(self, value: Sequence[Expr | int] | int) -> Optional[Sequence[Expr | int] | int]:
+        """The number of blocks per cluster."""
+        if not isinstance(value, (int, Constant)) and not (isinstance(value, Sequence) and all(isinstance(v, (int, Constant)) for v in value)):
+            raise ValueError("The number of blocks per cluster must be an integer or a sequence of integers")
+        self._blocks_per_cluster = value
 
     @property
     def warps(self) -> Optional[int]:

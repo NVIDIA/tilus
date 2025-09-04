@@ -45,6 +45,7 @@ class Analysis:
 @dataclass(frozen=True)
 class Metadata:
     num_blocks: tuple[Expr, Expr, Expr]
+    num_blocks_per_cluster: tuple[int, int, int]
     block_indices: tuple[Var, Var, Var]
     num_warps: int
     param2divisibility: frozendict[Var, int]
@@ -53,15 +54,17 @@ class Metadata:
     @staticmethod
     def create(
         num_blocks: Sequence[Expr],
+        num_blocks_per_cluster: Sequence[int],
         block_indices: Sequence[Var],
         num_warps: int,
         divisibility: Optional[Mapping[Var, int]] = None,
         analysis: Optional[Analysis] = None,
     ) -> Metadata:
-        assert len(num_blocks) == 3 and len(block_indices) == 3
+        assert len(num_blocks) == 3 and len(block_indices) == 3 and len(num_blocks_per_cluster) == 3
 
         return Metadata(
             num_blocks=(num_blocks[0], num_blocks[1], num_blocks[2]),
+            num_blocks_per_cluster=(num_blocks_per_cluster[0], num_blocks_per_cluster[1], num_blocks_per_cluster[2]),
             block_indices=(block_indices[0], block_indices[1], block_indices[2]),
             num_warps=num_warps,
             param2divisibility=frozendict(divisibility) if divisibility else frozendict(),

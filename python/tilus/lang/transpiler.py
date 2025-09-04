@@ -54,6 +54,7 @@ from tilus.ir.stmt import (
 from tilus.ir.tensor import GlobalTensor, Tensor
 from tilus.lang.constructs.loops import TilusLoopIterable
 from tilus.lang.script import InstructionError, Script
+from tilus.lang.utils import normalize_blocks_per_cluster
 from tilus.utils import lcm
 
 
@@ -439,14 +440,12 @@ class Transpiler(PythonAstFunctor):
                 )
                 raise TilusProgramError(self, func_def, msg)
             blocks = [as_expr(dim) for dim in normalize_launch_dims(attrs.blocks)]
-            attrs.blocks = None
-
+            blocks_per_cluster = normalize_blocks_per_cluster(attrs.blocks_per_cluster)
             if attrs.warps is None:
                 raise TilusProgramError(
                     self, func_def, "Tilus script should set the number of warps via self.warps = ..."
                 )
             warps = attrs.warps
-            attrs.warps = None
 
             return Function.create(
                 name=func_def.name,
@@ -454,6 +453,7 @@ class Transpiler(PythonAstFunctor):
                 body=scope.flush_stmts(),
                 metadata=Metadata.create(
                     num_blocks=blocks,
+                    num_blocks_per_cluster=blocks_per_cluster,
                     block_indices=[blockIdx.x, blockIdx.y, blockIdx.z],  # type: ignore
                     num_warps=warps,
                     divisibility=divisibility,
