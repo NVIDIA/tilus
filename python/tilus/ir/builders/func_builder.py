@@ -16,14 +16,14 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Union
 
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var, as_expr
+from hidet.ir.expr import Expr, Var
 from hidet.ir.primitives.cuda.vars import blockIdx
 from hidet.ir.type import BaseType
 
 from tilus.ir.builders.stmt_builder import StmtBuilder
 from tilus.ir.func import Function, Metadata
 from tilus.ir.stmt import SeqStmt
+from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
 
 
 class FunctionBuilder(StmtBuilder):
@@ -39,6 +39,7 @@ class FunctionBuilder(StmtBuilder):
             )
 
             self.builder.num_blocks = None
+            self.builder.cluster_blocks = None
             self.builder._stack = [[]]
 
         def __enter__(self):
@@ -55,21 +56,22 @@ class FunctionBuilder(StmtBuilder):
 
             if self.builder.num_blocks is None:
                 raise ValueError("Please use `builder.num_blocks = ...` to set the number of blocks.")
-            if isinstance(self.builder.num_blocks, (int, Expr)):
-                num_blocks = [as_expr(self.builder.num_blocks)]
+
+            num_blocks: tuple[Expr, Expr, Expr] = normalize_grid_blocks(self.builder.num_blocks)
+            if self.builder.cluster_blocks is not None:
+                cluster_blocks: tuple[int, int, int] = normalize_cluster_blocks(self.builder.cluster_blocks)
             else:
-                num_blocks = [as_expr(item) for item in self.builder.num_blocks]
-            if len(num_blocks) > 3:
-                raise ValueError("The number of blocks should be at most 3.")
-            while len(num_blocks) < 3:
-                num_blocks.append(int32.one)
+                cluster_blocks = (1, 1, 1)
 
             built_function = Function.create(
                 name=self.name,
                 params=self.params,
                 body=SeqStmt.create(self.builder._stack.pop()),
                 metadata=Metadata.create(
-                    num_blocks=num_blocks, block_indices=[blockIdx.x, blockIdx.y, blockIdx.z], num_warps=self.num_warps
+                    grid_blocks=num_blocks,
+                    cluster_blocks=cluster_blocks,
+                    block_indices=[blockIdx.x, blockIdx.y, blockIdx.z],
+                    num_warps=self.num_warps,
                 ),
             )
             self.builder._on_finish(built_function)
@@ -77,6 +79,7 @@ class FunctionBuilder(StmtBuilder):
     def __init__(self) -> None:
         super().__init__()
         self.num_blocks: Optional[List[Expr | int] | int | Expr] = None
+        self.cluster_blocks: Optional[List[Expr | int] | int | Expr] = None
 
         # built function
         self._built_function: Optional[Function] = None

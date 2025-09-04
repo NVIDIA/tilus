@@ -80,13 +80,13 @@ class LowerParamOnlyExprRewriter(IRRewriter):
     def visit_Function(self, func: Function) -> Function:
         self.params = func.params
         body = self.visit(func.body)
-        num_blocks = func.metadata.num_blocks
+        num_blocks = func.metadata.grid_blocks
         num_blocks = (
             self.lower_param_only_param(num_blocks[0]),
             self.lower_param_only_param(num_blocks[1]),
             self.lower_param_only_param(num_blocks[2]),
         )
-        if body is func.body and all(e is t for e, t in zip(func.metadata.num_blocks, num_blocks)):
+        if body is func.body and all(e is t for e, t in zip(func.metadata.grid_blocks, num_blocks)):
             return func
         else:
             return func.with_metadata(func.metadata.with_num_blocks(num_blocks)).with_body(body)

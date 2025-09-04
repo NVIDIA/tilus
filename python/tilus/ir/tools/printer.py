@@ -176,8 +176,8 @@ class IRPrinter(IRFunctor):
 
     def visit_FuncMetadata(self, metadata: Metadata) -> Doc:
         doc = Doc()
-        doc += NewLine() + "num_blocks = [" + self.visit(metadata.num_blocks) + "]"
-        doc += NewLine() + "num_blocks_per_cluster = [" + self.visit(metadata.num_blocks_per_cluster) + "]"
+        doc += NewLine() + "num_blocks = [" + self.visit(metadata.grid_blocks) + "]"
+        doc += NewLine() + "num_blocks_per_cluster = [" + self.visit(metadata.cluster_blocks) + "]"
         doc += NewLine() + "num_warps = " + self.visit(metadata.num_warps)
         if metadata.param2divisibility:
             doc += NewLine() + "param_divisibility = {" + self.visit(metadata.param2divisibility) + "}"

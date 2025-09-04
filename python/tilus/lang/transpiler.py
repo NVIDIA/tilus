@@ -23,7 +23,6 @@ import types
 from typing import Any, Callable, Optional, Sequence, Tuple, Type, Union
 
 from hidet import ir as hidet_ir
-from hidet.ir.analyzers import normalize_launch_dims
 from hidet.ir.expr import Constant, Var, as_expr
 from hidet.ir.primitives.cuda.vars import blockIdx
 from hidet.ir.type import BaseType, data_type
@@ -52,9 +51,9 @@ from tilus.ir.stmt import (
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalTensor, Tensor
+from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
 from tilus.lang.constructs.loops import TilusLoopIterable
 from tilus.lang.script import InstructionError, Script
-from tilus.lang.utils import normalize_blocks_per_cluster
 from tilus.utils import lcm
 
 
@@ -439,8 +438,8 @@ class Transpiler(PythonAstFunctor):
                     "    self.blocks = dim_x, dim_y"
                 )
                 raise TilusProgramError(self, func_def, msg)
-            blocks = [as_expr(dim) for dim in normalize_launch_dims(attrs.blocks)]
-            blocks_per_cluster = normalize_blocks_per_cluster(attrs.blocks_per_cluster)
+            blocks = normalize_grid_blocks(attrs.blocks)
+            blocks_per_cluster = normalize_cluster_blocks(attrs.cluster_blocks)
             if attrs.warps is None:
                 raise TilusProgramError(
                     self, func_def, "Tilus script should set the number of warps via self.warps = ..."
@@ -452,8 +451,8 @@ class Transpiler(PythonAstFunctor):
                 params=func_params,
                 body=scope.flush_stmts(),
                 metadata=Metadata.create(
-                    num_blocks=blocks,
-                    num_blocks_per_cluster=blocks_per_cluster,
+                    grid_blocks=blocks,
+                    cluster_blocks=blocks_per_cluster,
                     block_indices=[blockIdx.x, blockIdx.y, blockIdx.z],  # type: ignore
                     num_warps=warps,
                     divisibility=divisibility,
