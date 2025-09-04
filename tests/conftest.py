@@ -24,14 +24,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from pathlib import Path
-import re
-from typing import Optional, Tuple
 
 import hidet
 import pytest
 import tilus
 import tilus.utils
-from tilus.target import get_current_target, Target
+from tilus.target import Target, get_current_target
 
 
 def requires(target: Target):
@@ -43,6 +41,7 @@ def requires(target: Target):
     target : Target
         The required target architecture. Examples include 'sm_90a', 'sm_80',
     """
+
     def decorator(test_func):
         try:
             required_target = target
@@ -60,7 +59,7 @@ def requires(target: Target):
         except Exception as e:
             # If we can't determine current capability, skip the test
             return pytest.mark.skip(f"Cannot determine current GPU capability: {e}")(test_func)
-    
+
     return decorator
 
 
