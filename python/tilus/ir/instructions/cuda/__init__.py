@@ -20,6 +20,7 @@ from .cp_async import (
     CopyAsyncWaitGroupInst,
 )
 from .ldmatrix import LoadMatrixConfig, LoadMatrixInst
+from .mbarrier import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst
 from .mma_dot import DotInst
 from .semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from .simt_dot import SimtDotInst

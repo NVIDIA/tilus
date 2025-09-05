@@ -156,7 +156,7 @@ def cover(
     """Check whether the multi-function fa covers the multi-function fb.
 
     The size and image size of both multi-functions must be the same. For every x in the domain, if we have
-    fb(x) \subseteq fa(x),
+    fb(x) subset_eq fa(x),
     then we say that fa covers fb. In other words, for every x in the domain of fb, the image of fb at x is a subset
     of the image of fa at x.
 
