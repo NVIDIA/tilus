@@ -211,8 +211,10 @@ class HoistLoopInvariantsRewriter(IRRewriter):
             return stmt
         else:
             sb = StmtBuilder()
-            bind_vars = [hash2var[h] for h in hashes]
-            bind_values = [hash2value[h] for h in hashes]
+            bind_vars, bind_values = [], []
+            for var, value in hash2var.items():
+                bind_vars.append(value)
+                bind_values.append(hash2value[var])
             with sb.lets(bind_vars, bind_values):
                 with sb.for_loop(stmt.loop_var, stmt.extent, str(stmt.attr)):
                     sb += body
