@@ -447,7 +447,10 @@ class Codegen(IRFunctor):
             name=func.name + "_kernel",
             kind="cuda_kernel" if is_nvgpu() else "hip_kernel",
             label="",
-            grid_dim=self._function.metadata.num_blocks,
+            grid_dim=self._function.metadata.grid_blocks,
+            cluster_dim=self._function.metadata.cluster_blocks
+            if self._function.metadata.cluster_blocks != (1, 1, 1)
+            else None,
             block_dim=func.metadata.num_warps * 32,
             dynamic_smem_bytes=None,
             min_blocks=None,

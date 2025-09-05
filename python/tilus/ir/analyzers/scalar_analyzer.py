@@ -436,8 +436,8 @@ def analyze_scalar(func: Function) -> Function:
 
     # update the scalar set of built-in variables
     for i, var in enumerate(metadata.block_indices):  # type: ignore
-        if isinstance(metadata.num_blocks[i], Constant):
-            var2set[var] = ScalarSet(lower_bound=0, upper_bound=int(metadata.num_blocks[i]) - 1)
+        if isinstance(metadata.grid_blocks[i], Constant):
+            var2set[var] = ScalarSet(lower_bound=0, upper_bound=int(metadata.grid_blocks[i]) - 1)
         else:
             var2set[var] = ScalarSet(lower_bound=0)
 

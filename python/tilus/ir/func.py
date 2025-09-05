@@ -44,7 +44,8 @@ class Analysis:
 
 @dataclass(frozen=True)
 class Metadata:
-    num_blocks: tuple[Expr, Expr, Expr]
+    grid_blocks: tuple[Expr, Expr, Expr]
+    cluster_blocks: tuple[int, int, int]
     block_indices: tuple[Var, Var, Var]
     num_warps: int
     param2divisibility: frozendict[Var, int]
@@ -52,16 +53,18 @@ class Metadata:
 
     @staticmethod
     def create(
-        num_blocks: Sequence[Expr],
+        grid_blocks: Sequence[Expr],
+        cluster_blocks: Sequence[int],
         block_indices: Sequence[Var],
         num_warps: int,
         divisibility: Optional[Mapping[Var, int]] = None,
         analysis: Optional[Analysis] = None,
     ) -> Metadata:
-        assert len(num_blocks) == 3 and len(block_indices) == 3
+        assert len(grid_blocks) == 3 and len(block_indices) == 3 and len(cluster_blocks) == 3
 
         return Metadata(
-            num_blocks=(num_blocks[0], num_blocks[1], num_blocks[2]),
+            grid_blocks=(grid_blocks[0], grid_blocks[1], grid_blocks[2]),
+            cluster_blocks=(cluster_blocks[0], cluster_blocks[1], cluster_blocks[2]),
             block_indices=(block_indices[0], block_indices[1], block_indices[2]),
             num_warps=num_warps,
             param2divisibility=frozendict(divisibility) if divisibility else frozendict(),
@@ -71,8 +74,8 @@ class Metadata:
     def with_analysis(self, analysis: Optional[Analysis]) -> Metadata:
         return dataclasses.replace(self, analysis=analysis)
 
-    def with_num_blocks(self, num_blocks: tuple[Expr, Expr, Expr]) -> Metadata:
-        return dataclasses.replace(self, num_blocks=num_blocks)
+    def with_num_blocks(self, grid_blocks: tuple[Expr, Expr, Expr]) -> Metadata:
+        return dataclasses.replace(self, grid_blocks=grid_blocks)
 
 
 @dataclass(frozen=True, eq=False)
