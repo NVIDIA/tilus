@@ -440,9 +440,22 @@ class LowerSubbyteTypeRewriter(IRRewriter):
             return super().visit_DeclareStmt(stmt)
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> Stmt:
-        if isinstance(stmt.var.type, PointerType) and is_subbyte(get_base_type(stmt.var.type)):
+        if isinstance(stmt.var.type, (PointerType, TensorPointerType, TensorType)) and is_subbyte(
+            get_base_type(stmt.var.type)
+        ):
+            sb = StmtBuilder()
+            lhs_uint8_pointer = self.uint8_pointer[stmt.var]
+            lhs_bit_offset = self.bit_offset[stmt.var]
+            assert isinstance(lhs_uint8_pointer, Var)
+            assert isinstance(lhs_bit_offset, Var)
+            value_uint8_pointer, value_bit_offset = self.get_byte_and_bit_offset(stmt.value)
+            sb.assign(lhs_uint8_pointer, value=value_uint8_pointer)
+            sb.assign(lhs_bit_offset, value=value_bit_offset)
+            return sb.finish()
+        elif isinstance(stmt.var.type, DataType) and is_subbyte(stmt.var.type):
             raise NotImplementedError()
-        return super().visit_AssignStmt(stmt)
+        else:
+            return super().visit_AssignStmt(stmt)
 
     def visit_LetStmt(self, stmt: LetStmt) -> Stmt:
         bind_vars = []
