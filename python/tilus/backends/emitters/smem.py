@@ -18,7 +18,7 @@ from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.type import tensor_pointer_type
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst, SharedIndexInst, SharedSliceInst
+from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst, SharedSliceInst
 from tilus.ir.tensor import SharedTensor
 
 
@@ -62,13 +62,3 @@ class SharedSliceInstEmitter(BaseInstEmitter):
             tp=int32,
             init=self.shared_tensor_shared_space_addr[shared_input] + slice_offset * shared_input.dtype.nbytes,
         )
-
-
-@register_emitter(SharedIndexInst)
-class SharedIndexInstEmitter(BaseInstEmitter):
-    def emit(self, inst: SharedIndexInst) -> None:
-        dst = inst.dst
-        tensor = inst.shared_input
-        var = self.get_or_allocate_var(tensor)
-        offset = tensor.layout(*inst.indices)
-        self.assign(dst, value=var[offset])

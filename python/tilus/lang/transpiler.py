@@ -911,13 +911,9 @@ class Transpiler(PythonAstFunctor):
             sb = StmtBuilder()
             if len(slice_dims) == 0:
                 # indexing
-                val = sb.declare(type=base.dtype, hint="val")
-                if isinstance(base, GlobalTensor):
-                    sb.index_global(dst=val, tensor=base, indices=offsets)
-                else:
-                    sb.index_shared(dst=val, tensor=base, indices=offsets)
+                var = sb.tensor_element_value(base, indices)
                 self.current_scope.append(sb.flush_stmts())
-                return val
+                return var
             else:
                 # slicing
                 sliced_tensor: Union[GlobalTensor, SharedTensor]
@@ -1137,6 +1133,32 @@ class Transpiler(PythonAstFunctor):
     def visit_UnaryOp(
         self, expr: ast.UnaryOp
     ) -> Union[RegisterTensor, hidet_ir.Node, hidet_ir.BaseType, float, int, str]:
+        if (
+            isinstance(expr.op, ast.Invert)
+            and isinstance(expr.operand, ast.Subscript)
+            and isinstance(expr.operand.value, ast.Name)
+        ):
+            # handle the following syntax specially
+            #  ~tensor[i, j, ...]
+            # which gets the address of an element in global/shared tensor
+            buf = self.visit(expr.operand.value)
+            if isinstance(buf, (GlobalTensor, SharedTensor)):
+                indices = self.visit(expr.operand.slice)
+                if not isinstance(indices, Sequence):
+                    indices = [indices]
+                if len(indices) != len(buf.shape):
+                    raise HidetProgramError(
+                        self,
+                        expr.operand,
+                        "Index dimension {} does not match tensor shape {}.".format(len(indices), buf.shape),
+                    )
+                sb = StmtBuilder()
+                ptr = sb.tensor_element_ptr(buf, indices, space="generic")
+                self.current_scope.append(sb.flush_stmts())
+                return ptr
+            elif isinstance(buf, RegisterTensor):
+                raise ValueError("Can not addressing the element of a RegisterTensor.")
+
         value = self.visit(expr.operand)
         if isinstance(value, RegisterTensor):
             if isinstance(expr.op, ast.UAdd):

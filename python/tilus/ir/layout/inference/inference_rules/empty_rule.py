@@ -19,14 +19,12 @@ from tilus.ir.instructions import (
     FreeSharedInst,
     GlobalViewInst,
     PrintTensorInst,
-    SharedIndexInst,
     StoreGlobalInst,
 )
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.tensor import Tensor
 
 
-@register_rule(SharedIndexInst)
 @register_rule(PrintTensorInst)
 @register_rule(FormatPrintInst)
 @register_rule(FreeSharedInst)

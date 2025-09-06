@@ -25,7 +25,6 @@ from tilus.ir.instructions import (
     LoadSharedGenericInst,
     LoadSharedInst,
     PrintTensorInst,
-    SharedIndexInst,
     SharedSliceInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
@@ -34,7 +33,6 @@ from tilus.ir.instructions import (
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 
 
-@register_rule(SharedIndexInst)
 @register_rule(CopyAsyncGenericInst)
 @register_rule(CopyAsyncInst)
 @register_rule(StoreGlobalGenericInst)

@@ -25,8 +25,7 @@ from hidet.ir.type import DataType
 
 import tilus.logging
 from tilus.ir.func import Analysis, Function
-from tilus.ir.instructions import SharedIndexInst
-from tilus.ir.stmt import AssignStmt, DeclareStmt, ForStmt, LetStmt, InstStmt
+from tilus.ir.stmt import AssignStmt, DeclareStmt, ForStmt, LetStmt
 from tilus.ir.tools import IRPrinter, collect
 from tilus.utils import gcd
 
@@ -467,13 +466,6 @@ def analyze_scalar(func: Function) -> Function:
                     variables.append(bind_var)
         else:
             raise NotImplementedError()
-
-    # we are not interested in variables used in the following places
-    for stmt in collect(func, types=[InstStmt]):
-        assert isinstance(stmt, InstStmt)
-        if isinstance(stmt.inst, SharedIndexInst):
-            if stmt.inst.dst in variables:
-                del variables[variables.index(stmt.inst.dst)]
 
     # initialize the scalar set of variables defined in the function body to be empty set
     for var in variables:

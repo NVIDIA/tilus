@@ -36,7 +36,8 @@ from tilus.ir.stmt import (
     LetStmt,
     ReturnStmt,
     SeqStmt,
-    TensorPtrStmt,
+    TensorElemPtrStmt,
+    TensorElemValueStmt,
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalLayout, GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
@@ -274,12 +275,7 @@ class IRPrinter(IRFunctor):
         return NewLine() + Text("return")
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> Doc:
-        ret = (
-            NewLine()
-            + Text("declare ")
-            + self.visit(stmt.var)
-            + ": "
-            + self.printer(stmt.var.type))
+        ret = NewLine() + Text("declare ") + self.visit(stmt.var) + ": " + self.printer(stmt.var.type)
         if stmt.init is not None:
             ret += " = " + self.visit(stmt.init)
         return ret
@@ -302,17 +298,35 @@ class IRPrinter(IRFunctor):
     def visit_AssignStmt(self, stmt: AssignStmt) -> Doc:
         return NewLine() + self.visit(stmt.var) + " = " + self.visit(stmt.value)
 
-    def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> Doc:
-        return (
+    def visit_TensorElemPtrStmt(self, stmt: TensorElemPtrStmt) -> Doc:
+        doc = Doc()
+        doc += (
             NewLine()
             + self.visit(stmt.ptr_var)
             + ": "
             + self.printer(stmt.ptr_var.type)
             + " = "
-            + "addr("
+            + "~"
             + self.visit(stmt.tensor)
-            + ")"
         )
+        if stmt.indices is not None:
+            doc += "[" + self.visit(stmt.indices) + "]"
+        return doc
+
+    def visit_TensorElemValueStmt(self, stmt: TensorElemValueStmt) -> Any:
+        doc = Doc()
+        doc += (
+            NewLine()
+            + self.visit(stmt.var)
+            + ": "
+            + self.printer(stmt.var.type)
+            + " = "
+            + self.visit(stmt.tensor)
+            + "["
+            + self.visit(stmt.indices)
+            + "]"
+        )
+        return doc
 
     def visit_Instruction(self, inst: Instruction) -> Doc:
         doc = Doc()

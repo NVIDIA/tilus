@@ -16,7 +16,7 @@ from hidet.ir.expr import Expr
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.ir import GlobalTensor
-from tilus.ir.instructions import AllocateGlobalInst, GlobalIndexInst, GlobalSliceInst, GlobalViewInst
+from tilus.ir.instructions import AllocateGlobalInst, GlobalSliceInst, GlobalViewInst
 from tilus.utils import cdiv
 
 
@@ -35,16 +35,6 @@ class AllocateGlobalInstEmitter(BaseInstEmitter):
         )
         var = self.get_or_allocate_var(tensor)
         self.assign(var, ptr)
-
-
-@register_emitter(GlobalIndexInst)
-class GlobalIndexInstEmitter(BaseInstEmitter):
-    def emit(self, inst: GlobalIndexInst) -> None:
-        dst = inst.dst
-        tensor = inst.inputs[0].as_global_tensor()
-        var = self.get_or_allocate_var(tensor)
-        offset = tensor.layout(*inst.indices)
-        self.assign(dst, value=var[offset])
 
 
 @register_emitter(GlobalSliceInst)

@@ -96,25 +96,6 @@ class GlobalSliceInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class GlobalIndexInst(Instruction):
-    dst: Var
-    indices: tuple[Expr, ...]
-
-    @staticmethod
-    def create(
-        dst: Var,
-        tensor: GlobalTensor,
-        indices: Sequence[Expr],
-    ) -> GlobalIndexInst:
-        return GlobalIndexInst(
-            output=None,
-            inputs=(tensor,),
-            dst=dst,
-            indices=tuple(indices),
-        )
-
-
-@dataclass(frozen=True, eq=False)
 class LoadSharedInst(Instruction):
     @staticmethod
     def create(x: SharedTensor, output: RegisterTensor) -> LoadSharedInst:
@@ -146,25 +127,6 @@ class SharedSliceInst(Instruction):
             inputs=(tensor,),
             offsets=tuple(offsets),
             dims=tuple(dims) if len(dims) < len(tensor.shape) else tuple(range(len(tensor.shape))),
-        )
-
-
-@dataclass(frozen=True, eq=False)
-class SharedIndexInst(Instruction):
-    dst: Var
-    indices: tuple[Expr, ...]
-
-    @staticmethod
-    def create(
-        dst: Var,
-        tensor: SharedTensor,
-        indices: Sequence[Expr],
-    ) -> SharedIndexInst:
-        return SharedIndexInst(
-            output=None,
-            inputs=(tensor,),
-            dst=dst,
-            indices=tuple(indices),
         )
 
 
