@@ -609,7 +609,4 @@ def main():
 
 
 if __name__ == "__main__":
-    tilus.utils.clear_cache()
-    a = tilus.tensor.randn([1000], dtype=tilus.float3_e1m1)
-    # b = a.to(tilus.float16)
-    # main()
+    main()
