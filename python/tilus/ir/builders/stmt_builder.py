@@ -51,6 +51,8 @@ from tilus.ir.instructions.generic import (
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
+    GlobalIndexInst,
+    GlobalSliceInst,
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
@@ -62,6 +64,7 @@ from tilus.ir.instructions.generic import (
     ReduceInst,
     RepeatInst,
     RepeatInterleaveInst,
+    SharedIndexInst,
     SharedSliceInst,
     SqueezeInst,
     StoreGlobalGenericInst,
@@ -285,8 +288,10 @@ class StmtBuilderCore:
         stmt = BreakStmt()
         self._stack[-1].append(stmt)
 
-    def declare(self, type: BaseType, init: Optional[Expr | float | int] = None) -> Var:
-        var = Var("v", type=type)
+    def declare(self, type: BaseType, init: Optional[Expr | float | int] = None, hint: Optional[str] = None) -> Var:
+        if hint is not None:
+            hint = "v"
+        var = Var(hint, type=type)
         self.append(DeclareStmt(var, as_expr(init) if init is not None else None))
         return var
 
@@ -363,6 +368,33 @@ class StmtBuilder(StmtBuilderCore):
         )
         self.append(inst)
         return inst.global_output
+
+    def slice_global(
+        self,
+        tensor: GlobalTensor,
+        offsets: Sequence[Expr | int],
+        slice_dims: Sequence[int],
+        slice_shape: Sequence[Expr | int],
+    ) -> GlobalTensor:
+        offsets_ = [as_expr(offset) for offset in offsets]
+        inst = GlobalSliceInst.create(
+            tensor=tensor,
+            offsets=offsets_,
+            dims=slice_dims,
+            shape=slice_shape,
+        )
+        self.append(inst)
+        return inst.global_output
+
+    def index_global(
+        self,
+        dst: Var,
+        tensor: GlobalTensor,
+        indices: Sequence[Expr | int],
+    ) -> None:
+        indices_ = [as_expr(index) for index in indices]
+        inst = GlobalIndexInst.create(dst=dst, tensor=tensor, indices=indices_)
+        self.append(inst)
 
     def assign_register(self, output: RegisterTensor, x: RegisterTensor) -> None:
         inst = AssignInst.create(output, x)
@@ -722,7 +754,7 @@ class StmtBuilder(StmtBuilderCore):
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
 
-    def shared_slice(
+    def slice_shared(
         self,
         tensor: SharedTensor,
         offsets: Sequence[Expr | int],
@@ -738,6 +770,16 @@ class StmtBuilder(StmtBuilderCore):
         )
         self.append(inst)
         return inst.shared_output
+
+    def index_shared(
+        self,
+        dst: Var,
+        tensor: SharedTensor,
+        indices: Sequence[Expr | int],
+    ) -> None:
+        indices_ = [as_expr(index) for index in indices]
+        inst = SharedIndexInst.create(dst=dst, tensor=tensor, indices=indices_)
+        self.append(inst)
 
     def load_shared(
         self,

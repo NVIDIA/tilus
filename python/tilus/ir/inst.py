@@ -61,6 +61,13 @@ class Instruction(IRNode):
         return x
 
     @property
+    def global_input(self) -> GlobalTensor:
+        assert len(self.inputs) == 1
+        x = self.inputs[0]
+        assert isinstance(x, GlobalTensor)
+        return x
+
+    @property
     def attributes(self) -> dict[str, Any]:
         attrs = {}
         for k, v in self.__dict__.items():

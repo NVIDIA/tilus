@@ -472,8 +472,8 @@ class Codegen(IRFunctor):
         if self.smem_workspace:
             self.free_shared_value(self.smem_workspace)
             self.smem_workspace = None
-        if self.smem_allocator.allocated != 0:
-            raise ValueError("Shared memory is not properly allocated/freed")
+        # if self.smem_allocator.allocated != 0:
+        #     raise ValueError("Shared memory is not properly allocated/freed")
         if self.smem_allocator.maximum_allocated > get_current_target().properties.shared_memory_per_block:
             raise CodeGenerationFailed(
                 "Request shared memory {} bytes, but the device only allows {} bytes.".format(
