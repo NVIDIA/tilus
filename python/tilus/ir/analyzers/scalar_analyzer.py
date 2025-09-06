@@ -25,7 +25,8 @@ from hidet.ir.type import DataType
 
 import tilus.logging
 from tilus.ir.func import Analysis, Function
-from tilus.ir.stmt import AssignStmt, DeclareStmt, ForStmt, LetStmt
+from tilus.ir.instructions import SharedIndexInst
+from tilus.ir.stmt import AssignStmt, DeclareStmt, ForStmt, LetStmt, InstStmt
 from tilus.ir.tools import IRPrinter, collect
 from tilus.utils import gcd
 
@@ -147,6 +148,10 @@ class ScalarSet:
     @staticmethod
     def empty_set() -> ScalarSet:
         return ScalarSet(lower_bound=0, upper_bound=-1)
+
+    @staticmethod
+    def universal_set() -> ScalarSet:
+        return ScalarSet(lower_bound=None, upper_bound=None, divisibility=1)
 
     def __eq__(self, other: ScalarSet) -> bool:
         if self.is_empty() and other.is_empty():
@@ -462,6 +467,13 @@ def analyze_scalar(func: Function) -> Function:
                     variables.append(bind_var)
         else:
             raise NotImplementedError()
+
+    # we are not interested in variables used in the following places
+    for stmt in collect(func, types=[InstStmt]):
+        assert isinstance(stmt, InstStmt)
+        if isinstance(stmt.inst, SharedIndexInst):
+            if stmt.inst.dst in variables:
+                del variables[variables.index(stmt.inst.dst)]
 
     # initialize the scalar set of variables defined in the function body to be empty set
     for var in variables:

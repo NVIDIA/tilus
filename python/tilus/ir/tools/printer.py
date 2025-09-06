@@ -274,15 +274,15 @@ class IRPrinter(IRFunctor):
         return NewLine() + Text("return")
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> Doc:
-        return (
+        ret = (
             NewLine()
             + Text("declare ")
             + self.visit(stmt.var)
             + ": "
-            + self.printer(stmt.var.type)
-            + " = "
-            + self.visit(stmt.init)
-        )
+            + self.printer(stmt.var.type))
+        if stmt.init is not None:
+            ret += " = " + self.visit(stmt.init)
+        return ret
 
     def visit_LetStmt(self, stmt: LetStmt) -> Doc:
         doc = Doc()
