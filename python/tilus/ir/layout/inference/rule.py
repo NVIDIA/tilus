@@ -126,7 +126,7 @@ def get_inference_rules(inst: Type[Instruction] | Instruction) -> list[Type[Layo
                 _inference_rules[inst_cls] = _inference_rules[parent_cls]
                 break
         else:
-            raise ValueError(f"No layout inference rule registered for {bold(inst_cls.__name__)}")
+            return []
     return _inference_rules[inst_cls].copy()
 
 

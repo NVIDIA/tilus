@@ -631,7 +631,7 @@ class Script:
             if dims is None:
                 assert len(src.shape) == len(dst.shape)
                 dims = list(range(len(src.shape)))
-            dst = self._builder.shared_slice(dst, offsets=offsets, slice_dims=dims, slice_shape=src.shape)
+            dst = self._builder.slice_shared(dst, offsets=offsets, slice_dims=dims, slice_shape=src.shape)
         self._builder.store_shared(dst=dst, src=src)
 
     def free_shared(self, tensor: SharedTensor) -> None:

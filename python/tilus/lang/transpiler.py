@@ -890,7 +890,7 @@ class Transpiler(PythonAstFunctor):
             slice_dims = []
             for dim, idx in enumerate(indices):
                 if isinstance(idx, slice):
-                    if idx.start is not None or idx.end is not None:
+                    if idx.start is not None or idx.stop is not None:
                         if not isinstance(idx.start, (int, hidet_ir.Expr)):
                             raise TilusProgramError(
                                 self,
@@ -905,23 +905,33 @@ class Transpiler(PythonAstFunctor):
 
             sb = StmtBuilder()
             if len(slice_dims) == 0:
-                ptr = sb.tensor_ptr(tensor=base)
-                offset = base.layout(*offsets)
+                # indexing
+                val = sb.declare(type=base.dtype, hint="val")
+                if isinstance(base, GlobalTensor):
+                    sb.index_global(dst=val, tensor=base, indices=offsets)
+                else:
+                    sb.index_shared(dst=val, tensor=base, indices=offsets)
                 self.current_scope.append(sb.flush_stmts())
-                return ptr[offset]
+                return val
             else:
                 # slicing
+                sliced_tensor: Union[GlobalTensor, SharedTensor]
                 if isinstance(base, GlobalTensor):
-                    raise NotImplementedError("Global tensor slicing is not implemented yet.")
-                else:
-                    sliced_tensor = sb.shared_slice(
+                    sliced_tensor = sb.slice_global(
                         tensor=base,
                         offsets=offsets,
                         slice_dims=slice_dims,
                         slice_shape=[base.shape[dim] for dim in slice_dims],
                     )
-                    self.current_scope.append(sb.flush_stmts())
-                    return sliced_tensor
+                else:
+                    sliced_tensor = sb.slice_shared(
+                        tensor=base,
+                        offsets=offsets,
+                        slice_dims=slice_dims,
+                        slice_shape=[base.shape[dim] for dim in slice_dims],
+                    )
+                self.current_scope.append(sb.flush_stmts())
+                return sliced_tensor
         elif isinstance(base, RegisterTensor):
             raise TilusProgramError(self, expr, "Tilus Script does not support indexing/slicing on RegisterTensor.")
         else:
@@ -1185,3 +1195,10 @@ class Transpiler(PythonAstFunctor):
         if stmt.value is not None:
             raise TilusProgramError(self, stmt, "Return statement in Tilus Script does not support returning a value.")
         self.current_scope.append(ReturnStmt())
+
+    def visit_Slice(self, expr: ast.Slice) -> slice:
+        return slice(
+            self.visit(expr.lower) if expr.lower is not None else None,
+            self.visit(expr.upper) if expr.upper is not None else None,
+            self.visit(expr.step) if expr.step is not None else None,
+        )
