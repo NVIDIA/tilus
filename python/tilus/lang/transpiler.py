@@ -882,10 +882,6 @@ class Transpiler(PythonAstFunctor):
                 indices = [indices]
             else:
                 indices = list(indices)
-            while len(indices) < len(base.shape):
-                indices.append(0)
-            if len(indices) > len(base.shape):
-                raise TilusProgramError(self, expr, "Too many indices for tensor of shape {}.".format(base.shape))
             offsets = []
             slice_dims = []
             for dim, idx in enumerate(indices):
@@ -902,6 +898,15 @@ class Transpiler(PythonAstFunctor):
                     slice_dims.append(dim)
                 else:
                     offsets.append(idx)
+
+            if len(offsets) < len(base.shape):
+                dim = len(offsets)
+                while len(offsets) < len(base.shape):
+                    offsets.append(0)
+                    slice_dims.append(dim)
+                    dim += 1
+            if len(indices) > len(base.shape):
+                raise TilusProgramError(self, expr, "Too many indices for tensor of shape {}.".format(base.shape))
 
             sb = StmtBuilder()
             if len(slice_dims) == 0:
