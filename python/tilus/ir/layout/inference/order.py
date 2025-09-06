@@ -17,6 +17,7 @@ from typing import Type
 from tilus.ir.layout.inference.rule import LayoutInferenceRule
 from tilus.utils import initialize
 
+from .inference_rules.allocate_shared import AllocateSharedRule
 from .inference_rules.assign import AssignRule
 from .inference_rules.cp_async import CopyAsyncRule
 from .inference_rules.elementwise_binary import BinaryRule
@@ -52,6 +53,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [CopyAsyncRule],
     [LoadSharedInferRegisterRule],
     [LoadSharedInferRowMajorSharedRule],
+    [AllocateSharedRule],
 ]
 
 rule2order: dict[Type[LayoutInferenceRule], int] = {}
