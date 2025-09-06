@@ -218,3 +218,43 @@ def global_strides(shape: Sequence[Expr | int], strides: Sequence[Expr | int]) -
         return sum([axes[i] * strides[i] for i in range(len(shape))], start=int32.zero)
 
     return GlobalLayout.create(shape=shape, size=prod(shape), f_offset=f_offset)
+
+
+def global_slice(
+    layout: GlobalLayout, offsets: Sequence[Expr | int], dims: Sequence[int], shape: Sequence[Expr | int]
+) -> GlobalLayout:
+    """Create a sliced global layout from an existing layout.
+
+    This function creates a new global layout by slicing an existing global layout. The slicing is defined by the
+    specified offsets, dimensions to slice, and the shape of the resulting layout. The new layout retains the mapping
+    function of the original layout, adjusted for the specified offsets and dimensions.
+
+    Parameters
+    ----------
+    layout: GlobalLayout
+        The original global layout to be sliced.
+    offsets: Sequence[Expr | int]
+        The offsets for each dimension of the original layout. It should have the same length as the original layout's
+        shape.
+    dims: Sequence[int]
+        The dimensions to be sliced from the original layout. Each dimension should be a valid index in the original
+        layout's shape.
+    shape: Sequence[Expr | int]
+        The shape of the resulting sliced global layout. It should have the same length as the number of dimensions
+        specified in `dims`.
+
+    Returns
+    -------
+    ret: GlobalLayout
+        A new global layout that represents the sliced version of the original layout, with the specified shape and
+        adjusted mapping function.
+    """
+    assert len(dims) == len(shape) <= len(layout.shape) == len(offsets)
+
+    def f_offset(axes: Sequence[Var]) -> Expr:
+        indices = list(offsets)
+        for dim, axis in zip(dims, axes):
+            indices[dim] = axis + offsets[dim]
+        return layout(*indices) - layout(*offsets)  # type: ignore[arg-type]
+
+    return GlobalLayout.create(shape=shape, size=prod(shape), f_offset=f_offset)
