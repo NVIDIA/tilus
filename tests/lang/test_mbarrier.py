@@ -1,6 +1,5 @@
-import torch
-
 import tilus
+import torch
 from tilus import int32, uint64
 
 
@@ -24,19 +23,14 @@ class DemoBarrier(tilus.Script):
         phase: int32 = 0
         for bi in self.range(0, n, self.block_size):
             self.store_shared(
-                dst=s_x,
-                src=self.load_global(g_x, offsets=[bi * self.block_size], shape=[self.block_size])
+                dst=s_x, src=self.load_global(g_x, offsets=[bi * self.block_size], shape=[self.block_size])
             )
 
             self.arrive_barrier(~barriers[0])
             self.wait_barrier(~barriers[0], phase)
             phase ^= 1
 
-            self.store_global(
-                dst=g_y,
-                src=self.load_shared(s_x) + 1,
-                offsets=[bi * self.block_size]
-            )
+            self.store_global(dst=g_y, src=self.load_shared(s_x) + 1, offsets=[bi * self.block_size])
 
             self.arrive_barrier(~barriers[0])
             self.wait_barrier(~barriers[0], phase)
@@ -51,4 +45,3 @@ def test_mbarrier():
     kernel(n, x, y)
     torch.cuda.synchronize()
     torch.testing.assert_close(y, x + 1)
-
