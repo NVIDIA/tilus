@@ -27,16 +27,20 @@ from hidet.utils import same_list
 from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.instructions.annotation import AnnotateLayoutInst
 from tilus.ir.instructions.cuda import (
+    ArriveBarrierInst,
+    ArriveRemoteBarrierInst,
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
     DotInst,
+    InitBarrierInst,
     LoadMatrixConfig,
     LoadMatrixInst,
     LockSemaphoreInst,
     ReleaseSemaphoreInst,
+    WaitBarrierInst,
 )
 from tilus.ir.instructions.generic import (
     AddInst,
@@ -942,6 +946,23 @@ class StmtBuilder(StmtBuilderCore):
 
     def exit(self) -> None:
         inst = ExitInst.create()
+        self.append(inst)
+
+    # barrier
+    def init_barrier(self, barrier: Expr, count: Expr) -> None:
+        inst = InitBarrierInst.create(barrier=barrier, count=count)
+        self.append(inst)
+
+    def arrive_barrier(self, barrier: Expr) -> None:
+        inst = ArriveBarrierInst.create(barrier=barrier)
+        self.append(inst)
+
+    def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr) -> None:
+        inst = ArriveRemoteBarrierInst.create(barrier=barrier, remote_block=remote_block)
+        self.append(inst)
+
+    def wait_barrier(self, barrier: Expr, phase: Expr) -> None:
+        inst = WaitBarrierInst.create(barrier=barrier, phase=phase)
         self.append(inst)
 
     # annotations
