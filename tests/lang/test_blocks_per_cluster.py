@@ -1,5 +1,4 @@
 import tilus
-from tilus.target import nvgpu_sm80, nvgpu_sm90
 from tilus.testing.requires import requires
 
 
@@ -16,13 +15,13 @@ class DemoBlockCluster(tilus.Script):
         self.printf("blockIdx: [%d, %d, %d]\n", self.blockIdx.x, self.blockIdx.y, self.blockIdx.z)
 
 
-@requires(nvgpu_sm90)
+@requires.nvgpu_sm90
 def test_script_blocks_per_cluster_post_sm90():
     kernel = DemoBlockCluster((2, 2, 1))
     kernel()
 
 
-@requires(nvgpu_sm80)
+@requires.nvgpu_sm80
 def test_script_blocks_per_cluster_pre_sm90():
     kernel = DemoBlockCluster((1, 1, 1))
     kernel()

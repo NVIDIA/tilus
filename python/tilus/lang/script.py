@@ -17,7 +17,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir.dtypes import boolean
+from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
 from hidet.ir.tools import infer_type
@@ -1626,6 +1626,67 @@ class Script:
         if dst.dtype != src.dtype:
             raise InstructionError("The dtypes of dst and src must match, got {} and {}".format(dst.dtype, src.dtype))
         self._builder.assign_register(dst, src)
+
+    def init_barrier(self, barrier: Expr, count: Expr | int) -> None:
+        """Initialize a barrier.
+
+        This instruction initializes a memory barrier in shared memory. The `barrier` parameter must be an addressable
+        expression whose address is in shared memory and aligned to 8 bytes. The barrier itself must be of type uint64.
+
+        Parameters
+        ----------
+        barrier: Expr
+            The pointer to the barrier in shared memory.
+        count: Expr | int
+            The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
+            to a positive int32.
+        """
+        self._builder.init_barrier(barrier, count if isinstance(count, Expr) else int32(count))
+
+    def arrive_barrier(self, barrier: Expr) -> None:
+        """Arrive at a barrier.
+
+        This instruction indicates that the thread block (or the current partition of the thread block) has reached the
+        specified barrier.
+
+        Parameters
+        ----------
+        barrier: Expr
+            The pointer to the barrier in shared memory.
+        """
+        self._builder.arrive_barrier(barrier)
+
+    def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr) -> None:
+        """Arrive at a remote barrier.
+
+        This instruction indicates that a remote thread block has reached the specified barrier. It is used for
+        inter-block synchronization, allowing one thread block to signal another thread block that it has reached a
+        barrier.
+
+        Parameters
+        ----------
+        barrier: Expr
+            The pointer to the barrier in shared memory.
+        remote_block: Expr
+            The thread block index of the remote thread block that the current block is signaling the arrival to. It
+            should be an expression that evaluates to a non-negative int32.
+        """
+        self._builder.arrive_remote_barrier(barrier, remote_block)
+
+    def wait_barrier(self, barrier: Expr, phase: Expr | int) -> None:
+        """Wait at a barrier.
+
+        This instruction makes the thread block (or the current partition of the thread block) wait at the specified
+        barrier until the entire thread block (or the current partition) has arrived at the barrier.
+
+        Parameters
+        ----------
+        barrier: Expr
+            The pointer to the barrier in shared memory.
+        phase: Expr | int
+            The phase value to wait for. It must be evaluated to either 0 or 1.
+        """
+        self._builder.wait_barrier(barrier, phase if isinstance(phase, Expr) else int32(phase))
 
     @staticmethod
     def static_assert(cond: bool | Expr, msg: str) -> None:

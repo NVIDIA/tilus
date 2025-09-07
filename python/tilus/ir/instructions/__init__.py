@@ -16,17 +16,21 @@ from tilus.ir.inst import Instruction
 
 from .annotation import AnnotateLayoutInst
 from .cuda import (
+    ArriveBarrierInst,
+    ArriveRemoteBarrierInst,
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
     DotInst,
+    InitBarrierInst,
     LoadMatrixConfig,
     LoadMatrixInst,
     LockSemaphoreInst,
     ReleaseSemaphoreInst,
     SimtDotInst,
+    WaitBarrierInst,
 )
 from .generic import (
     AddInst,
