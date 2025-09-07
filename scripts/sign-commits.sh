@@ -18,11 +18,10 @@ if [ -z "$UNSIGNED_COMMITS" ]; then
     exit 0
 fi
 
-# Sign each unsigned commit with GPG
+# Sign all unsigned commits in one rebase
 echo "Signing the following commits with GPG:"
-for commit in $UNSIGNED_COMMITS; do
-    git rebase --onto $commit^ $commit --exec "git commit --amend -S --no-edit"
-done
+echo "$UNSIGNED_COMMITS"
+git rebase --exec "git commit --amend -S --no-edit" $BASE
 
 # Print signed commits
 for commit in $UNSIGNED_COMMITS; do
