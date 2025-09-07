@@ -34,7 +34,8 @@ from tilus.ir.stmt import (
     ReturnStmt,
     SeqStmt,
     Stmt,
-    TensorPtrStmt,
+    TensorElemPtrStmt,
+    TensorElemValueStmt,
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor
@@ -105,8 +106,10 @@ class IRFunctor:
             ret = self.visit_LetStmt(node)
         elif isinstance(node, AssignStmt):
             ret = self.visit_AssignStmt(node)
-        elif isinstance(node, TensorPtrStmt):
-            ret = self.visit_TensorPtrStmt(node)
+        elif isinstance(node, TensorElemPtrStmt):
+            ret = self.visit_TensorElemPtrStmt(node)
+        elif isinstance(node, TensorElemValueStmt):
+            ret = self.visit_TensorElemValueStmt(node)
         # scalar expression and type
         elif isinstance(node, Expr):
             ret = self.visit_Expr(node)
@@ -205,7 +208,10 @@ class IRFunctor:
     def visit_AssignStmt(self, stmt: AssignStmt) -> Any:
         raise NotImplementedError()
 
-    def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> Any:
+    def visit_TensorElemPtrStmt(self, stmt: TensorElemPtrStmt) -> Any:
+        raise NotImplementedError()
+
+    def visit_TensorElemValueStmt(self, stmt: TensorElemValueStmt) -> Any:
         raise NotImplementedError()
 
     # tensors and layouts
@@ -349,12 +355,21 @@ class IRRewriter(IRFunctor):
         else:
             return AssignStmt(stmt.var, value)
 
-    def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> Stmt:
+    def visit_TensorElemPtrStmt(self, stmt: TensorElemPtrStmt) -> Stmt:
         tensor = self.visit(stmt.tensor)
-        if tensor is stmt.tensor:
+        indices = self.visit(stmt.indices)
+        if tensor is stmt.tensor and indices is stmt.indices:
             return stmt
         else:
-            return TensorPtrStmt(stmt.ptr_var, tensor, stmt.space)
+            return TensorElemPtrStmt(stmt.ptr_var, tensor, indices, stmt.space)
+
+    def visit_TensorElemValueStmt(self, stmt: TensorElemValueStmt) -> Stmt:
+        tensor = self.visit(stmt.tensor)
+        indices = self.visit(stmt.indices)
+        if tensor is stmt.tensor and indices is stmt.indices:
+            return stmt
+        else:
+            return TensorElemValueStmt(stmt.var, tensor, indices)
 
     def visit_WhileStmt(self, stmt: WhileStmt) -> Stmt:
         cond = self.visit(stmt.cond)
@@ -494,9 +509,15 @@ class IRVisitor(IRFunctor):
         self.visit(stmt.var)
         self.visit(stmt.value)
 
-    def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> None:
+    def visit_TensorElemPtrStmt(self, stmt: TensorElemPtrStmt) -> None:
         self.visit(stmt.ptr_var)
         self.visit(stmt.tensor)
+        self.visit(stmt.indices)
+
+    def visit_TensorElemValueStmt(self, stmt: TensorElemValueStmt) -> None:
+        self.visit(stmt.var)
+        self.visit(stmt.tensor)
+        self.visit(stmt.indices)
 
     # values
 

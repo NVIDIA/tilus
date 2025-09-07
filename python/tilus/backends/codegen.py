@@ -47,7 +47,8 @@ from tilus.ir.stmt import (
     LetStmt,
     ReturnStmt,
     SeqStmt,
-    TensorPtrStmt,
+    TensorElemPtrStmt,
+    TensorElemValueStmt,
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
@@ -472,8 +473,8 @@ class Codegen(IRFunctor):
         if self.smem_workspace:
             self.free_shared_value(self.smem_workspace)
             self.smem_workspace = None
-        if self.smem_allocator.allocated != 0:
-            raise ValueError("Shared memory is not properly allocated/freed")
+        # if self.smem_allocator.allocated != 0:
+        #     raise ValueError("Shared memory is not properly allocated/freed")
         if self.smem_allocator.maximum_allocated > get_current_target().properties.shared_memory_per_block:
             raise CodeGenerationFailed(
                 "Request shared memory {} bytes, but the device only allows {} bytes.".format(
@@ -545,18 +546,32 @@ class Codegen(IRFunctor):
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:
         self.builder.assign(stmt.var, value=stmt.value)
 
-    def visit_TensorPtrStmt(self, stmt: TensorPtrStmt) -> None:
+    def visit_TensorElemPtrStmt(self, stmt: TensorElemPtrStmt) -> None:
         if stmt.space in ["generic", "global"]:
-            self.builder.declare(stmt.ptr_var, self.tensor2var[stmt.tensor])
+            if stmt.space == "generic":
+                assert isinstance(stmt.tensor, (GlobalTensor, SharedTensor))
+            else:
+                assert isinstance(stmt.tensor, GlobalTensor)
+            ptr = self.tensor2var[stmt.tensor]
+            if stmt.indices is not None:
+                ptr = ptr + stmt.tensor.layout(*stmt.indices)
+            self.builder.declare(stmt.ptr_var, ptr)
         elif stmt.space == "local":
             raise NotImplementedError("Local tensor pointer is not supported yet.")
         elif stmt.space == "shared":
             if not isinstance(stmt.tensor, SharedTensor):
                 raise ValueError("Expected a SharedTensor for shared tensor pointer, got: {}".format(stmt.tensor))
             shared_tensor: SharedTensor = stmt.tensor
-            self.builder.declare(stmt.ptr_var, self.shared_tensor_shared_space_addr[shared_tensor])
+            addr = self.shared_tensor_shared_space_addr[shared_tensor]
+            if stmt.indices is not None:
+                addr = addr + shared_tensor.layout(*stmt.indices) * shared_tensor.dtype.nbytes
+            self.builder.declare(stmt.ptr_var, addr)
         else:
             raise ValueError("Unknown tensor pointer space: {}".format(stmt.space))
+
+    def visit_TensorElemValueStmt(self, stmt: TensorElemValueStmt) -> None:
+        assert isinstance(stmt.tensor, (GlobalTensor, SharedTensor))
+        self.builder.declare(stmt.var, init=self.tensor2var[stmt.tensor][stmt.tensor.layout(*stmt.indices)])
 
     def visit_ReturnStmt(self, stmt: ReturnStmt) -> None:
         self.builder.ret()

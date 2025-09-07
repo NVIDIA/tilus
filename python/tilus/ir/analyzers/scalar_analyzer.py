@@ -148,6 +148,10 @@ class ScalarSet:
     def empty_set() -> ScalarSet:
         return ScalarSet(lower_bound=0, upper_bound=-1)
 
+    @staticmethod
+    def universal_set() -> ScalarSet:
+        return ScalarSet(lower_bound=None, upper_bound=None, divisibility=1)
+
     def __eq__(self, other: ScalarSet) -> bool:
         if self.is_empty() and other.is_empty():
             return True

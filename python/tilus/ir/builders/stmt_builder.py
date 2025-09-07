@@ -51,6 +51,7 @@ from tilus.ir.instructions.generic import (
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
+    GlobalSliceInst,
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
@@ -87,7 +88,8 @@ from tilus.ir.stmt import (
     InstStmt,
     SeqStmt,
     Stmt,
-    TensorPtrStmt,
+    TensorElemPtrStmt,
+    TensorElemValueStmt,
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
@@ -285,8 +287,10 @@ class StmtBuilderCore:
         stmt = BreakStmt()
         self._stack[-1].append(stmt)
 
-    def declare(self, type: BaseType, init: Optional[Expr | float | int] = None) -> Var:
-        var = Var("v", type=type)
+    def declare(self, type: BaseType, init: Optional[Expr | float | int] = None, hint: Optional[str] = None) -> Var:
+        if hint is not None:
+            hint = "v"
+        var = Var(hint, type=type)
         self.append(DeclareStmt(var, as_expr(init) if init is not None else None))
         return var
 
@@ -294,12 +298,24 @@ class StmtBuilderCore:
         self.append(AssignStmt(var, value))
 
     def tensor_ptr(self, tensor: Tensor, space: str = "generic") -> Var:
+        return self.tensor_element_ptr(tensor, indices=None, space=space)
+
+    def tensor_element_ptr(
+        self, tensor: Tensor, indices: Optional[Sequence[Expr | int]] = None, space: str = "generic"
+    ) -> Var:
         if space in ["generic", "global"]:
-            ptr_var = Var("v", type=~tensor.dtype)
+            ptr_var = Var("ptr", type=~tensor.dtype)
         else:
-            ptr_var = Var("v", int32)
-        self.append(TensorPtrStmt(ptr_var, tensor, space=space))
+            ptr_var = Var("ptr", int32)
+        if indices is not None:
+            indices = tuple(as_expr(e) for e in indices)
+        self.append(TensorElemPtrStmt(ptr_var, tensor, indices=indices, space=space))
         return ptr_var
+
+    def tensor_element_value(self, tensor: Tensor, indices: Sequence[Expr | int]) -> Var:
+        var = Var("val", type=tensor.dtype)
+        self.append(TensorElemValueStmt(var, tensor, indices=tuple(as_expr(e) for e in indices)))
+        return var
 
     def append(self, inst_or_stmt: Union[Instruction, Stmt]) -> None:
         if isinstance(inst_or_stmt, Instruction):
@@ -360,6 +376,23 @@ class StmtBuilder(StmtBuilderCore):
         inst = AllocateGlobalInst.create(
             output=GlobalTensor.create(dtype=dtype, layout=layout),
             require_clean=requires_clean,
+        )
+        self.append(inst)
+        return inst.global_output
+
+    def slice_global(
+        self,
+        tensor: GlobalTensor,
+        offsets: Sequence[Expr | int],
+        slice_dims: Sequence[int],
+        slice_shape: Sequence[Expr | int],
+    ) -> GlobalTensor:
+        offsets_ = [as_expr(offset) for offset in offsets]
+        inst = GlobalSliceInst.create(
+            tensor=tensor,
+            offsets=offsets_,
+            dims=slice_dims,
+            shape=slice_shape,
         )
         self.append(inst)
         return inst.global_output
@@ -722,7 +755,7 @@ class StmtBuilder(StmtBuilderCore):
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
 
-    def shared_slice(
+    def slice_shared(
         self,
         tensor: SharedTensor,
         offsets: Sequence[Expr | int],

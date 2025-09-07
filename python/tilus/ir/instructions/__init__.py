@@ -43,6 +43,7 @@ from .generic import (
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
+    GlobalSliceInst,
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,

@@ -12,29 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus import RegisterLayout, SharedLayout
-from tilus.ir.instructions import (
-    AllocateRegisterInst,
-    FormatPrintInst,
-    FreeSharedInst,
-    GlobalViewInst,
-    PrintTensorInst,
-    StoreGlobalInst,
-)
+from tilus.ir.instructions import AllocateSharedInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
-from tilus.ir.tensor import Tensor
+from tilus.ir.layout.shared_layout import SharedLayout, shared_row_major
+from tilus.ir.tensor import SharedTensor
 
 
-@register_rule(PrintTensorInst)
-@register_rule(FormatPrintInst)
-@register_rule(FreeSharedInst)
-@register_rule(AllocateRegisterInst)
-@register_rule(StoreGlobalInst)
-class EmptyRule(LayoutInferenceRule):
+@register_rule(AllocateSharedInst)
+class AllocateSharedRule(LayoutInferenceRule):
     @staticmethod
-    def validate(inst: GlobalViewInst) -> bool:
-        return True
+    def inference(ctx: LayoutInferenceContext, inst: AllocateSharedInst) -> dict[SharedTensor, SharedLayout]:
+        tensor = inst.shared_output
 
-    @staticmethod
-    def inference(ctx: LayoutInferenceContext, inst: GlobalViewInst) -> dict[Tensor, SharedLayout | RegisterLayout]:
-        return {}
+        if tensor.optional_layout is not None:
+            return {}
+        else:
+            return {tensor: shared_row_major(*tensor.shape)}
