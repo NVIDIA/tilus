@@ -25,22 +25,22 @@ from tilus.target import nvgpu_sm80, nvgpu_sm90
 class InitBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: InitBarrierInst) -> None:
         with self.if_then(self.current_worker == 0):
-            self.append(mbarrier_init(~inst.barrier, inst.count))
+            self.append(mbarrier_init(inst.barrier, inst.count))
 
 
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
 class ArriveBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveBarrierInst) -> None:
-        self.append(mbarrier_arrive(~inst.barrier))
+        self.append(mbarrier_arrive(inst.barrier))
 
 
 @register_emitter(ArriveRemoteBarrierInst, target=nvgpu_sm80)
 class ArriveRemoteBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveRemoteBarrierInst) -> None:
-        self.append(mbarrier_arrive(~inst.barrier, inst.remote_block, pred=boolean.true))
+        self.append(mbarrier_arrive(inst.barrier, inst.remote_block, pred=boolean.true))
 
 
 @register_emitter(WaitBarrierInst, target=nvgpu_sm90)
 class WaitBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: WaitBarrierInst) -> None:
-        self.append(mbarrier_wait(~inst.barrier, inst.phase))
+        self.append(mbarrier_wait(inst.barrier, inst.phase))

@@ -1636,7 +1636,7 @@ class Script:
         Parameters
         ----------
         barrier: Expr
-            The expression with type uint64. It must be addressable in shared memory.
+            The pointer to the barrier in shared memory.
         count: Expr | int
             The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
             to a positive int32.
@@ -1652,8 +1652,7 @@ class Script:
         Parameters
         ----------
         barrier: Expr
-            The expression with type uint64 that represents the barrier to arrive at. It must be addressable in shared
-            memory.
+            The pointer to the barrier in shared memory.
         """
         self._builder.arrive_barrier(barrier)
 
@@ -1667,8 +1666,7 @@ class Script:
         Parameters
         ----------
         barrier: Expr
-            The expression with type uint64 that represents the barrier to arrive at. It must be addressable in shared
-            memory.
+            The pointer to the barrier in shared memory.
         remote_block: Expr
             The thread block index of the remote thread block that the current block is signaling the arrival to. It
             should be an expression that evaluates to a non-negative int32.
@@ -1684,8 +1682,7 @@ class Script:
         Parameters
         ----------
         barrier: Expr
-            The expression with type uint64 that represents the barrier to wait at. It must be addressable in shared
-            memory.
+            The pointer to the barrier in shared memory.
         phase: Expr | int
             The phase value to wait for. It must be evaluated to either 0 or 1.
         """
