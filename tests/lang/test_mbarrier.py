@@ -1,6 +1,7 @@
 import tilus
 import torch
 from tilus import int32, uint64
+from tilus.testing import requires
 
 
 class DemoBarrier(tilus.Script):
@@ -37,6 +38,7 @@ class DemoBarrier(tilus.Script):
             phase ^= 1
 
 
+@requires.nvgpu_sm80
 def test_mbarrier():
     n = 128
     x = torch.arange(n, dtype=torch.int32).cuda()

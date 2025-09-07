@@ -1,10 +1,11 @@
 from typing import Callable
 
 import pytest
-from tilus.target import Target, get_current_target
+
+from tilus.target import Target, get_current_target, nvgpu_sm80, nvgpu_sm90
 
 
-def requires(target: Target) -> Callable[[Callable], Callable]:
+def _requires(target: Target) -> Callable[[Callable], Callable]:
     """
     Pytest fixture decorator that skips tests if the current GPU doesn't support the required architecture.
 
@@ -33,3 +34,8 @@ def requires(target: Target) -> Callable[[Callable], Callable]:
             return pytest.mark.skip(f"Cannot determine current GPU capability: {e}")(test_func)
 
     return decorator
+
+
+class requires:
+    nvgpu_sm90 = _requires(nvgpu_sm90)
+    nvgpu_sm80 = _requires(nvgpu_sm80)
