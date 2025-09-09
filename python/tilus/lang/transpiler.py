@@ -1022,7 +1022,7 @@ class Transpiler(PythonAstFunctor):
         sb = StmtBuilder()
         if isinstance(var_value, RegisterTensor):
             if isinstance(value, (int, float, hidet_ir.Expr)):
-                value = sb.allocate_register(dtype=var_value.dtype, layout=var_value.layout, f_init=lambda axes: value)
+                value = sb.allocate_register(dtype=var_value.dtype, shape=var_value.shape, f_init=lambda axes: value)
             if isinstance(stmt.op, ast.Add):
                 sb.add(x=var_value, y=value, out=var_value)
             elif isinstance(stmt.op, ast.Sub):

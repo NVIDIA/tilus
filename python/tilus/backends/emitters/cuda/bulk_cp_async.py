@@ -25,57 +25,30 @@ from tilus.extensions.hidet.ir.dtypes import uint32x2, uint32x4
 from tilus.extensions.hidet.ir.primitives.cuda.cp_async import cp_async
 from tilus.extensions.hidet.ir.tools import rewrite
 from tilus.ir.instructions import (
-    CopyAsyncCommitGroupInst,
-    CopyAsyncGenericInst,
-    CopyAsyncWaitAllInst,
-    CopyAsyncWaitGroupInst,
+    BulkCopyAsyncGlobalToSharedInst,
+    BulkCopyAsyncSharedToGlobalInst
 )
 from tilus.ir.tensor import SharedLayout, SharedTensor
-from tilus.target import nvgpu_sm80
+from tilus.target import nvgpu_sm90
 from tilus.utils import prod
-from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
+from tilus.backends.emitters.cuda.cp_async_base import CopyAysncBaseEmitter, CopyAsyncAnalysisResult
 
 
-@register_emitter(CopyAsyncGenericInst, target=nvgpu_sm80)
-class CopyAysncInstEmitter(BaseInstEmitter):
-    def emit(self, inst: CopyAsyncGenericInst) -> None:
+@register_emitter(BulkCopyAsyncGlobalToSharedInst, target=nvgpu_sm90)
+class BulkCopyAysncGlobalToSharedInstEmitter(CopyAysncBaseEmitter):
+    def emit(self, inst: BulkCopyAsyncGlobalToSharedInst) -> None:
+        global_tensor = inst.inputs[1].as_global_tensor()
+        shared_tensor = inst.inputs[0].as_shared_tensor()
 
-        dst: SharedTensor = inst.inputs[0].as_shared_tensor()
-        dtype: DataType = dst.dtype
-        layout: SharedLayout = dst.layout
-        shape: Sequence[int] = layout.shape
-        analysis = self.codegen.function.metadata.analysis
-
-        # get shared, global, and mask info
-        inst_mask = inst.mask if inst.mask is not None else boolean.true
-        shared_info: TensorInfo = analyze_grid(shape=shape, axes=layout.axes, analysis=analysis, expr=layout.offset)
-        mask_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, analysis=analysis, expr=inst_mask)
-        global_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, analysis=analysis, expr=inst.offset)
-
-        contiguous_dim: Optional[int] = None
-        cp_size: Optional[int] = None
-        for nbytes in [16, 8, 4]:
-            nbits = nbytes * 8
-            for dim in reversed(range(len(shape))):
-                if global_info.infos[dim].continuity == 1:
-                    continue
-                if global_info.infos[dim].divisibility * dtype.nbits % nbits != 0:
-                    continue
-                if shared_info.infos[dim].continuity * dtype.nbits % nbits != 0:
-                    continue
-                if shared_info.infos[dim].divisibility * dtype.nbits % nbits != 0:
-                    continue
-                if mask_info.infos[dim].constancy * dtype.nbits % nbits != 0:
-                    continue
-                if prod(shape) * dtype.nbits // nbits % 32 != 0 and nbytes != 4:
-                    # when possible, we hope at least use 32 threads to perform cp.async
-                    continue
-                contiguous_dim = dim
-                cp_size = nbytes
-                break
-            if contiguous_dim is not None:
-                break
-
+        analysis: Optional[CopyAsyncAnalysisResult] = self.analyze(
+            shared_tensor=shared_tensor,
+            global_tensor=global_tensor,
+            offsets=inst.offsets,
+            dims=inst.dims,
+            check_bounds=inst.check_bounds,
+        )
+        if analysis is None:
+            raise ValueError("Can not ")
         if contiguous_dim is None:
             attrs = {
                 "dtype": str(dtype),
@@ -196,19 +169,7 @@ class CopyAysncInstEmitter(BaseInstEmitter):
         return {16: uint32x4, 8: uint32x2, 4: uint32}[cp_size]
 
 
-@register_emitter(CopyAsyncCommitGroupInst, target=nvgpu_sm80)
+@register_emitter(BulkCopyAsyncSharedToGlobalInst, target=nvgpu_sm90)
 class CopyAysncCommitGroupInstEmitter(BaseInstEmitter):
-    def emit(self, inst: CopyAsyncCommitGroupInst) -> None:
+    def emit(self, inst: BulkCopyAsyncSharedToGlobalInst) -> None:
         self.append(cp_async_commit_group())
-
-
-@register_emitter(CopyAsyncWaitGroupInst, target=nvgpu_sm80)
-class CopyAysncWaitGroupInstEmitter(BaseInstEmitter):
-    def emit(self, inst: CopyAsyncWaitGroupInst) -> None:
-        self.append(cp_async_wait_group(inst.n))
-
-
-@register_emitter(CopyAsyncWaitAllInst, target=nvgpu_sm80)
-class CopyAysncWaitAllInstEmitter(BaseInstEmitter):
-    def emit(self, inst: CopyAsyncWaitAllInst) -> None:
-        self.append(cp_async_wait_all())

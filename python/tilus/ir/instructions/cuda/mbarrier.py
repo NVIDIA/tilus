@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
+from typing import Optional
 
 from dataclasses import dataclass
 
@@ -24,10 +25,10 @@ from tilus.ir.inst import Instruction
 @dataclass(frozen=True, eq=False)
 class InitBarrierInst(Instruction):
     barrier: Expr
-    count: Expr
+    count: Optional[Expr]
 
     @staticmethod
-    def create(barrier: Expr, count: Expr) -> InitBarrierInst:
+    def create(barrier: Expr, count: Optional[Expr]) -> InitBarrierInst:
         return InitBarrierInst(output=None, inputs=(), barrier=barrier, count=count)
 
 

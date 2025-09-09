@@ -42,6 +42,12 @@ from tilus.ir.instructions.cuda import (
     ReleaseSemaphoreInst,
     WaitBarrierInst,
 )
+from tilus.ir.instructions.cuda.bulk_cp_async import (
+    BulkCopyAsyncGlobalToClusterSharedInst,
+    BulkCopyAsyncGlobalToSharedInst,
+    BulkCopyAsyncSharedToClusterSharedInst,
+    BulkCopyAsyncSharedToGlobalInst,
+)
 from tilus.ir.instructions.generic import (
     AddInst,
     AllocateGlobalInst,
@@ -488,6 +494,62 @@ class StmtBuilder(StmtBuilderCore):
 
     def copy_async_wait_group(self, n: Union[Expr, int]) -> None:
         inst = CopyAsyncWaitGroupInst.create(as_expr(n))
+        self.append(inst)
+
+    def bulk_copy_async_global_to_shared(
+        self,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Sequence[int],
+        mbarrier: Expr,
+        evict: Optional[str] = None,
+        check_bounds: bool = True,
+    ) -> None:
+        inst = BulkCopyAsyncGlobalToSharedInst.create(
+            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, evict=evict, check_bounds=check_bounds
+        )
+        self.append(inst)
+
+    def bulk_copy_async_global_to_cluster_shared(
+        self,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Sequence[int],
+        mbarrier: Expr,
+        evict: Optional[str] = None,
+        check_bounds: bool = True,
+    ) -> None:
+        inst = BulkCopyAsyncGlobalToClusterSharedInst.create(
+            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, evict=evict, check_bounds=check_bounds
+        )
+        self.append(inst)
+
+    def bulk_copy_async_shared_to_cluster_shared(
+        self,
+        src: SharedTensor,
+        dst: SharedTensor,
+        mbarrier: Expr,
+    ):
+        inst = BulkCopyAsyncSharedToClusterSharedInst.create(
+            src=src,
+            dst=dst,
+            mbarrier=mbarrier,
+        )
+        self.append(inst)
+
+    def bulk_copy_async_shared_to_global(
+        self,
+        src: SharedTensor,
+        dst: GlobalTensor,
+        offsets: Sequence[Expr | int],
+        dims: Sequence[int],
+        check_bounds: bool = True,
+    ):
+        inst = BulkCopyAsyncSharedToGlobalInst.create(
+            src=src, dst=dst, offsets=offsets, dims=dims, check_bounds=check_bounds
+        )
         self.append(inst)
 
     def elementwise_binary(
@@ -949,7 +1011,7 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     # barrier
-    def init_barrier(self, barrier: Expr, count: Expr) -> None:
+    def init_barrier(self, barrier: Expr, count: Optional[Expr] = None) -> None:
         inst = InitBarrierInst.create(barrier=barrier, count=count)
         self.append(inst)
 
