@@ -14,162 +14,146 @@
 # limitations under the License.
 from typing import List, Optional, Sequence
 
-from hidet.ir.dtypes import boolean, int32, uint32
-from hidet.ir.expr import Expr, Var, cast, if_then_else
-from hidet.ir.primitives.cuda.cp_async import cp_async_commit_group, cp_async_wait_all, cp_async_wait_group
-from hidet.ir.type import DataType
+from hidet.ir import logical_and
+from hidet.ir.dtypes import boolean, int32
+from hidet.ir.expr import Expr
 from hidet.ir.utils.index_transform import index_deserialize
+from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.dtypes import uint32x2, uint32x4
-from tilus.extensions.hidet.ir.primitives.cuda.cp_async import cp_async
-from tilus.extensions.hidet.ir.tools import rewrite
-from tilus.ir.instructions import (
-    BulkCopyAsyncGlobalToSharedInst,
-    BulkCopyAsyncSharedToGlobalInst
-)
-from tilus.ir.tensor import SharedLayout, SharedTensor
+from tilus.backends.codegen import register_emitter
+from tilus.backends.emitters.cuda.cp_async_base import CopyAsyncAnalysisResult, CopyAysncBaseEmitter
+from tilus.extensions.hidet.ir.primitives.cuda.bulk_copy_async import cp_async_bulk_g2s, cp_async_bulk_s2g
+from tilus.ir import GlobalTensor
+from tilus.ir.instructions import BulkCopyAsyncGlobalToSharedInst, BulkCopyAsyncSharedToGlobalInst
+from tilus.ir.tensor import SharedTensor
 from tilus.target import nvgpu_sm90
 from tilus.utils import prod
-from tilus.backends.emitters.cuda.cp_async_base import CopyAysncBaseEmitter, CopyAsyncAnalysisResult
+
+
+def within_bound(indices: Sequence[Expr | int], shape: Sequence[Expr | int]) -> Expr:
+    assert len(indices) == len(shape)
+    conditions = []
+    for idx, extent in zip(indices, shape):
+        conditions.append(logical_and(0 <= idx, idx < extent))
+    return logical_and(*conditions)
+
+
+class BulkCopyAsyncBetweenGlobalShared(CopyAysncBaseEmitter):
+    def emit_cp_async(
+        self,
+        shared_address: Expr,
+        global_address: Expr,
+        size: int,
+        inst: BulkCopyAsyncSharedToGlobalInst | BulkCopyAsyncGlobalToSharedInst,
+    ) -> Expr:
+        raise NotImplementedError()
+
+    def common_emit(
+        self,
+        shared_tensor: SharedTensor,
+        global_tensor: GlobalTensor,
+        offsets: Sequence[Expr],
+        dims: Optional[Sequence[int]],
+        check_bounds: bool,
+        inst: BulkCopyAsyncSharedToGlobalInst | BulkCopyAsyncGlobalToSharedInst,
+    ) -> None:
+        analysis: CopyAsyncAnalysisResult = self.analyze(
+            shared_tensor=shared_tensor,
+            global_tensor=global_tensor,
+            offsets=offsets,
+            dims=dims,
+            check_bounds=check_bounds,
+        )
+
+        if analysis.cp_size_bits % 128 != 0:  # cp.async.bulk only supports 128-bit or larger cp size
+            raise ValueError(
+                "cp.async.bulk only supports 128-bit or larger cp size. Got the following analysis result: \n{}".format(
+                    analysis
+                )
+            )
+
+        dtype = shared_tensor.dtype
+        cp_size = analysis.cp_size_bits // 8
+        contiguous_dim = analysis.contiguous_dim
+
+        elements_per_copy = analysis.cp_size_bits // dtype.nbits
+        copy_shape = list(shared_tensor.shape)
+        assert copy_shape[contiguous_dim] % elements_per_copy == 0
+        copy_shape[contiguous_dim] //= elements_per_copy
+        num_copies = prod(copy_shape)
+        num_threads = self.current_num_workers
+
+        def emit_bulk_cp_async(copy_indices: List[Expr]) -> None:
+            shared_indices = list(copy_indices)
+            shared_indices[contiguous_dim] = shared_indices[contiguous_dim] * elements_per_copy
+            global_indices = list(offsets)
+            for i, offset in enumerate(shared_indices):
+                if i in dims:
+                    global_indices[i] = global_indices[i] + offset
+
+            global_address = self.tensor2var[global_tensor] + global_tensor.layout(*global_indices)
+            shared_address = (
+                self.shared_tensor_shared_space_addr[shared_tensor]
+                + shared_tensor.layout(*shared_indices) * dtype.nbytes
+            )
+            mask = boolean.true if not check_bounds else within_bound(global_indices, global_tensor.shape)
+            with self.if_then(mask):
+                self.append(
+                    self.emit_cp_async(
+                        shared_address=shared_address,
+                        global_address=global_address,
+                        size=cp_size,
+                        inst=inst,
+                    )
+                )
+
+        with self.for_range(extent=(num_copies + num_threads - 1) // num_threads, attr="u+") as iter_i:
+            with self.if_then(self.current_worker + iter_i * num_threads < num_copies):
+                emit_bulk_cp_async(index_deserialize(self.current_worker + iter_i * num_threads, shape=copy_shape))
 
 
 @register_emitter(BulkCopyAsyncGlobalToSharedInst, target=nvgpu_sm90)
-class BulkCopyAysncGlobalToSharedInstEmitter(CopyAysncBaseEmitter):
-    def emit(self, inst: BulkCopyAsyncGlobalToSharedInst) -> None:
-        global_tensor = inst.inputs[1].as_global_tensor()
-        shared_tensor = inst.inputs[0].as_shared_tensor()
+class BulkCopyAysncGlobalToSharedInstEmitter(BulkCopyAsyncBetweenGlobalShared):
+    def emit_cp_async(
+        self, shared_address: Expr, global_address: Expr, size: int, inst: BulkCopyAsyncGlobalToSharedInst
+    ) -> Expr:
+        return cp_async_bulk_g2s(
+            dst=shared_address,
+            src=global_address,
+            size=int32(size),
+            mbarrier=cvta_generic_to_shared(inst.mbarrier),
+            l2_evict=inst.evict,
+        )
 
-        analysis: Optional[CopyAsyncAnalysisResult] = self.analyze(
-            shared_tensor=shared_tensor,
-            global_tensor=global_tensor,
+    def emit(self, inst: BulkCopyAsyncGlobalToSharedInst) -> None:
+        self.common_emit(
+            shared_tensor=inst.inputs[0].as_shared_tensor(),
+            global_tensor=inst.inputs[1].as_global_tensor(),
             offsets=inst.offsets,
             dims=inst.dims,
             check_bounds=inst.check_bounds,
+            inst=inst,
         )
-        if analysis is None:
-            raise ValueError("Can not ")
-        if contiguous_dim is None:
-            attrs = {
-                "dtype": str(dtype),
-                "shared layout": str(inst.inputs[0].as_shared_tensor().layout),
-                "offset": str(inst.offset),
-                "mask": str(inst.mask),
-                "global_info": str(global_info),
-                "shared_info": str(shared_info),
-                "mask_info": str(mask_info),
-            }
-            raise ValueError(
-                "The layout/offset/mask is not valid in cp async instruction:\n{}".format(
-                    "\n".join(["{}: {}".format(k, v) for k, v in attrs.items()])
-                )
-            )
-        assert cp_size is not None
-
-        cp_dtype = self.get_cp_dtype(cp_size)
-        # smem_addr: Var = self.declare(v=Var("smem_addr", int32), init=cvta_generic_to_shared(self.value2var[dst]))
-        smem_addr: Var = self.shared_tensor_shared_space_addr[dst]
-
-        if cp_size * 8 % dtype.nbits == 0:
-            # a single cp.async instruction copies multiple elements
-            # the task (i.e., cp.async instruction) shape
-            vec_size = cp_size * 8 // dtype.nbits
-            task_shape = [extent if dim != contiguous_dim else extent // vec_size for dim, extent in enumerate(shape)]
-
-            def get_element_indices(task_indices: List[Expr]) -> List[Expr]:
-                return [idx if dim != contiguous_dim else idx * vec_size for dim, idx in enumerate(task_indices)]
-
-            def get_global_address_and_mask(task_indices: List[Expr]) -> tuple[Expr, Expr]:
-                element_indices = get_element_indices(task_indices)
-                remap = {a: b for a, b in zip(inst.axes, element_indices)}
-                gmem_offset = rewrite(inst.offset, rewrite_map=remap)
-                global_address = cast(inst.ptr, ~dtype) + gmem_offset
-                return global_address, rewrite(inst_mask, rewrite_map=remap)
-
-            def get_shared_address(task_indices: List[Expr]) -> Expr:
-                element_indices = get_element_indices(task_indices)
-                smem_offset = layout(*element_indices)
-                return smem_addr + smem_offset * dtype.nbytes
-
-        elif dtype.nbits % cp_size * 8 == 0:
-            # a single element needs more cp.async instructions to copy
-            # e.g., dtype == uint64x4 which has 256 bits
-            vec_size = dtype.nbits // (cp_size * 8)
-            task_shape = [extent if idx != contiguous_dim else extent * vec_size for idx, extent in enumerate(shape)]
-
-            def get_element_indices_and_lane_index(task_indices: List[Expr]) -> tuple[List[Expr], Expr]:
-                return (
-                    # element indices
-                    [idx if dim != contiguous_dim else idx // vec_size for dim, idx in enumerate(task_indices)],
-                    # lane index
-                    task_indices[contiguous_dim] % vec_size,
-                )
-
-            def get_global_address_and_mask(task_indices: List[Expr]) -> tuple[Expr, Expr]:
-                element_indices, lane_index = get_element_indices_and_lane_index(task_indices)
-                remap = {a: b for a, b in zip(inst.axes, element_indices)}
-                gmem_offset = rewrite(inst.offset, rewrite_map=remap)
-                gmem_offset = gmem_offset * vec_size + lane_index
-                global_address = cast(inst.ptr, ~cp_dtype) + gmem_offset
-                return global_address, rewrite(inst_mask, rewrite_map=remap)
-
-            def get_shared_address(task_indices: List[Expr]) -> Expr:
-                element_indices, lane_index = get_element_indices_and_lane_index(task_indices)
-                smem_offset = layout(*element_indices)
-                smem_offset = smem_offset * vec_size + lane_index
-                return smem_addr + smem_offset * cp_dtype.nbytes
-
-        else:
-            raise NotImplementedError()
-
-        def emit_cp_async(task_indices: List[Expr]) -> None:
-            global_address, mask = get_global_address_and_mask(task_indices)
-            shared_address = get_shared_address(task_indices)
-
-            # gmem_buf: Var = cast(inst.ptr, ~inst.inputs[0].dtype)
-            # task_indices: List[Expr] = vec_indices[:-1] + [vec_indices[-1] * vec_size]
-            # remap = {a: b for a, b in zip(inst.axes, task_indices)}
-            # offset = rewrite(inst.offset, remap)
-            # mask = rewrite(mask, remap)
-            self.append(
-                cp_async(
-                    dst=shared_address,
-                    src=global_address,
-                    cp_size=cp_size,
-                    use_shared_space_dst=True,
-                    src_size=if_then_else(mask, int32(cp_size), int32.zero),
-                    evict=inst.evict,
-                    cache_level="global" if cp_size == 16 else "always",  # since `global` requires cp_size=16
-                    prefetch_bytes=256,
-                )
-            )
-
-        num_tasks: int = prod(task_shape)
-        num_threads: int = self.num_warps * 32
-        if num_tasks < num_threads:
-            with self.if_then(self.current_worker < num_tasks):
-                emit_cp_async(task_indices=index_deserialize(self.current_worker, shape=task_shape))
-        elif num_tasks % num_threads == 0:
-            with self.for_range(extent=num_tasks // num_threads, attr="u+") as iter_i:
-                emit_cp_async(
-                    task_indices=index_deserialize(iter_i * num_threads + self.current_worker, shape=task_shape)
-                )
-        else:
-            with self.for_range(extent=(num_tasks + num_threads - 1) // num_threads, attr="u+") as iter_i:
-                with self.if_then(iter_i * num_threads + self.current_worker < num_tasks):
-                    emit_cp_async(
-                        task_indices=index_deserialize(iter_i * num_threads + self.current_worker, shape=task_shape)
-                    )
-
-    @staticmethod
-    def get_cp_dtype(cp_size: int) -> DataType:
-        """
-        Given the cp_size (in bytes), returns a data type with such size.
-        """
-        return {16: uint32x4, 8: uint32x2, 4: uint32}[cp_size]
 
 
 @register_emitter(BulkCopyAsyncSharedToGlobalInst, target=nvgpu_sm90)
-class CopyAysncCommitGroupInstEmitter(BaseInstEmitter):
+class CopyAysncCommitGroupInstEmitter(BulkCopyAsyncBetweenGlobalShared):
+    def emit_cp_async(
+        self, shared_address: Expr, global_address: Expr, size: int, inst: BulkCopyAsyncSharedToGlobalInst
+    ) -> Expr:
+        return cp_async_bulk_s2g(
+            dst=global_address,
+            src=shared_address,
+            size=int32(size),
+            l2_evict=inst.l2_evict,
+        )
+
     def emit(self, inst: BulkCopyAsyncSharedToGlobalInst) -> None:
-        self.append(cp_async_commit_group())
+        self.common_emit(
+            shared_tensor=inst.inputs[1].as_shared_tensor(),
+            global_tensor=inst.inputs[0].as_global_tensor(),
+            offsets=inst.offsets,
+            dims=inst.dims,
+            check_bounds=inst.check_bounds,
+            inst=inst,
+        )

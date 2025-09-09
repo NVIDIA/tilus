@@ -24,6 +24,7 @@ from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import uint32x2, uint32x4
 from tilus.extensions.hidet.ir.primitives.cuda.cp_async import cp_async
 from tilus.extensions.hidet.ir.tools import rewrite
+from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.instructions import (
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,
@@ -33,13 +34,11 @@ from tilus.ir.instructions import (
 from tilus.ir.tensor import SharedLayout, SharedTensor
 from tilus.target import nvgpu_sm80
 from tilus.utils import prod
-from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 
 
 @register_emitter(CopyAsyncGenericInst, target=nvgpu_sm80)
 class CopyAysncInstEmitter(BaseInstEmitter):
     def emit(self, inst: CopyAsyncGenericInst) -> None:
-
         dst: SharedTensor = inst.inputs[0].as_shared_tensor()
         dtype: DataType = dst.dtype
         layout: SharedLayout = dst.layout

@@ -501,11 +501,13 @@ class StmtBuilder(StmtBuilderCore):
         src: GlobalTensor,
         dst: SharedTensor,
         offsets: Sequence[Expr | int],
-        dims: Sequence[int],
+        dims: Optional[Sequence[int]],
         mbarrier: Expr,
         evict: Optional[str] = None,
         check_bounds: bool = True,
     ) -> None:
+        if dims is None:
+            dims = list(range(len(src.shape)))
         inst = BulkCopyAsyncGlobalToSharedInst.create(
             src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, evict=evict, check_bounds=check_bounds
         )
@@ -516,11 +518,13 @@ class StmtBuilder(StmtBuilderCore):
         src: GlobalTensor,
         dst: SharedTensor,
         offsets: Sequence[Expr | int],
-        dims: Sequence[int],
+        dims: Optional[Sequence[int]],
         mbarrier: Expr,
         evict: Optional[str] = None,
         check_bounds: bool = True,
     ) -> None:
+        if dims is None:
+            dims = list(range(len(src.shape)))
         inst = BulkCopyAsyncGlobalToClusterSharedInst.create(
             src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, evict=evict, check_bounds=check_bounds
         )
@@ -531,7 +535,7 @@ class StmtBuilder(StmtBuilderCore):
         src: SharedTensor,
         dst: SharedTensor,
         mbarrier: Expr,
-    ):
+    ) -> None:
         inst = BulkCopyAsyncSharedToClusterSharedInst.create(
             src=src,
             dst=dst,
@@ -544,9 +548,11 @@ class StmtBuilder(StmtBuilderCore):
         src: SharedTensor,
         dst: GlobalTensor,
         offsets: Sequence[Expr | int],
-        dims: Sequence[int],
+        dims: Optional[Sequence[int]],
         check_bounds: bool = True,
-    ):
+    ) -> None:
+        if dims is None:
+            dims = list(range(len(src.shape)))
         inst = BulkCopyAsyncSharedToGlobalInst.create(
             src=src, dst=dst, offsets=offsets, dims=dims, check_bounds=check_bounds
         )

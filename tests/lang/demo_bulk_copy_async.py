@@ -1,11 +1,16 @@
-import torch
+import hidet.option
+
 import tilus
+import torch
 from tilus import float16, int32, uint64
 from tilus.utils import cdiv
 
-tilus.option.cache_dir('./cache')
+tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir()
+tilus.utils.clear_cache()
 tilus.target.set_current_target(tilus.target.nvgpu_sm90a)
+tilus.option.parallel_workers(1)
+
 
 class BulkCopyAsyncExample(tilus.Script):
     def __init__(self):

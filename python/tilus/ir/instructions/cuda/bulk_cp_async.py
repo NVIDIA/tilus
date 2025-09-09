@@ -88,6 +88,7 @@ class BulkCopyAsyncSharedToGlobalInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: tuple[int, ...]
     check_bounds: bool = True
+    l2_evict: Optional[str] = "evict_first"
 
     @staticmethod
     def create(
@@ -95,6 +96,7 @@ class BulkCopyAsyncSharedToGlobalInst(Instruction):
         dst: GlobalTensor,
         offsets: Sequence[Expr | int],
         dims: Sequence[int],
+        l2_evict: Optional[str] = "evict_first",
         check_bounds: bool = True,
     ) -> BulkCopyAsyncSharedToGlobalInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
@@ -103,6 +105,7 @@ class BulkCopyAsyncSharedToGlobalInst(Instruction):
             inputs=(dst, src),
             offsets=offsets_,
             dims=tuple(dims) if dims else None,
+            l2_evict=l2_evict,
             check_bounds=check_bounds,
         )
 

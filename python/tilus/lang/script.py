@@ -765,7 +765,7 @@ class Script:
         evict: Optional[str] = None,
         check_bounds: bool = True,
     ) -> None:
-        """ Bulk copy from global to shared tensor asynchronously.
+        """Bulk copy from global to shared tensor asynchronously.
 
         This instruction issues a bulk asynchronous copy of a tile from a global tensor to a shared tensor.
 
@@ -835,7 +835,7 @@ class Script:
         evict: Optional[str] = None,
         check_bounds: bool = True,
     ) -> None:
-        """ Bulk copy from global to cluster shared tensor asynchronously.
+        """Bulk copy from global to cluster shared tensor asynchronously.
 
         This instruction issues a bulk asynchronous copy of a tile from a global tensor to a cluster shared tensor.
 
@@ -901,8 +901,8 @@ class Script:
         src: SharedTensor,
         dst: SharedTensor,
         mbarrier: Expr,
-    ):
-        """ Bulk copy from shared to cluster shared tensor asynchronously.
+    ) -> None:
+        """Bulk copy from shared to cluster shared tensor asynchronously.
 
         This instruction issues a bulk asynchronous copy of a tile from a shared tensor to a cluster shared tensor.
 
@@ -931,8 +931,8 @@ class Script:
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         check_bounds: bool = True,
-    ):
-        """ Bulk copy from shared to global tensor asynchronously.
+    ) -> None:
+        """Bulk copy from shared to global tensor asynchronously.
 
         This instruction issues a bulk asynchronous copy of a tile from a shared tensor to a global tensor.
 
@@ -966,9 +966,10 @@ class Script:
         offsets: Sequence[Expr | int]
             The offsets for each dimension of the global tensor where the tile will be copied to. The
             length of this sequence must match the number of dimensions of the global tensor.
-        dims: Sequence[int]
+        dims: Sequence[int], optional
             The dimensions of the global tensor that are being sliced. The length of this sequence must match the
-            number of dimensions of the shared tensor being copied from.
+            number of dimensions of the shared tensor being copied from. When not provided, it is assumed that all
+            dimensions are being sliced in the same order as the shared tensor.
         check_bounds: bool, optional
             Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
             elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,

@@ -13,19 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Sequence
 
 from hidet.ir import logical_and
 from hidet.ir.dtypes import boolean
 from hidet.ir.expr import Expr, Var
 from hidet.ir.type import DataType
+from hidet.utils import gcd
+from hidet.utils.doc import doc_join_lines
 
 from tilus.backends.codegen import BaseInstEmitter
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir import GlobalTensor
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.tensor import SharedLayout, SharedTensor
-from tilus.utils import prod
 
 
 @dataclass
@@ -35,13 +36,25 @@ class AxesInfo:
     global_offset: Expr
     shared_offset: Expr
 
+
 @dataclass
 class CopyAsyncAnalysisResult:
     shared_info: TensorInfo
     global_info: TensorInfo
     mask_info: TensorInfo
     contiguous_dim: int
-    cp_size: int
+    cp_size_bits: int
+
+    def __str__(self):
+        seq = []
+        for name, info in [
+            ("shared_info", self.shared_info),
+            ("global_info", self.global_info),
+            ("mask_info", self.mask_info),
+        ]:
+            seq.append(f"{name}={info}")
+        return str(doc_join_lines(seq=seq, left="CopyAsyncAnalysisResult(", right=")", indent=4))
+
 
 class CopyAysncBaseEmitter(BaseInstEmitter):
     @staticmethod
@@ -50,7 +63,7 @@ class CopyAysncBaseEmitter(BaseInstEmitter):
         global_tensor: GlobalTensor,
         offsets: Sequence[Expr],
         dims: Sequence[int],
-        check_bounds: bool
+        check_bounds: bool,
     ) -> AxesInfo:
         # axes
         axes = index_vars(num_vars=len(shared_tensor.shape))
@@ -73,6 +86,15 @@ class CopyAysncBaseEmitter(BaseInstEmitter):
 
         return AxesInfo(axes=axes, mask_expr=mask_expr, global_offset=global_offset, shared_offset=shared_offset)
 
+    @staticmethod
+    def get_dim_vec_size(shared_info: TensorInfo, global_info: TensorInfo, mask_info: TensorInfo, dim: int) -> int:
+        return gcd(
+            shared_info[dim].continuity,
+            global_info[dim].continuity,
+            shared_info[dim].divisibility,
+            global_info[dim].divisibility,
+            mask_info[dim].constancy,
+        )
 
     def analyze(
         self,
@@ -80,7 +102,7 @@ class CopyAysncBaseEmitter(BaseInstEmitter):
         global_tensor: GlobalTensor,
         offsets: Sequence[Expr],
         dims: Sequence[int],
-        check_bounds: bool
+        check_bounds: bool,
     ) -> CopyAsyncAnalysisResult:
         dtype: DataType = shared_tensor.dtype
         layout: SharedLayout = shared_tensor.layout
@@ -94,44 +116,21 @@ class CopyAysncBaseEmitter(BaseInstEmitter):
         mask_info: TensorInfo = analyze_grid(shape=shape, axes=axes, analysis=analysis, expr=axes_info.mask_expr)
         global_info: TensorInfo = analyze_grid(shape=shape, axes=axes, analysis=analysis, expr=axes_info.global_offset)
 
-        contiguous_dim: Optional[int] = None
-        cp_size: Optional[int] = None
-        for nbytes in [16, 8, 4]:
-            nbits = nbytes * 8
-            for dim in reversed(range(len(shape))):
-                if global_info.infos[dim].continuity == 1:
-                    continue
-                if global_info.infos[dim].divisibility * dtype.nbits % nbits != 0:
-                    continue
-                if shared_info.infos[dim].continuity * dtype.nbits % nbits != 0:
-                    continue
-                if shared_info.infos[dim].divisibility * dtype.nbits % nbits != 0:
-                    continue
-                if mask_info.infos[dim].constancy * dtype.nbits % nbits != 0:
-                    continue
-                if prod(shape) * dtype.nbits // nbits % 32 != 0 and nbytes != 4:
-                    # when possible, we hope at least use 32 threads to perform cp.async
-                    continue
-                contiguous_dim = dim
-                cp_size = nbytes
-                break
-            if contiguous_dim is not None:
-                break
+        assert len(shape) > 0
 
-        if contiguous_dim is not None:
-            assert cp_size is not None
-            return CopyAsyncAnalysisResult(
-                shared_info=shared_info,
-                global_info=global_info,
-                mask_info=mask_info,
-                contiguous_dim=contiguous_dim,
-                cp_size=cp_size
-            )
-        else:
-            return CopyAsyncAnalysisResult(
-                shared_info=shared_info,
-                global_info=global_info,
-                mask_info=mask_info,
-                contiguous_dim=-1,
-                cp_size=-1
-            )
+        contiguous_dim: int = len(shape) - 1
+        for dim in reversed(range(len(shape))):
+            if self.get_dim_vec_size(shared_info, global_info, mask_info, dim) > self.get_dim_vec_size(
+                shared_info, global_info, mask_info, contiguous_dim
+            ):
+                contiguous_dim = dim
+
+        # determine number of bytes to perform the cp.async
+        cp_size_bits: int = self.get_dim_vec_size(shared_info, global_info, mask_info, contiguous_dim) * dtype.nbits
+        return CopyAsyncAnalysisResult(
+            shared_info=shared_info,
+            global_info=global_info,
+            mask_info=mask_info,
+            contiguous_dim=contiguous_dim,
+            cp_size_bits=cp_size_bits,
+        )

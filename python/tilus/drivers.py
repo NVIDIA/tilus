@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 import filelock
+import hidet.ir.target
 from hidet.backend.build import compile_source
 from hidet.drivers.build_module import write_function_types
 from hidet.ir.module import IRModule
@@ -308,7 +309,11 @@ def build_program(
 
         # 6. compile the low-level code
         lib_path = module_dir / "lib.so"
-        compile_source(source_file=str(src_path), output_library_file=str(lib_path), target="cuda")
+        tilus_target = tilus.target.get_current_target()
+        assert tilus_target.is_nvgpu()
+        compute_cap = tilus_target.properties.compute_capability
+        hidet_target = hidet.ir.target.Target(name='cuda', flags=[], attrs={'arch': 'sm_{}{}'.format(compute_cap[0], compute_cap[1])})
+        compile_source(source_file=str(src_path), output_library_file=str(lib_path), target=hidet_target)
 
         if load:
             return load_compiled_program(cache_dir)

@@ -21,10 +21,7 @@ from tilus.ir.instructions import (
     PrintTensorInst,
     StoreGlobalInst,
 )
-from tilus.ir.instructions.cuda.bulk_cp_async import (
-    BulkCopyAsyncSharedToGlobalInst,
-    BulkCopyAsyncGlobalToSharedInst
-)
+from tilus.ir.instructions.cuda.bulk_cp_async import BulkCopyAsyncGlobalToSharedInst, BulkCopyAsyncSharedToGlobalInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.tensor import Tensor
 
