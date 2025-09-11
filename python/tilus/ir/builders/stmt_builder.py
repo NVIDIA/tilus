@@ -26,22 +26,18 @@ from hidet.utils import same_list
 
 from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.instructions.annotation import AnnotateLayoutInst
-from tilus.ir.instructions.cuda import (
-    ArriveBarrierInst,
-    ArriveRemoteBarrierInst,
+from tilus.ir.instructions.cuda.cp_async import (
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
-    DotInst,
-    InitBarrierInst,
-    LoadMatrixConfig,
-    LoadMatrixInst,
-    LockSemaphoreInst,
-    ReleaseSemaphoreInst,
-    WaitBarrierInst,
 )
+from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
+from tilus.ir.instructions.cuda.mbarrier import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst
+from tilus.ir.instructions.cuda.mma_dot import DotInst
+from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
+from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
 from tilus.ir.instructions.cuda.bulk_cp_async import (
     CopyAsyncBulkGlobalToClusterSharedInst,
     CopyAsyncBulkGlobalToSharedInst,
@@ -1015,6 +1011,10 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     # control operations
+
+    def cluster_sync(self) -> None:
+        inst = ClusterSyncThreadsInst.create()
+        self.append(inst)
 
     def syncthreads(self) -> None:
         inst = SyncThreadsInst.create()

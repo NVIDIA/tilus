@@ -33,6 +33,7 @@ from .cuda.mbarrier import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarri
 from .cuda.mma_dot import DotInst
 from .cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from .cuda.simt_dot import SimtDotInst
+from .cuda.cluster_sync import ClusterSyncThreadsInst
 from .generic import (
     AddInst,
     AllocateGlobalInst,

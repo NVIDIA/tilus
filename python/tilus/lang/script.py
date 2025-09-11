@@ -1769,6 +1769,13 @@ class Script:
         """
         self._builder.release_semaphore(semaphore, value)
 
+    def cluster_sync(self) -> None:
+        """ Perform a cluster-wide synchronization.
+
+        All threads in the entire block cluster will wait at this point until all threads reach this instruction.
+        """
+        self._builder.cluster_sync()
+
     def sync(self) -> None:
         """Perform a synchronization.
 
@@ -1861,7 +1868,7 @@ class Script:
             raise InstructionError("The dtypes of dst and src must match, got {} and {}".format(dst.dtype, src.dtype))
         self._builder.assign_register(dst, src)
 
-    def init_barrier(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
+    def init_barrier(self, barrier: Expr, count: Optional[Expr | int] = 1) -> None:
         """Initialize a barrier.
 
         This instruction initializes a memory barrier in shared memory. The `barrier` parameter must be an addressable

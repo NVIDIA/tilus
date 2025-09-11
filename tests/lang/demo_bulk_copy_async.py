@@ -2,11 +2,13 @@ import tilus
 import torch
 from tilus import float16, int32, uint64
 from tilus.utils import cdiv
+import pandas as pd
+from hidet.utils.cuda_sanitizer import sanitizer_run
 
 
 tilus.option.cache_dir('./cache')
 tilus.option.debug.dump_ir()
-tilus.utils.clear_cache()
+# tilus.utils.clear_cache()
 
 
 class BulkCopyAsyncExample(tilus.Script):
@@ -80,7 +82,7 @@ class BulkCopyAsyncClusterExample(tilus.Script):
 
         load_barrier: ~uint64 = ~barriers[0]
         self.init_barrier(load_barrier)
-        self.sync()
+        self.cluster_sync()
 
         self.copy_async_bulk_global_to_cluster_shared(
             src=g_x,
@@ -119,22 +121,46 @@ def demo_copy_async_bulk_cta():
 
 def demo_copy_async_bulk_cluster():
     bs = 4
-    m = 2
-    n = 64
+    m = 123
+    n = 64 * 32
     x = torch.ones(m, n, dtype=torch.float16, device="cuda")
     y = torch.zeros(bs, m, n, dtype=torch.float16, device="cuda")
     kernel = BulkCopyAsyncClusterExample()
     kernel(bs, m, n, x, y)
 
+    torch.cuda.synchronize()
+
+    print('finished')
 
     expect = torch.stack([x + i + 1 for i in range(bs)], dim=0).reshape(bs, m, n)
     actual = y
 
-    print(expect)
-    print(actual)
+    # print(expect)
+    # print(actual)
 
-    torch.testing.assert_close(actual, expect)
+    if torch.allclose(actual, expect):
+        print('correct')
+    else:
+        # print a table with columns: position, expect, actual and difference
+        print('mismatch')
+        diff = actual - expect
+        # use tensor operations to find the positions where the difference is non-zero
+        positions = torch.nonzero(diff, as_tuple=False)
+        print(f'number of mismatches: {positions.size(0)}')
+        limit = 128
+        headers = ['position', 'expect', 'actual', 'difference']
+        rows = []
+        for pos in positions[:limit]:
+            i, j, k = pos.tolist()
+            rows.append([(i, j, k), expect[i, j, k].item(), actual[i, j, k].item(), diff[i, j, k].item()])
+        df = pd.DataFrame(rows, columns=headers)
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.width', None)
+        pd.set_option('display.max_rows', None)
+        pd.set_option('display.max_colwidth', None)
+        print(df)
 
 
 if __name__ == '__main__':
     demo_copy_async_bulk_cluster()
+    # sanitizer_run(demo_copy_async_bulk_cluster)

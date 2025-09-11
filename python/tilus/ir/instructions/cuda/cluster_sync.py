@@ -12,15 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# from .cp_async import (
-#     CopyAsyncCommitGroupInst,
-#     CopyAsyncGenericInst,
-#     CopyAsyncInst,
-#     CopyAsyncWaitAllInst,
-#     CopyAsyncWaitGroupInst,
-# )
-# from .ldmatrix import LoadMatrixConfig, LoadMatrixInst
-# from .mbarrier import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst
-# from .mma_dot import DotInst
-# from .semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
-# from .simt_dot import SimtDotInst
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from tilus.ir.inst import Instruction
+
+
+@dataclass(frozen=True, eq=False)
+class ClusterSyncThreadsInst(Instruction):
+    @staticmethod
+    def create() -> ClusterSyncThreadsInst:
+        return ClusterSyncThreadsInst(output=None, inputs=())
+
