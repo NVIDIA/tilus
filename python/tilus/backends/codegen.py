@@ -23,7 +23,7 @@ from hidet.ir.expr import Constant, Expr, SymbolVar, Var, cast, tensor_pointer_v
 from hidet.ir.func import Function as HidetFunction
 from hidet.ir.module import IRModule
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
-from hidet.ir.primitives.cuda.vars import threadIdx
+from hidet.ir.primitives.cuda.vars import threadIdx, blockIdx, dim3
 from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.stmt import DeclareScope
 from hidet.ir.type import void_p
@@ -150,6 +150,10 @@ class BaseInstEmitter(StmtBuilder):
     @property
     def block_rank_in_cluster(self) -> Expr:
         return this_cluster.block_rank
+
+    @property
+    def blockIdx(self) -> dim3:
+        return blockIdx
 
     @property
     def thread_groups(self):
