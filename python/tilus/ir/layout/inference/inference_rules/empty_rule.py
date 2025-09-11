@@ -21,13 +21,15 @@ from tilus.ir.instructions import (
     PrintTensorInst,
     StoreGlobalInst,
 )
-from tilus.ir.instructions.cuda.bulk_cp_async import BulkCopyAsyncGlobalToSharedInst, BulkCopyAsyncSharedToGlobalInst
+from tilus.ir.instructions.cuda.bulk_cp_async import CopyAsyncBulkGlobalToSharedInst, CopyAsyncBulkSharedToGlobalInst, CopyAsyncBulkGlobalToClusterSharedInst, CopyAsyncBulkSharedToClusterSharedInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.tensor import Tensor
 
 
-@register_rule(BulkCopyAsyncGlobalToSharedInst)
-@register_rule(BulkCopyAsyncSharedToGlobalInst)
+@register_rule(CopyAsyncBulkSharedToClusterSharedInst)
+@register_rule(CopyAsyncBulkGlobalToClusterSharedInst)
+@register_rule(CopyAsyncBulkGlobalToSharedInst)
+@register_rule(CopyAsyncBulkSharedToGlobalInst)
 @register_rule(PrintTensorInst)
 @register_rule(FormatPrintInst)
 @register_rule(FreeSharedInst)

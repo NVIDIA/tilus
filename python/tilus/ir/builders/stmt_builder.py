@@ -43,10 +43,10 @@ from tilus.ir.instructions.cuda import (
     WaitBarrierInst,
 )
 from tilus.ir.instructions.cuda.bulk_cp_async import (
-    BulkCopyAsyncGlobalToClusterSharedInst,
-    BulkCopyAsyncGlobalToSharedInst,
-    BulkCopyAsyncSharedToClusterSharedInst,
-    BulkCopyAsyncSharedToGlobalInst,
+    CopyAsyncBulkGlobalToClusterSharedInst,
+    CopyAsyncBulkGlobalToSharedInst,
+    CopyAsyncBulkSharedToClusterSharedInst,
+    CopyAsyncBulkSharedToGlobalInst,
 )
 from tilus.ir.instructions.generic import (
     AddInst,
@@ -496,7 +496,7 @@ class StmtBuilder(StmtBuilderCore):
         inst = CopyAsyncWaitGroupInst.create(as_expr(n))
         self.append(inst)
 
-    def bulk_copy_async_global_to_shared(
+    def copy_async_bulk_global_to_shared(
         self,
         src: GlobalTensor,
         dst: SharedTensor,
@@ -508,42 +508,55 @@ class StmtBuilder(StmtBuilderCore):
     ) -> None:
         if dims is None:
             dims = list(range(len(src.shape)))
-        inst = BulkCopyAsyncGlobalToSharedInst.create(
+        inst = CopyAsyncBulkGlobalToSharedInst.create(
             src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, evict=evict, check_bounds=check_bounds
         )
         self.append(inst)
 
-    def bulk_copy_async_global_to_cluster_shared(
+    def copy_async_bulk_global_to_cluster_shared(
         self,
         src: GlobalTensor,
         dst: SharedTensor,
         offsets: Sequence[Expr | int],
-        dims: Optional[Sequence[int]],
         mbarrier: Expr,
+        cta_mask: int,
+        dims: Optional[Sequence[int]],
         evict: Optional[str] = None,
         check_bounds: bool = True,
     ) -> None:
         if dims is None:
+            if len(src.shape) != len(dst.shape):
+                raise InstructionError(
+                    "When `dims` is not specified, the rank of src and dst must be the same, "
+                    f"but got {len(src.shape)} and {len(dst.shape)}"
+                )
             dims = list(range(len(src.shape)))
-        inst = BulkCopyAsyncGlobalToClusterSharedInst.create(
-            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, evict=evict, check_bounds=check_bounds
+        inst = CopyAsyncBulkGlobalToClusterSharedInst.create(
+            src=src,
+            dst=dst,
+            offsets=offsets,
+            dims=dims,
+            mbarrier=mbarrier,
+            cta_mask=cta_mask,
+            evict=evict,
+            check_bounds=check_bounds
         )
         self.append(inst)
 
-    def bulk_copy_async_shared_to_cluster_shared(
+    def copy_async_bulk_shared_to_cluster_shared(
         self,
         src: SharedTensor,
         dst: SharedTensor,
         mbarrier: Expr,
     ) -> None:
-        inst = BulkCopyAsyncSharedToClusterSharedInst.create(
+        inst = CopyAsyncBulkSharedToClusterSharedInst.create(
             src=src,
             dst=dst,
             mbarrier=mbarrier,
         )
         self.append(inst)
 
-    def bulk_copy_async_shared_to_global(
+    def copy_async_bulk_shared_to_global(
         self,
         src: SharedTensor,
         dst: GlobalTensor,
@@ -552,8 +565,13 @@ class StmtBuilder(StmtBuilderCore):
         check_bounds: bool = True,
     ) -> None:
         if dims is None:
+            if len(src.shape) != len(dst.shape):
+                raise InstructionError(
+                    "When `dims` is not specified, the rank of src and dst must be the same, "
+                    f"but got {len(src.shape)} and {len(dst.shape)}"
+                )
             dims = list(range(len(src.shape)))
-        inst = BulkCopyAsyncSharedToGlobalInst.create(
+        inst = CopyAsyncBulkSharedToGlobalInst.create(
             src=src, dst=dst, offsets=offsets, dims=dims, check_bounds=check_bounds
         )
         self.append(inst)

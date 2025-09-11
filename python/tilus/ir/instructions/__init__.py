@@ -16,10 +16,10 @@ from tilus.ir.inst import Instruction
 
 from .annotation import AnnotateLayoutInst
 from .cuda.bulk_cp_async import (
-    BulkCopyAsyncGlobalToClusterSharedInst,
-    BulkCopyAsyncGlobalToSharedInst,
-    BulkCopyAsyncSharedToClusterSharedInst,
-    BulkCopyAsyncSharedToGlobalInst,
+    CopyAsyncBulkGlobalToClusterSharedInst,
+    CopyAsyncBulkGlobalToSharedInst,
+    CopyAsyncBulkSharedToClusterSharedInst,
+    CopyAsyncBulkSharedToGlobalInst,
 )
 from .cuda.cp_async import (
     CopyAsyncCommitGroupInst,

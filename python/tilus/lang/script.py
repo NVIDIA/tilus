@@ -20,6 +20,7 @@ from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, U
 from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
+from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.tools import infer_type
 from hidet.ir.type import DataType
 
@@ -168,6 +169,10 @@ class Script:
     def gridDim(self) -> dim3:
         """Get the grid dimension of the kernel."""
         return gridDim
+
+    @property
+    def block_rank_in_cluster(self) -> Expr:
+        return this_cluster.block_rank
 
     # the following functions should only be called in the __call__ function to construct the script program
 
@@ -755,7 +760,7 @@ class Script:
         """
         self._builder.copy_async_wait_group(n)
 
-    def bulk_copy_async_global_to_shared(
+    def copy_async_bulk_global_to_shared(
         self,
         src: GlobalTensor,
         dst: SharedTensor,
@@ -823,15 +828,16 @@ class Script:
             elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,
             it will be filled with zero in the shared tensor. When set to `False`, the bound checking will be skipped,
         """
-        self._builder.bulk_copy_async_global_to_shared(src, dst, offsets, dims, mbarrier, evict, check_bounds)
+        self._builder.copy_async_bulk_global_to_shared(src, dst, offsets, dims, mbarrier, evict, check_bounds)
 
-    def bulk_copy_async_global_to_cluster_shared(
+    def copy_async_bulk_global_to_cluster_shared(
         self,
         src: GlobalTensor,
         dst: SharedTensor,
         offsets: Sequence[Expr | int],
-        dims: Sequence[int],
         mbarrier: Expr,
+        cta_mask: int,
+        dims: Optional[Sequence[int]] = None,
         evict: Optional[str] = None,
         check_bounds: bool = True,
     ) -> None:
@@ -879,6 +885,9 @@ class Script:
         mbarrier: Expr
             The memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
             to the barrier in shared memory.
+        cta_mask: int
+            The CTA mask to specify which CTAs this copy operation is targeting. Each bit in the mask represents a CTA
+            in the block cluster.
         evict: str, optional
             THe eviction policy for the cached data of this instruction. If not provided, the default eviction
             policy `evict_normal` is used, which is to evict the cached data when the shared memory is full. The
@@ -894,9 +903,11 @@ class Script:
             it will be filled with zero in the cluster shared tensor. When set to `False`, the bound checking will be skipped,
             and the user must ensure that the accessed global elements are always in bounds. The default value is `True`.
         """
-        self._builder.bulk_copy_async_global_to_cluster_shared(src, dst, offsets, dims, mbarrier, evict, check_bounds)
+        self._builder.copy_async_bulk_global_to_cluster_shared(
+            src, dst, offsets, mbarrier, cta_mask, dims, evict, check_bounds
+        )
 
-    def bulk_copy_async_shared_to_cluster_shared(
+    def copy_async_bulk_shared_to_cluster_shared(
         self,
         src: SharedTensor,
         dst: SharedTensor,
@@ -922,9 +933,9 @@ class Script:
             The memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
             to the barrier in shared memory.
         """
-        self._builder.bulk_copy_async_shared_to_cluster_shared(src, dst, mbarrier)
+        self._builder.copy_async_bulk_shared_to_cluster_shared(src, dst, mbarrier)
 
-    def bulk_copy_async_shared_to_global(
+    def copy_async_bulk_shared_to_global(
         self,
         src: SharedTensor,
         dst: GlobalTensor,
@@ -976,7 +987,7 @@ class Script:
             it will be ignored in the shared tensor. When set to `False`, the bound checking will be skipped,
             and the user must ensure that the accessed global elements are always in bounds. The default value is `True`.
         """
-        self._builder.bulk_copy_async_shared_to_global(src, dst, offsets, dims, check_bounds)
+        self._builder.copy_async_bulk_shared_to_global(src, dst, offsets, dims, check_bounds)
 
     def dot(
         self,

@@ -39,6 +39,7 @@ class AxesInfo:
 
 @dataclass
 class CopyAsyncAnalysisResult:
+    dtype: DataType
     shared_info: TensorInfo
     global_info: TensorInfo
     mask_info: TensorInfo
@@ -47,12 +48,15 @@ class CopyAsyncAnalysisResult:
 
     def __str__(self):
         seq = []
+        seq.append(f"dtype={self.dtype.name}")
         for name, info in [
             ("shared_info", self.shared_info),
             ("global_info", self.global_info),
             ("mask_info", self.mask_info),
         ]:
             seq.append(f"{name}={info}")
+        seq.append(f"contiguous_dim={self.contiguous_dim}")
+        seq.append(f"cp_size_bits={self.cp_size_bits}")
         return str(doc_join_lines(seq=seq, left="CopyAsyncAnalysisResult(", right=")", indent=4))
 
 
@@ -128,6 +132,7 @@ class CopyAysncBaseEmitter(BaseInstEmitter):
         # determine number of bytes to perform the cp.async
         cp_size_bits: int = self.get_dim_vec_size(shared_info, global_info, mask_info, contiguous_dim) * dtype.nbits
         return CopyAsyncAnalysisResult(
+            dtype=shared_tensor.dtype,
             shared_info=shared_info,
             global_info=global_info,
             mask_info=mask_info,

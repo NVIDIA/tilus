@@ -15,16 +15,17 @@
 from typing import List, Optional, Sequence
 
 from hidet.ir import logical_and
-from hidet.ir.dtypes import boolean, int32
+from hidet.ir.dtypes import boolean, int32, uint32
 from hidet.ir.expr import Expr
 from hidet.ir.utils.index_transform import index_deserialize
 from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 
 from tilus.backends.codegen import register_emitter
 from tilus.backends.emitters.cuda.cp_async_base import CopyAsyncAnalysisResult, CopyAysncBaseEmitter
-from tilus.extensions.hidet.ir.primitives.cuda.bulk_copy_async import cp_async_bulk_g2s, cp_async_bulk_s2g
+from tilus.extensions.hidet.ir.primitives.cuda.bulk_copy_async import cp_async_bulk_global_to_shared, cp_async_bulk_shared_to_global, cp_async_bulk_global_to_cluster_shared
+from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import mbarrier_expect_tx_shared
 from tilus.ir import GlobalTensor
-from tilus.ir.instructions import BulkCopyAsyncGlobalToSharedInst, BulkCopyAsyncSharedToGlobalInst
+from tilus.ir.instructions import CopyAsyncBulkGlobalToSharedInst, CopyAsyncBulkSharedToGlobalInst, CopyAsyncBulkSharedToClusterSharedInst, CopyAsyncBulkGlobalToClusterSharedInst
 from tilus.ir.tensor import SharedTensor
 from tilus.target import nvgpu_sm90
 from tilus.utils import prod
@@ -44,8 +45,8 @@ class BulkCopyAsyncBetweenGlobalShared(CopyAysncBaseEmitter):
         shared_address: Expr,
         global_address: Expr,
         size: int,
-        inst: BulkCopyAsyncSharedToGlobalInst | BulkCopyAsyncGlobalToSharedInst,
-    ) -> Expr:
+        inst: CopyAsyncBulkSharedToGlobalInst | CopyAsyncBulkGlobalToSharedInst | CopyAsyncBulkGlobalToClusterSharedInst,
+    ) -> None:
         raise NotImplementedError()
 
     def common_emit(
@@ -55,7 +56,7 @@ class BulkCopyAsyncBetweenGlobalShared(CopyAysncBaseEmitter):
         offsets: Sequence[Expr],
         dims: Optional[Sequence[int]],
         check_bounds: bool,
-        inst: BulkCopyAsyncSharedToGlobalInst | BulkCopyAsyncGlobalToSharedInst,
+        inst: CopyAsyncBulkSharedToGlobalInst | CopyAsyncBulkGlobalToSharedInst | CopyAsyncBulkGlobalToClusterSharedInst,
     ) -> None:
         analysis: CopyAsyncAnalysisResult = self.analyze(
             shared_tensor=shared_tensor,
@@ -98,34 +99,41 @@ class BulkCopyAsyncBetweenGlobalShared(CopyAysncBaseEmitter):
             )
             mask = boolean.true if not check_bounds else within_bound(global_indices, global_tensor.shape)
             with self.if_then(mask):
-                self.append(
-                    self.emit_cp_async(
-                        shared_address=shared_address,
-                        global_address=global_address,
-                        size=cp_size,
-                        inst=inst,
-                    )
+                self.emit_cp_async(
+                    shared_address=shared_address,
+                    global_address=global_address,
+                    size=cp_size,
+                    inst=inst,
                 )
 
-        with self.for_range(extent=(num_copies + num_threads - 1) // num_threads, attr="u+") as iter_i:
-            with self.if_then(self.current_worker + iter_i * num_threads < num_copies):
+        if num_copies % num_threads == 0:
+            with self.for_range(extent=num_copies // num_threads, attr="u+") as iter_i:
                 emit_bulk_cp_async(index_deserialize(self.current_worker + iter_i * num_threads, shape=copy_shape))
+        elif num_copies < num_copies:
+            with self.if_then(self.current_worker < num_copies):
+                emit_bulk_cp_async(index_deserialize(self.current_worker, shape=copy_shape))
+        else:
+            with self.for_range(extent=(num_copies + num_threads - 1) // num_threads, attr="u+") as iter_i:
+                with self.if_then(self.current_worker + iter_i * num_threads < num_copies):
+                    emit_bulk_cp_async(index_deserialize(self.current_worker + iter_i * num_threads, shape=copy_shape))
 
 
-@register_emitter(BulkCopyAsyncGlobalToSharedInst, target=nvgpu_sm90)
-class BulkCopyAysncGlobalToSharedInstEmitter(BulkCopyAsyncBetweenGlobalShared):
+@register_emitter(CopyAsyncBulkGlobalToSharedInst, target=nvgpu_sm90)
+class BulkCopyAsyncGlobalToSharedInstEmitter(BulkCopyAsyncBetweenGlobalShared):
     def emit_cp_async(
-        self, shared_address: Expr, global_address: Expr, size: int, inst: BulkCopyAsyncGlobalToSharedInst
-    ) -> Expr:
-        return cp_async_bulk_g2s(
+        self, shared_address: Expr, global_address: Expr, size: int, inst: CopyAsyncBulkGlobalToSharedInst
+    ) -> None:
+        barrier_addr = self.declare_var(name='barrier_addr', tp=uint32, init=cvta_generic_to_shared(inst.mbarrier))
+        self.append(mbarrier_expect_tx_shared(mbarrier_addr=barrier_addr, transaction_bytes=size))
+        self.append(cp_async_bulk_global_to_shared(
             dst=shared_address,
             src=global_address,
             size=int32(size),
-            mbarrier=cvta_generic_to_shared(inst.mbarrier),
+            mbarrier=barrier_addr,
             l2_evict=inst.evict,
-        )
+        ))
 
-    def emit(self, inst: BulkCopyAsyncGlobalToSharedInst) -> None:
+    def emit(self, inst: CopyAsyncBulkGlobalToSharedInst) -> None:
         self.common_emit(
             shared_tensor=inst.inputs[0].as_shared_tensor(),
             global_tensor=inst.inputs[1].as_global_tensor(),
@@ -136,22 +144,59 @@ class BulkCopyAysncGlobalToSharedInstEmitter(BulkCopyAsyncBetweenGlobalShared):
         )
 
 
-@register_emitter(BulkCopyAsyncSharedToGlobalInst, target=nvgpu_sm90)
+@register_emitter(CopyAsyncBulkSharedToGlobalInst, target=nvgpu_sm90)
 class CopyAysncCommitGroupInstEmitter(BulkCopyAsyncBetweenGlobalShared):
     def emit_cp_async(
-        self, shared_address: Expr, global_address: Expr, size: int, inst: BulkCopyAsyncSharedToGlobalInst
-    ) -> Expr:
-        return cp_async_bulk_s2g(
+        self, shared_address: Expr, global_address: Expr, size: int, inst: CopyAsyncBulkSharedToGlobalInst
+    ) -> None:
+        self.append(cp_async_bulk_shared_to_global(
             dst=global_address,
             src=shared_address,
             size=int32(size),
             l2_evict=inst.l2_evict,
-        )
+        ))
 
-    def emit(self, inst: BulkCopyAsyncSharedToGlobalInst) -> None:
+    def emit(self, inst: CopyAsyncBulkSharedToGlobalInst) -> None:
         self.common_emit(
             shared_tensor=inst.inputs[1].as_shared_tensor(),
             global_tensor=inst.inputs[0].as_global_tensor(),
+            offsets=inst.offsets,
+            dims=inst.dims,
+            check_bounds=inst.check_bounds,
+            inst=inst,
+        )
+
+
+@register_emitter(CopyAsyncBulkGlobalToClusterSharedInst, target=nvgpu_sm90)
+class CopyAsyncBulkGlobalToClusterSharedEmitter(BulkCopyAsyncBetweenGlobalShared):
+    @staticmethod
+    def get_smallest_block_rank(cta_mask: int) -> int:
+        for i in range(16):
+            if (1 << i) & cta_mask:
+                return i
+        raise ValueError("Invalid cta_mask: {}".format(cta_mask))
+
+
+    def emit_cp_async(
+        self, shared_address: Expr, global_address: Expr, size: int, inst: CopyAsyncBulkGlobalToClusterSharedInst
+    ) -> None:
+        barrier_addr = self.declare_var(name='barrier_addr', tp=uint32, init=cvta_generic_to_shared(inst.mbarrier))
+        with self.if_then((1 << self.block_rank_in_cluster) & inst.cta_mask):
+            self.append(mbarrier_expect_tx_shared(mbarrier_addr=barrier_addr, transaction_bytes=size))
+        with self.if_then(self.block_rank_in_cluster == uint32(self.get_smallest_block_rank(inst.cta_mask))):
+            self.append(cp_async_bulk_global_to_cluster_shared(
+                dst=shared_address,
+                src=global_address,
+                size=int32(size),
+                mbarrier=barrier_addr,
+                cta_mask=inst.cta_mask,
+                l2_evict=inst.evict,
+            ))
+
+    def emit(self, inst: CopyAsyncBulkGlobalToClusterSharedInst) -> None:
+        self.common_emit(
+            shared_tensor=inst.inputs[0].as_shared_tensor(),
+            global_tensor=inst.inputs[1].as_global_tensor(),
             offsets=inst.offsets,
             dims=inst.dims,
             check_bounds=inst.check_bounds,

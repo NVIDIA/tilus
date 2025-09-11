@@ -24,7 +24,7 @@ from tilus.ir.tensor import GlobalTensor, SharedTensor
 
 
 @dataclass(frozen=True, eq=False)
-class BulkCopyAsyncGlobalToSharedInst(Instruction):
+class CopyAsyncBulkGlobalToSharedInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: tuple[int, ...]
     mbarrier: Expr
@@ -40,9 +40,9 @@ class BulkCopyAsyncGlobalToSharedInst(Instruction):
         mbarrier: Expr,
         evict: Optional[str] = None,
         check_bounds: bool = True,
-    ) -> BulkCopyAsyncGlobalToSharedInst:
+    ) -> CopyAsyncBulkGlobalToSharedInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
-        return BulkCopyAsyncGlobalToSharedInst(
+        return CopyAsyncBulkGlobalToSharedInst(
             output=None,
             inputs=(dst, src),
             offsets=offsets_,
@@ -54,10 +54,11 @@ class BulkCopyAsyncGlobalToSharedInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class BulkCopyAsyncGlobalToClusterSharedInst(Instruction):
+class CopyAsyncBulkGlobalToClusterSharedInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: tuple[int, ...]
     mbarrier: Expr
+    cta_mask: int
     evict: Optional[str]
     check_bounds: bool = True
 
@@ -68,15 +69,17 @@ class BulkCopyAsyncGlobalToClusterSharedInst(Instruction):
         offsets: Sequence[Expr | int],
         dims: Sequence[int],
         mbarrier: Expr,
+        cta_mask: int,
         evict: Optional[str] = None,
         check_bounds: bool = True,
-    ) -> BulkCopyAsyncGlobalToClusterSharedInst:
+    ) -> CopyAsyncBulkGlobalToClusterSharedInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
-        return BulkCopyAsyncGlobalToClusterSharedInst(
+        return CopyAsyncBulkGlobalToClusterSharedInst(
             output=None,
             inputs=(dst, src),
             offsets=offsets_,
             mbarrier=mbarrier,
+            cta_mask=cta_mask,
             dims=tuple(dims) if dims else None,
             evict=evict,
             check_bounds=check_bounds,
@@ -84,7 +87,7 @@ class BulkCopyAsyncGlobalToClusterSharedInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class BulkCopyAsyncSharedToGlobalInst(Instruction):
+class CopyAsyncBulkSharedToGlobalInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: tuple[int, ...]
     check_bounds: bool = True
@@ -98,9 +101,9 @@ class BulkCopyAsyncSharedToGlobalInst(Instruction):
         dims: Sequence[int],
         l2_evict: Optional[str] = "evict_first",
         check_bounds: bool = True,
-    ) -> BulkCopyAsyncSharedToGlobalInst:
+    ) -> CopyAsyncBulkSharedToGlobalInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
-        return BulkCopyAsyncSharedToGlobalInst(
+        return CopyAsyncBulkSharedToGlobalInst(
             output=None,
             inputs=(dst, src),
             offsets=offsets_,
@@ -111,7 +114,7 @@ class BulkCopyAsyncSharedToGlobalInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class BulkCopyAsyncSharedToClusterSharedInst(Instruction):
+class CopyAsyncBulkSharedToClusterSharedInst(Instruction):
     mbarrier: Expr
 
     @staticmethod
@@ -119,8 +122,8 @@ class BulkCopyAsyncSharedToClusterSharedInst(Instruction):
         src: SharedTensor,
         dst: SharedTensor,
         mbarrier: Expr,
-    ) -> BulkCopyAsyncSharedToClusterSharedInst:
-        return BulkCopyAsyncSharedToClusterSharedInst(
+    ) -> CopyAsyncBulkSharedToClusterSharedInst:
+        return CopyAsyncBulkSharedToClusterSharedInst(
             output=None,
             inputs=(dst, src),
             mbarrier=mbarrier,
