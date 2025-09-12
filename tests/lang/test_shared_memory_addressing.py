@@ -21,6 +21,7 @@ from tilus.extensions.hidet.ir.primitives.cuda.cvta import (
     cvta_shared_to_generic,
 )
 from tilus.extensions.hidet.ir.primitives.cuda.mapa import mapa_shared
+from tilus.testing import requires
 
 
 class SharedMemoryAddressingExample(tilus.Script):
@@ -96,6 +97,7 @@ class SharedMemoryAddressingExample(tilus.Script):
         )
 
 
+@requires.nvgpu_sm90
 def test_shared_memory_address_conversion():
     kernel = SharedMemoryAddressingExample()
     kernel()
