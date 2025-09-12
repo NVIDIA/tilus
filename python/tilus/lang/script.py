@@ -27,6 +27,7 @@ from hidet.ir.type import DataType
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.inst import InstructionError
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_row_major, global_strides
+from tilus.ir.layout import register_layout_ops
 from tilus.ir.prog import Program
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.constructs.contexts import ThreadGroupContext
@@ -1031,6 +1032,42 @@ class Script:
         """
         self._builder.copy_async_bulk_shared_to_global(src, dst, offsets, dims, check_bounds)
 
+    def copy_async_tensor_global_to_shared(
+        self,
+        *,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        mbarrier: Expr,
+        evict: Optional[str] = None,
+    ) -> None:
+        self._builder.copy_async_tensor_global_to_shared(
+            src=src,
+            dst=dst,
+            offsets=offsets,
+            dims=dims,
+            mbarrier=mbarrier,
+            evict=evict,
+        )
+
+    def copy_async_tensor_shared_to_global(
+        self,
+        src: SharedTensor,
+        dst: GlobalTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        evict: Optional[str] = None,
+    ) -> None:
+        self._builder.copy_async_tensor_shared_to_global(
+            src=src,
+            dst=dst,
+            offsets=offsets,
+            dims=dims,
+            evict=evict,
+        )
+
+
     def dot(
         self,
         a: RegisterTensor,
@@ -1910,7 +1947,7 @@ class Script:
             raise InstructionError("The dtypes of dst and src must match, got {} and {}".format(dst.dtype, src.dtype))
         self._builder.assign_register(dst, src)
 
-    def init_barrier(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
+    def init_barrier(self, barrier: Expr, count: int) -> None:
         """Initialize a barrier.
 
         This instruction initializes a memory barrier in shared memory. The `barrier` parameter must be an addressable
@@ -1920,24 +1957,49 @@ class Script:
         ----------
         barrier: Expr
             The pointer to the barrier in shared memory.
-        count: Expr | int, optional
+        count: int
             The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
             to a positive int32. When not provided, it defaults to the number of threads in the thread block.
         """
-        self._builder.init_barrier(barrier, int32(count) if isinstance(count, int) else count)
+        self._builder.init_barrier(barrier, int32(count))
 
-    def arrive_barrier(self, barrier: Expr) -> None:
+    def arrive_barrier(self, barrier: Expr, *, mask: Optional[RegisterTensor] = None, f_mask: Optional[Callable[[Var | int], Expr | bool]] = None) -> None:
         """Arrive at a barrier.
 
         This instruction indicates that the thread block (or the current partition of the thread block) has reached the
         specified barrier.
 
+        The `mask` parameter is an optional boolean register tensor that specifies which threads in the thread block are
+        participating in the barrier. The `f_mask` parameter is an optional function that takes a single argument (the
+        thread index within the block) and returns a boolean expression indicating whether the thread should participate
+        in the barrier. The two parameters are mutually exclusive; only one of them can be provided. If neither is
+        provided, all threads in the thread block are considered to have arrived at the barrier.
+
         Parameters
         ----------
         barrier: Expr
             The pointer to the barrier in shared memory.
+        mask: RegisterTensor, optional
+            An optional boolean register tensor that specifies which threads in the thread block are participating in
+            the barrier. If provided, only the threads with a `True` value in the mask will be considered as having
+            arrived at the barrier. If not provided, all threads in the thread block are considered to have arrived at
+            the barrier.
+        f_mask: Callable[[Var], Expr], optional
+            An optional function that takes a single argument (the thread index within the block) and returns a boolean
+            expression indicating whether the thread should participate in the barrier. This function is used to
+            generate the mask dynamically based on the thread index.
         """
-        self._builder.arrive_barrier(barrier)
+        num_threads = self.attrs.warps * 32
+        if f_mask is not None and mask is not None:
+            raise InstructionError("The f_mask and mask parameters cannot be used together")
+        elif f_mask is not None:
+            mask = self._builder.allocate_register(dtype=boolean, shape=[num_threads], f_init=lambda indices: f_mask(indices[0]))
+        elif mask is not None:
+            pass  # already provided
+        else:
+            mask = self._builder.allocate_register(dtype=boolean, shape=[num_threads], f_init=lambda _: boolean.true)
+        self._builder.annotate_layout(mask, register_layout_ops.spatial(num_threads))
+        self._builder.arrive_barrier(barrier, mask)
 
     def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr | int) -> None:
         """Arrive at a remote barrier.

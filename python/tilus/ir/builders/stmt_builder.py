@@ -40,6 +40,10 @@ from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkSharedToClusterSharedInst,
     CopyAsyncBulkSharedToGlobalInst,
 )
+from tilus.ir.instructions.cuda.cp_async_tensor import (
+    CopyAsyncTensorGlobalToSharedInst,
+    CopyAsyncTensorSharedToGlobalInst,
+)
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mbarrier import (
     ArriveBarrierInst,
@@ -584,6 +588,34 @@ class StmtBuilder(StmtBuilderCore):
         )
         self.append(inst)
 
+    def copy_async_tensor_global_to_shared(
+        self,
+        *,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        mbarrier: Expr,
+        evict: Optional[str] = None,
+    ) -> None:
+        inst = CopyAsyncTensorGlobalToSharedInst.create(
+            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, evict=evict
+        )
+        self.append(inst)
+
+    def copy_async_tensor_shared_to_global(
+        self,
+        src: SharedTensor,
+        dst: GlobalTensor,
+        offsets: Sequence[Expr | int],
+        dims: Sequence[int],
+        evict: Optional[str] = None,
+    ) -> None:
+        inst = CopyAsyncTensorSharedToGlobalInst.create(
+            src=src, dst=dst, offsets=offsets, dims=dims, evict=evict
+        )
+        self.append(inst)
+
     def elementwise_binary(
         self,
         x: RegisterTensor,
@@ -1051,8 +1083,8 @@ class StmtBuilder(StmtBuilderCore):
         inst = InitBarrierInst.create(barrier=barrier, count=count)
         self.append(inst)
 
-    def arrive_barrier(self, barrier: Expr) -> None:
-        inst = ArriveBarrierInst.create(barrier=barrier)
+    def arrive_barrier(self, barrier: Expr, mask: RegisterTensor) -> None:
+        inst = ArriveBarrierInst.create(barrier=barrier, mask=mask)
         self.append(inst)
 
     def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr | int) -> None:

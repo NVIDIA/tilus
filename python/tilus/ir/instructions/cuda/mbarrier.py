@@ -20,6 +20,7 @@ from typing import Optional
 from hidet import uint32
 from hidet.ir.expr import Expr
 
+from tilus.ir import RegisterTensor
 from tilus.ir.inst import Instruction
 
 
@@ -38,8 +39,8 @@ class ArriveBarrierInst(Instruction):
     barrier: Expr
 
     @staticmethod
-    def create(barrier: Expr) -> ArriveBarrierInst:
-        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier)
+    def create(barrier: Expr, mask: RegisterTensor) -> ArriveBarrierInst:
+        return ArriveBarrierInst(output=None, inputs=(mask,), barrier=barrier)
 
 
 @dataclass(frozen=True, eq=False)
