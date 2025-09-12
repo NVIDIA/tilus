@@ -1868,7 +1868,7 @@ class Script:
             raise InstructionError("The dtypes of dst and src must match, got {} and {}".format(dst.dtype, src.dtype))
         self._builder.assign_register(dst, src)
 
-    def init_barrier(self, barrier: Expr, count: Optional[Expr | int] = 1) -> None:
+    def init_barrier(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
         """Initialize a barrier.
 
         This instruction initializes a memory barrier in shared memory. The `barrier` parameter must be an addressable
@@ -1897,7 +1897,7 @@ class Script:
         """
         self._builder.arrive_barrier(barrier)
 
-    def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr) -> None:
+    def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr | int) -> None:
         """Arrive at a remote barrier.
 
         This instruction indicates that a remote thread block has reached the specified barrier. It is used for
@@ -1908,7 +1908,7 @@ class Script:
         ----------
         barrier: Expr
             The pointer to the barrier in shared memory.
-        remote_block: Expr
+        remote_block: Expr | int
             The thread block index of the remote thread block that the current block is signaling the arrival to. It
             should be an expression that evaluates to a non-negative int32.
         """

@@ -59,6 +59,26 @@ class CopyAsyncAnalysisResult:
         seq.append(f"cp_size_bits={self.cp_size_bits}")
         return str(doc_join_lines(seq=seq, left="CopyAsyncAnalysisResult(", right=")", indent=4))
 
+@dataclass
+class CopyAsyncAnalysisSharedToSharedResult:
+    dtype: DataType
+    shared_src_info: TensorInfo
+    shared_dst_info: TensorInfo
+    contiguous_dim: int
+    cp_size_bits: int
+
+    def __str__(self):
+        seq = []
+        seq.append(f"dtype={self.dtype.name}")
+        for name, info in [
+            ("shared_src_info", self.shared_src_info),
+            ("shared_dst_info", self.shared_dst_info),
+        ]:
+            seq.append(f"{name}={info}")
+        seq.append(f"contiguous_dim={self.contiguous_dim}")
+        seq.append(f"cp_size_bits={self.cp_size_bits}")
+        return str(doc_join_lines(seq=seq, left="CopyAsyncAnalysisSharedToSharedResult(", right=")", indent=4))
+
 
 class CopyAysncBaseEmitter(BaseInstEmitter):
     @staticmethod
@@ -91,12 +111,12 @@ class CopyAysncBaseEmitter(BaseInstEmitter):
         return AxesInfo(axes=axes, mask_expr=mask_expr, global_offset=global_offset, shared_offset=shared_offset)
 
     @staticmethod
-    def get_dim_vec_size(shared_info: TensorInfo, global_info: TensorInfo, mask_info: TensorInfo, dim: int) -> int:
+    def get_dim_vec_size(src_info: TensorInfo, dst_info: TensorInfo, mask_info: TensorInfo, dim: int) -> int:
         return gcd(
-            shared_info[dim].continuity,
-            global_info[dim].continuity,
-            shared_info[dim].divisibility,
-            global_info[dim].divisibility,
+            src_info[dim].continuity,
+            dst_info[dim].continuity,
+            src_info[dim].divisibility,
+            dst_info[dim].divisibility,
             mask_info[dim].constancy,
         )
 
@@ -136,6 +156,47 @@ class CopyAysncBaseEmitter(BaseInstEmitter):
             shared_info=shared_info,
             global_info=global_info,
             mask_info=mask_info,
+            contiguous_dim=contiguous_dim,
+            cp_size_bits=cp_size_bits,
+        )
+
+    def analyze_shared_to_shared(
+        self,
+        shared_src: SharedTensor,
+        shared_dst: SharedTensor,
+    ) -> CopyAsyncAnalysisSharedToSharedResult:
+        dtype: DataType = shared_src.dtype
+        layout_src: SharedLayout = shared_src.layout
+        layout_dst: SharedLayout = shared_dst.layout
+        shape: Sequence[int] = layout_src.shape
+        assert shape == layout_dst.shape
+
+        # get shared src and dst info
+        analysis = self.codegen.function.metadata.analysis
+        axes = index_vars(num_vars=len(shape))
+        shared_src_info: TensorInfo = analyze_grid(
+            shape=shape, axes=axes, analysis=analysis, expr=shared_src.layout(*axes)
+        )
+        shared_dst_info: TensorInfo = analyze_grid(
+            shape=shape, axes=axes, analysis=analysis, expr=shared_dst.layout(*axes)
+        )
+        mask_info: TensorInfo = TensorInfo.from_constant(shape=shape, value=1)
+
+        assert len(shape) > 0
+
+        contiguous_dim: int = len(shape) - 1
+        for dim in reversed(range(len(shape))):
+            if self.get_dim_vec_size(shared_src_info, shared_dst_info, shared_dst_info, dim) > self.get_dim_vec_size(
+                shared_src_info, shared_dst_info, shared_dst_info, contiguous_dim
+            ):
+                contiguous_dim = dim
+
+        # determine number of bytes to perform the cp.async
+        cp_size_bits: int = self.get_dim_vec_size(shared_src_info, shared_dst_info, mask_info, contiguous_dim) * dtype.nbits
+        return CopyAsyncAnalysisSharedToSharedResult(
+            dtype=dtype,
+            shared_src_info=shared_src_info,
+            shared_dst_info=shared_dst_info,
             contiguous_dim=contiguous_dim,
             cp_size_bits=cp_size_bits,
         )

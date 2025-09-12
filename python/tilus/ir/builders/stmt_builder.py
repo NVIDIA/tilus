@@ -38,7 +38,7 @@ from tilus.ir.instructions.cuda.mbarrier import ArriveBarrierInst, ArriveRemoteB
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
-from tilus.ir.instructions.cuda.bulk_cp_async import (
+from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkGlobalToClusterSharedInst,
     CopyAsyncBulkGlobalToSharedInst,
     CopyAsyncBulkSharedToClusterSharedInst,
@@ -1043,7 +1043,7 @@ class StmtBuilder(StmtBuilderCore):
         inst = ArriveBarrierInst.create(barrier=barrier)
         self.append(inst)
 
-    def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr) -> None:
+    def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr | int) -> None:
         inst = ArriveRemoteBarrierInst.create(barrier=barrier, remote_block=remote_block)
         self.append(inst)
 

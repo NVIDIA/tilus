@@ -138,6 +138,24 @@ def register_bulk_copy_async():
             assert isinstance(cuda_cp_async, Function)
             register_primitive_function(name=func_name, func_or_type=cuda_cp_async)
 
+    # cp_async_shared_to_cluster_shared
+    func_name = "cuda_cp_async_bulk_cluster_shared_shared"
+    @no_type_check
+    @script
+    def cuda_cp_async(dst: uint32, src: uint32, size: int32, mbarrier: uint32):
+        attrs.func_name = func_name
+        attrs.func_kind = "cuda_internal"
+        asm(
+            template="cp.async.bulk.shared::cluster.shared::cta.mbarrier::complete_tx::bytes [%0], [%1], %2, [%3];",
+            inputs=[dst, src, size, mbarrier],
+            is_volatile=True,
+            memory_fence=True,
+        )
+    assert isinstance(cuda_cp_async, Function)
+    register_primitive_function(name=func_name, func_or_type=cuda_cp_async)
+
+
+
 
 def cp_async_bulk_global_to_shared(dst: Expr, src: Expr, size: Expr, mbarrier: Expr, l2_evict: Optional[str] = None) -> Expr:
     """Perform a bulk copy from global memory to shared memory asynchronously.
@@ -239,3 +257,33 @@ def cp_async_bulk_shared_to_global(
     if byte_mask is not None:
         args.append(byte_mask)
     return call_cuda(func_name, args=args)
+
+
+def cp_async_bulk_shared_to_cluster_shared(
+    dst: Expr,
+    src: Expr,
+    size: Expr,
+    mbarrier: Expr,
+) -> Expr:
+    """Perform a bulk copy from cluster's CTA shared memory to shared memory asynchronously.
+
+    Parameters
+    ----------
+    dst: Expr
+        The destination address in shared memory. It should be an address with shared memory space with type uint32.
+    src: Expr
+        The source address in shared memory. It should be an address with shared memory space with type uint32.
+    size: Expr
+        The size of the data to be copied in bytes. It should be an expression with int32 type. It must be a multiple
+        of 16.
+    mbarrier: Expr
+        The mbarrier to be used for synchronization. It should be an address with shared memory space with type uint32
+        that has been initialized by `mbarrier_init`.
+
+    Returns
+    -------
+    ret: Expr
+        A function call expression.
+    """
+    func_name = "cp_async_bulk_cluster_shared_shared"
+    return call_cuda(func_name, args=[dst, src, size, mbarrier])

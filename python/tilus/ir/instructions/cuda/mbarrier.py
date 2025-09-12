@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from hidet import uint32
 from hidet.ir.expr import Expr
 
 from tilus.ir.inst import Instruction
@@ -47,7 +48,9 @@ class ArriveRemoteBarrierInst(Instruction):
     remote_block: Expr
 
     @staticmethod
-    def create(barrier: Expr, remote_block: Expr) -> ArriveRemoteBarrierInst:
+    def create(barrier: Expr, remote_block: Expr | int) -> ArriveRemoteBarrierInst:
+        if isinstance(remote_block, int):
+            remote_block = uint32(remote_block)
         return ArriveRemoteBarrierInst(output=None, inputs=(), barrier=barrier, remote_block=remote_block)
 
 

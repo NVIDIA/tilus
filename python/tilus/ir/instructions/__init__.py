@@ -15,7 +15,7 @@
 from tilus.ir.inst import Instruction
 
 from .annotation import AnnotateLayoutInst
-from .cuda.bulk_cp_async import (
+from .cuda.cp_async_bulk import (
     CopyAsyncBulkGlobalToClusterSharedInst,
     CopyAsyncBulkGlobalToSharedInst,
     CopyAsyncBulkSharedToClusterSharedInst,
