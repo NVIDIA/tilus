@@ -22,8 +22,9 @@ from hidet.ir.dtypes import int32, uint8
 from hidet.ir.expr import Constant, Expr, SymbolVar, Var, cast, tensor_pointer_var, tensor_var
 from hidet.ir.func import Function as HidetFunction
 from hidet.ir.module import IRModule
+from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
-from hidet.ir.primitives.cuda.vars import threadIdx
+from hidet.ir.primitives.cuda.vars import blockIdx, dim3, threadIdx
 from hidet.ir.stmt import DeclareScope
 from hidet.ir.type import void_p
 from hidet.utils.doc import Doc, Text
@@ -145,6 +146,14 @@ class BaseInstEmitter(StmtBuilder):
     @property
     def current_num_workers(self) -> int:
         return self.codegen.thread_groups.group_size[-1]
+
+    @property
+    def block_rank_in_cluster(self) -> Expr:
+        return this_cluster.block_rank
+
+    @property
+    def blockIdx(self) -> dim3:
+        return blockIdx
 
     @property
     def thread_groups(self):

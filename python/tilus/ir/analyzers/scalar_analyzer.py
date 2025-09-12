@@ -360,7 +360,7 @@ class ScalarSetAnalyzer(HidetIRFunctor):
             return ScalarSet.max(self.visit(e.args[0]), self.visit(e.args[1]))
         else:
             # a set contains all integers
-            logger.warning("Unknown function call in scalar analysis: {}, fallback to universe set.".format(func_name))
+            logger.debug("Unknown function call in scalar analysis: %s, fallback to universe set.", func_name)
             return ScalarSet()
 
     def visit_dispatch(self, node):

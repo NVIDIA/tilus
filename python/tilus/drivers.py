@@ -22,12 +22,12 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 import filelock
-from hidet.backend.build import compile_source
 from hidet.drivers.build_module import write_function_types
 from hidet.ir.module import IRModule
 
 import tilus.option
 from tilus.backends.codegen import generate_ir_module
+from tilus.extensions.hidet.backend.build import compile_source
 from tilus.extensions.hidet.backend.codegen import codegen
 from tilus.ir.prog import Program
 from tilus.ir.tools import verify
@@ -308,7 +308,8 @@ def build_program(
 
         # 6. compile the low-level code
         lib_path = module_dir / "lib.so"
-        compile_source(source_file=str(src_path), output_library_file=str(lib_path), target="cuda")
+        target = tilus.target.get_current_target()
+        compile_source(source_file=str(src_path), output_library_file=str(lib_path), target=target)
 
         if load:
             return load_compiled_program(cache_dir)

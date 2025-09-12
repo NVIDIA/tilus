@@ -26,22 +26,29 @@ from hidet.utils import same_list
 
 from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.instructions.annotation import AnnotateLayoutInst
-from tilus.ir.instructions.cuda import (
-    ArriveBarrierInst,
-    ArriveRemoteBarrierInst,
+from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
+from tilus.ir.instructions.cuda.cp_async import (
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
-    DotInst,
+)
+from tilus.ir.instructions.cuda.cp_async_bulk import (
+    CopyAsyncBulkGlobalToClusterSharedInst,
+    CopyAsyncBulkGlobalToSharedInst,
+    CopyAsyncBulkSharedToClusterSharedInst,
+    CopyAsyncBulkSharedToGlobalInst,
+)
+from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
+from tilus.ir.instructions.cuda.mbarrier import (
+    ArriveBarrierInst,
+    ArriveRemoteBarrierInst,
     InitBarrierInst,
-    LoadMatrixConfig,
-    LoadMatrixInst,
-    LockSemaphoreInst,
-    ReleaseSemaphoreInst,
     WaitBarrierInst,
 )
+from tilus.ir.instructions.cuda.mma_dot import DotInst
+from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from tilus.ir.instructions.generic import (
     AddInst,
     AllocateGlobalInst,
@@ -490,6 +497,88 @@ class StmtBuilder(StmtBuilderCore):
         inst = CopyAsyncWaitGroupInst.create(as_expr(n))
         self.append(inst)
 
+    def copy_async_bulk_global_to_shared(
+        self,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]],
+        mbarrier: Expr,
+        evict: Optional[str] = None,
+        check_bounds: bool = True,
+    ) -> None:
+        if dims is None:
+            dims = list(range(len(src.shape)))
+        inst = CopyAsyncBulkGlobalToSharedInst.create(
+            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, evict=evict, check_bounds=check_bounds
+        )
+        self.append(inst)
+
+    def copy_async_bulk_global_to_cluster_shared(
+        self,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        mbarrier: Expr,
+        cta_mask: int,
+        dims: Optional[Sequence[int]],
+        evict: Optional[str] = None,
+        check_bounds: bool = True,
+    ) -> None:
+        if dims is None:
+            if len(src.shape) != len(dst.shape):
+                raise InstructionError(
+                    "When `dims` is not specified, the rank of src and dst must be the same, "
+                    f"but got {len(src.shape)} and {len(dst.shape)}"
+                )
+            dims = list(range(len(src.shape)))
+        inst = CopyAsyncBulkGlobalToClusterSharedInst.create(
+            src=src,
+            dst=dst,
+            offsets=offsets,
+            dims=dims,
+            mbarrier=mbarrier,
+            cta_mask=cta_mask,
+            evict=evict,
+            check_bounds=check_bounds,
+        )
+        self.append(inst)
+
+    def copy_async_bulk_shared_to_cluster_shared(
+        self,
+        src: SharedTensor,
+        dst: SharedTensor,
+        remote_rank: int,
+        mbarrier: Expr,
+    ) -> None:
+        inst = CopyAsyncBulkSharedToClusterSharedInst.create(
+            src=src,
+            dst=dst,
+            remote_rank=remote_rank,
+            mbarrier=mbarrier,
+        )
+        self.append(inst)
+
+    def copy_async_bulk_shared_to_global(
+        self,
+        src: SharedTensor,
+        dst: GlobalTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]],
+        check_bounds: bool = True,
+    ) -> None:
+        if dims is None:
+            if len(src.shape) != len(dst.shape):
+                raise InstructionError(
+                    "When `dims` is not specified, the rank of src and dst must be the same, "
+                    f"but got {len(src.shape)} and {len(dst.shape)}"
+                )
+            dims = list(range(len(src.shape)))
+        inst = CopyAsyncBulkSharedToGlobalInst.create(
+            src=src, dst=dst, offsets=offsets, dims=dims, check_bounds=check_bounds
+        )
+        self.append(inst)
+
     def elementwise_binary(
         self,
         x: RegisterTensor,
@@ -930,6 +1019,10 @@ class StmtBuilder(StmtBuilderCore):
 
     # control operations
 
+    def cluster_sync(self) -> None:
+        inst = ClusterSyncThreadsInst.create()
+        self.append(inst)
+
     def syncthreads(self) -> None:
         inst = SyncThreadsInst.create()
         self.append(inst)
@@ -949,7 +1042,7 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     # barrier
-    def init_barrier(self, barrier: Expr, count: Expr) -> None:
+    def init_barrier(self, barrier: Expr, count: Optional[Expr] = None) -> None:
         inst = InitBarrierInst.create(barrier=barrier, count=count)
         self.append(inst)
 
@@ -957,7 +1050,7 @@ class StmtBuilder(StmtBuilderCore):
         inst = ArriveBarrierInst.create(barrier=barrier)
         self.append(inst)
 
-    def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr) -> None:
+    def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr | int) -> None:
         inst = ArriveRemoteBarrierInst.create(barrier=barrier, remote_block=remote_block)
         self.append(inst)
 

@@ -33,6 +33,7 @@ All commits must be signed to be accepted.
 
 ### Developer Certificate of Origin
 
+```
 Developer's Certificate of Origin 1.1
 
 By making a contribution to this project, I certify that:
@@ -60,3 +61,4 @@ By making a contribution to this project, I certify that:
     this project or the open source license(s) involved.
 
 For more information, see https://developercertificate.org/.
+```

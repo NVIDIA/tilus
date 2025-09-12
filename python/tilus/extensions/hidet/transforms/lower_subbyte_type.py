@@ -203,6 +203,10 @@ class AddressingAnalyzer(IRVisitor):
                 scope = DeclareScope.Shared
             elif "get_ptr_symbol_value" in func_name:
                 scope = DeclareScope.Global
+            elif "cvta_cta_shared_to_generic" in func_name:
+                scope = DeclareScope.Shared
+            elif "cvta_cluster_shared_to_generic" in func_name:
+                scope = DeclareScope.Shared
             else:
                 raise ValueError("Can not infer the scope of return value of function {}".format(func_name))
 

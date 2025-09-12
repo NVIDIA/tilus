@@ -19,8 +19,7 @@ from hidet.ir.expr import Expr, cast, if_then_else, var
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.mma import mma_sync_v2
-from tilus.ir.instructions.cuda import DotInst
-from tilus.ir.instructions.cuda.mma_dot import AtomicMmaConfig
+from tilus.ir.instructions.cuda.mma_dot import AtomicMmaConfig, DotInst
 from tilus.ir.layout import LayoutOperationError, RegisterLayout
 from tilus.ir.tensor import RegisterTensor
 from tilus.target import nvgpu_sm70

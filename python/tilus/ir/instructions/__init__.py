@@ -15,23 +15,25 @@
 from tilus.ir.inst import Instruction
 
 from .annotation import AnnotateLayoutInst
-from .cuda import (
-    ArriveBarrierInst,
-    ArriveRemoteBarrierInst,
+from .cuda.cluster_sync import ClusterSyncThreadsInst
+from .cuda.cp_async import (
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,
     CopyAsyncInst,
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
-    DotInst,
-    InitBarrierInst,
-    LoadMatrixConfig,
-    LoadMatrixInst,
-    LockSemaphoreInst,
-    ReleaseSemaphoreInst,
-    SimtDotInst,
-    WaitBarrierInst,
 )
+from .cuda.cp_async_bulk import (
+    CopyAsyncBulkGlobalToClusterSharedInst,
+    CopyAsyncBulkGlobalToSharedInst,
+    CopyAsyncBulkSharedToClusterSharedInst,
+    CopyAsyncBulkSharedToGlobalInst,
+)
+from .cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
+from .cuda.mbarrier import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst
+from .cuda.mma_dot import DotInst
+from .cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
+from .cuda.simt_dot import SimtDotInst
 from .generic import (
     AddInst,
     AllocateGlobalInst,

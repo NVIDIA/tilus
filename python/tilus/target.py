@@ -258,8 +258,43 @@ nvgpu_sm121a = Target(
 )
 
 
-@functools.cache
+_target = None
+
+
 def get_current_target() -> Target:
+    """Get the current compilation target.
+
+    This is the target used to compile kernels when compiling new kernels.
+
+    Returns
+    -------
+    target: Target
+        The current compilation target.
+    """
+    global _target
+    if _target is None:
+        _target = get_default_target()
+
+    return _target
+
+
+def set_current_target(target: Target) -> None:
+    """Set the current compilation target.
+
+    The current target is used to compile kernels when compiling new kernels.
+
+    Parameters
+    ----------
+    target: Target
+        The target to be set.
+    """
+    global _target
+    assert isinstance(target, Target)
+    _target = target
+
+
+@functools.cache
+def get_default_target() -> Target:
     from hidet import cuda
 
     has_nvgpu = cuda.available() and cuda.device_count() > 0

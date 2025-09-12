@@ -12,9 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from hidet.ir.dtypes import boolean
-from hidet.ir.primitives.cuda.barrier import mbarrier_arrive, mbarrier_init, mbarrier_wait
+from hidet.ir.dtypes import boolean, int32
+from hidet.ir.primitives.cuda.barrier import fence_view_async_shared, mbarrier_arrive, mbarrier_init, mbarrier_wait
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.ir.instructions import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst
@@ -25,12 +24,15 @@ from tilus.target import nvgpu_sm80, nvgpu_sm90
 class InitBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: InitBarrierInst) -> None:
         with self.if_then(self.current_worker == 0):
-            self.append(mbarrier_init(inst.barrier, inst.count))
+            count = inst.count if inst.count is not None else int32(self.current_num_workers)
+            self.append(mbarrier_init(inst.barrier, count))
+            self.append(fence_view_async_shared())
 
 
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
 class ArriveBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveBarrierInst) -> None:
+        # self.append(printf("[%d, %d, %d][%d] arrive barrier %p\n", blockIdx.x, blockIdx.y, blockIdx.z, self.current_worker, inst.barrier))
         self.append(mbarrier_arrive(inst.barrier))
 
 
@@ -43,4 +45,6 @@ class ArriveRemoteBarrierInstEmitter(BaseInstEmitter):
 @register_emitter(WaitBarrierInst, target=nvgpu_sm90)
 class WaitBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: WaitBarrierInst) -> None:
+        # self.append(printf("[%d, %d, %d][%d] start waiting barrier %p phase %d\n", blockIdx.x, blockIdx.y, blockIdx.z, self.current_worker, inst.barrier, inst.phase))
         self.append(mbarrier_wait(inst.barrier, inst.phase))
+        # self.append(printf("[%d, %d, %d][%d] end waiting barrier %p phase %d\n", blockIdx.x, blockIdx.y, blockIdx.z, self.current_worker, inst.barrier, inst.phase))

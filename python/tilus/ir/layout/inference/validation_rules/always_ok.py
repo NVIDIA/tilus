@@ -30,9 +30,19 @@ from tilus.ir.instructions import (
     StoreGlobalInst,
     StoreSharedInst,
 )
+from tilus.ir.instructions.cuda.cp_async_bulk import (
+    CopyAsyncBulkGlobalToClusterSharedInst,
+    CopyAsyncBulkGlobalToSharedInst,
+    CopyAsyncBulkSharedToClusterSharedInst,
+    CopyAsyncBulkSharedToGlobalInst,
+)
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 
 
+@register_rule(CopyAsyncBulkSharedToClusterSharedInst)
+@register_rule(CopyAsyncBulkGlobalToClusterSharedInst)
+@register_rule(CopyAsyncBulkGlobalToSharedInst)
+@register_rule(CopyAsyncBulkSharedToGlobalInst)
 @register_rule(CopyAsyncGenericInst)
 @register_rule(CopyAsyncInst)
 @register_rule(StoreGlobalGenericInst)

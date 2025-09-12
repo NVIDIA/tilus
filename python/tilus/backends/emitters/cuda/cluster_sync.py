@@ -12,15 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# from .cp_async import (
-#     CopyAsyncCommitGroupInst,
-#     CopyAsyncGenericInst,
-#     CopyAsyncInst,
-#     CopyAsyncWaitAllInst,
-#     CopyAsyncWaitGroupInst,
-# )
-# from .ldmatrix import LoadMatrixConfig, LoadMatrixInst
-# from .mbarrier import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst
-# from .mma_dot import DotInst
-# from .semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
-# from .simt_dot import SimtDotInst
+from hidet.ir.primitives.cuda.cluster import this_cluster
+
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
+
+
+@register_emitter(ClusterSyncThreadsInst)
+class ClusterSyncThreadsEmitter(BaseInstEmitter):
+    def emit(self, inst: ClusterSyncThreadsInst) -> None:
+        self.append(this_cluster.sync())  # type: ignore[attr-defined]

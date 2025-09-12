@@ -23,7 +23,7 @@ Tensor Creation and Free
    free_shared
 
 
-Load and Store Instructions
+Load and Store
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
@@ -34,7 +34,7 @@ Load and Store Instructions
    store_shared
 
 
-Asynchronous Copy Instructions
+Asynchronous Copy (SM80+)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autosummary::
 
@@ -44,14 +44,23 @@ Asynchronous Copy Instructions
    copy_async_wait_all
 
 
-Linear Algebra Instructions
+Bulk Asynchronous Copy (SM90+)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autosummary::
+
+   copy_async_bulk_global_to_shared
+   copy_async_bulk_global_to_cluster_shared
+   copy_async_bulk_shared_to_global
+
+
+Linear Algebra
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
 
    dot
 
-Elementwise Arithmetic Instructions
+Elementwise Arithmetic
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
@@ -64,7 +73,7 @@ Elementwise Arithmetic Instructions
    round
    where
 
-Transform Instructions
+Transform
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
@@ -78,7 +87,7 @@ Transform Instructions
    view
    transpose
 
-Reduction Instructions
+Reduction
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
@@ -87,7 +96,18 @@ Reduction Instructions
    min
    sum
 
-Atomic and Semaphore Instructions
+
+Barrier
+~~~~~~~
+
+.. autosummary::
+
+   init_barrier
+   arrive_barrier
+   arrive_remote_barrier
+   wait_barrier
+
+Atomic and Semaphore
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
@@ -95,15 +115,16 @@ Atomic and Semaphore Instructions
     lock_semaphore
     release_semaphore
 
-Synchronization Instruction
+Synchronization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
 
    sync
+   cluster_sync
 
 
-Miscellaneous Instructions
+Miscellaneous
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
