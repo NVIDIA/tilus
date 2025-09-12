@@ -19,8 +19,8 @@ from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, U
 
 from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
-from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
 from hidet.ir.primitives.cuda.cluster import this_cluster
+from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
 from hidet.ir.tools import infer_type
 from hidet.ir.type import DataType
 
@@ -172,7 +172,7 @@ class Script:
 
     @property
     def block_rank_in_cluster(self) -> Expr:
-        return this_cluster.block_rank
+        return this_cluster.block_rank  # type: ignore[attr-defined]
 
     # the following functions should only be called in the __call__ function to construct the script program
 
@@ -906,34 +906,6 @@ class Script:
         self._builder.copy_async_bulk_global_to_cluster_shared(
             src, dst, offsets, mbarrier, cta_mask, dims, evict, check_bounds
         )
-
-    def copy_async_bulk_shared_to_cluster_shared(
-        self,
-        src: SharedTensor,
-        dst: SharedTensor,
-        mbarrier: Expr,
-    ) -> None:
-        """Bulk copy from shared to cluster shared tensor asynchronously.
-
-        This instruction issues a bulk asynchronous copy of a tile from a shared tensor to a cluster shared tensor.
-
-        The `src` parameter specifies the shared tensor to copy from, while the `dst` parameter specifies the cluster
-        shared tensor to copy to.
-
-        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should
-        be an uint64 pointer to the barrier in shared memory.
-
-        Parameters
-        ----------
-        src: SharedTensor
-            The shared tensor to copy from.
-        dst: SharedTensor
-            The cluster shared tensor to copy to.
-        mbarrier: Expr
-            The memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
-            to the barrier in shared memory.
-        """
-        self._builder.copy_async_bulk_shared_to_cluster_shared(src, dst, mbarrier)
 
     def copy_async_bulk_shared_to_global(
         self,
@@ -1770,7 +1742,7 @@ class Script:
         self._builder.release_semaphore(semaphore, value)
 
     def cluster_sync(self) -> None:
-        """ Perform a cluster-wide synchronization.
+        """Perform a cluster-wide synchronization.
 
         All threads in the entire block cluster will wait at this point until all threads reach this instruction.
         """

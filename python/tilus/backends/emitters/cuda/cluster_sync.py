@@ -12,12 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from hidet.ir.primitives.cuda.cluster import this_cluster
+
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
-from hidet.ir.primitives.cuda.cluster import this_cluster
 
 
 @register_emitter(ClusterSyncThreadsInst)
 class ClusterSyncThreadsEmitter(BaseInstEmitter):
     def emit(self, inst: ClusterSyncThreadsInst) -> None:
-        self.append(this_cluster.sync())
+        self.append(this_cluster.sync())  # type: ignore[attr-defined]

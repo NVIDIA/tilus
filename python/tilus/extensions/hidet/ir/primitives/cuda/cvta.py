@@ -9,39 +9,70 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.utils import initialize
-from hidet.ir.type import PointerType, VoidType
+from typing import no_type_check
+
 from hidet.ir.expr import Expr
-from hidet.ir.stmt import asm
-from hidet.ir.primitives.func import register_primitive_function
 from hidet.ir.primitives.cuda.funcs import call_cuda
+from hidet.ir.primitives.func import register_primitive_function
+from hidet.ir.stmt import asm
+from hidet.ir.type import PointerType, VoidType, void_p
 from hidet.lang import script
+from hidet.utils import initialize
 
 
 def resolve_cvta_func_name(src_space: str, dst_space: str) -> str:
-    return 'cvta_{}_to_{}'.format(src_space, dst_space)
+    return "cvta_{}_to_{}".format(src_space, dst_space)
 
 
 @initialize()
 def register_cvta_instructions():
     from hidet.lang import attrs, u32
 
-    for src_space in ['generic']:
-        for dst_space in ['cta_shared', 'cluster_shared']:
-            func_name = 'cuda_' + resolve_cvta_func_name(src_space, dst_space)
+    for src_space in ["generic"]:
+        for dst_space in ["cta_shared", "cluster_shared"]:
+            func_name = "cuda_" + resolve_cvta_func_name(src_space, dst_space)
 
-            if src_space == 'generic' and dst_space == 'cta_shared':
+            if src_space == "generic" and dst_space == "cta_shared":
                 template = "{.reg.u64 smem_ptr; cvta.to.shared::cta.u64 smem_ptr, %1; cvt.u32.u64 %0, smem_ptr;}"
-            elif src_space == 'generic' and dst_space == 'cluster_shared':
+            elif src_space == "generic" and dst_space == "cluster_shared":
                 template = "{.reg.u64 smem_ptr; cvta.to.shared::cluster.u64 smem_ptr, %1; cvt.u32.u64 %0, smem_ptr;}"
             else:
                 raise NotImplementedError()
 
+            @no_type_check
             @script
             def cvta(src: PointerType(VoidType())) -> u32:
                 attrs.func_name = func_name
-                attrs.func_kind = 'cuda_internal'
+                attrs.func_kind = "cuda_internal"
                 ret: u32 = 0
+                asm(
+                    template=template,
+                    outputs=[ret],
+                    inputs=[src],
+                )
+                return ret
+
+            register_primitive_function(name=cvta.name, func_or_type=cvta)
+
+    for src_space in ["cta_shared", "cluster_shared"]:
+        for dst_space in ["generic"]:
+            func_name = "cuda_" + resolve_cvta_func_name(src_space, dst_space)
+
+            if src_space == "cta_shared" and dst_space == "generic":
+                template = "{.reg.u64 shared_ptr; cvt.u64.u32 shared_ptr, %1; cvta.shared::cta.u64 %0, shared_ptr; }"
+            elif src_space == "cluster_shared" and dst_space == "generic":
+                template = (
+                    "{.reg.u64 shared_ptr; cvt.u64.u32 shared_ptr, %1; cvta.shared::cluster.u64 %0, shared_ptr; }"
+                )
+            else:
+                raise NotImplementedError()
+
+            @no_type_check
+            @script
+            def cvta(src: u32) -> void_p:
+                attrs.func_name = func_name
+                attrs.func_kind = "cuda_internal"
+                ret: void_p = 0
                 asm(
                     template=template,
                     outputs=[ret],
@@ -75,10 +106,20 @@ def cvta_generic_to_shared(generic_addr: Expr) -> Expr:
         The corresponding address in shared memory space. The returned address is an unsigned integer representing
         the address in shared memory space.
     """
-    func_name = resolve_cvta_func_name(src_space='generic', dst_space='cta_shared')
+    func_name = resolve_cvta_func_name(src_space="generic", dst_space="cta_shared")
     return call_cuda(func_name, args=[generic_addr])
+
 
 def cvta_generic_to_cluster_shared(generic_addr: Expr) -> Expr:
-    func_name = resolve_cvta_func_name(src_space='generic', dst_space='cluster_shared')
+    func_name = resolve_cvta_func_name(src_space="generic", dst_space="cluster_shared")
     return call_cuda(func_name, args=[generic_addr])
 
+
+def cvta_shared_to_generic(shared_addr: Expr) -> Expr:
+    func_name = resolve_cvta_func_name(src_space="cta_shared", dst_space="generic")
+    return call_cuda(func_name, args=[shared_addr])
+
+
+def cvta_cluster_shared_to_generic(shared_addr: Expr) -> Expr:
+    func_name = resolve_cvta_func_name(src_space="cluster_shared", dst_space="generic")
+    return call_cuda(func_name, args=[shared_addr])

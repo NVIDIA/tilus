@@ -24,4 +24,3 @@ class ClusterSyncThreadsInst(Instruction):
     @staticmethod
     def create() -> ClusterSyncThreadsInst:
         return ClusterSyncThreadsInst(output=None, inputs=())
-

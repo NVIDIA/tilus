@@ -116,15 +116,18 @@ class CopyAsyncBulkSharedToGlobalInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class CopyAsyncBulkSharedToClusterSharedInst(Instruction):
     mbarrier: Expr
+    remote_rank: int
 
     @staticmethod
     def create(
         src: SharedTensor,
         dst: SharedTensor,
+        remote_rank: int,
         mbarrier: Expr,
     ) -> CopyAsyncBulkSharedToClusterSharedInst:
         return CopyAsyncBulkSharedToClusterSharedInst(
             output=None,
             inputs=(dst, src),
+            remote_rank=remote_rank,
             mbarrier=mbarrier,
         )

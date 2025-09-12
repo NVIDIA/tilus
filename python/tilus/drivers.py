@@ -22,14 +22,13 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 import filelock
-import hidet.ir.target
 from hidet.drivers.build_module import write_function_types
 from hidet.ir.module import IRModule
 
 import tilus.option
 from tilus.backends.codegen import generate_ir_module
-from tilus.extensions.hidet.backend.codegen import codegen
 from tilus.extensions.hidet.backend.build import compile_source
+from tilus.extensions.hidet.backend.codegen import codegen
 from tilus.ir.prog import Program
 from tilus.ir.tools import verify
 from tilus.runtime import CompiledProgram, compiled_program_exists, load_compiled_program

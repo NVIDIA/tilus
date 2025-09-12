@@ -59,6 +59,7 @@ class CopyAsyncAnalysisResult:
         seq.append(f"cp_size_bits={self.cp_size_bits}")
         return str(doc_join_lines(seq=seq, left="CopyAsyncAnalysisResult(", right=")", indent=4))
 
+
 @dataclass
 class CopyAsyncAnalysisSharedToSharedResult:
     dtype: DataType
@@ -192,7 +193,9 @@ class CopyAysncBaseEmitter(BaseInstEmitter):
                 contiguous_dim = dim
 
         # determine number of bytes to perform the cp.async
-        cp_size_bits: int = self.get_dim_vec_size(shared_src_info, shared_dst_info, mask_info, contiguous_dim) * dtype.nbits
+        cp_size_bits: int = (
+            self.get_dim_vec_size(shared_src_info, shared_dst_info, mask_info, contiguous_dim) * dtype.nbits
+        )
         return CopyAsyncAnalysisSharedToSharedResult(
             dtype=dtype,
             shared_src_info=shared_src_info,

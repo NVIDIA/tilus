@@ -143,8 +143,8 @@ class IRVerifier(IRVisitor):
         # define global primitive variables
         with self.new_scope():
             if func.kind in ["cuda_kernel", "cuda_internal"]:
-                from hidet.ir.primitives.cuda.vars import blockDim, blockIdx, gridDim, threadIdx
                 from hidet.ir.primitives.cuda.cluster import this_cluster
+                from hidet.ir.primitives.cuda.vars import blockDim, blockIdx, gridDim, threadIdx
 
                 for var in [
                     threadIdx.x,

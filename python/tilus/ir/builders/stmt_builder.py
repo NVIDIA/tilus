@@ -26,6 +26,7 @@ from hidet.utils import same_list
 
 from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.instructions.annotation import AnnotateLayoutInst
+from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
 from tilus.ir.instructions.cuda.cp_async import (
     CopyAsyncCommitGroupInst,
     CopyAsyncGenericInst,
@@ -33,17 +34,21 @@ from tilus.ir.instructions.cuda.cp_async import (
     CopyAsyncWaitAllInst,
     CopyAsyncWaitGroupInst,
 )
-from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
-from tilus.ir.instructions.cuda.mbarrier import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst
-from tilus.ir.instructions.cuda.mma_dot import DotInst
-from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
-from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
 from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkGlobalToClusterSharedInst,
     CopyAsyncBulkGlobalToSharedInst,
     CopyAsyncBulkSharedToClusterSharedInst,
     CopyAsyncBulkSharedToGlobalInst,
 )
+from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
+from tilus.ir.instructions.cuda.mbarrier import (
+    ArriveBarrierInst,
+    ArriveRemoteBarrierInst,
+    InitBarrierInst,
+    WaitBarrierInst,
+)
+from tilus.ir.instructions.cuda.mma_dot import DotInst
+from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from tilus.ir.instructions.generic import (
     AddInst,
     AllocateGlobalInst,
@@ -535,7 +540,7 @@ class StmtBuilder(StmtBuilderCore):
             mbarrier=mbarrier,
             cta_mask=cta_mask,
             evict=evict,
-            check_bounds=check_bounds
+            check_bounds=check_bounds,
         )
         self.append(inst)
 
@@ -543,11 +548,13 @@ class StmtBuilder(StmtBuilderCore):
         self,
         src: SharedTensor,
         dst: SharedTensor,
+        remote_rank: int,
         mbarrier: Expr,
     ) -> None:
         inst = CopyAsyncBulkSharedToClusterSharedInst.create(
             src=src,
             dst=dst,
+            remote_rank=remote_rank,
             mbarrier=mbarrier,
         )
         self.append(inst)

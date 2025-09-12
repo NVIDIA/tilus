@@ -49,8 +49,7 @@ class ArriveRemoteBarrierInst(Instruction):
 
     @staticmethod
     def create(barrier: Expr, remote_block: Expr | int) -> ArriveRemoteBarrierInst:
-        if isinstance(remote_block, int):
-            remote_block = uint32(remote_block)
+        remote_block = uint32(remote_block) if isinstance(remote_block, int) else remote_block
         return ArriveRemoteBarrierInst(output=None, inputs=(), barrier=barrier, remote_block=remote_block)
 
 

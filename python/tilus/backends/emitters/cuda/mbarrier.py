@@ -13,9 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from hidet.ir.dtypes import boolean, int32
-from hidet.ir.primitives.cuda.barrier import mbarrier_arrive, mbarrier_init, mbarrier_wait, fence_view_async_shared
-from hidet.ir.primitives.debug import printf
-from hidet.ir.primitives.cuda.vars import blockIdx
+from hidet.ir.primitives.cuda.barrier import fence_view_async_shared, mbarrier_arrive, mbarrier_init, mbarrier_wait
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.ir.instructions import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst
