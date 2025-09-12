@@ -818,11 +818,13 @@ class Script:
             The eviction policy for the cached data of this instruction. If not provided, the default eviction
             policy `evict_normal` is used, which is to evict the cached data when the shared memory is full. The
             eviction policy can be one of:
-            - 'evict_normal': Evict the cached data when the shared memory is full.
-            - 'evict_first': Evict the cached data of this instruction first when an eviction is needed. This policy is
-                suitable for streaming data where the data is only needed once and will not be reused.
-            - 'evict_last': Evict the cached data of this instruction last when an eviction is needed. This policy is
-                suitable for data that will be reused multiple times.
+
+            - `evict_normal`: Evict the cached data when the shared memory is full.
+            - `evict_first`: Evict the cached data of this instruction first when an eviction is needed. This policy is
+              suitable for streaming data where the data is only needed once and will not be reused.
+            - `evict_last`: Evict the cached data of this instruction last when an eviction is needed. This policy is
+              suitable for data that will be reused multiple times.
+
         check_bounds: bool, optional
             Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
             elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,
@@ -892,11 +894,13 @@ class Script:
             THe eviction policy for the cached data of this instruction. If not provided, the default eviction
             policy `evict_normal` is used, which is to evict the cached data when the shared memory is full. The
             eviction policy can be one of:
-            - 'evict_normal': Evict the cached data when the shared memory is full.
-            - 'evict_first': Evict the cached data of this instruction first when an eviction is needed. This policy is
-                suitable for streaming data where the data is only needed once and will not be reused.
-            - 'evict_last': Evict the cached data of this instruction last when an eviction is needed. This policy is
-                suitable for data that will be reused multiple times.
+
+            - `evict_normal`: Evict the cached data when the shared memory is full.
+            - `evict_first`: Evict the cached data of this instruction first when an eviction is needed. This policy is
+              suitable for streaming data where the data is only needed once and will not be reused.
+            - `evict_last`: Evict the cached data of this instruction last when an eviction is needed. This policy is
+              suitable for data that will be reused multiple times.
+
         check_bounds: bool, optional
             Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
             elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,

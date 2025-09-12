@@ -55,18 +55,25 @@ Instructions
    abs
    add
    annotate_layout
+   arrive_barrier
+   arrive_remote_barrier
    assign
    cast
    copy_async
+   copy_async_bulk_global_to_shared
+   copy_async_bulk_global_to_cluster_shared
+   copy_async_bulk_shared_to_global
    copy_async_commit_group
    copy_async_wait_all
    copy_async_wait_group
+   cluster_sync
    dot
    exp
    exp2
    free_shared
    global_tensor
    global_view
+   init_barrier
    load_global
    load_shared
    lock_semaphore
@@ -89,6 +96,7 @@ Instructions
    transpose
    unsqueeze
    view
+   wait_barrier
    where
 
 
