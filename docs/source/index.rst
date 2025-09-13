@@ -28,6 +28,7 @@ Additional features include automatic tuning, caching, and a Pythonic interface 
    programming-guides/type-system/__init__
    programming-guides/instructions
    programming-guides/control-flow
+   programming-guides/thread-group
    programming-guides/cache
    programming-guides/autotuning
    programming-guides/layout-system/__init__

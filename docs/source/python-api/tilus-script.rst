@@ -44,6 +44,7 @@ Language Constructs
 
    assume
    range
+   thread_group
 
 
 Instructions
