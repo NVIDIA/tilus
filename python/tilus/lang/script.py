@@ -29,6 +29,7 @@ from tilus.ir.inst import InstructionError
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_row_major, global_strides
 from tilus.ir.prog import Program
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
+from tilus.lang.constructs.contexts import ThreadGroupContext
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
 
@@ -304,6 +305,71 @@ class Script:
                 self._transpiler.var2divisibility[a] = int(term.a.b.value)  # type: ignore[arg-type]
             else:
                 raise InstructionError("Can not recognize the condition in assume: {}".format(term))
+
+    def thread_group(
+        self, group_index: int, *, num_groups: Optional[int] = None, group_size: Optional[int] = None
+    ) -> ThreadGroupContext:
+        """Create a thread group context.
+
+        This method creates a thread group context that is used to narrow down the threads that execute the instructions
+        within the context.
+
+        Syntax:
+
+        .. code-block:: python
+
+            class MyScript(tilus.Script):
+
+                def __call__(self, ...):
+                    # instructions executed by all threads in the thread block
+                    ...
+                    with self.thread_group(group_index, num_groups=num_groups, group_size=group_size):
+                        # instructions executed by threads in the specified thread group
+                        ...
+                        with self.thread_group(...):
+                            # we can continue to partition the current thread group into sub thread groups
+                            ...
+                        ...
+                        self.sync()  # synchronize all threads in the current thread group
+                        ...
+
+                    # instructions executed by all threads in the thread block
+                    ...
+
+        At the root level of the kernel, there is one thread group that includes all threads in the thread block.
+        We can partition the threads in the current thread group into multiple sub thread groups by specifying the
+        number of threads in each sub thread group using the `group_size` parameter, and/or by specifying the number
+        of sub thread groups using the `num_groups` parameter. The two parameters are related by the equation:
+        ```
+        num_groups * group_size == parent group_size
+        ```
+        If only one of the two parameters is specified, the other parameter will be inferred based on the size of the
+        parent thread group. If both parameters are specified, they must satisfy the above equation.
+
+        All instructions within the context will be executed by all threads in the specified thread group.
+
+        Parameters
+        ----------
+        group_index: int
+            The index of the thread group to be created. It must be in the range [0, num_groups).
+        num_groups: int, optional
+            The number of thread groups to partition the current thread group into.
+        group_size: int, optional
+            The number of threads in each thread group.
+
+        Returns
+        -------
+        ret: ThreadGroupContext
+            The thread group context created.
+        """
+        if num_groups is None and group_size is None:
+            raise InstructionError("Either num_groups or group_size must be specified")
+        if group_index < 0 or (num_groups is not None and group_index >= num_groups):
+            raise InstructionError("Invalid group_index {}, must be in [0, {})".format(group_index, num_groups))
+
+        return ThreadGroupContext(group_index=group_index, group_size=group_size, num_groups=num_groups)
+
+    # instructions
 
     def register_tensor(
         self,

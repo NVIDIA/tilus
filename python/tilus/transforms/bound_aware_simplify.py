@@ -28,7 +28,7 @@ from tilus.ir.instructions import (
     LoadGlobalGenericInst,
     StoreGlobalGenericInst,
 )
-from tilus.ir.stmt import ForStmt, ForThreadGroupStmt, IfStmt, LetStmt, SeqStmt, Stmt
+from tilus.ir.stmt import ForStmt, IfStmt, LetStmt, SeqStmt, Stmt
 from tilus.transforms.base import Pass
 from tilus.utils import same_list
 
@@ -163,15 +163,6 @@ class BoundAwareSimplifyRewriter(IRRewriter):
             return stmt
         else:
             return SeqStmt.create(seq)
-
-    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt) -> Stmt:
-        if stmt.num_groups == 1:
-            self.bound[stmt.iter_var] = BoundInfo(value=0)
-            self.memo[stmt.iter_var] = int32.zero
-            assert self.bound_info_simplifier.memo is not None
-            self.bound_info_simplifier.memo[stmt.iter_var] = int32.zero
-            return self.visit(stmt.body)
-        return super().visit_ForThreadGroupStmt(stmt)
 
     # instructions
 

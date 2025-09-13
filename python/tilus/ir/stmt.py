@@ -52,12 +52,19 @@ class ForStmt(Stmt):
 
 
 @dataclass(frozen=True, eq=False)
-class ForThreadGroupStmt(Stmt):
-    iter_var: Var
-    num_groups: int
+class ThreadGroupStmt(Stmt):
+    group_index: int
+    group_size: Optional[int]
+    num_groups: Optional[int]
     body: Stmt
 
-    # todo: this node is not used in the current implementation
+    @staticmethod
+    def create(
+        group_index: int, body: Stmt, group_size: Optional[int] = None, num_groups: Optional[int] = None
+    ) -> ThreadGroupStmt:
+        if group_size is None and num_groups is None:
+            raise ValueError("At least one of group_size or num_groups must be provided.")
+        return ThreadGroupStmt(group_index, group_size, num_groups, body)
 
 
 @dataclass(frozen=True, eq=False)
