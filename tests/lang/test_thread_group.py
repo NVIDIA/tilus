@@ -3,9 +3,6 @@ import torch
 from tilus import float16, int32
 from tilus.utils import cdiv
 
-tilus.option.cache_dir("./cache")
-tilus.option.debug.dump_ir()
-
 
 class ThreadGroupExample(tilus.Script):
     def __init__(self):
@@ -40,8 +37,8 @@ class ThreadGroupExample(tilus.Script):
 
 def test_thread_group():
     n = 1024
-    x = torch.randn(n, dtype=torch.float16)
-    y = torch.zeros(n, dtype=torch.float16)
+    x = torch.randn(n, dtype=torch.float16, device="cuda")
+    y = torch.zeros(n, dtype=torch.float16, device="cuda")
 
     kernel = ThreadGroupExample()
     kernel(n, x, y)
