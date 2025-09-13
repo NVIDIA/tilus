@@ -71,7 +71,7 @@ class DotInstEmitter(BaseInstEmitter):
         outer_a, outer_b, outer_c, outer_d = outers
         k_size = outer_a.shape[1]
 
-        warp_id: Expr = self.current_worker // 32
+        warp_id: Expr = self.current_thread // 32
         with self.for_range(outer_c.local_size) as c_outer_local:
             c_outer_indices = outer_c.get_global(local_index=c_outer_local, spatial_index=warp_id)
             d_outer_indices = c_outer_indices

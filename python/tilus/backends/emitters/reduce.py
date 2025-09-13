@@ -263,8 +263,8 @@ class ReduceInstEmitter(BaseInstEmitter):
         """
         dst: RegisterTensor = inst.register_output
         dst_buf = self.get_or_allocate_var(dst)
-        lane_id = self.declare_var("lane_id", int32, self.current_worker % 32)
-        warp_id = self.declare_var("warp_id", int32, self.current_worker // 32)
+        lane_id = self.declare_var("lane_id", int32, self.current_thread % 32)
+        warp_id = self.declare_var("warp_id", int32, self.current_thread // 32)
 
         # 1. determine the modes for the warps, and whether each mode is: 1) replicated, 2) reduced, or 3) spatial
         warp_mode_shape, warp_mode_kinds, lane_mode_shape, lane_mode_kinds = self.analyze_modes(inst)

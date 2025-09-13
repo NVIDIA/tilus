@@ -30,6 +30,7 @@ class ShuffleBaseInstEmitter(BaseInstEmitter):
         dtype = inst.register_output.dtype
         layout = inst.register_output.layout
         thread_nbytes: int = dtype.nbytes * layout.local_size
+        # todo: make it work in thread group
         num_groups = max([i // inst.width for i in range(self.num_warps) if inst.mask & (1 << i)]) + 1
         warp_nbytes: int = thread_nbytes * 32
 
@@ -40,8 +41,8 @@ class ShuffleBaseInstEmitter(BaseInstEmitter):
             v=tensor_pointer_var("shfl_smem", shape=[num_groups, inst.width - inst.delta, warp_nbytes], dtype=uint8),
             init=smem_ctx.request_shared_workspace(nbytes=smem_nbytes),
         )
-        warp_id: Expr = self.current_worker // 32
-        warp_lane_id = self.current_worker % 32
+        warp_id: Expr = self.current_thread // 32
+        warp_lane_id = self.current_thread % 32
         group_id = warp_id // inst.width
         shfl_lane_id = warp_id % inst.width
 

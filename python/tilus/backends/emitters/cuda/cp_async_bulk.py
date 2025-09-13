@@ -104,7 +104,7 @@ class BulkCopyAsyncBetweenGlobalShared(CopyAysncBaseEmitter):
         assert copy_shape[contiguous_dim] % elements_per_copy == 0
         copy_shape[contiguous_dim] //= elements_per_copy
         num_copies = prod(copy_shape)
-        num_threads = self.current_num_workers
+        num_threads = self.current_num_threads
 
         def emit_bulk_cp_async(copy_indices: List[Expr]) -> None:
             shared_indices = list(copy_indices)
@@ -130,14 +130,14 @@ class BulkCopyAsyncBetweenGlobalShared(CopyAysncBaseEmitter):
 
         if num_copies % num_threads == 0:
             with self.for_range(extent=num_copies // num_threads, attr="u+") as iter_i:
-                emit_bulk_cp_async(index_deserialize(self.current_worker + iter_i * num_threads, shape=copy_shape))
+                emit_bulk_cp_async(index_deserialize(self.current_thread + iter_i * num_threads, shape=copy_shape))
         elif num_copies < num_copies:
-            with self.if_then(self.current_worker < num_copies):
-                emit_bulk_cp_async(index_deserialize(self.current_worker, shape=copy_shape))
+            with self.if_then(self.current_thread < num_copies):
+                emit_bulk_cp_async(index_deserialize(self.current_thread, shape=copy_shape))
         else:
             with self.for_range(extent=(num_copies + num_threads - 1) // num_threads, attr="u+") as iter_i:
-                with self.if_then(self.current_worker + iter_i * num_threads < num_copies):
-                    emit_bulk_cp_async(index_deserialize(self.current_worker + iter_i * num_threads, shape=copy_shape))
+                with self.if_then(self.current_thread + iter_i * num_threads < num_copies):
+                    emit_bulk_cp_async(index_deserialize(self.current_thread + iter_i * num_threads, shape=copy_shape))
 
 
 @register_emitter(CopyAsyncBulkGlobalToSharedInst, target=nvgpu_sm90)
@@ -265,7 +265,7 @@ class CopyAsyncBulkSharedToClusterSharedEmitter(CopyAysncBaseEmitter):
         assert copy_shape[contiguous_dim] % elements_per_copy == 0
         copy_shape[contiguous_dim] //= elements_per_copy
         num_copies = prod(copy_shape)
-        num_threads = self.current_num_workers
+        num_threads = self.current_num_threads
 
         barrier_addr = self.declare_var(name="barrier_addr", tp=uint32, init=cvta_generic_to_shared(inst.mbarrier))
         remote_dst_base_addr = self.declare_var(
@@ -296,11 +296,11 @@ class CopyAsyncBulkSharedToClusterSharedEmitter(CopyAysncBaseEmitter):
 
         if num_copies % num_threads == 0:
             with self.for_range(extent=num_copies // num_threads, attr="u+") as iter_i:
-                emit_bulk_cp_async(index_deserialize(self.current_worker + iter_i * num_threads, shape=copy_shape))
+                emit_bulk_cp_async(index_deserialize(self.current_thread + iter_i * num_threads, shape=copy_shape))
         elif num_copies < num_threads:
-            with self.if_then(self.current_worker < num_copies):
-                emit_bulk_cp_async(index_deserialize(self.current_worker, shape=copy_shape))
+            with self.if_then(self.current_thread < num_copies):
+                emit_bulk_cp_async(index_deserialize(self.current_thread, shape=copy_shape))
         else:
             with self.for_range(extent=(num_copies + num_threads - 1) // num_threads, attr="u+") as iter_i:
-                with self.if_then(self.current_worker + iter_i * num_threads < num_copies):
-                    emit_bulk_cp_async(index_deserialize(self.current_worker + iter_i * num_threads, shape=copy_shape))
+                with self.if_then(self.current_thread + iter_i * num_threads < num_copies):
+                    emit_bulk_cp_async(index_deserialize(self.current_thread + iter_i * num_threads, shape=copy_shape))

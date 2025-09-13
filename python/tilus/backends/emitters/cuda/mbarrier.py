@@ -23,8 +23,8 @@ from tilus.target import nvgpu_sm80, nvgpu_sm90
 @register_emitter(InitBarrierInst, target=nvgpu_sm80)
 class InitBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: InitBarrierInst) -> None:
-        with self.if_then(self.current_worker == 0):
-            count = inst.count if inst.count is not None else int32(self.current_num_workers)
+        with self.if_then(self.current_thread == 0):
+            count = inst.count if inst.count is not None else int32(self.current_num_threads)
             self.append(mbarrier_init(inst.barrier, count))
             self.append(fence_view_async_shared())
 
@@ -32,7 +32,6 @@ class InitBarrierInstEmitter(BaseInstEmitter):
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
 class ArriveBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveBarrierInst) -> None:
-        # self.append(printf("[%d, %d, %d][%d] arrive barrier %p\n", blockIdx.x, blockIdx.y, blockIdx.z, self.current_worker, inst.barrier))
         self.append(mbarrier_arrive(inst.barrier))
 
 
@@ -45,6 +44,4 @@ class ArriveRemoteBarrierInstEmitter(BaseInstEmitter):
 @register_emitter(WaitBarrierInst, target=nvgpu_sm90)
 class WaitBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: WaitBarrierInst) -> None:
-        # self.append(printf("[%d, %d, %d][%d] start waiting barrier %p phase %d\n", blockIdx.x, blockIdx.y, blockIdx.z, self.current_worker, inst.barrier, inst.phase))
         self.append(mbarrier_wait(inst.barrier, inst.phase))
-        # self.append(printf("[%d, %d, %d][%d] end waiting barrier %p phase %d\n", blockIdx.x, blockIdx.y, blockIdx.z, self.current_worker, inst.barrier, inst.phase))

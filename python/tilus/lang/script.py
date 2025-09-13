@@ -1947,7 +1947,7 @@ class Script:
             raise InstructionError("The dtypes of dst and src must match, got {} and {}".format(dst.dtype, src.dtype))
         self._builder.assign_register(dst, src)
 
-    def init_barrier(self, barrier: Expr, count: int) -> None:
+    def init_barrier(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
         """Initialize a barrier.
 
         This instruction initializes a memory barrier in shared memory. The `barrier` parameter must be an addressable
@@ -1957,11 +1957,11 @@ class Script:
         ----------
         barrier: Expr
             The pointer to the barrier in shared memory.
-        count: int
+        count: Expr | int, optional
             The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
-            to a positive int32. When not provided, it defaults to the number of threads in the thread block.
+            to a positive int32. When not provided, it defaults to the number of threads in the current thread group.
         """
-        self._builder.init_barrier(barrier, int32(count))
+        self._builder.init_barrier(barrier, int32(count) if isinstance(count, int) else count)
 
     def arrive_barrier(self, barrier: Expr, *, mask: Optional[RegisterTensor] = None, f_mask: Optional[Callable[[Var | int], Expr | bool]] = None) -> None:
         """Arrive at a barrier.
