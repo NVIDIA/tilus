@@ -41,15 +41,21 @@ class Analysis:
     def empty() -> Analysis:
         return Analysis(frozendict(), frozendict(), frozendict())
 
+@dataclass(frozen=True, eq=False)
+class HostPrologue:
+    prologue: Stmt
+    yields: tuple[Var, ...]
+
 
 @dataclass(frozen=True)
 class Metadata:
-    grid_blocks: tuple[Expr, Expr, Expr]
+    grid_blocks: tuple[Expr, Expr, Expr]    # expressions over function params
     cluster_blocks: tuple[int, int, int]
     block_indices: tuple[Var, Var, Var]
     num_warps: int
     param2divisibility: frozendict[Var, int]
     analysis: Optional[Analysis]
+    host_prologue: Optional[HostPrologue]
 
     @staticmethod
     def create(
@@ -59,6 +65,7 @@ class Metadata:
         num_warps: int,
         divisibility: Optional[Mapping[Var, int]] = None,
         analysis: Optional[Analysis] = None,
+        host_prologue: Optional[HostPrologue] = None,
     ) -> Metadata:
         assert len(grid_blocks) == 3 and len(block_indices) == 3 and len(cluster_blocks) == 3
 
@@ -69,6 +76,7 @@ class Metadata:
             num_warps=num_warps,
             param2divisibility=frozendict(divisibility) if divisibility else frozendict(),
             analysis=analysis,
+            host_prologue=host_prologue,
         )
 
     def with_analysis(self, analysis: Optional[Analysis]) -> Metadata:
@@ -82,8 +90,8 @@ class Metadata:
 class Function(IRNode):
     name: str
     params: tuple[Var, ...]
-    body: Stmt
     metadata: Metadata
+    body: Stmt  # can only use external variables in params, metadata.block_indices, and metadata.host_prologue.
 
     @staticmethod
     def create(
@@ -95,8 +103,8 @@ class Function(IRNode):
         return Function(
             name,
             tuple(params),
-            body,
             metadata,
+            body,
         )
 
     def with_body(self, new_body: Stmt) -> Function:

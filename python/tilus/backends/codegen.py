@@ -167,6 +167,10 @@ class BaseInstEmitter(StmtBuilder):
     def num_warps(self) -> int:
         return self.codegen.function.metadata.num_warps
 
+    @property
+    def function(self) -> Function:
+        return self.codegen.function
+
     def request_shared_workspace(self, inst: Instruction) -> int:
         return 0
 
@@ -307,6 +311,7 @@ class Codegen(IRFunctor):
     def __init__(self) -> None:
         super().__init__()
         self._builder: Optional[FunctionBuilder] = None
+        self._host_builder: Optional[FunctionBuilder] = None
         self._function: Optional[Function] = None
         self.printer: IRPrinter = CommentInlinedIRPrinter()
 
@@ -346,6 +351,11 @@ class Codegen(IRFunctor):
     def builder(self) -> FunctionBuilder:
         assert self._builder is not None
         return self._builder
+
+    @property
+    def host_builder(self) -> FunctionBuilder:
+        assert self._host_builder is not None
+        return self._host_builder
 
     @property
     def current_worker(self):
