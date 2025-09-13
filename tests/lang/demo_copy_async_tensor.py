@@ -19,6 +19,8 @@ from tilus.testing import requires
 from tilus.utils import cdiv
 
 
+tilus.option.cache_dir('./cache')
+tilus.option.debug.dump_ir()
 tilus.target.set_current_target(tilus.target.nvgpu_sm90a)
 
 
@@ -47,13 +49,14 @@ class CopyAsyncTensorExample(tilus.Script):
         self.init_barrier(load_barrier, count=1)
         self.sync()
 
-        self.copy_async_tensor_global_to_shared(
-            src=g_x,
-            dst=s_x,
-            offsets=[m_offset, n_offset],
-            mbarrier=load_barrier,
-        )
-        self.arrive_barrier(load_barrier, f_mask=lambda t: t == 0)
+        with self.single_thread():
+            self.copy_async_tensor_global_to_shared(
+                src=g_x,
+                dst=s_x,
+                offsets=[m_offset, n_offset],
+                mbarrier=load_barrier,
+            )
+            self.arrive_barrier(load_barrier)
         self.wait_barrier(load_barrier, phase=0)
 
         x = self.load_shared(s_x)
@@ -61,12 +64,13 @@ class CopyAsyncTensorExample(tilus.Script):
         self.store_shared(s_y, x)
         self.sync()
 
-        self.copy_async_tensor_shared_to_global(
-            src=s_y,
-            dst=g_y,
-            offsets=[m_offset, n_offset],
-        )
-        self.copy_async_wait_all()
+        with self.single_thread():
+            self.copy_async_tensor_shared_to_global(
+                src=s_y,
+                dst=g_y,
+                offsets=[m_offset, n_offset],
+            )
+            self.copy_async_wait_all()
 
 
 def demo_copy_async_tensor_cta():
@@ -78,3 +82,7 @@ def demo_copy_async_tensor_cta():
     kernel(m, n, x, y)
 
     torch.testing.assert_close(y, x + 1)
+
+
+if __name__ == '__main__':
+    demo_copy_async_tensor_cta()

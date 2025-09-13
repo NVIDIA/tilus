@@ -1083,8 +1083,8 @@ class StmtBuilder(StmtBuilderCore):
         inst = InitBarrierInst.create(barrier=barrier, count=count)
         self.append(inst)
 
-    def arrive_barrier(self, barrier: Expr, mask: RegisterTensor) -> None:
-        inst = ArriveBarrierInst.create(barrier=barrier, mask=mask)
+    def arrive_barrier(self, barrier: Expr) -> None:
+        inst = ArriveBarrierInst.create(barrier=barrier)
         self.append(inst)
 
     def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr | int) -> None:

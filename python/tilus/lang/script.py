@@ -307,8 +307,9 @@ class Script:
             else:
                 raise InstructionError("Can not recognize the condition in assume: {}".format(term))
 
+    @staticmethod
     def thread_group(
-        self, group_index: int, *, num_groups: Optional[int] = None, group_size: Optional[int] = None
+        group_index: int, *, num_groups: Optional[int] = None, group_size: Optional[int] = None
     ) -> ThreadGroupContext:
         """Create a thread group context.
 
@@ -369,6 +370,20 @@ class Script:
             raise InstructionError("Invalid group_index {}, must be in [0, {})".format(group_index, num_groups))
 
         return ThreadGroupContext(group_index=group_index, group_size=group_size, num_groups=num_groups)
+
+    @staticmethod
+    def single_thread() -> ThreadGroupContext:
+        """ Create a thread group context with only one thread.
+
+        This method is equivalent `thread_group(<any-thread>, group_size=1)` that creates a thread group
+        context with only one thread. All instructions within the context will be executed by only one thread.
+
+        Returns
+        -------
+        ret: ThreadGroupContext
+            The thread group context created.
+        """
+        return Script.thread_group(group_index=0, group_size=1)
 
     # instructions
 
@@ -1950,8 +1965,46 @@ class Script:
     def init_barrier(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
         """Initialize a barrier.
 
-        This instruction initializes a memory barrier in shared memory. The `barrier` parameter must be an addressable
-        expression whose address is in shared memory and aligned to 8 bytes. The barrier itself must be of type uint64.
+        This instruction initializes a memory barrier in shared memory. A barrier is an uint64 variable in shared
+        memory. A barrier contains the following information in the 64 bits:
+
+        - The current phase of the barrier (i.e., phase): 0 or 1.
+        - The count of pending arrivals in the current phase: 1 to 2^20 - 1.
+        - The count of expected arrivals in the next phase: 0 to 2^20 - 1.
+        - The count of pending asynchronous memory transactions in the current phase (i.e., `tx-count`):
+          -(2^20 - 1) to 2^20 - 1.
+
+        After initialization, we have:
+
+        - phase = 0
+        - pending arrivals = count
+        - expected arrivals = count
+        - tx-count = 0
+
+        When `count` is not provided, it defaults to the number of threads in the current thread group.
+
+        Asynchronous memory copy instructions (e.g., `copy_async_bulk` or `copy_async_tensor` instructions) that
+        take a barrier as an argument will:
+
+        - increase the `tx-count` by the number of bytes to be copied before the copy starts.
+        - decrease the `tx-count` by the number of bytes copied after the copy completes asynchronously.
+
+        The `arrive_barrier` instruction will decrease the pending arrivals by the number of threads in the thread
+        group that call the instruction.
+
+        The `wait_barrier` instruction will make the thread group wait until the given phase has finished.
+
+        Once the following conditions are met for the current phase:
+
+        - pending arrivals == 0
+        - tx-count == 0
+
+        The barrier will switch to the next phase, and the following will happen:
+
+        - phase = phase ^ 1
+        - pending arrivals = expected arrivals in the next phase
+        - expected arrivals does not change
+        - tx-count = 0
 
         Parameters
         ----------
@@ -1963,55 +2016,30 @@ class Script:
         """
         self._builder.init_barrier(barrier, int32(count) if isinstance(count, int) else count)
 
-    def arrive_barrier(self, barrier: Expr, *, mask: Optional[RegisterTensor] = None, f_mask: Optional[Callable[[Var | int], Expr | bool]] = None) -> None:
+    def arrive_barrier(self, barrier: Expr) -> None:
         """Arrive at a barrier.
 
-        This instruction indicates that the thread block (or the current partition of the thread block) has reached the
-        specified barrier.
-
-        The `mask` parameter is an optional boolean register tensor that specifies which threads in the thread block are
-        participating in the barrier. The `f_mask` parameter is an optional function that takes a single argument (the
-        thread index within the block) and returns a boolean expression indicating whether the thread should participate
-        in the barrier. The two parameters are mutually exclusive; only one of them can be provided. If neither is
-        provided, all threads in the thread block are considered to have arrived at the barrier.
+        This instruction decreases the pending arrivals of given barrier by the number of threads in the thread group
+        that call the instruction.
 
         Parameters
         ----------
         barrier: Expr
             The pointer to the barrier in shared memory.
-        mask: RegisterTensor, optional
-            An optional boolean register tensor that specifies which threads in the thread block are participating in
-            the barrier. If provided, only the threads with a `True` value in the mask will be considered as having
-            arrived at the barrier. If not provided, all threads in the thread block are considered to have arrived at
-            the barrier.
-        f_mask: Callable[[Var], Expr], optional
-            An optional function that takes a single argument (the thread index within the block) and returns a boolean
-            expression indicating whether the thread should participate in the barrier. This function is used to
-            generate the mask dynamically based on the thread index.
         """
-        num_threads = self.attrs.warps * 32
-        if f_mask is not None and mask is not None:
-            raise InstructionError("The f_mask and mask parameters cannot be used together")
-        elif f_mask is not None:
-            mask = self._builder.allocate_register(dtype=boolean, shape=[num_threads], f_init=lambda indices: f_mask(indices[0]))
-        elif mask is not None:
-            pass  # already provided
-        else:
-            mask = self._builder.allocate_register(dtype=boolean, shape=[num_threads], f_init=lambda _: boolean.true)
-        self._builder.annotate_layout(mask, register_layout_ops.spatial(num_threads))
-        self._builder.arrive_barrier(barrier, mask)
+        self._builder.arrive_barrier(barrier)
 
     def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr | int) -> None:
         """Arrive at a remote barrier.
 
-        This instruction indicates that a remote thread block has reached the specified barrier. It is used for
-        inter-block synchronization, allowing one thread block to signal another thread block that it has reached a
-        barrier.
+        This instruction decreases the pending arrivals of the barrier in the remote block by the number of threads in
+        the thread group that call the instruction.
 
         Parameters
         ----------
         barrier: Expr
-            The pointer to the barrier in shared memory.
+            The pointer to the barrier in shared memory in the current thread block. The offset of the barrier will be
+            used to locate the barrier in the remote block.
         remote_block: Expr | int
             The thread block index of the remote thread block that the current block is signaling the arrival to. It
             should be an expression that evaluates to a non-negative int32.
@@ -2021,8 +2049,15 @@ class Script:
     def wait_barrier(self, barrier: Expr, phase: Expr | int) -> None:
         """Wait at a barrier.
 
-        This instruction makes the thread block (or the current partition of the thread block) wait at the specified
-        barrier until the entire thread block (or the current partition) has arrived at the barrier.
+        This instruction makes the threads in the current thread group wait at the specified barrier until the pending
+        arrivals and tx-count of the given phase are both zero.
+
+        When the barrier's current phase is not equal to the specified `phase`, the threads will proceed without waiting
+        since the specified phase has already finished.
+
+        When the barrier's current phase is equal to the specified `phase`, the threads will wait until both the pending
+        arrivals and tx-count of the current phase are zero. Once these conditions are met, the barrier will switch to
+        the next phase, and the threads will proceed.
 
         Parameters
         ----------

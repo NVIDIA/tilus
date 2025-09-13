@@ -39,8 +39,8 @@ class ArriveBarrierInst(Instruction):
     barrier: Expr
 
     @staticmethod
-    def create(barrier: Expr, mask: RegisterTensor) -> ArriveBarrierInst:
-        return ArriveBarrierInst(output=None, inputs=(mask,), barrier=barrier)
+    def create(barrier: Expr) -> ArriveBarrierInst:
+        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier)
 
 
 @dataclass(frozen=True, eq=False)
