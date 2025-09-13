@@ -29,7 +29,7 @@ class AllocateInstEmitter(BaseInstEmitter):
             axes = inst.axes
             init = inst.init
             with self.for_range(output.local_size) as i:
-                global_indices = output.layout.get_global(local_index=i, spatial_index=self.current_worker)
+                global_indices = output.layout.get_global(local_index=i, spatial_index=self.current_thread)
                 self.buffer_store(
                     buf=var,
                     indices=[i],

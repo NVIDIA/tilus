@@ -233,7 +233,7 @@ class ReduceInstEmitter(BaseInstEmitter):
         with self.for_range(dst.layout.local_size, attr="u") as dst_local:
             self.buffer_store(dst_buf, indices=[dst_local], value=self.scalar_init_value(inst.op, dst.dtype))
         with self.for_range(src.layout.local_size, attr="u") as src_local:
-            global_indices = src.layout.get_global(local_index=src_local, spatial_index=self.current_worker)
+            global_indices = src.layout.get_global(local_index=src_local, spatial_index=self.current_thread)
             global_indices[dim] = int32.zero
             dst_local = dst.layout.get_local(global_indices=global_indices)
             self.buffer_store(
@@ -287,8 +287,8 @@ class ReduceInstEmitter(BaseInstEmitter):
             # no inter-warp reduction needed
             return
 
-        lane_id = self.declare_var("lane_id", int32, self.current_worker % 32)
-        warp_id = self.declare_var("warp_id", int32, self.current_worker // 32)
+        lane_id = self.declare_var("lane_id", int32, self.current_thread % 32)
+        warp_id = self.declare_var("warp_id", int32, self.current_thread // 32)
         regs_buf = self.get_or_allocate_var(tensor)
         smem_buf = self.declare_var(
             "smem_buf",
@@ -304,12 +304,12 @@ class ReduceInstEmitter(BaseInstEmitter):
                 with self.if_then(red_warp_middle == 0):
                     # store the data from register to shared memory
                     with self.for_range(tensor.layout.local_size) as i:
-                        global_indices = tensor.layout.get_global(local_index=i, spatial_index=self.current_worker)
+                        global_indices = tensor.layout.get_global(local_index=i, spatial_index=self.current_thread)
                         self.buffer_store(smem_buf, indices=global_indices, value=regs_buf[i])
                 with self.otherwise():
                     # reduce and update shared memory
                     with self.for_range(tensor.layout.local_size) as i:
-                        global_indices = tensor.layout.get_global(local_index=i, spatial_index=self.current_worker)
+                        global_indices = tensor.layout.get_global(local_index=i, spatial_index=self.current_thread)
                         self.buffer_store(
                             smem_buf,
                             indices=global_indices,
@@ -319,7 +319,7 @@ class ReduceInstEmitter(BaseInstEmitter):
 
         # read the data from shared memory
         with self.for_range(tensor.layout.local_size) as i:
-            global_indices = tensor.layout.get_global(local_index=i, spatial_index=self.current_worker)
+            global_indices = tensor.layout.get_global(local_index=i, spatial_index=self.current_thread)
             self.buffer_store(regs_buf, indices=[i], value=smem_buf[global_indices])
         self.sync()
 

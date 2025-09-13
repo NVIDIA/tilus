@@ -136,11 +136,11 @@ class BaseInstEmitter(StmtBuilder):
             return var
 
     @property
-    def current_worker(self) -> Expr:
-        return self.codegen.thread_group_stack.current_worker[-1]
+    def current_thread(self) -> Expr:
+        return self.codegen.thread_group_stack.current_thread[-1]
 
     @property
-    def current_num_workers(self) -> int:
+    def current_num_threads(self) -> int:
         return self.codegen.thread_group_stack.group_size[-1]
 
     @property
@@ -270,13 +270,13 @@ class CommentInlinedIRPrinter(IRPrinter):
 
 class ThreadGroupStack:
     def __init__(self):
-        self.current_worker: list[Var] = []
+        self.current_thread: list[Var] = []
         self.num_groups: list[int] = []
         self.group_index: list[int] = []
         self.group_size: list[int] = []
 
     def stack_depth(self):
-        return len(self.current_worker)
+        return len(self.current_thread)
 
     def push(self, worker: Var, num_groups: int, group_index: int, group_size: int) -> None:
         if self.stack_depth() > 0:
@@ -288,13 +288,13 @@ class ThreadGroupStack:
                         group_index, num_groups
                     )
                 )
-        self.current_worker.append(worker)
+        self.current_thread.append(worker)
         self.num_groups.append(num_groups)
         self.group_index.append(group_index)
         self.group_size.append(group_size)
 
     def pop(self):
-        self.current_worker.pop()
+        self.current_thread.pop()
         self.num_groups.pop()
         self.group_index.pop()
         self.group_size.pop()
@@ -349,7 +349,7 @@ class Codegen(IRFunctor):
 
     @property
     def current_worker(self):
-        return self.thread_group_stack.current_worker[-1]
+        return self.thread_group_stack.current_thread[-1]
 
     def sync(self) -> None:
         from tilus.ir.instructions import SyncThreadsInst

@@ -171,20 +171,20 @@ class CopyAysncInstEmitter(BaseInstEmitter):
             )
 
         num_tasks: int = prod(task_shape)
-        num_threads: int = self.num_warps * 32
+        num_threads: int = self.current_num_threads
         if num_tasks < num_threads:
-            with self.if_then(self.current_worker < num_tasks):
-                emit_cp_async(task_indices=index_deserialize(self.current_worker, shape=task_shape))
+            with self.if_then(self.current_thread < num_tasks):
+                emit_cp_async(task_indices=index_deserialize(self.current_thread, shape=task_shape))
         elif num_tasks % num_threads == 0:
             with self.for_range(extent=num_tasks // num_threads, attr="u+") as iter_i:
                 emit_cp_async(
-                    task_indices=index_deserialize(iter_i * num_threads + self.current_worker, shape=task_shape)
+                    task_indices=index_deserialize(iter_i * num_threads + self.current_thread, shape=task_shape)
                 )
         else:
             with self.for_range(extent=(num_tasks + num_threads - 1) // num_threads, attr="u+") as iter_i:
-                with self.if_then(iter_i * num_threads + self.current_worker < num_tasks):
+                with self.if_then(iter_i * num_threads + self.current_thread < num_tasks):
                     emit_cp_async(
-                        task_indices=index_deserialize(iter_i * num_threads + self.current_worker, shape=task_shape)
+                        task_indices=index_deserialize(iter_i * num_threads + self.current_thread, shape=task_shape)
                     )
 
     @staticmethod

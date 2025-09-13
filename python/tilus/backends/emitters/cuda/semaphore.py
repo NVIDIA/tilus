@@ -28,7 +28,7 @@ class LockSemaphoreEmitter(BaseInstEmitter):
 
         with self.while_loop(boolean.true):
             semaphore_value = self.declare_var("semaphore_value", tp=int32, init=-int32.one)
-            with self.if_then(self.current_worker == 0):
+            with self.if_then(self.current_thread == 0):
                 self.assign(semaphore_value, load(addr=semaphore, space="generic", sync="acquire", scope="gpu"))
             cond = self.sync_reduce(equal(semaphore_value, semaphore_expect), op="or")
             with self.if_then(cond):
@@ -40,5 +40,5 @@ class ReleaseSemaphoreEmitter(BaseInstEmitter):
     def emit(self, inst: ReleaseSemaphoreInst) -> None:
         semaphore = self.declare_var("semaphore", tp=~int32, init=inst.semaphore)
 
-        with self.if_then(self.current_worker == 0):
+        with self.if_then(self.current_thread == 0):
             self.append(store(addr=semaphore, space="generic", value=inst.value, sync="release", scope="gpu"))

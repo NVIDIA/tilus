@@ -42,7 +42,7 @@ class ElementwiseBinaryInstEmitter(BaseInstEmitter):
         y_buf: Var = self.tensor2var[y_tensor]
         z_buf = self.get_or_allocate_var(z_tensor)
         with self.for_range(extent=z_tensor.local_size) as i:
-            z_indices = z_tensor.layout.get_global(local_index=i, spatial_index=self.current_worker)
+            z_indices = z_tensor.layout.get_global(local_index=i, spatial_index=self.current_thread)
             x_indices = broadcast_indices(out_indices=z_indices, shape=x_tensor.shape, out_shape=z_tensor.shape)
             y_indices = broadcast_indices(out_indices=z_indices, shape=y_tensor.shape, out_shape=z_tensor.shape)
             x_local = x_tensor.layout.get_local(x_indices)
