@@ -38,7 +38,7 @@ class ThreadGroupExample(tilus.Script):
         self.sync()
 
 
-def demo_thread_group():
+def test_thread_group():
     n = 1024
     x = torch.randn(n, dtype=torch.float16)
     y = torch.zeros(n, dtype=torch.float16)
@@ -52,4 +52,4 @@ def demo_thread_group():
 
 
 if __name__ == "__main__":
-    demo_thread_group()
+    test_thread_group()
