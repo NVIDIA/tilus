@@ -14,8 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Set, Tuple, Type
+from typing import Callable, Dict, Optional, Set, Type
 
 from hidet.ir.builders import FunctionBuilder, StmtBuilder
 from hidet.ir.dtypes import int32, uint8
@@ -42,7 +41,6 @@ from tilus.ir.stmt import (
     AssignStmt,
     DeclareStmt,
     ForStmt,
-    ForThreadGroupStmt,
     IfStmt,
     InstStmt,
     LetStmt,
@@ -50,6 +48,7 @@ from tilus.ir.stmt import (
     SeqStmt,
     TensorElemPtrStmt,
     TensorElemValueStmt,
+    ThreadGroupStmt,
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
@@ -89,17 +88,14 @@ class BaseInstEmitter(StmtBuilder):
     def sync(self):
         from hidet.ir.primitives.cuda import syncthreads
 
-        if self.codegen.thread_groups.num_levels() == 1:  # all threads in the cta
+        if self.codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
             self.append(syncthreads())
         else:
-            if get_current_target().is_nvgpu():
-                from hidet.ir.primitives.cuda.barrier import barrier_sync
+            from hidet.ir.primitives.cuda.barrier import barrier_sync
 
-                barrier = self.codegen.thread_groups.num_levels() - 1
-                count = self.codegen.thread_groups.group_size[-1]
-                self.append(barrier_sync(barrier=barrier, count=count))
-            else:
-                raise NotImplementedError()
+            barrier = self.codegen.thread_group_stack.stack_depth() - 1
+            count = self.codegen.thread_group_stack.group_size[-1]
+            self.append(barrier_sync(barrier=barrier, count=count))
 
     def sync_reduce(self, value: Expr, op: str) -> Expr:
         if get_current_target().is_nvgpu():
@@ -109,11 +105,11 @@ class BaseInstEmitter(StmtBuilder):
             op2sync = {"and": syncthreads_and, "or": syncthreads_or}
             syncthreads_op = op2sync[op]
 
-            if self.codegen.thread_groups.num_levels() == 1:  # all threads in the cta
+            if self.codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
                 return syncthreads_op(value)
             else:
-                barrier = self.codegen.thread_groups.num_levels() - 1
-                count = self.codegen.thread_groups.group_size[-1]
+                barrier = self.codegen.thread_group_stack.stack_depth() - 1
+                count = self.codegen.thread_group_stack.group_size[-1]
                 self.append(barrier_sync(barrier=barrier, count=count))
                 raise NotImplementedError("barrier_sync_reduce")
         else:
@@ -141,11 +137,11 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def current_worker(self) -> Expr:
-        return self.codegen.thread_groups.current_worker[-1]
+        return self.codegen.thread_group_stack.current_worker[-1]
 
     @property
     def current_num_workers(self) -> int:
-        return self.codegen.thread_groups.group_size[-1]
+        return self.codegen.thread_group_stack.group_size[-1]
 
     @property
     def block_rank_in_cluster(self) -> Expr:
@@ -157,7 +153,7 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def thread_groups(self):
-        return self.codegen.thread_groups
+        return self.codegen.thread_group_stack
 
     @property
     def tensor2var(self) -> Dict[Tensor, Var]:
@@ -216,8 +212,8 @@ def resolve_inst_emitter(inst_cls: Type[Instruction]) -> Optional[Type[BaseInstE
 
 class SharedMemoryAllocator:
     def __init__(self) -> None:
-        self.free_slots: List[Tuple[int, int]] = [(0, (1 << 32) - 1)]
-        self.addr2nbytes: Dict[int, int] = {}
+        self.free_slots: list[tuple[int, int]] = [(0, (1 << 32) - 1)]
+        self.addr2nbytes: dict[int, int] = {}
         self.allocated: int = 0
         self.maximum_allocated: int = 0
 
@@ -272,18 +268,41 @@ class CommentInlinedIRPrinter(IRPrinter):
         return Text(comment) if isinstance(comment, str) else comment
 
 
+class ThreadGroupStack:
+    def __init__(self):
+        self.current_worker: list[Var] = []
+        self.num_groups: list[int] = []
+        self.group_index: list[int] = []
+        self.group_size: list[int] = []
+
+    def stack_depth(self):
+        return len(self.current_worker)
+
+    def push(self, worker: Var, num_groups: int, group_index: int, group_size: int) -> None:
+        if self.stack_depth() > 0:
+            if num_groups * group_size != self.group_size[-1]:
+                raise ValueError("num_groups * group_size must equal to the parent group_size")
+            if group_index < 0 or group_index >= num_groups:
+                raise ValueError(
+                    "group_index must be in [0, num_groups), got group_index={}, num_groups={}".format(
+                        group_index, num_groups
+                    )
+                )
+        self.current_worker.append(worker)
+        self.num_groups.append(num_groups)
+        self.group_index.append(group_index)
+        self.group_size.append(group_size)
+
+    def pop(self):
+        self.current_worker.pop()
+        self.num_groups.pop()
+        self.group_index.pop()
+        self.group_size.pop()
+
+
 class Codegen(IRFunctor):
     GMEM_WORKSPACE_NAME = "__gmem_workspace"
     GMEM_CLEAN_WORKSPACE_NAME = "__gmem_clean_workspace"
-
-    @dataclass
-    class ThreadGroups:
-        current_worker: List[Expr]
-        num_groups: List[int]
-        group_size: List[int]
-
-        def num_levels(self):
-            return len(self.num_groups)
 
     def __init__(self) -> None:
         super().__init__()
@@ -313,7 +332,7 @@ class Codegen(IRFunctor):
         self.smem_workspace: Optional[SharedTensor] = None
 
         # stacks of for_thread_groups
-        self.thread_groups = Codegen.ThreadGroups([], [], [])
+        self.thread_group_stack = ThreadGroupStack()
 
     def __call__(self, prog: Function) -> IRModule:
         return self.visit(prog)
@@ -327,6 +346,10 @@ class Codegen(IRFunctor):
     def builder(self) -> FunctionBuilder:
         assert self._builder is not None
         return self._builder
+
+    @property
+    def current_worker(self):
+        return self.thread_group_stack.current_worker[-1]
 
     def sync(self) -> None:
         from tilus.ir.instructions import SyncThreadsInst
@@ -468,9 +491,9 @@ class Codegen(IRFunctor):
         self.builder.extend_params(list(func.params))
 
         # init for_thread_group stack
-        self.thread_groups.num_groups = [1]
-        self.thread_groups.group_size = [func.metadata.num_warps * 32]
-        self.thread_groups.current_worker = [threadIdx.x]
+        self.thread_group_stack.push(
+            worker=threadIdx.x, num_groups=1, group_index=0, group_size=func.metadata.num_warps * 32
+        )
 
         # init pre-defined variables
         self.init_smem_workspace(func)
@@ -528,22 +551,42 @@ class Codegen(IRFunctor):
         with self.builder.for_loop(stmt.iter_var, stmt.extent, attr=attr):
             self.visit(stmt.body)
 
-    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt) -> None:
-        prev_group_size = self.thread_groups.group_size[-1]
-        group_size = prev_group_size // stmt.num_groups
+    def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> None:
+        # check the validity of the thread group
+        if stmt.group_size is not None and stmt.num_groups is not None:
+            group_size = stmt.group_size
+            num_groups = stmt.num_groups
+        elif stmt.group_size is not None:
+            group_size = stmt.group_size
+            num_groups = self.thread_group_stack.group_size[-1] // group_size
+        elif stmt.num_groups is not None:
+            num_groups = stmt.num_groups
+            group_size = self.thread_group_stack.group_size[-1] // num_groups
+        else:
+            raise ValueError("Either group_size or num_groups must be specified in ThreadGroupStmt")
+        if group_size * num_groups != self.thread_group_stack.group_size[-1]:
+            raise ValueError(
+                "group_size * num_groups must equal to the parent group_size, got group_size={}, num_groups={}, parent_group_size={}".format(
+                    group_size, num_groups, self.thread_group_stack.group_size[-1]
+                )
+            )
 
-        self.builder.declare(v=stmt.iter_var, init=threadIdx.x % prev_group_size // group_size)
-        with self.builder.for_range(stmt.num_groups) as i:
-            self.thread_groups.num_groups.append(stmt.num_groups)
-            self.thread_groups.group_size.append(group_size)
-            self.thread_groups.current_worker.append(threadIdx.x % group_size)
-            with self.builder.if_then(stmt.iter_var == i):
-                self.visit(stmt.body)
-            self.thread_groups.group_size.pop()
-            self.thread_groups.num_groups.pop()
-            self.thread_groups.current_worker.pop()
-
-            self.sync()
+        self.builder.comment(
+            "ThreadGroup(group_index={}, num_groups={}, group_size={})".format(
+                stmt.group_index, num_groups, group_size
+            ),
+            style="/*",
+        )
+        with self.builder.if_then(cond=self.current_worker // stmt.group_size == stmt.group_index):
+            tid = self.builder.declare_var("tid_in_group", tp=int32, init=self.current_worker % group_size)
+            self.thread_group_stack.push(
+                worker=tid,
+                num_groups=self.thread_group_stack.group_size[-1] // group_size,
+                group_index=stmt.group_index,
+                group_size=group_size,
+            )
+            self.visit(stmt.body)
+            self.thread_group_stack.pop()
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> None:
         self.builder.declare(stmt.var, init=stmt.init)

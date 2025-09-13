@@ -52,6 +52,7 @@ from tilus.ir.stmt import (
 )
 from tilus.ir.tensor import GlobalTensor, Tensor
 from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
+from tilus.lang.constructs.contexts import TilusContext
 from tilus.lang.constructs.loops import TilusLoopIterable
 from tilus.lang.script import InstructionError, Script
 from tilus.utils import lcm
@@ -1229,3 +1230,51 @@ class Transpiler(PythonAstFunctor):
             self.visit(expr.upper) if expr.upper is not None else None,
             self.visit(expr.step) if expr.step is not None else None,
         )
+
+    def visit_With(self, stmt: ast.With) -> None:
+        with_items = stmt.items
+        if len(with_items) != 1:
+            raise TilusProgramError(self, stmt, "Tilus currently do not support multiple with items.")
+
+        with_item: ast.withitem = with_items[0]
+        with_item_visited = self.visit(with_item.context_expr)
+
+        if not isinstance(with_item_visited, TilusContext):
+            raise TilusProgramError(
+                self,
+                with_item.context_expr,
+                "The context manager in Tilus Script must be a tilus.lang.constructs.contexts.TilusContext object.",
+            )
+
+        with_context: TilusContext = with_item_visited
+
+        with self.scope() as with_scope:
+            # bind the value to the context variable
+            if with_item.optional_vars is not None:
+                if not isinstance(with_item.optional_vars, ast.Name):
+                    raise TilusProgramError(
+                        self, with_item.optional_vars, "Tilus only support binding to a single name."
+                    )
+                bind_value = with_context.bind_value()
+                if bind_value is None:
+                    raise TilusProgramError(self, with_item.optional_vars, "The context does not have a bind value.")
+                bind_name = with_item.optional_vars.id
+
+                if isinstance(bind_value, hidet_ir.Expr):
+                    from hidet.ir.tools import infer_type
+
+                    bind_var = Var(hint=bind_name, type=infer_type(bind_value))
+                    self.current_scope.append(DeclareStmt(var=bind_var, init=bind_value))
+                    self.current_scope.bind(bind_name, var_or_value=bind_var)
+                else:
+                    self.current_scope.bind(with_item.optional_vars.id, bind_value)
+
+            for body_stmt in stmt.body:
+                self.visit(body_stmt)
+
+        with_body = with_scope.flush_stmts()
+        processed_body = with_context.post_process(with_body)
+        assert isinstance(processed_body, Stmt)
+        self.current_scope.append(processed_body)
+        if len(stmt.items) != 1:
+            raise NotImplementedError("Tilus only support with statement with a single context manager.")

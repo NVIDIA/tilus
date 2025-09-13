@@ -30,7 +30,6 @@ from tilus.ir.stmt import (
     BreakStmt,
     DeclareStmt,
     ForStmt,
-    ForThreadGroupStmt,
     IfStmt,
     InstStmt,
     LetStmt,
@@ -38,6 +37,7 @@ from tilus.ir.stmt import (
     SeqStmt,
     TensorElemPtrStmt,
     TensorElemValueStmt,
+    ThreadGroupStmt,
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalLayout, GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
@@ -242,13 +242,13 @@ class IRPrinter(IRFunctor):
         doc += self.visit(stmt.body).indent(4)
         return doc
 
-    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt) -> Doc:
+    def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> Doc:
         head_doc = (
             NewLine()
-            + Text("for ")
-            + self.printer(stmt.iter_var)
-            + " in thread_groups(num_groups="
-            + self.visit(stmt.num_groups)
+            + Text("with thread_group(group_index=")
+            + self.visit(stmt.group_index)
+            + ", group_size="
+            + self.visit(stmt.group_size)
             + "):"
         )
         body_doc = self.visit(stmt.body)

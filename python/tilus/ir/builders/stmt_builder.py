@@ -94,13 +94,13 @@ from tilus.ir.stmt import (
     BreakStmt,
     DeclareStmt,
     ForStmt,
-    ForThreadGroupStmt,
     IfStmt,
     InstStmt,
     SeqStmt,
     Stmt,
     TensorElemPtrStmt,
     TensorElemValueStmt,
+    ThreadGroupStmt,
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
@@ -157,20 +157,6 @@ class ForContext(StmtContext):
             body = ForStmt(iter_var, extent, body, unroll)
 
         self.append(body)
-
-
-class ForThreadGroupContext(StmtContext):
-    def __init__(self, vb: StmtBuilderCore, iter_var: Var, num_groups: int):
-        super().__init__(vb)
-        self.iter_var: Var = iter_var
-        self.num_groups: int = num_groups
-
-    def __enter__(self) -> Var:
-        self.enter()
-        return self.iter_var
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.append(ForThreadGroupStmt(self.iter_var, self.num_groups, body=self.pop()))
 
 
 class IfContext(StmtContext):
@@ -258,6 +244,24 @@ class WhileContext(StmtContext):
         self.append(WhileStmt(self.cond, body=self.pop()))
 
 
+class ThreadGroupContext(StmtContext):
+    def __init__(self, vb: StmtBuilderCore, group_index: int, group_size: Optional[int], num_groups: Optional[int]):
+        super().__init__(vb)
+        self.group_index: int = group_index
+        self.group_size: Optional[int] = group_size
+        self.num_groups: Optional[int] = num_groups
+
+    def __enter__(self) -> None:
+        self.enter()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.append(
+            ThreadGroupStmt(
+                group_index=self.group_index, group_size=self.group_size, num_groups=self.num_groups, body=self.pop()
+            )
+        )
+
+
 class StmtBuilderCore:
     def __init__(self) -> None:
         # context stack
@@ -278,9 +282,10 @@ class StmtBuilderCore:
         iter_vars = [Var(name, type=int32) for name in iter_name_hints]
         return ForContext(self, iter_vars, expr_extents, unrolls=[None] * len(extents))
 
-    def for_thread_group(self, num_groups: int) -> ForThreadGroupContext:
-        iter_var = Var("tg", type=int32)
-        return ForThreadGroupContext(self, iter_var, num_groups)
+    def thread_group(
+        self, group_index: int, group_size: Optional[int], num_groups: Optional[int]
+    ) -> ThreadGroupContext:
+        return ThreadGroupContext(self, group_index=group_index, group_size=group_size, num_groups=num_groups)
 
     def while_loop(self, cond: Union[Expr, bool]) -> WhileContext:
         return WhileContext(self, as_expr(cond))

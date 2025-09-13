@@ -27,7 +27,6 @@ from tilus.ir.stmt import (
     BreakStmt,
     DeclareStmt,
     ForStmt,
-    ForThreadGroupStmt,
     IfStmt,
     InstStmt,
     LetStmt,
@@ -36,6 +35,7 @@ from tilus.ir.stmt import (
     Stmt,
     TensorElemPtrStmt,
     TensorElemValueStmt,
+    ThreadGroupStmt,
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor
@@ -90,8 +90,8 @@ class IRFunctor:
             ret = self.visit_SeqStmt(node)
         elif isinstance(node, ForStmt):
             ret = self.visit_ForStmt(node)
-        elif isinstance(node, ForThreadGroupStmt):
-            ret = self.visit_ForThreadGroupStmt(node)
+        elif isinstance(node, ThreadGroupStmt):
+            ret = self.visit_ThreadGroupStmt(node)
         elif isinstance(node, IfStmt):
             ret = self.visit_IfStmt(node)
         elif isinstance(node, WhileStmt):
@@ -184,7 +184,7 @@ class IRFunctor:
     def visit_ForStmt(self, stmt: ForStmt) -> Any:
         raise NotImplementedError()
 
-    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt) -> Any:
+    def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> Any:
         raise NotImplementedError()
 
     def visit_IfStmt(self, stmt: IfStmt) -> Any:
@@ -311,12 +311,12 @@ class IRRewriter(IRFunctor):
         else:
             return ForStmt(stmt.iter_var, extent, body, stmt.unroll_factor)
 
-    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt) -> Stmt:
+    def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> Stmt:
         body = self.visit(stmt.body)
         if body is stmt.body:
             return stmt
         else:
-            return ForThreadGroupStmt(stmt.iter_var, stmt.num_groups, body)
+            return ThreadGroupStmt(stmt.group_index, stmt.group_size, stmt.num_groups, body)
 
     def visit_IfStmt(self, stmt: IfStmt) -> Stmt:
         cond = self.visit(stmt.cond)
@@ -479,7 +479,7 @@ class IRVisitor(IRFunctor):
         self.visit(stmt.extent)
         self.visit(stmt.body)
 
-    def visit_ForThreadGroupStmt(self, stmt: ForThreadGroupStmt) -> None:
+    def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> None:
         self.visit(stmt.body)
 
     def visit_IfStmt(self, stmt: IfStmt) -> None:

@@ -29,6 +29,7 @@ from tilus.ir.inst import InstructionError
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_row_major, global_strides
 from tilus.ir.prog import Program
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
+from tilus.lang.constructs.contexts import ThreadGroupContext
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
 
@@ -304,6 +305,18 @@ class Script:
                 self._transpiler.var2divisibility[a] = int(term.a.b.value)  # type: ignore[arg-type]
             else:
                 raise InstructionError("Can not recognize the condition in assume: {}".format(term))
+
+    def thread_group(
+        self, group_index: int, *, num_groups: Optional[int] = None, group_size: Optional[int] = None
+    ) -> ThreadGroupContext:
+        if num_groups is None and group_size is None:
+            raise InstructionError("Either num_groups or group_size must be specified")
+        if group_index < 0 or (num_groups is not None and group_index >= num_groups):
+            raise InstructionError("Invalid group_index {}, must be in [0, {})".format(group_index, num_groups))
+
+        return ThreadGroupContext(group_index=group_index, group_size=group_size, num_groups=num_groups)
+
+    # instructions
 
     def register_tensor(
         self,
