@@ -21,7 +21,7 @@ from hidet.ir.primitives.cuda.half import fma_f16x2, sub_f16x2
 from hidet.ir.primitives.cuda.prmt import prmt
 from hidet.ir.type import Callable, DataType, PointerType, TensorPointerType, TensorType
 
-from tilus.backends.codegen import BaseInstEmitter, Codegen, register_emitter
+from tilus.backends.codegen import BaseInstEmitter, FunctionCodegen, register_emitter
 from tilus.extensions.hidet.ir.dtypes import (
     float6_e3m2,
     float8_e4m3,
@@ -55,7 +55,7 @@ def get_base_type(tp):
 
 
 class CastInstBaseEmitter(BaseInstEmitter):
-    def __init__(self, codegen: Codegen) -> None:
+    def __init__(self, codegen: FunctionCodegen) -> None:
         super().__init__(codegen)
         self.specialized_cast: Dict[Tuple[DataType, DataType], Callable[[Var, Var], None]] = {}
         self.size: int = -1

@@ -14,7 +14,7 @@
 # limitations under the License.
 from hidet.ir.expr import Expr
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.codegen import BaseInstEmitter, BaseEmitContext, FunctionCodegen, register_emitter
 from tilus.ir import GlobalTensor
 from tilus.ir.instructions import AllocateGlobalInst, GlobalSliceInst, GlobalViewInst
 from tilus.utils import cdiv

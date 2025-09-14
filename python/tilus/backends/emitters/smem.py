@@ -13,13 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from hidet.ir.dtypes import int32
+from hidet.ir.expr import Var
 from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.type import tensor_pointer_type
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.codegen import BaseInstEmitter, BaseEmitContext, register_emitter, FunctionCodegen
 from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst, SharedSliceInst
 from tilus.ir.tensor import SharedTensor
+
 
 
 @register_emitter(AllocateSharedInst)
@@ -43,7 +45,7 @@ class AllocateSharedInstEmitter(BaseInstEmitter):
 class FreeSharedInstEmitter(BaseInstEmitter):
     def emit(self, inst: FreeSharedInst) -> None:
         tensor: SharedTensor = inst.inputs[0].as_shared_tensor()
-        self.codegen.free_shared_value(tensor)
+        self.codegen.free_shared_tensor(tensor)
 
         del self.tensor2var[tensor]
         del self.shared_tensor_shared_space_addr[tensor]

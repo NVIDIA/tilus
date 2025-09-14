@@ -41,11 +41,6 @@ class Analysis:
     def empty() -> Analysis:
         return Analysis(frozendict(), frozendict(), frozendict())
 
-@dataclass(frozen=True, eq=False)
-class HostPrologue:
-    prologue: Stmt
-    yields: tuple[Var, ...]
-
 
 @dataclass(frozen=True)
 class Metadata:
@@ -55,7 +50,6 @@ class Metadata:
     num_warps: int
     param2divisibility: frozendict[Var, int]
     analysis: Optional[Analysis]
-    host_prologue: Optional[HostPrologue]
 
     @staticmethod
     def create(
@@ -65,7 +59,6 @@ class Metadata:
         num_warps: int,
         divisibility: Optional[Mapping[Var, int]] = None,
         analysis: Optional[Analysis] = None,
-        host_prologue: Optional[HostPrologue] = None,
     ) -> Metadata:
         assert len(grid_blocks) == 3 and len(block_indices) == 3 and len(cluster_blocks) == 3
 
@@ -76,7 +69,6 @@ class Metadata:
             num_warps=num_warps,
             param2divisibility=frozendict(divisibility) if divisibility else frozendict(),
             analysis=analysis,
-            host_prologue=host_prologue,
         )
 
     def with_analysis(self, analysis: Optional[Analysis]) -> Metadata:

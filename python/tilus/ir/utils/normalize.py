@@ -19,6 +19,10 @@ from hidet.ir.expr import Expr
 from hidet.ir.tools.simplifier import simplify, simplify_to_int
 
 
+def normalize_dim3(dim3: Expr | int | Sequence[Expr | int]) -> tuple[Expr, Expr, Expr]:
+    return normalize_grid_blocks(dim3)
+
+
 def normalize_grid_blocks(blocks: Expr | int | Sequence[Expr | int]) -> tuple[Expr, Expr, Expr]:
     """Normalize grid blocks to a tuple of three expressions.
 
