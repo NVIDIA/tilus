@@ -44,7 +44,7 @@ class Analysis:
 
 @dataclass(frozen=True)
 class Metadata:
-    grid_blocks: tuple[Expr, Expr, Expr]
+    grid_blocks: tuple[Expr, Expr, Expr]  # expressions over function params
     cluster_blocks: tuple[int, int, int]
     block_indices: tuple[Var, Var, Var]
     num_warps: int

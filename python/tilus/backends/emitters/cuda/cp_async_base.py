@@ -135,7 +135,7 @@ class CopyAysncBaseEmitter(BaseInstEmitter):
 
         # get shared, global, and mask info
         axes_info = self.get_axes_info(shared_tensor, global_tensor, offsets, dims, check_bounds=check_bounds)
-        analysis = self.codegen.function.metadata.analysis
+        analysis = self.analysis
         axes = axes_info.axes
         shared_info: TensorInfo = analyze_grid(shape=shape, axes=axes, analysis=analysis, expr=axes_info.shared_offset)
         mask_info: TensorInfo = analyze_grid(shape=shape, axes=axes, analysis=analysis, expr=axes_info.mask_expr)
@@ -173,7 +173,7 @@ class CopyAysncBaseEmitter(BaseInstEmitter):
         assert shape == layout_dst.shape
 
         # get shared src and dst info
-        analysis = self.codegen.function.metadata.analysis
+        analysis = self.analysis
         axes = index_vars(num_vars=len(shape))
         shared_src_info: TensorInfo = analyze_grid(
             shape=shape, axes=axes, analysis=analysis, expr=shared_src.layout(*axes)

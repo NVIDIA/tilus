@@ -66,7 +66,7 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
         layout: RegisterLayout = regs_tensor.layout
 
         # analyze the offset and mask's value information (e.g., divisibility, constancy, etc.)
-        analysis = self.codegen.function.metadata.analysis
+        analysis = self.analysis
         offset_info = analyze_grid(shape=shape, axes=inst.axes, analysis=analysis, expr=inst.offset)
         mask_info = analyze_grid(shape=shape, axes=inst.axes, analysis=analysis, expr=inst.mask)
 

@@ -14,28 +14,27 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Callable, Dict, Optional, Set, Type
+from typing import Any, Callable, Dict, Optional, Set, Type
 
+from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder, StmtBuilder
-from hidet.ir.dtypes import int32, uint8
-from hidet.ir.expr import Constant, Expr, SymbolVar, Var, cast, tensor_pointer_var, tensor_var
+from hidet.ir.dtypes import int32
+from hidet.ir.expr import Expr, Var, tensor_pointer_var, tensor_var
 from hidet.ir.func import Function as HidetFunction
 from hidet.ir.module import IRModule
+from hidet.ir.primitives import set_kernel_max_dynamic_smem_bytes
 from hidet.ir.primitives.cuda.cluster import this_cluster
-from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, threadIdx
-from hidet.ir.stmt import DeclareScope
-from hidet.ir.type import void_p
+from hidet.ir.stmt import DeclareScope, LaunchKernelStmt
+from hidet.ir.stmt import Stmt as HidetStmt
 from hidet.utils.doc import Doc, Text
 
 from tilus.extensions.hidet.ir.module import merge_ir_modules
-from tilus.extensions.hidet.ir.tools import rewrite
 from tilus.extensions.hidet.ir.tools.verifier import verify as verify_ir_module
 from tilus.ir.func import Function
 from tilus.ir.functors import IRFunctor
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import FormatPrintInst, PrintTensorInst
-from tilus.ir.layout import shared_row_major
 from tilus.ir.prog import Program
 from tilus.ir.stmt import (
     AssignStmt,
@@ -54,6 +53,7 @@ from tilus.ir.stmt import (
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.ir.tools import IRPrinter
 from tilus.ir.tools.instruction_collector import collect_instructions
+from tilus.ir.utils.normalize import normalize_dim3
 from tilus.target import Target, get_current_target, gpgpu_any, match_target
 
 
@@ -66,35 +66,24 @@ class CodeGenerationFailed(Exception):
     pass
 
 
-def is_nvgpu():
-    return get_current_target().is_nvgpu()
-
-
-def is_amdgpu():
-    return get_current_target().is_amdgpu()
-
-
 class BaseInstEmitter(StmtBuilder):
     # inst -> emitter
     REGISTRY: Dict[Type[Instruction], Dict[Target, Type["BaseInstEmitter"]]] = {}
 
-    def __init__(self, codegen: Codegen) -> None:
+    def __init__(self, codegen: FunctionCodegen) -> None:
         super().__init__()
-        # todo: currently, the instruction emitters (that inherit from BaseInstEmitter) directly access the codegen
-        #       object to access some data in the codegen object. This is not a good design. We should refactor this
-        #       to use the methods of the BaseInstEmitter class to access the data in the codegen object.
-        self.codegen: Codegen = codegen
+        self._codegen: FunctionCodegen = codegen
 
     def sync(self):
         from hidet.ir.primitives.cuda import syncthreads
 
-        if self.codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
+        if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
             self.append(syncthreads())
         else:
             from hidet.ir.primitives.cuda.barrier import barrier_sync
 
-            barrier = self.codegen.thread_group_stack.stack_depth() - 1
-            count = self.codegen.thread_group_stack.group_size[-1]
+            barrier = self._codegen.thread_group_stack.stack_depth() - 1
+            count = self._codegen.thread_group_stack.group_size[-1]
             self.append(barrier_sync(barrier=barrier, count=count))
 
     def sync_reduce(self, value: Expr, op: str) -> Expr:
@@ -105,11 +94,11 @@ class BaseInstEmitter(StmtBuilder):
             op2sync = {"and": syncthreads_and, "or": syncthreads_or}
             syncthreads_op = op2sync[op]
 
-            if self.codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
+            if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
                 return syncthreads_op(value)
             else:
-                barrier = self.codegen.thread_group_stack.stack_depth() - 1
-                count = self.codegen.thread_group_stack.group_size[-1]
+                barrier = self._codegen.thread_group_stack.stack_depth() - 1
+                count = self._codegen.thread_group_stack.group_size[-1]
                 self.append(barrier_sync(barrier=barrier, count=count))
                 raise NotImplementedError("barrier_sync_reduce")
         else:
@@ -137,11 +126,11 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def current_worker(self) -> Expr:
-        return self.codegen.thread_group_stack.current_worker[-1]
+        return self._codegen.thread_group_stack.current_worker[-1]
 
     @property
     def current_num_workers(self) -> int:
-        return self.codegen.thread_group_stack.group_size[-1]
+        return self._codegen.thread_group_stack.group_size[-1]
 
     @property
     def block_rank_in_cluster(self) -> Expr:
@@ -153,25 +142,95 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def thread_groups(self):
-        return self.codegen.thread_group_stack
+        return self._codegen.thread_group_stack
 
     @property
     def tensor2var(self) -> Dict[Tensor, Var]:
-        return self.codegen.tensor2var
+        return self._codegen.tensor2var
 
     @property
     def shared_tensor_shared_space_addr(self):
-        return self.codegen.shared_tensor_shared_space_addr
+        return self._codegen.shared_tensor_addr
 
     @property
     def num_warps(self) -> int:
-        return self.codegen.function.metadata.num_warps
+        return self._codegen.function.metadata.num_warps
 
-    def request_shared_workspace(self, inst: Instruction) -> int:
-        return 0
+    @property
+    def function(self) -> Function:
+        return self._codegen.function
+
+    @property
+    def analysis(self):
+        return self._codegen.function.metadata.analysis
+
+    @property
+    def contexts(self) -> Dict[Type[BaseEmitContext], Any]:
+        return self._codegen.contexts
 
     def emit(self, inst: Instruction) -> None:
         raise NotImplementedError()
+
+
+class BaseEmitContext:
+    REGISTRY: list[Type[BaseEmitContext]] = []
+
+    def __init__(self, codegen: FunctionCodegen):
+        self.codegen = codegen
+
+    def prepend_host(self, stmt: Expr | HidetStmt) -> None:
+        """Prepend a statement to the host function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be prepended.
+        """
+        self.codegen.host_builder.scope_stack[-1].insert(0, stmt)
+
+    def append_host(self, stmt: Expr | HidetStmt) -> None:
+        """Append a statement to the host function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be appended.
+        """
+        self.codegen.host_builder.append(stmt)
+
+    def prepend_kernel(self, stmt: Expr | HidetStmt) -> None:
+        """Prepend a statement to the kernel function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be prepended.
+        """
+        self.codegen.builder.scope_stack[-1].insert(0, stmt)
+
+    def append_kernel(self, stmt: Expr | HidetStmt) -> None:
+        """Append a statement to the kernel function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be appended.
+        """
+        self.codegen.builder.append(stmt)
+
+    def initialize(self):
+        """Initialize the context.
+
+        This method is called before the codegen starts for all instructions.
+        """
+        pass
+
+    def finalize(self):
+        """Finalize the context.
+
+        This method is called when the codegen is finished for all instructions.
+        """
+        pass
 
 
 def register_emitter(
@@ -196,6 +255,13 @@ def register_emitter(
     return decorator
 
 
+def register_emit_context(ctx_cls: Type[BaseEmitContext]) -> Type[BaseEmitContext]:
+    if ctx_cls in BaseEmitContext.REGISTRY:
+        raise ValueError(f"Emit context {ctx_cls} already registered")
+    BaseEmitContext.REGISTRY.append(ctx_cls)
+    return ctx_cls
+
+
 def resolve_inst_emitter(inst_cls: Type[Instruction]) -> Optional[Type[BaseInstEmitter]]:
     target = get_current_target()
     emitter_classes = {}
@@ -208,59 +274,6 @@ def resolve_inst_emitter(inst_cls: Type[Instruction]) -> Optional[Type[BaseInstE
     if matched_target is None:
         return None
     return emitter_classes[matched_target]
-
-
-class SharedMemoryAllocator:
-    def __init__(self) -> None:
-        self.free_slots: list[tuple[int, int]] = [(0, (1 << 32) - 1)]
-        self.addr2nbytes: dict[int, int] = {}
-        self.allocated: int = 0
-        self.maximum_allocated: int = 0
-
-    def allocate(self, nbytes: int) -> int:
-        # align the nbytes to 128 bytes aligned
-        nbytes = (nbytes + 127) // 128 * 128
-
-        # find the first slot that can fit the request
-        i = min(i for i, (start, end) in enumerate(self.free_slots) if end - start >= nbytes)
-        addr = self.free_slots[i][0]
-        if self.free_slots[i][1] - self.free_slots[i][0] == nbytes:
-            # remove the slot
-            del self.free_slots[i]
-        else:
-            # shrink the slot
-            self.free_slots[i] = (addr + nbytes, self.free_slots[i][1])
-        self.addr2nbytes[addr] = nbytes
-        self.maximum_allocated = max(self.maximum_allocated, addr + nbytes)
-        self.allocated += nbytes
-        return addr
-
-    def free(self, addr: int) -> None:
-        # find the slot that is right before the address
-        before = [i for i, slot in enumerate(self.free_slots) if slot[1] <= addr]
-        after = [i for i, slot in enumerate(self.free_slots) if slot[0] > addr]
-        assert len(before) + len(after) == len(self.free_slots)
-        nbytes = self.addr2nbytes[addr]
-        if (
-            before
-            and after
-            and self.free_slots[before[-1]][1] == addr
-            and self.free_slots[after[0]][0] == addr + nbytes
-        ):
-            # merge three slots
-            self.free_slots[before[-1]] = (self.free_slots[before[-1]][0], self.free_slots[after[0]][1])
-        elif before and self.free_slots[before[-1]][1] == addr:
-            # merge with previous slot
-            self.free_slots[before[-1]] = (self.free_slots[before[-1]][0], addr + nbytes)
-        elif after and self.free_slots[after[0]][0] == addr + nbytes:
-            # merge with next slot
-            self.free_slots[after[0]] = (addr, self.free_slots[after[0]][1])
-        else:
-            # add a new slot
-            self.free_slots.append((addr, addr + nbytes))
-            self.free_slots = list(sorted(self.free_slots, key=lambda x: x[0]))
-        self.allocated -= nbytes
-        del self.addr2nbytes[addr]
 
 
 class CommentInlinedIRPrinter(IRPrinter):
@@ -300,36 +313,23 @@ class ThreadGroupStack:
         self.group_size.pop()
 
 
-class Codegen(IRFunctor):
-    GMEM_WORKSPACE_NAME = "__gmem_workspace"
-    GMEM_CLEAN_WORKSPACE_NAME = "__gmem_clean_workspace"
-
+class FunctionCodegen(IRFunctor):
     def __init__(self) -> None:
         super().__init__()
-        self._builder: Optional[FunctionBuilder] = None
         self._function: Optional[Function] = None
+        self._builder: Optional[FunctionBuilder] = None
+        self._host_builder: Optional[FunctionBuilder] = None
         self.printer: IRPrinter = CommentInlinedIRPrinter()
 
-        # value mapping
+        # extra parameters that computed in host function and passed to device kernel
+        self.extra_params: list[Var] = []
+
+        # emitting contexts
+        self.contexts: Dict[Type[BaseEmitContext], BaseEmitContext] = {}
+
+        # tensor mapping
         self.tensor2var: Dict[Tensor, Var] = {}
-
-        # global memory management
-        self.gmem_base_ptr: Var = SymbolVar(dtype=~uint8, name=self.GMEM_WORKSPACE_NAME)  # type: ignore
-        self.gmem_allocated: Expr = int32.zero
-        self.gmem_maximum_allocated: Expr = int32.zero
-        self.gmem_clean_base_ptr: Var = SymbolVar(dtype=~uint8, name=self.GMEM_CLEAN_WORKSPACE_NAME)  # type: ignore
-        self.gmem_clean_allocated: Expr = int32.zero
-        self.gmem_clean_maximum_allocated: Expr = int32.zero
-
-        # shared memory allocator
-        self.smem_allocator: SharedMemoryAllocator = SharedMemoryAllocator()
-        # mapping from shared value to the address in shared memory allocator for all allocated shared values
-        self.shared_value_allocator_addr: Dict[SharedTensor, int] = {}
-        # mapping from shared value to the address in shared memory space (e.g., returned by cvta ptx instruction)
-        self.shared_tensor_shared_space_addr: Dict[SharedTensor, Var] = {}
-
-        # shared memory workspace
-        self.smem_workspace: Optional[SharedTensor] = None
+        self.shared_tensor_addr: dict[SharedTensor, Var] = {}  # shared tensor to uint32 addr in shared space
 
         # stacks of for_thread_groups
         self.thread_group_stack = ThreadGroupStack()
@@ -348,36 +348,13 @@ class Codegen(IRFunctor):
         return self._builder
 
     @property
+    def host_builder(self) -> FunctionBuilder:
+        assert self._host_builder is not None
+        return self._host_builder
+
+    @property
     def current_worker(self):
         return self.thread_group_stack.current_worker[-1]
-
-    def sync(self) -> None:
-        from tilus.ir.instructions import SyncThreadsInst
-
-        self.visit(SyncThreadsInst.create())
-
-    def allocate_shared_tensor(self, value: SharedTensor, nbytes: int) -> int:
-        addr: int = self.smem_allocator.allocate(nbytes)
-        assert value not in self.shared_value_allocator_addr
-        self.shared_value_allocator_addr[value] = addr
-        return addr
-
-    def free_shared_value(self, value: SharedTensor) -> None:
-        assert value in self.shared_value_allocator_addr
-        self.smem_allocator.free(addr=self.shared_value_allocator_addr[value])
-        del self.shared_value_allocator_addr[value]
-
-    def allocate_global_memory(self, nbytes: Expr | int, clean: bool) -> Expr:
-        nbytes = (nbytes + 127) // 128 * 128  # align to 128 bytes
-        if clean:
-            ret = self.gmem_clean_base_ptr + self.gmem_clean_allocated
-            self.gmem_clean_allocated = self.gmem_clean_allocated + nbytes
-            self.gmem_clean_maximum_allocated = self.gmem_clean_allocated
-        else:
-            ret = self.gmem_base_ptr + self.gmem_allocated
-            self.gmem_allocated = self.gmem_allocated + nbytes
-            self.gmem_maximum_allocated = self.gmem_allocated
-        return ret
 
     def check_emitter_existence(self) -> None:
         failed_instructions: Set[str] = set()
@@ -390,95 +367,41 @@ class Codegen(IRFunctor):
                 "Failed to find emitter for the following instructions: \n{}".format("\n".join(failed_instructions))
             )
 
-    def init_smem_workspace(self, program: Function) -> None:
-        smem_workspace_nbytes: int = 0
-        for inst in collect_instructions(program):  # todo: add this to emiter
-            # smem_workspace_nbytes = max(smem_workspace_nbytes, inst.request_shared_workspace())
-            emitter = resolve_inst_emitter(inst.__class__)(self)
-            smem_workspace_nbytes = max(smem_workspace_nbytes, emitter.request_shared_workspace(inst))
-        if smem_workspace_nbytes > 0:
-            smem_workspace = SharedTensor.create(dtype=uint8, optional_layout=shared_row_major(smem_workspace_nbytes))
-            self.allocate_shared_tensor(smem_workspace, nbytes=smem_workspace_nbytes)
-            self.tensor2var[smem_workspace] = self.builder.declare(
-                v=Var("temp_smem", type=void_p),
-                init=dynamic_shared_memory(byte_offset=self.shared_value_allocator_addr[smem_workspace], dtype=uint8),
+    def launch_kernel(self, kernel_func: HidetFunction) -> None:
+        """Generate the host code to launch the kernel function."""
+        if kernel_func.kind == "cuda_kernel":
+            func_var = Var(hint=None, type=FuncType.from_func(kernel_func), name=kernel_func.name)
+            dynamic_shared_bytes = kernel_func.get_attr("cuda.dynamic_smem_bytes", int32(0))
+
+            # set max dynamic shared memory bytes if needed
+            with self.host_builder.if_then(dynamic_shared_bytes > 48 * 1024):
+                self.host_builder.append(set_kernel_max_dynamic_smem_bytes(func_var, dynamic_shared_bytes))
+
+            # launch the kernel
+            kernel_args = list(self.host_builder.params) + list(self.extra_params)
+            self.host_builder.append(
+                LaunchKernelStmt(
+                    func_var=func_var,
+                    args=kernel_args,
+                    grid_dim=normalize_dim3(kernel_func.get_attr("cuda.grid_dim")),
+                    cluster_dim=normalize_dim3(kernel_func.get_attr("cuda.cluster_dim", default=1)),
+                    block_dim=normalize_dim3(kernel_func.get_attr("cuda.block_dim")),
+                    shared_mem=dynamic_shared_bytes,
+                    target="cuda",
+                )
             )
-            self.smem_workspace = smem_workspace
-
-    def generate_launch_function(self, ir_module: IRModule, kernel_func: HidetFunction) -> IRModule:
-        from hidet.ir.primitives.runtime import set_symbol_value_ptr
-        from hidet.ir.stmt import SeqStmt
-        from hidet.transforms.generate_launch_func import add_launch_func
-        from hidet.transforms.instantiate_symbols import InstantiateSymbolsRewriter
-
-        # add the launch function for the kernel function
-        add_launch_func(ir_module, kernel_func=kernel_func)
-
-        # instantiate the symbols in the kernel function, like __gmem_workspace, etc.
-        instantiate_rewriter = InstantiateSymbolsRewriter()
-        ir_module = instantiate_rewriter(ir_module)
-
-        launch_func = ir_module.functions["launch"]
-        launch_func = HidetFunction(
-            name=kernel_func.name.removesuffix("_kernel"),
-            params=launch_func.params,
-            body=launch_func.body,
-            ret_type=launch_func.ret_type,
-            kind=launch_func.kind,
-            attrs=launch_func.attrs,
-        )
-
-        if is_nvgpu():
-            from hidet.ir.primitives.runtime import request_cuda_workspace
-
-            request_workspace = request_cuda_workspace
-        elif is_amdgpu():
-            from hidet.ir.primitives.runtime import request_hip_workspace
-
-            request_workspace = request_hip_workspace
         else:
-            assert False
-
-        # set the workspace
-        sb = StmtBuilder()
-        remap = {prog_param: launch_param for prog_param, launch_param in zip(self.function.params, launch_func.params)}
-        if not (isinstance(self.gmem_allocated, Constant) and int(self.gmem_allocated) == 0):
-            sb += set_symbol_value_ptr(
-                self.GMEM_WORKSPACE_NAME,
-                cast(
-                    request_workspace(nbytes=rewrite(self.gmem_maximum_allocated, remap), require_clean=False), ~uint8
-                ),
-            )
-        if not (isinstance(self.gmem_clean_allocated, Constant) and int(self.gmem_clean_allocated) == 0):
-            sb += set_symbol_value_ptr(
-                self.GMEM_CLEAN_WORKSPACE_NAME,
-                cast(
-                    request_workspace(nbytes=rewrite(self.gmem_clean_maximum_allocated, remap), require_clean=True),
-                    ~uint8,
-                ),
-            )
-
-        launch_func.body = SeqStmt([sb.finish(), launch_func.body])
-        updated_ir_module = IRModule(
-            functions={
-                launch_func.name: launch_func,
-                kernel_func.name: ir_module.functions[kernel_func.name],
-            },
-        )
-        return updated_ir_module
+            raise NotImplementedError("Only cuda kernel launch is supported now.")
 
     def visit_Function(self, func: Function) -> IRModule:
-        assert func.metadata.analysis is not None, "Function analysis is required for code generation"
-        # warmup printer
-        self.printer(func)
-
+        if func.metadata.analysis is None:
+            raise RuntimeError("Function analysis is required for code generation")
         self._function = func
 
-        self.check_emitter_existence()
-
+        # create function builders for both device and host side
         self._builder = FunctionBuilder(
             name=func.name + "_kernel",
-            kind="cuda_kernel" if is_nvgpu() else "hip_kernel",
+            kind="cuda_kernel" if get_current_target().is_nvgpu() else "hip_kernel",
             label="",
             grid_dim=self._function.metadata.grid_blocks,
             cluster_dim=self._function.metadata.cluster_blocks
@@ -488,42 +411,52 @@ class Codegen(IRFunctor):
             dynamic_smem_bytes=None,
             min_blocks=None,
         )
+        self._host_builder = FunctionBuilder(
+            name=func.name,
+            kind="public",
+            label="",
+        )
         self.builder.extend_params(list(func.params))
+        self.host_builder.extend_params(list(func.params))
 
-        # init for_thread_group stack
+        # warmup printer
+        self.printer(func)
+
+        # make sure all instructions have matched emitters
+        self.check_emitter_existence()
+
+        # initialize for_thread_group stack
         self.thread_group_stack.push(
             worker=threadIdx.x, num_groups=1, group_index=0, group_size=func.metadata.num_warps * 32
         )
 
-        # init pre-defined variables
-        self.init_smem_workspace(func)
+        # create all contexts
+        self.contexts = {cls: cls(self) for cls in BaseEmitContext.REGISTRY}
+        for ctx in self.contexts.values():
+            ctx.initialize()
 
         # emit body
         self.visit(func.body)
 
-        # check shared memory allocation and set dynamic shared memory size
-        if self.smem_workspace:
-            self.free_shared_value(self.smem_workspace)
-            self.smem_workspace = None
-        # if self.smem_allocator.allocated != 0:
-        #     raise ValueError("Shared memory is not properly allocated/freed")
-        if self.smem_allocator.maximum_allocated > get_current_target().properties.shared_memory_per_block:
-            raise CodeGenerationFailed(
-                "Request shared memory {} bytes, but the device only allows {} bytes.".format(
-                    self.smem_allocator.maximum_allocated, get_current_target().properties.shared_memory_per_block
-                )
-            )
-        if is_nvgpu():
-            self.builder.attrs["cuda.dynamic_smem_bytes"] = self.smem_allocator.maximum_allocated
-        elif is_amdgpu():
-            self.builder.attrs["hip.dynamic_smem_bytes"] = self.smem_allocator.maximum_allocated
-        else:
-            assert False
+        # finalize all contexts
+        for ctx in self.contexts.values():
+            ctx.finalize()
 
+        # create the kernel function
+        self.builder.extend_params(self.extra_params)
         self.builder.finish_func()
-        kernel_function = self.builder.get()
-        ir_module = IRModule(functions={kernel_function.name: kernel_function})
-        ir_module = self.generate_launch_function(ir_module, kernel_func=kernel_function)
+        kernel_function: HidetFunction = self.builder.get()
+
+        # launch the kernel function on the host side
+        self.launch_kernel(kernel_function)
+
+        # create the host function
+        self.host_builder.finish_func()
+        host_function: HidetFunction = self.host_builder.get()
+
+        # create the IR module contains both host and device functions
+        ir_module = IRModule(functions={kernel_function.name: kernel_function, host_function.name: host_function})
+
         return ir_module
 
     def visit_SeqStmt(self, stmt: SeqStmt) -> None:
@@ -614,7 +547,7 @@ class Codegen(IRFunctor):
             if not isinstance(stmt.tensor, SharedTensor):
                 raise ValueError("Expected a SharedTensor for shared tensor pointer, got: {}".format(stmt.tensor))
             shared_tensor: SharedTensor = stmt.tensor
-            addr = self.shared_tensor_shared_space_addr[shared_tensor]
+            addr = self.shared_tensor_addr[shared_tensor]
             if stmt.indices is not None:
                 addr = addr + shared_tensor.layout(*stmt.indices) * shared_tensor.dtype.nbytes
             self.builder.declare(stmt.ptr_var, addr)
@@ -659,7 +592,7 @@ class ProgramCodegen(IRFunctor):
     def visit_Program(self, prog: Program) -> IRModule:
         ir_module = IRModule()
         for name, func in prog.functions.items():
-            func_codegen = Codegen()
+            func_codegen = FunctionCodegen()
             sub_ir_module = func_codegen(func)
             ir_module = merge_ir_modules([ir_module, sub_ir_module])
 

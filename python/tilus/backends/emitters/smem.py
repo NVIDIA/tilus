@@ -18,6 +18,7 @@ from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.type import tensor_pointer_type
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.contexts import SharedMemoryAllocationContext
 from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst, SharedSliceInst
 from tilus.ir.tensor import SharedTensor
 
@@ -27,7 +28,9 @@ class AllocateSharedInstEmitter(BaseInstEmitter):
     def emit(self, inst: AllocateSharedInst) -> None:
         tensor: SharedTensor = inst.shared_output
 
-        allocator_addr = self.codegen.allocate_shared_tensor(tensor, nbytes=tensor.nbytes)
+        ctx: SharedMemoryAllocationContext = self.contexts[SharedMemoryAllocationContext]
+
+        allocator_addr = ctx.allocate_shared_tensor(tensor, nbytes=tensor.nbytes)
         self.tensor2var[tensor] = self.declare_var(
             name="shared",
             tp=tensor_pointer_type(dtype=tensor.dtype, shape=[tensor.size]),
@@ -43,7 +46,9 @@ class AllocateSharedInstEmitter(BaseInstEmitter):
 class FreeSharedInstEmitter(BaseInstEmitter):
     def emit(self, inst: FreeSharedInst) -> None:
         tensor: SharedTensor = inst.inputs[0].as_shared_tensor()
-        self.codegen.free_shared_value(tensor)
+
+        ctx: SharedMemoryAllocationContext = self.contexts[SharedMemoryAllocationContext]
+        ctx.free_shared_tensor(tensor)
 
         del self.tensor2var[tensor]
         del self.shared_tensor_shared_space_addr[tensor]
