@@ -67,6 +67,7 @@ def register_mma_instructions():
                 inputs=[deref(a_reg_p[i], uint32) for i in range(a_regs)]
                 + [deref(b_reg_p[i], uint32) for i in range(b_regs)]
                 + [deref(c_reg_p[i], uint32) for i in range(c_regs)],
+                is_volatile=True,
             )
 
         register_primitive_function(mma_sync_v2_primitive.name, mma_sync_v2_primitive)
