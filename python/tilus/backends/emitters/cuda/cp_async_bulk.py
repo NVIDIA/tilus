@@ -297,7 +297,7 @@ class CopyAsyncBulkSharedToClusterSharedEmitter(CopyAysncBaseEmitter):
         if num_copies % num_threads == 0:
             with self.for_range(extent=num_copies // num_threads, attr="u+") as iter_i:
                 emit_bulk_cp_async(index_deserialize(self.current_worker + iter_i * num_threads, shape=copy_shape))
-        elif num_copies < num_copies:
+        elif num_copies < num_threads:
             with self.if_then(self.current_worker < num_copies):
                 emit_bulk_cp_async(index_deserialize(self.current_worker, shape=copy_shape))
         else:
