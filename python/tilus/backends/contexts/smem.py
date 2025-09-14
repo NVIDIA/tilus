@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Optional
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Var
-from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
-from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
-from hidet.ir.type import tensor_pointer_type
 
-from tilus.backends.codegen import BaseInstEmitter, BaseEmitContext, register_emitter, FunctionCodegen
-from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst, SharedSliceInst
+from hidet.ir import StmtBuilder
+from hidet.ir.dtypes import uint8
+from hidet.ir.expr import Expr, Var
+from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
+
+from tilus.target import get_current_target
+from tilus.backends.codegen import BaseEmitContext, FunctionCodegen, register_emit_context
 from tilus.ir.tensor import SharedTensor
 
 
@@ -77,20 +77,19 @@ class SharedMemoryAllocator:
         del self.addr2nbytes[addr]
 
 
+@register_emit_context
 class SharedMemoryAllocationContext(BaseEmitContext):
     def __init__(self, codegen: FunctionCodegen):
         super().__init__(codegen)
-
-        # shared memory workspace
-        self.smem_workspace: Optional[SharedTensor] = None
-
-
         # shared memory allocator
         self.smem_allocator: SharedMemoryAllocator = SharedMemoryAllocator()
 
         # mapping from shared value to the address in shared memory allocator for all allocated shared values
         self.shared_value_allocator_addr: dict[SharedTensor, int] = {}
 
+        # maximum shared workspace bytes requested by all instructions
+        self.shared_workspace_var: Optional[Var] = None
+        self.shared_workspace_bytes: int = 0
 
     def allocate_shared_tensor(self, tensor: SharedTensor, nbytes: int) -> int:
         addr: int = self.smem_allocator.allocate(nbytes)
@@ -98,45 +97,33 @@ class SharedMemoryAllocationContext(BaseEmitContext):
         self.shared_value_allocator_addr[tensor] = addr
         return addr
 
-
     def free_shared_tensor(self, tensor: SharedTensor) -> None:
         assert tensor in self.shared_value_allocator_addr
         self.smem_allocator.free(addr=self.shared_value_allocator_addr[tensor])
         del self.shared_value_allocator_addr[tensor]
 
-    def init_smem_workspace(self, program: Function) -> None:
-        smem_workspace_nbytes: int = 0
-        for inst in collect_instructions(program):  # todo: add this to emiter
-            # smem_workspace_nbytes = max(smem_workspace_nbytes, inst.request_shared_workspace())
-            emitter = resolve_inst_emitter(inst.__class__)(self)
-            smem_workspace_nbytes = max(smem_workspace_nbytes, emitter.request_shared_workspace(inst))
-        if smem_workspace_nbytes > 0:
-            smem_workspace = SharedTensor.create(dtype=uint8, optional_layout=shared_row_major([smem_workspace_nbytes]))
-            self.allocate_shared_tensor(smem_workspace, nbytes=smem_workspace_nbytes)
-            self.tensor2var[smem_workspace] = self.builder.declare(
-                v=Var("temp_smem", type=void_p),
-                init=dynamic_shared_memory(byte_offset=self.shared_value_allocator_addr[smem_workspace], dtype=uint8),
-            )
-            self.smem_workspace = smem_workspace
+    def request_shared_workspace(self, nbytes: int) -> Expr:
+        if self.shared_workspace_var is None:
+            self.shared_workspace_var = Var("shared_workspace", type=~uint8)
+            self.shared_workspace_bytes = nbytes
+        else:
+            self.shared_workspace_bytes = max(self.shared_workspace_bytes, nbytes)
+        return self.shared_workspace_var
 
-        # # init pre-defined variables
-        # self.init_smem_workspace(func)
+    def finalize(self):
+        maximum_allocated = self.smem_allocator.maximum_allocated
+        target = get_current_target()
 
-        # # check shared memory allocation and set dynamic shared memory size
-        # if self.smem_workspace:
-        #     self.free_shared_tensor(self.smem_workspace)
-        #     self.smem_workspace = None
-        # # if self.smem_allocator.allocated != 0:
-        # #     raise ValueError("Shared memory is not properly allocated/freed")
-        # if self.smem_allocator.maximum_allocated > get_current_target().properties.shared_memory_per_block:
-        #     raise CodeGenerationFailed(
-        #         "Request shared memory {} bytes, but the device only allows {} bytes.".format(
-        #             self.smem_allocator.maximum_allocated, get_current_target().properties.shared_memory_per_block
-        #         )
-        #     )
-        # if is_nvgpu():
-        #     self.builder.attrs["cuda.dynamic_smem_bytes"] = self.smem_allocator.maximum_allocated
-        # elif is_amdgpu():
-        #     self.builder.attrs["hip.dynamic_smem_bytes"] = self.smem_allocator.maximum_allocated
-        # else:
-        #     assert False
+        # define the shared workspace variable if needed
+        if self.shared_workspace_var is not None:
+            workspace_offset = (maximum_allocated + 127) // 128 * 128  # align to 128 bytes
+            maximum_allocated += self.shared_workspace_bytes
+            sb = StmtBuilder()
+            sb.declare(self.shared_workspace_var, init=dynamic_shared_memory(workspace_offset, dtype=uint8))
+            self.prepend_kernel(sb.finish())
+
+        # set the dynamic shared memory size
+        if target.is_nvgpu():
+            self.codegen.builder.extend_attrs({"cuda.dynamic_smem_bytes": maximum_allocated})
+        else:
+            raise NotImplementedError()

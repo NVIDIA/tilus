@@ -16,6 +16,7 @@ from hidet.ir.dtypes import boolean, uint8, uint32
 from hidet.ir.expr import Expr, Var, bitwise_and, cast, left_shift, logical_and, tensor_pointer_var
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.contexts import SharedMemoryAllocationContext
 from tilus.extensions.hidet.ir.primitives.cuda.ldst import load, store
 from tilus.ir.instructions.generic import ShuffleBaseInst, ShuffleDownInst, ShuffleUpInst
 from tilus.target import nvgpu_any
@@ -31,10 +32,13 @@ class ShuffleBaseInstEmitter(BaseInstEmitter):
         thread_nbytes: int = dtype.nbytes * layout.local_size
         num_groups = max([i // inst.width for i in range(self.num_warps) if inst.mask & (1 << i)]) + 1
         warp_nbytes: int = thread_nbytes * 32
-        assert self.codegen.smem_workspace is not None
+
+        smem_ctx: SharedMemoryAllocationContext = self.contexts[SharedMemoryAllocationContext]
+
+        smem_nbytes = num_groups * (inst.width - inst.delta) * warp_nbytes
         smem_buf: Var = self.declare(
             v=tensor_pointer_var("shfl_smem", shape=[num_groups, inst.width - inst.delta, warp_nbytes], dtype=uint8),
-            init=cast(self.tensor2var[self.codegen.smem_workspace], ~uint8),
+            init=smem_ctx.request_shared_workspace(nbytes=smem_nbytes),
         )
         warp_id: Expr = self.current_worker // 32
         warp_lane_id = self.current_worker % 32

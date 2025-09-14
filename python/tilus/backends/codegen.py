@@ -14,7 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Callable, Dict, Optional, Set, Type
+from typing import Any, Callable, Dict, Optional, Set, Type
 
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder, StmtBuilder
@@ -26,6 +26,7 @@ from hidet.ir.primitives import set_kernel_max_dynamic_smem_bytes
 from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, threadIdx
 from hidet.ir.stmt import DeclareScope, LaunchKernelStmt
+from hidet.ir.stmt import Stmt as HidetStmt
 from hidet.utils.doc import Doc, Text
 
 from tilus.extensions.hidet.ir.module import merge_ir_modules
@@ -63,14 +64,6 @@ class InvalidInstruction(Exception):
 
 class CodeGenerationFailed(Exception):
     pass
-
-
-def is_nvgpu():
-    return get_current_target().is_nvgpu()
-
-
-def is_amdgpu():
-    return get_current_target().is_amdgpu()
 
 
 class BaseInstEmitter(StmtBuilder):
@@ -171,7 +164,7 @@ class BaseInstEmitter(StmtBuilder):
         return self.codegen.function
 
     @property
-    def contexts(self) -> Dict[Type[BaseEmitContext], BaseEmitContext]:
+    def contexts(self) -> Dict[Type[BaseEmitContext], Any]:
         return self.codegen.contexts
 
     def request_shared_workspace(self, inst: Instruction) -> int:
@@ -187,15 +180,55 @@ class BaseEmitContext:
     def __init__(self, codegen: FunctionCodegen):
         self.codegen = codegen
 
+    def prepend_host(self, stmt: Expr | HidetStmt) -> None:
+        """Prepend a statement to the host function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be prepended.
+        """
+        self.codegen.host_builder.scope_stack[-1].insert(0, stmt)
+
+    def append_host(self, stmt: Expr | HidetStmt) -> None:
+        """Append a statement to the host function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be appended.
+        """
+        self.codegen.host_builder.append(stmt)
+
+    def prepend_kernel(self, stmt: Expr | HidetStmt) -> None:
+        """Prepend a statement to the kernel function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be prepended.
+        """
+        self.codegen.builder.scope_stack[-1].insert(0, stmt)
+
+    def append_kernel(self, stmt: Expr | HidetStmt) -> None:
+        """Append a statement to the kernel function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be appended.
+        """
+        self.codegen.builder.append(stmt)
+
     def initialize(self):
-        """ Initialize the context.
+        """Initialize the context.
 
         This method is called before the codegen starts for all instructions.
         """
         pass
 
     def finalize(self):
-        """ Finalize the context.
+        """Finalize the context.
 
         This method is called when the codegen is finished for all instructions.
         """
@@ -224,9 +257,7 @@ def register_emitter(
     return decorator
 
 
-def register_emit_context(
-    ctx_cls: Type[BaseEmitContext]
-) -> Type[BaseEmitContext]:
+def register_emit_context(ctx_cls: Type[BaseEmitContext]) -> Type[BaseEmitContext]:
     if ctx_cls in BaseEmitContext.REGISTRY:
         raise ValueError(f"Emit context {ctx_cls} already registered")
     BaseEmitContext.REGISTRY.append(ctx_cls)
@@ -284,11 +315,7 @@ class ThreadGroupStack:
         self.group_size.pop()
 
 
-
 class FunctionCodegen(IRFunctor):
-    GMEM_WORKSPACE_NAME = "__gmem_workspace"
-    GMEM_CLEAN_WORKSPACE_NAME = "__gmem_clean_workspace"
-
     def __init__(self) -> None:
         super().__init__()
         self._function: Optional[Function] = None
@@ -331,7 +358,6 @@ class FunctionCodegen(IRFunctor):
     def current_worker(self):
         return self.thread_group_stack.current_worker[-1]
 
-
     def check_emitter_existence(self) -> None:
         failed_instructions: Set[str] = set()
         for inst in collect_instructions(self.function):
@@ -343,73 +369,11 @@ class FunctionCodegen(IRFunctor):
                 "Failed to find emitter for the following instructions: \n{}".format("\n".join(failed_instructions))
             )
 
-    # def generate_launch_function(self, ir_module: IRModule, kernel_func: HidetFunction) -> IRModule:
-    #     from hidet.ir.primitives.runtime import set_symbol_value_ptr
-    #     from hidet.ir.stmt import SeqStmt
-    #     from hidet.transforms.generate_launch_func import add_launch_func
-    #     from hidet.transforms.instantiate_symbols import InstantiateSymbolsRewriter
-    #
-    #     # add the launch function for the kernel function
-    #     add_launch_func(ir_module, kernel_func=kernel_func)
-    #
-    #     # instantiate the symbols in the kernel function, like __gmem_workspace, etc.
-    #     instantiate_rewriter = InstantiateSymbolsRewriter()
-    #     ir_module = instantiate_rewriter(ir_module)
-    #
-    #     launch_func = ir_module.functions["launch"]
-    #     launch_func = HidetFunction(
-    #         name=kernel_func.name.removesuffix("_kernel"),
-    #         params=launch_func.params,
-    #         body=launch_func.body,
-    #         ret_type=launch_func.ret_type,
-    #         kind=launch_func.kind,
-    #         attrs=launch_func.attrs,
-    #     )
-    #
-    #     if is_nvgpu():
-    #         from hidet.ir.primitives.runtime import request_cuda_workspace
-    #
-    #         request_workspace = request_cuda_workspace
-    #     elif is_amdgpu():
-    #         from hidet.ir.primitives.runtime import request_hip_workspace
-    #
-    #         request_workspace = request_hip_workspace
-    #     else:
-    #         assert False
-    #
-    #     # set the workspace
-    #     sb = StmtBuilder()
-    #     remap = {prog_param: launch_param for prog_param, launch_param in zip(self.function.params, launch_func.params)}
-    #     if not (isinstance(self.gmem_allocated, Constant) and int(self.gmem_allocated) == 0):
-    #         sb += set_symbol_value_ptr(
-    #             self.GMEM_WORKSPACE_NAME,
-    #             cast(
-    #                 request_workspace(nbytes=rewrite(self.gmem_maximum_allocated, remap), require_clean=False), ~uint8
-    #             ),
-    #         )
-    #     if not (isinstance(self.gmem_clean_allocated, Constant) and int(self.gmem_clean_allocated) == 0):
-    #         sb += set_symbol_value_ptr(
-    #             self.GMEM_CLEAN_WORKSPACE_NAME,
-    #             cast(
-    #                 request_workspace(nbytes=rewrite(self.gmem_clean_maximum_allocated, remap), require_clean=True),
-    #                 ~uint8,
-    #             ),
-    #         )
-    #
-    #     launch_func.body = SeqStmt([sb.finish(), launch_func.body])
-    #     updated_ir_module = IRModule(
-    #         functions={
-    #             launch_func.name: launch_func,
-    #             kernel_func.name: ir_module.functions[kernel_func.name],
-    #         },
-    #     )
-    #     return updated_ir_module
-
     def launch_kernel(self, kernel_func: HidetFunction) -> None:
-        """ Generate the host code to launch the kernel function. """
-        if kernel_func.kind == 'cuda_kernel':
+        """Generate the host code to launch the kernel function."""
+        if kernel_func.kind == "cuda_kernel":
             func_var = Var(hint=None, type=FuncType.from_func(kernel_func), name=kernel_func.name)
-            dynamic_shared_bytes = kernel_func.get_attr('cuda.dynamic_smem_bytes', int32(0))
+            dynamic_shared_bytes = kernel_func.get_attr("cuda.dynamic_smem_bytes", int32(0))
 
             # set max dynamic shared memory bytes if needed
             with self.host_builder.if_then(dynamic_shared_bytes > 48 * 1024):
@@ -421,11 +385,11 @@ class FunctionCodegen(IRFunctor):
                 LaunchKernelStmt(
                     func_var=func_var,
                     args=kernel_args,
-                    grid_dim=normalize_dim3(kernel_func.get_attr('cuda.grid_dim')),
-                    cluster_dim=normalize_dim3(kernel_func.get_attr('cuda.cluster_dim')),
-                    block_dim=normalize_dim3(kernel_func.get_attr('cuda.block_dim')),
+                    grid_dim=normalize_dim3(kernel_func.get_attr("cuda.grid_dim")),
+                    cluster_dim=normalize_dim3(kernel_func.get_attr("cuda.cluster_dim", default=1)),
+                    block_dim=normalize_dim3(kernel_func.get_attr("cuda.block_dim")),
                     shared_mem=dynamic_shared_bytes,
-                    target='cuda'
+                    target="cuda",
                 )
             )
         else:
@@ -439,7 +403,7 @@ class FunctionCodegen(IRFunctor):
         # create function builders for both device and host side
         self._builder = FunctionBuilder(
             name=func.name + "_kernel",
-            kind="cuda_kernel" if is_nvgpu() else "hip_kernel",
+            kind="cuda_kernel" if get_current_target().is_nvgpu() else "hip_kernel",
             label="",
             grid_dim=self._function.metadata.grid_blocks,
             cluster_dim=self._function.metadata.cluster_blocks
@@ -451,7 +415,7 @@ class FunctionCodegen(IRFunctor):
         )
         self._host_builder = FunctionBuilder(
             name=func.name,
-            kind="host",
+            kind="public",
             label="",
         )
         self.builder.extend_params(list(func.params))
@@ -489,7 +453,8 @@ class FunctionCodegen(IRFunctor):
         self.launch_kernel(kernel_function)
 
         # create the host function
-        host_function: HidetFunction = self.host_builder.finish_func()
+        self.host_builder.finish_func()
+        host_function: HidetFunction = self.host_builder.get()
 
         # create the IR module contains both host and device functions
         ir_module = IRModule(functions={kernel_function.name: kernel_function, host_function.name: host_function})

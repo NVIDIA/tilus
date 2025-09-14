@@ -25,6 +25,7 @@ from hidet.ir.type import tensor_pointer_type
 from hidet.utils.py import is_power_of_two
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.contexts import SharedMemoryAllocationContext
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize, index_serialize
 from tilus.ir.instructions.generic import ReduceInst
 from tilus.ir.layout import RegisterLayout, SharedLayout, shared_row_major
@@ -270,10 +271,11 @@ class ReduceInstEmitter(BaseInstEmitter):
 
         # 2. enumerate the indices for reduced modes
         shared_layout = self.determine_shared_layout(inst)  # [warp, lane, local]
+        smem_ctx: SharedMemoryAllocationContext = self.contexts[SharedMemoryAllocationContext]
         smem_buf = self.declare_var(
             "smem_buf",
             tensor_pointer_type(dtype=dst.dtype, shape=[shared_layout.size]),
-            init=cast(self.tensor2var[self.codegen.smem_workspace], ~dst.dtype),
+            init=cast(smem_ctx.request_shared_workspace(dst.dtype.nbytes * shared_layout.size), ~dst.dtype),
         )
 
         reduced_mode_shape = [
