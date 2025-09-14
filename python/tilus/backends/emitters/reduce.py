@@ -345,13 +345,5 @@ class ReduceInstEmitter(BaseInstEmitter):
             # broadcast within warp, we only need to do broadcast when we did not do inter-warp reduction
             self.intra_warp_broadcast(inst)
 
-    def request_shared_workspace(self, inst: ReduceInst) -> int:
-        if self.requires_inter_warp_reduction(inst):
-            # we need shared memory for inter-warp reduction
-            shared_layout = self.determine_shared_layout(inst)
-            return shared_layout.size * inst.register_output.dtype.nbytes
-        else:
-            return 0
-
     def emit(self, inst: ReduceInst) -> None:
         self.efficient_reduce(inst)

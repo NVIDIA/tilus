@@ -72,21 +72,18 @@ class BaseInstEmitter(StmtBuilder):
 
     def __init__(self, codegen: FunctionCodegen) -> None:
         super().__init__()
-        # todo: currently, the instruction emitters (that inherit from BaseInstEmitter) directly access the codegen
-        #       object to access some data in the codegen object. This is not a good design. We should refactor this
-        #       to use the methods of the BaseInstEmitter class to access the data in the codegen object.
-        self.codegen: FunctionCodegen = codegen
+        self._codegen: FunctionCodegen = codegen
 
     def sync(self):
         from hidet.ir.primitives.cuda import syncthreads
 
-        if self.codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
+        if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
             self.append(syncthreads())
         else:
             from hidet.ir.primitives.cuda.barrier import barrier_sync
 
-            barrier = self.codegen.thread_group_stack.stack_depth() - 1
-            count = self.codegen.thread_group_stack.group_size[-1]
+            barrier = self._codegen.thread_group_stack.stack_depth() - 1
+            count = self._codegen.thread_group_stack.group_size[-1]
             self.append(barrier_sync(barrier=barrier, count=count))
 
     def sync_reduce(self, value: Expr, op: str) -> Expr:
@@ -97,11 +94,11 @@ class BaseInstEmitter(StmtBuilder):
             op2sync = {"and": syncthreads_and, "or": syncthreads_or}
             syncthreads_op = op2sync[op]
 
-            if self.codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
+            if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
                 return syncthreads_op(value)
             else:
-                barrier = self.codegen.thread_group_stack.stack_depth() - 1
-                count = self.codegen.thread_group_stack.group_size[-1]
+                barrier = self._codegen.thread_group_stack.stack_depth() - 1
+                count = self._codegen.thread_group_stack.group_size[-1]
                 self.append(barrier_sync(barrier=barrier, count=count))
                 raise NotImplementedError("barrier_sync_reduce")
         else:
@@ -129,11 +126,11 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def current_worker(self) -> Expr:
-        return self.codegen.thread_group_stack.current_worker[-1]
+        return self._codegen.thread_group_stack.current_worker[-1]
 
     @property
     def current_num_workers(self) -> int:
-        return self.codegen.thread_group_stack.group_size[-1]
+        return self._codegen.thread_group_stack.group_size[-1]
 
     @property
     def block_rank_in_cluster(self) -> Expr:
@@ -145,30 +142,31 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def thread_groups(self):
-        return self.codegen.thread_group_stack
+        return self._codegen.thread_group_stack
 
     @property
     def tensor2var(self) -> Dict[Tensor, Var]:
-        return self.codegen.tensor2var
+        return self._codegen.tensor2var
 
     @property
     def shared_tensor_shared_space_addr(self):
-        return self.codegen.shared_tensor_addr
+        return self._codegen.shared_tensor_addr
 
     @property
     def num_warps(self) -> int:
-        return self.codegen.function.metadata.num_warps
+        return self._codegen.function.metadata.num_warps
 
     @property
     def function(self) -> Function:
-        return self.codegen.function
+        return self._codegen.function
+
+    @property
+    def analysis(self):
+        return self._codegen.function.metadata.analysis
 
     @property
     def contexts(self) -> Dict[Type[BaseEmitContext], Any]:
-        return self.codegen.contexts
-
-    def request_shared_workspace(self, inst: Instruction) -> int:
-        return 0
+        return self._codegen.contexts
 
     def emit(self, inst: Instruction) -> None:
         raise NotImplementedError()

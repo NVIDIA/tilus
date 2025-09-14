@@ -82,8 +82,8 @@ class Metadata:
 class Function(IRNode):
     name: str
     params: tuple[Var, ...]
+    body: Stmt
     metadata: Metadata
-    body: Stmt  # can only use external variables in params, metadata.block_indices, and metadata.host_prologue.
 
     @staticmethod
     def create(
@@ -95,8 +95,8 @@ class Function(IRNode):
         return Function(
             name,
             tuple(params),
-            metadata,
             body,
+            metadata,
         )
 
     def with_body(self, new_body: Stmt) -> Function:

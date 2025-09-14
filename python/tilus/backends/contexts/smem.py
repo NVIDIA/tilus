@@ -19,9 +19,9 @@ from hidet.ir.dtypes import uint8
 from hidet.ir.expr import Expr, Var
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 
-from tilus.target import get_current_target
 from tilus.backends.codegen import BaseEmitContext, FunctionCodegen, register_emit_context
 from tilus.ir.tensor import SharedTensor
+from tilus.target import get_current_target
 
 
 class SharedMemoryAllocator:

@@ -43,7 +43,7 @@ class CopyAysncInstEmitter(BaseInstEmitter):
         dtype: DataType = dst.dtype
         layout: SharedLayout = dst.layout
         shape: Sequence[int] = layout.shape
-        analysis = self.codegen.function.metadata.analysis
+        analysis = self.analysis
 
         # get shared, global, and mask info
         inst_mask = inst.mask if inst.mask is not None else boolean.true

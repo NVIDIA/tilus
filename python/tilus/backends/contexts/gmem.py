@@ -19,8 +19,8 @@ from hidet.ir.dtypes import int32, uint8
 from hidet.ir.expr import Expr, Var, cast
 from hidet.ir.primitives.runtime import request_cuda_workspace
 
-from tilus.target import get_current_target
 from tilus.backends.codegen import BaseEmitContext, FunctionCodegen, register_emit_context
+from tilus.target import get_current_target
 
 
 @register_emit_context
