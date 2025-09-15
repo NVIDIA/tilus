@@ -59,18 +59,20 @@ class CopyAsyncTensorExample(tilus.Script):
             self.arrive_barrier(load_barrier)
         self.wait_barrier(load_barrier, phase=0)
 
-        x = self.load_shared(s_x)
-        x += 1
-        self.store_shared(s_y, x)
-        self.sync()
+        self.print_tensor("s_x: ", s_x)
 
-        with self.single_thread():
-            self.copy_async_tensor_shared_to_global(
-                src=s_y,
-                dst=g_y,
-                offsets=[m_offset, n_offset],
-            )
-            self.copy_async_wait_all()
+        # x = self.load_shared(s_x)
+        # x += 1
+        # self.store_shared(s_y, x)
+        # self.sync()
+        #
+        # with self.single_thread():
+        #     self.copy_async_tensor_shared_to_global(
+        #         src=s_y,
+        #         dst=g_y,
+        #         offsets=[m_offset, n_offset],
+        #     )
+        #     self.copy_async_wait_all()
 
 
 def demo_copy_async_tensor_cta():

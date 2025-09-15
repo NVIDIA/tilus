@@ -14,16 +14,19 @@
 # limitations under the License.
 from dataclasses import dataclass
 
-from hidet.ir.expr import Expr
+from hidet.ir.expr import Expr, Var
 from hidet.ir.type import DataType
 from tilus.backends.codegen import BaseInstEmitter
 from tilus.backends.codegen import register_emitter
+from tilus.backends.contexts import GlobalTensorViewContext, GlobalTensorView
 from tilus.ir.tensor import GlobalTensor, SharedTensor
 from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorGlobalToSharedInst
 )
 from tilus.target import nvgpu_sm90
 from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import encode_tensor_map, TensorMapSwizzle
+from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import cp_async_tensor_global_to_shared
+from tilus.ir.utils.lineardec import decompose_linear, LinearDecompositionError
 
 
 @dataclass(frozen=True, eq=False)
@@ -38,13 +41,32 @@ class SharedTensorInfo:
     swizzle: TensorMapSwizzle
 
 
-
-class CopyAsyncTensorBaseEmitter(BaseInstcheEmitter):
+class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
     def resolve_global_tensor_info(self, global_tensor: GlobalTensor) -> GlobalTensorInfo:
-        raise NotImplementedError()
+        ctx: GlobalTensorViewContext = self.contexts[GlobalTensorViewContext]
+
+        if global_tensor not in ctx.tensor2view:
+            raise ValueError('TMA only supports global tensors created by global_view with pointer as kernel parameter')
+
+        view = ctx.tensor2view[global_tensor]
+
+        try:
+            coefficients = decompose_linear(view.layout.offset, coordinates=view.layout.axes)
+        except LinearDecompositionError:
+            raise ValueError('TMA only supports strided global tensors')
+
+        if len(coefficients) != len(view.layout.axes):
+            raise ValueError('TMA only supports strided global tensors without constant offset')
+
+        return GlobalTensorInfo(ptr=view.ptr, shape=view.layout.shape, strides=tuple(coefficients))
+
 
     def resolve_shared_tensor_info(self, shared_tensor: SharedTensor) -> SharedTensorInfo:
         raise NotImplementedError()
+
+    def create_tensor_map(self, global_info: GlobalTensorInfo, shared_info: SharedTensorInfo, dtype: DataType) -> Var:
+        raise NotImplementedError()
+
 
 @register_emitter(CopyAsyncTensorGlobalToSharedInst, target=nvgpu_sm90)
 class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
@@ -57,5 +79,16 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         global_tensor_info: GlobalTensorInfo = self.resolve_global_tensor_info(global_tensor)
         shared_tensor_info: SharedTensorInfo = self.resolve_shared_tensor_info(shared_tensor)
 
-
-
+        shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
+        tensor_map = self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
+        tensor_coords = inst.offsets
+        self.append(
+            cp_async_tensor_global_to_shared(
+                dst=shared_addr,
+                src=self.tensor2var[global_tensor],
+                tensor_map=tensor_map,
+                coords=tensor_coords,
+                mbarrier=inst.mbarrier,
+                cache_policy=inst.cache_policy,
+            )
+        )

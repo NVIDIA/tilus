@@ -28,7 +28,7 @@ class CopyAsyncTensorGlobalToSharedInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: tuple[int, ...]
     mbarrier: Expr
-    evict: Optional[str]
+    cache_policy: Optional[Expr]
 
     @staticmethod
     def create(
@@ -37,7 +37,7 @@ class CopyAsyncTensorGlobalToSharedInst(Instruction):
         offsets: Sequence[Expr | int],
         dims: Sequence[int],
         mbarrier: Expr,
-        evict: Optional[str] = None,
+        cache_policy: Optional[Expr] = None
     ) -> CopyAsyncTensorGlobalToSharedInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
         return CopyAsyncTensorGlobalToSharedInst(
@@ -46,14 +46,14 @@ class CopyAsyncTensorGlobalToSharedInst(Instruction):
             offsets=offsets_,
             mbarrier=mbarrier,
             dims=tuple(dims) if dims else None,
-            evict=evict,
+            cache_policy=cache_policy
         )
 
 @dataclass(frozen=True, eq=False)
 class CopyAsyncTensorSharedToGlobalInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: tuple[int, ...]
-    evict: Optional[str]
+    cache_policy: Optional[Expr]
 
     @staticmethod
     def create(
@@ -61,7 +61,7 @@ class CopyAsyncTensorSharedToGlobalInst(Instruction):
         dst: GlobalTensor,
         offsets: Sequence[Expr | int],
         dims: Sequence[int],
-        evict: Optional[str] = None,
+        cache_policy: Optional[Expr] = None
     ) -> CopyAsyncTensorSharedToGlobalInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
         return  CopyAsyncTensorSharedToGlobalInst(
@@ -69,5 +69,5 @@ class CopyAsyncTensorSharedToGlobalInst(Instruction):
             inputs=(dst, src),
             offsets=offsets_,
             dims=tuple(dims) if dims else None,
-            evict=evict,
+            cache_policy=cache_policy
         )

@@ -14,3 +14,4 @@
 # limitations under the License.
 from .frozendict import frozendict
 from .vector import vector
+from .lineardec import decompose_linear

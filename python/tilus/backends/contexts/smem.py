@@ -120,7 +120,7 @@ class SharedMemoryAllocationContext(BaseEmitContext):
             maximum_allocated += self.shared_workspace_bytes
             sb = StmtBuilder()
             sb.declare(self.shared_workspace_var, init=dynamic_shared_memory(workspace_offset, dtype=uint8))
-            self.prepend_kernel(sb.finish())
+            self.kernel_prepend(sb.finish())
 
         # set the dynamic shared memory size
         if target.is_nvgpu():

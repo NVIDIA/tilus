@@ -14,7 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional, Set, Type
+from typing import Any, Callable, Dict, Optional, Set, Type, Sequence
 
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder, StmtBuilder
@@ -168,6 +168,39 @@ class BaseInstEmitter(StmtBuilder):
     def contexts(self) -> Dict[Type[BaseEmitContext], Any]:
         return self._codegen.contexts
 
+    @property
+    def kernel_params(self) -> Sequence[Var]:
+        return self._codegen.builder.params
+
+    def kernel_prepend(self, stmt: Expr | HidetStmt) -> None:
+        """Prepend a statement to the kernel function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be prepended.
+        """
+        self._codegen.builder.scope_stack[-1].insert(0, stmt)
+
+    def kernel_append(self, stmt: Expr | HidetStmt) -> None:
+        """Append a statement to the kernel function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be appended.
+        """
+        self._codegen.builder.append(stmt)
+
+    def append_extra_param(self, var: Var) -> None:
+        """Append an extra parameter to the kernel function.
+
+        This method marks a variable in the host function to be passed as an extra parameter to the kernel function.
+        The `var` must be a variable defined in the host function. The kernel function can directly use the `var` in the
+        kernel body after this method is called.
+        """
+        self._codegen.extra_params.append(var)
+
     def emit(self, inst: Instruction) -> None:
         raise NotImplementedError()
 
@@ -178,7 +211,7 @@ class BaseEmitContext:
     def __init__(self, codegen: FunctionCodegen):
         self.codegen = codegen
 
-    def prepend_host(self, stmt: Expr | HidetStmt) -> None:
+    def host_prepend(self, stmt: Expr | HidetStmt) -> None:
         """Prepend a statement to the host function.
 
         Parameters
@@ -188,7 +221,7 @@ class BaseEmitContext:
         """
         self.codegen.host_builder.scope_stack[-1].insert(0, stmt)
 
-    def append_host(self, stmt: Expr | HidetStmt) -> None:
+    def host_append(self, stmt: Expr | HidetStmt) -> None:
         """Append a statement to the host function.
 
         Parameters
@@ -198,7 +231,7 @@ class BaseEmitContext:
         """
         self.codegen.host_builder.append(stmt)
 
-    def prepend_kernel(self, stmt: Expr | HidetStmt) -> None:
+    def kernel_prepend(self, stmt: Expr | HidetStmt) -> None:
         """Prepend a statement to the kernel function.
 
         Parameters
@@ -208,7 +241,7 @@ class BaseEmitContext:
         """
         self.codegen.builder.scope_stack[-1].insert(0, stmt)
 
-    def append_kernel(self, stmt: Expr | HidetStmt) -> None:
+    def kernel_append(self, stmt: Expr | HidetStmt) -> None:
         """Append a statement to the kernel function.
 
         Parameters
@@ -217,6 +250,15 @@ class BaseEmitContext:
             The statement to be appended.
         """
         self.codegen.builder.append(stmt)
+
+    def append_extra_param(self, var: Var) -> None:
+        """Append an extra parameter to the kernel function.
+
+        This method marks a variable in the host function to be passed as an extra parameter to the kernel function.
+        The `var` must be a variable defined in the host function. The kernel function can directly use the `var` in the
+        kernel body after this method is called.
+        """
+        self.codegen.extra_params.append(var)
 
     def initialize(self):
         """Initialize the context.

@@ -1,8 +1,10 @@
 from enum import StrEnum
 
 from hidet.ir.expr import Expr
+from hidet.ir.type import OpaqueType
 from hidet.ir.stmt import BlackBoxStmt
 
+CUtensorMapType = OpaqueType('CUtensorMap')
 
 class TensorMapDataType(StrEnum):
     UINT8 = 'UINT8'
