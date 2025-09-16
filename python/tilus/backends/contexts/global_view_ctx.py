@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from hidet.ir.type import DataType
-from hidet.ir.expr import Var, Expr
+from hidet.ir.expr import Var
 
 from tilus.ir import GlobalLayout
 from tilus.ir.tensor import GlobalTensor
-from tilus.backends.codegen import BaseEmitContext, FunctionCodegen
+from tilus.backends.codegen import BaseEmitContext, FunctionCodegen, register_emit_context
 
 
 @dataclass
@@ -14,6 +14,7 @@ class GlobalTensorView:
     layout: GlobalLayout
 
 
+@register_emit_context
 class GlobalTensorViewContext(BaseEmitContext):
     """ Context used to track the global tensor views that takes kernel parameters as ptr. """
 

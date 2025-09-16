@@ -49,6 +49,7 @@ class DeclareToLetRewriter(IRRewriter):
     def __init__(self):
         super().__init__()
         self.assigns: Dict[Var, int] = defaultdict(int)
+        self.declare_to_remove: set[Var] = set()
 
     def rewrite(self, func: Function) -> Function:
         for potential_usage in collect(func, (DeclareStmt, AssignStmt, AsmStmt, Address, Reference)):
@@ -96,15 +97,24 @@ class DeclareToLetRewriter(IRRewriter):
                 #   (there is no addressing or referencing either)
                 let_stmt = LetStmt(bind_vars=[stmt.var], bind_values=[stmt.value], body=self.concat(seq[i + 1 :]))
                 seq = seq[:i] + [let_stmt]
-            elif (
-                isinstance(stmt, DeclareStmt)
-                and self.assigns[stmt.var] == 1
-                and stmt.init is None
-                and not isinstance(stmt.var.type, TensorType)
-            ):
+                self.declare_to_remove.add(stmt.var)
+            elif isinstance(stmt, DeclareStmt) and stmt.var in self.declare_to_remove:
                 # declare var (var is never assigned)
+                # ...
+                # assign var = value (var is only assigned here and never modified later)
+                #   (there is no addressing or referencing either)
                 # we can safely remove this declare statement
                 seq = seq[:i] + seq[i + 1 :]
+            # elif (
+            #     isinstance(stmt, DeclareStmt)
+            #     and self.assigns[stmt.var] == 1
+            #     and stmt.init is None
+            #     and not isinstance(stmt.var.type, TensorType)
+            # ):
+            #     # declare var (var is never assigned)
+            #     # we can safely remove this declare statement
+            #     seq = seq[:i] + seq[i + 1 :]
+
         return self.concat(seq)
 
     def concat(self, seq: List[Stmt]) -> Stmt:

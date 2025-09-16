@@ -20,11 +20,11 @@ from hidet.ir.func import Function
 from hidet.ir.functors import IRRewriter
 from hidet.ir.stmt import AssignStmt, LaunchKernelStmt, LetStmt, Stmt
 from hidet.ir.tools import TypeInfer
-from hidet.ir.type import BaseType, DataType, FuncType, PointerType, type_equal
+from hidet.ir.type import BaseType, DataType, FuncType, PointerType
 from hidet.transforms.base import FunctionPass
 from hidet.utils import same_list
 
-from tilus.extensions.hidet.ir.type import get_base_type
+from tilus.extensions.hidet.ir.type import get_base_type, type_equal
 
 
 class AddExplicitCastRewriter(IRRewriter):

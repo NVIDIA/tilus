@@ -12,4 +12,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import cluster_sync, cp_async, cp_async_bulk, ldmatrix, mbarrier, mma_dot, semaphore, simt_dot
+from . import cluster_sync, cp_async, cp_async_bulk, ldmatrix, mbarrier, mma_dot, semaphore, simt_dot, cp_async_tensor

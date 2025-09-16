@@ -64,3 +64,10 @@ Thumbs.db
 # sphinx generated
 **/generated/
 **/sg_execution_times.rst
+
+# tilus cache dir
+**/cache
+.cache
+.hidet_cache
+
+uv.lock

@@ -159,8 +159,6 @@ def decompose_linear(expr: Expr, coordinates: Sequence[Var]) -> list[Expr]:
 
     or raises a `LinearDecompositionError` if the expression is not linear with respect to the given coordinates.
 
-    When the constant term is zero, we do not include it in the result.
-
     Parameters
     ----------
     expr: Expr
@@ -171,13 +169,9 @@ def decompose_linear(expr: Expr, coordinates: Sequence[Var]) -> list[Expr]:
     Returns
     -------
     seq: list[Expr]
-        The list of coefficients corresponding to the coordinates, with the last element being the constant term if
-        it is non-zero, or we do not include it in the seq (in this case the length of the seq is equal to
-        len(coordinates)).
+        The list of coefficients corresponding to the coordinates and the constant term.
     """
     decomposer = LinearDecomposer(coordinates)
     linear = decomposer.decompose(expr)
-    ret = [coef if coef is not None else int32.zero for coef in linear.c]
-    if isinstance(ret[-1], Constant) and int(ret[-1]) == 0:
-        ret.pop()
-    return ret
+    return [coef if coef is not None else int32.zero for coef in linear.c]
+

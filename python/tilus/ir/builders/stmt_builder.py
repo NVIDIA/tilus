@@ -596,10 +596,12 @@ class StmtBuilder(StmtBuilderCore):
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         mbarrier: Expr,
-        evict: Optional[str] = None,
+        cache_policy: Optional[Expr] = None
     ) -> None:
+        if dims is None:
+            dims = list(range(len(src.shape)))
         inst = CopyAsyncTensorGlobalToSharedInst.create(
-            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, evict=evict
+            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, cache_policy=cache_policy
         )
         self.append(inst)
 
@@ -608,11 +610,13 @@ class StmtBuilder(StmtBuilderCore):
         src: SharedTensor,
         dst: GlobalTensor,
         offsets: Sequence[Expr | int],
-        dims: Sequence[int],
-        evict: Optional[str] = None,
+        dims: Optional[Sequence[int]] = None,
+        cache_policy: Optional[Expr] = None
     ) -> None:
+        if dims is None:
+            dims = list(range(len(src.shape)))
         inst = CopyAsyncTensorSharedToGlobalInst.create(
-            src=src, dst=dst, offsets=offsets, dims=dims, evict=evict
+            src=src, dst=dst, offsets=offsets, dims=dims, cache_policy=cache_policy
         )
         self.append(inst)
 

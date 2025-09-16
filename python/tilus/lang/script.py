@@ -1055,7 +1055,7 @@ class Script:
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         mbarrier: Expr,
-        evict: Optional[str] = None,
+        cache_policy: Optional[Expr] = None
     ) -> None:
         self._builder.copy_async_tensor_global_to_shared(
             src=src,
@@ -1063,7 +1063,7 @@ class Script:
             offsets=offsets,
             dims=dims,
             mbarrier=mbarrier,
-            evict=evict,
+            cache_policy=cache_policy
         )
 
     def copy_async_tensor_shared_to_global(
@@ -1072,14 +1072,14 @@ class Script:
         dst: GlobalTensor,
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
-        evict: Optional[str] = None,
+        cache_policy: Optional[Expr] = None
     ) -> None:
         self._builder.copy_async_tensor_shared_to_global(
             src=src,
             dst=dst,
             offsets=offsets,
             dims=dims,
-            evict=evict,
+            cache_policy=cache_policy
         )
 
 

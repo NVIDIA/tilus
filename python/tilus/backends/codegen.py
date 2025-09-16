@@ -14,7 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional, Set, Type, Sequence
+from typing import Any, Callable, Dict, Optional, Set, Type, Sequence, TypeVar
 
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder, StmtBuilder
@@ -192,6 +192,14 @@ class BaseInstEmitter(StmtBuilder):
         """
         self._codegen.builder.append(stmt)
 
+    @property
+    def host_builder(self) -> FunctionBuilder:
+        return self._codegen.host_builder
+
+    @property
+    def builder(self) -> FunctionBuilder:
+        return self._codegen.builder
+
     def append_extra_param(self, var: Var) -> None:
         """Append an extra parameter to the kernel function.
 
@@ -354,6 +362,7 @@ class ThreadGroupStack:
         self.group_index.pop()
         self.group_size.pop()
 
+ContextTypeVar = TypeVar("ContextTypeVar", bound=BaseEmitContext)
 
 class FunctionCodegen(IRFunctor):
     def __init__(self) -> None:
@@ -567,7 +576,11 @@ class FunctionCodegen(IRFunctor):
         self.builder.declare(stmt.var, init=stmt.init)
 
     def visit_LetStmt(self, stmt: LetStmt) -> None:
+        from tilus.backends.contexts.invariant_ctx import InvariantTrackingContext
         with self.builder.lets(bind_vars=stmt.bind_vars, values=stmt.bind_values):
+            for bind_var, bind_value in zip(stmt.bind_vars, stmt.bind_values):
+                ctx: InvariantTrackingContext = self.contexts[InvariantTrackingContext]
+                ctx.bind(bind_var, bind_value)
             self.visit(stmt.body)
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:

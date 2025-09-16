@@ -25,7 +25,7 @@ from tilus.utils import cdiv
 class GlobalViewInstEmitter(BaseInstEmitter):
     def emit(self, inst: GlobalViewInst) -> None:
         ctx: GlobalTensorViewContext = self.contexts[GlobalTensorViewContext]
-        global_tensor = inst.global_input
+        global_tensor = inst.global_output
         self.assign(self.get_or_allocate_var(global_tensor), inst.ptr)
 
         if isinstance(inst.ptr, Var) and inst.ptr in self.kernel_params:

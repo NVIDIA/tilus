@@ -1,12 +1,15 @@
-from enum import StrEnum
+from __future__ import annotations
+from enum import Enum
 
 from hidet.ir.expr import Expr
-from hidet.ir.type import OpaqueType
+from hidet.ir.type import DataType
+from hidet.ir.type import OpaqueType, PointerType
 from hidet.ir.stmt import BlackBoxStmt
 
 CUtensorMapType = OpaqueType('CUtensorMap')
+CUTensorMapPointerType = PointerType(CUtensorMapType)
 
-class TensorMapDataType(StrEnum):
+class TensorMapDataType(Enum):
     UINT8 = 'UINT8'
     UINT16 = 'UINT16'
     UINT32 = 'UINT32'
@@ -27,8 +30,12 @@ class TensorMapDataType(StrEnum):
     def cpp_str(self):
         return f'CUtensorMapDataType::CU_TENSOR_MAP_DATA_TYPE_{self.value}'
 
+    @classmethod
+    def from_dtype(cls, dtype: DataType) -> TensorMapDataType:
+        return cls(dtype.name.upper())
 
-class TensorMapInterleave(StrEnum):
+
+class TensorMapInterleave(Enum):
     NONE = 'NONE'
     B16 = '16B'
     B32 = '32B'
@@ -36,7 +43,7 @@ class TensorMapInterleave(StrEnum):
     def cpp_str(self):
         return f'CUtensorMapInterleave::CU_TENSOR_MAP_INTERLEAVE_{self.value}'
 
-class TensorMapL2Promotion(StrEnum):
+class TensorMapL2Promotion(Enum):
     NONE = 'NONE'
     B64 = 'L2_64B'
     B128 = 'L2_128B'
@@ -45,7 +52,7 @@ class TensorMapL2Promotion(StrEnum):
     def cpp_str(self):
         return f'CUtensorMapL2promotion::CU_TENSOR_MAP_L2_PROMOTION_{self.value}'
 
-class TensorMapSwizzle(StrEnum):
+class TensorMapSwizzle(Enum):
     NONE = 'NONE'
     B32 = '32B'
     B64 = '64B'
@@ -57,7 +64,7 @@ class TensorMapSwizzle(StrEnum):
     def cpp_str(self):
         return f'CUtensorMapSwizzle::CU_TENSOR_MAP_SWIZZLE_{self.value}'
 
-class TensorMapFloatOOBFill(StrEnum):
+class TensorMapFloatOOBFill(Enum):
     NONE = 'NONE'
     NAN_REQUEST_ZERO_FMA = 'NAN_REQUEST_ZERO_FMA'
 

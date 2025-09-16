@@ -1,3 +1,4 @@
 from tilus.backends.contexts.gmem import GlobalMemoryAllocationContext
 from tilus.backends.contexts.smem import SharedMemoryAllocationContext
 from tilus.backends.contexts.global_view_ctx import GlobalTensorViewContext, GlobalTensorView
+from tilus.backends.contexts.invariant_ctx import InvariantTrackingContext
