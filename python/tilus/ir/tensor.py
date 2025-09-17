@@ -47,6 +47,10 @@ class Tensor:
         assert isinstance(self, SharedTensor)
         return self
 
+    def as_tensor_memory_tensor(self) -> TensorMemoryTensor:
+        assert isinstance(self, TensorMemoryTensor)
+        return self
+
     def as_global_tensor(self) -> GlobalTensor:
         assert isinstance(self, GlobalTensor)
         return self
@@ -439,6 +443,17 @@ class SharedTensor(Tensor):
         if not same_list(self.shape, layout.shape):
             raise ValueError(f"Shape mismatch: provided shape {self.shape} does not match layout shape {layout.shape}.")
         return dataclasses.replace(self, optional_layout=layout)
+
+
+@dataclass(frozen=True, eq=False)
+class TensorMemoryTensor(Tensor):
+    shape: tuple[int, int]
+
+    @staticmethod
+    def create(dtype: DataType, shape: Sequence[int]) -> TensorMemoryTensor:
+        if len(shape) != 2:
+            raise ValueError("TensorMemoryTensor only supports 2D shape.")
+        return TensorMemoryTensor(dtype=dtype, shape=(shape[0], shape[1]))
 
 
 @dataclass(frozen=True, eq=False)

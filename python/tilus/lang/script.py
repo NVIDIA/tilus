@@ -34,7 +34,7 @@ from tilus.ir.layout import (
     global_strides,
 )
 from tilus.ir.prog import Program
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, TensorMemoryTensor
 from tilus.lang.constructs.contexts import ThreadGroupContext
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
@@ -90,6 +90,25 @@ class Attributes:
         else:
             self._warps = value
 
+class InstructionGroup:
+    def __init__(self):
+        self._builder: Optional[StmtBuilder] = None
+
+    def _set_builder(self, builder: StmtBuilder) -> None:
+        self._builder = builder
+
+class Tcgen05InstructionGroup(InstructionGroup):
+    def alloc(self, num_columns: int, cta_group: int) -> TensorMemoryTensor:
+        if cta_group not in [1, 2]:
+            raise ValueError("cta_group must be 1 or 2")
+        return self._builder.tcgen05_alloc(num_columns, cta_group)
+
+    def dealloc(self, tensor: TensorMemoryTensor) -> None:
+        self._builder.tcgen05_dealloc(tensor)
+
+    def relinquish_alloc_permit(self, cta_group: int) -> None:
+        self._builder.tcgen05_relinquish_alloc_permit(cta_group)
+
 
 class Script:
     """A script is a user-defined kernel function that can be compiled and executed on the GPU."""
@@ -122,8 +141,15 @@ class Script:
         self.cuda = cuda
         self.utils = utils
 
+        # instruction groups
+        self.tcgen05 = Tcgen05InstructionGroup()
+
     def __call__(self, *args, **kwargs):
         raise RuntimeError("This method should never be called.")
+
+    def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
+        self._builder = builder
+        self.tcgen05._set_builder(builder)
 
     def program(self) -> Program:
         """

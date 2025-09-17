@@ -239,7 +239,7 @@ class Transpiler(PythonAstFunctor):
                 env_scope.bind(name, value)
             env_scope.bind("self", script)
 
-            script._builder = StmtBuilder()
+            script._set_builder(StmtBuilder())
             script._transpiler = self
             self._script = script
 
@@ -248,7 +248,7 @@ class Transpiler(PythonAstFunctor):
 
             # prevent loop reference
             self._script = None
-            script._builder = None
+            script._set_builder(None)
             script._transpiler = None
 
             return function

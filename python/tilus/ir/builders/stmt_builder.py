@@ -46,6 +46,11 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorSharedToGlobalInst,
     CopyAsyncTensorWaitGroupInst,
 )
+from tilus.ir.instructions.cuda.tcgen05 import (
+    Tcgen05AllocInst,
+    Tcgen05DeallocInst,
+    Tcgen05RelinquishAllocPermitInst
+)
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mbarrier import (
     ArriveBarrierInst,
@@ -110,7 +115,7 @@ from tilus.ir.stmt import (
     ThreadGroupStmt,
     WhileStmt,
 )
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor, TensorMemoryTensor
 
 
 class StmtContext:
@@ -1112,6 +1117,20 @@ class StmtBuilder(StmtBuilderCore):
 
     def fence_proxy_copy_async(self):
         inst = FenceProxyCopyAsync.create()
+        self.append(inst)
+
+    # tcgen05
+    def tcgen05_alloc(self, num_columns: int, cta_group: int) -> TensorMemoryTensor:
+        inst = Tcgen05AllocInst.create(num_columns=num_columns, cta_group=cta_group)
+        self.append(inst)
+        return inst.output.as_tensor_memory_tensor()
+
+    def tcgen05_dealloc(self, tmt: TensorMemoryTensor) -> None:
+        inst = Tcgen05DeallocInst.create(tmt)
+        self.append(inst)
+
+    def tcgen05_relinquish_alloc_permit(self, cta_group: int):
+        inst = Tcgen05RelinquishAllocPermitInst.create(cta_group)
         self.append(inst)
 
     # annotations
