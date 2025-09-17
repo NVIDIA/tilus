@@ -90,12 +90,14 @@ class Attributes:
         else:
             self._warps = value
 
+
 class InstructionGroup:
     def __init__(self):
         self._builder: Optional[StmtBuilder] = None
 
     def _set_builder(self, builder: StmtBuilder) -> None:
         self._builder = builder
+
 
 class Tcgen05InstructionGroup(InstructionGroup):
     def alloc(self, num_columns: int, cta_group: int) -> TensorMemoryTensor:

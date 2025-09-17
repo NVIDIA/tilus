@@ -271,7 +271,7 @@ class ReduceInstEmitter(BaseInstEmitter):
 
         # 2. enumerate the indices for reduced modes
         shared_layout = self.determine_shared_layout(inst)  # [warp, lane, local]
-        smem_ctx: SharedMemoryAllocationContext = self.contexts[SharedMemoryAllocationContext]
+        smem_ctx: SharedMemoryAllocationContext = SharedMemoryAllocationContext.current()
         smem_buf = self.declare_var(
             "smem_buf",
             tensor_pointer_type(dtype=dst.dtype, shape=[shared_layout.size]),

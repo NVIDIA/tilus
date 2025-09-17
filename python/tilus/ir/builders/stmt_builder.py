@@ -46,11 +46,6 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorSharedToGlobalInst,
     CopyAsyncTensorWaitGroupInst,
 )
-from tilus.ir.instructions.cuda.tcgen05 import (
-    Tcgen05AllocInst,
-    Tcgen05DeallocInst,
-    Tcgen05RelinquishAllocPermitInst
-)
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mbarrier import (
     ArriveBarrierInst,
@@ -61,6 +56,7 @@ from tilus.ir.instructions.cuda.mbarrier import (
 )
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
+from tilus.ir.instructions.cuda.tcgen05 import Tcgen05AllocInst, Tcgen05DeallocInst, Tcgen05RelinquishAllocPermitInst
 from tilus.ir.instructions.generic import (
     AddInst,
     AllocateGlobalInst,
@@ -1129,7 +1125,7 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05DeallocInst.create(tmt)
         self.append(inst)
 
-    def tcgen05_relinquish_alloc_permit(self, cta_group: int):
+    def tcgen05_relinquish_alloc_permit(self, cta_group: int) -> None:
         inst = Tcgen05RelinquishAllocPermitInst.create(cta_group)
         self.append(inst)
 

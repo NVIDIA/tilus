@@ -34,7 +34,7 @@ class ShuffleBaseInstEmitter(BaseInstEmitter):
         num_groups = max([i // inst.width for i in range(self.num_warps) if inst.mask & (1 << i)]) + 1
         warp_nbytes: int = thread_nbytes * 32
 
-        smem_ctx: SharedMemoryAllocationContext = self.contexts[SharedMemoryAllocationContext]
+        smem_ctx: SharedMemoryAllocationContext = SharedMemoryAllocationContext.current()
 
         smem_nbytes = num_groups * (inst.width - inst.delta) * warp_nbytes
         smem_buf: Var = self.declare(

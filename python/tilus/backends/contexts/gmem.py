@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 from typing import Optional
 
 from hidet.ir import StmtBuilder
@@ -25,6 +27,8 @@ from tilus.target import get_current_target
 
 @register_emit_context
 class GlobalMemoryAllocationContext(BaseEmitContext):
+    _current: Optional[GlobalMemoryAllocationContext] = None
+
     def __init__(self, codegen: FunctionCodegen):
         super().__init__(codegen)
 
@@ -33,6 +37,12 @@ class GlobalMemoryAllocationContext(BaseEmitContext):
 
         self.gmem_clean_base_ptr: Var = Var(hint="gmem_clean", type=~uint8)
         self.gmem_clean_allocated: Optional[Expr] = None
+
+    @staticmethod
+    def current() -> GlobalMemoryAllocationContext:
+        if GlobalMemoryAllocationContext._current is None:
+            raise RuntimeError("No GlobalMemoryAllocationContext is currently active.")
+        return GlobalMemoryAllocationContext._current
 
     def allocate_global_memory(self, nbytes: Expr | int, clean: bool) -> Expr:
         nbytes = (nbytes + 127) // 128 * 128  # align to 128 bytes

@@ -15,16 +15,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from hidet.ir.dtypes import uint32
+
 from tilus.ir.inst import Instruction
-from tilus.ir.layout import RegisterLayout, column_local, column_spatial, local, spatial
 from tilus.ir.tensor import TensorMemoryTensor
 
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05AllocInst(Instruction):
     cta_group: int  # 1 or 2
-
 
     @staticmethod
     def create(num_columns: int, cta_group: int) -> Tcgen05AllocInst:
@@ -36,15 +36,14 @@ class Tcgen05AllocInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class Tcgen05DeallocInst(Instruction):
     @staticmethod
-    def create(tmt: TensorMemoryTensor):
+    def create(tmt: TensorMemoryTensor) -> Tcgen05DeallocInst:
         return Tcgen05DeallocInst(output=None, inputs=(tmt,))
-
 
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05RelinquishAllocPermitInst(Instruction):
     cta_group: int = 1
-    @staticmethod
-    def create(cta_group: int):
-        return Tcgen05RelinquishAllocPermitInst(output=None, inputs=(), cta_group=cta_group)
 
+    @staticmethod
+    def create(cta_group: int) -> Tcgen05RelinquishAllocPermitInst:
+        return Tcgen05RelinquishAllocPermitInst(output=None, inputs=(), cta_group=cta_group)

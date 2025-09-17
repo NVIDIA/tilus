@@ -12,7 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import Optional
 
 from hidet.ir.expr import Expr, Var
 from hidet.ir.primitives.cuda.cluster import this_cluster
@@ -36,11 +39,19 @@ class GlobalTensorView:
 class InvariantTrackingContext(BaseEmitContext):
     """Context used to track grid- and block-level invariants."""
 
+    _current: Optional[InvariantTrackingContext] = None
+
     def __init__(self, codegen: FunctionCodegen):
         super().__init__(codegen)
         self.grid_invariants: set[Var] = set()
         self.block_invariants: set[Var] = set()
         self.var2expr: dict[Var, Expr] = {}
+
+    @staticmethod
+    def current() -> InvariantTrackingContext:
+        if InvariantTrackingContext._current is None:
+            raise RuntimeError("No InvariantTrackingContext is currently active.")
+        return InvariantTrackingContext._current
 
     def initialize(self):
         grid_invariant_vars = []

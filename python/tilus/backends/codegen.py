@@ -14,7 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional, Sequence, Set, Type, TypeVar
+from typing import Callable, Dict, Optional, Sequence, Set, Type
 
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder, StmtBuilder
@@ -165,10 +165,6 @@ class BaseInstEmitter(StmtBuilder):
         return self._codegen.function.metadata.analysis
 
     @property
-    def contexts(self) -> Dict[Type[BaseEmitContext], Any]:
-        return self._codegen.contexts
-
-    @property
     def kernel_params(self) -> Sequence[Var]:
         return self._codegen.builder.params
 
@@ -305,7 +301,7 @@ def register_emitter(
     return decorator
 
 
-def register_emit_context(ctx_cls: Type[BaseEmitContext]) -> Type[BaseEmitContext]:
+def register_emit_context(ctx_cls):
     if ctx_cls in BaseEmitContext.REGISTRY:
         raise ValueError(f"Emit context {ctx_cls} already registered")
     BaseEmitContext.REGISTRY.append(ctx_cls)
@@ -363,9 +359,6 @@ class ThreadGroupStack:
         self.group_size.pop()
 
 
-ContextTypeVar = TypeVar("ContextTypeVar", bound=BaseEmitContext)
-
-
 class FunctionCodegen(IRFunctor):
     def __init__(self) -> None:
         super().__init__()
@@ -376,9 +369,6 @@ class FunctionCodegen(IRFunctor):
 
         # extra parameters that computed in host function and passed to device kernel
         self.extra_params: list[Var] = []
-
-        # emitting contexts
-        self.contexts: Dict[Type[BaseEmitContext], BaseEmitContext] = {}
 
         # tensor mapping
         self.tensor2var: Dict[Tensor, Var] = {}
@@ -484,16 +474,24 @@ class FunctionCodegen(IRFunctor):
         )
 
         # create all contexts
-        self.contexts = {cls: cls(self) for cls in BaseEmitContext.REGISTRY}
-        for ctx in self.contexts.values():
+        contexts = {cls: cls(self) for cls in BaseEmitContext.REGISTRY}
+
+        for ctx in contexts.values():
+            ctx._current = ctx
+
+        # initialize all contexts
+        for ctx in contexts.values():
             ctx.initialize()
 
         # emit body
         self.visit(func.body)
 
         # finalize all contexts
-        for ctx in self.contexts.values():
+        for ctx in contexts.values():
             ctx.finalize()
+
+        for ctx in contexts.values():
+            ctx._current = None
 
         # create the kernel function
         self.builder.extend_params(self.extra_params)
@@ -582,7 +580,7 @@ class FunctionCodegen(IRFunctor):
 
         with self.builder.lets(bind_vars=stmt.bind_vars, values=stmt.bind_values):
             for bind_var, bind_value in zip(stmt.bind_vars, stmt.bind_values):
-                ctx: InvariantTrackingContext = self.contexts[InvariantTrackingContext]  # type: ignore
+                ctx: InvariantTrackingContext = InvariantTrackingContext.current()
                 ctx.bind(bind_var, bind_value)
             self.visit(stmt.body)
 

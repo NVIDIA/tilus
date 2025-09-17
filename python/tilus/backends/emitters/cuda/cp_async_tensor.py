@@ -159,7 +159,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
     def resolve_global_tensor_info(
         self, global_tensor: GlobalTensor, offsets: Sequence[Expr], dims: Sequence[int]
     ) -> GlobalTensorInfo:
-        ctx: GlobalTensorViewContext = self.contexts[GlobalTensorViewContext]
+        ctx: GlobalTensorViewContext = GlobalTensorViewContext.current()
 
         # get the global tensor view
         if global_tensor not in ctx.tensor2view:
@@ -190,7 +190,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         strides = tuple(coefficients[:-1])
 
         # rewrite the ptr, shape, and strides to grid-invariant form (so that they can be used in host code)
-        ctx: InvariantTrackingContext = self.contexts[InvariantTrackingContext]
+        ctx: InvariantTrackingContext = InvariantTrackingContext.current()
         ptr = ctx.rewrite_to_grid_invariant(ptr)
         shape = tuple(ctx.rewrite_to_grid_invariant(s) for s in shape)
         strides = tuple(ctx.rewrite_to_grid_invariant(s) for s in strides)

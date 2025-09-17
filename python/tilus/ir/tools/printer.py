@@ -40,7 +40,15 @@ from tilus.ir.stmt import (
     ThreadGroupStmt,
     WhileStmt,
 )
-from tilus.ir.tensor import GlobalLayout, GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor
+from tilus.ir.tensor import (
+    GlobalLayout,
+    GlobalTensor,
+    RegisterTensor,
+    SharedLayout,
+    SharedTensor,
+    Tensor,
+    TensorMemoryTensor,
+)
 
 
 class IRPrinter(IRFunctor):
@@ -57,6 +65,7 @@ class IRPrinter(IRFunctor):
         self.shared_count: int = 0
         self.register_count: int = 0
         self.global_count: int = 0
+        self.tmem_count: int = 0
         self.var_count: int = 0
         self.ptr_count: int = 0
 
@@ -82,26 +91,30 @@ class IRPrinter(IRFunctor):
                 return Text(key)
             i += 1
 
-    def get_value_type(self, value: Tensor) -> Doc:
-        if isinstance(value, RegisterTensor):
+    def get_tensor_type(self, tensor: Tensor) -> Doc:
+        if isinstance(tensor, RegisterTensor):
             doc = Text("register, ")
-            doc += self.printer(value.dtype) + "[" + self.visit(value.shape) + "]"
-            if value.optional_layout is not None:
-                doc += ", local_size={}".format(value.layout.local_size)
-                doc += ", {}".format(self.visit(value.layout))
+            doc += self.printer(tensor.dtype) + "[" + self.visit(tensor.shape) + "]"
+            if tensor.optional_layout is not None:
+                doc += ", local_size={}".format(tensor.layout.local_size)
+                doc += ", {}".format(self.visit(tensor.layout))
             return doc
-        elif isinstance(value, SharedTensor):
+        elif isinstance(tensor, SharedTensor):
             doc = Text("shared, ")
-            doc += self.printer(value.dtype) + "[" + self.visit(value.shape) + "]"
-            if value.optional_layout is not None:
-                doc += ", size={}".format(value.layout.size)
-                doc += ", {}".format(self.visit(value.layout))
+            doc += self.printer(tensor.dtype) + "[" + self.visit(tensor.shape) + "]"
+            if tensor.optional_layout is not None:
+                doc += ", size={}".format(tensor.layout.size)
+                doc += ", {}".format(self.visit(tensor.layout))
             return doc
-        elif isinstance(value, GlobalTensor):
+        elif isinstance(tensor, GlobalTensor):
             doc = Text("global, ")
-            doc += self.printer(value.dtype) + "[" + self.visit(value.shape) + "], "
-            doc += "size={}".format(self.printer(value.layout.size))
-            doc += ", {}".format(self.visit(value.layout))
+            doc += self.printer(tensor.dtype) + "[" + self.visit(tensor.shape) + "], "
+            doc += "size={}".format(self.printer(tensor.layout.size))
+            doc += ", {}".format(self.visit(tensor.layout))
+            return doc
+        elif isinstance(tensor, TensorMemoryTensor):
+            doc = Text("tensor_memory, ")
+            doc += self.printer(tensor.dtype) + "[" + self.visit(tensor.shape) + "]"
             return doc
         else:
             raise NotImplementedError()
@@ -365,7 +378,7 @@ class IRPrinter(IRFunctor):
         doc += item_body
         doc += ")"
         if inst.output is not None:
-            doc += "  # " + self.get_value_type(inst.output)
+            doc += "  # " + self.get_tensor_type(inst.output)
         return doc
 
     def visit_InstructionConfig(self, inst_config: InstructionConfig) -> Any:
@@ -402,6 +415,12 @@ class IRPrinter(IRFunctor):
         if tensor not in self.tensor2name:
             self.tensor2name[tensor] = "%g" + str(self.global_count)
             self.global_count += 1
+        return Text(self.tensor2name[tensor])
+
+    def visit_TensorMemoryTensor(self, tensor: TensorMemoryTensor) -> Doc:
+        if tensor not in self.tensor2name:
+            self.tensor2name[tensor] = "%t" + str(self.tmem_count)
+            self.tmem_count += 1
         return Text(self.tensor2name[tensor])
 
     def visit_RegisterLayout(self, layout: RegisterLayout) -> Doc:

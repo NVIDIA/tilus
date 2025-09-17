@@ -12,7 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import Optional
 
 from hidet.ir.expr import Var
 from hidet.ir.type import DataType
@@ -33,9 +36,17 @@ class GlobalTensorView:
 class GlobalTensorViewContext(BaseEmitContext):
     """Context used to track the global tensor views that takes kernel parameters as ptr."""
 
+    _current: Optional[GlobalTensorViewContext] = None
+
     def __init__(self, codegen: FunctionCodegen):
         super().__init__(codegen)
         self.tensor2view: dict[GlobalTensor, GlobalTensorView] = {}
+
+    @staticmethod
+    def current() -> GlobalTensorViewContext:
+        if GlobalTensorViewContext._current is None:
+            raise RuntimeError("No GlobalTensorViewContext is currently active.")
+        return GlobalTensorViewContext._current
 
     def add_tensor_view(self, tensor: GlobalTensor, ptr: Var, layout: GlobalLayout) -> None:
         assert tensor not in self.tensor2view
