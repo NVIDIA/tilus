@@ -56,6 +56,7 @@ class BulkCopyAsyncExample(tilus.Script):
         x = self.load_shared(s_x)
         x += 1
         self.store_shared(s_y, x)
+        self.fence_proxy_copy_async()
         self.sync()
 
         self.copy_async_bulk_shared_to_global(
