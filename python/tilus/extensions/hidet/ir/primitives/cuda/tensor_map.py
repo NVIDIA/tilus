@@ -122,27 +122,26 @@ def encode_tensor_map(
     ret: Stmt
         The statement that encodes the tensor map.
     """
-    template_string = """
-cuTensorMapEncodeTiled(
-    {{}},
-    {dtype},
+    template_string = """cuTensorMapEncodeTiled(
+    {{}}, 
+    {dtype}, 
     {{}}, 
     {{}}, 
     {{}}, 
     {{}}, 
     {{}}, 
     {{}}, 
-    {interleave},
-    {swizzle},
-    {l2_promotion},
+    {interleave}, 
+    {swizzle}, 
+    {l2_promotion}, 
     {oob_fill}
 );
-    """.format(
+""".format(
         dtype=dtype.cpp_str(),
         interleave=interleave.cpp_str(),
         swizzle=swizzle.cpp_str(),
         l2_promotion=l2_promotion.cpp_str(),
         oob_fill=oob_fill.cpp_str(),
-    )
+    ) + r"""{{cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) LOG(ERROR) << "CUDA error: " << cudaGetErrorString(err) << "\n";}}"""
 
     return BlackBoxStmt(template_string, tensor_map, rank, tensor_ptr, shape, strides, box_shape, elem_strides)

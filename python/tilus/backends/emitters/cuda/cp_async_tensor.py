@@ -18,7 +18,7 @@ from typing import Sequence, Optional
 import functools
 
 import numpy as np
-from hidet.ir.type import TensorType, PointerType
+from hidet.ir.type import TensorType, PointerType, sizeof
 from hidet.ir.dtypes import uint64, uint32
 from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.tools import rewrite, simplify
@@ -227,7 +227,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         rev_global_strides = list(reversed(global_info.strides))
         self.host_builder.assertion(cond=rev_global_strides[0] == 1, msg='The last dimension of the global tensor must be contiguous')
         for i in range(rank - 1):
-            self.host_builder.buffer_store(strides_buf, indices=[i], value=as_expr(rev_global_strides[i + 1]))
+            self.host_builder.buffer_store(strides_buf, indices=[i], value=as_expr(rev_global_strides[i + 1]) * sizeof(dtype))
 
         # box shape
         box_shape_buf = self.declare_host_buffer(name='tma_box_shape', dtype=uint32, shape=[rank])
@@ -285,7 +285,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
             cp_async_tensor_global_to_shared(
                 dst=shared_addr,
                 tensor_map=~tensor_map,
-                coords=tensor_coords,
+                coords=list(reversed(tensor_coords)),
                 mbarrier=cvta_generic_to_shared(inst.mbarrier),
                 cta_group=None,
                 cache_policy=inst.cache_policy,

@@ -62,6 +62,9 @@ Documentation = "https://nvidia.github.io/tilus"
 
 [tool.setuptools.package-dir]
 "" = "python"
+#
+#[tool.setuptools.package-data]
+#titus = ["include/titus/cuda/*.cuh"]
 
 [tool.ruff]
 line-length = 120

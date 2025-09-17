@@ -17,6 +17,7 @@ import torch
 from tilus import float16, int32, uint64
 from tilus.testing import requires
 from tilus.utils import cdiv
+from hidet.utils.cuda_sanitizer import sanitizer_run
 
 
 tilus.option.cache_dir('./cache')
@@ -82,9 +83,12 @@ def demo_copy_async_tensor_cta():
     kernel = CopyAsyncTensorExample()
     kernel(m, n, x, y)
 
+    torch.cuda.synchronize()
+
     torch.testing.assert_close(y, x + 1)
 
 
 if __name__ == '__main__':
     demo_copy_async_tensor_cta()
+    # sanitizer_run(demo_copy_async_tensor_cta)
 
