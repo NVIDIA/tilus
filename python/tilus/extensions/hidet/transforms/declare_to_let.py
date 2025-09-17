@@ -36,7 +36,7 @@ from collections import defaultdict
 from enum import Enum
 from typing import Dict, List
 
-from hidet.ir import ForMappingStmt, ForStmt, SeqStmt, TensorType
+from hidet.ir import ForMappingStmt, ForStmt, SeqStmt, TensorElement, TensorType
 from hidet.ir.expr import Address, Reference, Var
 from hidet.ir.func import Function
 from hidet.ir.functors import IRRewriter, IRVisitor
@@ -105,6 +105,8 @@ class UsageAnalyzer(IRVisitor):
         super().visit_Address(e)
         if isinstance(e.expr, Var):
             self.address_count[e.expr] += 1
+        elif isinstance(e.expr, TensorElement) and isinstance(e.expr.base, Var):
+            self.address_count[e.expr.base] += 1
 
     def visit_Reference(self, e: Reference) -> None:
         super().visit_Reference(e)
