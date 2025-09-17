@@ -1,8 +1,11 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,32 +17,33 @@ from __future__ import annotations
 import ast as py_ast
 import inspect
 from types import FunctionType
-from typing import Tuple, List, Any, Dict
+from typing import Any, Dict, List, Tuple
 
 from hidet.ir.func import Function
+
 from tilus.extensions.hidet.lang.transpiler import ExtendedPythonToHidetTranslator
 
 
 def eliminate_indent(source: str) -> Tuple[str, int]:
-    lines = source.split('\n')
+    lines = source.split("\n")
     indent = len(source)
     for line in lines:
         if len(line.strip()) == 0:
             continue
         indent = min(indent, len(line) - len(line.lstrip()))
-    source = '\n'.join([line[indent:] for line in lines])
+    source = "\n".join([line[indent:] for line in lines])
     return source, indent
 
 
 def eliminate_decorators(source: str) -> Tuple[str, int]:
-    lines = source.split('\n')
+    lines = source.split("\n")
     num_decorators = 0
     for line in lines:
-        if len(line) > 0 and line[0] == '@':
+        if len(line) > 0 and line[0] == "@":
             num_decorators += 1
         else:
             break
-    source = '\n'.join(lines[num_decorators:])
+    source = "\n".join(lines[num_decorators:])
     return source, num_decorators
 
 
@@ -60,7 +64,7 @@ def script(func: FunctionType) -> Function:
     # Extract the source code of given function
     lines, start_line = inspect.getsourcelines(func)
     file = inspect.getsourcefile(func)
-    source = ''.join(lines)
+    source = "".join(lines)
     source, col_offset = eliminate_indent(source)
     source, inc_lineno = eliminate_decorators(source)
     start_line += inc_lineno

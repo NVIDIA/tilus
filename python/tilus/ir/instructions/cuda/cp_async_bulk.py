@@ -145,5 +145,3 @@ class CopyAsyncBulkWaitGroupInst(Instruction):
     @staticmethod
     def create(n: int) -> CopyAsyncBulkWaitGroupInst:
         return CopyAsyncBulkWaitGroupInst(output=None, inputs=(), n=n)
-
-

@@ -16,7 +16,13 @@ from hidet.ir.dtypes import boolean, int32
 from hidet.ir.primitives.cuda.barrier import fence_view_async_shared, mbarrier_arrive, mbarrier_init, mbarrier_wait
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.ir.instructions.cuda.mbarrier import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst, FenceProxyCopyAsync
+from tilus.ir.instructions.cuda.mbarrier import (
+    ArriveBarrierInst,
+    ArriveRemoteBarrierInst,
+    FenceProxyCopyAsync,
+    InitBarrierInst,
+    WaitBarrierInst,
+)
 from tilus.target import nvgpu_sm80, nvgpu_sm90
 
 

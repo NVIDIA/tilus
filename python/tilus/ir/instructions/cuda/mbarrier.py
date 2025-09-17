@@ -20,7 +20,6 @@ from typing import Optional
 from hidet import uint32
 from hidet.ir.expr import Expr
 
-from tilus.ir import RegisterTensor
 from tilus.ir.inst import Instruction
 
 
@@ -69,4 +68,3 @@ class FenceProxyCopyAsync(Instruction):
     @staticmethod
     def create() -> FenceProxyCopyAsync:
         return FenceProxyCopyAsync(output=None, inputs=())
-

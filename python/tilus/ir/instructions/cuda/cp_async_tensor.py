@@ -37,7 +37,7 @@ class CopyAsyncTensorGlobalToSharedInst(Instruction):
         offsets: Sequence[Expr | int],
         dims: Sequence[int],
         mbarrier: Expr,
-        cache_policy: Optional[Expr] = None
+        cache_policy: Optional[Expr] = None,
     ) -> CopyAsyncTensorGlobalToSharedInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
         return CopyAsyncTensorGlobalToSharedInst(
@@ -46,8 +46,9 @@ class CopyAsyncTensorGlobalToSharedInst(Instruction):
             offsets=offsets_,
             mbarrier=mbarrier,
             dims=tuple(dims) if dims else None,
-            cache_policy=cache_policy
+            cache_policy=cache_policy,
         )
+
 
 @dataclass(frozen=True, eq=False)
 class CopyAsyncTensorSharedToGlobalInst(Instruction):
@@ -61,22 +62,24 @@ class CopyAsyncTensorSharedToGlobalInst(Instruction):
         dst: GlobalTensor,
         offsets: Sequence[Expr | int],
         dims: Sequence[int],
-        cache_policy: Optional[Expr] = None
+        cache_policy: Optional[Expr] = None,
     ) -> CopyAsyncTensorSharedToGlobalInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
-        return  CopyAsyncTensorSharedToGlobalInst(
+        return CopyAsyncTensorSharedToGlobalInst(
             output=None,
             inputs=(dst, src),
             offsets=offsets_,
             dims=tuple(dims) if dims else None,
-            cache_policy=cache_policy
+            cache_policy=cache_policy,
         )
+
 
 @dataclass(frozen=True, eq=False)
 class CopyAsyncTensorCommitGroupInst(Instruction):
     @staticmethod
     def create() -> CopyAsyncTensorCommitGroupInst:
         return CopyAsyncTensorCommitGroupInst(output=None, inputs=())
+
 
 @dataclass(frozen=True, eq=False)
 class CopyAsyncTensorWaitGroupInst(Instruction):

@@ -26,8 +26,13 @@ from hidet.ir.type import DataType
 
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.inst import InstructionError
-from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_row_major, global_strides
-from tilus.ir.layout import register_layout_ops
+from tilus.ir.layout import (
+    GlobalLayout,
+    RegisterLayout,
+    SharedLayout,
+    global_row_major,
+    global_strides,
+)
 from tilus.ir.prog import Program
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.constructs.contexts import ThreadGroupContext
@@ -373,7 +378,7 @@ class Script:
 
     @staticmethod
     def single_thread() -> ThreadGroupContext:
-        """ Create a thread group context with only one thread.
+        """Create a thread group context with only one thread.
 
         This method is equivalent `thread_group(<any-thread>, group_size=1)` that creates a thread group
         context with only one thread. All instructions within the context will be executed by only one thread.
@@ -1055,15 +1060,10 @@ class Script:
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         mbarrier: Expr,
-        cache_policy: Optional[Expr] = None
+        cache_policy: Optional[Expr] = None,
     ) -> None:
         self._builder.copy_async_tensor_global_to_shared(
-            src=src,
-            dst=dst,
-            offsets=offsets,
-            dims=dims,
-            mbarrier=mbarrier,
-            cache_policy=cache_policy
+            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, cache_policy=cache_policy
         )
 
     def copy_async_tensor_shared_to_global(
@@ -1072,14 +1072,10 @@ class Script:
         dst: GlobalTensor,
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
-        cache_policy: Optional[Expr] = None
+        cache_policy: Optional[Expr] = None,
     ) -> None:
         self._builder.copy_async_tensor_shared_to_global(
-            src=src,
-            dst=dst,
-            offsets=offsets,
-            dims=dims,
-            cache_policy=cache_policy
+            src=src, dst=dst, offsets=offsets, dims=dims, cache_policy=cache_policy
         )
 
     def copy_async_tensor_commit_group(self):

@@ -1,34 +1,49 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import annotations
+
 from enum import Enum
 
 from hidet.ir.expr import Expr
-from hidet.ir.type import DataType
-from hidet.ir.type import OpaqueType, PointerType
-from hidet.ir.stmt import BlackBoxStmt
+from hidet.ir.stmt import BlackBoxStmt, Stmt
+from hidet.ir.type import DataType, OpaqueType, PointerType
 
-CUtensorMapType = OpaqueType('CUtensorMap')
+CUtensorMapType = OpaqueType("CUtensorMap")
 CUTensorMapPointerType = PointerType(CUtensorMapType)
 
+
 class TensorMapDataType(Enum):
-    UINT8 = 'UINT8'
-    UINT16 = 'UINT16'
-    UINT32 = 'UINT32'
-    INT32 = 'INT32'
-    UINT64 = 'UINT64'
-    INT64 = 'INT64'
-    FLOAT16 = 'FLOAT16'
-    FLOAT32 = 'FLOAT32'
-    FLOAT64 = 'FLOAT64'
-    BFLOAT16 = 'BFLOAT16'
-    FLOAT32_FTZ = 'FLOAT32_FTZ'
-    TFLOAT32 = 'TFLOAT32'
-    TFLOAT32_FTZ = 'TFLOAT32_FTZ'
-    UINT4x16_ALIGN8B = '16U4_ALIGN8B'
-    UINT4x16_ALIGN16B = '16U4_ALIGN16B'
-    UINT6x16_ALIGN16B = '16U6_ALIGN16B'
+    UINT8 = "UINT8"
+    UINT16 = "UINT16"
+    UINT32 = "UINT32"
+    INT32 = "INT32"
+    UINT64 = "UINT64"
+    INT64 = "INT64"
+    FLOAT16 = "FLOAT16"
+    FLOAT32 = "FLOAT32"
+    FLOAT64 = "FLOAT64"
+    BFLOAT16 = "BFLOAT16"
+    FLOAT32_FTZ = "FLOAT32_FTZ"
+    TFLOAT32 = "TFLOAT32"
+    TFLOAT32_FTZ = "TFLOAT32_FTZ"
+    UINT4x16_ALIGN8B = "16U4_ALIGN8B"
+    UINT4x16_ALIGN16B = "16U4_ALIGN16B"
+    UINT6x16_ALIGN16B = "16U6_ALIGN16B"
 
     def cpp_str(self):
-        return f'CUtensorMapDataType::CU_TENSOR_MAP_DATA_TYPE_{self.value}'
+        return f"CUtensorMapDataType::CU_TENSOR_MAP_DATA_TYPE_{self.value}"
 
     @classmethod
     def from_dtype(cls, dtype: DataType) -> TensorMapDataType:
@@ -36,40 +51,43 @@ class TensorMapDataType(Enum):
 
 
 class TensorMapInterleave(Enum):
-    NONE = 'NONE'
-    B16 = '16B'
-    B32 = '32B'
+    NONE = "NONE"
+    B16 = "16B"
+    B32 = "32B"
 
     def cpp_str(self):
-        return f'CUtensorMapInterleave::CU_TENSOR_MAP_INTERLEAVE_{self.value}'
+        return f"CUtensorMapInterleave::CU_TENSOR_MAP_INTERLEAVE_{self.value}"
+
 
 class TensorMapL2Promotion(Enum):
-    NONE = 'NONE'
-    B64 = 'L2_64B'
-    B128 = 'L2_128B'
-    B256 = 'L2_256B'
+    NONE = "NONE"
+    B64 = "L2_64B"
+    B128 = "L2_128B"
+    B256 = "L2_256B"
 
     def cpp_str(self):
-        return f'CUtensorMapL2promotion::CU_TENSOR_MAP_L2_PROMOTION_{self.value}'
+        return f"CUtensorMapL2promotion::CU_TENSOR_MAP_L2_PROMOTION_{self.value}"
+
 
 class TensorMapSwizzle(Enum):
-    NONE = 'NONE'
-    B32 = '32B'
-    B64 = '64B'
-    B128 = '128B'
-    B128_ATOM_32B = '128B_ATOM_32B'
-    B128_ATOM_32B_FLIP_8B = '128B_ATOM_32B_FLIP_8B'
-    B128_ATOM_64B = '128B_ATOM_64B'
+    NONE = "NONE"
+    B32 = "32B"
+    B64 = "64B"
+    B128 = "128B"
+    B128_ATOM_32B = "128B_ATOM_32B"
+    B128_ATOM_32B_FLIP_8B = "128B_ATOM_32B_FLIP_8B"
+    B128_ATOM_64B = "128B_ATOM_64B"
 
     def cpp_str(self):
-        return f'CUtensorMapSwizzle::CU_TENSOR_MAP_SWIZZLE_{self.value}'
+        return f"CUtensorMapSwizzle::CU_TENSOR_MAP_SWIZZLE_{self.value}"
+
 
 class TensorMapFloatOOBFill(Enum):
-    NONE = 'NONE'
-    NAN_REQUEST_ZERO_FMA = 'NAN_REQUEST_ZERO_FMA'
+    NONE = "NONE"
+    NAN_REQUEST_ZERO_FMA = "NAN_REQUEST_ZERO_FMA"
 
     def cpp_str(self):
-        return f'CUtensorMapFloatOOBfill::CU_TENSOR_MAP_FLOAT_OOB_FILL_{self.value}'
+        return f"CUtensorMapFloatOOBfill::CU_TENSOR_MAP_FLOAT_OOB_FILL_{self.value}"
 
 
 def encode_tensor_map(
@@ -84,9 +102,9 @@ def encode_tensor_map(
     interleave: TensorMapInterleave,
     swizzle: TensorMapSwizzle,
     l2_promotion: TensorMapL2Promotion,
-    oob_fill: TensorMapFloatOOBFill
-):
-    """ Encode a tensor map.
+    oob_fill: TensorMapFloatOOBFill,
+) -> Stmt:
+    """Encode a tensor map.
 
     Parameters
     ----------
@@ -122,7 +140,8 @@ def encode_tensor_map(
     ret: Stmt
         The statement that encodes the tensor map.
     """
-    template_string = """cuTensorMapEncodeTiled(
+    template_string = (
+        """cuTensorMapEncodeTiled(
     {{}}, 
     {dtype}, 
     {{}}, 
@@ -137,11 +156,13 @@ def encode_tensor_map(
     {oob_fill}
 );
 """.format(
-        dtype=dtype.cpp_str(),
-        interleave=interleave.cpp_str(),
-        swizzle=swizzle.cpp_str(),
-        l2_promotion=l2_promotion.cpp_str(),
-        oob_fill=oob_fill.cpp_str(),
-    ) + r"""{{cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) LOG(ERROR) << "CUDA error: " << cudaGetErrorString(err) << "\n";}}"""
+            dtype=dtype.cpp_str(),
+            interleave=interleave.cpp_str(),
+            swizzle=swizzle.cpp_str(),
+            l2_promotion=l2_promotion.cpp_str(),
+            oob_fill=oob_fill.cpp_str(),
+        )
+        + r"""{{cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) LOG(ERROR) << "CUDA error: " << cudaGetErrorString(err) << "\n";}}"""
+    )
 
     return BlackBoxStmt(template_string, tensor_map, rank, tensor_ptr, shape, strides, box_shape, elem_strides)

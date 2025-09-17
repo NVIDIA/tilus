@@ -42,7 +42,6 @@ from hidet.ir.functors import IRRewriter
 from hidet.ir.stmt import AsmStmt, AssignStmt, DeclareStmt, LetStmt, Stmt
 from hidet.ir.tools import collect
 from hidet.transforms.base import FunctionPass, Pass
-from torch.fx.tensor_type import TensorType
 
 
 class DeclareToLetRewriter(IRRewriter):

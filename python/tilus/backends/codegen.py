@@ -14,7 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional, Set, Type, Sequence, TypeVar
+from typing import Any, Callable, Dict, Optional, Sequence, Set, Type, TypeVar
 
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder, StmtBuilder
@@ -362,7 +362,9 @@ class ThreadGroupStack:
         self.group_index.pop()
         self.group_size.pop()
 
+
 ContextTypeVar = TypeVar("ContextTypeVar", bound=BaseEmitContext)
+
 
 class FunctionCodegen(IRFunctor):
     def __init__(self) -> None:
@@ -577,9 +579,10 @@ class FunctionCodegen(IRFunctor):
 
     def visit_LetStmt(self, stmt: LetStmt) -> None:
         from tilus.backends.contexts.invariant_ctx import InvariantTrackingContext
+
         with self.builder.lets(bind_vars=stmt.bind_vars, values=stmt.bind_values):
             for bind_var, bind_value in zip(stmt.bind_vars, stmt.bind_values):
-                ctx: InvariantTrackingContext = self.contexts[InvariantTrackingContext]
+                ctx: InvariantTrackingContext = self.contexts[InvariantTrackingContext]  # type: ignore
                 ctx.bind(bind_var, bind_value)
             self.visit(stmt.body)
 

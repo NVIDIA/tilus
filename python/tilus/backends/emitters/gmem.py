@@ -29,12 +29,7 @@ class GlobalViewInstEmitter(BaseInstEmitter):
         self.assign(self.get_or_allocate_var(global_tensor), inst.ptr)
 
         if isinstance(inst.ptr, Var) and inst.ptr in self.kernel_params:
-            ctx.add_tensor_view(
-                tensor=global_tensor,
-                ptr=inst.ptr,
-                layout=global_tensor.layout
-            )
-
+            ctx.add_tensor_view(tensor=global_tensor, ptr=inst.ptr, layout=global_tensor.layout)
 
 
 @register_emitter(AllocateGlobalInst)

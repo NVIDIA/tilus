@@ -114,6 +114,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         The optimized low-level IR module.
     """
     from hidet.transforms import lower_with
+
     # from hidet.transforms.add_explicit_cast import add_explicit_cast_pass
     from hidet.transforms.add_hints import add_hints_pass
     from hidet.transforms.annotate_header_and_libs import annotate_header_and_libs_pass

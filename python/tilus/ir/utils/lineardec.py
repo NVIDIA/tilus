@@ -1,13 +1,30 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import annotations
-from typing import Sequence, Optional
 
-from hidet.ir import Constant, Add, Sub, Multiply, Div, Mod
+from typing import Optional, Sequence
+
+from hidet.ir import Add, Constant, Div, Mod, Multiply, Sub
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var
 from hidet.ir.functors import ExprFunctor
 
+
 class LinearDecompositionError(Exception):
     pass
+
 
 class Linear:
     def __init__(self, c: list[Optional[Expr]]):
@@ -25,7 +42,7 @@ class Linear:
     def __add__(self, other):
         lhs = self.c
         rhs = other.c
-        result = []
+        result: list[Optional[Expr]] = []
         for l, r in zip(lhs, rhs):
             if l is None and r is None:
                 result.append(None)
@@ -40,7 +57,7 @@ class Linear:
     def __sub__(self, other):
         lhs = self.c
         rhs = other.c
-        result = []
+        result: list[Optional[Expr]] = []
         for l, r in zip(lhs, rhs):
             if l is None and r is None:
                 result.append(None)
@@ -55,7 +72,7 @@ class Linear:
     def __mul__(self, other):
         lhs = self
         rhs = other
-        result = self.empty(len(lhs))
+        result: Linear = self.empty(len(lhs))
 
         if lhs.is_empty():
             return result
@@ -89,7 +106,7 @@ class Linear:
         return True
 
     @staticmethod
-    def empty(n: int):
+    def empty(n: int) -> Linear:
         return Linear([None for _ in range(n + 1)])
 
     @staticmethod
@@ -108,6 +125,7 @@ class Linear:
         c[var_index] = int32.one
         return Linear(c)
 
+
 class LinearDecomposer(ExprFunctor):
     def __init__(self, coordinates: Sequence[Var]):
         super().__init__()
@@ -117,12 +135,12 @@ class LinearDecomposer(ExprFunctor):
     def decompose(self, e: Expr) -> Linear:
         try:
             return self.visit(e)
-        except NotImplementedError:
+        except NotImplementedError as exc:
             raise LinearDecompositionError(
-                f'Expression {e} is not linear with respect to coordinates {self.coordinates}'
-            ) from e
+                f"Expression {e} is not linear with respect to coordinates {self.coordinates}"
+            ) from exc
 
-    def visit_Var(self, e: Var):
+    def visit_Var(self, e: Var) -> Linear:
         if e in self.coordinates:
             index = self.coordinates.index(e)
             return Linear.from_variable(self.n, index)
@@ -130,27 +148,27 @@ class LinearDecomposer(ExprFunctor):
             # we treat variables not in coordinates as constants
             return Linear.from_constant(self.n, e)
 
-    def visit_Constant(self, e: Constant):
+    def visit_Constant(self, e: Constant) -> Linear:
         return Linear.from_constant(self.n, e)
 
-    def visit_Add(self, e: Add):
+    def visit_Add(self, e: Add) -> Linear:
         return self.visit(e.a) + self.visit(e.b)
 
-    def visit_Sub(self, e: Sub):
+    def visit_Sub(self, e: Sub) -> Linear:
         return self.visit(e.a) - self.visit(e.b)
 
-    def visit_Multiply(self, e: Multiply):
+    def visit_Multiply(self, e: Multiply) -> Linear:
         return self.visit(e.a) * self.visit(e.b)
 
-    def visit_Div(self, e: Div):
+    def visit_Div(self, e: Div) -> Linear:
         return self.visit(e.a) // self.visit(e.b)
 
-    def visit_Mod(self, e: Mod):
+    def visit_Mod(self, e: Mod) -> Linear:
         return self.visit(e.a) % self.visit(e.b)
 
 
 def decompose_linear(expr: Expr, coordinates: Sequence[Var]) -> list[Expr]:
-    """ Decompose a linear expression to a list of coefficients corresponding to the given coordinates.
+    """Decompose a linear expression to a list of coefficients corresponding to the given coordinates.
 
     Given an expression `expr` and a list of variables `coordinates`, this function returns a list of coefficients
     `[c0, c1, c2, ..., cn]` such that:
@@ -174,4 +192,3 @@ def decompose_linear(expr: Expr, coordinates: Sequence[Var]) -> list[Expr]:
     decomposer = LinearDecomposer(coordinates)
     linear = decomposer.decompose(expr)
     return [coef if coef is not None else int32.zero for coef in linear.c]
-

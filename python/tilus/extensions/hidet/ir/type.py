@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.type import BaseType, PointerType, TensorPointerType, TensorType, FuncType, DataType, VoidType, OpaqueType
+from hidet.ir.type import BaseType, DataType, FuncType, OpaqueType, PointerType, TensorPointerType, TensorType, VoidType
 
 
 def is_addressable(tp_or_var):
@@ -34,6 +34,7 @@ def get_base_type(tp: BaseType) -> BaseType:
         return tp.dtype
     else:
         assert False
+
 
 def type_equal(lhs: BaseType, rhs: BaseType) -> bool:
     """

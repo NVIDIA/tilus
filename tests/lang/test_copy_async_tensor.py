@@ -82,4 +82,3 @@ def test_copy_async_tensor_cta():
     torch.cuda.synchronize()
 
     torch.testing.assert_close(y, x + 1)
-

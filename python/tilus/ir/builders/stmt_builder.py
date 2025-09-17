@@ -41,18 +41,18 @@ from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkSharedToGlobalInst,
 )
 from tilus.ir.instructions.cuda.cp_async_tensor import (
+    CopyAsyncTensorCommitGroupInst,
     CopyAsyncTensorGlobalToSharedInst,
     CopyAsyncTensorSharedToGlobalInst,
-CopyAsyncTensorWaitGroupInst,
-CopyAsyncTensorCommitGroupInst
+    CopyAsyncTensorWaitGroupInst,
 )
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mbarrier import (
     ArriveBarrierInst,
     ArriveRemoteBarrierInst,
+    FenceProxyCopyAsync,
     InitBarrierInst,
     WaitBarrierInst,
-FenceProxyCopyAsync,
 )
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
@@ -599,7 +599,7 @@ class StmtBuilder(StmtBuilderCore):
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         mbarrier: Expr,
-        cache_policy: Optional[Expr] = None
+        cache_policy: Optional[Expr] = None,
     ) -> None:
         if dims is None:
             dims = list(range(len(src.shape)))
@@ -614,7 +614,7 @@ class StmtBuilder(StmtBuilderCore):
         dst: GlobalTensor,
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
-        cache_policy: Optional[Expr] = None
+        cache_policy: Optional[Expr] = None,
     ) -> None:
         if dims is None:
             dims = list(range(len(src.shape)))
@@ -627,12 +627,9 @@ class StmtBuilder(StmtBuilderCore):
         inst = CopyAsyncTensorCommitGroupInst.create()
         self.append(inst)
 
-    def copy_async_tensor_wait_group(self, n: int):
+    def copy_async_tensor_wait_group(self, n: int) -> None:
         inst = CopyAsyncTensorWaitGroupInst.create(n)
         self.append(inst)
-
-    def fence_proxy_copy_async(self):
-        pass
 
     def elementwise_binary(
         self,
