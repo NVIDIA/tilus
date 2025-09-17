@@ -79,7 +79,7 @@ def register_copy_async_tensor():
                     coords: coords_type,
                     mbarrier: uint32,
                     cache_hint: cache_hint_type,
-                ) -> None:
+                ):
                     attrs.func_name = func_name
                     attrs.func_kind = "cuda_internal"
                     asm(
@@ -107,7 +107,7 @@ def register_copy_async_tensor():
             @script
             def cp_async_tensor_shared_to_global_device(
                 dst_tensor_map: CUTensorMapPointerType, src: uint32, coords: coords_type, cache_hint: cache_hint_type
-            ) -> None:
+            ):
                 attrs.func_name = func_name
                 attrs.func_kind = "cuda_internal"
                 asm(

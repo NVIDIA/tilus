@@ -1062,7 +1062,7 @@ class Script:
         mbarrier: Expr,
         cache_policy: Optional[Expr] = None,
     ) -> None:
-        """ 
+        """
         TMA async copy from global to shared tensor asynchronously.
 
         This instruction issues a TMA tensor async copy from global to shared tensor.
@@ -1159,7 +1159,7 @@ class Script:
         """
         Wait for the previously issued async tensor copy operations to complete.
 
-        This instruction waits for the previously issued async tensor copy operations to complete. 
+        This instruction waits for the previously issued async tensor copy operations to complete.
         The `n` parameter specifies the number of groups to allow to be on-the-fly.
 
         Parameters
