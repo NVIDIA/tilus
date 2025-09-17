@@ -15,6 +15,7 @@
 import tilus
 import torch
 from tilus import float16, int32, uint64
+from tilus.testing import requires
 from tilus.utils import cdiv
 
 
@@ -71,6 +72,7 @@ class CopyAsyncTensorExample(tilus.Script):
             self.copy_async_tensor_wait_group(0)
 
 
+@requires.nvgpu_sm90
 def test_copy_async_tensor_cta():
     m = 123
     n = 64 * 8

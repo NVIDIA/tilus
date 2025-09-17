@@ -172,8 +172,8 @@ class DeadcodeEliminationRewriter(IRRewriter):
         bind_vars = []
         bind_values = []
         for bind_var, bind_value in zip(stmt.bind_vars, stmt.bind_values):
-            assert self.analyzer.num_assigns[bind_var] == 0
-            assert self.analyzer.num_declares[bind_var] == 0
+            assert self.analyzer.num_assigns[bind_var] == 0, bind_var
+            assert self.analyzer.num_declares[bind_var] == 0, bind_var
             if self.analyzer.usage_count[bind_var] == 0 and self.analyzer.no_side_effect[bind_value]:
                 continue
             else:
