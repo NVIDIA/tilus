@@ -97,7 +97,11 @@ class DeclareToLetRewriter(IRRewriter):
                 let_stmt = LetStmt(bind_vars=[stmt.var], bind_values=[stmt.value], body=self.concat(seq[i + 1 :]))
                 seq = seq[:i] + [let_stmt]
                 self.declare_to_remove.add(stmt.var)
-            elif isinstance(stmt, DeclareStmt) and stmt.var in self.declare_to_remove:
+            elif (
+                isinstance(stmt, DeclareStmt)
+                and stmt.var in self.declare_to_remove
+                and stmt.init is None
+            ):
                 # declare var (var is never assigned)
                 # ...
                 # assign var = value (var is only assigned here and never modified later)
