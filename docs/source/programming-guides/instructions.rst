@@ -52,6 +52,15 @@ Bulk Asynchronous Copy (SM90+)
    copy_async_bulk_global_to_cluster_shared
    copy_async_bulk_shared_to_global
 
+TMA Asynchronous Copy (SM90+)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autosummary::
+
+   copy_async_tensor_global_to_shared
+   copy_async_tensor_shared_to_global
+   copy_async_tensor_commit_group
+   copy_async_tensor_wait_group
+   fence_proxy_copy_async
 
 Linear Algebra
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
