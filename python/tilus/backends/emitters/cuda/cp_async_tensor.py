@@ -352,7 +352,7 @@ class CopyAsyncTensorSharedToGlobalInstEmitter(CopyAsyncTensorBaseEmitter):
 
 
 @register_emitter(CopyAsyncTensorCommitGroupInst, target=nvgpu_sm90)
-class CopyAysncCommitGroupInstEmitter(BaseInstEmitter):
+class CopyAsyncCommitGroupInstEmitter(BaseInstEmitter):
     def emit(self, inst: CopyAsyncTensorCommitGroupInst) -> None:
         self.append(cp_async_tensor_commit_group())
 
