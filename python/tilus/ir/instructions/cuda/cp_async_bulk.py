@@ -131,3 +131,18 @@ class CopyAsyncBulkSharedToClusterSharedInst(Instruction):
             remote_rank=remote_rank,
             mbarrier=mbarrier,
         )
+
+
+@dataclass(frozen=True, eq=False)
+class CopyAsyncBulkCommitGroupInst(Instruction):
+    pass
+
+
+@dataclass(frozen=True, eq=False)
+class CopyAsyncBulkWaitGroupInst(Instruction):
+    n: int
+
+    @staticmethod
+    def create(n: int) -> CopyAsyncBulkWaitGroupInst:
+        return CopyAsyncBulkWaitGroupInst(output=None, inputs=(), n=n)
+

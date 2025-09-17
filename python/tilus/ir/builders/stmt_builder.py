@@ -43,6 +43,8 @@ from tilus.ir.instructions.cuda.cp_async_bulk import (
 from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorGlobalToSharedInst,
     CopyAsyncTensorSharedToGlobalInst,
+CopyAsyncTensorWaitGroupInst,
+CopyAsyncTensorCommitGroupInst
 )
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mbarrier import (
@@ -618,6 +620,14 @@ class StmtBuilder(StmtBuilderCore):
         inst = CopyAsyncTensorSharedToGlobalInst.create(
             src=src, dst=dst, offsets=offsets, dims=dims, cache_policy=cache_policy
         )
+        self.append(inst)
+
+    def copy_async_tensor_commit_group(self):
+        inst = CopyAsyncTensorCommitGroupInst.create()
+        self.append(inst)
+
+    def copy_async_tensor_wait_group(self, n: int):
+        inst = CopyAsyncTensorWaitGroupInst.create(n)
         self.append(inst)
 
     def elementwise_binary(

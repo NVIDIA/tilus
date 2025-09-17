@@ -71,3 +71,17 @@ class CopyAsyncTensorSharedToGlobalInst(Instruction):
             dims=tuple(dims) if dims else None,
             cache_policy=cache_policy
         )
+
+@dataclass(frozen=True, eq=False)
+class CopyAsyncTensorCommitGroupInst(Instruction):
+    @staticmethod
+    def create() -> CopyAsyncTensorCommitGroupInst:
+        return CopyAsyncTensorCommitGroupInst(output=None, inputs=())
+
+@dataclass(frozen=True, eq=False)
+class CopyAsyncTensorWaitGroupInst(Instruction):
+    n: int
+
+    @staticmethod
+    def create(n: int) -> CopyAsyncTensorWaitGroupInst:
+        return CopyAsyncTensorWaitGroupInst(output=None, inputs=(), n=n)

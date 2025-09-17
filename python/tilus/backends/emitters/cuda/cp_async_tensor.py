@@ -33,14 +33,17 @@ from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_share
 from tilus.ir import GlobalLayout
 from tilus.ir.tensor import GlobalTensor, SharedTensor
 from tilus.ir.instructions.cuda.cp_async_tensor import (
-    CopyAsyncTensorGlobalToSharedInst
+    CopyAsyncTensorGlobalToSharedInst,
+    CopyAsyncTensorSharedToGlobalInst,
+    CopyAsyncTensorCommitGroupInst,
+    CopyAsyncTensorWaitGroupInst
 )
 from tilus.ir.utils.veceval import vectorized_evaluate
 from tilus.ir.tools.simplifier import simplify
 from tilus.target import nvgpu_sm90
 from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import encode_tensor_map, TensorMapSwizzle, CUtensorMapType, \
     TensorMapDataType, TensorMapInterleave, TensorMapL2Promotion, TensorMapFloatOOBFill
-from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import cp_async_tensor_global_to_shared
+from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import cp_async_tensor_global_to_shared, cp_async_tensor_shared_to_global, cp_async_tensor_commit_group, cp_async_tensor_wait_group
 from tilus.ir.utils.lineardec import decompose_linear, LinearDecompositionError
 
 
@@ -134,7 +137,7 @@ def get_offset_grid_of_swizzled_layout(dtype_nbits: int, shape: tuple[int, ...],
 
 
 class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
-    def resolve_global_tensor_info(self, global_tensor: GlobalTensor, offsets: Sequence[Expr], box_shape: Sequence[int], dims: Sequence[int]) -> GlobalTensorInfo:
+    def resolve_global_tensor_info(self, global_tensor: GlobalTensor, offsets: Sequence[Expr], dims: Sequence[int]) -> GlobalTensorInfo:
         ctx: GlobalTensorViewContext = self.contexts[GlobalTensorViewContext]
 
         # get the global tensor view
@@ -271,12 +274,10 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         dtype: DataType = global_tensor.dtype
 
         global_tensor_info: GlobalTensorInfo = self.resolve_global_tensor_info(
-            global_tensor, offsets=inst.offsets, box_shape=shared_tensor.shape, dims=inst.dims
+            global_tensor, offsets=inst.offsets, dims=inst.dims
         )
-        print(global_tensor_info)
 
         shared_tensor_info: SharedTensorInfo = self.resolve_shared_tensor_info(shared_tensor)
-        print(shared_tensor_info)
 
         shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
         tensor_map = self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
@@ -284,10 +285,49 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         self.append(
             cp_async_tensor_global_to_shared(
                 dst=shared_addr,
-                tensor_map=~tensor_map,
+                src_tensor_map=~tensor_map,
                 coords=list(reversed(tensor_coords)),
                 mbarrier=cvta_generic_to_shared(inst.mbarrier),
                 cta_group=None,
                 cache_policy=inst.cache_policy,
             )
         )
+
+
+@register_emitter(CopyAsyncTensorSharedToGlobalInst, target=nvgpu_sm90)
+class CopyAsyncTensorSharedToGlobalInstEmitter(CopyAsyncTensorBaseEmitter):
+    def emit(self, inst: CopyAsyncTensorSharedToGlobalInst) -> None:
+        global_tensor: GlobalTensor = inst.inputs[0].as_global_tensor()
+        shared_tensor: SharedTensor = inst.inputs[1].as_shared_tensor()
+        assert global_tensor.dtype == shared_tensor.dtype
+        dtype: DataType = global_tensor.dtype
+
+        global_tensor_info: GlobalTensorInfo = self.resolve_global_tensor_info(
+            global_tensor, offsets=inst.offsets, dims=inst.dims
+        )
+
+        shared_tensor_info: SharedTensorInfo = self.resolve_shared_tensor_info(shared_tensor)
+
+        shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
+        tensor_map = self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
+        tensor_coords = inst.offsets
+        self.append(
+            cp_async_tensor_shared_to_global(
+                dst_tensor_map=~tensor_map,
+                src=shared_addr,
+                coords=list(reversed(tensor_coords)),
+                cache_policy=inst.cache_policy,
+            )
+        )
+
+
+@register_emitter(CopyAsyncTensorCommitGroupInst, target=nvgpu_sm90)
+class CopyAysncCommitGroupInstEmitter(BaseInstEmitter):
+    def emit(self, inst: CopyAsyncTensorCommitGroupInst) -> None:
+        self.append(cp_async_tensor_commit_group())
+
+
+@register_emitter(CopyAsyncTensorWaitGroupInst, target=nvgpu_sm90)
+class CopyAysncWaitGroupInstEmitter(BaseInstEmitter):
+    def emit(self, inst: CopyAsyncTensorWaitGroupInst) -> None:
+        self.append(cp_async_tensor_wait_group(inst.n))

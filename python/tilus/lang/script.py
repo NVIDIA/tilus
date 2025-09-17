@@ -1082,6 +1082,11 @@ class Script:
             cache_policy=cache_policy
         )
 
+    def copy_async_tensor_commit_group(self):
+        self._builder.copy_async_tensor_commit_group()
+
+    def copy_async_tensor_wait_group(self, n: int) -> None:
+        self._builder.copy_async_tensor_wait_group(n)
 
     def dot(
         self,
