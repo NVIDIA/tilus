@@ -62,3 +62,11 @@ class WaitBarrierInst(Instruction):
     @staticmethod
     def create(barrier: Expr, phase: Expr) -> WaitBarrierInst:
         return WaitBarrierInst(output=None, inputs=(), barrier=barrier, phase=phase)
+
+
+@dataclass(frozen=True, eq=False)
+class FenceProxyCopyAsync(Instruction):
+    @staticmethod
+    def create() -> FenceProxyCopyAsync:
+        return FenceProxyCopyAsync(output=None, inputs=())
+

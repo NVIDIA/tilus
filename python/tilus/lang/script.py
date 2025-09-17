@@ -1088,6 +1088,9 @@ class Script:
     def copy_async_tensor_wait_group(self, n: int) -> None:
         self._builder.copy_async_tensor_wait_group(n)
 
+    def fence_proxy_copy_async(self):
+        self._builder.fence_proxy_copy_async()
+
     def dot(
         self,
         a: RegisterTensor,

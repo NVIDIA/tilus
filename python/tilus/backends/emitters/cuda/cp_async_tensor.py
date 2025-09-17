@@ -18,6 +18,8 @@ from typing import Sequence, Optional
 import functools
 
 import numpy as np
+from hidet.ir import logical_and, logical_or
+from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
 from hidet.ir.type import TensorType, PointerType, sizeof
 from hidet.ir.dtypes import uint64, uint32
 from hidet.ir.expr import Expr, Var, as_expr
@@ -30,6 +32,7 @@ from tilus.backends.codegen import register_emitter
 from tilus.backends.contexts import GlobalTensorViewContext, GlobalTensorView, InvariantTrackingContext
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
+from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import mbarrier_expect_tx_cta_shared
 from tilus.ir import GlobalLayout
 from tilus.ir.tensor import GlobalTensor, SharedTensor
 from tilus.ir.instructions.cuda.cp_async_tensor import (
@@ -45,6 +48,7 @@ from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import encode_tensor_m
     TensorMapDataType, TensorMapInterleave, TensorMapL2Promotion, TensorMapFloatOOBFill
 from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import cp_async_tensor_global_to_shared, cp_async_tensor_shared_to_global, cp_async_tensor_commit_group, cp_async_tensor_wait_group
 from tilus.ir.utils.lineardec import decompose_linear, LinearDecompositionError
+from tilus.utils import prod
 
 
 @dataclass(frozen=True, eq=False)
@@ -282,16 +286,20 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
         tensor_map = self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
         tensor_coords = inst.offsets
-        self.append(
-            cp_async_tensor_global_to_shared(
-                dst=shared_addr,
-                src_tensor_map=~tensor_map,
-                coords=list(reversed(tensor_coords)),
-                mbarrier=cvta_generic_to_shared(inst.mbarrier),
-                cta_group=None,
-                cache_policy=inst.cache_policy,
+        transaction_bytes = prod(shared_tensor.shape) * dtype.nbytes
+        with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
+            barrier_addr = self.declare_var('barrier_addr', uint32, init=cvta_generic_to_shared(inst.mbarrier))
+            self.append(mbarrier_expect_tx_cta_shared(mbarrier_addr=barrier_addr, transaction_bytes=transaction_bytes))
+            self.append(
+                cp_async_tensor_global_to_shared(
+                    dst=shared_addr,
+                    src_tensor_map=~tensor_map,
+                    coords=list(reversed(tensor_coords)),
+                    mbarrier=barrier_addr,
+                    cta_group=None,
+                    cache_policy=inst.cache_policy,
+                )
             )
-        )
 
 
 @register_emitter(CopyAsyncTensorSharedToGlobalInst, target=nvgpu_sm90)
@@ -311,14 +319,15 @@ class CopyAsyncTensorSharedToGlobalInstEmitter(CopyAsyncTensorBaseEmitter):
         shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
         tensor_map = self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
         tensor_coords = inst.offsets
-        self.append(
-            cp_async_tensor_shared_to_global(
-                dst_tensor_map=~tensor_map,
-                src=shared_addr,
-                coords=list(reversed(tensor_coords)),
-                cache_policy=inst.cache_policy,
+        with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
+            self.append(
+                cp_async_tensor_shared_to_global(
+                    dst_tensor_map=~tensor_map,
+                    src=shared_addr,
+                    coords=list(reversed(tensor_coords)),
+                    cache_policy=inst.cache_policy,
+                )
             )
-        )
 
 
 @register_emitter(CopyAsyncTensorCommitGroupInst, target=nvgpu_sm90)

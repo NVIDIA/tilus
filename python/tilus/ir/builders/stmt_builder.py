@@ -52,6 +52,7 @@ from tilus.ir.instructions.cuda.mbarrier import (
     ArriveRemoteBarrierInst,
     InitBarrierInst,
     WaitBarrierInst,
+FenceProxyCopyAsync,
 )
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
@@ -630,6 +631,9 @@ class StmtBuilder(StmtBuilderCore):
         inst = CopyAsyncTensorWaitGroupInst.create(n)
         self.append(inst)
 
+    def fence_proxy_copy_async(self):
+        pass
+
     def elementwise_binary(
         self,
         x: RegisterTensor,
@@ -1107,6 +1111,10 @@ class StmtBuilder(StmtBuilderCore):
 
     def wait_barrier(self, barrier: Expr, phase: Expr) -> None:
         inst = WaitBarrierInst.create(barrier=barrier, phase=phase)
+        self.append(inst)
+
+    def fence_proxy_copy_async(self):
+        inst = FenceProxyCopyAsync.create()
         self.append(inst)
 
     # annotations

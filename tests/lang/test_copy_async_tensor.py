@@ -15,13 +15,7 @@
 import tilus
 import torch
 from tilus import float16, int32, uint64
-from tilus.testing import requires
 from tilus.utils import cdiv
-
-
-tilus.option.cache_dir('./cache')
-tilus.option.debug.dump_ir()
-tilus.target.set_current_target(tilus.target.nvgpu_sm90a)
 
 
 class CopyAsyncTensorExample(tilus.Script):
@@ -59,23 +53,25 @@ class CopyAsyncTensorExample(tilus.Script):
             self.arrive_barrier(load_barrier)
         self.wait_barrier(load_barrier, phase=0)
 
-        self.print_tensor("s_x: ", s_x)
+        x = self.load_shared(s_x)
 
-        # x = self.load_shared(s_x)
-        # x += 1
-        # self.store_shared(s_y, x)
-        # self.sync()
-        #
-        # with self.single_thread():
-        #     self.copy_async_tensor_shared_to_global(
-        #         src=s_y,
-        #         dst=g_y,
-        #         offsets=[m_offset, n_offset],
-        #     )
-        #     self.copy_async_wait_all()
+        x += 1
+        self.store_shared(s_y, x)
+
+        self.fence_proxy_copy_async()
+        self.sync()
+
+        with self.single_thread():
+            self.copy_async_tensor_shared_to_global(
+                src=s_y,
+                dst=g_y,
+                offsets=[m_offset, n_offset],
+            )
+            self.copy_async_tensor_commit_group()
+            self.copy_async_tensor_wait_group(0)
 
 
-def demo_copy_async_tensor_cta():
+def test_copy_async_tensor_cta():
     m = 123
     n = 64 * 8
     x = torch.randn(m, n, dtype=torch.float16, device="cuda")
@@ -83,8 +79,7 @@ def demo_copy_async_tensor_cta():
     kernel = CopyAsyncTensorExample()
     kernel(m, n, x, y)
 
+    torch.cuda.synchronize()
+
     torch.testing.assert_close(y, x + 1)
 
-
-if __name__ == '__main__':
-    demo_copy_async_tensor_cta()

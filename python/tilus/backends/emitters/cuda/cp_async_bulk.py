@@ -17,7 +17,6 @@ from typing import List, Optional, Sequence
 from hidet.ir import logical_and
 from hidet.ir.dtypes import boolean, int32, uint32
 from hidet.ir.expr import Expr, Var
-from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
 from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from hidet.ir.utils.index_transform import index_deserialize
 
@@ -187,7 +186,6 @@ class CopyAysncBulkSharedToGlobalInstEmitter(BulkCopyAsyncBetweenGlobalShared):
         )
 
     def emit(self, inst: CopyAsyncBulkSharedToGlobalInst) -> None:
-        self.append(fence_view_async_shared())
         self.common_emit(
             shared_tensor=inst.inputs[1].as_shared_tensor(),
             global_tensor=inst.inputs[0].as_global_tensor(),

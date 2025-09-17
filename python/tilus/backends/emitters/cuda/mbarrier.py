@@ -16,7 +16,7 @@ from hidet.ir.dtypes import boolean, int32
 from hidet.ir.primitives.cuda.barrier import fence_view_async_shared, mbarrier_arrive, mbarrier_init, mbarrier_wait
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.ir.instructions import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst
+from tilus.ir.instructions.cuda.mbarrier import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst, FenceProxyCopyAsync
 from tilus.target import nvgpu_sm80, nvgpu_sm90
 
 
@@ -45,3 +45,9 @@ class ArriveRemoteBarrierInstEmitter(BaseInstEmitter):
 class WaitBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: WaitBarrierInst) -> None:
         self.append(mbarrier_wait(inst.barrier, inst.phase))
+
+
+@register_emitter(FenceProxyCopyAsync, target=nvgpu_sm90)
+class FenceProxyCopyAsyncEmitter(BaseInstEmitter):
+    def emit(self, inst: FenceProxyCopyAsync) -> None:
+        self.append(fence_view_async_shared())
