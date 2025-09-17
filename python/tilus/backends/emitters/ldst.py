@@ -119,7 +119,7 @@ class LoadGlobalGenericInstEmitter(LoadStoreInstBaseEmitter):
                 start_i = vec_i * vector_bytes * 8 // dtype.nbits
 
                 # the corresponding global indices in the register tensor
-                global_indices = layout.get_global(local_index=start_i, spatial_index=self.current_worker)
+                global_indices = layout.get_global(local_index=start_i, spatial_index=self.current_thread)
 
                 # the offset and mask of this vector
                 rewrite_map = {axis: as_expr(global_index) for axis, global_index in zip(inst.axes, global_indices)}
@@ -149,7 +149,7 @@ class LoadGlobalGenericInstEmitter(LoadStoreInstBaseEmitter):
 
         else:
             with self.for_range(extent=tensor.local_size) as i:
-                global_indices = layout.get_global(local_index=i, spatial_index=self.current_worker)
+                global_indices = layout.get_global(local_index=i, spatial_index=self.current_thread)
                 rewrite_map = {axis: as_expr(global_index) for axis, global_index in zip(inst.axes, global_indices)}
                 offset = rewrite(inst.offset, rewrite_map=rewrite_map)
                 mask = rewrite(inst.mask, rewrite_map=rewrite_map) if inst.mask is not None else boolean.true

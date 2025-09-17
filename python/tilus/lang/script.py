@@ -26,7 +26,13 @@ from hidet.ir.type import DataType
 
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.inst import InstructionError
-from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, global_row_major, global_strides
+from tilus.ir.layout import (
+    GlobalLayout,
+    RegisterLayout,
+    SharedLayout,
+    global_row_major,
+    global_strides,
+)
 from tilus.ir.prog import Program
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.constructs.contexts import ThreadGroupContext
@@ -306,8 +312,9 @@ class Script:
             else:
                 raise InstructionError("Can not recognize the condition in assume: {}".format(term))
 
+    @staticmethod
     def thread_group(
-        self, group_index: int, *, num_groups: Optional[int] = None, group_size: Optional[int] = None
+        group_index: int, *, num_groups: Optional[int] = None, group_size: Optional[int] = None
     ) -> ThreadGroupContext:
         """Create a thread group context.
 
@@ -368,6 +375,20 @@ class Script:
             raise InstructionError("Invalid group_index {}, must be in [0, {})".format(group_index, num_groups))
 
         return ThreadGroupContext(group_index=group_index, group_size=group_size, num_groups=num_groups)
+
+    @staticmethod
+    def single_thread() -> ThreadGroupContext:
+        """Create a thread group context with only one thread.
+
+        This method is equivalent `thread_group(<any-thread>, group_size=1)` that creates a thread group
+        context with only one thread. All instructions within the context will be executed by only one thread.
+
+        Returns
+        -------
+        ret: ThreadGroupContext
+            The thread group context created.
+        """
+        return Script.thread_group(group_index=0, group_size=1)
 
     # instructions
 
@@ -1030,6 +1051,132 @@ class Script:
             and the user must ensure that the accessed global elements are always in bounds. The default value is `True`.
         """
         self._builder.copy_async_bulk_shared_to_global(src, dst, offsets, dims, check_bounds)
+
+    def copy_async_tensor_global_to_shared(
+        self,
+        *,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        mbarrier: Expr,
+        cache_policy: Optional[Expr] = None,
+    ) -> None:
+        """
+        TMA async copy from global to shared tensor asynchronously.
+
+        This instruction issues a TMA tensor async copy from global to shared tensor.
+
+        The `src` parameter specifies the global tensor to copy from, while the `dst` parameter specifies the shared
+        tensor to copy to.
+
+        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
+        will be copied from. The length of this sequence must match the number of dimensions of the global tensor.
+
+        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
+        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
+
+        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
+        to the barrier in shared memory.
+
+        The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+
+        Parameters
+        ----------
+        src: GlobalTensor
+            The global tensor to copy from.
+        dst: SharedTensor
+            The shared tensor to copy to.
+        offsets: Sequence[Expr | int]
+            The offsets for each dimension of the global tensor where the tile will be copied from. The
+            length of this sequence must match the number of dimensions of the global tensor.
+        dims: Sequence[int]
+            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
+            number of dimensions of the shared tensor being copied to.
+        mbarrier: Expr
+            The memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
+            to the barrier in shared memory.
+        cache_policy: Optional[Expr]
+            The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+        """
+        self._builder.copy_async_tensor_global_to_shared(
+            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, cache_policy=cache_policy
+        )
+
+    def copy_async_tensor_shared_to_global(
+        self,
+        src: SharedTensor,
+        dst: GlobalTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        cache_policy: Optional[Expr] = None,
+    ) -> None:
+        """
+        TMA async copy from shared to global tensor asynchronously.
+
+        This instruction issues a TMA tensor async copy from shared to global tensor.
+
+        The `src` parameter specifies the shared tensor to copy from, while the `dst` parameter specifies the global
+        tensor to copy to.
+
+        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
+        will be copied to. The length of this sequence must match the number of dimensions of the global tensor.
+
+        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
+        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
+
+        The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+
+        Parameters
+        ----------
+        src: SharedTensor
+            The shared tensor to copy from.
+        dst: GlobalTensor
+            The global tensor to copy to.
+        offsets: Sequence[Expr | int]
+            The offsets for each dimension of the global tensor where the tile will be copied to. The
+            length of this sequence must match the number of dimensions of the global tensor.
+        dims: Sequence[int]
+            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
+            number of dimensions of the shared tensor being copied from.
+        cache_policy: Optional[Expr]
+            The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+        """
+        self._builder.copy_async_tensor_shared_to_global(
+            src=src, dst=dst, offsets=offsets, dims=dims, cache_policy=cache_policy
+        )
+
+    def copy_async_tensor_commit_group(self):
+        """
+        Commit the previously issued async tensor copy operations.
+
+        This instruction commits the previously issued async tensor copy operations.
+
+        """
+        self._builder.copy_async_tensor_commit_group()
+
+    def copy_async_tensor_wait_group(self, n: int) -> None:
+        """
+        Wait for the previously issued async tensor copy operations to complete.
+
+        This instruction waits for the previously issued async tensor copy operations to complete.
+        The `n` parameter specifies the number of groups to allow to be on-the-fly.
+
+        Parameters
+        ----------
+        n: int
+            The number of groups to allow to be on-the-fly. It should be an integer larger or equal to 0.
+        """
+        self._builder.copy_async_tensor_wait_group(n)
+
+    def fence_proxy_copy_async(self):
+        """
+        Makes the modifications to shared tensors visible to TMA engine.
+
+        This instruction makes the modifications to shared tensors visible to TMA engine. It should be in the thread group
+        that has made modifications to shared tensors, and before copy the shared tensors to global memory with TMA-related instructions.
+        """
+        self._builder.fence_proxy_copy_async()
 
     def dot(
         self,
@@ -1913,8 +2060,46 @@ class Script:
     def init_barrier(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
         """Initialize a barrier.
 
-        This instruction initializes a memory barrier in shared memory. The `barrier` parameter must be an addressable
-        expression whose address is in shared memory and aligned to 8 bytes. The barrier itself must be of type uint64.
+        This instruction initializes a memory barrier in shared memory. A barrier is an uint64 variable in shared
+        memory. A barrier contains the following information in the 64 bits:
+
+        - The current phase of the barrier (i.e., phase): 0 or 1.
+        - The count of pending arrivals in the current phase: 1 to 2^20 - 1.
+        - The count of expected arrivals in the next phase: 0 to 2^20 - 1.
+        - The count of pending asynchronous memory transactions in the current phase (i.e., `tx-count`):
+          -(2^20 - 1) to 2^20 - 1.
+
+        After initialization, we have:
+
+        - phase = 0
+        - pending arrivals = count
+        - expected arrivals = count
+        - tx-count = 0
+
+        When `count` is not provided, it defaults to the number of threads in the current thread group.
+
+        Asynchronous memory copy instructions (e.g., `copy_async_bulk` or `copy_async_tensor` instructions) that
+        take a barrier as an argument will:
+
+        - increase the `tx-count` by the number of bytes to be copied before the copy starts.
+        - decrease the `tx-count` by the number of bytes copied after the copy completes asynchronously.
+
+        The `arrive_barrier` instruction will decrease the pending arrivals by the number of threads in the thread
+        group that call the instruction.
+
+        The `wait_barrier` instruction will make the thread group wait until the given phase has finished.
+
+        Once the following conditions are met for the current phase:
+
+        - pending arrivals == 0
+        - tx-count == 0
+
+        The barrier will switch to the next phase, and the following will happen:
+
+        - phase = phase ^ 1
+        - pending arrivals = expected arrivals in the next phase
+        - expected arrivals does not change
+        - tx-count = 0
 
         Parameters
         ----------
@@ -1922,15 +2107,15 @@ class Script:
             The pointer to the barrier in shared memory.
         count: Expr | int, optional
             The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
-            to a positive int32. When not provided, it defaults to the number of threads in the thread block.
+            to a positive int32. When not provided, it defaults to the number of threads in the current thread group.
         """
         self._builder.init_barrier(barrier, int32(count) if isinstance(count, int) else count)
 
     def arrive_barrier(self, barrier: Expr) -> None:
         """Arrive at a barrier.
 
-        This instruction indicates that the thread block (or the current partition of the thread block) has reached the
-        specified barrier.
+        This instruction decreases the pending arrivals of given barrier by the number of threads in the thread group
+        that call the instruction.
 
         Parameters
         ----------
@@ -1942,14 +2127,14 @@ class Script:
     def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr | int) -> None:
         """Arrive at a remote barrier.
 
-        This instruction indicates that a remote thread block has reached the specified barrier. It is used for
-        inter-block synchronization, allowing one thread block to signal another thread block that it has reached a
-        barrier.
+        This instruction decreases the pending arrivals of the barrier in the remote block by the number of threads in
+        the thread group that call the instruction.
 
         Parameters
         ----------
         barrier: Expr
-            The pointer to the barrier in shared memory.
+            The pointer to the barrier in shared memory in the current thread block. The offset of the barrier will be
+            used to locate the barrier in the remote block.
         remote_block: Expr | int
             The thread block index of the remote thread block that the current block is signaling the arrival to. It
             should be an expression that evaluates to a non-negative int32.
@@ -1959,8 +2144,15 @@ class Script:
     def wait_barrier(self, barrier: Expr, phase: Expr | int) -> None:
         """Wait at a barrier.
 
-        This instruction makes the thread block (or the current partition of the thread block) wait at the specified
-        barrier until the entire thread block (or the current partition) has arrived at the barrier.
+        This instruction makes the threads in the current thread group wait at the specified barrier until the pending
+        arrivals and tx-count of the given phase are both zero.
+
+        When the barrier's current phase is not equal to the specified `phase`, the threads will proceed without waiting
+        since the specified phase has already finished.
+
+        When the barrier's current phase is equal to the specified `phase`, the threads will wait until both the pending
+        arrivals and tx-count of the current phase are zero. Once these conditions are met, the barrier will switch to
+        the next phase, and the threads will proceed.
 
         Parameters
         ----------

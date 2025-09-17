@@ -226,7 +226,7 @@ class AddressingAnalyzer(IRVisitor):
             if isinstance(var.type, DataType):
                 scope = DeclareScope.Register
             else:
-                raise NotImplementedError()
+                scope = DeclareScope.Default
         else:
             raise NotImplementedError(str(type(e.expr)) + " " + str(e))
         self.buf2addr[e] = Addressing(scope=scope, type=get_base_type(self.type_infer(e)), base=e, offset=int32.zero)

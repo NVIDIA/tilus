@@ -65,5 +65,5 @@ class GlobalMemoryAllocationContext(BaseEmitContext):
                 continue
             sb = StmtBuilder()
             sb.declare(base_ptr, cast(request_workspace(nbytes=allocated, require_clean=clean), ~uint8))
-            self.prepend_host(sb.finish())
-            self.codegen.extra_params.append(base_ptr)
+            self.host_prepend(sb.finish())
+            self.append_extra_param(base_ptr)

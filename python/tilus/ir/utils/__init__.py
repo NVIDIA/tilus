@@ -13,4 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .frozendict import frozendict
+from .lineardec import decompose_linear
 from .vector import vector

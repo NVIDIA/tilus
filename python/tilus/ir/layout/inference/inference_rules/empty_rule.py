@@ -27,10 +27,16 @@ from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkSharedToClusterSharedInst,
     CopyAsyncBulkSharedToGlobalInst,
 )
+from tilus.ir.instructions.cuda.cp_async_tensor import (
+    CopyAsyncTensorGlobalToSharedInst,
+    CopyAsyncTensorSharedToGlobalInst,
+)
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.tensor import Tensor
 
 
+@register_rule(CopyAsyncTensorSharedToGlobalInst)  # todo: implement its own rule
+@register_rule(CopyAsyncTensorGlobalToSharedInst)  # todo: implement its own rule
 @register_rule(CopyAsyncBulkSharedToClusterSharedInst)
 @register_rule(CopyAsyncBulkGlobalToClusterSharedInst)
 @register_rule(CopyAsyncBulkGlobalToSharedInst)

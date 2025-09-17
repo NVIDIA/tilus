@@ -54,8 +54,8 @@ class LoadMatrixInstEmitter(BaseInstEmitter):
                 regs.append(deref(cast(~regs_buf[(vec_i * vector_size + i) * ldmatrix_layout.local_size], ~uint32)))
 
             # get the address of each row
-            lane_id = self.current_worker % 32
-            warp_id = self.current_worker // 32
+            lane_id = self.current_thread % 32
+            warp_id = self.current_thread // 32
             lhs_indices = vector(
                 lhs_layout.get_global(local_index=vec_i * vector_size + lane_id // 8, spatial_index=warp_id)
             )

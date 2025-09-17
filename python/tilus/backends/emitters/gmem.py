@@ -12,10 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import Expr
+from hidet.ir.expr import Expr, Var
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.backends.contexts import GlobalMemoryAllocationContext
+from tilus.backends.contexts import GlobalMemoryAllocationContext, GlobalTensorViewContext
 from tilus.ir import GlobalTensor
 from tilus.ir.instructions import AllocateGlobalInst, GlobalSliceInst, GlobalViewInst
 from tilus.utils import cdiv
@@ -24,7 +24,12 @@ from tilus.utils import cdiv
 @register_emitter(GlobalViewInst)
 class GlobalViewInstEmitter(BaseInstEmitter):
     def emit(self, inst: GlobalViewInst) -> None:
-        self.assign(self.get_or_allocate_var(inst.global_output), inst.ptr)
+        ctx: GlobalTensorViewContext = self.contexts[GlobalTensorViewContext]
+        global_tensor = inst.global_output
+        self.assign(self.get_or_allocate_var(global_tensor), inst.ptr)
+
+        if isinstance(inst.ptr, Var) and inst.ptr in self.kernel_params:
+            ctx.add_tensor_view(tensor=global_tensor, ptr=inst.ptr, layout=global_tensor.layout)
 
 
 @register_emitter(AllocateGlobalInst)

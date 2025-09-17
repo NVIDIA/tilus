@@ -14,7 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional, Set, Type
+from typing import Any, Callable, Dict, Optional, Sequence, Set, Type, TypeVar
 
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder, StmtBuilder
@@ -125,11 +125,11 @@ class BaseInstEmitter(StmtBuilder):
             return var
 
     @property
-    def current_worker(self) -> Expr:
-        return self._codegen.thread_group_stack.current_worker[-1]
+    def current_thread(self) -> Expr:
+        return self._codegen.thread_group_stack.current_thread[-1]
 
     @property
-    def current_num_workers(self) -> int:
+    def current_num_threads(self) -> int:
         return self._codegen.thread_group_stack.group_size[-1]
 
     @property
@@ -168,6 +168,47 @@ class BaseInstEmitter(StmtBuilder):
     def contexts(self) -> Dict[Type[BaseEmitContext], Any]:
         return self._codegen.contexts
 
+    @property
+    def kernel_params(self) -> Sequence[Var]:
+        return self._codegen.builder.params
+
+    def kernel_prepend(self, stmt: Expr | HidetStmt) -> None:
+        """Prepend a statement to the kernel function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be prepended.
+        """
+        self._codegen.builder.scope_stack[-1].insert(0, stmt)
+
+    def kernel_append(self, stmt: Expr | HidetStmt) -> None:
+        """Append a statement to the kernel function.
+
+        Parameters
+        ----------
+        stmt: Expr or HidetStmt
+            The statement to be appended.
+        """
+        self._codegen.builder.append(stmt)
+
+    @property
+    def host_builder(self) -> FunctionBuilder:
+        return self._codegen.host_builder
+
+    @property
+    def builder(self) -> FunctionBuilder:
+        return self._codegen.builder
+
+    def append_extra_param(self, var: Var) -> None:
+        """Append an extra parameter to the kernel function.
+
+        This method marks a variable in the host function to be passed as an extra parameter to the kernel function.
+        The `var` must be a variable defined in the host function. The kernel function can directly use the `var` in the
+        kernel body after this method is called.
+        """
+        self._codegen.extra_params.append(var)
+
     def emit(self, inst: Instruction) -> None:
         raise NotImplementedError()
 
@@ -178,7 +219,7 @@ class BaseEmitContext:
     def __init__(self, codegen: FunctionCodegen):
         self.codegen = codegen
 
-    def prepend_host(self, stmt: Expr | HidetStmt) -> None:
+    def host_prepend(self, stmt: Expr | HidetStmt) -> None:
         """Prepend a statement to the host function.
 
         Parameters
@@ -188,7 +229,7 @@ class BaseEmitContext:
         """
         self.codegen.host_builder.scope_stack[-1].insert(0, stmt)
 
-    def append_host(self, stmt: Expr | HidetStmt) -> None:
+    def host_append(self, stmt: Expr | HidetStmt) -> None:
         """Append a statement to the host function.
 
         Parameters
@@ -198,7 +239,7 @@ class BaseEmitContext:
         """
         self.codegen.host_builder.append(stmt)
 
-    def prepend_kernel(self, stmt: Expr | HidetStmt) -> None:
+    def kernel_prepend(self, stmt: Expr | HidetStmt) -> None:
         """Prepend a statement to the kernel function.
 
         Parameters
@@ -208,7 +249,7 @@ class BaseEmitContext:
         """
         self.codegen.builder.scope_stack[-1].insert(0, stmt)
 
-    def append_kernel(self, stmt: Expr | HidetStmt) -> None:
+    def kernel_append(self, stmt: Expr | HidetStmt) -> None:
         """Append a statement to the kernel function.
 
         Parameters
@@ -217,6 +258,15 @@ class BaseEmitContext:
             The statement to be appended.
         """
         self.codegen.builder.append(stmt)
+
+    def append_extra_param(self, var: Var) -> None:
+        """Append an extra parameter to the kernel function.
+
+        This method marks a variable in the host function to be passed as an extra parameter to the kernel function.
+        The `var` must be a variable defined in the host function. The kernel function can directly use the `var` in the
+        kernel body after this method is called.
+        """
+        self.codegen.extra_params.append(var)
 
     def initialize(self):
         """Initialize the context.
@@ -283,13 +333,13 @@ class CommentInlinedIRPrinter(IRPrinter):
 
 class ThreadGroupStack:
     def __init__(self):
-        self.current_worker: list[Var] = []
+        self.current_thread: list[Var] = []
         self.num_groups: list[int] = []
         self.group_index: list[int] = []
         self.group_size: list[int] = []
 
     def stack_depth(self):
-        return len(self.current_worker)
+        return len(self.current_thread)
 
     def push(self, worker: Var, num_groups: int, group_index: int, group_size: int) -> None:
         if self.stack_depth() > 0:
@@ -301,16 +351,19 @@ class ThreadGroupStack:
                         group_index, num_groups
                     )
                 )
-        self.current_worker.append(worker)
+        self.current_thread.append(worker)
         self.num_groups.append(num_groups)
         self.group_index.append(group_index)
         self.group_size.append(group_size)
 
     def pop(self):
-        self.current_worker.pop()
+        self.current_thread.pop()
         self.num_groups.pop()
         self.group_index.pop()
         self.group_size.pop()
+
+
+ContextTypeVar = TypeVar("ContextTypeVar", bound=BaseEmitContext)
 
 
 class FunctionCodegen(IRFunctor):
@@ -354,7 +407,7 @@ class FunctionCodegen(IRFunctor):
 
     @property
     def current_worker(self):
-        return self.thread_group_stack.current_worker[-1]
+        return self.thread_group_stack.current_thread[-1]
 
     def check_emitter_existence(self) -> None:
         failed_instructions: Set[str] = set()
@@ -525,7 +578,12 @@ class FunctionCodegen(IRFunctor):
         self.builder.declare(stmt.var, init=stmt.init)
 
     def visit_LetStmt(self, stmt: LetStmt) -> None:
+        from tilus.backends.contexts.invariant_ctx import InvariantTrackingContext
+
         with self.builder.lets(bind_vars=stmt.bind_vars, values=stmt.bind_values):
+            for bind_var, bind_value in zip(stmt.bind_vars, stmt.bind_values):
+                ctx: InvariantTrackingContext = self.contexts[InvariantTrackingContext]  # type: ignore
+                ctx.bind(bind_var, bind_value)
             self.visit(stmt.body)
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:

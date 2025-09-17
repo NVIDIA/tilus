@@ -40,10 +40,17 @@ from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkSharedToClusterSharedInst,
     CopyAsyncBulkSharedToGlobalInst,
 )
+from tilus.ir.instructions.cuda.cp_async_tensor import (
+    CopyAsyncTensorCommitGroupInst,
+    CopyAsyncTensorGlobalToSharedInst,
+    CopyAsyncTensorSharedToGlobalInst,
+    CopyAsyncTensorWaitGroupInst,
+)
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mbarrier import (
     ArriveBarrierInst,
     ArriveRemoteBarrierInst,
+    FenceProxyCopyAsync,
     InitBarrierInst,
     WaitBarrierInst,
 )
@@ -584,6 +591,46 @@ class StmtBuilder(StmtBuilderCore):
         )
         self.append(inst)
 
+    def copy_async_tensor_global_to_shared(
+        self,
+        *,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        mbarrier: Expr,
+        cache_policy: Optional[Expr] = None,
+    ) -> None:
+        if dims is None:
+            dims = list(range(len(src.shape)))
+        inst = CopyAsyncTensorGlobalToSharedInst.create(
+            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, cache_policy=cache_policy
+        )
+        self.append(inst)
+
+    def copy_async_tensor_shared_to_global(
+        self,
+        src: SharedTensor,
+        dst: GlobalTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        cache_policy: Optional[Expr] = None,
+    ) -> None:
+        if dims is None:
+            dims = list(range(len(src.shape)))
+        inst = CopyAsyncTensorSharedToGlobalInst.create(
+            src=src, dst=dst, offsets=offsets, dims=dims, cache_policy=cache_policy
+        )
+        self.append(inst)
+
+    def copy_async_tensor_commit_group(self):
+        inst = CopyAsyncTensorCommitGroupInst.create()
+        self.append(inst)
+
+    def copy_async_tensor_wait_group(self, n: int) -> None:
+        inst = CopyAsyncTensorWaitGroupInst.create(n)
+        self.append(inst)
+
     def elementwise_binary(
         self,
         x: RegisterTensor,
@@ -1061,6 +1108,10 @@ class StmtBuilder(StmtBuilderCore):
 
     def wait_barrier(self, barrier: Expr, phase: Expr) -> None:
         inst = WaitBarrierInst.create(barrier=barrier, phase=phase)
+        self.append(inst)
+
+    def fence_proxy_copy_async(self):
+        inst = FenceProxyCopyAsync.create()
         self.append(inst)
 
     # annotations

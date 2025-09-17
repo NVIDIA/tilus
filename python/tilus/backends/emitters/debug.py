@@ -32,7 +32,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
     def print_left_bracket(self, indices: List[Expr], shape: List[int]) -> None:
         # left [
         if len(shape) >= 1:
-            with self.if_then(logical_and(self.current_worker == 0, indices[-1] == 0)):
+            with self.if_then(logical_and(self.current_thread == 0, indices[-1] == 0)):
                 for dim in range(len(indices)):
                     left_cond = logical_and(*[axis == 0 for axis in indices[dim:]])
                     with self.if_then(left_cond):
@@ -44,7 +44,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
     def print_right_bracket(self, indices: Sequence[Expr], shape: Sequence[int]) -> None:
         # right ]
         if len(shape) >= 1:
-            with self.if_then(logical_and(self.current_worker == 0, indices[-1] == shape[-1] - 1)):
+            with self.if_then(logical_and(self.current_thread == 0, indices[-1] == shape[-1] - 1)):
                 for dim in reversed(range(len(indices))):
                     right_cond = logical_and(*[axis == extent - 1 for axis, extent in zip(indices[dim:], shape[dim:])])
                     with self.if_then(right_cond):
@@ -54,7 +54,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
 
     def print_seperate_comma(self, indices: Sequence[Expr], shape: Sequence[int]) -> None:
         if len(shape) >= 1:
-            with self.if_then(logical_and(self.current_worker == 0, indices[-1] != shape[-1] - 1)):
+            with self.if_then(logical_and(self.current_thread == 0, indices[-1] != shape[-1] - 1)):
                 self.append(printf(", "))
             self.sync()
 
@@ -106,7 +106,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
             self.sync()
             with self.if_then(cond):
                 self.sync()
-                with self.if_then(self.current_worker == 0):
+                with self.if_then(self.current_thread == 0):
                     self.append(
                         printf(
                             "%s%s\n",
@@ -123,14 +123,14 @@ class PrintValueInstEmitter(BaseInstEmitter):
                         self.print_left_bracket(squeezed_indices, squeezed_shape)
 
                         if prod(layout.shape) != layout.local_size * layout.spatial_size:
-                            with self.if_then(self.current_worker == 0):
+                            with self.if_then(self.current_thread == 0):
                                 self.append(printf("{"))
                         self.sync()
 
                         # print the element
                         indices = self.restore_indices(squeezed_indices, squeezed_dims, shape)
-                        is_valid = locate_at(layout, global_indices=indices, spatial_index=self.current_worker)
-                        with self.if_then(logical_and(self.current_worker < layout.spatial_size, is_valid)):
+                        is_valid = locate_at(layout, global_indices=indices, spatial_index=self.current_thread)
+                        with self.if_then(logical_and(self.current_thread < layout.spatial_size, is_valid)):
                             buf = self.tensor2var[tensor]
                             local_index = layout.get_local(indices)
                             data = buf[local_index]
@@ -145,11 +145,11 @@ class PrintValueInstEmitter(BaseInstEmitter):
                                 self.append(printf(fmt, data))
                             else:
                                 # multi threads store the same tensor
-                                self.append(printf("%3d:" + fmt + " ", self.current_worker, data))
+                                self.append(printf("%3d:" + fmt + " ", self.current_thread, data))
                         self.sync()
 
                         if prod(layout.shape) != layout.local_size * layout.spatial_size:
-                            with self.if_then(self.current_worker == 0):
+                            with self.if_then(self.current_thread == 0):
                                 self.append(printf("}"))
                         self.sync()
 
@@ -162,7 +162,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
             self.sync()
             with self.if_then(cond):
                 self.sync()
-                with self.if_then(self.current_worker == 0):
+                with self.if_then(self.current_thread == 0):
                     self.append(printf(inst.msg))
                     self.append(
                         printf(
@@ -186,7 +186,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
                             data = cast(data, int32)
                         else:
                             raise NotImplementedError()
-                        with self.if_then(self.current_worker == 0):
+                        with self.if_then(self.current_thread == 0):
                             self.append(printf(fmt, data))
                         self.sync()
 
@@ -201,6 +201,6 @@ class PrintValueInstEmitter(BaseInstEmitter):
 class FormatPrintInstEmitter(BaseInstEmitter):
     def emit(self, inst: FormatPrintInst) -> None:
         self.sync()
-        with self.if_then(logical_and(inst.cond, self.current_worker == 0)):
+        with self.if_then(logical_and(inst.cond, self.current_thread == 0)):
             self.append(printf(inst.fstring, *inst.expressions))
         self.sync()

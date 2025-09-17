@@ -33,7 +33,7 @@ class MmaDotInstEmitter(BaseInstEmitter):
         b_buf = self.tensor2var[b_value]
         c_buf = self.tensor2var[c_value]
 
-        warp_id: Expr = self.current_worker // 32
+        warp_id: Expr = self.current_thread // 32
         warp_spatial: Tuple[int, int, int] = inst.warp_spatial
         warp_repeat: Tuple[int, int, int] = inst.warp_repeat
         thread_spatial: Tuple[int, int] = inst.thread_spatial
