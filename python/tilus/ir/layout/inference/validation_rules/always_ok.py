@@ -40,9 +40,11 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorGlobalToSharedInst,
     CopyAsyncTensorSharedToGlobalInst,
 )
+from tilus.ir.instructions.cuda.tmem import TMemoryLoadInst, TMemoryStoreInst
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 
-
+@register_rule(TMemoryLoadInst) # todo: should have its own rule
+@register_rule(TMemoryStoreInst) # todo: should have its own rule
 @register_rule(CopyAsyncTensorGlobalToSharedInst)  # todo: should have its own rule
 @register_rule(CopyAsyncTensorSharedToGlobalInst)  # todo: should have its own rule
 @register_rule(CopyAsyncBulkSharedToClusterSharedInst)  # todo: should have its own rule

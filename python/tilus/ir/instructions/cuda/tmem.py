@@ -29,11 +29,11 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05LoadStoreSh
 
 
 @functools.cache
-def get_ldst_layout(shape: Tcgen05LoadStoreShapeKind, num: Tcgen05LoadStoreNumKind) -> RegisterLayout:
+def get_ldst_layout(shape: Tcgen05LoadStoreShapeKind) -> RegisterLayout:
 
     # see https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-memory-layout
     if shape == Tcgen05LoadStoreShapeKind.R32x32B:
-        atom = spatial(32, 1)
+        return spatial(32, 1)
     elif shape == Tcgen05LoadStoreShapeKind.R16x64B:
         """
         ┌───────┬───────┐
@@ -70,16 +70,14 @@ def get_ldst_layout(shape: Tcgen05LoadStoreShapeKind, num: Tcgen05LoadStoreNumKi
         │ 29: 0 │ 31: 0 │
         └───────┴───────┘
         """
-        atom = register_layout(shape=[16, 2], mode_shape=[2, 8, 2], spatial_modes=[1, 2, 0], local_modes=[])
+        return register_layout(shape=[16, 2], mode_shape=[2, 8, 2], spatial_modes=[1, 2, 0], local_modes=[])
     elif shape == Tcgen05LoadStoreShapeKind.R16x128B:
-        atom = local(2, 1).spatial(8, 4)
+        return local(2, 1).spatial(8, 4)
     elif shape == Tcgen05LoadStoreShapeKind.R16x256B:
-        atom = local(2, 1).spatial(8, 4).local(1, 2)
+        return local(2, 1).spatial(8, 4).local(1, 2)
     else:
         raise ValueError(f"Unsupported shape: {shape}")
     
-    layout = local(1, int(num)) * atom
-    return layout
 
 
 @dataclass(frozen=True, eq=False)

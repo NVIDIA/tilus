@@ -28,4 +28,6 @@ from . import (
     transform,
     transpose,
     where,
+    tmem_ldst,
 )
+

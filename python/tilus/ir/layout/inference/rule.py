@@ -22,11 +22,14 @@ from tilus.ir.inst import Instruction
 from tilus.ir.layout import RegisterLayout, SharedLayout
 from tilus.ir.tensor import RegisterTensor, SharedTensor
 
+class LayoutInferenceError(Exception):
+    pass
 
 class LayoutInferenceContext:
-    def __init__(self, num_warps: int, num_threads: int, analysis: Analysis):
-        self.num_warps: int = num_warps
+    def __init__(self, num_threads: int, thread_begin: int, thread_end: int, analysis: Analysis):
         self.num_threads: int = num_threads
+        self.thread_begin: int = thread_begin
+        self.thread_end: int = thread_end
         self.analysis: Analysis = analysis
 
 

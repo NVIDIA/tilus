@@ -55,6 +55,7 @@ from tilus.ir.tools import IRPrinter
 from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.ir.utils.normalize import normalize_dim3
 from tilus.target import Target, get_current_target, gpgpu_any, match_target
+from tilus.ir.utils.thread_group_stack import ThreadGroupStack
 
 
 class InvalidInstruction(Exception):
@@ -127,7 +128,7 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def current_thread(self) -> Expr:
-        return self._codegen.thread_group_stack.current_thread[-1]
+        return self._codegen.current_thread
 
     @property
     def current_num_threads(self) -> int:
@@ -332,37 +333,6 @@ class CommentInlinedIRPrinter(IRPrinter):
         return Text(comment) if isinstance(comment, str) else comment
 
 
-class ThreadGroupStack:
-    def __init__(self):
-        self.current_thread: list[Var] = []
-        self.num_groups: list[int] = []
-        self.group_index: list[int] = []
-        self.group_size: list[int] = []
-
-    def stack_depth(self):
-        return len(self.current_thread)
-
-    def push(self, worker: Var, num_groups: int, group_index: int, group_size: int) -> None:
-        if self.stack_depth() > 0:
-            if num_groups * group_size != self.group_size[-1]:
-                raise ValueError("num_groups * group_size must equal to the parent group_size")
-            if group_index < 0 or group_index >= num_groups:
-                raise ValueError(
-                    "group_index must be in [0, num_groups), got group_index={}, num_groups={}".format(
-                        group_index, num_groups
-                    )
-                )
-        self.current_thread.append(worker)
-        self.num_groups.append(num_groups)
-        self.group_index.append(group_index)
-        self.group_size.append(group_size)
-
-    def pop(self):
-        self.current_thread.pop()
-        self.num_groups.pop()
-        self.group_index.pop()
-        self.group_size.pop()
-
 
 class FunctionCodegen(IRFunctor):
     def __init__(self) -> None:
@@ -380,6 +350,7 @@ class FunctionCodegen(IRFunctor):
         self.shared_tensor_addr: dict[SharedTensor, Var] = {}  # shared tensor to uint32 addr in shared space
 
         # stacks of for_thread_groups
+        self._current_thread: Optional[Var] = None
         self.thread_group_stack = ThreadGroupStack()
 
     def __call__(self, prog: Function) -> IRModule:
@@ -401,8 +372,8 @@ class FunctionCodegen(IRFunctor):
         return self._host_builder
 
     @property
-    def current_worker(self):
-        return self.thread_group_stack.current_thread[-1]
+    def current_thread(self):
+        return self._current_thread
 
     def check_emitter_existence(self) -> None:
         failed_instructions: Set[str] = set()
@@ -474,9 +445,8 @@ class FunctionCodegen(IRFunctor):
         self.check_emitter_existence()
 
         # initialize for_thread_group stack
-        self.thread_group_stack.push(
-            worker=threadIdx.x, num_groups=1, group_index=0, group_size=func.metadata.num_warps * 32
-        )
+        self._current_thread = threadIdx.x
+        self.thread_group_stack.push(group_index=0, group_size=func.metadata.num_warps * 32)
 
         # create all contexts
         contexts = {cls: cls(self) for cls in BaseEmitContext.REGISTRY}
@@ -542,39 +512,29 @@ class FunctionCodegen(IRFunctor):
 
     def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> None:
         # check the validity of the thread group
-        if stmt.group_size is not None and stmt.num_groups is not None:
-            group_size = stmt.group_size
-            num_groups = stmt.num_groups
-        elif stmt.group_size is not None:
-            group_size = stmt.group_size
-            num_groups = self.thread_group_stack.group_size[-1] // group_size
-        elif stmt.num_groups is not None:
-            num_groups = stmt.num_groups
-            group_size = self.thread_group_stack.group_size[-1] // num_groups
-        else:
-            raise ValueError("Either group_size or num_groups must be specified in ThreadGroupStmt")
-        if group_size * num_groups != self.thread_group_stack.group_size[-1]:
-            raise ValueError(
-                "group_size * num_groups must equal to the parent group_size, got group_size={}, num_groups={}, parent_group_size={}".format(
-                    group_size, num_groups, self.thread_group_stack.group_size[-1]
-                )
-            )
+        parent_group_size = self.thread_group_stack.group_size[-1]
+        if parent_group_size % stmt.group_size != 0:
+            raise ValueError("group_size must be a divisor of the parent group_size")
+        num_groups = parent_group_size // stmt.group_size
+        if stmt.group_index < 0 or stmt.group_index >= num_groups:
+            raise ValueError("group_index must be in [0, num_groups), got group_index={}, num_groups={}".format(stmt.group_index, num_groups))
 
         self.builder.comment(
-            "ThreadGroup(group_index={}, num_groups={}, group_size={})".format(
-                stmt.group_index, num_groups, group_size
+            "ThreadGroup(group_index={}, group_size={})".format(
+                stmt.group_index, stmt.group_size
             ),
             style="/*",
         )
-        with self.builder.if_then(cond=self.current_worker // stmt.group_size == stmt.group_index):
-            tid = self.builder.declare_var("tid_in_group", tp=int32, init=self.current_worker % group_size)
+        with self.builder.if_then(cond=self.current_thread // stmt.group_size == stmt.group_index):
+            tid = self.builder.declare_var("tid", tp=int32, init=self.current_thread % stmt.group_size)
+            old_thread = self._current_thread
+            self._current_thread = tid
             self.thread_group_stack.push(
-                worker=tid,
-                num_groups=self.thread_group_stack.group_size[-1] // group_size,
                 group_index=stmt.group_index,
-                group_size=group_size,
+                group_size=stmt.group_size,
             )
             self.visit(stmt.body)
+            self._current_thread = old_thread
             self.thread_group_stack.pop()
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> None:

@@ -32,6 +32,31 @@ class Tcgen05LoadStoreShapeKind(Enum):
     R16x256B = ".16x256b"
     R32x32B = ".32x32b"
 
+    def rows(self) -> int:
+        if self == Tcgen05LoadStoreShapeKind.R16x64B:
+            return 16
+        elif self == Tcgen05LoadStoreShapeKind.R16x128B:
+            return 16
+        elif self == Tcgen05LoadStoreShapeKind.R16x256B:
+            return 16
+        elif self == Tcgen05LoadStoreShapeKind.R32x32B:
+            return 32
+        else:
+            raise ValueError(f"Unsupported shape: {self}")
+    
+    def columns_bits(self) -> int:
+        if self == Tcgen05LoadStoreShapeKind.R16x64B:
+            return 64
+        elif self == Tcgen05LoadStoreShapeKind.R16x128B:
+            return 128
+        elif self == Tcgen05LoadStoreShapeKind.R16x256B:
+            return 256
+        elif self == Tcgen05LoadStoreShapeKind.R32x32B:
+            return 32
+        else:
+            raise ValueError(f"Unsupported shape: {self}")
+
+
 class Tcgen05LoadStoreNumKind(Enum):
     X1 = ".x1"
     X2 = ".x2"

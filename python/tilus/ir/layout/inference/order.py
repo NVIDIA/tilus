@@ -24,6 +24,7 @@ from .inference_rules.elementwise_binary import BinaryRule
 from .inference_rules.elementwise_unary import UnaryRule
 from .inference_rules.empty_rule import EmptyRule
 from .inference_rules.ldst_global import LoadGlobalRule, StoreGlobalRule
+from .inference_rules.tmem_ldst import TMemoryLoadRule, TMemoryStoreRule
 from .inference_rules.load_shared import (
     LoadSharedInferRegisterRule,
     LoadSharedInferRowMajorSharedRule,
@@ -39,6 +40,7 @@ from .inference_rules.where import WhereRule
 
 inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [MmaDotRule],
+    [TMemoryLoadRule, TMemoryStoreRule],
     [BinaryRule, UnaryRule],
     [LoadGlobalRule],
     [ReduceRule],

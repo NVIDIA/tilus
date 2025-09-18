@@ -321,7 +321,7 @@ class IRRewriter(IRFunctor):
         if body is stmt.body:
             return stmt
         else:
-            return ThreadGroupStmt(stmt.group_index, stmt.group_size, stmt.num_groups, body)
+            return ThreadGroupStmt(stmt.group_index, stmt.group_size, body)
 
     def visit_IfStmt(self, stmt: IfStmt) -> Stmt:
         cond = self.visit(stmt.cond)
