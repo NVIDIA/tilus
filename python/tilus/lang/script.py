@@ -103,10 +103,10 @@ class TmemInstructionGroup(InstructionGroup):
     def alloc(self, num_columns: int, cta_group: int) -> TMemoryTensor:
         if cta_group not in [1, 2]:
             raise ValueError("cta_group must be 1 or 2")
-        return self._builder.tcgen05_alloc(num_columns, cta_group)
+        return self._builder.tmem_alloc(num_columns, cta_group)
 
     def dealloc(self, tensor: TMemoryTensor) -> None:
-        self._builder.tcgen05_dealloc(tensor)
+        self._builder.tmem_dealloc(tensor)
 
     def slice(self, tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> TMemoryTensor:
         return self._builder.tmem_slice(tensor, offsets, shape)
@@ -115,7 +115,13 @@ class TmemInstructionGroup(InstructionGroup):
         return self._builder.tmem_view(tensor, dtype, shape)
 
     def relinquish_alloc_permit(self, cta_group: int) -> None:
-        self._builder.tcgen05_relinquish_alloc_permit(cta_group)
+        self._builder.tmem_relinquish_alloc_permit(cta_group)
+    
+    def load(self, tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
+        return self._builder.tmem_load(tensor, offsets, shape)
+
+    def store(self, tensor: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int] = (0, 0)) -> None:
+        return self._builder.tmem_store(tensor, src, offsets)
 
 
 class Script:

@@ -24,13 +24,13 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     tcgen05_dealloc,
     tcgen05_relinquish_alloc_permit,
 )
-from tilus.ir.instructions.cuda.tcgen05 import Tcgen05AllocInst, Tcgen05DeallocInst, Tcgen05RelinquishAllocPermitInst
+from tilus.ir.instructions.cuda.tcgen05 import TMemoryAllocInst, TMemoryDeallocInst, TMemoryRelinquishAllocPermitInst
 from tilus.target import nvgpu_sm100
 
 
-@register_emitter(Tcgen05AllocInst, target=nvgpu_sm100)
+@register_emitter(TMemoryAllocInst, target=nvgpu_sm100)
 class Tcgen05AllocEmitter(BaseInstEmitter):
-    def emit(self, inst: Tcgen05AllocInst) -> None:
+    def emit(self, inst: TMemoryAllocInst) -> None:
         if self.current_num_threads < 32:
             raise ValueError("tcgen05_alloc requires at least 32 threads in the current thread group")
 
@@ -63,16 +63,16 @@ class Tcgen05AllocEmitter(BaseInstEmitter):
         self.sync()
 
 
-@register_emitter(Tcgen05DeallocInst, target=nvgpu_sm100)
+@register_emitter(TMemoryDeallocInst, target=nvgpu_sm100)
 class Tcgen05DeallocEmitter(BaseInstEmitter):
-    def emit(self, inst: Tcgen05DeallocInst) -> None:
+    def emit(self, inst: TMemoryDeallocInst) -> None:
         tmem_var = self.get_or_allocate_var(tensor=inst.inputs[0].as_tmemory_tensor())
         num_columns = inst.inputs[0].as_tmemory_tensor().shape[1]
         tcgen05_ctx = Tcgen05EmitContext.current()
         self.append(tcgen05_dealloc(taddr=tmem_var, num_columns=uint32(num_columns), cta_group=tcgen05_ctx.cta_group))
 
 
-@register_emitter(Tcgen05RelinquishAllocPermitInst, target=nvgpu_sm100)
+@register_emitter(TMemoryRelinquishAllocPermitInst, target=nvgpu_sm100)
 class Tcgen05RelinquishAllocPermitEmitter(BaseInstEmitter):
-    def emit(self, inst: Tcgen05RelinquishAllocPermitInst) -> None:
+    def emit(self, inst: TMemoryRelinquishAllocPermitInst) -> None:
         self.append(tcgen05_relinquish_alloc_permit(inst.cta_group))

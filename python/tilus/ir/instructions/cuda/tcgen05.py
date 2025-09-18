@@ -21,34 +21,34 @@ from hidet.ir.dtypes import uint32
 from hidet.ir.type import DataType
 
 from tilus.ir.inst import Instruction
-from tilus.ir.tensor import TMemoryTensor
+from tilus.ir.tensor import RegisterTensor, TMemoryTensor
 
 
 @dataclass(frozen=True, eq=False)
-class Tcgen05AllocInst(Instruction):
+class TMemoryAllocInst(Instruction):
     cta_group: int  # 1 or 2
 
     @staticmethod
-    def create(num_columns: int, cta_group: int) -> Tcgen05AllocInst:
+    def create(num_columns: int, cta_group: int) -> TMemoryAllocInst:
         assert cta_group in (1, 2)
         output = TMemoryTensor.create(dtype=uint32, shape=[128, num_columns], first_lane=0)
-        return Tcgen05AllocInst(output=output, inputs=(), cta_group=cta_group)
+        return TMemoryAllocInst(output=output, inputs=(), cta_group=cta_group)
 
 
 @dataclass(frozen=True, eq=False)
-class Tcgen05DeallocInst(Instruction):
+class TMemoryDeallocInst(Instruction):
     @staticmethod
-    def create(tmt: TMemoryTensor) -> Tcgen05DeallocInst:
-        return Tcgen05DeallocInst(output=None, inputs=(tmt,))
+    def create(tmt: TMemoryTensor) -> TMemoryDeallocInst:
+        return TMemoryDeallocInst(output=None, inputs=(tmt,))
 
 
 @dataclass(frozen=True, eq=False)
-class Tcgen05RelinquishAllocPermitInst(Instruction):
+class TMemoryRelinquishAllocPermitInst(Instruction):
     cta_group: int = 1
 
     @staticmethod
-    def create(cta_group: int) -> Tcgen05RelinquishAllocPermitInst:
-        return Tcgen05RelinquishAllocPermitInst(output=None, inputs=(), cta_group=cta_group)
+    def create(cta_group: int) -> TMemoryRelinquishAllocPermitInst:
+        return TMemoryRelinquishAllocPermitInst(output=None, inputs=(), cta_group=cta_group)
 
 
 @dataclass(frozen=True, eq=False)
@@ -78,3 +78,40 @@ class TMemoryViewInst(Instruction):
 
         output = TMemoryTensor.create(dtype=dtype, shape=shape, first_lane=tmem.first_lane)
         return TMemoryViewInst(output=output, inputs=(tmem,))
+
+
+@dataclass(frozen=True, eq=False)
+class TMemoryLoadInst(Instruction):
+    offsets: tuple[int, int]
+
+    @staticmethod
+    def create(tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> TMemoryLoadInst:
+        assert len(offsets) == len(shape) == 2
+        for o, s, ts in zip(offsets, shape, tmem.shape):
+            assert 0 <= o < ts
+            assert 0 < s <= ts - o
+        output = RegisterTensor.create(dtype=tmem.dtype, shape=shape)
+        return TMemoryLoadInst(output=output, inputs=(tmem,), offsets=(offsets[0], offsets[1]))
+
+@dataclass(frozen=True, eq=False)
+class TMemoryStoreInst(Instruction):
+    offsets: tuple[int, int]
+
+    @staticmethod
+    def create(tmem: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int]) -> TMemoryStoreInst:
+        assert len(offsets) == 2
+        for o, s, ts in zip(offsets, src.shape, tmem.shape):
+            assert 0 <= o < ts
+            assert 0 < s <= ts - o
+        
+        return TMemoryStoreInst(output=None, inputs=(tmem, src), offsets=(offsets[0], offsets[1]))
+
+
+@dataclass(frozen=True, eq=False)
+class TMemoryWaitInst(Instruction):
+    wait_load: bool
+    wait_store: bool
+
+    @staticmethod
+    def create(wait_load: bool, wait_store: bool) -> TMemoryWaitInst:
+        return TMemoryWaitInst(output=None, inputs=(), wait_load=wait_load, wait_store=wait_store)

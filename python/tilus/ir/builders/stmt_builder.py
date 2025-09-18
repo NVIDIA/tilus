@@ -57,11 +57,13 @@ from tilus.ir.instructions.cuda.mbarrier import (
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from tilus.ir.instructions.cuda.tcgen05 import (
-    Tcgen05AllocInst,
-    Tcgen05DeallocInst,
-    Tcgen05RelinquishAllocPermitInst,
+    TMemoryAllocInst,
+    TMemoryDeallocInst,
+    TMemoryRelinquishAllocPermitInst,
     TMemorySliceInst,
     TMemoryViewInst,
+    TMemoryLoadInst,
+    TMemoryStoreInst,
 )
 from tilus.ir.instructions.generic import (
     AddInst,
@@ -1121,21 +1123,20 @@ class StmtBuilder(StmtBuilderCore):
         inst = FenceProxyCopyAsync.create()
         self.append(inst)
 
-    # tcgen05
-    def tcgen05_alloc(self, num_columns: int, cta_group: int) -> TMemoryTensor:
-        inst = Tcgen05AllocInst.create(num_columns=num_columns, cta_group=cta_group)
+    # tmem tensor (tcgen05)
+    def tmem_alloc(self, num_columns: int, cta_group: int) -> TMemoryTensor:
+        inst = TMemoryAllocInst.create(num_columns=num_columns, cta_group=cta_group)
         self.append(inst)
         return inst.output.as_tmemory_tensor()
 
-    def tcgen05_dealloc(self, tmem: TMemoryTensor) -> None:
-        inst = Tcgen05DeallocInst.create(tmem)
+    def tmem_dealloc(self, tmem: TMemoryTensor) -> None:
+        inst = TMemoryDeallocInst.create(tmem)
         self.append(inst)
 
-    def tcgen05_relinquish_alloc_permit(self, cta_group: int) -> None:
-        inst = Tcgen05RelinquishAllocPermitInst.create(cta_group)
+    def tmem_relinquish_alloc_permit(self, cta_group: int) -> None:
+        inst = TMemoryRelinquishAllocPermitInst.create(cta_group)
         self.append(inst)
 
-    # tmem tensor
     def tmem_slice(self, tmem: TMemoryTensor, offsets: Sequence[int], slice_shape: Sequence[int]) -> TMemoryTensor:
         if any(not isinstance(ofs, int) for ofs in offsets):
             raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
@@ -1153,6 +1154,23 @@ class StmtBuilder(StmtBuilderCore):
         inst = TMemoryViewInst.create(tmem=tmem, dtype=dtype, shape=shape)
         self.append(inst)
         return inst.output.as_tmemory_tensor()
+
+    def tmem_load(self, tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
+        if any(not isinstance(ofs, int) for ofs in offsets):
+            raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
+        if len(offsets) != 2:
+            raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
+        inst = TMemoryLoadInst.create(tmem=tmem, offsets=offsets, shape=shape)
+        self.append(inst)
+        return inst.output.as_register_tensor()
+
+    def tmem_store(self, tmem: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int]) -> None:
+        if any(not isinstance(ofs, int) for ofs in offsets):
+            raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
+        if len(offsets) != 2:
+            raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
+        inst = TMemoryStoreInst.create(tmem=tmem, src=src, offsets=offsets)
+        self.append(inst)
 
     # annotations
     def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None:
