@@ -38,7 +38,7 @@ from tilus.ir.stmt import (
     ThreadGroupStmt,
     WhileStmt,
 )
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, TensorMemoryTensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, TMemoryTensor
 from tilus.utils import same_list
 
 InstClsVar = TypeVar("InstClsVar", bound=Instruction)
@@ -122,7 +122,7 @@ class IRFunctor:
             ret = self.visit_SharedTensor(node)
         elif isinstance(node, GlobalTensor):
             ret = self.visit_GlobalTensor(node)
-        elif isinstance(node, TensorMemoryTensor):
+        elif isinstance(node, TMemoryTensor):
             ret = self.visit_TensorMemoryTensor(node)
         elif isinstance(node, RegisterLayout):
             ret = self.visit_RegisterLayout(node)
@@ -227,7 +227,7 @@ class IRFunctor:
     def visit_GlobalTensor(self, tensor: GlobalTensor) -> Any:
         raise NotImplementedError()
 
-    def visit_TensorMemoryTensor(self, tensor: TensorMemoryTensor) -> Any:
+    def visit_TensorMemoryTensor(self, tensor: TMemoryTensor) -> Any:
         raise NotImplementedError()
 
     def visit_RegisterLayout(self, layout: RegisterLayout) -> Any:
@@ -405,7 +405,7 @@ class IRRewriter(IRFunctor):
         else:
             return GlobalTensor.create(dtype=tensor.dtype, layout=layout)
 
-    def visit_TensorMemoryTensor(self, tensor: TensorMemoryTensor) -> TensorMemoryTensor:
+    def visit_TensorMemoryTensor(self, tensor: TMemoryTensor) -> TMemoryTensor:
         return tensor
 
     def visit_RegisterLayout(self, layout: RegisterLayout) -> RegisterLayout:
@@ -539,7 +539,7 @@ class IRVisitor(IRFunctor):
         self.visit(tensor.layout)
         self.visit(tensor.layout)
 
-    def visit_TensorMemoryTensor(self, tensor: TensorMemoryTensor) -> None:
+    def visit_TensorMemoryTensor(self, tensor: TMemoryTensor) -> None:
         pass
 
     def visit_RegisterLayout(self, layout: RegisterLayout) -> None:

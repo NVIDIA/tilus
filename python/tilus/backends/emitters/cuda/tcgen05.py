@@ -48,7 +48,7 @@ class Tcgen05AllocEmitter(BaseInstEmitter):
             self.append(
                 tcgen05_alloc(
                     dst=smem_addr,
-                    num_columns=uint32(inst.output.as_tensor_memory_tensor().shape[1]),
+                    num_columns=uint32(inst.output.as_tmemory_tensor().shape[1]),
                     cta_group=inst.cta_group,
                 )
             )
@@ -66,8 +66,8 @@ class Tcgen05AllocEmitter(BaseInstEmitter):
 @register_emitter(Tcgen05DeallocInst, target=nvgpu_sm100)
 class Tcgen05DeallocEmitter(BaseInstEmitter):
     def emit(self, inst: Tcgen05DeallocInst) -> None:
-        tmem_var = self.get_or_allocate_var(tensor=inst.inputs[0].as_tensor_memory_tensor())
-        num_columns = inst.inputs[0].as_tensor_memory_tensor().shape[1]
+        tmem_var = self.get_or_allocate_var(tensor=inst.inputs[0].as_tmemory_tensor())
+        num_columns = inst.inputs[0].as_tmemory_tensor().shape[1]
         tcgen05_ctx = Tcgen05EmitContext.current()
         self.append(tcgen05_dealloc(taddr=tmem_var, num_columns=uint32(num_columns), cta_group=tcgen05_ctx.cta_group))
 

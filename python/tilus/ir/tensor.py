@@ -47,8 +47,8 @@ class Tensor:
         assert isinstance(self, SharedTensor)
         return self
 
-    def as_tensor_memory_tensor(self) -> TensorMemoryTensor:
-        assert isinstance(self, TensorMemoryTensor)
+    def as_tmemory_tensor(self) -> TMemoryTensor:
+        assert isinstance(self, TMemoryTensor)
         return self
 
     def as_global_tensor(self) -> GlobalTensor:
@@ -446,14 +446,17 @@ class SharedTensor(Tensor):
 
 
 @dataclass(frozen=True, eq=False)
-class TensorMemoryTensor(Tensor):
+class TMemoryTensor(Tensor):
     shape: tuple[int, int]
 
+    # the first lane of the tensor in tensor memory (0 to 127, inclusive)
+    first_lane: int
+
     @staticmethod
-    def create(dtype: DataType, shape: Sequence[int]) -> TensorMemoryTensor:
+    def create(dtype: DataType, shape: Sequence[int], first_lane: int) -> TMemoryTensor:
         if len(shape) != 2:
             raise ValueError("TensorMemoryTensor only supports 2D shape.")
-        return TensorMemoryTensor(dtype=dtype, shape=(shape[0], shape[1]))
+        return TMemoryTensor(dtype=dtype, shape=(shape[0], shape[1]), first_lane=first_lane)
 
 
 @dataclass(frozen=True, eq=False)

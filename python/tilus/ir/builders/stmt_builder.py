@@ -56,7 +56,13 @@ from tilus.ir.instructions.cuda.mbarrier import (
 )
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
-from tilus.ir.instructions.cuda.tcgen05 import Tcgen05AllocInst, Tcgen05DeallocInst, Tcgen05RelinquishAllocPermitInst
+from tilus.ir.instructions.cuda.tcgen05 import (
+    Tcgen05AllocInst,
+    Tcgen05DeallocInst,
+    Tcgen05RelinquishAllocPermitInst,
+    TMemorySliceInst,
+    TMemoryViewInst,
+)
 from tilus.ir.instructions.generic import (
     AddInst,
     AllocateGlobalInst,
@@ -111,7 +117,7 @@ from tilus.ir.stmt import (
     ThreadGroupStmt,
     WhileStmt,
 )
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor, TensorMemoryTensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor, TMemoryTensor
 
 
 class StmtContext:
@@ -1116,18 +1122,37 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     # tcgen05
-    def tcgen05_alloc(self, num_columns: int, cta_group: int) -> TensorMemoryTensor:
+    def tcgen05_alloc(self, num_columns: int, cta_group: int) -> TMemoryTensor:
         inst = Tcgen05AllocInst.create(num_columns=num_columns, cta_group=cta_group)
         self.append(inst)
-        return inst.output.as_tensor_memory_tensor()
+        return inst.output.as_tmemory_tensor()
 
-    def tcgen05_dealloc(self, tmt: TensorMemoryTensor) -> None:
-        inst = Tcgen05DeallocInst.create(tmt)
+    def tcgen05_dealloc(self, tmem: TMemoryTensor) -> None:
+        inst = Tcgen05DeallocInst.create(tmem)
         self.append(inst)
 
     def tcgen05_relinquish_alloc_permit(self, cta_group: int) -> None:
         inst = Tcgen05RelinquishAllocPermitInst.create(cta_group)
         self.append(inst)
+
+    # tmem tensor
+    def tmem_slice(self, tmem: TMemoryTensor, offsets: Sequence[int], slice_shape: Sequence[int]) -> TMemoryTensor:
+        if any(not isinstance(ofs, int) for ofs in offsets):
+            raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
+        if len(offsets) != 2:
+            raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
+        if len(slice_shape) != 2:
+            raise InstructionError(f"The length of slice_shape must be 2, but got {len(slice_shape)}")
+        inst = TMemorySliceInst.create(tmem=tmem, offsets=offsets, shape=slice_shape)
+        self.append(inst)
+        return inst.output.as_tmemory_tensor()
+
+    def tmem_view(self, tmem: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> TMemoryTensor:
+        if len(shape) != 2:
+            raise InstructionError(f"The length of shape must be 2, but got {len(shape)}")
+        inst = TMemoryViewInst.create(tmem=tmem, dtype=dtype, shape=shape)
+        self.append(inst)
+        return inst.output.as_tmemory_tensor()
 
     # annotations
     def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None:

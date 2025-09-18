@@ -34,7 +34,7 @@ from tilus.ir.layout import (
     global_strides,
 )
 from tilus.ir.prog import Program
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, TensorMemoryTensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, TMemoryTensor
 from tilus.lang.constructs.contexts import ThreadGroupContext
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
@@ -99,14 +99,20 @@ class InstructionGroup:
         self._builder = builder
 
 
-class Tcgen05InstructionGroup(InstructionGroup):
-    def alloc(self, num_columns: int, cta_group: int) -> TensorMemoryTensor:
+class TmemInstructionGroup(InstructionGroup):
+    def alloc(self, num_columns: int, cta_group: int) -> TMemoryTensor:
         if cta_group not in [1, 2]:
             raise ValueError("cta_group must be 1 or 2")
         return self._builder.tcgen05_alloc(num_columns, cta_group)
 
-    def dealloc(self, tensor: TensorMemoryTensor) -> None:
+    def dealloc(self, tensor: TMemoryTensor) -> None:
         self._builder.tcgen05_dealloc(tensor)
+
+    def slice(self, tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> TMemoryTensor:
+        return self._builder.tmem_slice(tensor, offsets, shape)
+
+    def view(self, tensor: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> TMemoryTensor:
+        return self._builder.tmem_view(tensor, dtype, shape)
 
     def relinquish_alloc_permit(self, cta_group: int) -> None:
         self._builder.tcgen05_relinquish_alloc_permit(cta_group)
@@ -144,14 +150,14 @@ class Script:
         self.utils = utils
 
         # instruction groups
-        self.tcgen05 = Tcgen05InstructionGroup()
+        self.tmem = TmemInstructionGroup()
 
     def __call__(self, *args, **kwargs):
         raise RuntimeError("This method should never be called.")
 
     def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
         self._builder = builder
-        self.tcgen05._set_builder(builder)
+        self.tmem._set_builder(builder)
 
     def program(self) -> Program:
         """
