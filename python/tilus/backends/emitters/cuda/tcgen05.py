@@ -28,7 +28,7 @@ from tilus.ir.instructions.cuda.tcgen05 import Tcgen05AllocInst, Tcgen05DeallocI
 from tilus.target import nvgpu_sm100
 
 
-@register_emitter(Tcgen05AllocInst)
+@register_emitter(Tcgen05AllocInst, target=nvgpu_sm100)
 class Tcgen05AllocEmitter(BaseInstEmitter):
     def emit(self, inst: Tcgen05AllocInst) -> None:
         if self.current_num_threads < 32:
