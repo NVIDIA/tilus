@@ -24,7 +24,7 @@ from tilus.utils import cdiv
 @register_emitter(GlobalViewInst)
 class GlobalViewInstEmitter(BaseInstEmitter):
     def emit(self, inst: GlobalViewInst) -> None:
-        ctx: GlobalTensorViewContext = self.contexts[GlobalTensorViewContext]
+        ctx: GlobalTensorViewContext = GlobalTensorViewContext.current()
         global_tensor = inst.global_output
         self.assign(self.get_or_allocate_var(global_tensor), inst.ptr)
 
@@ -36,7 +36,7 @@ class GlobalViewInstEmitter(BaseInstEmitter):
 class AllocateGlobalInstEmitter(BaseInstEmitter):
     def emit(self, inst: AllocateGlobalInst) -> None:
         tensor = inst.global_output
-        ctx: GlobalMemoryAllocationContext = self.contexts[GlobalMemoryAllocationContext]
+        ctx = GlobalMemoryAllocationContext.current()
         ptr: Expr = ctx.allocate_global_memory(
             nbytes=cdiv(tensor.layout.size * tensor.dtype.nbits * 8, 8), clean=inst.require_clean
         )

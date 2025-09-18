@@ -12,15 +12,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import (
-    cluster_sync,
-    cp_async,
-    cp_async_bulk,
-    cp_async_tensor,
-    ldmatrix,
-    mbarrier,
-    mma_dot,
-    semaphore,
-    simt_dot,
-    tcgen05,
-)
+import tilus
+import torch
+
+
+class Tcgen05Example(tilus.Script):
+    def __call__(self):
+        self.attrs.blocks = 1
+        self.attrs.warps = 4
+        t_a = self.tcgen05.alloc(num_columns=32, cta_group=1)
+        self.tcgen05.dealloc(t_a)
+        self.tcgen05.relinquish_alloc_permit(cta_group=1)
+
+
+@tilus.testing.requires.nvgpu_sm100
+def test_tcgen_alloc_free():
+    kernel = Tcgen05Example()
+    kernel()
+    torch.cuda.synchronize()

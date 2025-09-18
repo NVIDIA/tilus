@@ -38,7 +38,7 @@ from tilus.ir.stmt import (
     ThreadGroupStmt,
     WhileStmt,
 )
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, TensorMemoryTensor
 from tilus.utils import same_list
 
 InstClsVar = TypeVar("InstClsVar", bound=Instruction)
@@ -122,6 +122,8 @@ class IRFunctor:
             ret = self.visit_SharedTensor(node)
         elif isinstance(node, GlobalTensor):
             ret = self.visit_GlobalTensor(node)
+        elif isinstance(node, TensorMemoryTensor):
+            ret = self.visit_TensorMemoryTensor(node)
         elif isinstance(node, RegisterLayout):
             ret = self.visit_RegisterLayout(node)
         elif isinstance(node, SharedLayout):
@@ -223,6 +225,9 @@ class IRFunctor:
         raise NotImplementedError()
 
     def visit_GlobalTensor(self, tensor: GlobalTensor) -> Any:
+        raise NotImplementedError()
+
+    def visit_TensorMemoryTensor(self, tensor: TensorMemoryTensor) -> Any:
         raise NotImplementedError()
 
     def visit_RegisterLayout(self, layout: RegisterLayout) -> Any:
@@ -400,6 +405,9 @@ class IRRewriter(IRFunctor):
         else:
             return GlobalTensor.create(dtype=tensor.dtype, layout=layout)
 
+    def visit_TensorMemoryTensor(self, tensor: TensorMemoryTensor) -> TensorMemoryTensor:
+        return tensor
+
     def visit_RegisterLayout(self, layout: RegisterLayout) -> RegisterLayout:
         return layout
 
@@ -527,9 +535,12 @@ class IRVisitor(IRFunctor):
     def visit_SharedTensor(self, tensor: SharedTensor) -> None:
         self.visit(tensor.optional_layout)
 
-    def visit_GlobalTensor(self, tensor: GlobalTensor) -> Any:
+    def visit_GlobalTensor(self, tensor: GlobalTensor) -> None:
         self.visit(tensor.layout)
         self.visit(tensor.layout)
+
+    def visit_TensorMemoryTensor(self, tensor: TensorMemoryTensor) -> None:
+        pass
 
     def visit_RegisterLayout(self, layout: RegisterLayout) -> None:
         pass

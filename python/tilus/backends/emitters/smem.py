@@ -28,7 +28,7 @@ class AllocateSharedInstEmitter(BaseInstEmitter):
     def emit(self, inst: AllocateSharedInst) -> None:
         tensor: SharedTensor = inst.shared_output
 
-        ctx: SharedMemoryAllocationContext = self.contexts[SharedMemoryAllocationContext]
+        ctx: SharedMemoryAllocationContext = SharedMemoryAllocationContext.current()
 
         allocator_addr = ctx.allocate_shared_tensor(tensor, nbytes=tensor.nbytes)
         self.tensor2var[tensor] = self.declare_var(
@@ -47,7 +47,7 @@ class FreeSharedInstEmitter(BaseInstEmitter):
     def emit(self, inst: FreeSharedInst) -> None:
         tensor: SharedTensor = inst.inputs[0].as_shared_tensor()
 
-        ctx: SharedMemoryAllocationContext = self.contexts[SharedMemoryAllocationContext]
+        ctx: SharedMemoryAllocationContext = SharedMemoryAllocationContext.current()
         ctx.free_shared_tensor(tensor)
 
         del self.tensor2var[tensor]

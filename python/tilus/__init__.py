@@ -107,6 +107,6 @@ from tilus.lang.instantiated_script import InstantiatedScript
 from tilus.lang.script import Script, autotune
 from tilus.tensor import empty, from_torch, full, ones, rand, randint, randn, view_torch, zeros
 
-from . import kernels, logging, option, utils
+from . import kernels, logging, option, utils, testing
 from .target import get_current_target
 from .version import __version__

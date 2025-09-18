@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 from typing import Optional
 
 from hidet.ir import StmtBuilder
@@ -79,6 +81,8 @@ class SharedMemoryAllocator:
 
 @register_emit_context
 class SharedMemoryAllocationContext(BaseEmitContext):
+    _current: Optional[SharedMemoryAllocationContext] = None
+
     def __init__(self, codegen: FunctionCodegen):
         super().__init__(codegen)
         # shared memory allocator
@@ -90,6 +94,12 @@ class SharedMemoryAllocationContext(BaseEmitContext):
         # maximum shared workspace bytes requested by all instructions
         self.shared_workspace_var: Optional[Var] = None
         self.shared_workspace_bytes: int = 0
+
+    @staticmethod
+    def current() -> SharedMemoryAllocationContext:
+        if SharedMemoryAllocationContext._current is None:
+            raise RuntimeError("No SharedMemoryAllocationContext is currently active.")
+        return SharedMemoryAllocationContext._current
 
     def allocate_shared_tensor(self, tensor: SharedTensor, nbytes: int) -> int:
         addr: int = self.smem_allocator.allocate(nbytes)
