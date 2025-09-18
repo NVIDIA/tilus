@@ -12,6 +12,14 @@ from tilus.ir.layout.register_layout_ops import left_divide, local, spatial
         [local(2, 1).spatial(2, 4), local(2, 1), spatial(2, 4)],
         [spatial(2, 2).local(2, 1), spatial(2, 2), local(2, 1)],
         [spatial(2, 4), spatial(2, 2), spatial(1, 2)],
+        # split first element in prefix (mode refinement)
+        [spatial(6), spatial(2), spatial(3)],
+        # mixed spatial/local with refinement in both groups
+        [
+            spatial(2, 12).local(2, 3),
+            spatial(2, 1).local(2, 1),
+            spatial(1, 12).local(1, 3),
+        ],
     ],
 )
 def test_left_divide(layout, lhs_divisor, expect):
