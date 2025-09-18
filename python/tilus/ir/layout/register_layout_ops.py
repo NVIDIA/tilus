@@ -703,6 +703,30 @@ def divide(lhs: RegisterLayout, rhs: RegisterLayout) -> RegisterLayout:
         local_modes=local_modes,
     )
 
+def left_divide(layout: RegisterLayout, lhs_divisor: RegisterLayout) -> RegisterLayout:
+    """
+    Divide the layout from the left by the lhs_divisor.
+
+    Given two layouts: layout and lhs_divisor, the left_divide function will return a new layout result, such that:
+
+    layout = compose(lhs_divisor, result)
+
+    If no such layout exists, the function will raise a LayoutOperationFailed exception.
+    
+    Parameters
+    ----------
+    layout: RegisterLayout
+        The layout to be divided.
+    lhs_divisor: RegisterLayout
+        The layout to divide by.
+    
+    Returns
+    -------
+    ret: RegisterLayout
+        The result layout.
+    """
+    raise NotImplementedError("left_divide is not implemented yet")
+
 
 def auto_local_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayout:
     """Create a local(...).spatial(...) layout

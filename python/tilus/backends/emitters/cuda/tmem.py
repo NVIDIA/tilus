@@ -18,6 +18,7 @@ from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import cast
 
 from tilus.ir.tensor import TMemoryTensor
+import tilus.ir.layout.register_layout_ops as r_ops
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.backends.contexts import SharedMemoryAllocationContext, Tcgen05EmitContext
 from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
@@ -138,12 +139,15 @@ class TMemoryLoadEmitter(BaseInstEmitter):
         regs_ptr = self.get_or_allocate_var(inst.register_output)
 
         
+
+
+        
 @register_emitter(TMemoryStoreInst, target=nvgpu_sm100)
 class TMemoryStoreEmitter(BaseInstEmitter):
     def emit(self, inst: TMemoryStoreInst) -> None:
-        pass
+        raise NotImplementedError("TMemoryStoreEmitter is not implemented yet")
         
 @register_emitter(TMemoryWaitInst, target=nvgpu_sm100)
 class TMemoryWaitEmitter(BaseInstEmitter):
     def emit(self, inst: TMemoryWaitInst) -> None:
-        pass
+        raise NotImplementedError("TMemoryWaitEmitter is not implemented yet")
