@@ -14,7 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Callable, Dict, Optional, Sequence, Set, Type
+from typing import Any, Callable, Dict, Optional, Sequence, Set, Type
 
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder, StmtBuilder
@@ -120,7 +120,8 @@ class BaseInstEmitter(StmtBuilder):
                 name = name if name else "gmem"
                 var = self.declare(tensor_pointer_var(name, shape=[tensor.size], dtype=tensor.dtype))
             else:
-                raise NotImplementedError()
+                name = name if name else "tmem"
+                var = self.declare_var(name, tp=int32)
             self.tensor2var[tensor] = var
             return var
 
@@ -214,6 +215,10 @@ class BaseEmitContext:
 
     def __init__(self, codegen: FunctionCodegen):
         self.codegen = codegen
+
+    @staticmethod
+    def current() -> Any:
+        raise NotImplementedError()
 
     def host_prepend(self, stmt: Expr | HidetStmt) -> None:
         """Prepend a statement to the host function.
@@ -477,7 +482,7 @@ class FunctionCodegen(IRFunctor):
         contexts = {cls: cls(self) for cls in BaseEmitContext.REGISTRY}
 
         for ctx in contexts.values():
-            ctx._current = ctx
+            type(ctx)._current = ctx
 
         # initialize all contexts
         for ctx in contexts.values():
@@ -491,7 +496,7 @@ class FunctionCodegen(IRFunctor):
             ctx.finalize()
 
         for ctx in contexts.values():
-            ctx._current = None
+            type(ctx)._current = None
 
         # create the kernel function
         self.builder.extend_params(self.extra_params)

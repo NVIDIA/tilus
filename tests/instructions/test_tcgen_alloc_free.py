@@ -12,8 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus.backends.contexts.global_view_ctx import GlobalTensorView, GlobalTensorViewContext
-from tilus.backends.contexts.gmem import GlobalMemoryAllocationContext
-from tilus.backends.contexts.invariant_ctx import InvariantTrackingContext
-from tilus.backends.contexts.smem import SharedMemoryAllocationContext
-from tilus.backends.contexts.tcgen05_ctx import Tcgen05EmitContext
+import tilus
+import torch
+
+
+class Tcgen05Example(tilus.Script):
+
+    def __call__(self):
+        self.attrs.blocks = 1
+        self.attrs.warps = 4
+        t_a = self.tcgen05.alloc(num_columns=32, cta_group=1)
+        self.tcgen05.dealloc(t_a)
+        self.tcgen05.relinquish_alloc_permit(cta_group=1)
+
+
+def test_tcgen_alloc_free():
+    kernel = Tcgen05Example()
+    kernel()
+    torch.cuda.synchronize()
+
