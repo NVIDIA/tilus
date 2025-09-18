@@ -12,7 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import no_type_check
+from typing import no_type_check, Sequence
+import functools
+
+from enum import Enum
 
 from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import Expr
@@ -21,6 +24,54 @@ from hidet.ir.stmt import asm
 from hidet.utils import initialize
 
 from tilus.extensions.hidet.ir.primitives.utils import register_primitive_function_decorator
+
+
+class Tcgen05LoadStoreShapeKind(Enum):
+    R16x64B = ".16x64b"
+    R16x128B = ".16x128b"
+    R16x256B = ".16x256b"
+    R32x32B = ".32x32b"
+
+class Tcgen05LoadStoreNumKind(Enum):
+    X1 = ".x1"
+    X2 = ".x2"
+    X4 = ".x4"
+    X8 = ".x8"
+    X16 = ".x16"
+    X32 = ".x32"
+    X64 = ".x64"
+    X128 = ".x128"
+    
+    def __int__(self) -> int:
+        return self.int_value
+
+class Tcgen05LoadStorePackKind(Enum):
+    NONE = ""
+    PACK_16B = ".pack::16b"
+
+
+
+def get_num_reg32(shape: Tcgen05LoadStoreShapeKind, num: Tcgen05LoadStoreNumKind, pack: Tcgen05LoadStorePackKind) -> int:
+    base = {
+        Tcgen05LoadStoreShapeKind.R16x64B: 1,
+        Tcgen05LoadStoreShapeKind.R32x32B: 1,
+        Tcgen05LoadStoreShapeKind.R16x128B: 2,
+        Tcgen05LoadStoreShapeKind.R16x256B: 4,
+    }
+    multiplier = {
+        Tcgen05LoadStoreNumKind.X1: 1,
+        Tcgen05LoadStoreNumKind.X2: 2,
+        Tcgen05LoadStoreNumKind.X4: 4,
+        Tcgen05LoadStoreNumKind.X8: 8,
+        Tcgen05LoadStoreNumKind.X16: 16,
+        Tcgen05LoadStoreNumKind.X32: 32,
+        Tcgen05LoadStoreNumKind.X64: 64,
+        Tcgen05LoadStoreNumKind.X128: 128,
+    }
+    num_reg32 = base[shape] * multiplier[num]
+    if pack == Tcgen05LoadStorePackKind.PACK_16B:
+        num_reg32 = num_reg32 // 2
+    return num_reg32
 
 
 def resolve_tcgen05_relinquish_alloc_permit(cta_group: int) -> str:
@@ -38,9 +89,21 @@ def resolve_tcgen05_dealloc(cta_group: int) -> str:
     return "cuda_tcgen05_dealloc_cta_group_" + str(cta_group)
 
 
+def resolve_tcgen05_load(pack: Tcgen05LoadStorePackKind, num: Tcgen05LoadStoreNumKind, shape: Tcgen05LoadStoreShapeKind) -> str:
+    ret = "cuda_tcgen05_load_" + pack.value + num.value + shape.value
+    ret = ret.replace(".", "_").replace("::", "_")
+    return ret
+
+def resolve_tcgen05_store(pack: Tcgen05LoadStorePackKind, num: Tcgen05LoadStoreNumKind, shape: Tcgen05LoadStoreShapeKind) -> str:
+    ret = "cuda_tcgen05_store_" + pack.value + num.value + shape.value
+    ret = ret.replace(".", "_").replace("::", "_")
+    return ret
+
+
 @initialize()
 def register_tcgen05_instructions():
-    from hidet.lang import attrs, script
+    from hidet.lang import attrs, meta
+    from tilus.extensions.hidet.lang import script
 
     for cta_group in [1, 2]:
 
@@ -75,6 +138,41 @@ def register_tcgen05_instructions():
                 inputs=[taddr, num_columns],
                 is_volatile=True,
             )
+    
+    for pack in [Tcgen05LoadStorePackKind.NONE, Tcgen05LoadStorePackKind.PACK_16B]:
+        for num in [Tcgen05LoadStoreNumKind.X1, Tcgen05LoadStoreNumKind.X2, Tcgen05LoadStoreNumKind.X4, Tcgen05LoadStoreNumKind.X8, Tcgen05LoadStoreNumKind.X16, Tcgen05LoadStoreNumKind.X32, Tcgen05LoadStoreNumKind.X64, Tcgen05LoadStoreNumKind.X128]:
+            for shape in [Tcgen05LoadStoreShapeKind.R16x64B, Tcgen05LoadStoreShapeKind.R16x128B, Tcgen05LoadStoreShapeKind.R16x256B, Tcgen05LoadStoreShapeKind.R32x32B]:
+                num_regs = get_num_reg32(shape, num, pack)
+                regs = ", ".join([f"%{i + 1}" for i in range(num_regs)])
+                regs_type = meta.types(arg_types=[~uint32 for _ in range(num_regs)])
+
+                load_template = f"tcgen05.ld.sync.aligned{shape}{num}{pack}.b32 {{{regs}}}, [%0];",
+                store_template = f"tcgen05.st.sync.aligned{shape}{num}{pack}.b32 [%0], {{{regs}}};",
+
+                @register_primitive_function_decorator
+                @no_type_check
+                @script
+                def tcgen05_load_(taddr: int32, regs: regs_type):
+                    attrs.func_name = resolve_tcgen05_load(pack, num, shape)
+                    attrs.func_kind = "cuda_internal"
+                    asm(
+                        load_template,
+                        inputs=[taddr, *regs],
+                        is_volatile=True,
+                    )
+
+                @register_primitive_function_decorator
+                @no_type_check
+                @script
+                def tcgen05_store_(taddr: int32, regs: regs_type):
+                    attrs.func_name = resolve_tcgen05_store(pack, num, shape)
+                    attrs.func_kind = "cuda_internal"
+                    asm(
+                        store_template,
+                        inputs=[taddr, *regs],
+                        is_volatile=True,
+                    )
+                
 
 
 def tcgen05_relinquish_alloc_permit(cta_group: int) -> Expr:
@@ -90,3 +188,12 @@ def tcgen05_alloc(dst: Expr, num_columns: Expr, cta_group: int) -> Expr:
 def tcgen05_dealloc(taddr: Expr, num_columns: Expr, cta_group: int) -> Expr:
     func_name = resolve_tcgen05_dealloc(cta_group)
     return call_primitive_func(func_name, [taddr, num_columns])
+
+
+def tcgen05_load(taddr: Expr, regs: Sequence[Expr], pack: Tcgen05LoadStorePackKind, num: Tcgen05LoadStoreNumKind, shape: Tcgen05LoadStoreShapeKind) -> Expr:
+    func_name = resolve_tcgen05_load(pack, num, shape)
+    return call_primitive_func(func_name, [taddr, *regs])
+
+def tcgen05_store(taddr: Expr, regs: Sequence[Expr], pack: Tcgen05LoadStorePackKind, num: Tcgen05LoadStoreNumKind, shape: Tcgen05LoadStoreShapeKind) -> Expr:
+    func_name = resolve_tcgen05_store(pack, num, shape)
+    return call_primitive_func(func_name, [taddr, *regs])

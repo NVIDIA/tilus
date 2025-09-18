@@ -56,14 +56,15 @@ from tilus.ir.instructions.cuda.mbarrier import (
 )
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
-from tilus.ir.instructions.cuda.tcgen05 import (
+from tilus.ir.instructions.cuda.tmem import (
     TMemoryAllocInst,
     TMemoryDeallocInst,
+    TMemoryLoadInst,
     TMemoryRelinquishAllocPermitInst,
     TMemorySliceInst,
-    TMemoryViewInst,
-    TMemoryLoadInst,
     TMemoryStoreInst,
+    TMemoryViewInst,
+    TMemoryWaitInst,
 )
 from tilus.ir.instructions.generic import (
     AddInst,
@@ -1170,6 +1171,14 @@ class StmtBuilder(StmtBuilderCore):
         if len(offsets) != 2:
             raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
         inst = TMemoryStoreInst.create(tmem=tmem, src=src, offsets=offsets)
+        self.append(inst)
+
+    def tmem_wait_load(self) -> None:
+        inst = TMemoryWaitInst.create(wait_load=True, wait_store=False)
+        self.append(inst)
+
+    def tmem_wait_store(self) -> None:
+        inst = TMemoryWaitInst.create(wait_load=False, wait_store=True)
         self.append(inst)
 
     # annotations

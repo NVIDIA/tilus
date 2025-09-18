@@ -116,12 +116,18 @@ class TmemInstructionGroup(InstructionGroup):
 
     def relinquish_alloc_permit(self, cta_group: int) -> None:
         self._builder.tmem_relinquish_alloc_permit(cta_group)
-    
+
     def load(self, tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
         return self._builder.tmem_load(tensor, offsets, shape)
 
     def store(self, tensor: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int] = (0, 0)) -> None:
         return self._builder.tmem_store(tensor, src, offsets)
+
+    def wait_load(self) -> None:
+        self._builder.tmem_wait_load()
+
+    def wait_store(self) -> None:
+        self._builder.tmem_wait_store()
 
 
 class Script:
