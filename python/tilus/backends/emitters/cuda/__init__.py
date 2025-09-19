@@ -22,5 +22,5 @@ from . import (
     mma_dot,
     semaphore,
     simt_dot,
-    tmem,
+    tcgen05,
 )
