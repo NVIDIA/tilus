@@ -15,10 +15,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, Optional
+from typing import Optional, Sequence
 
-from hidet.ir.type import DataType
 from hidet.ir.expr import Expr
+from hidet.ir.type import DataType
 
 from tilus.ir.inst import Instruction
 from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor

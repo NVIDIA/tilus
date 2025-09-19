@@ -103,7 +103,7 @@ class InstructionGroup:
     def _builder(self) -> StmtBuilder:
         if self._optional_builder is None:
             raise InstructionError("Did you forget to call `super().__init__()` for the Tilus Script?")
-        
+
         return self._optional_builder
 
 
@@ -147,10 +147,10 @@ class TmemInstructionGroup(InstructionGroup):
 
     def wait_store(self) -> None:
         self._builder.tmem_wait_store()
-    
+
     def copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
         self._builder.tmem_copy(src, dst)
-    
+
     def commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
         self._builder.tmem_commit(mbarrier, cta_mask)
 
@@ -640,12 +640,12 @@ class Script:
         self.tmem._set_builder(builder)
         self.tma._set_builder(builder)
         self.mbarrier._set_builder(builder)
-    
+
     @property
     def _builder(self) -> StmtBuilder:
         if self._optional_builder is None:
             raise InstructionError("Did you forget to call `super().__init__()` for the Tilus Script?")
-        
+
         return self._optional_builder
 
     def program(self) -> Program:
@@ -1354,8 +1354,6 @@ class Script:
             it will wait until all asynchronous copy groups are finished.
         """
         self._builder.copy_async_wait_group(n)
-
-
 
     def dot(
         self,
@@ -2235,7 +2233,6 @@ class Script:
         if dst.dtype != src.dtype:
             raise InstructionError("The dtypes of dst and src must match, got {} and {}".format(dst.dtype, src.dtype))
         self._builder.assign_register(dst, src)
-
 
     @staticmethod
     def static_assert(cond: bool | Expr, msg: str) -> None:

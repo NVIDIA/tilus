@@ -58,6 +58,8 @@ from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from tilus.ir.instructions.cuda.tmem import (
     TMemoryAllocInst,
+    TMemoryCommitInst,
+    TMemoryCopyInst,
     TMemoryDeallocInst,
     TMemoryLoadInst,
     TMemoryRelinquishAllocPermitInst,
@@ -65,8 +67,6 @@ from tilus.ir.instructions.cuda.tmem import (
     TMemoryStoreInst,
     TMemoryViewInst,
     TMemoryWaitInst,
-    TMemoryCopyInst,
-    TMemoryCommitInst,
 )
 from tilus.ir.instructions.generic import (
     AddInst,
@@ -1179,7 +1179,7 @@ class StmtBuilder(StmtBuilderCore):
     def tmem_copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
         inst = TMemoryCopyInst.create(src=src, dst=dst)
         self.append(inst)
-    
+
     def tmem_commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
         inst = TMemoryCommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
         self.append(inst)

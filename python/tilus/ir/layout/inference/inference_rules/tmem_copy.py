@@ -19,7 +19,7 @@ from tilus.ir.layout.inference.rule import (
     LayoutInferenceRule,
     register_rule,
 )
-from tilus.ir.tensor import RegisterTensor, TMemoryTensor
+from tilus.ir.tensor import RegisterTensor
 
 
 @register_rule(TMemoryCopyInst)
@@ -27,9 +27,9 @@ class TMemoryCopyRule(LayoutInferenceRule):
     @staticmethod
     def inference(ctx: LayoutInferenceContext, inst: TMemoryCopyInst) -> dict[RegisterTensor, RegisterLayout]:
         src = inst.inputs[0].as_shared_tensor()
-        dst = inst.inputs[1].as_tmemory_tensor()
+        # dst = inst.inputs[1].as_tmemory_tensor()
 
         if src.has_layout():
             return {}
-        
+
         raise NotImplementedError()
