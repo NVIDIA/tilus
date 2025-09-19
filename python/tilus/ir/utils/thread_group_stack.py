@@ -27,8 +27,9 @@ class ThreadGroupStack:
 
         if depth > 0:
             parent_group_size = self.group_size[-1]
-            self.thread_begin.append(self.thread_begin[-1] + group_index * group_size)
-            self.thread_end.append(self.thread_begin[-1] + (group_index + 1) * group_size)
+            parent_thread_begin = self.thread_begin[-1]
+            self.thread_begin.append(parent_thread_begin + group_index * group_size)
+            self.thread_end.append(parent_thread_begin + (group_index + 1) * group_size)
         else:
             self.thread_begin.append(0)
             self.thread_end.append(group_size)
