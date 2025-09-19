@@ -65,6 +65,8 @@ from tilus.ir.instructions.cuda.tmem import (
     TMemoryStoreInst,
     TMemoryViewInst,
     TMemoryWaitInst,
+    TMemoryCopyInst,
+    TMemoryCommitInst,
 )
 from tilus.ir.instructions.generic import (
     AddInst,
@@ -1172,6 +1174,14 @@ class StmtBuilder(StmtBuilderCore):
 
     def tmem_wait_store(self) -> None:
         inst = TMemoryWaitInst.create(wait_load=False, wait_store=True)
+        self.append(inst)
+
+    def tmem_copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
+        inst = TMemoryCopyInst.create(src=src, dst=dst)
+        self.append(inst)
+    
+    def tmem_commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
+        inst = TMemoryCommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
         self.append(inst)
 
     # annotations

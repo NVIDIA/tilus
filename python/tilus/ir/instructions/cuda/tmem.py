@@ -15,9 +15,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Sequence, Optional
 
 from hidet.ir.type import DataType
+from hidet.ir.expr import Expr
 
 from tilus.ir.inst import Instruction
 from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor
@@ -127,3 +128,13 @@ class TMemoryCopyInst(Instruction):
     @staticmethod
     def create(src: SharedTensor, dst: TMemoryTensor) -> TMemoryCopyInst:
         return TMemoryCopyInst(output=None, inputs=(dst, src))
+
+
+@dataclass(frozen=True, eq=False)
+class TMemoryCommitInst(Instruction):
+    mbarrier: Expr
+    cta_mask: Optional[int]
+
+    @staticmethod
+    def create(mbarrier: Expr, cta_mask: Optional[int] = None) -> TMemoryCommitInst:
+        return TMemoryCommitInst(output=None, inputs=(), mbarrier=mbarrier, cta_mask=cta_mask)

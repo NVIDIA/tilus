@@ -44,6 +44,8 @@ from tilus.ir.instructions.cuda.tmem import (
     TMemoryStoreInst,
     TMemoryViewInst,
     TMemoryWaitInst,
+    TMemoryCopyInst,
+    TMemoryCommitInst,
 )
 from tilus.ir.layout.cuda.tmem_ldst import get_ldst_layout
 from tilus.ir.layout.register_layout_ops import divide, left_divide, local, spatial
@@ -336,3 +338,16 @@ class TMemoryWaitEmitter(BaseInstEmitter):
             self.append(tcgen05_wait_load())
         if inst.wait_store:
             self.append(tcgen05_wait_store())
+
+
+@register_emitter(TMemoryCopyInst, target=nvgpu_sm100)
+class TMemoryCopyEmitter(BaseInstEmitter):
+    def emit(self, inst: TMemoryCopyInst) -> None:
+        raise NotImplementedError("TMemoryCopyInst is not supported yet")
+    
+
+
+@register_emitter(TMemoryCommitInst, target=nvgpu_sm100)
+class TMemoryCommitEmitter(BaseInstEmitter):
+    def emit(self, inst: TMemoryCommitInst) -> None:
+        raise NotImplementedError("TMemoryCommitInst is not supported yet")

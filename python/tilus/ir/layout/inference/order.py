@@ -29,6 +29,7 @@ from .inference_rules.load_shared import (
     LoadSharedInferRowMajorSharedRule,
     LoadSharedInferSwizzledSharedRule,
 )
+from .inference_rules.tmem_copy import TMemoryCopyRule
 from .inference_rules.mma_dot import MmaDotRule
 from .inference_rules.reduce import ReduceRule
 from .inference_rules.shared_slice import SharedSliceRule
@@ -56,6 +57,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [LoadSharedInferRegisterRule],
     [LoadSharedInferRowMajorSharedRule],
     [AllocateSharedRule],
+    [TMemoryCopyRule],
 ]
 
 rule2order: dict[Type[LayoutInferenceRule], int] = {}
