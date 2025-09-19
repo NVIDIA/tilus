@@ -150,7 +150,7 @@ def resolve_tcgen05_dealloc(cta_group: int) -> str:
 def resolve_tcgen05_load(
     pack: Tcgen05LoadStorePackKind, num: Tcgen05LoadStoreNumKind, shape: Tcgen05LoadStoreShapeKind
 ) -> str:
-    ret = "cuda_tcgen05_load_" + pack.value + num.value + shape.value
+    ret = "cuda_tcgen05_load" + pack.value + num.value + shape.value
     ret = ret.replace(".", "_").replace("::", "_")
     return ret
 
@@ -158,7 +158,7 @@ def resolve_tcgen05_load(
 def resolve_tcgen05_store(
     pack: Tcgen05LoadStorePackKind, num: Tcgen05LoadStoreNumKind, shape: Tcgen05LoadStoreShapeKind
 ) -> str:
-    ret = "cuda_tcgen05_store_" + pack.value + num.value + shape.value
+    ret = "cuda_tcgen05_store" + pack.value + num.value + shape.value
     ret = ret.replace(".", "_").replace("::", "_")
     return ret
 
@@ -221,11 +221,16 @@ def register_tcgen05_instructions():
                 Tcgen05LoadStoreShapeKind.R32x32B,
             ]:
                 num_regs = get_num_reg32(shape, num, pack)
-                regs = ", ".join([f"%{i + 1}" for i in range(num_regs)])
                 regs_type = meta.types(arg_types=[~uint32 for _ in range(num_regs)])
 
-                load_template = f"tcgen05.ld.sync.aligned{shape.value}{num.value}{pack.value}.b32 {{{regs}}}, [%0];"
-                store_template = f"tcgen05.st.sync.aligned{shape.value}{num.value}{pack.value}.b32 [%0], {{{regs}}};"
+                load_regs = ", ".join([f"%{i}" for i in range(num_regs)])
+                load_template = (
+                    f"tcgen05.ld.sync.aligned{shape.value}{num.value}{pack.value}.b32 {{{load_regs}}}, [%{num_regs}];"
+                )
+                store_regs = ", ".join([f"%{i + 1}" for i in range(num_regs)])
+                store_template = (
+                    f"tcgen05.st.sync.aligned{shape.value}{num.value}{pack.value}.b32 [%0], {{{store_regs}}};"
+                )
 
                 @register_primitive_function_decorator
                 @no_type_check
@@ -235,7 +240,8 @@ def register_tcgen05_instructions():
                     attrs.func_kind = "cuda_internal"
                     asm(
                         load_template,
-                        inputs=[taddr, *[reg[0] for reg in regs]],
+                        outputs=[reg[0] for reg in regs],
+                        inputs=[taddr],
                         is_volatile=True,
                     )
 

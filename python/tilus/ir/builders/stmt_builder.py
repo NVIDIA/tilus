@@ -1118,8 +1118,8 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     # tmem tensor (tcgen05)
-    def tmem_alloc(self, num_columns: int, cta_group: int) -> TMemoryTensor:
-        inst = TMemoryAllocInst.create(num_columns=num_columns, cta_group=cta_group)
+    def tmem_alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int) -> TMemoryTensor:
+        inst = TMemoryAllocInst.create(dtype=dtype, shape=shape, cta_group=cta_group)
         self.append(inst)
         return inst.output.as_tmemory_tensor()
 

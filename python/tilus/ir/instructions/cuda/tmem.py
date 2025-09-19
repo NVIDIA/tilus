@@ -18,7 +18,6 @@ import functools
 from dataclasses import dataclass
 from typing import Sequence
 
-from hidet.ir.dtypes import uint32
 from hidet.ir.type import DataType
 
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05LoadStoreNumKind, Tcgen05LoadStoreShapeKind
@@ -83,9 +82,14 @@ class TMemoryAllocInst(Instruction):
     cta_group: int  # 1 or 2
 
     @staticmethod
-    def create(num_columns: int, cta_group: int) -> TMemoryAllocInst:
+    def create(dtype: DataType, shape: Sequence[int], cta_group: int) -> TMemoryAllocInst:
         assert cta_group in (1, 2)
-        output = TMemoryTensor.create(dtype=uint32, shape=[128, num_columns], first_lane=0)
+        assert len(shape) == 2
+        assert shape[0] == 128
+        assert shape[1] * dtype.nbits % 32 == 0
+        num_columns = shape[1] * dtype.nbits // 32
+        assert num_columns % 32 == 0 and 32 <= num_columns <= 512
+        output = TMemoryTensor.create(dtype=dtype, shape=shape, first_lane=0)
         return TMemoryAllocInst(output=output, inputs=(), cta_group=cta_group)
 
 

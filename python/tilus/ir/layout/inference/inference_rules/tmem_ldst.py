@@ -52,8 +52,14 @@ class TMemoryLdstRule(LayoutInferenceRule):
                 raise NotImplementedError(f"Unsupported shape: {shape_kind}")
             inter_warp_rows_repeat = rows_repeat // intra_warp_rows_repeat
 
+            assert 32 % tmem_tensor.dtype.nbits == 0
+
             atom = get_ldst_layout(shape_kind)
-            return local(1, columns_repeat).spatial(inter_warp_rows_repeat, 1).local(intra_warp_rows_repeat, 1) * atom
+            return (
+                local(1, columns_repeat).spatial(inter_warp_rows_repeat, 1).local(intra_warp_rows_repeat, 1)
+                * atom
+                * local(1, 32 // tmem_tensor.dtype.nbits)
+            )
         raise NotImplementedError(f"Unsupported tensor to perform tcgen05 load/store: {tmem_tensor}")
 
     @staticmethod

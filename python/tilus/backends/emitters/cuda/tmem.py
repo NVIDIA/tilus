@@ -59,11 +59,23 @@ LANE_STRIDE = 0x00010000
 COLUMN_STRIDE = 0x00000001
 
 
+class Tcgen05AllocDeallocEmitter(BaseInstEmitter):
+    def get_num_columns(self, tmem_tensor: TMemoryTensor) -> int:
+        assert tmem_tensor.shape[0] == 128
+        assert tmem_tensor.shape[1] * tmem_tensor.dtype.nbits % 32 == 0
+        num_columns = tmem_tensor.shape[1] * tmem_tensor.dtype.nbits // 32
+        assert num_columns % 32 == 0 and 32 <= num_columns <= 512
+        return num_columns
+
+
 @register_emitter(TMemoryAllocInst, target=nvgpu_sm100)
-class Tcgen05AllocEmitter(BaseInstEmitter):
+class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
     def emit(self, inst: TMemoryAllocInst) -> None:
         if self.current_num_threads < 32:
             raise ValueError("tcgen05_alloc requires at least 32 threads in the current thread group")
+
+        tmem_tensor = inst.output.as_tmemory_tensor()
+        num_columns = self.get_num_columns(tmem_tensor)
 
         # set the cta group in the tcgen05 context
         tcgen05_ctx = Tcgen05EmitContext.current()
@@ -79,7 +91,7 @@ class Tcgen05AllocEmitter(BaseInstEmitter):
             self.append(
                 tcgen05_alloc(
                     dst=smem_addr,
-                    num_columns=uint32(inst.output.as_tmemory_tensor().shape[1]),
+                    num_columns=uint32(num_columns),
                     cta_group=inst.cta_group,
                 )
             )
@@ -89,18 +101,25 @@ class Tcgen05AllocEmitter(BaseInstEmitter):
             self.sync()
 
         # load the tensor memory handle from shared memory and store it to the register variable
-        tmem_var = self.get_or_allocate_var(tensor=inst.output)
+        tmem_var = self.get_or_allocate_var(tmem_tensor)
         self.assign(tmem_var, cast(smem_ptr, ~int32)[0])
         self.sync()
 
 
 @register_emitter(TMemoryDeallocInst, target=nvgpu_sm100)
-class Tcgen05DeallocEmitter(BaseInstEmitter):
+class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
     def emit(self, inst: TMemoryDeallocInst) -> None:
-        tmem_var = self.get_or_allocate_var(tensor=inst.inputs[0].as_tmemory_tensor())
-        num_columns = inst.inputs[0].as_tmemory_tensor().shape[1]
+        tmem_tensor = inst.inputs[0].as_tmemory_tensor()
+        tmem_var = self.get_or_allocate_var(tmem_tensor)
+        num_columns = self.get_num_columns(tmem_tensor)
         tcgen05_ctx = Tcgen05EmitContext.current()
-        self.append(tcgen05_dealloc(taddr=tmem_var, num_columns=uint32(num_columns), cta_group=tcgen05_ctx.cta_group))
+
+        if self.current_num_threads < 32:
+            raise ValueError("tcgen05_dealloc requires at least 32 threads in the current thread group")
+        with self.if_then(logical_or(self.current_num_threads == 32, self.current_thread // 32 == 0)):
+            self.append(
+                tcgen05_dealloc(taddr=tmem_var, num_columns=uint32(num_columns), cta_group=tcgen05_ctx.cta_group)
+            )
 
 
 @register_emitter(TMemoryRelinquishAllocPermitInst, target=nvgpu_sm100)
@@ -227,12 +246,19 @@ class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
             # get the .num for the instruction
             num: int = gcd(warp_repeat_n, 128 // shape_kind.regs_per_thread())
 
-            regs_buf = self.declare_var("regs_buf", tp=~uint32, init=cast(~self.get_or_allocate_var(regs_tensor)[0], ~uint32))
+            regs_buf = self.declare_var(
+                "regs_buf", tp=~uint32, init=cast(~self.get_or_allocate_var(regs_tensor)[0], ~uint32)
+            )
+            warp_tmem_base_addr = self.declare_var(
+                "warp_tmem_base_addr", tp=~int32, init=tmem_base_addr + self.current_thread // 32 * 32 * LANE_STRIDE
+            )
 
             with self.for_range(warp_repeat_m, attr="u") as warp_repeat_i:
                 with self.for_range(warp_repeat_n // num, attr="u") as warp_repeat_vec_j:
                     # get the tmem address for each instruction
-                    atom_addr = tmem_base_addr + warp_repeat_i * LANE_STRIDE + warp_repeat_vec_j * num * COLUMN_STRIDE
+                    atom_addr = (
+                        warp_tmem_base_addr + warp_repeat_i * LANE_STRIDE + warp_repeat_vec_j * num * COLUMN_STRIDE
+                    )
 
                     # get the registers for the instruction
                     regs = []

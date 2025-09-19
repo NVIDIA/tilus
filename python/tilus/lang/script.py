@@ -38,6 +38,7 @@ from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, 
 from tilus.lang.constructs.contexts import ThreadGroupContext
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
+from tilus.utils import is_power_of_two
 
 
 class Attributes:
@@ -100,10 +101,21 @@ class InstructionGroup:
 
 
 class TmemInstructionGroup(InstructionGroup):
-    def alloc(self, num_columns: int, cta_group: int) -> TMemoryTensor:
+    def alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int = 1) -> TMemoryTensor:
         if cta_group not in [1, 2]:
-            raise ValueError("cta_group must be 1 or 2")
-        return self._builder.tmem_alloc(num_columns, cta_group)
+            raise InstructionError("cta_group must be 1 or 2")
+        if len(shape) != 2:
+            raise InstructionError("shape must be a sequence of length 2, got {}".format(shape))
+        if shape[0] != 128:
+            raise InstructionError("shape[0] must be 128, got {}".format(shape[0]))
+        if dtype.nbits > 32 or 32 % dtype.nbits != 0:
+            raise InstructionError("dtype must be 8-bit, 16-bit, or 32-bit, got {}".format(dtype))
+        num_columns = shape[1] * dtype.nbits // 32
+        if not is_power_of_two(num_columns) or num_columns < 32 or num_columns > 512:
+            raise InstructionError(
+                "num_columns must be a power of two and in the range [32, 512], got {}".format(num_columns)
+            )
+        return self._builder.tmem_alloc(dtype, shape, cta_group)
 
     def dealloc(self, tensor: TMemoryTensor) -> None:
         self._builder.tmem_dealloc(tensor)
