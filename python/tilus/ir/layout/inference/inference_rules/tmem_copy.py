@@ -12,22 +12,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import (
-    allocate_shared,
-    assign,
-    cp_async,
-    elementwise_binary,
-    elementwise_unary,
-    empty_rule,
-    ldst_global,
-    load_shared,
-    mma_dot,
-    reduce,
-    shared_slice,
-    store_shared,
-    tmem_ldst,
-    transform,
-    transpose,
-    where,
-    tmem_copy,
+from tilus.ir.instructions.cuda.tmem import TMemoryCopyInst
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout.inference.rule import (
+    LayoutInferenceContext,
+    LayoutInferenceRule,
+    register_rule,
 )
+from tilus.ir.tensor import RegisterTensor, TMemoryTensor
+
+
+@register_rule(TMemoryCopyInst)
+class TMemoryCopyRule(LayoutInferenceRule):
+    @staticmethod
+    def inference(ctx: LayoutInferenceContext, inst: TMemoryCopyInst) -> dict[RegisterTensor, RegisterLayout]:
+        src = inst.inputs[0].as_shared_tensor()
+        dst = inst.inputs[1].as_tmemory_tensor()
+
+        if src.has_layout():
+            return {}
+        
+        raise NotImplementedError()
