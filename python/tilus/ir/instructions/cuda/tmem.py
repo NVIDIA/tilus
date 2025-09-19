@@ -179,7 +179,7 @@ class TMemoryWaitInst(Instruction):
 if __name__ == "__main__":
     layout_0 = spatial(32, 1)
     layout_1 = register_layout(shape=[16, 2], mode_shape=[2, 8, 2], spatial_modes=[1, 2, 0], local_modes=[])
-    layout_3 = get_ldst_layout(Tcgen05LoadStoreShapeKind.R16x64B, Tcgen05LoadStoreNumKind.X2)
+    layout_3 = get_ldst_layout(Tcgen05LoadStoreShapeKind.R16x64B)
     print(layout_3)
     print(visualize_layout(layout_0))
     print(visualize_layout(layout_1))
