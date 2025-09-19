@@ -840,9 +840,7 @@ def left_divide(layout: RegisterLayout, lhs_divisor: RegisterLayout) -> Register
     )
     spatial_modes = [result_mode_map[m] if m >= 0 else m for m in pruned_spatial]
     pruned_local = (
-        layout.local_modes[len(lhs_divisor.local_modes):]
-        if len(lhs_divisor.local_modes) > 0
-        else layout.local_modes
+        layout.local_modes[len(lhs_divisor.local_modes) :] if len(lhs_divisor.local_modes) > 0 else layout.local_modes
     )
     local_modes = [result_mode_map[m] for m in pruned_local]
     return register_layout(

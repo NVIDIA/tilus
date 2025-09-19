@@ -20,7 +20,7 @@ from typing import Sequence
 
 from hidet.ir.type import DataType
 
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05LoadStoreNumKind, Tcgen05LoadStoreShapeKind
+from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05LoadStoreShapeKind
 from tilus.ir.inst import Instruction
 from tilus.ir.layout.register_layout import RegisterLayout, visualize_layout
 from tilus.ir.layout.register_layout_ops import local, register_layout, spatial
