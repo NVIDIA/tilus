@@ -693,7 +693,8 @@ def divide(lhs: RegisterLayout, rhs: RegisterLayout) -> RegisterLayout:
         lhs.spatial_modes[: -len(rhs.spatial_modes)] if len(rhs.spatial_modes) > 0 else lhs.spatial_modes
     )
     spatial_modes = [mode_map[mode] if mode >= 0 else mode for mode in pruned_lhs_spatial_modes]
-    local_modes = [mode_map[mode] for mode in lhs.local_modes[: -len(rhs.local_modes)]]
+    pruned_lhs_local_modes = lhs.local_modes[: -len(rhs.local_modes)] if len(rhs.local_modes) > 0 else lhs.local_modes
+    local_modes = [mode_map[mode] for mode in pruned_lhs_local_modes]
 
     # return the result layout
     return register_layout(
@@ -702,6 +703,7 @@ def divide(lhs: RegisterLayout, rhs: RegisterLayout) -> RegisterLayout:
         spatial_modes=spatial_modes,
         local_modes=local_modes,
     )
+
 
 def left_divide(layout: RegisterLayout, lhs_divisor: RegisterLayout) -> RegisterLayout:
     """
@@ -712,14 +714,14 @@ def left_divide(layout: RegisterLayout, lhs_divisor: RegisterLayout) -> Register
     layout = compose(lhs_divisor, result)
 
     If no such layout exists, the function will raise a LayoutOperationFailed exception.
-    
+
     Parameters
     ----------
     layout: RegisterLayout
         The layout to be divided.
     lhs_divisor: RegisterLayout
         The layout to divide by.
-    
+
     Returns
     -------
     ret: RegisterLayout
@@ -766,9 +768,7 @@ def left_divide(layout: RegisterLayout, lhs_divisor: RegisterLayout) -> Register
                         # keep 1 as a mode piece to be consistent with divide's refinement behavior
                         pass
                 else:
-                    raise LayoutOperationError(
-                        "Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor)
-                    )
+                    raise LayoutOperationError("Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor))
         # append the remaining parts of the layout group
         group_refined.extend(lay_sizes[i:])
         refined_mode_shape.extend(group_refined)
@@ -834,7 +834,9 @@ def left_divide(layout: RegisterLayout, lhs_divisor: RegisterLayout) -> Register
 
     # 2.3. spatial/local modes for result (remove prefix then remap)
     pruned_spatial = (
-        layout.spatial_modes[len(lhs_divisor.spatial_modes) :] if len(lhs_divisor.spatial_modes) > 0 else layout.spatial_modes
+        layout.spatial_modes[len(lhs_divisor.spatial_modes) :]
+        if len(lhs_divisor.spatial_modes) > 0
+        else layout.spatial_modes
     )
     spatial_modes = [result_mode_map[m] if m >= 0 else m for m in pruned_spatial]
     local_modes = [result_mode_map[m] for m in layout.local_modes[len(lhs_divisor.local_modes) :]]

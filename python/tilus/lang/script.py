@@ -359,9 +359,7 @@ class Script:
                 raise InstructionError("Can not recognize the condition in assume: {}".format(term))
 
     @staticmethod
-    def thread_group(
-        group_index: int, group_size: int
-    ) -> ThreadGroupContext:
+    def thread_group(group_index: int, group_size: int) -> ThreadGroupContext:
         """Create a thread group context.
 
         This method creates a thread group context that is used to narrow down the threads that execute the instructions
@@ -391,8 +389,8 @@ class Script:
 
         At the root level of the kernel, there is one thread group that includes all threads in the thread block.
         We can partition the threads in the current thread group into multiple sub thread groups by specifying the
-        number of threads in each sub thread group using the `group_size` parameter. 
-        
+        number of threads in each sub thread group using the `group_size` parameter.
+
         All instructions within the context will be executed by all threads in the specified thread group.
 
         Parameters

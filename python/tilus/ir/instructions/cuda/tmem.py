@@ -13,24 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
-import functools
 
+import functools
 from dataclasses import dataclass
 from typing import Sequence
 
 from hidet.ir.dtypes import uint32
 from hidet.ir.type import DataType
 
+from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05LoadStoreNumKind, Tcgen05LoadStoreShapeKind
 from tilus.ir.inst import Instruction
 from tilus.ir.layout.register_layout import RegisterLayout, visualize_layout
-from tilus.ir.layout.register_layout_ops import spatial, register_layout, local
+from tilus.ir.layout.register_layout_ops import local, register_layout, spatial
 from tilus.ir.tensor import RegisterTensor, TMemoryTensor
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05LoadStoreShapeKind, Tcgen05LoadStoreNumKind
 
 
 @functools.cache
 def get_ldst_layout(shape: Tcgen05LoadStoreShapeKind) -> RegisterLayout:
-
     # see https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-memory-layout
     if shape == Tcgen05LoadStoreShapeKind.R32x32B:
         return spatial(32, 1)
@@ -77,7 +76,6 @@ def get_ldst_layout(shape: Tcgen05LoadStoreShapeKind) -> RegisterLayout:
         return local(2, 1).spatial(8, 4).local(1, 2)
     else:
         raise ValueError(f"Unsupported shape: {shape}")
-    
 
 
 @dataclass(frozen=True, eq=False)
@@ -182,6 +180,3 @@ if __name__ == "__main__":
     print(visualize_layout(layout_0))
     print(visualize_layout(layout_1))
     print(visualize_layout(layout_3))
-
-
-

@@ -271,11 +271,7 @@ class ThreadGroupContext(StmtContext):
         self.enter()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.append(
-            ThreadGroupStmt(
-                group_index=self.group_index, group_size=self.group_size, body=self.pop()
-            )
-        )
+        self.append(ThreadGroupStmt(group_index=self.group_index, group_size=self.group_size, body=self.pop()))
 
 
 class StmtBuilderCore:
@@ -298,9 +294,7 @@ class StmtBuilderCore:
         iter_vars = [Var(name, type=int32) for name in iter_name_hints]
         return ForContext(self, iter_vars, expr_extents, unrolls=[None] * len(extents))
 
-    def thread_group(
-        self, group_index: int, group_size: int
-    ) -> ThreadGroupContext:
+    def thread_group(self, group_index: int, group_size: int) -> ThreadGroupContext:
         return ThreadGroupContext(self, group_index=group_index, group_size=group_size)
 
     def while_loop(self, cond: Union[Expr, bool]) -> WhileContext:

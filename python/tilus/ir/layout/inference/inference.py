@@ -48,24 +48,22 @@ from hidet.utils import same_list
 from tilus import RegisterLayout, SharedLayout
 from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.func import Analysis, Function
-from tilus.ir.inst import Instruction
-from tilus.ir.stmt import ThreadGroupStmt
 from tilus.ir.functors import IRVisitor
+from tilus.ir.inst import Instruction
 from tilus.ir.layout.inference.order import rule2order
 from tilus.ir.layout.inference.rule import (
     LayoutInferenceContext,
+    LayoutInferenceError,
     LayoutInferenceRule,
     get_inference_rules,
     get_validation_rule,
 )
+from tilus.ir.stmt import ThreadGroupStmt
 from tilus.ir.tools import IRPrinter, collect, rewrite
-from tilus.logging import get_logger
 from tilus.ir.utils.thread_group_stack import ThreadGroupStack
-from tilus.ir.layout.inference.rule import LayoutInferenceError, LayoutInferenceContext
+from tilus.logging import get_logger
 
 logger = get_logger(__name__)
-
-
 
 
 class InstructionCollector(IRVisitor):
@@ -77,10 +75,7 @@ class InstructionCollector(IRVisitor):
         self.analysis = Analysis.empty()
 
     def visit_Function(self, func: Function) -> None:
-        self.tg_stack.push(
-            group_index=0,
-            group_size=func.metadata.num_warps * 32
-        )
+        self.tg_stack.push(group_index=0, group_size=func.metadata.num_warps * 32)
         if func.metadata.analysis:
             self.analysis = func.metadata.analysis
         self.visit(func.body)

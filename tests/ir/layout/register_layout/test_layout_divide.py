@@ -22,6 +22,7 @@ from tilus.ir.layout.register_layout_ops import divide, local, spatial
         [spatial(2, 4), spatial(1, 2), spatial(2, 2)],
         [spatial(2, 4).local(2, 1), local(2, 1), spatial(2, 4)],
         [spatial(2, 4).local(2, 1), spatial(1, 2).local(2, 1), spatial(2, 2)],
+        [spatial(32, 1).local(1, 32), spatial(32, 1), local(1, 32)],
         # split first element in suffix (mode refinement)
         [spatial(6), spatial(3), spatial(2)],
         # refinement without locals

@@ -54,8 +54,8 @@ from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.ir.tools import IRPrinter
 from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.ir.utils.normalize import normalize_dim3
-from tilus.target import Target, get_current_target, gpgpu_any, match_target
 from tilus.ir.utils.thread_group_stack import ThreadGroupStack
+from tilus.target import Target, get_current_target, gpgpu_any, match_target
 
 
 class InvalidInstruction(Exception):
@@ -133,6 +133,14 @@ class BaseInstEmitter(StmtBuilder):
     @property
     def current_num_threads(self) -> int:
         return self._codegen.thread_group_stack.group_size[-1]
+
+    @property
+    def current_thread_group_begin(self) -> int:
+        return self._codegen.thread_group_stack.thread_begin[-1]
+
+    @property
+    def current_thread_group_end(self) -> int:
+        return self._codegen.thread_group_stack.thread_end[-1]
 
     @property
     def block_rank_in_cluster(self) -> Expr:
@@ -333,7 +341,6 @@ class CommentInlinedIRPrinter(IRPrinter):
         return Text(comment) if isinstance(comment, str) else comment
 
 
-
 class FunctionCodegen(IRFunctor):
     def __init__(self) -> None:
         super().__init__()
@@ -517,12 +524,14 @@ class FunctionCodegen(IRFunctor):
             raise ValueError("group_size must be a divisor of the parent group_size")
         num_groups = parent_group_size // stmt.group_size
         if stmt.group_index < 0 or stmt.group_index >= num_groups:
-            raise ValueError("group_index must be in [0, num_groups), got group_index={}, num_groups={}".format(stmt.group_index, num_groups))
+            raise ValueError(
+                "group_index must be in [0, num_groups), got group_index={}, num_groups={}".format(
+                    stmt.group_index, num_groups
+                )
+            )
 
         self.builder.comment(
-            "ThreadGroup(group_index={}, group_size={})".format(
-                stmt.group_index, stmt.group_size
-            ),
+            "ThreadGroup(group_index={}, group_size={})".format(stmt.group_index, stmt.group_size),
             style="/*",
         )
         with self.builder.if_then(cond=self.current_thread // stmt.group_size == stmt.group_index):

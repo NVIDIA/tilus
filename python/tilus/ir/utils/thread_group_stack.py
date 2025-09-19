@@ -1,6 +1,3 @@
-from hidet.ir.expr import Var
-
-
 class ThreadGroupStack:
     def __init__(self):
         self.group_index: list[int] = []

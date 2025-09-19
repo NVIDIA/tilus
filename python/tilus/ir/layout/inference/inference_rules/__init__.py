@@ -25,9 +25,8 @@ from . import (
     reduce,
     shared_slice,
     store_shared,
+    tmem_ldst,
     transform,
     transpose,
     where,
-    tmem_ldst,
 )
-

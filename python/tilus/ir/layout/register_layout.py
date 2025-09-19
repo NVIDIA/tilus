@@ -289,11 +289,11 @@ def visualize_layout(layout: RegisterLayout, tablefmt: str = "simple_grid") -> s
     ----------
     layout: RegisterLayout
         The layout to be converted.
-    
+
     tablefmt: str
         The table format to use. It should be a valid format specifier in tabulate.tabulate function.
         Candidates:
-        
+
         - simple_grid
         - plain
         - grid

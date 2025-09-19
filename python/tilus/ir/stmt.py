@@ -58,9 +58,7 @@ class ThreadGroupStmt(Stmt):
     body: Stmt
 
     @staticmethod
-    def create(
-        group_index: int, body: Stmt, group_size: int
-    ) -> ThreadGroupStmt:
+    def create(group_index: int, body: Stmt, group_size: int) -> ThreadGroupStmt:
         return ThreadGroupStmt(group_index, group_size, body)
 
 

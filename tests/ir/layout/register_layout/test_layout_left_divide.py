@@ -25,5 +25,3 @@ from tilus.ir.layout.register_layout_ops import left_divide, local, spatial
 def test_left_divide(layout, lhs_divisor, expect):
     actual = left_divide(layout, lhs_divisor)
     assert actual == expect, f"Left divide failed: {layout} \\ {lhs_divisor}, expect {expect}, got {actual}"
-
-
