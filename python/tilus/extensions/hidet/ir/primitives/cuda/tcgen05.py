@@ -15,7 +15,7 @@
 from enum import Enum
 from typing import Sequence, no_type_check
 
-from hidet.ir.dtypes import int32, uint32
+from hidet.ir.dtypes import int32, uint8, uint32, uint64
 from hidet.ir.expr import Expr
 from hidet.ir.primitives.func import call_primitive_func
 from hidet.ir.stmt import asm
@@ -110,6 +110,13 @@ class Tcgen05LoadStorePackKind(Enum):
 def get_num_reg32(
     shape: Tcgen05LoadStoreShapeKind, num: Tcgen05LoadStoreNumKind, pack: Tcgen05LoadStorePackKind
 ) -> int:
+    """
+    Get the number of 32-bit registers needed for the tcgen05 load/store instruction given the shape, num, and pack.
+
+    See the tables:
+    - https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-num-shapes-ld
+    - https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-num-shapes-st
+    """
     base = {
         Tcgen05LoadStoreShapeKind.R16x64B: 1,
         Tcgen05LoadStoreShapeKind.R32x32B: 1,
@@ -273,6 +280,29 @@ def register_tcgen05_instructions():
         attrs.func_kind = "cuda_internal"
         asm("tcgen05.wait::st.sync.aligned;", is_volatile=True)
 
+    @register_primitive_function_decorator
+    @no_type_check
+    @script
+    def tcgen05_encode_smem_descriptor(
+        smem_addr: uint32,  # 16 bits, will ignore the least significant 2 bits
+        lbo: uint32,  # 16 bits, will ignore the least significant 2 bits
+        sbo: uint32,  # 16 bits, will ignore the least significant 2 bits
+        mbo: uint8,  # 3 bits
+        stride_mode: uint8,  # 1 bit
+        swizzle_mode: uint8,  # 3 bits
+    ) -> uint64:
+        attrs.func_name = "cuda_tcgen05_encode_smem_descriptor"
+        attrs.func_kind = "cuda_internal"
+        desc: uint64 = uint64(0)
+        desc = desc | ((lbo & uint32(0xFFFF)) >> 2) << 16
+        desc = desc | ((sbo & uint32(0xFFFF)) >> 2) << 32
+        desc = desc | (0b001) << 46
+        desc = desc | (mbo & uint8(0b111)) << 49
+        desc = desc | (stride_mode & uint8(0b1)) << 52
+        desc = desc | (swizzle_mode & uint8(0b111)) << 61
+        desc = desc | (smem_addr & uint32(0xFFFF)) >> 2
+        return desc
+
 
 def tcgen05_relinquish_alloc_permit(cta_group: int) -> Expr:
     func_name = resolve_tcgen05_relinquish_alloc_permit(cta_group)
@@ -319,3 +349,15 @@ def tcgen05_wait_load() -> Expr:
 def tcgen05_wait_store() -> Expr:
     func_name = "cuda_tcgen05_wait_store"
     return call_primitive_func(func_name, [])
+
+
+def tcgen05_encode_smem_descriptor(
+    smem_addr: Expr,
+    lbo: Expr,
+    sbo: Expr,
+    mbo: Expr,
+    stride_mode: Expr,
+    swizzle_mode: Expr,
+) -> Expr:
+    func_name = "cuda_tcgen05_encode_smem_descriptor"
+    return call_primitive_func(func_name, [smem_addr, lbo, sbo, mbo, stride_mode, swizzle_mode])
