@@ -34,10 +34,11 @@ from tilus.ir.layout import (
     global_strides,
 )
 from tilus.ir.prog import Program
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, TensorMemoryTensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, TMemoryTensor
 from tilus.lang.constructs.contexts import ThreadGroupContext
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
+from tilus.utils import is_power_of_two
 
 
 class Attributes:
@@ -99,17 +100,46 @@ class InstructionGroup:
         self._builder = builder
 
 
-class Tcgen05InstructionGroup(InstructionGroup):
-    def alloc(self, num_columns: int, cta_group: int) -> TensorMemoryTensor:
+class TmemInstructionGroup(InstructionGroup):
+    def alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int = 1) -> TMemoryTensor:
         if cta_group not in [1, 2]:
-            raise ValueError("cta_group must be 1 or 2")
-        return self._builder.tcgen05_alloc(num_columns, cta_group)
+            raise InstructionError("cta_group must be 1 or 2")
+        if len(shape) != 2:
+            raise InstructionError("shape must be a sequence of length 2, got {}".format(shape))
+        if shape[0] != 128:
+            raise InstructionError("shape[0] must be 128, got {}".format(shape[0]))
+        if dtype.nbits > 32 or 32 % dtype.nbits != 0:
+            raise InstructionError("dtype must be 8-bit, 16-bit, or 32-bit, got {}".format(dtype))
+        num_columns = shape[1] * dtype.nbits // 32
+        if not is_power_of_two(num_columns) or num_columns < 32 or num_columns > 512:
+            raise InstructionError(
+                "num_columns must be a power of two and in the range [32, 512], got {}".format(num_columns)
+            )
+        return self._builder.tmem_alloc(dtype, shape, cta_group)
 
-    def dealloc(self, tensor: TensorMemoryTensor) -> None:
-        self._builder.tcgen05_dealloc(tensor)
+    def dealloc(self, tensor: TMemoryTensor) -> None:
+        self._builder.tmem_dealloc(tensor)
+
+    def slice(self, tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> TMemoryTensor:
+        return self._builder.tmem_slice(tensor, offsets, shape)
+
+    def view(self, tensor: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> TMemoryTensor:
+        return self._builder.tmem_view(tensor, dtype, shape)
 
     def relinquish_alloc_permit(self, cta_group: int) -> None:
-        self._builder.tcgen05_relinquish_alloc_permit(cta_group)
+        self._builder.tmem_relinquish_alloc_permit(cta_group)
+
+    def load(self, tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
+        return self._builder.tmem_load(tensor, offsets, shape)
+
+    def store(self, tensor: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int] = (0, 0)) -> None:
+        return self._builder.tmem_store(tensor, src, offsets)
+
+    def wait_load(self) -> None:
+        self._builder.tmem_wait_load()
+
+    def wait_store(self) -> None:
+        self._builder.tmem_wait_store()
 
 
 class Script:
@@ -144,14 +174,14 @@ class Script:
         self.utils = utils
 
         # instruction groups
-        self.tcgen05 = Tcgen05InstructionGroup()
+        self.tmem = TmemInstructionGroup()
 
     def __call__(self, *args, **kwargs):
         raise RuntimeError("This method should never be called.")
 
     def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
         self._builder = builder
-        self.tcgen05._set_builder(builder)
+        self.tmem._set_builder(builder)
 
     def program(self) -> Program:
         """
@@ -341,9 +371,7 @@ class Script:
                 raise InstructionError("Can not recognize the condition in assume: {}".format(term))
 
     @staticmethod
-    def thread_group(
-        group_index: int, *, num_groups: Optional[int] = None, group_size: Optional[int] = None
-    ) -> ThreadGroupContext:
+    def thread_group(group_index: int, group_size: int) -> ThreadGroupContext:
         """Create a thread group context.
 
         This method creates a thread group context that is used to narrow down the threads that execute the instructions
@@ -358,7 +386,7 @@ class Script:
                 def __call__(self, ...):
                     # instructions executed by all threads in the thread block
                     ...
-                    with self.thread_group(group_index, num_groups=num_groups, group_size=group_size):
+                    with self.thread_group(group_index, group_size=group_size):
                         # instructions executed by threads in the specified thread group
                         ...
                         with self.thread_group(...):
@@ -373,13 +401,7 @@ class Script:
 
         At the root level of the kernel, there is one thread group that includes all threads in the thread block.
         We can partition the threads in the current thread group into multiple sub thread groups by specifying the
-        number of threads in each sub thread group using the `group_size` parameter, and/or by specifying the number
-        of sub thread groups using the `num_groups` parameter. The two parameters are related by the equation:
-        ```
-        num_groups * group_size == parent group_size
-        ```
-        If only one of the two parameters is specified, the other parameter will be inferred based on the size of the
-        parent thread group. If both parameters are specified, they must satisfy the above equation.
+        number of threads in each sub thread group using the `group_size` parameter.
 
         All instructions within the context will be executed by all threads in the specified thread group.
 
@@ -387,9 +409,7 @@ class Script:
         ----------
         group_index: int
             The index of the thread group to be created. It must be in the range [0, num_groups).
-        num_groups: int, optional
-            The number of thread groups to partition the current thread group into.
-        group_size: int, optional
+        group_size: int
             The number of threads in each thread group.
 
         Returns
@@ -397,12 +417,7 @@ class Script:
         ret: ThreadGroupContext
             The thread group context created.
         """
-        if num_groups is None and group_size is None:
-            raise InstructionError("Either num_groups or group_size must be specified")
-        if group_index < 0 or (num_groups is not None and group_index >= num_groups):
-            raise InstructionError("Invalid group_index {}, must be in [0, {})".format(group_index, num_groups))
-
-        return ThreadGroupContext(group_index=group_index, group_size=group_size, num_groups=num_groups)
+        return ThreadGroupContext(group_index=group_index, group_size=group_size)
 
     @staticmethod
     def single_thread() -> ThreadGroupContext:

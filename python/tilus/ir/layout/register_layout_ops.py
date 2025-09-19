@@ -693,9 +693,156 @@ def divide(lhs: RegisterLayout, rhs: RegisterLayout) -> RegisterLayout:
         lhs.spatial_modes[: -len(rhs.spatial_modes)] if len(rhs.spatial_modes) > 0 else lhs.spatial_modes
     )
     spatial_modes = [mode_map[mode] if mode >= 0 else mode for mode in pruned_lhs_spatial_modes]
-    local_modes = [mode_map[mode] for mode in lhs.local_modes[: -len(rhs.local_modes)]]
+    pruned_lhs_local_modes = lhs.local_modes[: -len(rhs.local_modes)] if len(rhs.local_modes) > 0 else lhs.local_modes
+    local_modes = [mode_map[mode] for mode in pruned_lhs_local_modes]
 
     # return the result layout
+    return register_layout(
+        shape=shape,
+        mode_shape=mode_shape,
+        spatial_modes=spatial_modes,
+        local_modes=local_modes,
+    )
+
+
+def left_divide(layout: RegisterLayout, lhs_divisor: RegisterLayout) -> RegisterLayout:
+    """
+    Divide the layout from the left by the lhs_divisor.
+
+    Given two layouts: layout and lhs_divisor, the left_divide function will return a new layout result, such that:
+
+    layout = compose(lhs_divisor, result)
+
+    If no such layout exists, the function will raise a LayoutOperationFailed exception.
+
+    Parameters
+    ----------
+    layout: RegisterLayout
+        The layout to be divided.
+    lhs_divisor: RegisterLayout
+        The layout to divide by.
+
+    Returns
+    -------
+    ret: RegisterLayout
+        The result layout.
+    """
+    # 0. refine the mode_shape of the layout to make it compatible with the lhs_divisor layout
+    # 1. check whether we can left-divide the two layouts
+    #  1.1. the lhs_divisor layout's grouped modes must be a prefix of the layout's grouped modes for each group
+    #  1.2. all such prefix dimensions must also be the prefix of the spatial/local modes in layout
+    # 2. construct the result of left division: layout = compose(lhs_divisor, result)
+    #  2.1. calculate the mode_shape of the result layout (remove the prefix modes)
+    #  2.2. construct a mapping from the original mode in layout to the new mode in the result layout
+    #  2.3. calculate the new spatial/local modes of the result layout based on the mapping
+
+    if len(layout.shape) < len(lhs_divisor.shape):
+        raise LayoutOperationError("Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor))
+    if len(layout.shape) > len(lhs_divisor.shape):
+        lhs_divisor = unsqueeze(lhs_divisor, [i for i in range(len(layout.shape) - len(lhs_divisor.shape))])
+
+    layout = canonicalize_layout(layout)
+    lhs_divisor = canonicalize_layout(lhs_divisor)
+
+    # 0. refine the mode_shape of the layout to make it compatible with the lhs_divisor layout (prefix alignment)
+    refined_mode_shape: list[int] = []
+    for lay_group, div_group in zip(layout.grouped_modes, lhs_divisor.grouped_modes):
+        lay_sizes = [layout.mode_shape[m] for m in lay_group]
+        div_sizes = [lhs_divisor.mode_shape[m] for m in div_group]
+
+        group_refined: list[int] = []
+        i = 0  # pointer in lay_sizes
+        for j, q in enumerate(div_sizes):
+            if i >= len(lay_sizes):
+                raise LayoutOperationError("Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor))
+            p = lay_sizes[i]
+            if p == q:
+                group_refined.append(p)
+                i += 1
+            else:
+                if j == 0 and p % q == 0:
+                    # split the first element so that prefix matches
+                    group_refined.append(q)
+                    lay_sizes[i] = p // q
+                    if lay_sizes[i] == 1:
+                        # keep 1 as a mode piece to be consistent with divide's refinement behavior
+                        pass
+                else:
+                    raise LayoutOperationError("Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor))
+        # append the remaining parts of the layout group
+        group_refined.extend(lay_sizes[i:])
+        refined_mode_shape.extend(group_refined)
+    layout = _layout_with_mode_shape(layout, refined_mode_shape)
+
+    # 1.1. check the grouped modes (prefix)
+    lay_grouped = layout.grouped_modes
+    div_grouped = lhs_divisor.grouped_modes
+    assert len(lay_grouped) == len(div_grouped)
+    for i in range(len(lay_grouped)):
+        lay_group = lay_grouped[i]
+        div_group = div_grouped[i]
+        if len(lay_group) < len(div_group):
+            raise LayoutOperationError("Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor))
+        for a, b in zip(lay_group[: len(div_group)], div_group):
+            if layout.mode_shape[a] != lhs_divisor.mode_shape[b]:
+                raise LayoutOperationError("Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor))
+
+    # 1.2. check the spatial/local modes (prefix)
+    # build mapping from lhs_divisor mode to corresponding mode index in layout
+    mode_map: dict[int, int] = {}
+    i = 0  # mode index in lhs_divisor
+    j = 0  # mode index in layout
+    for lay_group, div_group in zip(layout.grouped_modes, lhs_divisor.grouped_modes):
+        for _ in range(len(div_group)):
+            mode_map[i] = j
+            i += 1
+            j += 1
+        j += len(lay_group) - len(div_group)
+
+    if len(layout.spatial_modes) < len(lhs_divisor.spatial_modes) or len(layout.local_modes) < len(
+        lhs_divisor.local_modes
+    ):
+        raise LayoutOperationError("Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor))
+
+    for lay_mode, div_mode in zip(layout.spatial_modes[: len(lhs_divisor.spatial_modes)], lhs_divisor.spatial_modes):
+        if lay_mode == div_mode < 0:
+            continue
+        if lay_mode < 0 or div_mode < 0:
+            raise LayoutOperationError("Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor))
+        if mode_map[div_mode] != lay_mode:
+            raise LayoutOperationError("Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor))
+
+    for lay_mode, div_mode in zip(layout.local_modes[: len(lhs_divisor.local_modes)], lhs_divisor.local_modes):
+        if mode_map[div_mode] != lay_mode:
+            raise LayoutOperationError("Cannot left-divide layout {} by layout {}".format(layout, lhs_divisor))
+
+    # 2.1. calculate the mode_shape of the result layout (remove prefix)
+    shape = [a // b for a, b in zip(layout.shape, lhs_divisor.shape)]
+    mode_shape: list[int] = []
+    for lay_group, div_group in zip(layout.grouped_modes, lhs_divisor.grouped_modes):
+        pruned_lay_group = lay_group[len(div_group) :] if len(div_group) > 0 else lay_group
+        mode_shape.extend([layout.mode_shape[m] for m in pruned_lay_group])
+
+    # 2.2. mapping from original layout modes to result modes (after removing prefix)
+    result_mode_map: dict[int, int] = {}
+    new_index = 0
+    for lay_group, div_group in zip(layout.grouped_modes, lhs_divisor.grouped_modes):
+        pruned_lay_group = lay_group[len(div_group) :] if len(div_group) > 0 else lay_group
+        for m in pruned_lay_group:
+            result_mode_map[m] = new_index
+            new_index += 1
+
+    # 2.3. spatial/local modes for result (remove prefix then remap)
+    pruned_spatial = (
+        layout.spatial_modes[len(lhs_divisor.spatial_modes) :]
+        if len(lhs_divisor.spatial_modes) > 0
+        else layout.spatial_modes
+    )
+    spatial_modes = [result_mode_map[m] if m >= 0 else m for m in pruned_spatial]
+    pruned_local = (
+        layout.local_modes[len(lhs_divisor.local_modes) :] if len(lhs_divisor.local_modes) > 0 else layout.local_modes
+    )
+    local_modes = [result_mode_map[m] for m in pruned_local]
     return register_layout(
         shape=shape,
         mode_shape=mode_shape,

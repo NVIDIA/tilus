@@ -48,22 +48,55 @@ from hidet.utils import same_list
 from tilus import RegisterLayout, SharedLayout
 from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.func import Analysis, Function
+from tilus.ir.functors import IRVisitor
 from tilus.ir.inst import Instruction
 from tilus.ir.layout.inference.order import rule2order
 from tilus.ir.layout.inference.rule import (
     LayoutInferenceContext,
+    LayoutInferenceError,
     LayoutInferenceRule,
     get_inference_rules,
     get_validation_rule,
 )
+from tilus.ir.stmt import ThreadGroupStmt
 from tilus.ir.tools import IRPrinter, collect, rewrite
+from tilus.ir.utils.thread_group_stack import ThreadGroupStack
 from tilus.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-class LayoutInferenceError(Exception):
-    pass
+class InstructionCollector(IRVisitor):
+    def __init__(self):
+        super().__init__()
+        self.instructions: list[Instruction] = []
+        self.inst2ctx: dict[Instruction, LayoutInferenceContext] = {}
+        self.tg_stack = ThreadGroupStack()
+        self.analysis = Analysis.empty()
+
+    def visit_Function(self, func: Function) -> None:
+        self.tg_stack.push(group_index=0, group_size=func.metadata.num_warps * 32)
+        if func.metadata.analysis:
+            self.analysis = func.metadata.analysis
+        self.visit(func.body)
+        self.tg_stack.pop()
+
+    def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> None:
+        self.tg_stack.push(
+            group_index=stmt.group_index,
+            group_size=stmt.group_size,
+        )
+        self.visit(stmt.body)
+        self.tg_stack.pop()
+
+    def visit_Instruction(self, inst: Instruction) -> None:
+        self.instructions.append(inst)
+        self.inst2ctx[inst] = LayoutInferenceContext(
+            num_threads=self.tg_stack.group_size[-1],
+            thread_begin=self.tg_stack.thread_begin[-1],
+            thread_end=self.tg_stack.thread_end[-1],
+            analysis=self.analysis,
+        )
 
 
 def has_missing_layouts(inst: Instruction) -> bool:
@@ -150,8 +183,9 @@ def infer_layout(func: Function) -> Function:
         printer(func)
 
     ctx = LayoutInferenceContext(
-        num_warps=func.metadata.num_warps,
         num_threads=func.metadata.num_warps * 32,
+        thread_begin=0,
+        thread_end=func.metadata.num_warps * 32,
         analysis=func.metadata.analysis if func.metadata.analysis else Analysis.empty(),
     )
     # step 0: check whether all instructions used in the function have a layout inference rule registered.
@@ -183,7 +217,10 @@ def infer_layout(func: Function) -> Function:
         raise LayoutInferenceError("\n".join(lines))
 
     while True:
-        all_instructions = collect(func, types=[Instruction])
+        instruction_collector = InstructionCollector()
+        instruction_collector.visit(func)
+
+        all_instructions = instruction_collector.instructions
 
         # step 1: collect all instructions in the program
         instructions: list[Instruction] = [inst for inst in all_instructions if has_missing_layouts(inst)]
@@ -231,6 +268,7 @@ def infer_layout(func: Function) -> Function:
             ):
                 continue
 
+            ctx = instruction_collector.inst2ctx[inst]
             mapping = rule.inference(ctx, inst)
             if mapping:
                 # step 4.1: if any rule successfully infers a layout for any tensor, we update the program
@@ -294,17 +332,3 @@ def verify_layouts(func: Function) -> list[Instruction]:
         if has_shared_or_register_tensors(inst) and not get_validation_rule(inst).validate(inst):
             invalid_instructions.append(inst)
     return invalid_instructions
-
-    # if not invalid_instructions:
-    #     # all instructions have valid layouts, we can return the function
-    #     return
-    #     return func
-    # else:
-    #     # step 2.2: if any instruction with a rule rejected the layouts, we raise a `LayoutInferenceError`
-    #     printer = IRPrinter()
-    #     lines = ["The following instructions have invalid layouts: "]
-    #     for inst in invalid_instructions:
-    #         lines.append(f"  {printer(inst)}")
-    #     for comment, key in printer.comment2key.items():
-    #         lines.append(f"  {key}: {comment}")
-    #     raise LayoutInferenceError("\n".join(lines))

@@ -47,7 +47,7 @@ from tilus.ir.tensor import (
     SharedLayout,
     SharedTensor,
     Tensor,
-    TensorMemoryTensor,
+    TMemoryTensor,
 )
 
 
@@ -112,7 +112,7 @@ class IRPrinter(IRFunctor):
             doc += "size={}".format(self.printer(tensor.layout.size))
             doc += ", {}".format(self.visit(tensor.layout))
             return doc
-        elif isinstance(tensor, TensorMemoryTensor):
+        elif isinstance(tensor, TMemoryTensor):
             doc = Text("tensor_memory, ")
             doc += self.printer(tensor.dtype) + "[" + self.visit(tensor.shape) + "]"
             return doc
@@ -417,7 +417,7 @@ class IRPrinter(IRFunctor):
             self.global_count += 1
         return Text(self.tensor2name[tensor])
 
-    def visit_TensorMemoryTensor(self, tensor: TensorMemoryTensor) -> Doc:
+    def visit_TensorMemoryTensor(self, tensor: TMemoryTensor) -> Doc:
         if tensor not in self.tensor2name:
             self.tensor2name[tensor] = "%t" + str(self.tmem_count)
             self.tmem_count += 1

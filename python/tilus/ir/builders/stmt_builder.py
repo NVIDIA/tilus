@@ -56,7 +56,16 @@ from tilus.ir.instructions.cuda.mbarrier import (
 )
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
-from tilus.ir.instructions.cuda.tcgen05 import Tcgen05AllocInst, Tcgen05DeallocInst, Tcgen05RelinquishAllocPermitInst
+from tilus.ir.instructions.cuda.tmem import (
+    TMemoryAllocInst,
+    TMemoryDeallocInst,
+    TMemoryLoadInst,
+    TMemoryRelinquishAllocPermitInst,
+    TMemorySliceInst,
+    TMemoryStoreInst,
+    TMemoryViewInst,
+    TMemoryWaitInst,
+)
 from tilus.ir.instructions.generic import (
     AddInst,
     AllocateGlobalInst,
@@ -111,7 +120,7 @@ from tilus.ir.stmt import (
     ThreadGroupStmt,
     WhileStmt,
 )
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor, TensorMemoryTensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor, TMemoryTensor
 
 
 class StmtContext:
@@ -253,21 +262,16 @@ class WhileContext(StmtContext):
 
 
 class ThreadGroupContext(StmtContext):
-    def __init__(self, vb: StmtBuilderCore, group_index: int, group_size: Optional[int], num_groups: Optional[int]):
+    def __init__(self, vb: StmtBuilderCore, group_index: int, group_size: Optional[int]):
         super().__init__(vb)
         self.group_index: int = group_index
-        self.group_size: Optional[int] = group_size
-        self.num_groups: Optional[int] = num_groups
+        self.group_size: int = group_size
 
     def __enter__(self) -> None:
         self.enter()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.append(
-            ThreadGroupStmt(
-                group_index=self.group_index, group_size=self.group_size, num_groups=self.num_groups, body=self.pop()
-            )
-        )
+        self.append(ThreadGroupStmt(group_index=self.group_index, group_size=self.group_size, body=self.pop()))
 
 
 class StmtBuilderCore:
@@ -290,10 +294,8 @@ class StmtBuilderCore:
         iter_vars = [Var(name, type=int32) for name in iter_name_hints]
         return ForContext(self, iter_vars, expr_extents, unrolls=[None] * len(extents))
 
-    def thread_group(
-        self, group_index: int, group_size: Optional[int], num_groups: Optional[int]
-    ) -> ThreadGroupContext:
-        return ThreadGroupContext(self, group_index=group_index, group_size=group_size, num_groups=num_groups)
+    def thread_group(self, group_index: int, group_size: int) -> ThreadGroupContext:
+        return ThreadGroupContext(self, group_index=group_index, group_size=group_size)
 
     def while_loop(self, cond: Union[Expr, bool]) -> WhileContext:
         return WhileContext(self, as_expr(cond))
@@ -1115,18 +1117,61 @@ class StmtBuilder(StmtBuilderCore):
         inst = FenceProxyCopyAsync.create()
         self.append(inst)
 
-    # tcgen05
-    def tcgen05_alloc(self, num_columns: int, cta_group: int) -> TensorMemoryTensor:
-        inst = Tcgen05AllocInst.create(num_columns=num_columns, cta_group=cta_group)
+    # tmem tensor (tcgen05)
+    def tmem_alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int) -> TMemoryTensor:
+        inst = TMemoryAllocInst.create(dtype=dtype, shape=shape, cta_group=cta_group)
         self.append(inst)
-        return inst.output.as_tensor_memory_tensor()
+        return inst.output.as_tmemory_tensor()
 
-    def tcgen05_dealloc(self, tmt: TensorMemoryTensor) -> None:
-        inst = Tcgen05DeallocInst.create(tmt)
+    def tmem_dealloc(self, tmem: TMemoryTensor) -> None:
+        inst = TMemoryDeallocInst.create(tmem)
         self.append(inst)
 
-    def tcgen05_relinquish_alloc_permit(self, cta_group: int) -> None:
-        inst = Tcgen05RelinquishAllocPermitInst.create(cta_group)
+    def tmem_relinquish_alloc_permit(self, cta_group: int) -> None:
+        inst = TMemoryRelinquishAllocPermitInst.create(cta_group)
+        self.append(inst)
+
+    def tmem_slice(self, tmem: TMemoryTensor, offsets: Sequence[int], slice_shape: Sequence[int]) -> TMemoryTensor:
+        if any(not isinstance(ofs, int) for ofs in offsets):
+            raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
+        if len(offsets) != 2:
+            raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
+        if len(slice_shape) != 2:
+            raise InstructionError(f"The length of slice_shape must be 2, but got {len(slice_shape)}")
+        inst = TMemorySliceInst.create(tmem=tmem, offsets=offsets, shape=slice_shape)
+        self.append(inst)
+        return inst.output.as_tmemory_tensor()
+
+    def tmem_view(self, tmem: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> TMemoryTensor:
+        if len(shape) != 2:
+            raise InstructionError(f"The length of shape must be 2, but got {len(shape)}")
+        inst = TMemoryViewInst.create(tmem=tmem, dtype=dtype, shape=shape)
+        self.append(inst)
+        return inst.output.as_tmemory_tensor()
+
+    def tmem_load(self, tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
+        if any(not isinstance(ofs, int) for ofs in offsets):
+            raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
+        if len(offsets) != 2:
+            raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
+        inst = TMemoryLoadInst.create(tmem=tmem, offsets=offsets, shape=shape)
+        self.append(inst)
+        return inst.output.as_register_tensor()
+
+    def tmem_store(self, tmem: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int]) -> None:
+        if any(not isinstance(ofs, int) for ofs in offsets):
+            raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
+        if len(offsets) != 2:
+            raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
+        inst = TMemoryStoreInst.create(tmem=tmem, src=src, offsets=offsets)
+        self.append(inst)
+
+    def tmem_wait_load(self) -> None:
+        inst = TMemoryWaitInst.create(wait_load=True, wait_store=False)
+        self.append(inst)
+
+    def tmem_wait_store(self) -> None:
+        inst = TMemoryWaitInst.create(wait_load=False, wait_store=True)
         self.append(inst)
 
     # annotations

@@ -33,12 +33,14 @@ from .inference_rules.mma_dot import MmaDotRule
 from .inference_rules.reduce import ReduceRule
 from .inference_rules.shared_slice import SharedSliceRule
 from .inference_rules.store_shared import StoreSharedSwizzleRule
+from .inference_rules.tmem_ldst import TMemoryLoadRule, TMemoryStoreRule
 from .inference_rules.transform import SqueezeRule, UnsqueezeRule
 from .inference_rules.transpose import TransposeRule
 from .inference_rules.where import WhereRule
 
 inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [MmaDotRule],
+    [TMemoryLoadRule, TMemoryStoreRule],
     [BinaryRule, UnaryRule],
     [LoadGlobalRule],
     [ReduceRule],

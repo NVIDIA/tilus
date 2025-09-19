@@ -73,7 +73,7 @@ def get_logger(name: str) -> logging.Logger:
     name: str or None
         Optional name for sub-logger. If None, returns the main app logger.
     """
-    if not name.startswith(LOGGER_NAME):
+    if not name.startswith(LOGGER_NAME) and name != "__main__":
         raise RuntimeError(f"Logger name '{name}' must start with '{LOGGER_NAME}'.")
     return logging.getLogger(name)
 

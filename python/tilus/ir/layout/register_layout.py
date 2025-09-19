@@ -281,7 +281,7 @@ def validate_layout(
         raise ValueError("Thread dims and local dims must be unique")
 
 
-def visualize_layout(layout: RegisterLayout) -> str:
+def visualize_layout(layout: RegisterLayout, tablefmt: str = "simple_grid") -> str:
     """
     Visualize the layout in a human-readable format.
 
@@ -290,6 +290,22 @@ def visualize_layout(layout: RegisterLayout) -> str:
     layout: RegisterLayout
         The layout to be converted.
 
+    tablefmt: str
+        The table format to use. It should be a valid format specifier in tabulate.tabulate function.
+        Candidates:
+
+        - simple_grid
+        - plain
+        - grid
+        - rounded_grid
+        - mixed_grid
+        - double_grid
+        - fancy_grid
+        - outline
+        - simple_outline
+        - mixed_outline
+        - presto
+
     Returns
     -------
     ret: str
@@ -297,13 +313,14 @@ def visualize_layout(layout: RegisterLayout) -> str:
     """
     head = str(layout)
 
-    # normalize the shape into 3-dimension
-    shape = [s for s in layout.shape if s > 1]  # prune 1s
+    shape = list(layout.shape)
+    if len(shape) > 3:
+        # normalize the shape into 3-dimension
+        shape = [s for s in shape if s > 1]  # prune 1s
+        while len(shape) > 3:
+            shape = [prod(shape[0:2])] + shape[2:]
     while len(shape) < 3:
         shape.insert(0, 1)
-    while len(shape) > 3:
-        shape = [prod(shape[0:2])] + shape[2:]
-
     layout = layout.with_shape(shape)
 
     tables: list[str] = []
@@ -320,7 +337,7 @@ def visualize_layout(layout: RegisterLayout) -> str:
                 else:
                     row.append(f"{thread_indices}: {local_index}")
             table.append(row)
-        tables.append(tabulate.tabulate(table, tablefmt="simple_grid"))
+        tables.append(tabulate.tabulate(table, tablefmt=tablefmt))
 
     return head + "\n" + "\n".join(tables)
 

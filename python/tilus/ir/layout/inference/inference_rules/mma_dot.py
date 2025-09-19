@@ -72,7 +72,11 @@ class MmaDotRule(LayoutInferenceRule):
         d = inst.output.as_register_tensor()
 
         if all(tensor.optional_layout is None for tensor in (a, b, c, d)):
-            return MmaDotRule.generate_default_layouts(ctx.num_warps, a, b, c, d)
+            num_threads = ctx.num_threads
+            if num_threads % 32 != 0:
+                raise ValueError("num_threads must be divisible by 32")
+            num_warps = num_threads // 32
+            return MmaDotRule.generate_default_layouts(num_warps, a, b, c, d)
         elif d.optional_layout is not None:
             # d => a | b | c
             config = MmaDotRule.get_atom_config_from_layout_d(a, b, c, d)
