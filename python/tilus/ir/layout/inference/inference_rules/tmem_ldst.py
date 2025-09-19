@@ -13,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05LoadStoreShapeKind
-from tilus.ir.instructions.cuda.tmem import TMemoryLoadInst, TMemoryStoreInst, get_ldst_layout
+from tilus.ir.instructions.cuda.tmem import TMemoryLoadInst, TMemoryStoreInst
 from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout.cuda.tmem_ldst import get_ldst_layout
 from tilus.ir.layout.inference.rule import (
     LayoutInferenceContext,
     LayoutInferenceError,

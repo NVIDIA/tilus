@@ -44,8 +44,8 @@ from tilus.ir.instructions.cuda.tmem import (
     TMemoryStoreInst,
     TMemoryViewInst,
     TMemoryWaitInst,
-    get_ldst_layout,
 )
+from tilus.ir.layout.cuda.tmem_ldst import get_ldst_layout
 from tilus.ir.layout.register_layout_ops import divide, left_divide, local, spatial
 from tilus.ir.layout.utils import LayoutOperationError
 from tilus.ir.tensor import RegisterTensor, TMemoryTensor
