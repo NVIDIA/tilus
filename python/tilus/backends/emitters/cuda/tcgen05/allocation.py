@@ -22,6 +22,7 @@ from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.backends.contexts import SharedMemoryAllocationContext, Tcgen05EmitContext
 from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+    Tcgen05CtaGroupKind,
     tcgen05_alloc,
     tcgen05_dealloc,
     tcgen05_relinquish_alloc_permit,
@@ -76,7 +77,7 @@ class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
                 tcgen05_alloc(
                     dst=smem_addr,
                     num_columns=uint32(num_columns),
-                    cta_group=inst.cta_group,
+                    cta_group=Tcgen05CtaGroupKind(inst.cta_group),
                 )
             )
 
@@ -102,14 +103,18 @@ class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
             raise ValueError("tcgen05_dealloc requires at least 32 threads in the current thread group")
         with self.if_then(logical_or(self.current_num_threads == 32, self.current_thread // 32 == 0)):
             self.append(
-                tcgen05_dealloc(taddr=tmem_var, num_columns=uint32(num_columns), cta_group=tcgen05_ctx.cta_group)
+                tcgen05_dealloc(
+                    taddr=tmem_var,
+                    num_columns=uint32(num_columns),
+                    cta_group=Tcgen05CtaGroupKind(tcgen05_ctx.cta_group),
+                )
             )
 
 
 @register_emitter(TMemoryRelinquishAllocPermitInst, target=nvgpu_sm100)
 class Tcgen05RelinquishAllocPermitEmitter(BaseInstEmitter):
     def emit(self, inst: TMemoryRelinquishAllocPermitInst) -> None:
-        self.append(tcgen05_relinquish_alloc_permit(inst.cta_group))
+        self.append(tcgen05_relinquish_alloc_permit(Tcgen05CtaGroupKind(inst.cta_group)))
 
 
 @register_emitter(TMemorySliceInst, target=nvgpu_sm100)

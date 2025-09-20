@@ -28,7 +28,8 @@ from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.backends.contexts import SharedMemoryAllocationContext
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize, index_serialize
 from tilus.ir.instructions.generic import ReduceInst
-from tilus.ir.layout import RegisterLayout, SharedLayout, shared_row_major
+from tilus.ir.layout import RegisterLayout, SharedLayout
+from tilus.ir.layout.ops.shared_ops import shared_row_major
 from tilus.ir.tensor import RegisterTensor
 from tilus.target import nvgpu_any
 from tilus.utils import prod

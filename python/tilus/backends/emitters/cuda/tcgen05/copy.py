@@ -100,7 +100,7 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
         tmem_base_addr = self.tensor2var[tmem_tensor]
 
         with self.if_then(self.current_thread == 0):
-            insts = self.generate_instructions(shared_tensor)
+            insts = self.generate_instructions(tmem_tensor, shared_tensor)
             for inst_meta in insts:
                 s_desc = self.declare_var("s_desc", tp=uint64, init=inst_meta.shared_descriptor.encoded())
                 t_addr = tmem_base_addr + inst_meta.tmem_offset

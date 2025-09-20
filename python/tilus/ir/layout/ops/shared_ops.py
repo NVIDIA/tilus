@@ -16,12 +16,15 @@ from __future__ import annotations
 
 from typing import List, Sequence
 
+import tabulate
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var
 from hidet.utils import prod
 
 from tilus.extensions.hidet.ir.utils.index_transform import vector_mul
+from tilus.ir.layout.ops.utils import LayoutOperationError
 from tilus.ir.layout.shared_layout import SharedLayout
+from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
 
 
 def _generic_repeat(shape: List[int], ranks: List[int]) -> SharedLayout:
@@ -105,3 +108,49 @@ def shared_compose(lhs: SharedLayout, rhs: SharedLayout, *others: SharedLayout) 
         return _shared_compose(lhs, rhs)
     else:
         return shared_compose(_shared_compose(lhs, rhs), *others)
+
+
+def visualize_layout(layout: SharedLayout, tablefmt: str = "simple_grid") -> str:
+    """
+    Visualize the layout in a human-readable format.
+
+    Parameters
+    ----------
+    layout: SharedLayout
+        The layout to be converted.
+
+    tablefmt: str
+        The table format to use. It should be a valid format specifier in tabulate.tabulate function.
+        Candidates:
+
+        - simple_grid
+        - plain
+        - grid
+        - rounded_grid
+        - mixed_grid
+        - double_grid
+        - fancy_grid
+        - outline
+        - simple_outline
+        - mixed_outline
+        - presto
+
+    Returns
+    -------
+    ret: str
+        The string representation of the layout that is human-readable.
+    """
+    head = str(layout)
+    assert isinstance(layout, SharedLayout)
+
+    if len(layout.shape) != 2:
+        raise LayoutOperationError(f"Shared layout with shape {layout.shape} is not supported for visualization.")
+    grid = meshgrid(layout.shape)
+    offset_grid = vectorized_evaluate(layout.offset, var2value={axis: grid[i] for i, axis in enumerate(layout.axes)})
+    table = []
+    for i in range(layout.shape[0]):
+        row = []
+        for j in range(layout.shape[1]):
+            row.append(f"{offset_grid[i, j]}")
+        table.append(row)
+    return head + "\n" + tabulate.tabulate(table, tablefmt=tablefmt)

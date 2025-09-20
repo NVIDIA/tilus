@@ -16,8 +16,8 @@ from hidet.utils import same_list
 
 from tilus import RegisterLayout
 from tilus.ir.instructions import WhereInst
-from tilus.ir.layout import ops
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
+from tilus.ir.layout.ops import register_ops
 from tilus.ir.tensor import RegisterTensor
 
 
@@ -34,7 +34,7 @@ class WhereRule(LayoutInferenceRule):
             ret = {}
             for operand in (cond, x, y):
                 if operand.optional_layout is None:
-                    ret[operand] = ops.reduce_to(out.layout, shape=operand.shape)
+                    ret[operand] = register_ops.reduce_to(out.layout, shape=operand.shape)
             return ret
         else:
             for operand in (cond, x, y):

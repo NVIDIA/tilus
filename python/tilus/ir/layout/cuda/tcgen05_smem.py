@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal, Optional, Sequence
+from typing import Literal, Optional, Sequence, cast
 
 import numpy as np
 from hidet.ir.dtypes import int32
@@ -12,7 +12,6 @@ from hidet.utils import prod
 
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
 from tilus.ir.layout.shared_layout import SharedLayout
-from tilus.ir.layout.utils.visualize import visualize_layout
 from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
 from tilus.ir.utils.vector import vector
 
@@ -120,7 +119,7 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
     for major_kind in ["MN", "K"]:
         for swizzle_mode in swizzle_modes:
             # Generate atom layout and get its offset grid
-            atom_layout = _generate_atom_grid(major_kind, swizzle_mode, t)
+            atom_layout = _generate_atom_grid(cast(Literal["MN", "K"], major_kind), swizzle_mode, t)
             atom_axes_grid = meshgrid(atom_layout.shape)
             atom_grid = vectorized_evaluate(
                 expr=atom_layout.offset, var2value={axis: atom_axes_grid[i] for i, axis in enumerate(atom_layout.axes)}
@@ -140,7 +139,7 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
             m = entire_shape[0] // atom_shape[0]
             k = entire_shape[1] // atom_shape[1]
 
-            entire_grid = entire_grid.reshape(m, atom_shape[0], k, atom_shape[1]).permute(0, 2, 1, 3)
+            entire_grid = entire_grid.reshape(m, atom_shape[0], k, atom_shape[1]).transpose(0, 2, 1, 3)
             level_grid = entire_grid - atom_grid
 
             # check if all elements in the last two dimensions are the same
@@ -153,7 +152,7 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
 
             return CanonicalSharedLayout(
                 shape=(shape_m, shape_k),
-                major_kind=major_kind,
+                major_kind=cast(Literal["MN", "K"], major_kind),
                 swizzle_mode=swizzle_mode,
                 sbo=sbo,
                 lbo=lbo,
@@ -232,7 +231,7 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
     else:
         raise ValueError(f"Unsupported major_kind: {canonical_layout.major_kind}")
 
-    def f_offset(axes: Sequence[Var]) -> Expr:
+    def f_offset(axes: Sequence[Var]) -> Expr | int:
         i, j = axes[0], axes[1]
 
         if canonical_layout.major_kind == "MN":
@@ -263,7 +262,7 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
             else:
                 # For swizzled layouts: ((8,m),(T,swizzle_factor*k)):((swizzle_factor*T,SBO),(1,T))
                 # Strides: ((swizzle_factor*T*SBO, 1), (1, T))
-                base_offset = i0 * swizzle_factor * t + i1 * 1 + j0 * 1 + j1 * t + j2 * t
+                base_offset = i0 * swizzle_factor * t * sbo + i1 * 1 + j0 * 1 + j1 * t + j2 * t
 
         # Apply cute swizzle transformation if needed
         if bbits > 0:
@@ -289,7 +288,7 @@ def main():
     )
 
     layout = get_shared_layout_from_canonical(original_canonical)
-    print(visualize_layout(layout))
+    print(layout.visualize())
 
     recovered_canonical = canonicalize_shared_layout(layout, int32)
 
