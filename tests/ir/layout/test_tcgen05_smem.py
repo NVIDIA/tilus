@@ -13,11 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from hidet.ir.dtypes import int32, float16, float32
-from tilus.ir.layout.cuda.tcgen05_smem import Tcgen05SwizzleMode, CanonicalSharedLayout, get_shared_layout_from_canonical, canonicalize_shared_layout
+from hidet.ir.dtypes import float16, float32
+from tilus.ir.layout.cuda.tcgen05_smem import (
+    CanonicalSharedLayout,
+    Tcgen05SwizzleMode,
+    canonicalize_shared_layout,
+    get_shared_layout_from_canonical,
+)
 
 canonical2expected = [
-    [CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8), """
+    [
+        CanonicalSharedLayout(
+            major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8
+        ),
+        """
 ┌────┬────┬────┬────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
 │  0 │  8 │ 16 │ 24 │  32 │  40 │  48 │  56 │ 128 │ 136 │ 144 │ 152 │ 160 │ 168 │ 176 │ 184 │
 ├────┼────┼────┼────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
@@ -51,8 +60,13 @@ canonical2expected = [
 ├────┼────┼────┼────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
 │ 71 │ 79 │ 87 │ 95 │ 103 │ 111 │ 119 │ 127 │ 199 │ 207 │ 215 │ 223 │ 231 │ 239 │ 247 │ 255 │
 └────┴────┴────┴────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
-    """],
-    [CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=256, LBO=128, m=2, k=2, T=8), """
+    """,
+    ],
+    [
+        CanonicalSharedLayout(
+            major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=256, LBO=128, m=2, k=2, T=8
+        ),
+        """
 ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
 │   0 │  16 │  32 │  48 │  72 │  88 │ 104 │ 120 │ 256 │ 272 │ 288 │ 304 │ 328 │ 344 │ 360 │ 376 │
 ├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
@@ -118,8 +132,13 @@ canonical2expected = [
 ├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
 │ 143 │ 159 │ 175 │ 191 │ 199 │ 215 │ 231 │ 247 │ 399 │ 415 │ 431 │ 447 │ 455 │ 471 │ 487 │ 503 │
 └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
-    """],
-    [CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B64_SWIZZLE, SBO=512, LBO=256, m=2, k=2, T=8), """
+    """,
+    ],
+    [
+        CanonicalSharedLayout(
+            major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B64_SWIZZLE, SBO=512, LBO=256, m=2, k=2, T=8
+        ),
+        """
 ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬──────┐
 │   0 │  32 │  72 │ 104 │ 144 │ 176 │ 216 │ 248 │ 512 │ 544 │ 584 │ 616 │ 656 │ 688 │ 728 │  760 │
 ├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┤
@@ -249,8 +268,13 @@ canonical2expected = [
 ├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┤
 │ 287 │ 319 │ 343 │ 375 │ 399 │ 431 │ 455 │ 487 │ 799 │ 831 │ 855 │ 887 │ 911 │ 943 │ 967 │  999 │
 └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴──────┘
-    """],
-    [CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=32, LBO=64, m=2, k=4, T=4), """
+    """,
+    ],
+    [
+        CanonicalSharedLayout(
+            major_kind="K", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=32, LBO=64, m=2, k=4, T=4
+        ),
+        """
 ┌────┬────┬────┬────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
 │  0 │  1 │  2 │  3 │  64 │  65 │  66 │  67 │ 128 │ 129 │ 130 │ 131 │ 192 │ 193 │ 194 │ 195 │
 ├────┼────┼────┼────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
@@ -284,8 +308,13 @@ canonical2expected = [
 ├────┼────┼────┼────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
 │ 60 │ 61 │ 62 │ 63 │ 124 │ 125 │ 126 │ 127 │ 188 │ 189 │ 190 │ 191 │ 252 │ 253 │ 254 │ 255 │
 └────┴────┴────┴────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
-"""],
-    [CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=4), """
+""",
+    ],
+    [
+        CanonicalSharedLayout(
+            major_kind="K", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=4
+        ),
+        """
 ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
 │   0 │   1 │   2 │   3 │   4 │   5 │   6 │   7 │ 128 │ 129 │ 130 │ 131 │ 132 │ 133 │ 134 │ 135 │
 ├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
@@ -319,7 +348,8 @@ canonical2expected = [
 ├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤
 │ 124 │ 125 │ 126 │ 127 │ 120 │ 121 │ 122 │ 123 │ 252 │ 253 │ 254 │ 255 │ 248 │ 249 │ 250 │ 251 │
 └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
-    """],
+    """,
+    ],
 ]
 
 
@@ -327,22 +357,34 @@ canonical2expected = [
 def test_shared_layout_from_canonical(canonical, expected):
     layout = get_shared_layout_from_canonical(canonical)
     actual = layout.visualize()
-    # remove the first line in the actual 
+    # remove the first line in the actual
     actual = "\n".join(actual.split("\n")[1:])
     expected = expected.strip()
 
     if actual != expected:
         assert False, canonical
 
-@pytest.mark.parametrize("canonical",
+
+@pytest.mark.parametrize(
+    "canonical",
     [
-        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8),
-        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=256, LBO=128, m=2, k=2, T=8),
-        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B64_SWIZZLE, SBO=512, LBO=256, m=2, k=2, T=8),
-        CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=32, LBO=64, m=2, k=4, T=4),
-        CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=4),
-    ]
-                         )
+        CanonicalSharedLayout(
+            major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8
+        ),
+        CanonicalSharedLayout(
+            major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=256, LBO=128, m=2, k=2, T=8
+        ),
+        CanonicalSharedLayout(
+            major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B64_SWIZZLE, SBO=512, LBO=256, m=2, k=2, T=8
+        ),
+        CanonicalSharedLayout(
+            major_kind="K", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=32, LBO=64, m=2, k=4, T=4
+        ),
+        CanonicalSharedLayout(
+            major_kind="K", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=4
+        ),
+    ],
+)
 def test_canonicalize_shared_layout(canonical):
     t_to_dtype = {
         8: float16,
@@ -353,6 +395,7 @@ def test_canonicalize_shared_layout(canonical):
     recovered_canonical = canonicalize_shared_layout(layout, dtype)
     assert recovered_canonical is not None
     assert recovered_canonical == canonical, f"{recovered_canonical} != {canonical}"
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

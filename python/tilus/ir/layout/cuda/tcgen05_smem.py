@@ -5,16 +5,13 @@ from enum import Enum
 from typing import Literal, Optional, Sequence, cast
 
 import numpy as np
-from hidet.ir.dtypes import int32, float16, float32
 from hidet.ir.expr import Expr, Var
 from hidet.ir.type import DataType
 from hidet.utils.py import prod
 
-from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
-from tilus.ir.layout.utils.cute import cute_layout, tuple_product, CuteSwizzle
 from tilus.ir.layout.shared_layout import SharedLayout
+from tilus.ir.layout.utils.cute import CuteSwizzle, cute_layout, tuple_product
 from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
-from tilus.ir.utils.vector import vector
 from tilus.utils import floor_log2
 
 
@@ -34,6 +31,38 @@ class Tcgen05SwizzleMode(Enum):
 
 @dataclass(order=True, eq=True, unsafe_hash=True)
 class CanonicalSharedLayout:
+    """
+    The canonical layout of tcgen05 cp instructions.
+
+    +----------------+--------------------------+--------------------------------------+-------------------------------------+
+    | Major-ness     | Swizzling mode           | Canonical Layout without swizzling   | Swizzling on the previous column    |
+    +================+==========================+======================================+=====================================+
+    | MN-major       | No-swizzling or          | ((T,1,m),(8,k)):((1,T,SBO),(1T,LBO)) | Swizzle<0, 4, 3>                    |
+    |                | Interleaved              |                                      |                                     |
+    +----------------+--------------------------+--------------------------------------+-------------------------------------+
+    |                | 32B Swizzling            | ((T,2,m),(8,k)):((1,T,LBO),(2T,SBO)) | Swizzle<1, 4, 3>                    |
+    +----------------+--------------------------+--------------------------------------+-------------------------------------+
+    |                | 64B Swizzling            | ((T,4,m),(8,k)):((1,T,LBO),(4T,SBO)) | Swizzle<2, 4, 3>                    |
+    +----------------+--------------------------+--------------------------------------+-------------------------------------+
+    |                | 128B Swizzling           | ((T,8,m),(8,k)):((1,T,LBO),(8T,SBO)) | Swizzle<3, 4, 3>                    |
+    +================+==========================+======================================+=====================================+
+    | K-major        | No-swizzling or          | ((8,m),(T,k)):((1T,SBO),(1,LBO))     | Swizzle<0, 4, 3>                    |
+    |                | Interleaved              |                                      |                                     |
+    +----------------+--------------------------+--------------------------------------+-------------------------------------+
+    |                | 32B Swizzling            | ((8,m),(T,2,k)):((2T,SBO),(1,T,LBO)) | Swizzle<1, 4, 3>                    |
+    +----------------+--------------------------+--------------------------------------+-------------------------------------+
+    |                | 64B Swizzling            | ((8,m),(T,4,k)):((4T,SBO),(1,T,LBO)) | Swizzle<2, 4, 3>                    |
+    +----------------+--------------------------+--------------------------------------+-------------------------------------+
+    |                | 128B Swizzling           | ((8,m),(T,8,k)):((8T,SBO),(1,T,LBO)) | Swizzle<3, 4, 3>                    |
+    +----------------+--------------------------+--------------------------------------+-------------------------------------+
+    where
+    - T = 128 / sizeof-elements-in-bits T represents scale factor which normalizes matrix element types to 128-bits.
+    - m represents the number of repeating patterns across rows.
+    - k represents the number of repeating patterns across columns.
+    (The table can be found at https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-canonical-layouts. I find the cuda documentation
+     is not coherent thus made some modifications to the table on the K-major case.)
+    """
+
     major_kind: Literal["MN", "K"]
     swizzle_mode: Tcgen05SwizzleMode
     SBO: int
@@ -48,7 +77,7 @@ class CanonicalSharedLayout:
             raise ValueError(f"SBO {self.SBO} and LBO {self.LBO} must be divisible by atom size: {atom_size}")
 
 
-def _generate_atom_grid(major_kind: Literal["MN", "K"], swizzle_mode: Tcgen05SwizzleMode, t: int) -> SharedLayout:
+def _generate_atom_grid(major_kind: Literal["MN", "K"], swizzle_mode: Tcgen05SwizzleMode, t: int) -> np.ndarray:
     canonical_layout = CanonicalSharedLayout(
         major_kind=major_kind, swizzle_mode=swizzle_mode, SBO=0, LBO=0, m=1, k=1, T=t
     )
@@ -62,22 +91,20 @@ def _generate_atom_grid(major_kind: Literal["MN", "K"], swizzle_mode: Tcgen05Swi
 
 def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> Optional[CanonicalSharedLayout]:
     """
-    Reverse engineer a SharedLayout to determine its canonical TCGen05 form using direct pattern analysis.
+    Convert a SharedLayout to its canonical TCGen05 form using direct pattern analysis.
 
-    This function uses your proposed approach:
-    1. Determine swizzle mode and majorness by analyzing stride patterns
-    2. Extract SBO/LBO by analyzing box patterns after identifying the atom structure
+    See the docstring of get_shared_layout_from_canonical for the canonical layout pattern.
 
     Parameters
     ----------
     shared_layout : SharedLayout
         The shared layout to canonicalize
     dtype : DataType
-        The data type of the tensor elements, used to determine T = 128 / dtype.nbits
+        The data type of the tensor elements, used to determine T = 128 / dtype.nbits. What only matters is the number of bits of the data type.
 
     Returns
     -------
-    Optional[CanonicalSharedLayout]
+    ret: Optional[CanonicalSharedLayout]
         The canonical form if found, None otherwise
     """
     if len(shared_layout.shape) != 2:
@@ -98,10 +125,7 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
     entire_shape = shared_layout.shape
 
     # Try each swizzle mode and majorness using direct pattern analysis
-    for major_kind in [
-        "MN", 
-        "K"
-    ]:
+    for major_kind in ["MN", "K"]:
         for swizzle_mode in [
             Tcgen05SwizzleMode.NO_SWIZZLE,
             Tcgen05SwizzleMode.B32_SWIZZLE,
@@ -162,40 +186,15 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
     """
     Construct the shared layout specified by the canonical layout of tcgen05 cp instructions.
 
-    This table provides a reference for different swizzling modes and their corresponding
-    canonical layouts, categorized by major-ness.
-
-    +----------------+--------------------------+--------------------------------------+-------------------------------------+
-    | Major-ness     | Swizzling mode           | Canonical Layout without swizzling   | Swizzling on the previous column    |
-    +================+==========================+======================================+=====================================+
-    | MN- major      | No-swizzling or          | ((T,1,m),(8,k)):((1,T,SBO),(1T,LBO)) | Swizzle<0, 4, 3>                    |
-    |                | Interleaved              |                                      |                                     |
-    +----------------+--------------------------+--------------------------------------+-------------------------------------+
-    |                | 32B Swizzling            | ((T,2,m),(8,k)):((1,T,LBO),(2T,SBO)) | Swizzle<1, 4, 3>                    |
-    +----------------+--------------------------+--------------------------------------+-------------------------------------+
-    |                | 64B Swizzling            | ((T,4,m),(8,k)):((1,T,LBO),(4T,SBO)) | Swizzle<2, 4, 3>                    |
-    +----------------+--------------------------+--------------------------------------+-------------------------------------+
-    |                | 128B Swizzling           | ((T,8,m),(8,k)):((1,T,LBO),(8T,SBO)) | Swizzle<3, 4, 3>                    |
-    +================+==========================+======================================+=====================================+
-    | K- major       | No-swizzling or          | ((8,m),(T,k)):((1T,SBO),(1,LBO))     | Swizzle<0, 4, 3>                    |
-    |                | Interleaved              |                                      |                                     |
-    +----------------+--------------------------+--------------------------------------+-------------------------------------+
-    |                | 32B Swizzling            | ((8,m),(T,2,k)):((2T,SBO),(1,T,LBO)) | Swizzle<1, 4, 3>                    |
-    +----------------+--------------------------+--------------------------------------+-------------------------------------+
-    |                | 64B Swizzling            | ((8,m),(T,4,k)):((4T,SBO),(1,T,LBO)) | Swizzle<2, 4, 3>                    |
-    +----------------+--------------------------+--------------------------------------+-------------------------------------+
-    |                | 128B Swizzling           | ((8,m),(T,8,k)):((8T,SBO),(1,T,LBO)) | Swizzle<3, 4, 3>                    |
-    +----------------+--------------------------+--------------------------------------+-------------------------------------+
-    where
-    - T = 128 / sizeof-elements-in-bits T represents scale factor which normalizes matrix element types to 128-bits.
-    - m represents the number of repeating patterns across rows.
-    - k represents the number of repeating patterns across columns.
-    (The table can be found at https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-canonical-layouts)
+    Parameters
+    ----------
+    canonical_layout : CanonicalSharedLayout
+        The canonical layout to construct the shared layout from.
 
     Returns
     -------
-    SharedLayout
-        The shared memory layout for TCGen05
+    ret: SharedLayout
+        The shared memory layout of Tilus corresponding to the canonical layout.
     """
     swizzle_mode = canonical_layout.swizzle_mode
     bbits, mbase, sshift = swizzle_mode.bbits, swizzle_mode.mbase, swizzle_mode.sshift
@@ -229,29 +228,9 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
         swizzle = CuteSwizzle(bbits=bbits, mbase=mbase - floor_log2(nbytes), sshift=sshift)
         return swizzle(layout(*axes))
 
-    smem_shape: list[int] = [int(tuple_product(item)) for item in layout.shape]
+    if not isinstance(layout.shape, Sequence):
+        smem_shape = [int(layout.shape)]
+    else:
+        smem_shape = [int(tuple_product(item)) for item in layout.shape]
 
     return SharedLayout.create(shape=smem_shape, size=prod(smem_shape), f_offset=f_offset)
-
-
-def demo_reverse():
-
-    for canonical in [
-        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8),
-        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=256, LBO=128, m=2, k=2, T=8),
-        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B64_SWIZZLE, SBO=512, LBO=256, m=2, k=2, T=8),
-        CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=32, LBO=64, m=2, k=4, T=4),
-        CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=4),
-    ]:
-        t_to_dtype = {
-            8: float16,
-            4: float32,
-        }
-        dtype = t_to_dtype[canonical.T]
-        layout = get_shared_layout_from_canonical(canonical)
-        recovered_canonical = canonicalize_shared_layout(layout, dtype)
-        assert recovered_canonical is not None
-        assert recovered_canonical == canonical, f"{recovered_canonical} != {canonical}"
-    
-if __name__ == "__main__":
-    demo_reverse()

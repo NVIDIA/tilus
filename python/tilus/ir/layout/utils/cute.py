@@ -1,21 +1,22 @@
 from __future__ import annotations
-from hidet.utils import prod
-from typing import Sequence, Any, Union
-import functools
-from dataclasses import dataclass
+
+from typing import Sequence, Union
+
 from hidet.ir.expr import Expr
+from hidet.utils import prod
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
 
-
 Int = Expr | int
-IntTuple = Int | Sequence[Union[Int, 'IntTuple']]
+IntTuple = Int | Sequence[Union[Int, "IntTuple"]]
+
 
 def is_congruent(a: IntTuple, b: IntTuple) -> bool:
     if not isinstance(a, Sequence) and not isinstance(b, Sequence):
         return True
-    if len(a) != len(b):
+    if len(a) != len(b):  # type: ignore[arg-type]
         return False
-    return all(is_congruent(a_item, b_item) for a_item, b_item in zip(a, b))
+    return all(is_congruent(a_item, b_item) for a_item, b_item in zip(a, b))  # type: ignore[arg-type]
+
 
 def tuple_multiply(a: IntTuple, b: IntTuple) -> IntTuple:
     if isinstance(a, Sequence) and isinstance(b, Sequence):
@@ -25,8 +26,10 @@ def tuple_multiply(a: IntTuple, b: IntTuple) -> IntTuple:
     else:
         raise ValueError(f"Invalid a or b: {a} or {b}")
 
+
 def tuple_product(a: IntTuple) -> Int:
     return prod(tuple_product(item) for item in a) if isinstance(a, Sequence) else a
+
 
 def tuple_sum(a: IntTuple) -> Int:
     return sum(tuple_sum(item) for item in a) if isinstance(a, Sequence) else a
@@ -55,9 +58,10 @@ class CuteLayout:
 
         if not is_congruent(shape, strides):
             raise ValueError("Shape and strides must be congruent")
+
     def __str__(self) -> str:
-        return f'{self.shape}:{self.strides}'
-    
+        return f"{self.shape}:{self.strides}"
+
     def __call__(self, *coords: IntTuple) -> Int:
         coords = specialize(coords, self.shape)
         ret = tuple_sum(tuple_multiply(coords, self.strides))
@@ -69,9 +73,9 @@ class CuteSwizzle:
         self.bbits: int = bbits
         self.mbase: int = mbase
         self.sshift: int = sshift
-    
+
     def __str__(self) -> str:
-        return f'Swizzle<{self.bbits}, {self.mbase}, {self.sshift}>'
+        return f"Swizzle<{self.bbits}, {self.mbase}, {self.sshift}>"
 
     def __call__(self, offset: Int) -> Int:
         if self.bbits == 0:
@@ -81,7 +85,7 @@ class CuteSwizzle:
             # z_mask = ((1 << self.bbits) - 1) << self.mbase
             y_mask = ((1 << self.bbits) - 1) << (self.mbase + self.sshift)
             return offset ^ ((offset & y_mask) >> self.sshift)
-    
+
 
 def cute_layout(shape: IntTuple, strides: IntTuple) -> CuteLayout:
     return CuteLayout(shape, strides)
