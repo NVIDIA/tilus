@@ -66,7 +66,7 @@ class LoadSharedInferRowMajorSharedRule(LayoutInferenceRule):
         if not (a.optional_layout is None and b.optional_layout is not None):
             return {}
 
-        from tilus.ir.layout.shared_layout import shared_row_major
+        from tilus.ir.layout.ops.shared_ops import shared_row_major
 
         return {a: shared_row_major(*a.shape)}
 

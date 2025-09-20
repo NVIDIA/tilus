@@ -15,7 +15,7 @@
 from typing import Sequence
 
 import numpy as np
-from hidet.ir.expr import Add, Constant, Div, Expr, Mod, Multiply, Sub, Var, BitwiseXor, BitwiseAnd, RightShift
+from hidet.ir.expr import Add, BitwiseAnd, BitwiseXor, Constant, Div, Expr, Mod, Multiply, RightShift, Sub, Var
 from hidet.ir.functors import IRFunctor
 
 

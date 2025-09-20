@@ -22,7 +22,7 @@ from tilus.ir.layout.inference.rule import (
     LayoutInferenceRule,
     register_rule,
 )
-from tilus.ir.layout.register_layout_ops import local
+from tilus.ir.layout.ops.register_ops import local
 from tilus.ir.tensor import RegisterTensor, TMemoryTensor
 
 
