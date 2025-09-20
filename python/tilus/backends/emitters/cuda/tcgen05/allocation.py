@@ -77,7 +77,7 @@ class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
                 tcgen05_alloc(
                     dst=smem_addr,
                     num_columns=uint32(num_columns),
-                    cta_group=Tcgen05CtaGroupKind(inst.cta_group),
+                    cta_group=Tcgen05CtaGroupKind.from_int(inst.cta_group),
                 )
             )
 

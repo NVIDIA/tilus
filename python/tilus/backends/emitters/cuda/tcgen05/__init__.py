@@ -1,1 +1,1 @@
-from . import allocation, copy, ldst
+from . import allocation, copy, ldst, sync

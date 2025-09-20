@@ -28,6 +28,15 @@ class Tcgen05SwizzleMode(Enum):
         self.mbase = mbase
         self.sshift = sshift
 
+    def encode(self) -> int:
+        # see https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-shared-memory-desc-layout
+        return {
+            Tcgen05SwizzleMode.NO_SWIZZLE: 0,
+            Tcgen05SwizzleMode.B32_SWIZZLE: 6,
+            Tcgen05SwizzleMode.B64_SWIZZLE: 4,
+            Tcgen05SwizzleMode.B128_SWIZZLE: 2,
+        }[self]
+
 
 @dataclass(order=True, eq=True, unsafe_hash=True)
 class CanonicalSharedLayout:
@@ -75,6 +84,15 @@ class CanonicalSharedLayout:
         atom_size = 2**self.swizzle_mode.bbits * 8 * self.T
         if (self.m > 1 and self.SBO % atom_size != 0) or (self.k > 1 and self.LBO % atom_size != 0):
             raise ValueError(f"SBO {self.SBO} and LBO {self.LBO} must be divisible by atom size: {atom_size}")
+
+    def strides(self) -> tuple[int, int]:
+        if self.major_kind == "MN":
+            if self.swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
+                return (self.SBO, self.LBO)
+            else:
+                return (self.LBO, self.SBO)
+        else:
+            return (self.SBO, self.LBO)
 
 
 def _generate_atom_grid(major_kind: Literal["MN", "K"], swizzle_mode: Tcgen05SwizzleMode, t: int) -> np.ndarray:
@@ -155,8 +173,8 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
                 return None
 
             # Extract SBO and LBO from box differences
-            ROW_STRIDE = level_grid[1, 0, 0, 0] if m > 1 else 1
-            COL_STRIDE = level_grid[0, 1, 0, 0] if k > 1 else 1
+            ROW_STRIDE = int(level_grid[1, 0, 0, 0]) if m > 1 else 1
+            COL_STRIDE = int(level_grid[0, 1, 0, 0]) if k > 1 else 1
 
             if major_kind == "MN":
                 if swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
@@ -234,3 +252,32 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
         smem_shape = [int(tuple_product(item)) for item in layout.shape]
 
     return SharedLayout.create(shape=smem_shape, size=prod(smem_shape), f_offset=f_offset)
+
+
+def generate_canonical_layout(
+    shape: tuple[int, int], dtype: DataType, major_kind: Literal["MN", "K"], swizzle_mode: Tcgen05SwizzleMode
+) -> CanonicalSharedLayout:
+    if 128 % dtype.nbits != 0:
+        raise ValueError(f"dtype {dtype.name} is not supported")
+    T = 128 // dtype.nbits
+    S = 2**swizzle_mode.bbits
+    if major_kind == "MN":
+        if shape[0] % (T * S) != 0 or shape[1] % 8 != 0:
+            raise ValueError(f"shape {shape} is not supported")
+        m, k = shape[0] // (T * S), shape[1] // 8
+        atom_size = T * S * 8
+        if swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
+            SBO = atom_size
+            LBO = atom_size * m
+        else:
+            SBO = atom_size
+            LBO = atom_size * k
+    else:
+        if shape[0] % 8 != 0 or shape[1] % (T * S) != 0:
+            raise ValueError(f"shape {shape} is not supported")
+        m, k = shape[0] // 8, shape[1] // (T * S)
+        atom_size = T * S * 8
+        SBO = atom_size
+        LBO = atom_size * m
+
+    return CanonicalSharedLayout(major_kind=major_kind, swizzle_mode=swizzle_mode, SBO=SBO, LBO=LBO, m=m, k=k, T=T)

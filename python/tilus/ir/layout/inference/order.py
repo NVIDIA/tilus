@@ -42,6 +42,7 @@ from .inference_rules.where import WhereRule
 inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [MmaDotRule],
     [TMemoryLoadRule, TMemoryStoreRule],
+    [TMemoryCopyRule],
     [BinaryRule, UnaryRule],
     [LoadGlobalRule],
     [ReduceRule],
@@ -57,7 +58,6 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [LoadSharedInferRegisterRule],
     [LoadSharedInferRowMajorSharedRule],
     [AllocateSharedRule],
-    [TMemoryCopyRule],
 ]
 
 rule2order: dict[Type[LayoutInferenceRule], int] = {}

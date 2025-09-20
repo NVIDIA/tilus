@@ -15,6 +15,12 @@
 
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
+from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+    Tcgen05CommitMulticastKind,
+    Tcgen05CtaGroupKind,
+    tcgen05_commit,
+)
 from tilus.ir.instructions.cuda.tmem import (
     TMemoryCommitInst,
 )
@@ -24,4 +30,12 @@ from tilus.target import nvgpu_sm100
 @register_emitter(TMemoryCommitInst, target=nvgpu_sm100)
 class TMemoryCommitEmitter(BaseInstEmitter):
     def emit(self, inst: TMemoryCommitInst) -> None:
-        raise NotImplementedError("TMemoryCommitInst is not supported yet")
+        with self.if_then(self.current_thread == 0):
+            self.append(
+                tcgen05_commit(
+                    mbarrier=cvta_generic_to_shared(inst.mbarrier),
+                    cta_mask=inst.cta_mask,
+                    cta_group=Tcgen05CtaGroupKind.CTA_1,
+                    multicast=Tcgen05CommitMulticastKind.NONE,
+                )
+            )

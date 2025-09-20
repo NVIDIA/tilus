@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from enum import Enum
-from typing import Sequence, no_type_check
+from typing import Optional, Sequence, no_type_check
 
 from hidet.ir.dtypes import int32, uint8, uint32, uint64
 from hidet.ir.expr import Expr
@@ -129,12 +129,27 @@ class Tcgen05CopyShapeKind(Enum):
     R32x128B = ".32x128b"
     R4x128B = ".4x128b"
 
+    def as_int_tuple(self) -> tuple[int, int]:
+        table = {
+            Tcgen05CopyShapeKind.R128x256B: (128, 256),
+            Tcgen05CopyShapeKind.R128x128B: (128, 128),
+            Tcgen05CopyShapeKind.R64x128B: (64, 128),
+            Tcgen05CopyShapeKind.R32x128B: (32, 128),
+            Tcgen05CopyShapeKind.R4x128B: (4, 128),
+        }
+        return table[self]
+
 
 class Tcgen05CopyMulticastKind(Enum):
     NONE = ""
     WARP_X2_02_13 = ".warpx2_02_13"
     WARP_X2_01_23 = ".warpx2_01_23"
     WARP_X4 = ".warpx4"
+
+
+class Tcgen05CommitMulticastKind(Enum):
+    NONE = ""
+    CLUSTER = ".multicast::cluster"
 
 
 def get_num_reg32(
@@ -204,6 +219,14 @@ def resolve_tcgen05_copy(
     cta_group: Tcgen05CtaGroupKind, shape: Tcgen05CopyShapeKind, multicast: Tcgen05CopyMulticastKind
 ) -> str:
     ret = "cuda_tcgen05_copy_cta_group" + cta_group.value + shape.value + multicast.value
+    ret = ret.replace(".", "_").replace("::", "_")
+    return ret
+
+
+def resolve_tcgen05_commit(
+    cta_group: Tcgen05CtaGroupKind, multicast: Tcgen05CommitMulticastKind, has_mask: bool
+) -> str:
+    ret = "cuda_tcgen05_commit_cta_group" + cta_group.value + multicast.value + ("_mask" if has_mask else "")
     ret = ret.replace(".", "_").replace("::", "_")
     return ret
 
@@ -336,7 +359,7 @@ def register_tcgen05_instructions():
                 Tcgen05CopyMulticastKind.WARP_X2_01_23,
                 Tcgen05CopyMulticastKind.WARP_X4,
             ]:
-                template = f"tcgen05.cp.{cta_group.value}sync.aligned{shape_kind.value}{multicast.value}.b32 [%0], %1;"
+                template = f"tcgen05.cp{cta_group.value}{shape_kind.value}{multicast.value} [%0], %1;"
 
                 @register_primitive_function_decorator
                 @no_type_check
@@ -345,6 +368,24 @@ def register_tcgen05_instructions():
                     attrs.func_name = resolve_tcgen05_copy(cta_group, shape_kind, multicast)
                     attrs.func_kind = "cuda_internal"
                     asm(template, inputs=[taddr, sdesc], is_volatile=True)
+
+    # commit
+    for cta_group in [Tcgen05CtaGroupKind.CTA_1, Tcgen05CtaGroupKind.CTA_2]:
+        for multicast in [  # type: ignore[assignment]
+            Tcgen05CommitMulticastKind.NONE,
+            Tcgen05CommitMulticastKind.CLUSTER,
+        ]:
+            for has_mask in [False, True]:
+                template = f"tcgen05.commit{cta_group.value}.mbarrier::arrive::one.shared::cluster{multicast.value}.b64 [%0]{', %1' if has_mask else ''};"
+                cta_mask_type = meta.types(arg_types=[uint32]) if has_mask else meta.types(arg_types=[])
+
+                @register_primitive_function_decorator
+                @no_type_check
+                @script
+                def tcgen05_commit_(mbarrier: int32, cta_mask: cta_mask_type):
+                    attrs.func_name = resolve_tcgen05_commit(cta_group, multicast, has_mask)
+                    attrs.func_kind = "cuda_internal"
+                    asm(template, inputs=[mbarrier, *cta_mask], is_volatile=True)
 
     # encode_smem_descriptor
     @register_primitive_function_decorator
@@ -361,13 +402,13 @@ def register_tcgen05_instructions():
         attrs.func_name = "cuda_tcgen05_encode_smem_descriptor"
         attrs.func_kind = "cuda_internal"
         desc: uint64 = uint64(0)
-        desc = desc | ((lbo & uint32(0xFFFF)) >> 2) << 16
-        desc = desc | ((sbo & uint32(0xFFFF)) >> 2) << 32
-        desc = desc | (0b001) << 46
-        desc = desc | (mbo & uint8(0b111)) << 49
-        desc = desc | (stride_mode & uint8(0b1)) << 52
-        desc = desc | (swizzle_mode & uint8(0b111)) << 61
-        desc = desc | (smem_addr & uint32(0xFFFF)) >> 2
+        desc = desc | uint64((lbo & uint32(0xFFFF)) >> 2) << 16
+        desc = desc | uint64((sbo & uint32(0xFFFF)) >> 2) << 32
+        desc = desc | uint64(0b001) << 46
+        desc = desc | uint64(mbo & uint8(0b111)) << 49
+        desc = desc | uint64(stride_mode & uint8(0b1)) << 52
+        desc = desc | uint64(swizzle_mode & uint8(0b111)) << 61
+        desc = desc | uint64(smem_addr & uint32(0xFFFF)) >> 2
         return desc
 
 
@@ -441,3 +482,17 @@ def tcgen05_copy(
 ) -> Expr:
     func_name = resolve_tcgen05_copy(cta_group, shape, multicast)
     return call_primitive_func(func_name, [taddr, sdesc])
+
+
+def tcgen05_commit(
+    mbarrier: Expr,
+    cta_mask: Optional[int],
+    cta_group: Tcgen05CtaGroupKind,
+    multicast: Tcgen05CommitMulticastKind,
+) -> Expr:
+    func_name = resolve_tcgen05_commit(cta_group, multicast, cta_mask is not None)
+    if cta_mask is None:
+        args = [mbarrier]
+    else:
+        args = [mbarrier, uint32(cta_mask)]
+    return call_primitive_func(func_name, args)
