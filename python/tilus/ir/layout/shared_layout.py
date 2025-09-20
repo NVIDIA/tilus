@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Sequence
 
-from hidet.ir.expr import Expr, Var
+from hidet.ir.expr import Expr, Var, as_expr
 
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.node import IRNode
@@ -71,7 +71,7 @@ class SharedLayout(IRNode):
         return rewrite(self.offset, rewrite_map={axis: index for axis, index in zip(self.axes, indices)})
 
     @staticmethod
-    def create(shape: Sequence[int], size: int, f_offset: Callable[[Sequence[Var]], Expr]) -> SharedLayout:
+    def create(shape: Sequence[int], size: int, f_offset: Callable[[Sequence[Var]], Expr | int]) -> SharedLayout:
         """Create a shared layout.
 
         This method creates a shared layout with the given shape, size, and a function to compute the offset based on
@@ -95,7 +95,7 @@ class SharedLayout(IRNode):
             A shared layout with the specified shape, size, axes, and offset.
         """
         axes: List[Var] = index_vars(num_vars=len(shape))
-        return SharedLayout(shape=tuple(shape), size=size, axes=tuple(axes), offset=f_offset(axes))
+        return SharedLayout(shape=tuple(shape), size=size, axes=tuple(axes), offset=as_expr(f_offset(axes)))
 
     def slice(self, offsets: Sequence[Expr], slice_dims: Sequence[int], slice_shape: Sequence[int]) -> SharedLayout:
         assert len(set(slice_dims)) == len(slice_dims), "slice_dims must be unique"
@@ -161,3 +161,8 @@ class SharedLayout(IRNode):
             return self(*base_axes)
 
         return SharedLayout.create(shape=shape, size=self.size, f_offset=f_offset)
+
+    def visualize(self, tablefmt: str = "simple_grid") -> str:
+        from tilus.ir.layout.ops.shared_ops import visualize_layout
+
+        return visualize_layout(self, tablefmt=tablefmt)
