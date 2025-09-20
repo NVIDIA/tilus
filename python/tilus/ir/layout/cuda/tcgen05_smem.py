@@ -11,6 +11,7 @@ from hidet.ir.type import DataType
 from hidet.utils import prod
 
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
+from tilus.ir.layout.utils.cute import cute_layout, tuple_product, CuteSwizzle
 from tilus.ir.layout.shared_layout import SharedLayout
 from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
 from tilus.ir.utils.vector import vector
@@ -203,12 +204,9 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
     SharedLayout
         The shared memory layout for TCGen05
     """
-    bbits, mbase, sshift = (
-        canonical_layout.swizzle_mode.bbits,
-        canonical_layout.swizzle_mode.mbase,
-        canonical_layout.swizzle_mode.sshift,
-    )
-    t, m, k, sbo, lbo = (
+    swizzle_mode = canonical_layout.swizzle_mode
+    bbits, mbase, sshift = swizzle_mode.bbits, swizzle_mode.mbase, swizzle_mode.sshift
+    T, m, k, SBO, LBO = (
         canonical_layout.t,
         canonical_layout.m,
         canonical_layout.k,
@@ -217,69 +215,30 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
     )
 
     # Determine swizzle factor based on bbits (from the canonical layout table)
-    swizzle_factor = 2**bbits
+    S = 2**bbits
 
     # Calculate the logical shape based on cute layout interpretation and major-ness
     if canonical_layout.major_kind == "MN":
-        # MN-major: Shape = ((T, swizzle_factor, m), (8, k))
-        # This flattens to (T * swizzle_factor * m, 8 * k)
-        shape = (t * swizzle_factor * m, 8 * k)
+        if swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
+            layout = cute_layout(shape=((T, m), (8, k)), strides=((1, SBO), (T, LBO)))
+        else:
+            layout = cute_layout(shape=((T, S, m), (8, k)), strides=((1, T, LBO), (S * T, SBO)))
     elif canonical_layout.major_kind == "K":
-        # K-major: Shape = ((8, m), (T, swizzle_factor * k))
-        # This flattens to (8 * m, T * swizzle_factor * k)
-        shape = (8 * m, t * swizzle_factor * k)
+        if swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
+            layout = cute_layout(shape=((8, m), (T, k)), strides=((T, SBO), (1, LBO)))
+        else:
+            layout = cute_layout(shape=((8, m), (T, S, k)), strides=((S * T, SBO), (1, T, LBO)))
     else:
         raise ValueError(f"Unsupported major_kind: {canonical_layout.major_kind}")
 
     def f_offset(axes: Sequence[Var]) -> Expr | int:
-        i, j = axes[0], axes[1]
+        base_offset = layout(*axes)
+        swizzle = CuteSwizzle(bbits=bbits, mbase=mbase, sshift=sshift)
+        return swizzle(base_offset)
 
-        if canonical_layout.major_kind == "MN":
-            # ((T,sf,m),(8,k)):((1,T,SBO),(sf*T,LBO))
-            i0, i1, i2 = index_deserialize(i, (t, swizzle_factor, m), ranks=[2, 1, 0])
-            j0, j1 = index_deserialize(j, (8, k), ranks=[1, 0])
-            base_offset = sum(vector([i0, i1, i2]) * vector([1, t, sbo])) + sum(
-                vector([j0, j1]) * vector([swizzle_factor * t, lbo])
-            )
-        elif canonical_layout.major_kind == "K":
-            # ((8,m),(T,sf*k)):((sf*T,SBO),(1,T, LBO))
+    smem_shape: list[int] = [int(tuple_product(item)) for item in layout.shape]
 
-            i0 = i % 8  # 8 dimension
-            i1 = i // 8  # m dimension
-
-            j0 = j % t  # T dimension
-            j_temp = j // t
-            j1 = j_temp % swizzle_factor  # swizzle_factor dimension
-            j2 = j_temp // swizzle_factor  # k dimension, ignore for k-major
-
-            assert swizzle_factor * t == shape[1]
-
-            # Apply stride patterns from the canonical layout table for K-major
-            if bbits == 0:
-                # ((8,m),(T,k)):((1T,SBO),(1,LBO))
-                # Strides: ((T*SBO, 1), (1, LBO))
-                base_offset = i0 * t * sbo + i1 * 1 + j0 * 1 + j1 * lbo
-            else:
-                # For swizzled layouts: ((8,m),(T,swizzle_factor*k)):((swizzle_factor*T,SBO),(1,T))
-                # Strides: ((swizzle_factor*T*SBO, 1), (1, T))
-                base_offset = i0 * swizzle_factor * t * sbo + i1 * 1 + j0 * 1 + j1 * t + j2 * t
-
-        # Apply cute swizzle transformation if needed
-        if bbits > 0:
-            # Apply cute swizzle: offset ^ shiftr(offset & yyy_msk, msk_sft)
-            # where yyy_msk = bit_msk << (mbase + sshift)
-            # and bit_msk = (1 << bbits) - 1
-            bit_msk = (1 << bbits) - 1
-            yyy_msk = bit_msk << (mbase + sshift)
-
-            # Implement the swizzle transformation
-            # offset ^ shiftr(offset & yyy_msk, sshift)
-            swizzle_offset = base_offset ^ ((base_offset & yyy_msk) >> sshift)
-            return swizzle_offset
-        else:
-            return base_offset
-
-    return SharedLayout.create(shape=shape, size=prod(shape), f_offset=f_offset)
+    return SharedLayout.create(shape=smem_shape, size=prod(smem_shape), f_offset=f_offset)
 
 
 def main():
