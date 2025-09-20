@@ -22,7 +22,8 @@ from hidet.ir.tools import rewrite
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.ir.instructions import LoadMatrixInst
-from tilus.ir.layout import RegisterLayout, divide
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout.ops.register_ops import divide
 from tilus.ir.utils import vector
 from tilus.target import nvgpu_sm75
 from tilus.utils import gcd

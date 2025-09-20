@@ -36,8 +36,8 @@ from tilus.ir.func import Analysis, Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import LoadMatrixConfig, LoadSharedInst
-from tilus.ir.layout import divide
-from tilus.ir.layout.utils import LayoutOperationError
+from tilus.ir.layout.ops import divide
+from tilus.ir.layout.ops.utils import LayoutOperationError
 from tilus.ir.stmt import Stmt
 from tilus.target import get_current_target, nvgpu_sm75
 from tilus.transforms.base import Pass

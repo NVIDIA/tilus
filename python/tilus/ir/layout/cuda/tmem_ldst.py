@@ -17,8 +17,8 @@ from __future__ import annotations
 import functools
 
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05LoadStoreShapeKind
+from tilus.ir.layout.ops.register_ops import local, register_layout, spatial
 from tilus.ir.layout.register_layout import RegisterLayout, visualize_layout
-from tilus.ir.layout.register_layout_ops import local, register_layout, spatial
 
 
 @functools.cache

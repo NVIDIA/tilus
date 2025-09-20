@@ -14,15 +14,13 @@
 # limitations under the License.
 
 
-from dataclasses import dataclass
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.ir.instructions.cuda.tmem import (
     TMemoryCommitInst,
-    Tcgen05CopyInst,
 )
 from tilus.target import nvgpu_sm100
-from hidet.ir.expr import Expr
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import tcgen05_encode_smem_descriptor
+
+
 @register_emitter(TMemoryCommitInst, target=nvgpu_sm100)
 class TMemoryCommitEmitter(BaseInstEmitter):
     def emit(self, inst: TMemoryCommitInst) -> None:

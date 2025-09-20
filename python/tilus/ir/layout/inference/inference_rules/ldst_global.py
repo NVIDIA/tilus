@@ -19,7 +19,7 @@ from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.instructions import LoadGlobalGenericInst, LoadGlobalInst, StoreGlobalGenericInst, StoreGlobalInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
-from tilus.ir.layout.register_layout_ops import auto_local_spatial
+from tilus.ir.layout.ops.register_ops import auto_local_spatial
 from tilus.ir.tensor import RegisterTensor
 from tilus.utils import gcd, prod
 

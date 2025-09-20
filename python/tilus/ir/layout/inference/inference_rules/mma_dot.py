@@ -14,8 +14,9 @@
 # limitations under the License.
 from tilus.ir.instructions import DotInst
 from tilus.ir.instructions.cuda.mma_dot import AtomicMmaConfig
-from tilus.ir.layout import LayoutOperationError, RegisterLayout, divide
+from tilus.ir.layout import LayoutOperationError, RegisterLayout
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
+from tilus.ir.layout.ops import divide
 from tilus.ir.tensor import RegisterTensor
 
 

@@ -16,12 +16,14 @@ from __future__ import annotations
 
 from typing import Optional, Sequence
 
+from hidet.ir.expr import Expr
+
+from tilus.ir.layout.ops.utils import LayoutOperationError
 from tilus.ir.layout.register_layout import (
     RegisterLayout,
     canonicalize_layout,
     register_layout,
 )
-from tilus.ir.layout.utils import LayoutOperationError
 from tilus.utils import gcd, prod
 
 
@@ -895,3 +897,50 @@ def auto_local_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayout
         )
 
     return ret
+
+
+def locate_at(layout: RegisterLayout, global_indices: Sequence[Expr | int], spatial_index: Expr | int) -> Expr:
+    """
+    Check if the global indices are located at the given spatial index.
+
+    Parameters
+    ----------
+    layout: RegisterLayout
+        The layout to be checked.
+
+    global_indices: Sequence[Int]
+        The global indices to be checked.
+
+    spatial_index: Int
+        The spatial index to be checked.
+
+    Returns
+    -------
+    ret: Expr
+        Expression with value True if the global indices are located at the given spatial index, False otherwise.
+    """
+    from hidet.ir.dtypes import boolean
+    from hidet.ir.expr import logical_and
+
+    from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
+
+    if len(global_indices) != len(layout.shape):
+        raise ValueError(
+            "Global indices must match the shape of the layout, got {} vs {}".format(
+                len(global_indices), len(layout.shape)
+            )
+        )
+
+    mode_indices: list[Expr | int] = []
+    for index, modes in zip(global_indices, layout.grouped_modes):
+        shape = [layout.mode_shape[mode] for mode in modes]
+        mode_indices.extend(index_deserialize(index, shape))
+
+    condition = boolean.true
+
+    spatial_indices: list[Expr] = index_deserialize(spatial_index, layout.spatial_shape)
+    for i, mode in enumerate(layout.spatial_modes):
+        if mode < 0:
+            continue
+        condition = logical_and(condition, mode_indices[mode] == spatial_indices[i])
+    return condition

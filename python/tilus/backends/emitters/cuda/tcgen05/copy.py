@@ -15,16 +15,21 @@
 
 
 from dataclasses import dataclass
-from hidet.ir.expr import Expr
+
 from hidet.ir.dtypes import uint64
+from hidet.ir.expr import Expr
+
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.ir.instructions.cuda.tmem import Tcgen05CopyInst
-from tilus.target import nvgpu_sm100
-from tilus.ir.tensor import SharedTensor, TMemoryTensor
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
-    tcgen05_encode_smem_descriptor, tcgen05_copy, Tcgen05CopyShapeKind, Tcgen05CtaGroupKind, Tcgen05CopyMulticastKind,
+    Tcgen05CopyMulticastKind,
+    Tcgen05CopyShapeKind,
+    Tcgen05CtaGroupKind,
+    tcgen05_copy,
+    tcgen05_encode_smem_descriptor,
 )
-from tilus.backends.contexts.tcgen05_ctx import Tcgen05EmitContext
+from tilus.ir.instructions.cuda.tmem import Tcgen05CopyInst
+from tilus.ir.tensor import SharedTensor, TMemoryTensor
+from tilus.target import nvgpu_sm100
 
 
 @dataclass
@@ -46,6 +51,7 @@ class SharedMatrixDescriptor:
             self.swizzle_mode,
         )
 
+
 @dataclass
 class Tcgen05CopyInstMeta:
     shape: Tcgen05CopyShapeKind
@@ -57,20 +63,21 @@ class Tcgen05CopyInstMeta:
 
 @register_emitter(Tcgen05CopyInst, target=nvgpu_sm100)
 class Tcgen05CopyEmitter(BaseInstEmitter):
-    def generate_instructions(self, tmem_tensor: TMemoryTensor, shared_tensor: SharedTensor) -> list[Tcgen05CopyInstMeta]:
-        multicast_kind = Tcgen05CopyMulticastKind.NONE
-        cta_group = Tcgen05CtaGroupKind.CTA_1
-        for shape_kind in [
-            Tcgen05CopyShapeKind.R128x256B,
-            Tcgen05CopyShapeKind.R128x128B,
-            # Tcgen05CopyShapeKind.R64x128B,  # todo: support these
-            # Tcgen05CopyShapeKind.R32x128B,
-            # Tcgen05CopyShapeKind.R4x128B,
-        ]:
-            pass
+    def generate_instructions(
+        self, tmem_tensor: TMemoryTensor, shared_tensor: SharedTensor
+    ) -> list[Tcgen05CopyInstMeta]:
+        # multicast_kind = Tcgen05CopyMulticastKind.NONE
+        # cta_group = Tcgen05CtaGroupKind.CTA_1
+        # for shape_kind in [
+        #     Tcgen05CopyShapeKind.R128x256B,
+        #     Tcgen05CopyShapeKind.R128x128B,
+        #     # Tcgen05CopyShapeKind.R64x128B,  # todo: support these
+        #     # Tcgen05CopyShapeKind.R32x128B,
+        #     # Tcgen05CopyShapeKind.R4x128B,
+        # ]:
+        #     pass
+        raise NotImplementedError("Tcgen05CopyEmitter is not implemented")
 
-            
-    
     def check_warp_group(self) -> None:
         begin = self.current_thread_group_begin
         end = self.current_thread_group_end
@@ -89,7 +96,7 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
             raise NotImplementedError("The number of rows in the shared tensor must be 128")
         if tmem_tensor.first_lane != 0:
             raise NotImplementedError("The first lane of the tmem tensor must be 0")
-        
+
         tmem_base_addr = self.tensor2var[tmem_tensor]
 
         with self.if_then(self.current_thread == 0):
@@ -107,4 +114,3 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
                         multicast=inst_meta.multicast,
                     )
                 )
-

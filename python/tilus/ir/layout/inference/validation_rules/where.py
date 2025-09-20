@@ -14,7 +14,7 @@
 # limitations under the License.
 from tilus.ir.instructions import WhereInst
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
-from tilus.ir.mfunction import ops
+from tilus.ir.layout.mfunction import ops
 from tilus.ir.tensor import RegisterTensor
 
 

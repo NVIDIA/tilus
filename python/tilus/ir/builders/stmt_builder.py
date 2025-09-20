@@ -57,9 +57,9 @@ from tilus.ir.instructions.cuda.mbarrier import (
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from tilus.ir.instructions.cuda.tmem import (
+    Tcgen05CopyInst,
     TMemoryAllocInst,
     TMemoryCommitInst,
-    Tcgen05CopyInst,
     TMemoryDeallocInst,
     TMemoryLoadInst,
     TMemoryRelinquishAllocPermitInst,
@@ -697,7 +697,7 @@ class StmtBuilder(StmtBuilderCore):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from tilus.ir.layout.register_layout_ops import local, unsqueeze
+        from tilus.ir.layout.ops.register_ops import local, unsqueeze
 
         if out is None:
             layout = x.layout

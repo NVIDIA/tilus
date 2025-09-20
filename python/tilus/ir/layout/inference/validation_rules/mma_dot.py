@@ -14,8 +14,9 @@
 # limitations under the License.
 from tilus.ir.instructions import DotInst
 from tilus.ir.instructions.cuda.mma_dot import AtomicMmaConfig
-from tilus.ir.layout import LayoutOperationError, divide
+from tilus.ir.layout import LayoutOperationError
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
+from tilus.ir.layout.ops import divide
 
 
 @register_rule(DotInst)
@@ -26,7 +27,7 @@ class MmaDotRule(LayoutValidationRule):
 
     @staticmethod
     def validate(inst: DotInst) -> bool:
-        from tilus.ir.mfunction.ops import identity
+        from tilus.ir.layout.mfunction.ops import identity
 
         a = inst.inputs[0].as_register_tensor()
         b = inst.inputs[1].as_register_tensor()

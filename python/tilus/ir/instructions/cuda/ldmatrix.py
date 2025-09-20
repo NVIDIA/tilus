@@ -21,7 +21,8 @@ from typing import Sequence
 from hidet.ir.expr import Expr, Var
 
 from tilus.ir.inst import Instruction, InstructionConfig
-from tilus.ir.layout import RegisterLayout, column_spatial, spatial
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout.ops import column_spatial, spatial
 from tilus.ir.tensor import RegisterTensor
 
 

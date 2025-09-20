@@ -16,7 +16,7 @@ from tilus import SharedLayout
 from tilus.ir import SharedTensor
 from tilus.ir.instructions import SharedSliceInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
-from tilus.ir.layout.shared_layout import shared_compose, shared_row_major
+from tilus.ir.layout.ops import shared_compose, shared_row_major
 
 
 @register_rule(SharedSliceInst)

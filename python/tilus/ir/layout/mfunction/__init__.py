@@ -13,5 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from . import ops
-from .mfunction import MultiFunction, canonicalize, multi_function
+from .mfunction import MultiFunction, canonicalize_multi_function, multi_function
 from .ops import identity

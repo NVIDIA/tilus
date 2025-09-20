@@ -35,8 +35,8 @@ from tilus.ir.instructions.cuda.tmem import (
     TMemoryWaitInst,
 )
 from tilus.ir.layout.cuda.tmem_ldst import get_ldst_layout
-from tilus.ir.layout.register_layout_ops import divide, left_divide, local, spatial
-from tilus.ir.layout.utils import LayoutOperationError
+from tilus.ir.layout.ops.register_ops import divide, left_divide, local, spatial
+from tilus.ir.layout.ops.utils import LayoutOperationError
 from tilus.ir.tensor import RegisterTensor, TMemoryTensor
 from tilus.target import nvgpu_sm100
 from tilus.utils import gcd

@@ -22,7 +22,8 @@ from hidet.ir.expr import as_expr
 
 from tilus import RegisterLayout
 from tilus.backends.emitters.cuda.mma_dot import AtomicMmaConfig
-from tilus.ir.layout import SharedLayout, auto_local_spatial, reduce, shared_compose, shared_row_major, spatial
+from tilus.ir.layout import SharedLayout
+from tilus.ir.layout.ops import auto_local_spatial, reduce, shared_compose, shared_row_major, spatial
 from tilus.ir.utils import vector
 from tilus.utils import gcd, idiv, prod
 
@@ -41,7 +42,7 @@ class BlockMmaConfig:
 
     @property
     def lb_T(self) -> RegisterLayout:
-        from tilus.ir.layout import permute
+        from tilus.ir.layout.ops import permute
 
         return permute(self.lb, [1, 0])
 
