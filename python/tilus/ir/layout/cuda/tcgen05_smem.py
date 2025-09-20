@@ -38,11 +38,11 @@ class CanonicalSharedLayout:
 
 def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> Optional[CanonicalSharedLayout]:
     """
-    Reverse engineer a SharedLayout to determine its canonical TCGen05 form.
+    Reverse engineer a SharedLayout to determine its canonical TCGen05 form using direct pattern analysis.
     
-    This function uses a brute-force approach to find the canonical parameters
-    that produce the same offset grid as the input layout. The dtype parameter
-    is used to determine T = 128 / dtype.nbits, making the canonical form unique.
+    This function uses your proposed approach:
+    1. Determine swizzle mode and majorness by analyzing stride patterns
+    2. Extract SBO/LBO by analyzing box patterns after identifying the atom structure
     
     Parameters
     ----------
@@ -62,9 +62,7 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
     shape_m, shape_k = shared_layout.shape
     
     # Calculate T from dtype: T = 128 / dtype.nbits
-    # This makes the canonical form unique
     if 128 % dtype.nbits != 0:
-        # T must be an integer, so dtype.nbits must divide 128
         return None
     t = 128 // dtype.nbits
     
@@ -75,7 +73,7 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
         var2value={axis: grid[i] for i, axis in enumerate(shared_layout.axes)}
     )
     
-    # Try all possible canonical parameter combinations with the determined T
+    # Try each swizzle mode and majorness using direct pattern analysis
     swizzle_modes = [
         Tcgen05SwizzleMode.NO_SWIZZLE,
         Tcgen05SwizzleMode.B32_SWIZZLE,
@@ -85,27 +83,14 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
     
     for major_kind in ["MN", "K"]:
         for swizzle_mode in swizzle_modes:
-            swizzle_factor = 2 ** swizzle_mode.bbits if swizzle_mode.bbits > 0 else 1
+            result = _analyze_pattern_direct(
+                target_offset_grid, major_kind, swizzle_mode, t, shape_m, shape_k
+            )
             
-            # Calculate possible m and k values based on shape constraints
-            if major_kind == "MN":
-                # MN-major: shape = (t * swizzle_factor * m, 8 * k)
-                if shape_m % (t * swizzle_factor) != 0 or shape_k % 8 != 0:
-                    continue
-                m = shape_m // (t * swizzle_factor)
-                k = shape_k // 8
-            else:  # K-major
-                # K-major: shape = (8 * m, t * swizzle_factor * k)
-                if shape_m % 8 != 0 or shape_k % (t * swizzle_factor) != 0:
-                    continue
-                m = shape_m // 8
-                k = shape_k // (t * swizzle_factor)
-            
-            # Compute SBO and LBO directly from the atom layout and target grid
-            sbo, lbo = _compute_sbo_lbo(major_kind, swizzle_mode, t, m, k, target_offset_grid)
-            
-            if sbo is not None and lbo is not None:
-                # Create candidate canonical layout with computed SBO/LBO
+            if result is not None:
+                sbo, lbo, m, k = result
+                
+                # Create candidate canonical layout
                 candidate = CanonicalSharedLayout(
                     shape=(shape_m, shape_k),
                     major_kind=major_kind,
@@ -122,6 +107,288 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
                     return candidate
     
     return None
+
+
+def _analyze_pattern_direct(
+    target_offset_grid: np.ndarray,
+    major_kind: str,
+    swizzle_mode: Tcgen05SwizzleMode,
+    t: int,
+    shape_m: int,
+    shape_k: int
+) -> Optional[tuple[int, int, int, int]]:
+    """
+    Directly analyze the target offset grid to determine if it matches the given
+    swizzle mode and majorness, and extract SBO/LBO parameters.
+    
+    This implements your approach:
+    1. Check if the shape is compatible with the swizzle mode and majorness
+    2. Analyze stride patterns to confirm the pattern type
+    3. Extract SBO/LBO from box differences
+    
+    Parameters
+    ----------
+    target_offset_grid : np.ndarray
+        The target offset grid to analyze
+    major_kind : str
+        "MN" or "K"
+    swizzle_mode : Tcgen05SwizzleMode
+        The swizzle mode to test
+    t : int
+        The T parameter
+    shape_m : int
+        Target shape first dimension
+    shape_k : int
+        Target shape second dimension
+        
+    Returns
+    -------
+    Optional[tuple[int, int, int, int]]
+        (sbo, lbo, m, k) if pattern matches, None otherwise
+    """
+    try:
+        swizzle_factor = 2 ** swizzle_mode.bbits if swizzle_mode.bbits > 0 else 1
+        
+        # Step 1: Check shape compatibility and calculate m, k
+        if major_kind == "MN":
+            # MN-major: shape = (t * swizzle_factor * m, 8 * k)
+            atom_h, atom_w = t * swizzle_factor, 8
+            if shape_m % atom_h != 0 or shape_k % atom_w != 0:
+                return None
+            m, k = shape_m // atom_h, shape_k // atom_w
+        else:  # K-major
+            # K-major: shape = (8 * m, t * swizzle_factor * k)
+            atom_h, atom_w = 8, t * swizzle_factor
+            if shape_m % atom_h != 0 or shape_k % atom_w != 0:
+                return None
+            m, k = shape_m // atom_h, shape_k // atom_w
+            
+        # Step 2: Analyze stride patterns to confirm this is the right pattern type
+        if not _verify_stride_pattern(target_offset_grid, major_kind, swizzle_mode, t, atom_h, atom_w):
+            return None
+            
+        # Step 3: Extract SBO/LBO from box patterns
+        sbo, lbo = _extract_sbo_lbo_from_grid(
+            target_offset_grid, major_kind, swizzle_mode, t, m, k, atom_h, atom_w
+        )
+        
+        if sbo is not None and lbo is not None:
+            return sbo, lbo, m, k
+            
+        return None
+        
+    except Exception:
+        return None
+
+
+def _verify_stride_pattern(
+    target_offset_grid: np.ndarray,
+    major_kind: str,
+    swizzle_mode: Tcgen05SwizzleMode,
+    t: int,
+    atom_h: int,
+    atom_w: int
+) -> bool:
+    """
+    Verify that the target grid follows the expected stride pattern for the given
+    swizzle mode and majorness by checking key stride relationships.
+    """
+    try:
+        target_h, target_w = target_offset_grid.shape
+            
+        # For MN-major layouts, check column-wise stride pattern
+        if major_kind == "MN":
+            # Check if consecutive rows have stride 1 (characteristic of MN-major)
+            if target_h >= 2:
+                row_stride = target_offset_grid[1, 0] - target_offset_grid[0, 0]
+                if row_stride != 1:
+                    return False
+                    
+        # For K-major layouts, check row-wise stride pattern  
+        else:  # K-major
+            # Check if consecutive columns have stride 1 (characteristic of K-major)
+            if target_w >= 2:
+                col_stride = target_offset_grid[0, 1] - target_offset_grid[0, 0]
+                if col_stride != 1:
+                    return False
+                    
+        return True
+        
+    except Exception:
+        return False
+
+
+def _extract_sbo_lbo_from_grid(
+    target_offset_grid: np.ndarray,
+    major_kind: str,
+    swizzle_mode: Tcgen05SwizzleMode,
+    t: int,
+    m: int,
+    k: int,
+    atom_h: int,
+    atom_w: int
+) -> tuple[int | None, int | None]:
+    """
+    Extract SBO and LBO by analyzing the differences between atom repetitions.
+    
+    This follows your box approach: create a grid of box values where each box
+    represents an atom repetition, then extract SBO/LBO from the box value patterns.
+    """
+    try:
+        # Create box grid: each box represents one atom repetition
+        box_grid = np.zeros((m, k), dtype=np.int64)
+        
+        for i in range(m):
+            for j in range(k):
+                # Get the top-left corner of each box (atom repetition)
+                box_row = i * atom_h
+                box_col = j * atom_w
+                
+                if box_row < target_offset_grid.shape[0] and box_col < target_offset_grid.shape[1]:
+                    box_grid[i, j] = target_offset_grid[box_row, box_col]
+                    
+        # Subtract the base offset (box[0,0]) to get relative offsets
+        if m > 0 and k > 0:
+            base_offset = box_grid[0, 0]
+            box_grid = box_grid - base_offset
+            
+        # Extract SBO/LBO based on the canonical layout patterns
+        return _extract_sbo_lbo_from_boxes(box_grid, major_kind, swizzle_mode, t, m, k)
+        
+    except Exception:
+        return None, None
+
+
+
+
+def _extract_sbo_lbo_from_boxes(
+    box_grid: np.ndarray, 
+    major_kind: str, 
+    swizzle_mode: Tcgen05SwizzleMode, 
+    t: int, 
+    m: int, 
+    k: int
+) -> tuple[int | None, int | None]:
+    """
+    Extract SBO and LBO from the box value patterns.
+    
+    The box values follow specific patterns based on the canonical layout:
+    - MN-major no swizzle: box_value = i * (T * SBO) + j * LBO
+    - MN-major swizzled: box_value = i * (T * LBO) + j * SBO  
+    - K-major no swizzle: box_value = i * SBO + j * LBO
+    - K-major swizzled: box_value = i * SBO (LBO not used)
+    
+    Parameters
+    ----------
+    box_grid : np.ndarray
+        Grid of box values with shape (m, k)
+    major_kind : str
+        "MN" or "K"
+    swizzle_mode : Tcgen05SwizzleMode
+        The swizzle mode
+    t : int
+        The T parameter
+    m : int
+        Number of boxes in first dimension
+    k : int
+        Number of boxes in second dimension
+        
+    Returns
+    -------
+    tuple[int | None, int | None]
+        (sbo, lbo) if successfully extracted, None otherwise
+    """
+    try:
+        bbits = swizzle_mode.bbits
+        
+        if major_kind == "MN":
+            if bbits == 0:
+                # No swizzle: box_value = i * (T * SBO) + j * LBO
+                if m > 1 and k > 1:
+                    # Use differences to extract coefficients
+                    # box_grid[1,0] - box_grid[0,0] = T * SBO
+                    # box_grid[0,1] - box_grid[0,0] = LBO
+                    sbo_coeff = box_grid[1, 0] - box_grid[0, 0]
+                    lbo = box_grid[0, 1] - box_grid[0, 0]
+                    sbo = sbo_coeff // t
+                elif m > 1:
+                    # Only i dimension available
+                    sbo_coeff = box_grid[1, 0] - box_grid[0, 0]
+                    sbo = sbo_coeff // t
+                    lbo = 1  # Default
+                elif k > 1:
+                    # Only j dimension available
+                    lbo = box_grid[0, 1] - box_grid[0, 0]
+                    sbo = 1  # Default
+                else:
+                    sbo, lbo = 1, 1  # Single box
+            else:
+                # Swizzled: box_value = i * (T * LBO) + j * SBO
+                if m > 1 and k > 1:
+                    # box_grid[1,0] - box_grid[0,0] = T * LBO
+                    # box_grid[0,1] - box_grid[0,0] = SBO
+                    lbo_coeff = box_grid[1, 0] - box_grid[0, 0]
+                    sbo = box_grid[0, 1] - box_grid[0, 0]
+                    lbo = lbo_coeff // t
+                elif m > 1:
+                    lbo_coeff = box_grid[1, 0] - box_grid[0, 0]
+                    lbo = lbo_coeff // t
+                    sbo = 1  # Default
+                elif k > 1:
+                    sbo = box_grid[0, 1] - box_grid[0, 0]
+                    lbo = 1  # Default
+                else:
+                    sbo, lbo = 1, 1  # Single box
+                    
+        else:  # K-major
+            if bbits == 0:
+                # No swizzle: base_offset = i0 * (T * SBO) + i1 * 1 + j0 * 1 + j1 * T + j2 * LBO
+                # The box grid represents (m, k) where each box is an (8, T) atom
+                # box_grid[i,j] corresponds to the offset at the top-left of atom (i,j)
+                # 
+                # From the canonical layout, moving between boxes:
+                # - box[1,0] vs box[0,0]: i1 increases by 1 (since we move 8 rows), so difference = 1 (from i1 term)
+                # - box[0,1] vs box[0,0]: j2 increases by 1 (since we move T cols), so difference = LBO
+                if m > 1 and k > 1:
+                    # For K-major no swizzle: base_offset = i0 * (T * SBO) + i1 * 1 + j0 * 1 + j1 * T + j2 * LBO
+                    # 
+                    # From the box grid pattern [[0, 8, 16], [1, 9, 17]]:
+                    # - LBO can be extracted from box[0,1] - box[0,0] = 8 (this is j2 difference)
+                    # - For SBO, we need to look at the stride within a single atom
+                    #   The stride from (0,0) to (1,0) in the target grid is T*SBO = 64
+                    #   So SBO = 64 / T = 64 / 4 = 16
+                    
+                    lbo = box_grid[0, 1] - box_grid[0, 0]
+                    
+                    # Extract SBO from the stride pattern within the grid
+                    # target_offset_grid[1, 0] - target_offset_grid[0, 0] = T * SBO
+                    sbo_coeff = target_offset_grid[1, 0] - target_offset_grid[0, 0]
+                    sbo = sbo_coeff // t
+                elif m > 1:
+                    if target_offset_grid.shape[0] > 1:
+                        sbo_coeff = target_offset_grid[1, 0] - target_offset_grid[0, 0]
+                        sbo = sbo_coeff // t
+                    else:
+                        sbo = 1
+                    lbo = 1  # Default
+                elif k > 1:
+                    lbo_coeff = box_grid[0, 1] - box_grid[0, 0]
+                    lbo = lbo_coeff
+                    sbo = 1  # Default
+                else:
+                    sbo, lbo = 1, 1  # Single box
+            else:
+                # Swizzled: box_value = i * SBO, LBO not used
+                if m > 1:
+                    sbo = box_grid[1, 0] - box_grid[0, 0]
+                else:
+                    sbo = 1  # Default
+                lbo = 1  # Not used in swizzled K-major
+                
+        return int(sbo), int(lbo)
+        
+    except Exception:
+        return None, None
 
 
 def _compute_sbo_lbo(major_kind: str, swizzle_mode: Tcgen05SwizzleMode, t: int, m: int, k: int, target_offset_grid: np.ndarray) -> tuple[int | None, int | None]:
