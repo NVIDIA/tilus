@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from hidet.ir.dtypes import int32
+from hidet.ir.dtypes import int32, float16, float32
 from tilus.ir.layout.cuda.tcgen05_smem import Tcgen05SwizzleMode, CanonicalSharedLayout, get_shared_layout_from_canonical, canonicalize_shared_layout
 
 canonical2expected = [
@@ -334,6 +334,25 @@ def test_shared_layout_from_canonical(canonical, expected):
     if actual != expected:
         assert False, canonical
 
+@pytest.mark.parametrize("canonical",
+    [
+        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8),
+        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=256, LBO=128, m=2, k=2, T=8),
+        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B64_SWIZZLE, SBO=512, LBO=256, m=2, k=2, T=8),
+        CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=32, LBO=64, m=2, k=4, T=4),
+        CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=4),
+    ]
+                         )
+def test_canonicalize_shared_layout(canonical):
+    t_to_dtype = {
+        8: float16,
+        4: float32,
+    }
+    dtype = t_to_dtype[canonical.T]
+    layout = get_shared_layout_from_canonical(canonical)
+    recovered_canonical = canonicalize_shared_layout(layout, dtype)
+    assert recovered_canonical is not None
+    assert recovered_canonical == canonical, f"{recovered_canonical} != {canonical}"
 
 if __name__ == "__main__":
     pytest.main([__file__])

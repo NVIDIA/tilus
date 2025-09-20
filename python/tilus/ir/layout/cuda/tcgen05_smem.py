@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Literal, Optional, Sequence, cast
 
 import numpy as np
-from hidet.ir.dtypes import int32
+from hidet.ir.dtypes import int32, float16, float32
 from hidet.ir.expr import Expr, Var
 from hidet.ir.type import DataType
 from hidet.utils.py import prod
@@ -50,9 +50,14 @@ class CanonicalSharedLayout:
 
 def _generate_atom_grid(major_kind: Literal["MN", "K"], swizzle_mode: Tcgen05SwizzleMode, t: int) -> SharedLayout:
     canonical_layout = CanonicalSharedLayout(
-        major_kind=major_kind, swizzle_mode=swizzle_mode, SBO=1, LBO=1, m=1, k=1, T=t
+        major_kind=major_kind, swizzle_mode=swizzle_mode, SBO=0, LBO=0, m=1, k=1, T=t
     )
-    return get_shared_layout_from_canonical(canonical_layout)
+    atom_layout = get_shared_layout_from_canonical(canonical_layout)
+    grid_axes = meshgrid(atom_layout.shape)
+    atom_grid = vectorized_evaluate(
+        expr=atom_layout.offset, var2value={axis: grid_axes[i] for i, axis in enumerate(atom_layout.axes)}
+    )
+    return atom_grid
 
 
 def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> Optional[CanonicalSharedLayout]:
@@ -83,33 +88,29 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
     # Calculate T from dtype: T = 128 / dtype.nbits
     if 128 % dtype.nbits != 0:
         return None
-    t = 128 // dtype.nbits
+    T = 128 // dtype.nbits
 
     # Create meshgrid for the entire layout
-    grid = meshgrid(shared_layout.shape)
+    grid_axes = meshgrid(shared_layout.shape)
     entire_grid = vectorized_evaluate(
-        expr=shared_layout.offset, var2value={axis: grid[i] for i, axis in enumerate(shared_layout.axes)}
+        expr=shared_layout.offset, var2value={axis: grid_axes[i] for i, axis in enumerate(shared_layout.axes)}
     )
+    entire_shape = shared_layout.shape
 
     # Try each swizzle mode and majorness using direct pattern analysis
-    swizzle_modes = [
-        Tcgen05SwizzleMode.NO_SWIZZLE,
-        Tcgen05SwizzleMode.B32_SWIZZLE,
-        Tcgen05SwizzleMode.B64_SWIZZLE,
-        Tcgen05SwizzleMode.B128_SWIZZLE,
-    ]
-
-    for major_kind in ["MN", "K"]:
-        for swizzle_mode in swizzle_modes:
+    for major_kind in [
+        "MN", 
+        "K"
+    ]:
+        for swizzle_mode in [
+            Tcgen05SwizzleMode.NO_SWIZZLE,
+            Tcgen05SwizzleMode.B32_SWIZZLE,
+            Tcgen05SwizzleMode.B64_SWIZZLE,
+            Tcgen05SwizzleMode.B128_SWIZZLE,
+        ]:
             # Generate atom layout and get its offset grid
-            atom_layout = _generate_atom_grid(cast(Literal["MN", "K"], major_kind), swizzle_mode, t)
-            atom_axes_grid = meshgrid(atom_layout.shape)
-            atom_grid = vectorized_evaluate(
-                expr=atom_layout.offset, var2value={axis: atom_axes_grid[i] for i, axis in enumerate(atom_layout.axes)}
-            )
-
-            atom_shape = atom_layout.shape
-            entire_shape = shared_layout.shape
+            atom_grid = _generate_atom_grid(cast(Literal["MN", "K"], major_kind), swizzle_mode, T)
+            atom_shape = atom_grid.shape
 
             # Check if the entire grid can be divided into atoms
             if entire_shape[0] % atom_shape[0] != 0 or entire_shape[1] % atom_shape[1] != 0:
@@ -126,22 +127,32 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
             level_grid = entire_grid - atom_grid
 
             # check if all elements in the last two dimensions are the same
-            if np.any(np.min(level_grid, axis=(2, 3)) != np.max(level_grid, axis=(2, 3))):
+            if not np.array_equal(np.min(level_grid, axis=(2, 3)), np.max(level_grid, axis=(2, 3))):
                 return None
 
             # Extract SBO and LBO from box differences
-            sbo = level_grid[1, 0, 0, 0] if m > 1 else 1
-            lbo = level_grid[0, 1, 0, 0] if k > 1 else 1
+            ROW_STRIDE = level_grid[1, 0, 0, 0] if m > 1 else 1
+            COL_STRIDE = level_grid[0, 1, 0, 0] if k > 1 else 1
+
+            if major_kind == "MN":
+                if swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
+                    SBO = ROW_STRIDE
+                    LBO = COL_STRIDE
+                else:
+                    SBO = COL_STRIDE
+                    LBO = ROW_STRIDE
+            else:
+                SBO = ROW_STRIDE
+                LBO = COL_STRIDE
 
             return CanonicalSharedLayout(
-                shape=(shape_m, shape_k),
                 major_kind=cast(Literal["MN", "K"], major_kind),
                 swizzle_mode=swizzle_mode,
-                SBO=sbo,
-                LBO=lbo,
+                SBO=SBO,
+                LBO=LBO,
                 m=m,
                 k=k,
-                T=t,
+                T=T,
             )
 
     return None
@@ -224,18 +235,23 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
 
 
 def demo_reverse():
-    original_canonical = CanonicalSharedLayout(
-        shape=(16, 16), major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8
-    )
 
-    layout = get_shared_layout_from_canonical(original_canonical)
-    print(layout.visualize())
-
-    recovered_canonical = canonicalize_shared_layout(layout, int32)
-
-    assert recovered_canonical is not None
-    assert recovered_canonical == original_canonical
-
-
+    for canonical in [
+        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8),
+        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=256, LBO=128, m=2, k=2, T=8),
+        CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B64_SWIZZLE, SBO=512, LBO=256, m=2, k=2, T=8),
+        CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=32, LBO=64, m=2, k=4, T=4),
+        CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=4),
+    ]:
+        t_to_dtype = {
+            8: float16,
+            4: float32,
+        }
+        dtype = t_to_dtype[canonical.T]
+        layout = get_shared_layout_from_canonical(canonical)
+        recovered_canonical = canonicalize_shared_layout(layout, dtype)
+        assert recovered_canonical is not None
+        assert recovered_canonical == canonical, f"{recovered_canonical} != {canonical}"
+    
 if __name__ == "__main__":
-    pass
+    demo_reverse()
