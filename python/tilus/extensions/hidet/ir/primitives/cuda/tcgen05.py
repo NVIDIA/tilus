@@ -23,6 +23,19 @@ from hidet.utils import initialize
 
 from tilus.extensions.hidet.ir.primitives.utils import register_primitive_function_decorator
 
+class Tcgen05CtaGroupKind(Enum):
+    CTA_1 = ".cta_grouop::1"
+    CTA_2 = ".cta_grouop::2"
+
+    @staticmethod
+    def from_int(cta_group: int) -> "Tcgen05CtaGroupKind":
+        assert cta_group in (1, 2)
+        if cta_group == 1:
+            return Tcgen05CtaGroupKind.CTA_1
+        elif cta_group == 2:
+            return Tcgen05CtaGroupKind.CTA_2
+        else:
+            raise ValueError(f"Unsupported cta_group: {cta_group}")
 
 class Tcgen05LoadStoreShapeKind(Enum):
     R16x64B = ".16x64b"
@@ -107,6 +120,20 @@ class Tcgen05LoadStorePackKind(Enum):
     PACK_16B = ".pack::16b"
 
 
+class Tcgen05CopyShapeKind(Enum):
+    R128x256B = ".128x256b"
+    R128x128B = ".128x128b"
+    R64x128B = ".64x128b"
+    R32x128B = ".32x128b"
+    R4x128B = ".4x128b"
+
+class Tcgen05CopyMulticastKind(Enum):
+    NONE = ""
+    WARP_X2_02_13 = ".warpx2_02_13"
+    WARP_X2_01_23 = ".warpx2_01_23"
+    WARP_X4 = ".warpx4"
+
+
 def get_num_reg32(
     shape: Tcgen05LoadStoreShapeKind, num: Tcgen05LoadStoreNumKind, pack: Tcgen05LoadStorePackKind
 ) -> int:
@@ -139,19 +166,16 @@ def get_num_reg32(
     return num_reg32
 
 
-def resolve_tcgen05_relinquish_alloc_permit(cta_group: int) -> str:
-    assert cta_group in (1, 2)
-    return "cuda_tcgen05_relinquish_alloc_permit_cta_group_" + str(cta_group)
+def resolve_tcgen05_relinquish_alloc_permit(cta_group: Tcgen05CtaGroupKind) -> str:
+    return "cuda_tcgen05_relinquish_alloc_permit_cta_group_" + cta_group.value
 
 
-def resolve_tcgen05_alloc(cta_group: int) -> str:
-    assert cta_group in (1, 2)
-    return "cuda_tcgen05_alloc_cta_group_" + str(cta_group)
+def resolve_tcgen05_alloc(cta_group: Tcgen05CtaGroupKind) -> str:
+    return "cuda_tcgen05_alloc_cta_group_" + cta_group.value
 
 
-def resolve_tcgen05_dealloc(cta_group: int) -> str:
-    assert cta_group in (1, 2)
-    return "cuda_tcgen05_dealloc_cta_group_" + str(cta_group)
+def resolve_tcgen05_dealloc(cta_group: Tcgen05CtaGroupKind) -> str:
+    return "cuda_tcgen05_dealloc_cta_group_" + cta_group.value
 
 
 def resolve_tcgen05_load(
@@ -170,13 +194,20 @@ def resolve_tcgen05_store(
     return ret
 
 
+def resolve_tcgen05_copy(cta_group: Tcgen05CtaGroupKind, shape: Tcgen05CopyShapeKind, multicast: Tcgen05CopyMulticastKind) -> str:
+    ret = "cuda_tcgen05_copy_cta_group" + cta_group.value + shape.value + multicast.value
+    ret = ret.replace(".", "_").replace("::", "_")
+    return ret
+
+
 @initialize()
 def register_tcgen05_instructions():
     from hidet.lang import attrs, meta
 
     from tilus.extensions.hidet.lang import script
 
-    for cta_group in [1, 2]:
+    # alloc, dealloc, relinquish_alloc_permit
+    for cta_group in [Tcgen05CtaGroupKind.CTA_1, Tcgen05CtaGroupKind.CTA_2]:
 
         @register_primitive_function_decorator
         @no_type_check
@@ -184,7 +215,7 @@ def register_tcgen05_instructions():
         def tcgen05_relinquish_alloc_permit_():
             attrs.func_name = resolve_tcgen05_relinquish_alloc_permit(cta_group)
             attrs.func_kind = "cuda_internal"
-            asm("tcgen05.relinquish_alloc_permit.cta_group::{}.sync.aligned;".format(cta_group), is_volatile=True)
+            asm("tcgen05.relinquish_alloc_permit{}.sync.aligned;".format(cta_group.value), is_volatile=True)
 
         @register_primitive_function_decorator
         @no_type_check
@@ -193,7 +224,7 @@ def register_tcgen05_instructions():
             attrs.func_name = resolve_tcgen05_alloc(cta_group)
             attrs.func_kind = "cuda_internal"
             asm(
-                "tcgen05.alloc.cta_group::{}.sync.aligned.shared::cta.b32 [%0], %1;".format(cta_group),
+                "tcgen05.alloc{}.sync.aligned.shared::cta.b32 [%0], %1;".format(cta_group.value),
                 inputs=[dst, num_columns],
                 is_volatile=True,
             )
@@ -205,11 +236,12 @@ def register_tcgen05_instructions():
             attrs.func_name = resolve_tcgen05_dealloc(cta_group)
             attrs.func_kind = "cuda_internal"
             asm(
-                "tcgen05.dealloc.cta_group::{}.sync.aligned.b32 %0, %1;".format(cta_group),
+                "tcgen05.dealloc{}.sync.aligned.b32 %0, %1;".format(cta_group.value),
                 inputs=[taddr, num_columns],
                 is_volatile=True,
             )
 
+    # load, store
     for pack in [Tcgen05LoadStorePackKind.NONE, Tcgen05LoadStorePackKind.PACK_16B]:
         for num in [
             Tcgen05LoadStoreNumKind.X1,
@@ -264,6 +296,7 @@ def register_tcgen05_instructions():
                         is_volatile=True,
                     )
 
+    # wait_load, wait_store
     @register_primitive_function_decorator
     @no_type_check
     @script
@@ -279,7 +312,32 @@ def register_tcgen05_instructions():
         attrs.func_name = "cuda_tcgen05_wait_store"
         attrs.func_kind = "cuda_internal"
         asm("tcgen05.wait::st.sync.aligned;", is_volatile=True)
+    
+    # copy
+    for cta_group in [Tcgen05CtaGroupKind.CTA_1, Tcgen05CtaGroupKind.CTA_2]:
+        for shape in [
+            Tcgen05CopyShapeKind.R128x256B,
+            Tcgen05CopyShapeKind.R128x128B,
+            Tcgen05CopyShapeKind.R64x128B,
+            Tcgen05CopyShapeKind.R32x128B,
+            Tcgen05CopyShapeKind.R4x128B,
+        ]:
+            for multicast in [
+                Tcgen05CopyMulticastKind.NONE,
+                Tcgen05CopyMulticastKind.WARP_X2_02_13,
+                Tcgen05CopyMulticastKind.WARP_X2_01_23,
+                Tcgen05CopyMulticastKind.WARP_X4,
+            ]:
+                template = f"tcgen05.cp.{cta_group.value}sync.aligned{shape.value}{multicast.value}.b32 [%0], %1;"
+                @register_primitive_function_decorator
+                @no_type_check
+                @script
+                def tcgen05_copy_(taddr: int32, sdesc: uint64):
+                    attrs.func_name = resolve_tcgen05_copy(cta_group, shape, multicast)
+                    attrs.func_kind = "cuda_internal"
+                    asm(template, inputs=[taddr, sdesc], is_volatile=True)
 
+    # encode_smem_descriptor
     @register_primitive_function_decorator
     @no_type_check
     @script
@@ -304,17 +362,17 @@ def register_tcgen05_instructions():
         return desc
 
 
-def tcgen05_relinquish_alloc_permit(cta_group: int) -> Expr:
+def tcgen05_relinquish_alloc_permit(cta_group: Tcgen05CtaGroupKind) -> Expr:
     func_name = resolve_tcgen05_relinquish_alloc_permit(cta_group)
     return call_primitive_func(func_name, [])
 
 
-def tcgen05_alloc(dst: Expr, num_columns: Expr, cta_group: int) -> Expr:
+def tcgen05_alloc(dst: Expr, num_columns: Expr, cta_group: Tcgen05CtaGroupKind) -> Expr:
     func_name = resolve_tcgen05_alloc(cta_group)
     return call_primitive_func(func_name, [dst, num_columns])
 
 
-def tcgen05_dealloc(taddr: Expr, num_columns: Expr, cta_group: int) -> Expr:
+def tcgen05_dealloc(taddr: Expr, num_columns: Expr, cta_group: Tcgen05CtaGroupKind) -> Expr:
     func_name = resolve_tcgen05_dealloc(cta_group)
     return call_primitive_func(func_name, [taddr, num_columns])
 
@@ -353,11 +411,25 @@ def tcgen05_wait_store() -> Expr:
 
 def tcgen05_encode_smem_descriptor(
     smem_addr: Expr,
-    lbo: Expr,
-    sbo: Expr,
-    mbo: Expr,
-    stride_mode: Expr,
-    swizzle_mode: Expr,
+    lbo: Expr | int,
+    sbo: Expr | int,
+    mbo: Expr | int,
+    stride_mode: Expr | int,
+    swizzle_mode: Expr | int,
 ) -> Expr:
     func_name = "cuda_tcgen05_encode_smem_descriptor"
+    if isinstance(lbo, int):
+        lbo = uint32(lbo)
+    if isinstance(sbo, int):
+        sbo = uint32(sbo)
+    if isinstance(mbo, int):
+        mbo = uint8(mbo)
+    if isinstance(stride_mode, int):
+        stride_mode = uint8(stride_mode)
+    if isinstance(swizzle_mode, int):
+        swizzle_mode = uint8(swizzle_mode)
     return call_primitive_func(func_name, [smem_addr, lbo, sbo, mbo, stride_mode, swizzle_mode])
+
+def tcgen05_copy(taddr: Expr, sdesc: Expr, cta_group: Tcgen05CtaGroupKind, shape: Tcgen05CopyShapeKind, multicast: Tcgen05CopyMulticastKind) -> Expr:
+    func_name = resolve_tcgen05_copy(cta_group, shape, multicast)
+    return call_primitive_func(func_name, [taddr, sdesc])
