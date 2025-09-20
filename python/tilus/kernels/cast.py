@@ -19,7 +19,7 @@ from typing import Optional
 from hidet.ir.dtypes import DataType, int32
 from hidet.ir.type import void_p
 
-from tilus.ir.layout import spatial
+from tilus.ir.layout.ops import spatial
 from tilus.lang import Script
 from tilus.tensor import Tensor, empty
 from tilus.utils import cdiv, lcm, prod
