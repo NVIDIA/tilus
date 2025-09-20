@@ -8,13 +8,14 @@ import numpy as np
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var
 from hidet.ir.type import DataType
-from hidet.utils import prod
+from hidet.utils.py import prod
 
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
 from tilus.ir.layout.utils.cute import cute_layout, tuple_product, CuteSwizzle
 from tilus.ir.layout.shared_layout import SharedLayout
 from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
 from tilus.ir.utils.vector import vector
+from tilus.utils import floor_log2
 
 
 class Tcgen05SwizzleMode(Enum):
@@ -31,44 +32,25 @@ class Tcgen05SwizzleMode(Enum):
         self.sshift = sshift
 
 
-@dataclass
+@dataclass(order=True, eq=True, unsafe_hash=True)
 class CanonicalSharedLayout:
-    shape: tuple[int, int]  # (mn-size, k-size)
     major_kind: Literal["MN", "K"]
     swizzle_mode: Tcgen05SwizzleMode
-    sbo: int
-    lbo: int
+    SBO: int
+    LBO: int
     m: int
     k: int
-    t: int
+    T: int
 
     def __post_init__(self):
-        atom_size = 2**self.swizzle_mode.bbits * 8 * self.t
-        if (self.m > 1 and self.sbo % atom_size != 0) or (self.k > 1 and self.lbo % atom_size != 0):
-            raise ValueError(f"SBO {self.sbo} and LBO {self.lbo} must be divisible by atom size: {atom_size}")
-
-    def __eq__(self, other: CanonicalSharedLayout) -> bool:
-        return (
-            self.shape == other.shape
-            and self.major_kind == other.major_kind
-            and self.swizzle_mode == other.swizzle_mode
-            and self.sbo == other.sbo
-            and self.lbo == other.lbo
-            and self.m == other.m
-            and self.k == other.k
-            and self.t == other.t
-        )
+        atom_size = 2**self.swizzle_mode.bbits * 8 * self.T
+        if (self.m > 1 and self.SBO % atom_size != 0) or (self.k > 1 and self.LBO % atom_size != 0):
+            raise ValueError(f"SBO {self.SBO} and LBO {self.LBO} must be divisible by atom size: {atom_size}")
 
 
 def _generate_atom_grid(major_kind: Literal["MN", "K"], swizzle_mode: Tcgen05SwizzleMode, t: int) -> SharedLayout:
-    m = k = 1
-    swizzle_factor = 2**swizzle_mode.bbits
-    if major_kind == "MN":
-        shape = (t * swizzle_factor * m, 8 * k)
-    else:
-        shape = (8 * m, t * swizzle_factor * k)
     canonical_layout = CanonicalSharedLayout(
-        shape=shape, major_kind=major_kind, swizzle_mode=swizzle_mode, sbo=1, lbo=1, m=m, k=k, t=t
+        major_kind=major_kind, swizzle_mode=swizzle_mode, SBO=1, LBO=1, m=1, k=1, T=t
     )
     return get_shared_layout_from_canonical(canonical_layout)
 
@@ -155,11 +137,11 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
                 shape=(shape_m, shape_k),
                 major_kind=cast(Literal["MN", "K"], major_kind),
                 swizzle_mode=swizzle_mode,
-                sbo=sbo,
-                lbo=lbo,
+                SBO=sbo,
+                LBO=lbo,
                 m=m,
                 k=k,
-                t=t,
+                T=t,
             )
 
     return None
@@ -207,11 +189,11 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
     swizzle_mode = canonical_layout.swizzle_mode
     bbits, mbase, sshift = swizzle_mode.bbits, swizzle_mode.mbase, swizzle_mode.sshift
     T, m, k, SBO, LBO = (
-        canonical_layout.t,
+        canonical_layout.T,
         canonical_layout.m,
         canonical_layout.k,
-        canonical_layout.sbo,
-        canonical_layout.lbo,
+        canonical_layout.SBO,
+        canonical_layout.LBO,
     )
 
     # Determine swizzle factor based on bbits (from the canonical layout table)
@@ -232,18 +214,18 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
         raise ValueError(f"Unsupported major_kind: {canonical_layout.major_kind}")
 
     def f_offset(axes: Sequence[Var]) -> Expr | int:
-        base_offset = layout(*axes)
-        swizzle = CuteSwizzle(bbits=bbits, mbase=mbase, sshift=sshift)
-        return swizzle(base_offset)
+        nbytes = 16 // canonical_layout.T
+        swizzle = CuteSwizzle(bbits=bbits, mbase=mbase - floor_log2(nbytes), sshift=sshift)
+        return swizzle(layout(*axes))
 
     smem_shape: list[int] = [int(tuple_product(item)) for item in layout.shape]
 
     return SharedLayout.create(shape=smem_shape, size=prod(smem_shape), f_offset=f_offset)
 
 
-def main():
+def demo_reverse():
     original_canonical = CanonicalSharedLayout(
-        shape=(16, 16), major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, sbo=64, lbo=128, m=2, k=2, t=8
+        shape=(16, 16), major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8
     )
 
     layout = get_shared_layout_from_canonical(original_canonical)
@@ -256,4 +238,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    pass
