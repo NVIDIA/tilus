@@ -58,7 +58,18 @@ class Tcgen05CopyInstMeta:
 @register_emitter(Tcgen05CopyInst, target=nvgpu_sm100)
 class Tcgen05CopyEmitter(BaseInstEmitter):
     def generate_instructions(self, tmem_tensor: TMemoryTensor, shared_tensor: SharedTensor) -> list[Tcgen05CopyInstMeta]:
-        pass
+        multicast_kind = Tcgen05CopyMulticastKind.NONE
+        cta_group = Tcgen05CtaGroupKind.CTA_1
+        for shape_kind in [
+            Tcgen05CopyShapeKind.R128x256B,
+            Tcgen05CopyShapeKind.R128x128B,
+            # Tcgen05CopyShapeKind.R64x128B,  # todo: support these
+            # Tcgen05CopyShapeKind.R32x128B,
+            # Tcgen05CopyShapeKind.R4x128B,
+        ]:
+            pass
+
+            
     
     def check_warp_group(self) -> None:
         begin = self.current_thread_group_begin
