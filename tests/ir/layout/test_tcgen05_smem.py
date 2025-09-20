@@ -439,6 +439,7 @@ class TestCanonicalizeSharedLayout:
         )
         
         layout = get_shared_layout_from_canonical(original_canonical)
+        print(layout)
         recovered_canonical = canonicalize_shared_layout(layout, int32)
         
         assert recovered_canonical is not None
