@@ -24,8 +24,8 @@ from hidet.utils import initialize
 from tilus.extensions.hidet.ir.primitives.utils import register_primitive_function_decorator
 
 class Tcgen05CtaGroupKind(Enum):
-    CTA_1 = ".cta_grouop::1"
-    CTA_2 = ".cta_grouop::2"
+    CTA_1 = ".cta_group::1"
+    CTA_2 = ".cta_group::2"
 
     @staticmethod
     def from_int(cta_group: int) -> "Tcgen05CtaGroupKind":
@@ -167,15 +167,18 @@ def get_num_reg32(
 
 
 def resolve_tcgen05_relinquish_alloc_permit(cta_group: Tcgen05CtaGroupKind) -> str:
-    return "cuda_tcgen05_relinquish_alloc_permit_cta_group_" + cta_group.value
+    ret = "cuda_tcgen05_relinquish_alloc_permit_cta_group_" + cta_group.value
+    return ret.replace(".", "_").replace("::", "_")
 
 
 def resolve_tcgen05_alloc(cta_group: Tcgen05CtaGroupKind) -> str:
-    return "cuda_tcgen05_alloc_cta_group_" + cta_group.value
+    ret = "cuda_tcgen05_alloc_cta_group_" + cta_group.value
+    return ret.replace(".", "_").replace("::", "_")
 
 
 def resolve_tcgen05_dealloc(cta_group: Tcgen05CtaGroupKind) -> str:
-    return "cuda_tcgen05_dealloc_cta_group_" + cta_group.value
+    ret = "cuda_tcgen05_dealloc_cta_group_" + cta_group.value
+    return ret.replace(".", "_").replace("::", "_")
 
 
 def resolve_tcgen05_load(
