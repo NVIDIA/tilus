@@ -14,27 +14,86 @@
 # limitations under the License.
 
 
+from dataclasses import dataclass
+from hidet.ir.expr import Expr
+from hidet.ir.dtypes import uint64
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.ir.instructions.cuda.tmem import (
-    TMemoryCommitInst,
-    TMemoryCopyInst,
-)
+from tilus.ir.instructions.cuda.tmem import Tcgen05CopyInst
 from tilus.target import nvgpu_sm100
-
-#    tmem addr: 0xAAAABBBB where AAAA is the lane index and BBBB is the column index
-#   lane index: 0x0000 to 0x007F
-# column index: 0x0000 to 0x01FF
-LANE_STRIDE = 0x00010000
-COLUMN_STRIDE = 0x00000001
-
-
-@register_emitter(TMemoryCopyInst, target=nvgpu_sm100)
-class TMemoryCopyEmitter(BaseInstEmitter):
-    def emit(self, inst: TMemoryCopyInst) -> None:
-        raise NotImplementedError("TMemoryCopyInst is not supported yet")
+from tilus.ir.tensor import SharedTensor, TMemoryTensor
+from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+    tcgen05_encode_smem_descriptor, tcgen05_copy, Tcgen05CopyShapeKind, Tcgen05CtaGroupKind, Tcgen05CopyMulticastKind,
+)
+from tilus.backends.contexts.tcgen05_ctx import Tcgen05EmitContext
 
 
-@register_emitter(TMemoryCommitInst, target=nvgpu_sm100)
-class TMemoryCommitEmitter(BaseInstEmitter):
-    def emit(self, inst: TMemoryCommitInst) -> None:
-        raise NotImplementedError("TMemoryCommitInst is not supported yet")
+@dataclass
+class SharedMatrixDescriptor:
+    start_addr: Expr
+    ldo_or_lda: int
+    sdo: int
+    base_offset: int
+    stride_mode: int
+    swizzle_mode: int
+
+    def encoded(self) -> Expr:
+        return tcgen05_encode_smem_descriptor(
+            self.start_addr,
+            self.ldo_or_lda,
+            self.sdo,
+            self.base_offset,
+            self.stride_mode,
+            self.swizzle_mode,
+        )
+
+@dataclass
+class Tcgen05CopyInstMeta:
+    shape: Tcgen05CopyShapeKind
+    multicast: Tcgen05CopyMulticastKind
+    cta_group: Tcgen05CtaGroupKind
+    tmem_offset: int
+    shared_descriptor: SharedMatrixDescriptor
+
+
+@register_emitter(Tcgen05CopyInst, target=nvgpu_sm100)
+class Tcgen05CopyEmitter(BaseInstEmitter):
+    def generate_instructions(self, tmem_tensor: TMemoryTensor, shared_tensor: SharedTensor) -> list[Tcgen05CopyInstMeta]:
+        pass
+    
+    def check_warp_group(self) -> None:
+        begin = self.current_thread_group_begin
+        end = self.current_thread_group_end
+        if begin % 128 != 0 or end - begin != 128:
+            raise ValueError("The number of threads in the current thread group must be 128")
+
+    def emit(self, inst: Tcgen05CopyInst) -> None:
+        shared_tensor = inst.inputs[1].as_shared_tensor()
+        tmem_tensor = inst.inputs[0].as_tmemory_tensor()
+
+        self.check_warp_group()
+
+        if len(shared_tensor.shape) != 2:
+            raise ValueError("The shared tensor must be a 2D tensor")
+        if shared_tensor.shape[0] != 128:
+            raise NotImplementedError("The number of rows in the shared tensor must be 128")
+        if tmem_tensor.first_lane != 0:
+            raise NotImplementedError("The first lane of the tmem tensor must be 0")
+        
+        tmem_base_addr = self.tensor2var[tmem_tensor]
+
+        with self.if_then(self.current_thread == 0):
+            insts = self.generate_instructions(shared_tensor)
+            for inst_meta in insts:
+                s_desc = self.declare_var("s_desc", tp=uint64, init=inst_meta.shared_descriptor.encoded())
+                t_addr = tmem_base_addr + inst_meta.tmem_offset
+
+                self.append(
+                    tcgen05_copy(
+                        taddr=t_addr,
+                        sdesc=s_desc,
+                        cta_group=inst_meta.cta_group,
+                        shape=inst_meta.shape,
+                        multicast=inst_meta.multicast,
+                    )
+                )
+

@@ -12,24 +12,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus.ir.instructions.cuda.tmem import Tcgen05CopyInst
-from tilus.ir.layout import RegisterLayout
-from tilus.ir.layout.inference.rule import (
-    LayoutInferenceContext,
-    LayoutInferenceRule,
-    register_rule,
+
+
+from dataclasses import dataclass
+from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.ir.instructions.cuda.tmem import (
+    TMemoryCommitInst,
+    Tcgen05CopyInst,
 )
-from tilus.ir.tensor import RegisterTensor
-
-
-@register_rule(Tcgen05CopyInst)
-class TMemoryCopyRule(LayoutInferenceRule):
-    @staticmethod
-    def inference(ctx: LayoutInferenceContext, inst: Tcgen05CopyInst) -> dict[RegisterTensor, RegisterLayout]:
-        src = inst.inputs[0].as_shared_tensor()
-        # dst = inst.inputs[1].as_tmemory_tensor()
-
-        if src.has_layout():
-            return {}
-
-        raise NotImplementedError()
+from tilus.target import nvgpu_sm100
+from hidet.ir.expr import Expr
+from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import tcgen05_encode_smem_descriptor
+@register_emitter(TMemoryCommitInst, target=nvgpu_sm100)
+class TMemoryCommitEmitter(BaseInstEmitter):
+    def emit(self, inst: TMemoryCommitInst) -> None:
+        raise NotImplementedError("TMemoryCommitInst is not supported yet")

@@ -124,10 +124,10 @@ class TMemoryWaitInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class TMemoryCopyInst(Instruction):
+class Tcgen05CopyInst(Instruction):
     @staticmethod
-    def create(src: SharedTensor, dst: TMemoryTensor) -> TMemoryCopyInst:
-        return TMemoryCopyInst(output=None, inputs=(dst, src))
+    def create(src: SharedTensor, dst: TMemoryTensor) -> Tcgen05CopyInst:
+        return Tcgen05CopyInst(output=None, inputs=(dst, src))
 
 
 @dataclass(frozen=True, eq=False)

@@ -59,7 +59,7 @@ from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemap
 from tilus.ir.instructions.cuda.tmem import (
     TMemoryAllocInst,
     TMemoryCommitInst,
-    TMemoryCopyInst,
+    Tcgen05CopyInst,
     TMemoryDeallocInst,
     TMemoryLoadInst,
     TMemoryRelinquishAllocPermitInst,
@@ -1177,7 +1177,7 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     def tmem_copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
-        inst = TMemoryCopyInst.create(src=src, dst=dst)
+        inst = Tcgen05CopyInst.create(src=src, dst=dst)
         self.append(inst)
 
     def tmem_commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
