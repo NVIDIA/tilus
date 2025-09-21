@@ -20,7 +20,6 @@ from dataclasses import dataclass
 
 from hidet.ir.dtypes import uint64
 from hidet.ir.expr import Expr
-from hidet.ir.primitives.debug import printf
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE
@@ -84,12 +83,9 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
     ) -> list[Tcgen05CopyInstMeta]:
         dtype = shared_tensor.dtype
         shape = shared_tensor.shape
-        print(shared_tensor.layout.visualize())
         canonical_layout: CanonicalSharedLayout | None = canonicalize_shared_layout(
             shared_tensor.layout, tmem_tensor.dtype
         )
-        print("canonical_layout: ", canonical_layout)
-        print("canonical_layout.strides(): ", canonical_layout.atom_strides)
         if canonical_layout is None:
             msg = [
                 "The following <dtype, shared_layout> cannot be canonicalized:",
@@ -98,7 +94,6 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
             ]
             raise ValueError("\n".join(msg))
         smem_addr = self.shared_tensor_shared_space_addr[shared_tensor]
-        self.append(printf("smem_addr: %x\n", smem_addr))
         ret = []
         for shape_kind in [
             Tcgen05CopyShapeKind.R128x256B,
@@ -126,7 +121,6 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
                     stride_mode=0,  # 0 for relative mode and 1 for absolute mode
                     swizzle_mode=canonical_layout.swizzle_mode.encode(),
                 )
-                print("shared_descriptor: ", shared_descriptor)
 
                 inst_meta = Tcgen05CopyInstMeta(
                     shape_kind=shape_kind,
@@ -167,17 +161,6 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
             for inst_meta in insts:
                 s_desc = self.declare_var("s_desc", tp=uint64, init=inst_meta.shared_descriptor.encoded())
                 t_addr = tmem_base_addr + inst_meta.tmem_offset
-
-                self.append(
-                    printf(
-                        "tcgen05_copy(taddr=%x, sdesc=%lx, cta_group=%s, shape=%s, multicast=%s)\n",
-                        t_addr,
-                        s_desc,
-                        str(inst_meta.cta_group),
-                        str(inst_meta.shape_kind),
-                        str(inst_meta.multicast),
-                    )
-                )
 
                 self.append(
                     tcgen05_copy(
