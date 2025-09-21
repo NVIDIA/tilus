@@ -32,7 +32,7 @@ class DemoBarrier(tilus.Script):
         s_x = self.shared_tensor(dtype=int32, shape=[self.block_size])
         barriers = self.shared_tensor(dtype=uint64, shape=[1])
 
-        self.init_barrier(~barriers[0], count=self.attrs.warps * 32)
+        self.mbarrier.init(~barriers[0], count=self.attrs.warps * 32)
         self.sync()
 
         phase: int32 = 0
@@ -41,14 +41,14 @@ class DemoBarrier(tilus.Script):
                 dst=s_x, src=self.load_global(g_x, offsets=[bi * self.block_size], shape=[self.block_size])
             )
 
-            self.arrive_barrier(~barriers[0])
-            self.wait_barrier(~barriers[0], phase)
+            self.mbarrier.arrive(~barriers[0])
+            self.mbarrier.wait(~barriers[0], phase)
             phase ^= 1
 
             self.store_global(dst=g_y, src=self.load_shared(s_x) + 1, offsets=[bi * self.block_size])
 
-            self.arrive_barrier(~barriers[0])
-            self.wait_barrier(~barriers[0], phase)
+            self.mbarrier.arrive(~barriers[0])
+            self.mbarrier.wait(~barriers[0], phase)
             phase ^= 1
 
 
