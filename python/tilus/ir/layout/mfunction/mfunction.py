@@ -116,7 +116,7 @@ class MultiFunction:
         The mode groups are the groups of modes that are replicated together. For example, if we have a multi-function
         with modes (0, -3, 2), the mode groups will be [[0], [1, 2]].
         """
-        from tilus.ir.layout.utils import get_mode_groups
+        from tilus.ir.layout.ops.utils import get_mode_groups
 
         return get_mode_groups(self.shape, self.mode_shape)
 
@@ -149,7 +149,7 @@ class MultiFunction:
         return self.shape == other.shape and self.mode_shape == other.mode_shape and self.modes == other.modes
 
     def __mul__(self, other: MultiFunction) -> MultiFunction:
-        from tilus.ir.layout.utils import get_mode_groups
+        from tilus.ir.layout.ops.utils import get_mode_groups
 
         image_shape = self._image_shape
         image_mode_groups = get_mode_groups(image_shape, other.mode_shape)
@@ -181,23 +181,23 @@ class MultiFunction:
         )
 
     def collapse(self, dims: Sequence[int]) -> MultiFunction:
-        from tilus.ir.mfunction.ops import collapse
+        from tilus.ir.layout.mfunction.ops import collapse
 
         return collapse(self, dims)
 
     def collapse_by_shape(self, shape: Sequence[int]) -> MultiFunction:
-        from tilus.ir.mfunction.ops import collapse_by_shape
+        from tilus.ir.layout.mfunction.ops import collapse_by_shape
 
         return collapse_by_shape(self, shape)
 
     def cover(self, other: MultiFunction) -> bool:
         """Check whether this multi-function covers another multi-function."""
-        from tilus.ir.mfunction.ops import cover
+        from tilus.ir.layout.mfunction.ops import cover
 
         return cover(self, other)
 
 
-def canonicalize(func: MultiFunction) -> MultiFunction:
+def canonicalize_multi_function(func: MultiFunction) -> MultiFunction:
     """
     Canonicalizes the multi-function.
 
@@ -269,7 +269,7 @@ def multi_function(shape: Sequence[int], mode_shape: Sequence[int], modes: Seque
     ret: MultiFunction
         The multi-function with the given shape, mode shape, and modes.
     """
-    return canonicalize(MultiFunction.create(shape=shape, mode_shape=mode_shape, modes=modes))
+    return canonicalize_multi_function(MultiFunction.create(shape=shape, mode_shape=mode_shape, modes=modes))
 
 
 def visualize(func: MultiFunction) -> str:

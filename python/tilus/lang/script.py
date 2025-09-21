@@ -94,10 +94,17 @@ class Attributes:
 
 class InstructionGroup:
     def __init__(self):
-        self._builder: Optional[StmtBuilder] = None
+        self._optinal_builder: Optional[StmtBuilder] = None
 
     def _set_builder(self, builder: StmtBuilder) -> None:
-        self._builder = builder
+        self._optional_builder = builder
+
+    @property
+    def _builder(self) -> StmtBuilder:
+        if self._optional_builder is None:
+            raise InstructionError("Did you forget to call `super().__init__()` for the Tilus Script?")
+
+        return self._optional_builder
 
 
 class TmemInstructionGroup(InstructionGroup):
@@ -141,6 +148,453 @@ class TmemInstructionGroup(InstructionGroup):
     def wait_store(self) -> None:
         self._builder.tmem_wait_store()
 
+    def copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
+        self._builder.tmem_copy(src, dst)
+
+    def commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
+        self._builder.tmem_commit(mbarrier, cta_mask)
+
+
+class TmaInstructionGroup(InstructionGroup):
+    def copy_async_tensor_global_to_shared(
+        self,
+        *,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        mbarrier: Expr,
+        cache_policy: Optional[Expr] = None,
+    ) -> None:
+        """
+        TMA async copy from global to shared tensor asynchronously.
+
+        This instruction issues a TMA tensor async copy from global to shared tensor.
+
+        The `src` parameter specifies the global tensor to copy from, while the `dst` parameter specifies the shared
+        tensor to copy to.
+
+        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
+        will be copied from. The length of this sequence must match the number of dimensions of the global tensor.
+
+        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
+        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
+
+        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
+        to the barrier in shared memory.
+
+        The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+
+        Parameters
+        ----------
+        src: GlobalTensor
+            The global tensor to copy from.
+        dst: SharedTensor
+            The shared tensor to copy to.
+        offsets: Sequence[Expr | int]
+            The offsets for each dimension of the global tensor where the tile will be copied from. The
+            length of this sequence must match the number of dimensions of the global tensor.
+        dims: Sequence[int]
+            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
+            number of dimensions of the shared tensor being copied to.
+        mbarrier: Expr
+            The memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
+            to the barrier in shared memory.
+        cache_policy: Optional[Expr]
+            The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+        """
+        self._builder.copy_async_tensor_global_to_shared(
+            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, cache_policy=cache_policy
+        )
+
+    def copy_async_tensor_shared_to_global(
+        self,
+        src: SharedTensor,
+        dst: GlobalTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        cache_policy: Optional[Expr] = None,
+    ) -> None:
+        """
+        TMA async copy from shared to global tensor asynchronously.
+
+        This instruction issues a TMA tensor async copy from shared to global tensor.
+
+        The `src` parameter specifies the shared tensor to copy from, while the `dst` parameter specifies the global
+        tensor to copy to.
+
+        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
+        will be copied to. The length of this sequence must match the number of dimensions of the global tensor.
+
+        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
+        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
+
+        The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+
+        Parameters
+        ----------
+        src: SharedTensor
+            The shared tensor to copy from.
+        dst: GlobalTensor
+            The global tensor to copy to.
+        offsets: Sequence[Expr | int]
+            The offsets for each dimension of the global tensor where the tile will be copied to. The
+            length of this sequence must match the number of dimensions of the global tensor.
+        dims: Sequence[int]
+            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
+            number of dimensions of the shared tensor being copied from.
+        cache_policy: Optional[Expr]
+            The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+        """
+        self._builder.copy_async_tensor_shared_to_global(
+            src=src, dst=dst, offsets=offsets, dims=dims, cache_policy=cache_policy
+        )
+
+    def copy_async_tensor_commit_group(self):
+        """
+        Commit the previously issued async tensor copy operations.
+
+        This instruction commits the previously issued async tensor copy operations.
+
+        """
+        self._builder.copy_async_tensor_commit_group()
+
+    def copy_async_tensor_wait_group(self, n: int) -> None:
+        """
+        Wait for the previously issued async tensor copy operations to complete.
+
+        This instruction waits for the previously issued async tensor copy operations to complete.
+        The `n` parameter specifies the number of groups to allow to be on-the-fly.
+
+        Parameters
+        ----------
+        n: int
+            The number of groups to allow to be on-the-fly. It should be an integer larger or equal to 0.
+        """
+        self._builder.copy_async_tensor_wait_group(n)
+
+    def fence_proxy_copy_async(self):
+        """
+        Makes the modifications to shared tensors visible to TMA engine.
+
+        This instruction makes the modifications to shared tensors visible to TMA engine. It should be in the thread group
+        that has made modifications to shared tensors, and before copy the shared tensors to global memory with TMA-related instructions.
+        """
+        self._builder.fence_proxy_copy_async()
+
+    def copy_async_bulk_global_to_shared(
+        self,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        mbarrier: Expr,
+        dims: Sequence[int] = None,
+        evict: Optional[str] = None,
+        check_bounds: bool = True,
+    ) -> None:
+        """Bulk copy from global to shared tensor asynchronously.
+
+        This instruction issues a bulk asynchronous copy of a tile from a global tensor to a shared tensor.
+
+        The `src` parameter specifies the global tensor to copy from, while the `dst` parameter specifies the shared
+        tensor to copy to.
+
+        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
+        will be copied from. The length of this sequence must match the rank of the global tensor.
+
+        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
+        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
+        The length of this sequence must match the number of dimensions of the shared tensor being copied to.
+
+        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should
+        be an uint64 pointer to the barrier in shared memory.
+
+        The `evict` parameter can be used to specify the eviction policy of L2 cache. When we use this instruction,
+        the data in the global memory will be cached in L2 cache. We can use the `evict` parameter to specify the
+        eviction policy for the cached data of this instruction.
+
+        The `check_bounds` parameter specifies whether to check the bounds of the accessed global elements. It's valid
+        to specify the loading elements out of bounds of the global tensor, in which case, we will perform bound checking
+        and fill the out-of-bounds elements with zero in the shared tensor. The bound checking might introduce some
+        overhead, especially when the user make sure that the accessed global elements are always in bounds but our
+        compiler cannot infer it. In this case, we can set `check_bounds` to `False` to skip the bound checking. It's
+        the user's responsibility to ensure that the accessed global elements are always in bounds when `check_bounds`
+        is set to `False`.
+
+        Parameters
+        ----------
+        src: GlobalTensor
+            The global tensor to copy from.
+        dst: SharedTensor
+            The shared tensor to copy to.
+        offsets: Sequence[Expr | int]
+            The offsets for each dimension of the global tensor where the tile will be copied from. The
+            length of this sequence must match the number of dimensions of the global tensor.
+        mbarrier: Expr
+            The memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
+            to the barrier in shared memory.
+        dims: Sequence[int], optional
+            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
+            number of dimensions of the shared tensor being copied to.
+        evict: str, optional
+            The eviction policy for the cached data of this instruction. If not provided, the default eviction
+            policy `evict_normal` is used, which is to evict the cached data when the shared memory is full. The
+            eviction policy can be one of:
+
+            - `evict_normal`: Evict the cached data when the shared memory is full.
+            - `evict_first`: Evict the cached data of this instruction first when an eviction is needed. This policy is
+              suitable for streaming data where the data is only needed once and will not be reused.
+            - `evict_last`: Evict the cached data of this instruction last when an eviction is needed. This policy is
+              suitable for data that will be reused multiple times.
+
+        check_bounds: bool, optional
+            Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
+            elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,
+            it will be filled with zero in the shared tensor. When set to `False`, the bound checking will be skipped,
+        """
+        self._builder.copy_async_bulk_global_to_shared(src, dst, offsets, dims, mbarrier, evict, check_bounds)
+
+    def copy_async_bulk_global_to_cluster_shared(
+        self,
+        src: GlobalTensor,
+        dst: SharedTensor,
+        offsets: Sequence[Expr | int],
+        mbarrier: Expr,
+        cta_mask: int,
+        dims: Optional[Sequence[int]] = None,
+        evict: Optional[str] = None,
+        check_bounds: bool = True,
+    ) -> None:
+        """Bulk copy from global to cluster shared tensor asynchronously.
+
+        This instruction issues a bulk asynchronous copy of a tile from a global tensor to a cluster shared tensor.
+
+        The `src` parameter specifies the global tensor to copy from, while the `dst` parameter specifies the cluster
+        shared tensor to copy to.
+
+        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
+        will be copied from. The length of this sequence must match the rank of the global tensor.
+
+        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
+        the global tensor corresponds to the first dimension of the cluster shared tensor, dim[1] to the second, and so on.
+        The length of this sequence must match the number of dimensions of the cluster shared tensor being copied to.
+
+        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should
+        be an uint64 pointer to the barrier in shared memory.
+
+        The `evict` parameter can be used to specify the eviction policy of L2 cache. When we use this instruction,
+        the data in the global memory will be cached in L2 cache. We can use the `evict` parameter to specify the
+        eviction policy for the cached data of this instruction.
+
+        The `check_bounds` parameter specifies whether to check the bounds of the accessed global elements. It's valid
+        to specify the loading elements out of bounds of the global tensor, in which case, we will perform bound checking
+        and fill the out-of-bounds elements with zero in the cluster shared tensor. The bound checking might introduce some
+        overhead, especially when the user make sure that the accessed global elements are always in bounds but our
+        compiler cannot infer it. In this case, we can set `check_bounds` to `False` to skip the bound checking. It's
+        the user's responsibility to ensure that the accessed global elements are always in bounds when `check_bounds`
+        is set to `False`.
+
+        Parameters
+        ----------
+        src: GlobalTensor
+            The global tensor to copy from.
+        dst: SharedTensor
+            The cluster shared tensor to copy to.
+        offsets: Sequence[Expr | int]
+            The offsets for each dimension of the global tensor where the tile will be copied from. The
+            length of this sequence must match the number of dimensions of the global tensor.
+        dims: Sequence[int]
+            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
+            number of dimensions of the cluster shared tensor being copied to.
+        mbarrier: Expr
+            The memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
+            to the barrier in shared memory.
+        cta_mask: int
+            The CTA mask to specify which CTAs this copy operation is targeting. Each bit in the mask represents a CTA
+            in the block cluster.
+        evict: str, optional
+            THe eviction policy for the cached data of this instruction. If not provided, the default eviction
+            policy `evict_normal` is used, which is to evict the cached data when the shared memory is full. The
+            eviction policy can be one of:
+
+            - `evict_normal`: Evict the cached data when the shared memory is full.
+            - `evict_first`: Evict the cached data of this instruction first when an eviction is needed. This policy is
+              suitable for streaming data where the data is only needed once and will not be reused.
+            - `evict_last`: Evict the cached data of this instruction last when an eviction is needed. This policy is
+              suitable for data that will be reused multiple times.
+
+        check_bounds: bool, optional
+            Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
+            elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,
+            it will be filled with zero in the cluster shared tensor. When set to `False`, the bound checking will be skipped,
+            and the user must ensure that the accessed global elements are always in bounds. The default value is `True`.
+        """
+        self._builder.copy_async_bulk_global_to_cluster_shared(
+            src, dst, offsets, mbarrier, cta_mask, dims, evict, check_bounds
+        )
+
+    def copy_async_bulk_shared_to_global(
+        self,
+        src: SharedTensor,
+        dst: GlobalTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+        check_bounds: bool = True,
+    ) -> None:
+        """Bulk copy from shared to global tensor asynchronously.
+
+        This instruction issues a bulk asynchronous copy of a tile from a shared tensor to a global tensor.
+
+        The `src` parameter specifies the shared tensor to copy from, while the `dst` parameter specifies the global
+        tensor to copy to.
+
+        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
+        will be copied to. The length of this sequence must match the rank of the global tensor.
+
+        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
+        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
+
+        The `evict` parameter can be used to specify the eviction policy of L2 cache. When we use this instruction,
+        the data in the global memory will be cached in L2 cache. We can use the `evict` parameter to specify the
+        eviction policy for the cached data of this instruction.
+
+        The `check_bounds` parameter specifies whether to check the bounds of the accessed global elements. It's valid
+        to specify the storing elements out of bounds of the global tensor, in which case, we will perform bound checking
+        and ignore the out-of-bounds elements in the shared tensor. The bound checking might introduce some
+        overhead, especially when the user make sure that the accessed global elements are always in bounds but our
+        compiler cannot infer it. In this case, we can set `check_bounds` to `False` to skip the bound checking. It's
+        the user's responsibility to ensure that the accessed global elements are always in bounds when `check_bounds`
+        is set to `False`.
+
+        Parameters
+        ----------
+        src: SharedTensor
+            The shared tensor to copy from.
+        dst: GlobalTensor
+            The global tensor to copy to.
+        offsets: Sequence[Expr | int]
+            The offsets for each dimension of the global tensor where the tile will be copied to. The
+            length of this sequence must match the number of dimensions of the global tensor.
+        dims: Sequence[int], optional
+            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
+            number of dimensions of the shared tensor being copied from. When not provided, it is assumed that all
+            dimensions are being sliced in the same order as the shared tensor.
+        check_bounds: bool, optional
+            Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
+            elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,
+            it will be ignored in the shared tensor. When set to `False`, the bound checking will be skipped,
+            and the user must ensure that the accessed global elements are always in bounds. The default value is `True`.
+        """
+        self._builder.copy_async_bulk_shared_to_global(src, dst, offsets, dims, check_bounds)
+
+
+class BarrierInstructionGroup(InstructionGroup):
+    def init(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
+        """Initialize a barrier.
+
+        This instruction initializes a memory barrier in shared memory. A barrier is an uint64 variable in shared
+        memory. A barrier contains the following information in the 64 bits:
+
+        - The current phase of the barrier (i.e., phase): 0 or 1.
+        - The count of pending arrivals in the current phase: 1 to 2^20 - 1.
+        - The count of expected arrivals in the next phase: 0 to 2^20 - 1.
+        - The count of pending asynchronous memory transactions in the current phase (i.e., `tx-count`):
+          -(2^20 - 1) to 2^20 - 1.
+
+        After initialization, we have:
+
+        - phase = 0
+        - pending arrivals = count
+        - expected arrivals = count
+        - tx-count = 0
+
+        When `count` is not provided, it defaults to the number of threads in the current thread group.
+
+        Asynchronous memory copy instructions (e.g., `copy_async_bulk` or `copy_async_tensor` instructions) that
+        take a barrier as an argument will:
+
+        - increase the `tx-count` by the number of bytes to be copied before the copy starts.
+        - decrease the `tx-count` by the number of bytes copied after the copy completes asynchronously.
+
+        The `arrive_barrier` instruction will decrease the pending arrivals by the number of threads in the thread
+        group that call the instruction.
+
+        The `wait_barrier` instruction will make the thread group wait until the given phase has finished.
+
+        Once the following conditions are met for the current phase:
+
+        - pending arrivals == 0
+        - tx-count == 0
+
+        The barrier will switch to the next phase, and the following will happen:
+
+        - phase = phase ^ 1
+        - pending arrivals = expected arrivals in the next phase
+        - expected arrivals does not change
+        - tx-count = 0
+
+        Parameters
+        ----------
+        barrier: Expr
+            The pointer to the barrier in shared memory.
+        count: Expr | int, optional
+            The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
+            to a positive int32. When not provided, it defaults to the number of threads in the current thread group.
+        """
+        self._builder.init_barrier(barrier, int32(count) if isinstance(count, int) else count)
+
+    def arrive(self, barrier: Expr) -> None:
+        """Arrive at a barrier.
+
+        This instruction decreases the pending arrivals of given barrier by the number of threads in the thread group
+        that call the instruction.
+
+        Parameters
+        ----------
+        barrier: Expr
+            The pointer to the barrier in shared memory.
+        """
+        self._builder.arrive_barrier(barrier)
+
+    def arrive_remote(self, barrier: Expr, remote_block: Expr | int) -> None:
+        """Arrive at a remote barrier.
+
+        This instruction decreases the pending arrivals of the barrier in the remote block by the number of threads in
+        the thread group that call the instruction.
+
+        Parameters
+        ----------
+        barrier: Expr
+            The pointer to the barrier in shared memory in the current thread block. The offset of the barrier will be
+            used to locate the barrier in the remote block.
+        remote_block: Expr | int
+            The thread block index of the remote thread block that the current block is signaling the arrival to. It
+            should be an expression that evaluates to a non-negative int32.
+        """
+        self._builder.arrive_remote_barrier(barrier, remote_block)
+
+    def wait(self, barrier: Expr, phase: Expr | int) -> None:
+        """Wait at a barrier.
+
+        This instruction makes the threads in the current thread group wait at the specified barrier until the pending
+        arrivals and tx-count of the given phase are both zero.
+
+        When the barrier's current phase is not equal to the specified `phase`, the threads will proceed without waiting
+        since the specified phase has already finished.
+
+        When the barrier's current phase is equal to the specified `phase`, the threads will wait until both the pending
+        arrivals and tx-count of the current phase are zero. Once these conditions are met, the barrier will switch to
+        the next phase, and the threads will proceed.
+
+        Parameters
+        ----------
+        barrier: Expr
+            The pointer to the barrier in shared memory.
+        phase: Expr | int
+            The phase value to wait for. It must be evaluated to either 0 or 1.
+        """
+        self._builder.wait_barrier(barrier, phase if isinstance(phase, Expr) else int32(phase))
+
 
 class Script:
     """A script is a user-defined kernel function that can be compiled and executed on the GPU."""
@@ -164,7 +618,7 @@ class Script:
         # builder used to append instructions
         from tilus.lang.transpiler import Transpiler
 
-        self._builder: Optional[StmtBuilder] = None
+        self._optional_builder: Optional[StmtBuilder] = None
         self._transpiler: Optional[Transpiler] = None
 
         self._attrs: Attributes = Attributes()
@@ -175,13 +629,24 @@ class Script:
 
         # instruction groups
         self.tmem = TmemInstructionGroup()
+        self.tma = TmaInstructionGroup()
+        self.mbarrier = BarrierInstructionGroup()
 
     def __call__(self, *args, **kwargs):
         raise RuntimeError("This method should never be called.")
 
     def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
-        self._builder = builder
+        self._optional_builder = builder
         self.tmem._set_builder(builder)
+        self.tma._set_builder(builder)
+        self.mbarrier._set_builder(builder)
+
+    @property
+    def _builder(self) -> StmtBuilder:
+        if self._optional_builder is None:
+            raise InstructionError("Did you forget to call `super().__init__()` for the Tilus Script?")
+
+        return self._optional_builder
 
     def program(self) -> Program:
         """
@@ -889,337 +1354,6 @@ class Script:
             it will wait until all asynchronous copy groups are finished.
         """
         self._builder.copy_async_wait_group(n)
-
-    def copy_async_bulk_global_to_shared(
-        self,
-        src: GlobalTensor,
-        dst: SharedTensor,
-        offsets: Sequence[Expr | int],
-        mbarrier: Expr,
-        dims: Sequence[int] = None,
-        evict: Optional[str] = None,
-        check_bounds: bool = True,
-    ) -> None:
-        """Bulk copy from global to shared tensor asynchronously.
-
-        This instruction issues a bulk asynchronous copy of a tile from a global tensor to a shared tensor.
-
-        The `src` parameter specifies the global tensor to copy from, while the `dst` parameter specifies the shared
-        tensor to copy to.
-
-        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
-        will be copied from. The length of this sequence must match the rank of the global tensor.
-
-        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
-        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
-        The length of this sequence must match the number of dimensions of the shared tensor being copied to.
-
-        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should
-        be an uint64 pointer to the barrier in shared memory.
-
-        The `evict` parameter can be used to specify the eviction policy of L2 cache. When we use this instruction,
-        the data in the global memory will be cached in L2 cache. We can use the `evict` parameter to specify the
-        eviction policy for the cached data of this instruction.
-
-        The `check_bounds` parameter specifies whether to check the bounds of the accessed global elements. It's valid
-        to specify the loading elements out of bounds of the global tensor, in which case, we will perform bound checking
-        and fill the out-of-bounds elements with zero in the shared tensor. The bound checking might introduce some
-        overhead, especially when the user make sure that the accessed global elements are always in bounds but our
-        compiler cannot infer it. In this case, we can set `check_bounds` to `False` to skip the bound checking. It's
-        the user's responsibility to ensure that the accessed global elements are always in bounds when `check_bounds`
-        is set to `False`.
-
-        Parameters
-        ----------
-        src: GlobalTensor
-            The global tensor to copy from.
-        dst: SharedTensor
-            The shared tensor to copy to.
-        offsets: Sequence[Expr | int]
-            The offsets for each dimension of the global tensor where the tile will be copied from. The
-            length of this sequence must match the number of dimensions of the global tensor.
-        mbarrier: Expr
-            The memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
-            to the barrier in shared memory.
-        dims: Sequence[int], optional
-            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
-            number of dimensions of the shared tensor being copied to.
-        evict: str, optional
-            The eviction policy for the cached data of this instruction. If not provided, the default eviction
-            policy `evict_normal` is used, which is to evict the cached data when the shared memory is full. The
-            eviction policy can be one of:
-
-            - `evict_normal`: Evict the cached data when the shared memory is full.
-            - `evict_first`: Evict the cached data of this instruction first when an eviction is needed. This policy is
-              suitable for streaming data where the data is only needed once and will not be reused.
-            - `evict_last`: Evict the cached data of this instruction last when an eviction is needed. This policy is
-              suitable for data that will be reused multiple times.
-
-        check_bounds: bool, optional
-            Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
-            elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,
-            it will be filled with zero in the shared tensor. When set to `False`, the bound checking will be skipped,
-        """
-        self._builder.copy_async_bulk_global_to_shared(src, dst, offsets, dims, mbarrier, evict, check_bounds)
-
-    def copy_async_bulk_global_to_cluster_shared(
-        self,
-        src: GlobalTensor,
-        dst: SharedTensor,
-        offsets: Sequence[Expr | int],
-        mbarrier: Expr,
-        cta_mask: int,
-        dims: Optional[Sequence[int]] = None,
-        evict: Optional[str] = None,
-        check_bounds: bool = True,
-    ) -> None:
-        """Bulk copy from global to cluster shared tensor asynchronously.
-
-        This instruction issues a bulk asynchronous copy of a tile from a global tensor to a cluster shared tensor.
-
-        The `src` parameter specifies the global tensor to copy from, while the `dst` parameter specifies the cluster
-        shared tensor to copy to.
-
-        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
-        will be copied from. The length of this sequence must match the rank of the global tensor.
-
-        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
-        the global tensor corresponds to the first dimension of the cluster shared tensor, dim[1] to the second, and so on.
-        The length of this sequence must match the number of dimensions of the cluster shared tensor being copied to.
-
-        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should
-        be an uint64 pointer to the barrier in shared memory.
-
-        The `evict` parameter can be used to specify the eviction policy of L2 cache. When we use this instruction,
-        the data in the global memory will be cached in L2 cache. We can use the `evict` parameter to specify the
-        eviction policy for the cached data of this instruction.
-
-        The `check_bounds` parameter specifies whether to check the bounds of the accessed global elements. It's valid
-        to specify the loading elements out of bounds of the global tensor, in which case, we will perform bound checking
-        and fill the out-of-bounds elements with zero in the cluster shared tensor. The bound checking might introduce some
-        overhead, especially when the user make sure that the accessed global elements are always in bounds but our
-        compiler cannot infer it. In this case, we can set `check_bounds` to `False` to skip the bound checking. It's
-        the user's responsibility to ensure that the accessed global elements are always in bounds when `check_bounds`
-        is set to `False`.
-
-        Parameters
-        ----------
-        src: GlobalTensor
-            The global tensor to copy from.
-        dst: SharedTensor
-            The cluster shared tensor to copy to.
-        offsets: Sequence[Expr | int]
-            The offsets for each dimension of the global tensor where the tile will be copied from. The
-            length of this sequence must match the number of dimensions of the global tensor.
-        dims: Sequence[int]
-            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
-            number of dimensions of the cluster shared tensor being copied to.
-        mbarrier: Expr
-            The memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
-            to the barrier in shared memory.
-        cta_mask: int
-            The CTA mask to specify which CTAs this copy operation is targeting. Each bit in the mask represents a CTA
-            in the block cluster.
-        evict: str, optional
-            THe eviction policy for the cached data of this instruction. If not provided, the default eviction
-            policy `evict_normal` is used, which is to evict the cached data when the shared memory is full. The
-            eviction policy can be one of:
-
-            - `evict_normal`: Evict the cached data when the shared memory is full.
-            - `evict_first`: Evict the cached data of this instruction first when an eviction is needed. This policy is
-              suitable for streaming data where the data is only needed once and will not be reused.
-            - `evict_last`: Evict the cached data of this instruction last when an eviction is needed. This policy is
-              suitable for data that will be reused multiple times.
-
-        check_bounds: bool, optional
-            Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
-            elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,
-            it will be filled with zero in the cluster shared tensor. When set to `False`, the bound checking will be skipped,
-            and the user must ensure that the accessed global elements are always in bounds. The default value is `True`.
-        """
-        self._builder.copy_async_bulk_global_to_cluster_shared(
-            src, dst, offsets, mbarrier, cta_mask, dims, evict, check_bounds
-        )
-
-    def copy_async_bulk_shared_to_global(
-        self,
-        src: SharedTensor,
-        dst: GlobalTensor,
-        offsets: Sequence[Expr | int],
-        dims: Optional[Sequence[int]] = None,
-        check_bounds: bool = True,
-    ) -> None:
-        """Bulk copy from shared to global tensor asynchronously.
-
-        This instruction issues a bulk asynchronous copy of a tile from a shared tensor to a global tensor.
-
-        The `src` parameter specifies the shared tensor to copy from, while the `dst` parameter specifies the global
-        tensor to copy to.
-
-        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
-        will be copied to. The length of this sequence must match the rank of the global tensor.
-
-        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
-        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
-
-        The `evict` parameter can be used to specify the eviction policy of L2 cache. When we use this instruction,
-        the data in the global memory will be cached in L2 cache. We can use the `evict` parameter to specify the
-        eviction policy for the cached data of this instruction.
-
-        The `check_bounds` parameter specifies whether to check the bounds of the accessed global elements. It's valid
-        to specify the storing elements out of bounds of the global tensor, in which case, we will perform bound checking
-        and ignore the out-of-bounds elements in the shared tensor. The bound checking might introduce some
-        overhead, especially when the user make sure that the accessed global elements are always in bounds but our
-        compiler cannot infer it. In this case, we can set `check_bounds` to `False` to skip the bound checking. It's
-        the user's responsibility to ensure that the accessed global elements are always in bounds when `check_bounds`
-        is set to `False`.
-
-        Parameters
-        ----------
-        src: SharedTensor
-            The shared tensor to copy from.
-        dst: GlobalTensor
-            The global tensor to copy to.
-        offsets: Sequence[Expr | int]
-            The offsets for each dimension of the global tensor where the tile will be copied to. The
-            length of this sequence must match the number of dimensions of the global tensor.
-        dims: Sequence[int], optional
-            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
-            number of dimensions of the shared tensor being copied from. When not provided, it is assumed that all
-            dimensions are being sliced in the same order as the shared tensor.
-        check_bounds: bool, optional
-            Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
-            elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,
-            it will be ignored in the shared tensor. When set to `False`, the bound checking will be skipped,
-            and the user must ensure that the accessed global elements are always in bounds. The default value is `True`.
-        """
-        self._builder.copy_async_bulk_shared_to_global(src, dst, offsets, dims, check_bounds)
-
-    def copy_async_tensor_global_to_shared(
-        self,
-        *,
-        src: GlobalTensor,
-        dst: SharedTensor,
-        offsets: Sequence[Expr | int],
-        dims: Optional[Sequence[int]] = None,
-        mbarrier: Expr,
-        cache_policy: Optional[Expr] = None,
-    ) -> None:
-        """
-        TMA async copy from global to shared tensor asynchronously.
-
-        This instruction issues a TMA tensor async copy from global to shared tensor.
-
-        The `src` parameter specifies the global tensor to copy from, while the `dst` parameter specifies the shared
-        tensor to copy to.
-
-        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
-        will be copied from. The length of this sequence must match the number of dimensions of the global tensor.
-
-        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
-        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
-
-        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
-        to the barrier in shared memory.
-
-        The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
-
-        Parameters
-        ----------
-        src: GlobalTensor
-            The global tensor to copy from.
-        dst: SharedTensor
-            The shared tensor to copy to.
-        offsets: Sequence[Expr | int]
-            The offsets for each dimension of the global tensor where the tile will be copied from. The
-            length of this sequence must match the number of dimensions of the global tensor.
-        dims: Sequence[int]
-            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
-            number of dimensions of the shared tensor being copied to.
-        mbarrier: Expr
-            The memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
-            to the barrier in shared memory.
-        cache_policy: Optional[Expr]
-            The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
-        """
-        self._builder.copy_async_tensor_global_to_shared(
-            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, cache_policy=cache_policy
-        )
-
-    def copy_async_tensor_shared_to_global(
-        self,
-        src: SharedTensor,
-        dst: GlobalTensor,
-        offsets: Sequence[Expr | int],
-        dims: Optional[Sequence[int]] = None,
-        cache_policy: Optional[Expr] = None,
-    ) -> None:
-        """
-        TMA async copy from shared to global tensor asynchronously.
-
-        This instruction issues a TMA tensor async copy from shared to global tensor.
-
-        The `src` parameter specifies the shared tensor to copy from, while the `dst` parameter specifies the global
-        tensor to copy to.
-
-        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
-        will be copied to. The length of this sequence must match the number of dimensions of the global tensor.
-
-        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
-        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
-
-        The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
-
-        Parameters
-        ----------
-        src: SharedTensor
-            The shared tensor to copy from.
-        dst: GlobalTensor
-            The global tensor to copy to.
-        offsets: Sequence[Expr | int]
-            The offsets for each dimension of the global tensor where the tile will be copied to. The
-            length of this sequence must match the number of dimensions of the global tensor.
-        dims: Sequence[int]
-            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
-            number of dimensions of the shared tensor being copied from.
-        cache_policy: Optional[Expr]
-            The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
-        """
-        self._builder.copy_async_tensor_shared_to_global(
-            src=src, dst=dst, offsets=offsets, dims=dims, cache_policy=cache_policy
-        )
-
-    def copy_async_tensor_commit_group(self):
-        """
-        Commit the previously issued async tensor copy operations.
-
-        This instruction commits the previously issued async tensor copy operations.
-
-        """
-        self._builder.copy_async_tensor_commit_group()
-
-    def copy_async_tensor_wait_group(self, n: int) -> None:
-        """
-        Wait for the previously issued async tensor copy operations to complete.
-
-        This instruction waits for the previously issued async tensor copy operations to complete.
-        The `n` parameter specifies the number of groups to allow to be on-the-fly.
-
-        Parameters
-        ----------
-        n: int
-            The number of groups to allow to be on-the-fly. It should be an integer larger or equal to 0.
-        """
-        self._builder.copy_async_tensor_wait_group(n)
-
-    def fence_proxy_copy_async(self):
-        """
-        Makes the modifications to shared tensors visible to TMA engine.
-
-        This instruction makes the modifications to shared tensors visible to TMA engine. It should be in the thread group
-        that has made modifications to shared tensors, and before copy the shared tensors to global memory with TMA-related instructions.
-        """
-        self._builder.fence_proxy_copy_async()
 
     def dot(
         self,
@@ -2099,112 +2233,6 @@ class Script:
         if dst.dtype != src.dtype:
             raise InstructionError("The dtypes of dst and src must match, got {} and {}".format(dst.dtype, src.dtype))
         self._builder.assign_register(dst, src)
-
-    def init_barrier(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
-        """Initialize a barrier.
-
-        This instruction initializes a memory barrier in shared memory. A barrier is an uint64 variable in shared
-        memory. A barrier contains the following information in the 64 bits:
-
-        - The current phase of the barrier (i.e., phase): 0 or 1.
-        - The count of pending arrivals in the current phase: 1 to 2^20 - 1.
-        - The count of expected arrivals in the next phase: 0 to 2^20 - 1.
-        - The count of pending asynchronous memory transactions in the current phase (i.e., `tx-count`):
-          -(2^20 - 1) to 2^20 - 1.
-
-        After initialization, we have:
-
-        - phase = 0
-        - pending arrivals = count
-        - expected arrivals = count
-        - tx-count = 0
-
-        When `count` is not provided, it defaults to the number of threads in the current thread group.
-
-        Asynchronous memory copy instructions (e.g., `copy_async_bulk` or `copy_async_tensor` instructions) that
-        take a barrier as an argument will:
-
-        - increase the `tx-count` by the number of bytes to be copied before the copy starts.
-        - decrease the `tx-count` by the number of bytes copied after the copy completes asynchronously.
-
-        The `arrive_barrier` instruction will decrease the pending arrivals by the number of threads in the thread
-        group that call the instruction.
-
-        The `wait_barrier` instruction will make the thread group wait until the given phase has finished.
-
-        Once the following conditions are met for the current phase:
-
-        - pending arrivals == 0
-        - tx-count == 0
-
-        The barrier will switch to the next phase, and the following will happen:
-
-        - phase = phase ^ 1
-        - pending arrivals = expected arrivals in the next phase
-        - expected arrivals does not change
-        - tx-count = 0
-
-        Parameters
-        ----------
-        barrier: Expr
-            The pointer to the barrier in shared memory.
-        count: Expr | int, optional
-            The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
-            to a positive int32. When not provided, it defaults to the number of threads in the current thread group.
-        """
-        self._builder.init_barrier(barrier, int32(count) if isinstance(count, int) else count)
-
-    def arrive_barrier(self, barrier: Expr) -> None:
-        """Arrive at a barrier.
-
-        This instruction decreases the pending arrivals of given barrier by the number of threads in the thread group
-        that call the instruction.
-
-        Parameters
-        ----------
-        barrier: Expr
-            The pointer to the barrier in shared memory.
-        """
-        self._builder.arrive_barrier(barrier)
-
-    def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr | int) -> None:
-        """Arrive at a remote barrier.
-
-        This instruction decreases the pending arrivals of the barrier in the remote block by the number of threads in
-        the thread group that call the instruction.
-
-        Parameters
-        ----------
-        barrier: Expr
-            The pointer to the barrier in shared memory in the current thread block. The offset of the barrier will be
-            used to locate the barrier in the remote block.
-        remote_block: Expr | int
-            The thread block index of the remote thread block that the current block is signaling the arrival to. It
-            should be an expression that evaluates to a non-negative int32.
-        """
-        self._builder.arrive_remote_barrier(barrier, remote_block)
-
-    def wait_barrier(self, barrier: Expr, phase: Expr | int) -> None:
-        """Wait at a barrier.
-
-        This instruction makes the threads in the current thread group wait at the specified barrier until the pending
-        arrivals and tx-count of the given phase are both zero.
-
-        When the barrier's current phase is not equal to the specified `phase`, the threads will proceed without waiting
-        since the specified phase has already finished.
-
-        When the barrier's current phase is equal to the specified `phase`, the threads will wait until both the pending
-        arrivals and tx-count of the current phase are zero. Once these conditions are met, the barrier will switch to
-        the next phase, and the threads will proceed.
-
-        Parameters
-        ----------
-        barrier: Expr
-            The pointer to the barrier in shared memory.
-        phase: Expr | int
-            The phase value to wait for. It must be evaluated to either 0 or 1.
-        """
-        self._builder.wait_barrier(barrier, phase if isinstance(phase, Expr) else int32(phase))
 
     @staticmethod
     def static_assert(cond: bool | Expr, msg: str) -> None:

@@ -21,12 +21,11 @@ from functools import cached_property
 from typing import Sequence
 
 import tabulate
-from hidet import boolean
-from hidet.ir.expr import Expr, logical_and
+from hidet.ir.expr import Expr
 from hidet.utils import prod
 
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize, index_serialize
-from tilus.ir.mfunction import MultiFunction, multi_function
+from tilus.ir.layout.mfunction import MultiFunction, multi_function
 from tilus.ir.node import IRNode
 
 Int = int | Expr
@@ -57,7 +56,7 @@ class RegisterLayout(IRNode):
         if not isinstance(other, RegisterLayout):
             raise TypeError(f"Cannot multiply {type(self)} with {type(other)}")
 
-        from tilus.ir.layout.register_layout_ops import compose
+        from tilus.ir.layout.ops.register_ops import compose
 
         return compose(self, other)
 
@@ -65,7 +64,7 @@ class RegisterLayout(IRNode):
         if not isinstance(other, RegisterLayout):
             raise TypeError(f"Cannot divide {type(self)} with {type(other)}")
 
-        from tilus.ir.layout.register_layout_ops import divide
+        from tilus.ir.layout.ops.register_ops import divide
 
         return divide(self, other)
 
@@ -88,7 +87,7 @@ class RegisterLayout(IRNode):
 
     @cached_property
     def grouped_modes(self):
-        from .utils import get_mode_groups
+        from tilus.ir.layout.ops.utils import get_mode_groups
 
         return get_mode_groups(self.shape, self.mode_shape)
 
@@ -182,22 +181,22 @@ class RegisterLayout(IRNode):
 
     # operations
     def local(self, *shape: int) -> RegisterLayout:
-        from tilus.ir.layout.register_layout_ops import compose, local
+        from tilus.ir.layout.ops.register_ops import compose, local
 
         return compose(self, local(*shape))
 
     def spatial(self, *shape: int) -> RegisterLayout:
-        from tilus.ir.layout.register_layout_ops import compose, spatial
+        from tilus.ir.layout.ops.register_ops import compose, spatial
 
         return compose(self, spatial(*shape))
 
     def column_spatial(self, *shape: int) -> RegisterLayout:
-        from tilus.ir.layout.register_layout_ops import column_spatial, compose
+        from tilus.ir.layout.ops.register_ops import column_spatial, compose
 
         return compose(self, column_spatial(*shape))
 
     def column_local(self, *shape: int) -> RegisterLayout:
-        from tilus.ir.layout.register_layout_ops import column_local, compose
+        from tilus.ir.layout.ops.register_ops import column_local, compose
 
         return compose(self, column_local(*shape))
 
@@ -215,9 +214,12 @@ class RegisterLayout(IRNode):
         ret: RegisterLayout
             The reduced layout.
         """
-        from tilus.ir.layout.register_layout_ops import reduce_to
+        from tilus.ir.layout.ops.register_ops import reduce_to
 
         return reduce_to(self, shape)
+
+    def visualize(self, tablefmt: str = "simple_grid") -> str:
+        return visualize_layout(self, tablefmt)
 
 
 def validate_layout(
@@ -487,45 +489,3 @@ def canonicalize_layout(layout: RegisterLayout) -> RegisterLayout:
         The canonicalized layout
     """
     return _canonicalize_contiguous_modes(_canonicalize_singleton_modes(layout))
-
-
-def locate_at(layout: RegisterLayout, global_indices: Sequence[Int], spatial_index: Int) -> Expr:
-    """
-    Check if the global indices are located at the given spatial index.
-
-    Parameters
-    ----------
-    layout: RegisterLayout
-        The layout to be checked.
-
-    global_indices: Sequence[Int]
-        The global indices to be checked.
-
-    spatial_index: Int
-        The spatial index to be checked.
-
-    Returns
-    -------
-    ret: Expr
-        Expression with value True if the global indices are located at the given spatial index, False otherwise.
-    """
-    if len(global_indices) != len(layout.shape):
-        raise ValueError(
-            "Global indices must match the shape of the layout, got {} vs {}".format(
-                len(global_indices), len(layout.shape)
-            )
-        )
-
-    mode_indices: list[Int] = []
-    for index, modes in zip(global_indices, layout.grouped_modes):
-        shape = [layout.mode_shape[mode] for mode in modes]
-        mode_indices.extend(index_deserialize(index, shape))
-
-    condition = boolean.true
-
-    spatial_indices: list[Expr] = index_deserialize(spatial_index, layout.spatial_shape)
-    for i, mode in enumerate(layout.spatial_modes):
-        if mode < 0:
-            continue
-        condition = logical_and(condition, mode_indices[mode] == spatial_indices[i])
-    return condition

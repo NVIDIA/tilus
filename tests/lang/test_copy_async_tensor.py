@@ -41,35 +41,35 @@ class CopyAsyncTensorExample(tilus.Script):
         barriers = self.shared_tensor(dtype=uint64, shape=[1])
 
         load_barrier: ~uint64 = ~barriers[0]
-        self.init_barrier(load_barrier, count=1)
+        self.mbarrier.init(load_barrier, count=1)
         self.sync()
 
         with self.single_thread():
-            self.copy_async_tensor_global_to_shared(
+            self.tma.copy_async_tensor_global_to_shared(
                 src=g_x,
                 dst=s_x,
                 offsets=[m_offset, n_offset],
                 mbarrier=load_barrier,
             )
-            self.arrive_barrier(load_barrier)
-        self.wait_barrier(load_barrier, phase=0)
+            self.mbarrier.arrive(load_barrier)
+        self.mbarrier.wait(load_barrier, phase=0)
 
         x = self.load_shared(s_x)
 
         x += 1
         self.store_shared(s_y, x)
 
-        self.fence_proxy_copy_async()
+        self.tma.fence_proxy_copy_async()
         self.sync()
 
         with self.single_thread():
-            self.copy_async_tensor_shared_to_global(
+            self.tma.copy_async_tensor_shared_to_global(
                 src=s_y,
                 dst=g_y,
                 offsets=[m_offset, n_offset],
             )
-            self.copy_async_tensor_commit_group()
-            self.copy_async_tensor_wait_group(0)
+            self.tma.copy_async_tensor_commit_group()
+            self.tma.copy_async_tensor_wait_group(0)
 
 
 @requires.nvgpu_sm90

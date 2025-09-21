@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from tilus.ir.layout.register_layout_ops import register_layout, reshape, spatial
+from tilus.ir.layout.ops import register_layout, reshape, spatial
 
 
 @pytest.mark.parametrize(

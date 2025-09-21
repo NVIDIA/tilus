@@ -13,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from tilus.ir.instructions import AllocateSharedInst
+from tilus.ir.layout import SharedLayout
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
-from tilus.ir.layout.shared_layout import SharedLayout, shared_row_major
+from tilus.ir.layout.ops.shared_ops import shared_row_major
 from tilus.ir.tensor import SharedTensor
 
 

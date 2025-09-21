@@ -15,7 +15,7 @@
 from typing import Sequence
 
 import numpy as np
-from hidet.ir.expr import Add, Constant, Div, Expr, Mod, Multiply, Sub, Var
+from hidet.ir.expr import Add, BitwiseAnd, BitwiseXor, Constant, Div, Expr, Mod, Multiply, RightShift, Sub, Var
 from hidet.ir.functors import IRFunctor
 
 
@@ -52,6 +52,15 @@ class VectorizedEvaluator(IRFunctor):
 
     def visit_Mod(self, e: Mod) -> np.ndarray:
         return np.mod(self.visit(e.a), self.visit(e.b))
+
+    def visit_BitwiseXor(self, e: BitwiseXor) -> np.ndarray:
+        return np.bitwise_xor(self.visit(e.a), self.visit(e.b))
+
+    def visit_BitwiseAnd(self, e: BitwiseAnd) -> np.ndarray:
+        return np.bitwise_and(self.visit(e.a), self.visit(e.b))
+
+    def visit_RightShift(self, e: RightShift) -> np.ndarray:
+        return np.right_shift(self.visit(e.a), self.visit(e.b))
 
 
 def vectorized_evaluate(expr: Expr, var2value: dict[Var, np.ndarray]) -> np.ndarray:

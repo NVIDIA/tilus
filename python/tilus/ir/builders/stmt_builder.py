@@ -57,7 +57,9 @@ from tilus.ir.instructions.cuda.mbarrier import (
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from tilus.ir.instructions.cuda.tmem import (
+    Tcgen05CopyInst,
     TMemoryAllocInst,
+    TMemoryCommitInst,
     TMemoryDeallocInst,
     TMemoryLoadInst,
     TMemoryRelinquishAllocPermitInst,
@@ -695,7 +697,7 @@ class StmtBuilder(StmtBuilderCore):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from tilus.ir.layout.register_layout_ops import local, unsqueeze
+        from tilus.ir.layout.ops.register_ops import local, unsqueeze
 
         if out is None:
             layout = x.layout
@@ -1174,7 +1176,15 @@ class StmtBuilder(StmtBuilderCore):
         inst = TMemoryWaitInst.create(wait_load=False, wait_store=True)
         self.append(inst)
 
+    def tmem_copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
+        inst = Tcgen05CopyInst.create(src=src, dst=dst)
+        self.append(inst)
+
+    def tmem_commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
+        inst = TMemoryCommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
+        self.append(inst)
+
     # annotations
-    def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None:
+    def annotate_layout(self, tensor: RegisterTensor | SharedTensor, layout: RegisterLayout | SharedLayout) -> None:
         inst = AnnotateLayoutInst.create(tensor=tensor, layout=layout)
         self.append(inst)

@@ -16,7 +16,8 @@ import pytest
 import tilus
 import torch
 from tilus import boolean, int32
-from tilus.ir.layout import RegisterLayout, local, spatial
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout.ops import local, spatial
 from tilus.utils import cdiv
 
 

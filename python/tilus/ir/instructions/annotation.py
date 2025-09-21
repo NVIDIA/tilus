@@ -17,15 +17,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from tilus.ir.inst import Instruction
-from tilus.ir.layout import RegisterLayout
-from tilus.ir.tensor import RegisterTensor, Tensor
+from tilus.ir.layout import RegisterLayout, SharedLayout
+from tilus.ir.tensor import RegisterTensor, SharedTensor, Tensor
 
 
 @dataclass(frozen=True, eq=False)
 class AnnotateLayoutInst(Instruction):
-    layout: RegisterLayout
+    layout: RegisterLayout | SharedLayout
 
     @staticmethod
-    def create(tensor: Tensor, layout: RegisterLayout) -> AnnotateLayoutInst:
-        assert isinstance(tensor, RegisterTensor), tensor
+    def create(tensor: Tensor, layout: RegisterLayout | SharedLayout) -> AnnotateLayoutInst:
+        if isinstance(tensor, RegisterTensor):
+            assert isinstance(layout, RegisterLayout), layout
+        elif isinstance(tensor, SharedTensor):
+            assert isinstance(layout, SharedLayout), layout
+        else:
+            raise ValueError(f"Tensor must be a RegisterTensor or SharedTensor, but got {type(tensor)}.")
         return AnnotateLayoutInst(output=None, inputs=(tensor,), layout=layout)

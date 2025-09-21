@@ -16,38 +16,27 @@
 from dataclasses import dataclass
 from typing import Sequence
 
-from hidet.ir import logical_or
 from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import Expr, cast
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.backends.contexts import SharedMemoryAllocationContext, Tcgen05EmitContext
-from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05LoadStoreNumKind,
     Tcgen05LoadStorePackKind,
     Tcgen05LoadStoreShapeKind,
-    tcgen05_alloc,
-    tcgen05_dealloc,
     tcgen05_load,
-    tcgen05_relinquish_alloc_permit,
     tcgen05_store,
     tcgen05_wait_load,
     tcgen05_wait_store,
 )
 from tilus.ir.instructions.cuda.tmem import (
-    TMemoryAllocInst,
-    TMemoryDeallocInst,
     TMemoryLoadInst,
-    TMemoryRelinquishAllocPermitInst,
-    TMemorySliceInst,
     TMemoryStoreInst,
-    TMemoryViewInst,
     TMemoryWaitInst,
-    get_ldst_layout,
 )
-from tilus.ir.layout.register_layout_ops import divide, left_divide, local, spatial
-from tilus.ir.layout.utils import LayoutOperationError
+from tilus.ir.layout.cuda.tmem_ldst import get_ldst_layout
+from tilus.ir.layout.ops.register_ops import divide, left_divide, local, spatial
+from tilus.ir.layout.ops.utils import LayoutOperationError
 from tilus.ir.tensor import RegisterTensor, TMemoryTensor
 from tilus.target import nvgpu_sm100
 from tilus.utils import gcd
@@ -57,106 +46,6 @@ from tilus.utils import gcd
 # column index: 0x0000 to 0x01FF
 LANE_STRIDE = 0x00010000
 COLUMN_STRIDE = 0x00000001
-
-
-class Tcgen05AllocDeallocEmitter(BaseInstEmitter):
-    def get_num_columns(self, tmem_tensor: TMemoryTensor) -> int:
-        assert tmem_tensor.shape[0] == 128
-        assert tmem_tensor.shape[1] * tmem_tensor.dtype.nbits % 32 == 0
-        num_columns = tmem_tensor.shape[1] * tmem_tensor.dtype.nbits // 32
-        assert num_columns % 32 == 0 and 32 <= num_columns <= 512
-        return num_columns
-
-
-@register_emitter(TMemoryAllocInst, target=nvgpu_sm100)
-class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
-    def emit(self, inst: TMemoryAllocInst) -> None:
-        if self.current_num_threads < 32:
-            raise ValueError("tcgen05_alloc requires at least 32 threads in the current thread group")
-
-        tmem_tensor = inst.output.as_tmemory_tensor()
-        num_columns = self.get_num_columns(tmem_tensor)
-
-        # set the cta group in the tcgen05 context
-        tcgen05_ctx = Tcgen05EmitContext.current()
-        tcgen05_ctx.set_cta_group(inst.cta_group)
-
-        # allocate a workspace in shared memory to hold the tensor memory handle
-        smem_ctx = SharedMemoryAllocationContext.current()
-        smem_ptr = smem_ctx.request_shared_workspace(nbytes=4)
-
-        # call tcgen05_alloc
-        with self.if_then(logical_or(self.current_num_threads == 32, self.current_thread // 32 == 0)):
-            smem_addr = self.declare_var("smem_addr", tp=uint32, init=cvta_generic_to_shared(smem_ptr))
-            self.append(
-                tcgen05_alloc(
-                    dst=smem_addr,
-                    num_columns=uint32(num_columns),
-                    cta_group=inst.cta_group,
-                )
-            )
-
-        # let other warps in the thread group wait until the first warp finishes
-        with self.if_then(self.current_num_threads > 32):
-            self.sync()
-
-        # load the tensor memory handle from shared memory and store it to the register variable
-        tmem_var = self.get_or_allocate_var(tmem_tensor)
-        self.assign(tmem_var, cast(smem_ptr, ~int32)[0])
-        self.sync()
-
-
-@register_emitter(TMemoryDeallocInst, target=nvgpu_sm100)
-class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
-    def emit(self, inst: TMemoryDeallocInst) -> None:
-        tmem_tensor = inst.inputs[0].as_tmemory_tensor()
-        tmem_var = self.get_or_allocate_var(tmem_tensor)
-        num_columns = self.get_num_columns(tmem_tensor)
-        tcgen05_ctx = Tcgen05EmitContext.current()
-
-        if self.current_num_threads < 32:
-            raise ValueError("tcgen05_dealloc requires at least 32 threads in the current thread group")
-        with self.if_then(logical_or(self.current_num_threads == 32, self.current_thread // 32 == 0)):
-            self.append(
-                tcgen05_dealloc(taddr=tmem_var, num_columns=uint32(num_columns), cta_group=tcgen05_ctx.cta_group)
-            )
-
-
-@register_emitter(TMemoryRelinquishAllocPermitInst, target=nvgpu_sm100)
-class Tcgen05RelinquishAllocPermitEmitter(BaseInstEmitter):
-    def emit(self, inst: TMemoryRelinquishAllocPermitInst) -> None:
-        self.append(tcgen05_relinquish_alloc_permit(inst.cta_group))
-
-
-@register_emitter(TMemorySliceInst, target=nvgpu_sm100)
-class TMemorySliceEmitter(BaseInstEmitter):
-    def emit(self, inst: TMemorySliceInst) -> None:
-        tmem_tensor = inst.inputs[0].as_tmemory_tensor()
-        output_tmem_tensor = inst.output.as_tmemory_tensor()
-        tmem_addr = self.get_or_allocate_var(tmem_tensor)
-
-        sliced_addr = self.get_or_allocate_var(output_tmem_tensor, name="tmem_slice")
-        self.assign(
-            sliced_addr,
-            tmem_addr + inst.offsets[0] * LANE_STRIDE + inst.offsets[1] * COLUMN_STRIDE * tmem_tensor.dtype.nbits // 32,
-        )
-
-
-@register_emitter(TMemoryViewInst, target=nvgpu_sm100)
-class TMemoryViewEmitter(BaseInstEmitter):
-    def emit(self, inst: TMemoryViewInst) -> None:
-        tmem_tensor = inst.inputs[0].as_tmemory_tensor()
-        output_tmem_tensor = inst.output.as_tmemory_tensor()
-
-        if (
-            tmem_tensor.dtype.nbits * tmem_tensor.shape[1]
-            != output_tmem_tensor.dtype.nbits * output_tmem_tensor.shape[1]
-        ):
-            raise ValueError("The total number of bits must be the same as the original tensor.")
-
-        tmem_addr = self.get_or_allocate_var(tmem_tensor)
-        view_addr = self.get_or_allocate_var(output_tmem_tensor, name="tmem_view")
-        self.assign(view_addr, tmem_addr)
 
 
 @dataclass
@@ -238,10 +127,6 @@ class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
             # entire_layout = spatial(num_warps, 1) * warp_layout
             # warp_layout = warp_repeat * atom_layout
             # each atom_layout corresponds to a warp-level tcgen05 load/store instruction
-            # print("entire_layout: ", entire_layout)
-            # print("warp_layout: ", warp_layout)
-            # print("warp_repeat: ", warp_repeat)
-            # print("atom_layout: ", atom_layout)
 
             # get the .num for the instruction
             num: int = gcd(warp_repeat_n, 128 // shape_kind.regs_per_thread())

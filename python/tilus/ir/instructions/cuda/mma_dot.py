@@ -21,7 +21,8 @@ from hidet.ir.dtypes import bf16, f16, f32, i8, i32
 from hidet.ir.type import DataType
 
 from tilus.ir.inst import Instruction
-from tilus.ir.layout import RegisterLayout, column_local, column_spatial, local, spatial
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout.ops import column_local, column_spatial, local, spatial
 from tilus.ir.tensor import RegisterTensor
 
 

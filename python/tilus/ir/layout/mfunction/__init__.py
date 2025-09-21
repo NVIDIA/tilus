@@ -12,6 +12,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import ops
-from .mfunction import MultiFunction, canonicalize, multi_function
-from .ops import identity
+from .mfunction import MultiFunction, canonicalize_multi_function, multi_function

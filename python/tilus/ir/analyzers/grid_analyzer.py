@@ -19,7 +19,23 @@ import operator
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Type
 
 from hidet.ir import BitwiseXor, DataType, Div, Equal, Mod, TensorElement
-from hidet.ir.expr import Add, BinaryExpr, Constant, Expr, LessEqual, LessThan, LogicalAnd, Multiply, Sub, Var
+from hidet.ir.dtypes import int32
+from hidet.ir.expr import (
+    Add,
+    BinaryExpr,
+    BitwiseAnd,
+    BitwiseOr,
+    Constant,
+    Expr,
+    LeftShift,
+    LessEqual,
+    LessThan,
+    LogicalAnd,
+    Multiply,
+    RightShift,
+    Sub,
+    Var,
+)
 from hidet.ir.functors import IRFunctor
 from hidet.ir.layout import is_power_of_two
 from hidet.ir.tools import collect
@@ -405,6 +421,14 @@ class TensorInfo:
             infos.append(DimensionInfo(value=None, continuity=1, constancy=extent, divisibility=divisibility))
         return TensorInfo(shape, infos)
 
+    @staticmethod
+    def any(shape: Sequence[int]) -> TensorInfo:
+        infos: List[DimensionInfo] = []
+
+        for i in range(len(shape)):
+            infos.append(DimensionInfo(value=None, continuity=1, constancy=1, divisibility=1))
+        return TensorInfo(shape, infos)
+
 
 class GridAnalyzer(IRFunctor):
     """
@@ -509,6 +533,22 @@ class GridAnalyzer(IRFunctor):
 
     def visit_Equal(self, e: Equal) -> TensorInfo:
         return self.visit_binary(e)
+
+    def visit_RightShift(self, e: RightShift) -> TensorInfo:
+        if isinstance(e.b, Constant):
+            return self.visit_Div(Div(e.a, int32(2 ** int(e.b.value))))  # type: ignore
+        return super().visit_RightShift(e)
+
+    def visit_LeftShift(self, e: LeftShift) -> TensorInfo:
+        if isinstance(e.b, Constant):
+            return self.visit_Multiply(Multiply(e.a, int32(2 ** int(e.b.value))))  # type: ignore
+        return super().visit_LeftShift(e)
+
+    def visit_BitwiseAnd(self, e: BitwiseAnd) -> TensorInfo:
+        return TensorInfo.any(self.shape)
+
+    def visit_BitwiseOr(self, e: BitwiseOr) -> TensorInfo:
+        return TensorInfo.any(self.shape)
 
 
 def analyze_grid(

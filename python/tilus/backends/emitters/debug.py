@@ -21,7 +21,8 @@ from hidet.ir.primitives.debug import printf
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import float6_e3m2, float8_e4m3
 from tilus.ir.instructions import FormatPrintInst, PrintTensorInst
-from tilus.ir.layout import RegisterLayout, locate_at
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout.ops.register_ops import locate_at
 from tilus.ir.tensor import RegisterTensor, SharedLayout, SharedTensor
 from tilus.target import gpgpu_any
 from tilus.utils import prod
