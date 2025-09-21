@@ -15,6 +15,7 @@
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.instructions import AnnotateLayoutInst
+from tilus.ir.layout import RegisterLayout, SharedLayout
 from tilus.ir.layout.inference import infer_layout, verify_layouts
 from tilus.ir.layout.inference.inference import LayoutInferenceError
 from tilus.ir.tensor import RegisterTensor, SharedTensor
@@ -28,8 +29,11 @@ class ApplyLayoutAnnotationRewriter(IRRewriter):
         self.remap = {}
 
     def visit_AnnotateLayoutInst(self, inst: AnnotateLayoutInst) -> None:
-        tensor = inst.register_input
+        tensor = inst.inputs[0]
         layout = inst.layout
+
+        if not isinstance(tensor, (RegisterTensor, SharedTensor)):
+            raise ValueError(f"Cannot annotate layout for {tensor}, it is not a register or shared tensor.")
 
         if tensor.optional_layout is not None and tensor.optional_layout != layout:
             raise ValueError(
@@ -44,7 +48,12 @@ class ApplyLayoutAnnotationRewriter(IRRewriter):
                 )
             return
 
-        self.remap[tensor] = tensor.with_layout(layout)
+        if isinstance(tensor, RegisterTensor) and isinstance(layout, RegisterLayout):
+            self.remap[tensor] = tensor.with_layout(layout)
+        elif isinstance(tensor, SharedTensor) and isinstance(layout, SharedLayout):
+            self.remap[tensor] = tensor.with_layout(layout)
+        else:
+            raise ValueError(f"Invalid layout type {type(layout)} for tensor {tensor}.")
 
     def visit_Function(self, func: Function) -> Function:
         self.remap.clear()

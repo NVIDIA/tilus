@@ -154,6 +154,8 @@ class RegisterTensor(Tensor):
         ret: RegisterTensor
             A new RegisterTensor instance with the specified layout.
         """
+        if not isinstance(layout, RegisterLayout):
+            raise ValueError(f"Layout must be a RegisterLayout, but got {type(layout)}.")
         if not same_list(self.shape, layout.shape):
             raise ValueError(f"Shape mismatch: provided shape {self.shape} does not match layout shape {layout.shape}.")
         return dataclasses.replace(self, optional_layout=layout)
@@ -440,6 +442,8 @@ class SharedTensor(Tensor):
         """
         Create a new SharedTensor with the given layout.
         """
+        if not isinstance(layout, SharedLayout):
+            raise ValueError(f"Layout must be a SharedLayout, but got {type(layout)}.")
         if not same_list(self.shape, layout.shape):
             raise ValueError(f"Shape mismatch: provided shape {self.shape} does not match layout shape {layout.shape}.")
         return dataclasses.replace(self, optional_layout=layout)
@@ -526,4 +530,6 @@ class GlobalTensor(Tensor):
         raise RuntimeError("global_tensor[...] could only be used in Tilus Script.")
 
     def with_layout(self, layout: GlobalLayout) -> GlobalTensor:
+        if not isinstance(layout, GlobalLayout):
+            raise ValueError(f"Layout must be a GlobalLayout, but got {type(layout)}.")
         return dataclasses.replace(self, layout=layout)

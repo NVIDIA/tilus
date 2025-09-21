@@ -94,7 +94,7 @@ class CanonicalSharedLayout:
                 return (self.LBO, self.SBO)
         else:
             return (self.SBO, self.LBO)
-    
+
     @property
     def atom_shape(self) -> tuple[int, int]:
         S = 2**self.swizzle_mode.bbits
@@ -102,6 +102,9 @@ class CanonicalSharedLayout:
             return (self.T * S, 8)
         else:
             return (8, self.T * S)
+
+    def as_shared_layout(self) -> SharedLayout:
+        return get_shared_layout_from_canonical(self)
 
 
 def _generate_atom_grid(major_kind: Literal["MN", "K"], swizzle_mode: Tcgen05SwizzleMode, t: int) -> np.ndarray:

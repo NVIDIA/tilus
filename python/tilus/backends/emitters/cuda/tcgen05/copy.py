@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 from hidet.ir.dtypes import uint64
 from hidet.ir.expr import Expr
+from hidet.ir.primitives.debug import printf
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE
@@ -31,7 +32,6 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     tcgen05_encode_smem_descriptor,
 )
 from tilus.ir.instructions.cuda.tmem import Tcgen05CopyInst
-from hidet.ir.primitives.debug import printf
 from tilus.ir.layout.cuda.tcgen05_smem import CanonicalSharedLayout, canonicalize_shared_layout
 from tilus.ir.tensor import SharedTensor, TMemoryTensor
 from tilus.target import nvgpu_sm100
@@ -39,7 +39,7 @@ from tilus.target import nvgpu_sm100
 
 @dataclass
 class SharedMatrixDescriptor:
-    start_addr: Expr
+    start_addr: Expr | int
     lbo: int
     sbo: int
     base_offset: int
@@ -64,7 +64,7 @@ class SharedMatrixDescriptor:
             sbo=(encoded >> 32) & 0x3FFF,
             base_offset=(encoded >> 49) & 0x7,
             stride_mode=(encoded >> 52) & 0x1,
-            swizzle_mode=(encoded >> 61) & 0x7
+            swizzle_mode=(encoded >> 61) & 0x7,
         )
 
 
@@ -114,7 +114,9 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
             num_inst_columns = shape[1] // column_elements
             for inst_column in range(num_inst_columns):
                 tmem_offset = inst_column * (column_bits // 32 * COLUMN_STRIDE)
-                smem_offset = inst_column * (column_elements // canonical_layout.atom_shape[1] * canonical_layout.atom_strides[1] * dtype.nbytes)
+                smem_offset = inst_column * (
+                    column_elements // canonical_layout.atom_shape[1] * canonical_layout.atom_strides[1] * dtype.nbytes
+                )
 
                 shared_descriptor = SharedMatrixDescriptor(
                     start_addr=(smem_addr + smem_offset) >> 4,
@@ -168,9 +170,13 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
 
                 self.append(
                     printf(
-                        "tcgen05_copy(taddr=%x, sdesc=%lx, cta_group=%s, shape=%s, multicast=%s)\n", 
-                        t_addr, s_desc, str(inst_meta.cta_group), str(inst_meta.shape_kind), str(inst_meta.multicast)
-                        )
+                        "tcgen05_copy(taddr=%x, sdesc=%lx, cta_group=%s, shape=%s, multicast=%s)\n",
+                        t_addr,
+                        s_desc,
+                        str(inst_meta.cta_group),
+                        str(inst_meta.shape_kind),
+                        str(inst_meta.multicast),
+                    )
                 )
 
                 self.append(

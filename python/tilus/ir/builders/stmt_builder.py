@@ -1185,6 +1185,6 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     # annotations
-    def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None:
+    def annotate_layout(self, tensor: RegisterTensor | SharedTensor, layout: RegisterLayout | SharedLayout) -> None:
         inst = AnnotateLayoutInst.create(tensor=tensor, layout=layout)
         self.append(inst)

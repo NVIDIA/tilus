@@ -460,7 +460,7 @@ def tcgen05_wait_store() -> Expr:
 
 
 def tcgen05_encode_smem_descriptor(
-    smem_addr: Expr,
+    smem_addr: Expr | int,
     lbo: Expr | int,
     sbo: Expr | int,
     mbo: Expr | int,
@@ -469,7 +469,7 @@ def tcgen05_encode_smem_descriptor(
 ) -> Expr:
     func_name = "cuda_tcgen05_encode_smem_descriptor"
     return call_primitive_func(
-        func_name, [smem_addr, uint32(lbo), uint32(sbo), uint8(mbo), uint8(stride_mode), uint8(swizzle_mode)]
+        func_name, [uint32(smem_addr), uint32(lbo), uint32(sbo), uint8(mbo), uint8(stride_mode), uint8(swizzle_mode)]
     )
 
 
