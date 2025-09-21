@@ -114,7 +114,7 @@ class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
 @register_emitter(TMemoryRelinquishAllocPermitInst, target=nvgpu_sm100)
 class Tcgen05RelinquishAllocPermitEmitter(BaseInstEmitter):
     def emit(self, inst: TMemoryRelinquishAllocPermitInst) -> None:
-        self.append(tcgen05_relinquish_alloc_permit(Tcgen05CtaGroupKind(inst.cta_group)))
+        self.append(tcgen05_relinquish_alloc_permit(Tcgen05CtaGroupKind.from_int(inst.cta_group)))
 
 
 @register_emitter(TMemorySliceInst, target=nvgpu_sm100)

@@ -63,6 +63,7 @@ class TmemCopyExample(tilus.Script):
         self.annotate_layout(s_x, self.shared_layout)
 
 
+@tilus.testing.requires.nvgpu_sm100
 @pytest.mark.parametrize(
     "major_kind, swizzle_mode",
     [

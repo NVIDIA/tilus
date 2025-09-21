@@ -16,7 +16,8 @@ import pytest
 import tilus
 import torch
 from tilus import int32
-from tilus.ir.layout import RegisterLayout, register_layout, spatial
+from tilus.ir.layout import RegisterLayout, register_layout
+from tilus.ir.layout.ops import spatial
 
 
 class TestReduceKernel(tilus.Script):

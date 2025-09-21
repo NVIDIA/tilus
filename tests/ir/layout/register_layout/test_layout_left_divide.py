@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from tilus.ir.layout.register_layout_ops import left_divide, local, spatial
+from tilus.ir.layout.ops import left_divide, local, spatial
 
 
 @pytest.mark.parametrize(

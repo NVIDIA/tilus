@@ -15,7 +15,8 @@
 import tilus
 import torch
 from tilus import float32, int32
-from tilus.ir.layout import RegisterLayout, spatial
+from tilus.ir.layout import RegisterLayout
+from tilus.ir.layout.ops import spatial
 from tilus.utils import cdiv
 
 

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from tilus.ir.mfunction import canonicalize, multi_function
+from tilus.ir.layout.mfunction import canonicalize_multi_function, multi_function
 
 
 @pytest.mark.parametrize(
@@ -30,5 +30,5 @@ from tilus.ir.mfunction import canonicalize, multi_function
     ],
 )
 def test_multi_function_canonicalization(a, expected):
-    actual = canonicalize(a)
+    actual = canonicalize_multi_function(a)
     assert actual == expected, f"Expected {expected}, but got {actual} for {a}"
