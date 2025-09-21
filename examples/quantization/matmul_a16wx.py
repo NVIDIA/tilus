@@ -22,7 +22,7 @@ from tilus import (
     int32,
     uint8,
 )
-from tilus.ir.layout import concat, local, reduce, spatial
+from tilus.ir.layout.ops import concat, local, reduce, spatial
 from tilus.utils import benchmark_func, cdiv, dtype_to_torch, gcd
 from torch import nn
 
