@@ -14,6 +14,8 @@
 # limitations under the License.
 
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from hidet.ir.dtypes import uint64
@@ -29,6 +31,7 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     tcgen05_encode_smem_descriptor,
 )
 from tilus.ir.instructions.cuda.tmem import Tcgen05CopyInst
+from hidet.ir.primitives.debug import printf
 from tilus.ir.layout.cuda.tcgen05_smem import CanonicalSharedLayout, canonicalize_shared_layout
 from tilus.ir.tensor import SharedTensor, TMemoryTensor
 from tilus.target import nvgpu_sm100
@@ -37,7 +40,7 @@ from tilus.target import nvgpu_sm100
 @dataclass
 class SharedMatrixDescriptor:
     start_addr: Expr
-    lbo_or_lba: int
+    lbo: int
     sbo: int
     base_offset: int
     stride_mode: int
@@ -46,11 +49,22 @@ class SharedMatrixDescriptor:
     def encoded(self) -> Expr:
         return tcgen05_encode_smem_descriptor(
             self.start_addr,
-            self.lbo_or_lba,
+            self.lbo,
             self.sbo,
             self.base_offset,
             self.stride_mode,
             self.swizzle_mode,
+        )
+
+    @staticmethod
+    def decode(encoded: int) -> SharedMatrixDescriptor:
+        return SharedMatrixDescriptor(
+            start_addr=encoded & 0x3FFF,
+            lbo=(encoded >> 16) & 0x3FFF,
+            sbo=(encoded >> 32) & 0x3FFF,
+            base_offset=(encoded >> 49) & 0x7,
+            stride_mode=(encoded >> 52) & 0x1,
+            swizzle_mode=(encoded >> 61) & 0x7
         )
 
 
@@ -70,9 +84,12 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
     ) -> list[Tcgen05CopyInstMeta]:
         dtype = shared_tensor.dtype
         shape = shared_tensor.shape
+        print(shared_tensor.layout.visualize())
         canonical_layout: CanonicalSharedLayout | None = canonicalize_shared_layout(
             shared_tensor.layout, tmem_tensor.dtype
         )
+        print("canonical_layout: ", canonical_layout)
+        print("canonical_layout.strides(): ", canonical_layout.atom_strides)
         if canonical_layout is None:
             msg = [
                 "The following <dtype, shared_layout> cannot be canonicalized:",
@@ -81,6 +98,7 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
             ]
             raise ValueError("\n".join(msg))
         smem_addr = self.shared_tensor_shared_space_addr[shared_tensor]
+        self.append(printf("smem_addr: %x\n", smem_addr))
         ret = []
         for shape_kind in [
             Tcgen05CopyShapeKind.R128x256B,
@@ -96,15 +114,17 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
             num_inst_columns = shape[1] // column_elements
             for inst_column in range(num_inst_columns):
                 tmem_offset = inst_column * (column_bits // 32 * COLUMN_STRIDE)
+                smem_offset = inst_column * (column_elements // canonical_layout.atom_shape[1] * canonical_layout.atom_strides[1] * dtype.nbytes)
 
                 shared_descriptor = SharedMatrixDescriptor(
-                    start_addr=smem_addr + (column_bits // dtype.nbits) * canonical_layout.strides()[1] * dtype.nbytes,
-                    lbo_or_lba=canonical_layout.LBO,
-                    sbo=canonical_layout.SBO,
+                    start_addr=(smem_addr + smem_offset) >> 4,
+                    lbo=(canonical_layout.LBO * dtype.nbytes) >> 4,
+                    sbo=(canonical_layout.SBO * dtype.nbytes) >> 4,
                     base_offset=0,
                     stride_mode=0,  # 0 for relative mode and 1 for absolute mode
                     swizzle_mode=canonical_layout.swizzle_mode.encode(),
                 )
+                print("shared_descriptor: ", shared_descriptor)
 
                 inst_meta = Tcgen05CopyInstMeta(
                     shape_kind=shape_kind,
@@ -114,6 +134,9 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
                     shared_descriptor=shared_descriptor,
                 )
                 ret.append(inst_meta)
+            break
+        else:
+            raise ValueError("No valid instructions generated")
         return ret
 
     def check_warp_group(self) -> None:
@@ -142,6 +165,13 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
             for inst_meta in insts:
                 s_desc = self.declare_var("s_desc", tp=uint64, init=inst_meta.shared_descriptor.encoded())
                 t_addr = tmem_base_addr + inst_meta.tmem_offset
+
+                self.append(
+                    printf(
+                        "tcgen05_copy(taddr=%x, sdesc=%lx, cta_group=%s, shape=%s, multicast=%s)\n", 
+                        t_addr, s_desc, str(inst_meta.cta_group), str(inst_meta.shape_kind), str(inst_meta.multicast)
+                        )
+                )
 
                 self.append(
                     tcgen05_copy(

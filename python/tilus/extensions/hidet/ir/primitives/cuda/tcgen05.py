@@ -392,9 +392,9 @@ def register_tcgen05_instructions():
     @no_type_check
     @script
     def tcgen05_encode_smem_descriptor(
-        smem_addr: uint32,  # 16 bits, will ignore the least significant 2 bits
-        lbo: uint32,  # 16 bits, will ignore the least significant 2 bits
-        sbo: uint32,  # 16 bits, will ignore the least significant 2 bits
+        smem_addr: uint32,  # 14 bits
+        lbo: uint32,  # 14 bits
+        sbo: uint32,  # 14 bits
         mbo: uint8,  # 3 bits
         stride_mode: uint8,  # 1 bit
         swizzle_mode: uint8,  # 3 bits
@@ -402,13 +402,13 @@ def register_tcgen05_instructions():
         attrs.func_name = "cuda_tcgen05_encode_smem_descriptor"
         attrs.func_kind = "cuda_internal"
         desc: uint64 = uint64(0)
-        desc = desc | uint64((lbo & uint32(0xFFFF)) >> 2) << 16
-        desc = desc | uint64((sbo & uint32(0xFFFF)) >> 2) << 32
+        desc = desc | uint64(lbo & uint32(0x3FFF)) << 16
+        desc = desc | uint64(sbo & uint32(0x3FFF)) << 32
         desc = desc | uint64(0b001) << 46
         desc = desc | uint64(mbo & uint8(0b111)) << 49
         desc = desc | uint64(stride_mode & uint8(0b1)) << 52
         desc = desc | uint64(swizzle_mode & uint8(0b111)) << 61
-        desc = desc | uint64(smem_addr & uint32(0xFFFF)) >> 2
+        desc = desc | uint64(smem_addr & uint32(0x3FFF))
         return desc
 
 

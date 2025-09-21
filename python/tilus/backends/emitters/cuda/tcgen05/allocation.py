@@ -106,7 +106,7 @@ class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
                 tcgen05_dealloc(
                     taddr=tmem_var,
                     num_columns=uint32(num_columns),
-                    cta_group=Tcgen05CtaGroupKind(tcgen05_ctx.cta_group),
+                    cta_group=Tcgen05CtaGroupKind.from_int(tcgen05_ctx.cta_group),
                 )
             )
 

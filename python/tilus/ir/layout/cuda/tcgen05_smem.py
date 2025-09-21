@@ -85,7 +85,8 @@ class CanonicalSharedLayout:
         if (self.m > 1 and self.SBO % atom_size != 0) or (self.k > 1 and self.LBO % atom_size != 0):
             raise ValueError(f"SBO {self.SBO} and LBO {self.LBO} must be divisible by atom size: {atom_size}")
 
-    def strides(self) -> tuple[int, int]:
+    @property
+    def atom_strides(self) -> tuple[int, int]:
         if self.major_kind == "MN":
             if self.swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
                 return (self.SBO, self.LBO)
@@ -93,6 +94,14 @@ class CanonicalSharedLayout:
                 return (self.LBO, self.SBO)
         else:
             return (self.SBO, self.LBO)
+    
+    @property
+    def atom_shape(self) -> tuple[int, int]:
+        S = 2**self.swizzle_mode.bbits
+        if self.major_kind == "MN":
+            return (self.T * S, 8)
+        else:
+            return (8, self.T * S)
 
 
 def _generate_atom_grid(major_kind: Literal["MN", "K"], swizzle_mode: Tcgen05SwizzleMode, t: int) -> np.ndarray:

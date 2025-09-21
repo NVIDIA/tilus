@@ -37,6 +37,9 @@ class TMemoryCopyRule(LayoutInferenceRule):
 
         # by default, we use the non-swizzled canonical layout
         assert len(src.shape) == 2
+        # canonical_layout = generate_canonical_layout(
+        #     (src.shape[0], src.shape[1]), src.dtype, "K", Tcgen05SwizzleMode.NO_SWIZZLE
+        # )
         canonical_layout = generate_canonical_layout(
             (src.shape[0], src.shape[1]), src.dtype, "K", Tcgen05SwizzleMode.NO_SWIZZLE
         )
