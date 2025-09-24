@@ -138,6 +138,15 @@ class Tcgen05CopyShapeKind(Enum):
             Tcgen05CopyShapeKind.R4x128B: (4, 128),
         }
         return table[self]
+    
+    @property
+    def n(self) -> int:
+        return self.as_int_tuple()[1]
+
+    @property
+    def m(self) -> int:
+        return self.as_int_tuple()[0]
+
 
 
 class Tcgen05CopyMulticastKind(Enum):
