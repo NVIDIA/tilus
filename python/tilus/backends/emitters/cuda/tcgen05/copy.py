@@ -15,15 +15,14 @@
 
 
 from __future__ import annotations
-from typing import Optional
+
 from dataclasses import dataclass
 
 from hidet.ir.dtypes import uint64
 from hidet.ir.expr import Expr
-from hidet.ir.primitives.debug import printf
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE, ROW_STRIDE
+from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE, LANE_STRIDE
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05CopyMulticastKind,
     Tcgen05CopyShapeKind,
@@ -31,13 +30,16 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     tcgen05_copy,
     tcgen05_encode_smem_descriptor,
 )
+from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
 from tilus.ir.instructions.cuda.tmem import Tcgen05CopyInst
-from tilus.ir.layout.cuda.tcgen05_smem import CanonicalSharedLayout, canonicalize_shared_layout, Tcgen05SwizzleMode
+from tilus.ir.layout.cuda.tcgen05_smem import CanonicalSharedLayout, Tcgen05SwizzleMode, canonicalize_shared_layout
 from tilus.ir.tensor import SharedTensor, TMemoryTensor
 from tilus.target import nvgpu_sm100
 
+
 class GenerationFailedError(Exception):
     pass
+
 
 @dataclass
 class SharedMatrixDescriptor:
@@ -78,19 +80,24 @@ class Tcgen05CopyInstMeta:
     tmem_offset: int
     shared_descriptor: SharedMatrixDescriptor
 
+    def __str__(self) -> str:
+        items = []
+        for key, value in self.__dict__.items():
+            items.append(f"{key}: {value}")
+        return "Tcgen05CopyInstMeta(" + ",\n  ".join(items) + "\n)"
+
 
 @register_emitter(Tcgen05CopyInst, target=nvgpu_sm100)
 class Tcgen05CopyEmitter(BaseInstEmitter):
     def split_canonical_layout(
-        self, 
-        canonical: CanonicalSharedLayout, 
-        shape_kind: Tcgen05CopyShapeKind
-    ) -> Optional[list[tuple[int, SharedMatrixDescriptor]]]:
+        self, smem_addr: Expr, canonical: CanonicalSharedLayout, shape_kind: Tcgen05CopyShapeKind
+    ) -> list[Tcgen05CopyInstMeta]:
         """
         A shared memory tensor might be very large that we need to split it into multiple sub-tensors and
         each sub-tensor is copied by a tcgen05.copy instruction. The smem_addr in returned SharedMatrixDescriptor
         is the offset of the sub-tensor relative to the shared memory tensor in bytes.
 
+        Each tcgen05.copy instruction copies a sub-tensor with the following layout:
         +----------------+--------------------------+--------------------------------------+-------------------------------------+
         | Major-ness     | Swizzling mode           | Canonical Layout without swizzling   | Swizzling on the previous column    |
         +================+==========================+======================================+=====================================+
@@ -118,58 +125,101 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
         - k represents the number of repeating patterns across columns.
         (The table is is from: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-canonical-layouts.)
 
+        The definition of the canonical layout in Tilus is similar to above table, but it's different since we want to represent the layouts
+        in a more natural and extensible way for larger tensors. See the docstring of CanonicalSharedLayout for more details.
+
         Returns
         -------
         ret: Optional[list[tuple[int, SharedMatrixDescriptor]]]
             The list of instructions, each instruction contains the tmem_offset and shared matrix descriptor for each sub-tensor.
         """
         cute_layout = canonical.swizzled_cute_layout.layout
-        m, n = cute_layout.shape
+        m, n = cute_layout.flattened_shape
 
         if shape_kind.n % canonical.dtype_nbits != 0:
-            raise GenerationFailedError("The number of columns in the shape kind must be divisible by the number of bits in the data type")
+            raise GenerationFailedError(
+                "The number of columns in the shape kind must be divisible by the number of bits in the data type"
+            )
 
         inst_m, inst_n = shape_kind.m, shape_kind.n // canonical.dtype_nbits
 
         if m % inst_m != 0 or n % inst_n != 0:
-            raise GenerationFailedError("The number of rows or columns in the shape kind must be divisible by the number of rows or columns in the canonical layout")
+            raise GenerationFailedError(
+                "The number of rows or columns in the shape kind must be divisible by the number of rows or columns in the canonical layout"
+            )
+        if canonical.major_kind == "MN" and (inst_m % (canonical.T * canonical.S) != 0 or inst_n % 8 != 0):
+            raise GenerationFailedError(
+                "The number of rows or columns in the shape kind must be divisible by the number of rows or columns in the canonical layout"
+            )
+        if canonical.major_kind == "K" and (inst_m % 8 != 0 or inst_n % (canonical.T * 2) != 0):
+            raise GenerationFailedError(
+                "The number of rows or columns in the shape kind must be divisible by the number of rows or columns in the canonical layout"
+            )
 
         num_m, num_n = m // inst_m, n // inst_n
         nbytes = canonical.dtype_nbits // 8
 
+        instructions: list[Tcgen05CopyInstMeta] = []
         for i in range(num_m):
             for j in range(num_n):
-                tmem_offset = i * ROW_STRIDE + j * COLUMN_STRIDE
+                tmem_offset = i * inst_m * LANE_STRIDE + j * inst_n * COLUMN_STRIDE
                 if canonical.major_kind == "MN":
-                    assert inst_m % (canonical.T * canonical.S) == 0 and inst_n % 8 == 0
+                    if canonical.swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
+                        smem_offset = (
+                            i * inst_m // (canonical.T * canonical.S) * canonical.SBO + j * inst_n // 8 * canonical.LBO
+                        ) * nbytes
+                    else:
+                        smem_offset = (
+                            i * inst_m // (canonical.T * canonical.S) * canonical.LBO + j * inst_n // 8 * canonical.SBO
+                        ) * nbytes
                     s_desc = SharedMatrixDescriptor(
-                        start_addr=(i * inst_m * canonical.SBO + j * inst_n * canonical.LBO) * nbytes,
+                        start_addr=smem_addr + smem_offset,
                         lbo=canonical.LBO * nbytes,
                         sbo=canonical.SBO * nbytes,
                         base_offset=0,
-                        stride_mode=0,  
+                        stride_mode=0,
                         swizzle_mode=canonical.swizzle_mode.encode(),
                     )
                 elif canonical.major_kind == "K":
-                    assert inst_m % 8 == 0 and inst_n % (canonical.T * canonical.S) == 0
                     if canonical.swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
-                        s_desc = SharedMatrixDescriptor(
-                            start_addr=(i * inst_m * canonical.SBO + j * inst_n * canonical.LBO) * nbytes,
-                            lbo=canonical.LBO * nbytes,
-                            sbo=canonical.SBO * nbytes,
-                            base_offset=0,
-                            stride_mode=0,  
-                            swizzle_mode=canonical.swizzle_mode.encode(),
-                        )
+                        smem_offset = (
+                            i * inst_m // 8 * canonical.SBO + j * inst_n // (canonical.T * canonical.S) * canonical.LBO
+                        ) * nbytes
+                        lbo = canonical.LBO * nbytes
                     else:
-                        pass
+                        # j0, j1, j2 for shape (T, S, k)
+                        _, j1, j2 = index_deserialize(
+                            j * inst_n,
+                            (canonical.T, canonical.S, canonical.k // (canonical.T * canonical.S)),
+                            ranks=[2, 1, 0],
+                        )
+                        smem_offset = (i * inst_m // 8 * canonical.SBO + j1 * canonical.T + j2 * canonical.LBO) * nbytes
+                        lbo = 1 << 4  # assume lbo be 16 so that lbo >> 4 == 1, as required by the documentation
+                    s_desc = SharedMatrixDescriptor(
+                        start_addr=smem_addr + smem_offset,
+                        lbo=lbo,
+                        sbo=canonical.SBO * nbytes,
+                        base_offset=0,
+                        stride_mode=0,
+                        swizzle_mode=canonical.swizzle_mode.encode(),
+                    )
 
+                instructions.append(
+                    Tcgen05CopyInstMeta(
+                        shape_kind=shape_kind,
+                        multicast=Tcgen05CopyMulticastKind.NONE,
+                        cta_group=Tcgen05CtaGroupKind.CTA_1,
+                        tmem_offset=tmem_offset,
+                        shared_descriptor=s_desc,
+                    )
+                )
+
+        return instructions
 
     def generate_instructions(
         self, tmem_tensor: TMemoryTensor, shared_tensor: SharedTensor
     ) -> list[Tcgen05CopyInstMeta]:
         dtype = shared_tensor.dtype
-        shape = shared_tensor.shape
         canonical_layout: CanonicalSharedLayout | None = canonicalize_shared_layout(
             shared_tensor.layout, tmem_tensor.dtype
         )
@@ -180,52 +230,18 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
                 f"  shared_layout: {shared_tensor.layout}",
             ]
             raise ValueError("\n".join(msg))
-        print(f"canonical_layout: {canonical_layout}")
-        print(f"canonical_layout.swizzled_cute_layout: {canonical_layout.swizzled_cute_layout}")
-        print(f"canonical_layout.atom_shape: {canonical_layout.atom_shape}")
-        print(f"canonical_layout.atom_strides: {canonical_layout.atom_strides}")
         smem_addr = self.shared_tensor_shared_space_addr[shared_tensor]
-        ret = []
+
         for shape_kind in [
             Tcgen05CopyShapeKind.R128x256B,
             Tcgen05CopyShapeKind.R128x128B,
         ]:
-            column_bits = shape_kind.as_int_tuple()[1]
-            assert column_bits % dtype.nbits == 0
-            column_elements = column_bits // dtype.nbits
-            if shape[1] % column_elements != 0:
+            try:
+                return self.split_canonical_layout(smem_addr, canonical_layout, shape_kind)
+            except GenerationFailedError:
                 continue
-            if shape[0] != 128:
-                continue
-            num_inst_columns = shape[1] // column_elements
-            for inst_column in range(num_inst_columns):
-                tmem_offset = inst_column * (column_bits // 32 * COLUMN_STRIDE)
-                smem_offset = inst_column * (
-                    column_elements // canonical_layout.atom_shape[1] * canonical_layout.atom_strides[1] * dtype.nbytes
-                )
 
-                shared_descriptor = SharedMatrixDescriptor(
-                    start_addr=(smem_addr + smem_offset),
-                    lbo=(canonical_layout.LBO * dtype.nbytes),
-                    sbo=(canonical_layout.SBO * dtype.nbytes),
-                    base_offset=0,
-                    stride_mode=0,  # 0 for relative mode and 1 for absolute mode
-                    swizzle_mode=canonical_layout.swizzle_mode.encode(),
-                )
-                print(f"shared_descriptor: {shared_descriptor}")
-
-                inst_meta = Tcgen05CopyInstMeta(
-                    shape_kind=shape_kind,
-                    multicast=Tcgen05CopyMulticastKind.NONE,
-                    cta_group=Tcgen05CtaGroupKind.CTA_1,
-                    tmem_offset=tmem_offset,
-                    shared_descriptor=shared_descriptor,
-                )
-                ret.append(inst_meta)
-            break
-        else:
-            raise ValueError("No valid instructions generated")
-        return ret
+        raise ValueError("No valid instructions generated")
 
     def check_warp_group(self) -> None:
         begin = self.current_thread_group_begin
@@ -253,8 +269,6 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
             for inst_meta in insts:
                 s_desc = self.declare_var("s_desc", tp=uint64, init=inst_meta.shared_descriptor.encoded())
                 t_addr = tmem_base_addr + inst_meta.tmem_offset
-
-                self.append(printf("taddr: %#08x, sdesc: %#016lx\n", t_addr, s_desc))
 
                 self.append(
                     tcgen05_copy(

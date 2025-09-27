@@ -10,7 +10,7 @@ from hidet.ir.type import DataType
 from hidet.utils.py import prod
 
 from tilus.ir.layout.shared_layout import SharedLayout
-from tilus.ir.layout.utils.cute import CuteLayout, CuteSwizzle, cute_layout, SwizzledCuteLayout, tuple_product
+from tilus.ir.layout.utils.cute import CuteLayout, CuteSwizzle, IntTuple, SwizzledCuteLayout, cute_layout, tuple_product
 from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
 from tilus.utils import floor_log2
 
@@ -31,19 +31,19 @@ class Tcgen05SwizzleMode(Enum):
             Tcgen05SwizzleMode.B64_SWIZZLE: 4,
             Tcgen05SwizzleMode.B128_SWIZZLE: 2,
         }[self]
-    
+
     @property
     def bbits(self) -> int:
         return self.value[0]
-    
+
     @property
     def mbase(self) -> int:
         return self.value[1]
-    
+
     @property
     def sshift(self) -> int:
         return self.value[2]
-    
+
     def as_cute_swizzle(self) -> CuteSwizzle:
         bbits, mbase, sshift = self.value
         return CuteSwizzle(bbits=bbits, mbase=mbase, sshift=sshift)
@@ -94,19 +94,21 @@ class CanonicalSharedLayout:
         atom_size = 2**self.swizzle_mode.bbits * 8 * self.T
         if (self.m > 1 and self.SBO % atom_size != 0) or (self.k > 1 and self.LBO % atom_size != 0):
             raise ValueError(f"SBO {self.SBO} and LBO {self.LBO} must be divisible by atom size: {atom_size}")
-    
+
     @property
     def S(self) -> int:
         return 2**self.swizzle_mode.bbits
-    
+
     @property
     def dtype_nbits(self) -> int:
         return 128 // self.T
 
     @property
     def swizzled_cute_layout(self) -> SwizzledCuteLayout:
+        shape: IntTuple
+        strides: IntTuple
         if self.major_kind == "MN":
-            shape = ((self.T, S, self.m), (8, self.k))
+            shape = ((self.T, self.S, self.m), (8, self.k))
             if self.swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
                 strides = ((1, self.T, self.SBO), (self.T, self.LBO))
             else:

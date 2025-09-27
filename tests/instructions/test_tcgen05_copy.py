@@ -80,8 +80,6 @@ class TmemCopyExample(tilus.Script):
 def test_tcgen05_copy(major_kind, swizzle_mode):
     if major_kind == "MN":
         pytest.xfail("MN is not supported")
-    if major_kind == "K" and swizzle_mode in [Tcgen05SwizzleMode.B64_SWIZZLE, Tcgen05SwizzleMode.B128_SWIZZLE]:
-        pytest.xfail("K with swizzle mode B64 and B128 is not supported")
     m_size = 128
     n_size = 32
     x = torch.randint(0, 128, [m_size, n_size], dtype=torch.int32, device="cuda")
