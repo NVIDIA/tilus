@@ -67,6 +67,13 @@ class CuteLayout:
         ret = tuple_sum(tuple_multiply(coords, self.strides))
         return ret
 
+    @property
+    def flattened_shape(self) -> tuple[Int, ...]:
+        if not isinstance(self.shape, Sequence):
+            return (self.shape,)
+        else:
+            return tuple(tuple_product(item) for item in self.shape)
+
 
 class CuteSwizzle:
     def __init__(self, bbits: int, mbase: int, sshift: int):
@@ -85,6 +92,18 @@ class CuteSwizzle:
             # z_mask = ((1 << self.bbits) - 1) << self.mbase
             y_mask = ((1 << self.bbits) - 1) << (self.mbase + self.sshift)
             return offset ^ ((offset & y_mask) >> self.sshift)
+
+
+class SwizzledCuteLayout:
+    def __init__(self, layout: CuteLayout, swizzle: CuteSwizzle):
+        self.layout: CuteLayout = layout
+        self.swizzle: CuteSwizzle = swizzle
+
+    def __str__(self) -> str:
+        return str(self.swizzle) + " ○ " + str(self.layout)
+
+    def __call__(self, *coords: IntTuple) -> Int:
+        return self.swizzle(self.layout(*coords))
 
 
 def cute_layout(shape: IntTuple, strides: IntTuple) -> CuteLayout:

@@ -10,7 +10,7 @@ from hidet.ir.type import DataType
 from hidet.utils.py import prod
 
 from tilus.ir.layout.shared_layout import SharedLayout
-from tilus.ir.layout.utils.cute import CuteSwizzle, cute_layout, tuple_product
+from tilus.ir.layout.utils.cute import CuteLayout, CuteSwizzle, IntTuple, SwizzledCuteLayout, cute_layout, tuple_product
 from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
 from tilus.utils import floor_log2
 
@@ -23,11 +23,6 @@ class Tcgen05SwizzleMode(Enum):
     B64_SWIZZLE = (2, 4, 3)  # 64B Swizzling: Swizzle<2, 4, 3>
     B128_SWIZZLE = (3, 4, 3)  # 128B Swizzling: Swizzle<3, 4, 3>
 
-    def __init__(self, bbits: int, mbase: int, sshift: int):
-        self.bbits = bbits
-        self.mbase = mbase
-        self.sshift = sshift
-
     def encode(self) -> int:
         # see https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-shared-memory-desc-layout
         return {
@@ -36,6 +31,22 @@ class Tcgen05SwizzleMode(Enum):
             Tcgen05SwizzleMode.B64_SWIZZLE: 4,
             Tcgen05SwizzleMode.B128_SWIZZLE: 2,
         }[self]
+
+    @property
+    def bbits(self) -> int:
+        return self.value[0]
+
+    @property
+    def mbase(self) -> int:
+        return self.value[1]
+
+    @property
+    def sshift(self) -> int:
+        return self.value[2]
+
+    def as_cute_swizzle(self) -> CuteSwizzle:
+        bbits, mbase, sshift = self.value
+        return CuteSwizzle(bbits=bbits, mbase=mbase, sshift=sshift)
 
 
 @dataclass(order=True, eq=True, unsafe_hash=True)
@@ -55,7 +66,7 @@ class CanonicalSharedLayout:
     +----------------+--------------------------+--------------------------------------+-------------------------------------+
     |                | 128B Swizzling           | ((T,8,m),(8,k)):((1,T,LBO),(8T,SBO)) | Swizzle<3, 4, 3>                    |
     +================+==========================+======================================+=====================================+
-    | K-major        | No-swizzling or          | ((8,m),(T,k)):((1T,SBO),(1,LBO))     | Swizzle<0, 4, 3>                    |
+    | K-major        | No-swizzling or          | ((8,m),(T,1,k)):((1T,SBO),(1,T,LBO)) | Swizzle<0, 4, 3>                    |
     |                | Interleaved              |                                      |                                     |
     +----------------+--------------------------+--------------------------------------+-------------------------------------+
     |                | 32B Swizzling            | ((8,m),(T,2,k)):((2T,SBO),(1,T,LBO)) | Swizzle<1, 4, 3>                    |
@@ -68,8 +79,7 @@ class CanonicalSharedLayout:
     - T = 128 / sizeof-elements-in-bits T represents scale factor which normalizes matrix element types to 128-bits.
     - m represents the number of repeating patterns across rows.
     - k represents the number of repeating patterns across columns.
-    (The table can be found at https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-canonical-layouts. I find the cuda documentation
-     is not coherent thus made some modifications to the table on the K-major case.)
+    (The table is a generalization of the table in https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-canonical-layouts.)
     """
 
     major_kind: Literal["MN", "K"]
@@ -86,22 +96,28 @@ class CanonicalSharedLayout:
             raise ValueError(f"SBO {self.SBO} and LBO {self.LBO} must be divisible by atom size: {atom_size}")
 
     @property
-    def atom_strides(self) -> tuple[int, int]:
-        if self.major_kind == "MN":
-            if self.swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
-                return (self.SBO, self.LBO)
-            else:
-                return (self.LBO, self.SBO)
-        else:
-            return (self.SBO, self.LBO)
+    def S(self) -> int:
+        return 2**self.swizzle_mode.bbits
 
     @property
-    def atom_shape(self) -> tuple[int, int]:
-        S = 2**self.swizzle_mode.bbits
+    def dtype_nbits(self) -> int:
+        return 128 // self.T
+
+    @property
+    def swizzled_cute_layout(self) -> SwizzledCuteLayout:
+        shape: IntTuple
+        strides: IntTuple
         if self.major_kind == "MN":
-            return (self.T * S, 8)
+            shape = ((self.T, self.S, self.m), (8, self.k))
+            if self.swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
+                strides = ((1, self.T, self.SBO), (self.T, self.LBO))
+            else:
+                strides = ((1, self.T, self.LBO), (self.T, self.SBO))
         else:
-            return (8, self.T * S)
+            shape = ((8, self.m), (self.T, self.S, self.k))
+            strides = ((self.S * self.T, self.SBO), (1, self.T, self.LBO))
+        swizzle = self.swizzle_mode.as_cute_swizzle()
+        return SwizzledCuteLayout(CuteLayout(shape, strides), swizzle)
 
     def as_shared_layout(self) -> SharedLayout:
         return get_shared_layout_from_canonical(self)
