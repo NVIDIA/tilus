@@ -45,7 +45,7 @@ class CopyAsyncTensorExample(tilus.Script):
         self.sync()
 
         with self.single_thread():
-            self.tma.copy_async_tensor_global_to_shared(
+            self.tma.global_to_shared(
                 src=g_x,
                 dst=s_x,
                 offsets=[m_offset, n_offset],
@@ -63,13 +63,13 @@ class CopyAsyncTensorExample(tilus.Script):
         self.sync()
 
         with self.single_thread():
-            self.tma.copy_async_tensor_shared_to_global(
+            self.tma.shared_to_global(
                 src=s_y,
                 dst=g_y,
                 offsets=[m_offset, n_offset],
             )
-            self.tma.copy_async_tensor_commit_group()
-            self.tma.copy_async_tensor_wait_group(0)
+            self.tma.commit_group()
+            self.tma.wait_group(0)
 
 
 @requires.nvgpu_sm90

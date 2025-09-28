@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Sequence
+from typing import Callable, Dict, List, Sequence, Optional
 
 from hidet.ir.expr import Expr, Var, as_expr
 
@@ -145,6 +145,19 @@ class SharedLayout(IRNode):
             return tile_offset + self(*axes[1:])
 
         return SharedLayout.create(shape=(extent,) + self.shape, size=extent * self.size, f_offset=f_offset)
+    
+    def transpose(self, ranks: Optional[Sequence[int]] = None) -> SharedLayout:
+        if ranks is None:
+            ranks = list(reversed(range(len(self.shape))))
+        if set(ranks) != set(range(len(self.shape))):
+            raise ValueError(f"Ranks must be a permutation of {range(len(self.shape))}, got {ranks}")
+        return SharedLayout(
+            shape=tuple(self.shape[r] for r in ranks),
+            size=self.size,
+            axes=tuple(self.axes[r] for r in ranks),
+            offset=self.offset,
+        )
+
 
     def unsqueeze(self, dims: Sequence[int]) -> SharedLayout:
         shape = []
