@@ -56,17 +56,17 @@ from tilus.ir.instructions.cuda.mbarrier import (
 )
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
-from tilus.ir.instructions.cuda.tmem import (
+from tilus.ir.instructions.cuda.tcgen05 import (
+    Tcgen05AllocInst,
+    Tcgen05CommitInst,
     Tcgen05CopyInst,
-    TMemoryAllocInst,
-    TMemoryCommitInst,
-    TMemoryDeallocInst,
-    TMemoryLoadInst,
-    TMemoryRelinquishAllocPermitInst,
-    TMemorySliceInst,
-    TMemoryStoreInst,
-    TMemoryViewInst,
-    TMemoryWaitInst,
+    Tcgen05DeallocInst,
+    Tcgen05LoadInst,
+    Tcgen05RelinquishAllocPermitInst,
+    Tcgen05SliceInst,
+    Tcgen05StoreInst,
+    Tcgen05ViewInst,
+    Tcgen05WaitInst,
 )
 from tilus.ir.instructions.generic import (
     AddInst,
@@ -1120,68 +1120,68 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     # tmem tensor (tcgen05)
-    def tmem_alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int) -> TMemoryTensor:
-        inst = TMemoryAllocInst.create(dtype=dtype, shape=shape, cta_group=cta_group)
+    def tcgen05_alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int) -> TMemoryTensor:
+        inst = Tcgen05AllocInst.create(dtype=dtype, shape=shape, cta_group=cta_group)
         self.append(inst)
         return inst.output.as_tmemory_tensor()
 
-    def tmem_dealloc(self, tmem: TMemoryTensor) -> None:
-        inst = TMemoryDeallocInst.create(tmem)
+    def tcgen05_dealloc(self, tmem: TMemoryTensor) -> None:
+        inst = Tcgen05DeallocInst.create(tmem)
         self.append(inst)
 
-    def tmem_relinquish_alloc_permit(self, cta_group: int) -> None:
-        inst = TMemoryRelinquishAllocPermitInst.create(cta_group)
+    def tcgen05_relinquish_alloc_permit(self, cta_group: int) -> None:
+        inst = Tcgen05RelinquishAllocPermitInst.create(cta_group)
         self.append(inst)
 
-    def tmem_slice(self, tmem: TMemoryTensor, offsets: Sequence[int], slice_shape: Sequence[int]) -> TMemoryTensor:
+    def tcgen05_slice(self, tmem: TMemoryTensor, offsets: Sequence[int], slice_shape: Sequence[int]) -> TMemoryTensor:
         if any(not isinstance(ofs, int) for ofs in offsets):
             raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
         if len(offsets) != 2:
             raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
         if len(slice_shape) != 2:
             raise InstructionError(f"The length of slice_shape must be 2, but got {len(slice_shape)}")
-        inst = TMemorySliceInst.create(tmem=tmem, offsets=offsets, shape=slice_shape)
+        inst = Tcgen05SliceInst.create(tmem=tmem, offsets=offsets, shape=slice_shape)
         self.append(inst)
         return inst.output.as_tmemory_tensor()
 
-    def tmem_view(self, tmem: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> TMemoryTensor:
+    def tcgen05_view(self, tmem: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> TMemoryTensor:
         if len(shape) != 2:
             raise InstructionError(f"The length of shape must be 2, but got {len(shape)}")
-        inst = TMemoryViewInst.create(tmem=tmem, dtype=dtype, shape=shape)
+        inst = Tcgen05ViewInst.create(tmem=tmem, dtype=dtype, shape=shape)
         self.append(inst)
         return inst.output.as_tmemory_tensor()
 
-    def tmem_load(self, tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
+    def tcgen05_load(self, tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
         if any(not isinstance(ofs, int) for ofs in offsets):
             raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
         if len(offsets) != 2:
             raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
-        inst = TMemoryLoadInst.create(tmem=tmem, offsets=offsets, shape=shape)
+        inst = Tcgen05LoadInst.create(tmem=tmem, offsets=offsets, shape=shape)
         self.append(inst)
         return inst.output.as_register_tensor()
 
-    def tmem_store(self, tmem: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int]) -> None:
+    def tcgen05_store(self, tmem: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int]) -> None:
         if any(not isinstance(ofs, int) for ofs in offsets):
             raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
         if len(offsets) != 2:
             raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
-        inst = TMemoryStoreInst.create(tmem=tmem, src=src, offsets=offsets)
+        inst = Tcgen05StoreInst.create(tmem=tmem, src=src, offsets=offsets)
         self.append(inst)
 
-    def tmem_wait_load(self) -> None:
-        inst = TMemoryWaitInst.create(wait_load=True, wait_store=False)
+    def tcgen05_wait_load(self) -> None:
+        inst = Tcgen05WaitInst.create(wait_load=True, wait_store=False)
         self.append(inst)
 
-    def tmem_wait_store(self) -> None:
-        inst = TMemoryWaitInst.create(wait_load=False, wait_store=True)
+    def tcgen05_wait_store(self) -> None:
+        inst = Tcgen05WaitInst.create(wait_load=False, wait_store=True)
         self.append(inst)
 
-    def tmem_copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
+    def tcgen05_copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
         inst = Tcgen05CopyInst.create(src=src, dst=dst)
         self.append(inst)
 
-    def tmem_commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
-        inst = TMemoryCommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
+    def tcgen05_commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
+        inst = Tcgen05CommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
         self.append(inst)
 
     # annotations

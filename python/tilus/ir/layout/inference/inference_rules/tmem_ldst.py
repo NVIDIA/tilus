@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05LoadStoreShapeKind
-from tilus.ir.instructions.cuda.tmem import TMemoryLoadInst, TMemoryStoreInst
+from tilus.ir.instructions.cuda.tcgen05 import Tcgen05LoadInst, Tcgen05StoreInst
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.layout.cuda.tmem_ldst import get_ldst_layout
 from tilus.ir.layout.inference.rule import (
@@ -65,12 +65,12 @@ class TMemoryLdstRule(LayoutInferenceRule):
 
     @staticmethod
     def inference(
-        ctx: LayoutInferenceContext, inst: TMemoryLoadInst | TMemoryStoreInst
+        ctx: LayoutInferenceContext, inst: Tcgen05LoadInst | Tcgen05StoreInst
     ) -> dict[RegisterTensor, RegisterLayout]:
-        if isinstance(inst, TMemoryLoadInst):
+        if isinstance(inst, Tcgen05LoadInst):
             tmem_tensor = inst.inputs[0].as_tmemory_tensor()
             regs_tensor = inst.register_output
-        elif isinstance(inst, TMemoryStoreInst):
+        elif isinstance(inst, Tcgen05StoreInst):
             tmem_tensor = inst.inputs[0].as_tmemory_tensor()
             regs_tensor = inst.inputs[1].as_register_tensor()
         else:
@@ -109,11 +109,11 @@ class TMemoryLdstRule(LayoutInferenceRule):
         return {regs_tensor: layout}
 
 
-@register_rule(TMemoryLoadInst)
+@register_rule(Tcgen05LoadInst)
 class TMemoryLoadRule(TMemoryLdstRule):
     pass
 
 
-@register_rule(TMemoryStoreInst)
+@register_rule(Tcgen05StoreInst)
 class TMemoryStoreRule(TMemoryLdstRule):
     pass

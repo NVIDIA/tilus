@@ -34,7 +34,7 @@ class TmemCopyExample(tilus.Script):
         g_y = self.global_view(y_ptr, dtype=int32, shape=[m_size, n_size])
 
         s_x = self.shared_tensor(dtype=int32, shape=[self.block_m, self.block_n])
-        t_x = self.tmem.alloc(dtype=int32, shape=[self.block_m, self.block_n])
+        t_x = self.tcgen05.alloc(dtype=int32, shape=[self.block_m, self.block_n])
 
         barriers = self.shared_tensor(dtype=uint64, shape=[1])
         self.mbarrier.init(~barriers[0], count=1)
@@ -46,19 +46,19 @@ class TmemCopyExample(tilus.Script):
         self.sync()
 
         # copy x from shared to tmem
-        self.tmem.copy(src=s_x, dst=t_x)
-        self.tmem.commit(mbarrier=~barriers[0])
+        self.tcgen05.copy(src=s_x, dst=t_x)
+        self.tcgen05.commit(mbarrier=~barriers[0])
         self.mbarrier.wait(~barriers[0], phase=0)
 
         # load y from tmem to register
-        r_y = self.tmem.load(t_x, offsets=[0, 0], shape=[self.block_m, self.block_n])
-        self.tmem.wait_load()
+        r_y = self.tcgen05.load(t_x, offsets=[0, 0], shape=[self.block_m, self.block_n])
+        self.tcgen05.wait_load()
         self.sync()
 
         # store y from register to global
         self.store_global(g_y, r_y, offsets=[m_offset, n_offset])
 
-        self.tmem.dealloc(t_x)
+        self.tcgen05.dealloc(t_x)
 
         self.annotate_layout(s_x, self.shared_layout)
 
