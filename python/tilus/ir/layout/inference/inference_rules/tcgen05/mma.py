@@ -38,22 +38,6 @@ from tilus.ir.layout import SharedLayout
 class Tcgen05MmaRule(LayoutInferenceRule):
 
     @staticmethod
-    def get_mma_kind(a_dtype: DataType, b_dtype: DataType, d_dtype: DataType) -> Tcgen05MmaKind:
-        """
-        See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instruction-descriptor
-        """
-        if a_dtype == b_dtype == tfloat32 and d_dtype == float32:
-            return Tcgen05MmaKind.TF32
-        elif all(dtype in (float16, bfloat16) for dtype in (a_dtype, b_dtype)) and d_dtype in (float16, float32):
-            return Tcgen05MmaKind.F16
-        elif all(dtype in (float8_e4m3, float8_e5m2, float6_e2m3, float4_e2m1) for dtype in (a_dtype, b_dtype)) and d_dtype in (float16, float32):
-            return Tcgen05MmaKind.F8F6F4
-        elif all(dtype in (int8, uint8) for dtype in (a_dtype, b_dtype)) and d_dtype == int32:
-            return Tcgen05MmaKind.I8
-        else:
-            raise LayoutInferenceError(f"Cannot infer the MMA kind from the given data types of a, b, and d: {a_dtype}, {b_dtype}, and {d_dtype}.")
-
-    @staticmethod
     def inference(ctx: LayoutInferenceContext, inst: Tcgen05MmaInst) -> dict[SharedTensor, SharedLayout]:
         a_tensor: SharedTensor | TMemoryTensor = inst.inputs[0].as_shared_or_tmemory_tensor()
         b_tensor: SharedTensor = inst.inputs[1].as_shared_tensor()
