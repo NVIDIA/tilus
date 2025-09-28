@@ -154,6 +154,9 @@ class Tcgen05InstructionGroup(InstructionGroup):
     def commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
         self._builder.tcgen05_commit(mbarrier, cta_mask)
 
+    def mma(self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor) -> None:
+        self._builder.tcgen05_mma(a, b, d)
+
 
 class TmaInstructionGroup(InstructionGroup):
     def copy_async_tensor_global_to_shared(
