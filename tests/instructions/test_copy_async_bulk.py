@@ -44,7 +44,7 @@ class BulkCopyAsyncExample(tilus.Script):
         self.mbarrier.init(load_barrier)
         self.sync()
 
-        self.tma.copy_async_bulk_global_to_shared(
+        self.tma.global_to_shared(
             src=g_x,
             dst=s_x,
             offsets=[m_offset, n_offset],
@@ -64,8 +64,8 @@ class BulkCopyAsyncExample(tilus.Script):
             dst=g_y,
             offsets=[m_offset, n_offset],
         )
-        self.tma.copy_async_tensor_commit_group()
-        self.tma.copy_async_tensor_wait_group(0)
+        self.tma.commit_group()
+        self.tma.wait_group(0)
 
 
 class BulkCopyAsyncClusterExample(tilus.Script):
@@ -94,7 +94,7 @@ class BulkCopyAsyncClusterExample(tilus.Script):
         self.mbarrier.init(load_barrier)
         self.cluster_sync()
 
-        self.tma.copy_async_bulk_global_to_cluster_shared(  # type: ignore
+        self.tma.global_to_cluster_shared(  # type: ignore
             src=g_x, dst=s_x, offsets=[m_offset, n_offset], mbarrier=load_barrier, cta_mask=(1 << bs) - 1
         )
         self.mbarrier.arrive(load_barrier)
@@ -109,8 +109,8 @@ class BulkCopyAsyncClusterExample(tilus.Script):
         self.tma.copy_async_bulk_shared_to_global(  # type: ignore
             src=s_y, dst=g_y, offsets=[self.blockIdx.z, m_offset, n_offset], dims=[1, 2]
         )
-        self.tma.copy_async_tensor_commit_group()
-        self.tma.copy_async_tensor_wait_group(0)
+        self.tma.commit_group()
+        self.tma.wait_group(0)
 
 
 @requires.nvgpu_sm90

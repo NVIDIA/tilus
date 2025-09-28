@@ -34,7 +34,7 @@ from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05StoreInst,
     Tcgen05WaitInst,
 )
-from tilus.ir.layout.cuda.tmem_ldst import get_ldst_layout
+from tilus.ir.layout.cuda.tcgen05.ldst import get_ldst_layout
 from tilus.ir.layout.ops.register_ops import divide, left_divide, local, spatial
 from tilus.ir.layout.ops.utils import LayoutOperationError
 from tilus.ir.tensor import RegisterTensor, TMemoryTensor

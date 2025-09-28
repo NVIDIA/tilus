@@ -1185,8 +1185,8 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05CommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
         self.append(inst)
 
-    def tcgen05_mma(self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor) -> None:
-        inst = Tcgen05MmaInst.create(a=a, b=b, d=d)
+    def tcgen05_mma(self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool) -> None:
+        inst = Tcgen05MmaInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d)
         self.append(inst)
 
     # annotations

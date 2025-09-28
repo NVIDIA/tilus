@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst
-from tilus.ir.layout.cuda.tcgen05_smem import (
+from tilus.ir.layout.cuda.tcgen05.smem import (
     Tcgen05SwizzleMode,
     generate_canonical_layout,
     get_shared_layout_from_canonical,
@@ -27,7 +27,7 @@ from tilus.ir.tensor import SharedLayout, SharedTensor
 
 
 @register_rule(Tcgen05CopyInst)
-class TMemoryCopyRule(LayoutInferenceRule):
+class Tcgen05CopyRule(LayoutInferenceRule):
     @staticmethod
     def inference(ctx: LayoutInferenceContext, inst: Tcgen05CopyInst) -> dict[SharedTensor, SharedLayout]:
         src = inst.inputs[1].as_shared_tensor()

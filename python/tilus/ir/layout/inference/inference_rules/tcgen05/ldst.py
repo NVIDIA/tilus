@@ -15,7 +15,7 @@
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05LoadStoreShapeKind
 from tilus.ir.instructions.cuda.tcgen05 import Tcgen05LoadInst, Tcgen05StoreInst
 from tilus.ir.layout import RegisterLayout
-from tilus.ir.layout.cuda.tmem_ldst import get_ldst_layout
+from tilus.ir.layout.cuda.tcgen05.ldst import get_ldst_layout
 from tilus.ir.layout.inference.rule import (
     LayoutInferenceContext,
     LayoutInferenceError,
@@ -26,7 +26,7 @@ from tilus.ir.layout.ops.register_ops import local
 from tilus.ir.tensor import RegisterTensor, TMemoryTensor
 
 
-class TMemoryLdstRule(LayoutInferenceRule):
+class Tcgen05LdstRule(LayoutInferenceRule):
     @staticmethod
     def get_register_layout(tmem_tensor: TMemoryTensor) -> RegisterLayout:
         dtype = tmem_tensor.dtype
@@ -100,7 +100,7 @@ class TMemoryLdstRule(LayoutInferenceRule):
             )
 
         # infer the layout
-        layout = TMemoryLdstRule.get_register_layout(sliced_tmem_tensor)
+        layout = Tcgen05LdstRule.get_register_layout(sliced_tmem_tensor)
 
         assert layout.shape == regs_tensor.shape, (
             f"Layout shape {layout.shape} does not match tensor shape {regs_tensor.shape} in {inst}"
@@ -110,10 +110,10 @@ class TMemoryLdstRule(LayoutInferenceRule):
 
 
 @register_rule(Tcgen05LoadInst)
-class TMemoryLoadRule(TMemoryLdstRule):
+class Tcgen05LoadRule(Tcgen05LdstRule):
     pass
 
 
 @register_rule(Tcgen05StoreInst)
-class TMemoryStoreRule(TMemoryLdstRule):
+class Tcgen05StoreRule(Tcgen05LdstRule):
     pass

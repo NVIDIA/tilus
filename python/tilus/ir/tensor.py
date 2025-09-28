@@ -54,6 +54,10 @@ class Tensor:
     def as_global_tensor(self) -> GlobalTensor:
         assert isinstance(self, GlobalTensor)
         return self
+    
+    def as_shared_or_tmemory_tensor(self) -> SharedTensor | TMemoryTensor:
+        assert isinstance(self, (SharedTensor, TMemoryTensor))
+        return self
 
     def as_register_or_shared_tensor(self) -> RegisterTensor | SharedTensor:
         assert isinstance(self, (RegisterTensor, SharedTensor))

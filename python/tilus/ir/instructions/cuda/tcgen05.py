@@ -19,6 +19,7 @@ from typing import Optional, Sequence
 
 from hidet.ir.expr import Expr
 from hidet.ir.type import DataType
+from hidet.ir.dtypes import boolean
 
 from tilus.ir.inst import Instruction
 from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor
@@ -142,10 +143,13 @@ class Tcgen05CommitInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaInst(Instruction):
+    enable_input_d: Expr
+
     @staticmethod
     def create(
         a: SharedTensor | TMemoryTensor,
         b: SharedTensor,
         d: TMemoryTensor,
+        enable_input_d: Expr | bool,
     ) -> Tcgen05MmaInst:
-        return Tcgen05MmaInst(output=None, inputs=(a, b, d))
+        return Tcgen05MmaInst(output=None, inputs=(a, b, d), enable_input_d=boolean(enable_input_d))
