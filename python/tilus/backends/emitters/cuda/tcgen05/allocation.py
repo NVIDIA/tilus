@@ -28,11 +28,11 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     tcgen05_relinquish_alloc_permit,
 )
 from tilus.ir.instructions.cuda.tmem import (
-    TMemoryAllocInst,
-    TMemoryDeallocInst,
-    TMemoryRelinquishAllocPermitInst,
-    TMemorySliceInst,
-    TMemoryViewInst,
+    Tcgen05AllocInst,
+    Tcgen05DeallocInst,
+    Tcgen05RelinquishAllocPermitInst,
+    Tcgen05SliceInst,
+    Tcgen05ViewInst,
 )
 from tilus.ir.tensor import TMemoryTensor
 from tilus.target import nvgpu_sm100
@@ -53,9 +53,9 @@ class Tcgen05AllocDeallocEmitter(BaseInstEmitter):
         return num_columns
 
 
-@register_emitter(TMemoryAllocInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05AllocInst, target=nvgpu_sm100)
 class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
-    def emit(self, inst: TMemoryAllocInst) -> None:
+    def emit(self, inst: Tcgen05AllocInst) -> None:
         if self.current_num_threads < 32:
             raise ValueError("tcgen05_alloc requires at least 32 threads in the current thread group")
 
@@ -91,9 +91,9 @@ class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
         self.sync()
 
 
-@register_emitter(TMemoryDeallocInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05DeallocInst, target=nvgpu_sm100)
 class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
-    def emit(self, inst: TMemoryDeallocInst) -> None:
+    def emit(self, inst: Tcgen05DeallocInst) -> None:
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
         tmem_var = self.get_or_allocate_var(tmem_tensor)
         num_columns = self.get_num_columns(tmem_tensor)
@@ -111,15 +111,15 @@ class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
             )
 
 
-@register_emitter(TMemoryRelinquishAllocPermitInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05RelinquishAllocPermitInst, target=nvgpu_sm100)
 class Tcgen05RelinquishAllocPermitEmitter(BaseInstEmitter):
-    def emit(self, inst: TMemoryRelinquishAllocPermitInst) -> None:
+    def emit(self, inst: Tcgen05RelinquishAllocPermitInst) -> None:
         self.append(tcgen05_relinquish_alloc_permit(Tcgen05CtaGroupKind.from_int(inst.cta_group)))
 
 
-@register_emitter(TMemorySliceInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05SliceInst, target=nvgpu_sm100)
 class TMemorySliceEmitter(BaseInstEmitter):
-    def emit(self, inst: TMemorySliceInst) -> None:
+    def emit(self, inst: Tcgen05SliceInst) -> None:
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
         output_tmem_tensor = inst.output.as_tmemory_tensor()
         tmem_addr = self.get_or_allocate_var(tmem_tensor)
@@ -131,9 +131,9 @@ class TMemorySliceEmitter(BaseInstEmitter):
         )
 
 
-@register_emitter(TMemoryViewInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05ViewInst, target=nvgpu_sm100)
 class TMemoryViewEmitter(BaseInstEmitter):
-    def emit(self, inst: TMemoryViewInst) -> None:
+    def emit(self, inst: Tcgen05ViewInst) -> None:
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
         output_tmem_tensor = inst.output.as_tmemory_tensor()
 

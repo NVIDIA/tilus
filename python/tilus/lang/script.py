@@ -107,7 +107,7 @@ class InstructionGroup:
         return self._optional_builder
 
 
-class TmemInstructionGroup(InstructionGroup):
+class Tcgen05InstructionGroup(InstructionGroup):
     def alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int = 1) -> TMemoryTensor:
         if cta_group not in [1, 2]:
             raise InstructionError("cta_group must be 1 or 2")
@@ -122,37 +122,37 @@ class TmemInstructionGroup(InstructionGroup):
             raise InstructionError(
                 "num_columns must be a power of two and in the range [32, 512], got {}".format(num_columns)
             )
-        return self._builder.tmem_alloc(dtype, shape, cta_group)
+        return self._builder.tcgen05_alloc(dtype, shape, cta_group)
 
     def dealloc(self, tensor: TMemoryTensor) -> None:
-        self._builder.tmem_dealloc(tensor)
+        self._builder.tcgen05_dealloc(tensor)
 
     def slice(self, tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> TMemoryTensor:
-        return self._builder.tmem_slice(tensor, offsets, shape)
+        return self._builder.tcgen05_slice(tensor, offsets, shape)
 
     def view(self, tensor: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> TMemoryTensor:
-        return self._builder.tmem_view(tensor, dtype, shape)
+        return self._builder.tcgen05_view(tensor, dtype, shape)
 
     def relinquish_alloc_permit(self, cta_group: int) -> None:
-        self._builder.tmem_relinquish_alloc_permit(cta_group)
+        self._builder.tcgen05_relinquish_alloc_permit(cta_group)
 
     def load(self, tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
-        return self._builder.tmem_load(tensor, offsets, shape)
+        return self._builder.tcgen05_load(tensor, offsets, shape)
 
     def store(self, tensor: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int] = (0, 0)) -> None:
-        return self._builder.tmem_store(tensor, src, offsets)
+        return self._builder.tcgen05_store(tensor, src, offsets)
 
     def wait_load(self) -> None:
-        self._builder.tmem_wait_load()
+        self._builder.tcgen05_wait_load()
 
     def wait_store(self) -> None:
-        self._builder.tmem_wait_store()
+        self._builder.tcgen05_wait_store()
 
     def copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
-        self._builder.tmem_copy(src, dst)
+        self._builder.tcgen05_copy(src, dst)
 
     def commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
-        self._builder.tmem_commit(mbarrier, cta_mask)
+        self._builder.tcgen05_commit(mbarrier, cta_mask)
 
 
 class TmaInstructionGroup(InstructionGroup):
@@ -628,7 +628,7 @@ class Script:
         self.utils = utils
 
         # instruction groups
-        self.tmem = TmemInstructionGroup()
+        self.tcgen05 = Tcgen05InstructionGroup()
         self.tma = TmaInstructionGroup()
         self.mbarrier = BarrierInstructionGroup()
 
@@ -637,7 +637,7 @@ class Script:
 
     def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
         self._optional_builder = builder
-        self.tmem._set_builder(builder)
+        self.tcgen05._set_builder(builder)
         self.tma._set_builder(builder)
         self.mbarrier._set_builder(builder)
 

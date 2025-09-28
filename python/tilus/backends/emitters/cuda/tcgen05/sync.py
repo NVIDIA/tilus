@@ -22,14 +22,14 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     tcgen05_commit,
 )
 from tilus.ir.instructions.cuda.tmem import (
-    TMemoryCommitInst,
+    Tcgen05CommitInst,
 )
 from tilus.target import nvgpu_sm100
 
 
-@register_emitter(TMemoryCommitInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05CommitInst, target=nvgpu_sm100)
 class TMemoryCommitEmitter(BaseInstEmitter):
-    def emit(self, inst: TMemoryCommitInst) -> None:
+    def emit(self, inst: Tcgen05CommitInst) -> None:
         with self.if_then(self.current_thread == 0):
             self.append(
                 tcgen05_commit(

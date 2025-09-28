@@ -25,11 +25,11 @@ from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor
 
 
 @dataclass(frozen=True, eq=False)
-class TMemoryAllocInst(Instruction):
+class Tcgen05AllocInst(Instruction):
     cta_group: int  # 1 or 2
 
     @staticmethod
-    def create(dtype: DataType, shape: Sequence[int], cta_group: int) -> TMemoryAllocInst:
+    def create(dtype: DataType, shape: Sequence[int], cta_group: int) -> Tcgen05AllocInst:
         assert cta_group in (1, 2)
         assert len(shape) == 2
         assert shape[0] == 128
@@ -37,43 +37,43 @@ class TMemoryAllocInst(Instruction):
         num_columns = shape[1] * dtype.nbits // 32
         assert num_columns % 32 == 0 and 32 <= num_columns <= 512
         output = TMemoryTensor.create(dtype=dtype, shape=shape, first_lane=0)
-        return TMemoryAllocInst(output=output, inputs=(), cta_group=cta_group)
+        return Tcgen05AllocInst(output=output, inputs=(), cta_group=cta_group)
 
 
 @dataclass(frozen=True, eq=False)
-class TMemoryDeallocInst(Instruction):
+class Tcgen05DeallocInst(Instruction):
     @staticmethod
-    def create(tmt: TMemoryTensor) -> TMemoryDeallocInst:
-        return TMemoryDeallocInst(output=None, inputs=(tmt,))
+    def create(tmt: TMemoryTensor) -> Tcgen05DeallocInst:
+        return Tcgen05DeallocInst(output=None, inputs=(tmt,))
 
 
 @dataclass(frozen=True, eq=False)
-class TMemoryRelinquishAllocPermitInst(Instruction):
+class Tcgen05RelinquishAllocPermitInst(Instruction):
     cta_group: int = 1
 
     @staticmethod
-    def create(cta_group: int) -> TMemoryRelinquishAllocPermitInst:
-        return TMemoryRelinquishAllocPermitInst(output=None, inputs=(), cta_group=cta_group)
+    def create(cta_group: int) -> Tcgen05RelinquishAllocPermitInst:
+        return Tcgen05RelinquishAllocPermitInst(output=None, inputs=(), cta_group=cta_group)
 
 
 @dataclass(frozen=True, eq=False)
-class TMemorySliceInst(Instruction):
+class Tcgen05SliceInst(Instruction):
     offsets: tuple[int, int]
 
     @staticmethod
-    def create(tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> TMemorySliceInst:
+    def create(tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> Tcgen05SliceInst:
         assert len(offsets) == len(shape) == 2
         for o, s, ts in zip(offsets, shape, tmem.shape):
             assert 0 <= o < ts
             assert 0 < s <= ts - o
         output = TMemoryTensor.create(dtype=tmem.dtype, shape=shape, first_lane=tmem.first_lane + offsets[0])
-        return TMemorySliceInst(output=output, inputs=(tmem,), offsets=(offsets[0], offsets[1]))
+        return Tcgen05SliceInst(output=output, inputs=(tmem,), offsets=(offsets[0], offsets[1]))
 
 
 @dataclass(frozen=True, eq=False)
-class TMemoryViewInst(Instruction):
+class Tcgen05ViewInst(Instruction):
     @staticmethod
-    def create(tmem: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> TMemoryViewInst:
+    def create(tmem: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> Tcgen05ViewInst:
         if len(shape) != 2:
             raise ValueError("Only 2D shape is supported.")
         if shape[0] != tmem.shape[0]:
@@ -82,45 +82,45 @@ class TMemoryViewInst(Instruction):
             raise ValueError("The total number of bits must be the same as the original tensor.")
 
         output = TMemoryTensor.create(dtype=dtype, shape=shape, first_lane=tmem.first_lane)
-        return TMemoryViewInst(output=output, inputs=(tmem,))
+        return Tcgen05ViewInst(output=output, inputs=(tmem,))
 
 
 @dataclass(frozen=True, eq=False)
-class TMemoryLoadInst(Instruction):
+class Tcgen05LoadInst(Instruction):
     offsets: tuple[int, int]
 
     @staticmethod
-    def create(tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> TMemoryLoadInst:
+    def create(tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> Tcgen05LoadInst:
         assert len(offsets) == len(shape) == 2
         for o, s, ts in zip(offsets, shape, tmem.shape):
             assert 0 <= o < ts
             assert 0 < s <= ts - o
         output = RegisterTensor.create(dtype=tmem.dtype, shape=shape)
-        return TMemoryLoadInst(output=output, inputs=(tmem,), offsets=(offsets[0], offsets[1]))
+        return Tcgen05LoadInst(output=output, inputs=(tmem,), offsets=(offsets[0], offsets[1]))
 
 
 @dataclass(frozen=True, eq=False)
-class TMemoryStoreInst(Instruction):
+class Tcgen05StoreInst(Instruction):
     offsets: tuple[int, int]
 
     @staticmethod
-    def create(tmem: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int]) -> TMemoryStoreInst:
+    def create(tmem: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int]) -> Tcgen05StoreInst:
         assert len(offsets) == 2
         for o, s, ts in zip(offsets, src.shape, tmem.shape):
             assert 0 <= o < ts
             assert 0 < s <= ts - o
 
-        return TMemoryStoreInst(output=None, inputs=(tmem, src), offsets=(offsets[0], offsets[1]))
+        return Tcgen05StoreInst(output=None, inputs=(tmem, src), offsets=(offsets[0], offsets[1]))
 
 
 @dataclass(frozen=True, eq=False)
-class TMemoryWaitInst(Instruction):
+class Tcgen05WaitInst(Instruction):
     wait_load: bool
     wait_store: bool
 
     @staticmethod
-    def create(wait_load: bool, wait_store: bool) -> TMemoryWaitInst:
-        return TMemoryWaitInst(output=None, inputs=(), wait_load=wait_load, wait_store=wait_store)
+    def create(wait_load: bool, wait_store: bool) -> Tcgen05WaitInst:
+        return Tcgen05WaitInst(output=None, inputs=(), wait_load=wait_load, wait_store=wait_store)
 
 
 @dataclass(frozen=True, eq=False)
@@ -131,10 +131,10 @@ class Tcgen05CopyInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class TMemoryCommitInst(Instruction):
+class Tcgen05CommitInst(Instruction):
     mbarrier: Expr
     cta_mask: Optional[int]
 
     @staticmethod
-    def create(mbarrier: Expr, cta_mask: Optional[int] = None) -> TMemoryCommitInst:
-        return TMemoryCommitInst(output=None, inputs=(), mbarrier=mbarrier, cta_mask=cta_mask)
+    def create(mbarrier: Expr, cta_mask: Optional[int] = None) -> Tcgen05CommitInst:
+        return Tcgen05CommitInst(output=None, inputs=(), mbarrier=mbarrier, cta_mask=cta_mask)

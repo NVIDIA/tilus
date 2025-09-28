@@ -21,9 +21,9 @@ class Tcgen05Example(tilus.Script):
     def __call__(self):
         self.attrs.blocks = 1
         self.attrs.warps = 4
-        t_a = self.tmem.alloc(dtype=int32, shape=[128, 32], cta_group=1)
-        self.tmem.dealloc(t_a)
-        self.tmem.relinquish_alloc_permit(cta_group=1)
+        t_a = self.tcgen05.alloc(dtype=int32, shape=[128, 32], cta_group=1)
+        self.tcgen05.dealloc(t_a)
+        self.tcgen05.relinquish_alloc_permit(cta_group=1)
 
 
 @tilus.testing.requires.nvgpu_sm100

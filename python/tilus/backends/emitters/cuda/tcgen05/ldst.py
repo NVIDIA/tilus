@@ -30,9 +30,9 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     tcgen05_wait_store,
 )
 from tilus.ir.instructions.cuda.tmem import (
-    TMemoryLoadInst,
-    TMemoryStoreInst,
-    TMemoryWaitInst,
+    Tcgen05LoadInst,
+    Tcgen05StoreInst,
+    Tcgen05WaitInst,
 )
 from tilus.ir.layout.cuda.tmem_ldst import get_ldst_layout
 from tilus.ir.layout.ops.register_ops import divide, left_divide, local, spatial
@@ -169,9 +169,9 @@ class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
         raise RuntimeError("No valid tcgen05 load/store instruction is found")
 
 
-@register_emitter(TMemoryLoadInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05LoadInst, target=nvgpu_sm100)
 class TMemoryLoadEmitter(TMemoryLoadStoreBaseEmitter):
-    def emit(self, inst: TMemoryLoadInst) -> None:
+    def emit(self, inst: Tcgen05LoadInst) -> None:
         regs_tensor = inst.register_output
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
         sliced_tmem_tensor, sliced_tmem_addr = self.slice_tmem_tensor(tmem_tensor, inst.offsets, regs_tensor.shape)
@@ -189,9 +189,9 @@ class TMemoryLoadEmitter(TMemoryLoadStoreBaseEmitter):
         )
 
 
-@register_emitter(TMemoryStoreInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05StoreInst, target=nvgpu_sm100)
 class TMemoryStoreEmitter(TMemoryLoadStoreBaseEmitter):
-    def emit(self, inst: TMemoryStoreInst) -> None:
+    def emit(self, inst: Tcgen05StoreInst) -> None:
         regs_tensor = inst.inputs[1].as_register_tensor()
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
 
@@ -214,9 +214,9 @@ class TMemoryStoreEmitter(TMemoryLoadStoreBaseEmitter):
         )
 
 
-@register_emitter(TMemoryWaitInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05WaitInst, target=nvgpu_sm100)
 class TMemoryWaitEmitter(BaseInstEmitter):
-    def emit(self, inst: TMemoryWaitInst) -> None:
+    def emit(self, inst: Tcgen05WaitInst) -> None:
         if inst.wait_load:
             self.append(tcgen05_wait_load())
         if inst.wait_store:
