@@ -40,7 +40,7 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorGlobalToSharedInst,
     CopyAsyncTensorSharedToGlobalInst,
 )
-from tilus.ir.instructions.cuda.tmem import Tcgen05CopyInst, Tcgen05LoadInst, Tcgen05StoreInst
+from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst, Tcgen05LoadInst, Tcgen05StoreInst
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 
 

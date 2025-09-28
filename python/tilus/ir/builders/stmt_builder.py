@@ -56,7 +56,7 @@ from tilus.ir.instructions.cuda.mbarrier import (
 )
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
-from tilus.ir.instructions.cuda.tmem import (
+from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05AllocInst,
     Tcgen05CommitInst,
     Tcgen05CopyInst,

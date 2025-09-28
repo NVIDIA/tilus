@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus.ir.instructions.cuda.tmem import Tcgen05CopyInst
+from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst
 from tilus.ir.layout.cuda.tcgen05_smem import (
     Tcgen05SwizzleMode,
     generate_canonical_layout,

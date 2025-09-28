@@ -21,7 +21,7 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05CtaGroupKind,
     tcgen05_commit,
 )
-from tilus.ir.instructions.cuda.tmem import (
+from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05CommitInst,
 )
 from tilus.target import nvgpu_sm100

@@ -27,7 +27,7 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     tcgen05_dealloc,
     tcgen05_relinquish_alloc_permit,
 )
-from tilus.ir.instructions.cuda.tmem import (
+from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05AllocInst,
     Tcgen05DeallocInst,
     Tcgen05RelinquishAllocPermitInst,
