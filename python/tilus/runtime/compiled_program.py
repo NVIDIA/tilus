@@ -14,16 +14,20 @@
 # limitations under the License.
 from pathlib import Path
 
-from hidet.runtime.compiled_module import CompiledModule, compiled_module_exists
+import tvm_ffi
 
 
 class CompiledProgram:
     def __init__(self, program_dir: str | Path):
         self.program_dir: Path = Path(program_dir)
-        self.compiled_module = CompiledModule(str(self.program_dir / "module"))
+        self.compiled_module = tvm_ffi.load_module(str(Path(self.program_dir) / "module" / "lib.so"))
+        self.launch_func = self.compiled_module["launch"]
+
+    def get_launch_func(self) -> tvm_ffi.Function:
+        return self.launch_func
 
     def __call__(self, *args):
-        return self.compiled_module(*args)
+        return self.launch_func(*args)
 
 
 def load_compiled_program(program_dir: str | Path) -> CompiledProgram:
@@ -59,5 +63,5 @@ def compiled_program_exists(cache_dir: Path | str) -> bool:
     """
     path = Path(cache_dir)
     return all(
-        [compiled_module_exists(str(path / "module")), (path / "program.txt").exists(), (path / "options.txt").exists()]
+        [(path / "module" / "lib.so").exists(), (path / "program.txt").exists(), (path / "options.txt").exists()]
     )

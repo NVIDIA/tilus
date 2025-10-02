@@ -14,8 +14,6 @@
 # limitations under the License.
 from typing import Callable
 
-import pytest
-
 from tilus.target import Target, get_current_target, nvgpu_sm80, nvgpu_sm90, nvgpu_sm100
 
 
@@ -28,6 +26,7 @@ def _requires(target: Target) -> Callable[[Callable], Callable]:
     target : Target
         The required target architecture. Examples include 'sm_90a', 'sm_80',
     """
+    import pytest
 
     def decorator(test_func):
         try:
