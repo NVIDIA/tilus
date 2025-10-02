@@ -13,7 +13,7 @@ struct TypeTraits<half*> : public FallbackOnlyTraitsBase<half*, DLTensor*> {
 
   TVM_FFI_INLINE static half* ConvertFallbackValue(DLTensor* src) {
     if (src->dtype.code != kDLFloat || src->dtype.bits != 16) {
-      TVM_FFI_THROW(ValueError) << "DLTensor dtype is not 16 bit float";
+      TVM_FFI_THROW(ValueError) << "Expect a float16 tensor, got a tensor with dtype " << src->dtype;
     }
     return reinterpret_cast<half*>(src->data);
   }
@@ -31,27 +31,27 @@ struct TypeTraits<__nv_bfloat16*> : public FallbackOnlyTraitsBase<__nv_bfloat16*
   }
 };
 
-// Template specialization for float*
+// Template specialization for floatN*
 template <typename Float>
 struct TypeTraits<Float*, std::enable_if_t<std::is_floating_point_v<Float>>> : public FallbackOnlyTraitsBase<Float*, DLTensor*> {
-  TVM_FFI_INLINE static std::string TypeStr() { return "float" + std::string(std::numeric_limits<Float>::digits); }  
+  TVM_FFI_INLINE static std::string TypeStr() { return "float" + std::to_string(std::numeric_limits<Float>::digits); }  
 
   TVM_FFI_INLINE static Float* ConvertFallbackValue(DLTensor* src) {
-    if (src->dtype.code != kDLFloat || src->dtype.bits != std::numeric_limits<Float>::digits) {
-      TVM_FFI_THROW(ValueError) << "DLTensor dtype is not " << std::numeric_limits<Float>::digits << " bits";
+    if (src->dtype.code != kDLFloat || src->dtype.bits != sizeof(Float) * 8) {
+      TVM_FFI_THROW(ValueError) << "DLTensor dtype is not " << sizeof(Float) * 8 << " bits";
     }
     return reinterpret_cast<Float*>(src->data);
   }
 };
 
-// Template specialization for integral types
+// Template specialization for intN*
 template <typename Int>
 struct TypeTraits<Int*, std::enable_if_t<std::is_integral_v<Int>>> : public FallbackOnlyTraitsBase<Int*, DLTensor*> {
-  TVM_FFI_INLINE static std::string TypeStr() { return "int" + std::string(std::numeric_limits<Int>::digits); }  
+  TVM_FFI_INLINE static std::string TypeStr() { return "int" + std::to_string(std::numeric_limits<Int>::digits); }  
 
   TVM_FFI_INLINE static Int* ConvertFallbackValue(DLTensor* src) {
-    if (src->dtype.code != kDLInt || src->dtype.bits != std::numeric_limits<Int>::digits) {
-      TVM_FFI_THROW(ValueError) << "DLTensor dtype is not " << std::numeric_limits<Int>::digits << " bits";
+    if (src->dtype.code != kDLInt || src->dtype.bits != sizeof(Int) * 8) {
+      TVM_FFI_THROW(ValueError) << "DLTensor dtype is not " << sizeof(Int) * 8 << " bits";
     }
     return reinterpret_cast<Int*>(src->data);
   }
