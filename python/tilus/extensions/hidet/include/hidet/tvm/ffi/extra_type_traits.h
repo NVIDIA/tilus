@@ -25,11 +25,19 @@ inline std::string dtype_to_str(DLDataType dtype) {
 
 
 template <>
-struct TypeTraits<void_p> : public FallbackOnlyTraitsBase<void_p, DLTensor*> {
+struct TypeTraits<void_p> : public FallbackOnlyTraitsBase<void_p, DLTensor*, int64_t, uint64_t> {
   TVM_FFI_INLINE static std::string TypeStr() { return "void_p"; }  
 
   TVM_FFI_INLINE static void_p ConvertFallbackValue(DLTensor* src) {
     return src->data;
+  }
+
+  TVM_FFI_INLINE static void_p ConvertFallbackValue(int64_t src) {
+    return reinterpret_cast<void*>(src);
+  }
+
+  TVM_FFI_INLINE static void_p ConvertFallbackValue(uint64_t src) {
+    return reinterpret_cast<void*>(src);
   }
 };
 
