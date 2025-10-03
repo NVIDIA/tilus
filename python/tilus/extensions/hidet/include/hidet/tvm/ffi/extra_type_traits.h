@@ -61,7 +61,7 @@ struct TypeTraits<Float*, std::enable_if_t<std::is_floating_point_v<Float>>> : p
 
 // Template specialization for int32_t*, int16_t*, etc.
 template <typename Int>
-struct TypeTraits<Int*, std::enable_if_t<std::is_signed_v<Int>>> : public FallbackOnlyTraitsBase<Int*, DLTensor*> {
+struct TypeTraits<Int*, std::enable_if_t<std::is_signed_v<Int> && std::is_integral_v<Int>>> : public FallbackOnlyTraitsBase<Int*, DLTensor*> {
   TVM_FFI_INLINE static std::string TypeStr() { return "int" + std::to_string(sizeof(Int) * 8); }  
 
   TVM_FFI_INLINE static Int* ConvertFallbackValue(DLTensor* src) {
@@ -74,7 +74,7 @@ struct TypeTraits<Int*, std::enable_if_t<std::is_signed_v<Int>>> : public Fallba
 
 // Template specialization for uint32_t*, uint16_t*, etc.
 template<typename UInt>
-struct TypeTraits<UInt*, std::enable_if_t<std::is_unsigned_v<UInt>>> : public FallbackOnlyTraitsBase<UInt*, DLTensor*> {
+struct TypeTraits<UInt*, std::enable_if_t<std::is_unsigned_v<UInt> && std::is_integral_v<UInt>>> : public FallbackOnlyTraitsBase<UInt*, DLTensor*> {
   TVM_FFI_INLINE static std::string TypeStr() { return "uint" + std::to_string(sizeof(UInt) * 8); }  
 
   TVM_FFI_INLINE static UInt* ConvertFallbackValue(DLTensor* src) {
