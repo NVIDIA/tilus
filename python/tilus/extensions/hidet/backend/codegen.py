@@ -20,7 +20,18 @@ from hidet.ir.expr import Constant, Expr, Var
 from hidet.ir.func import Function
 from hidet.ir.module import IRModule
 from hidet.ir.target import Target
-from hidet.ir.type import ArrayType, DataType, OpaqueType, PointerType, ReferenceType, TensorPointerType, TensorType
+from hidet.ir.type import (
+    ArrayType,
+    DataType,
+    FuncType,
+    OpaqueType,
+    PointerType,
+    ReferenceType,
+    TensorPointerType,
+    TensorType,
+    VoidType,
+)
+from hidet.ir.utils.call_graph import CallGraph
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
 from hidet.utils.py import prod
 
@@ -46,6 +57,8 @@ class UpdatedCUDACodeGen(CUDACodegen):
             base_type_doc = self(dtype)
             if v_type.use_bracket:
                 return attr_doc + base_type_doc + " " + name_doc + "[]"
+            elif func_kind == "public" and isinstance(dtype, VoidType):
+                return attr_doc + "void_p " + name_doc
             else:
                 return attr_doc + base_type_doc + " *" + restrict_item + name_doc
         elif isinstance(v_type, TensorPointerType):
@@ -138,6 +151,44 @@ class UpdatedCUDACodeGen(CUDACodegen):
 
         doc += NewLine() + "}"
 
+        return doc
+
+    def require_headers(self) -> Doc:
+        doc = Text("#include <tvm/ffi/function.h>") + NewLine()
+        doc += Text("#include <hidet/tvm/ffi/extra_type_traits.h>") + NewLine()
+        doc += Text("#include <hidet/void_p.h>") + NewLine()
+        doc += super().require_headers()
+        return doc
+
+    def visit_IRModule(self, module: IRModule) -> Doc:
+        if module.namespace != "":
+            raise NotImplementedError("Namespace is not supported")
+
+        self.ir_module = module
+        doc = Doc()
+
+        for name, func_var in module.extern_functions.items():
+            assert isinstance(func_var.type, FuncType)
+            doc += self.declare_function(name, func_var.type) + NewLine()
+
+        # define global variables
+        for name, var in module.global_vars.items():
+            if name in module.functions:
+                continue
+            doc += self.local_var_declare(var) + ";" + NewLine()
+
+        # define functions
+        call_graph = CallGraph(module)
+        for node in call_graph.reversed_order:
+            doc += self(node.func) + NewLine()
+
+        # define tvm-ffi registries
+        for name, func in module.functions.items():
+            if func.kind != "public":
+                continue
+            doc += Text(f"TVM_FFI_DLL_EXPORT_TYPED_FUNC({name}, hidet_{name});") + NewLine()
+
+        doc = self.require_headers() + doc
         return doc
 
     def scalar_literal(self, value: Expr, dtype: DataType) -> Doc:

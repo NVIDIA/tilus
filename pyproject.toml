@@ -26,6 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
+    "apache-tvm-ffi",
     "hidet==0.6.1",
     "torch",
     "tabulate",
@@ -62,6 +63,9 @@ Documentation = "https://nvidia.github.io/tilus"
 
 [tool.setuptools.package-dir]
 "" = "python"
+
+[tool.setuptools.package-data]
+"tilus.extensions.hidet" = ["include/**/*.h"]
 
 [tool.ruff]
 line-length = 120

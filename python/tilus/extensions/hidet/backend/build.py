@@ -34,10 +34,12 @@ from subprocess import PIPE
 from typing import List, Optional, Sequence
 
 import hidet.cuda
+import tvm_ffi
 from hidet.ffi.ffi import library_paths
 from hidet.libinfo import get_include_dirs
 
 import tilus.option
+from tilus.extensions.hidet import libinfo
 from tilus.target import Target
 
 
@@ -159,6 +161,11 @@ class NVCC(SourceCompiler):
             suffix=target.properties.feature_suffix if target.properties.feature_suffix is not None else "",
         )
         cpu_arch = hidet.option.cpu.get_arch()
+
+        # add tvm-ffi header paths
+        include_dirs = list(include_dirs)
+        include_dirs.append(tvm_ffi.libinfo.find_include_path())
+        include_dirs.append(libinfo.find_include_path())
 
         # The following command compiles the cuda source code to a shared library
         # See https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html

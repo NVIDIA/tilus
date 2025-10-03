@@ -29,9 +29,9 @@ from typing import Any, Mapping, Optional, Sequence, Type
 import filelock
 import tabulate
 import torch
+import tvm_ffi
 from cuda.bindings.runtime import cudaDeviceSynchronize
 from hidet.ir.type import DataType, PointerType
-from hidet.runtime import CompiledFunction
 from hidet.utils.py import nocolor
 from tqdm import tqdm
 
@@ -637,7 +637,7 @@ class JitInstance:
                         mininterval=0,
                         ncols=60 + max(60, len(self.instance_name) + len(tuning_key_name)),
                     ):
-                        compiled_func = compiled_program.compiled_module.functions["launch"]
+                        compiled_func = compiled_program.get_launch_func()
                         latency.append(benchmark_func(lambda: compiled_func(*kernel_args), warmup=1, repeat=10))  # type: ignore
 
                 best_latency = min(latency)
@@ -704,7 +704,7 @@ class InstantiatedScript:
         self.tuning_params: list[int] = self.params.tuning_params
 
         self.jit_instances: dict[JitKey, JitInstance] = {}
-        self.dispatch_table: dict[tuple[JitKey, TuningKey], CompiledFunction] = {}
+        self.dispatch_table: dict[tuple[JitKey, TuningKey], tvm_ffi.Function] = {}
 
         self.launch_blocking: bool = tilus.option.get_option("debug.launch_blocking")
 
@@ -724,7 +724,7 @@ class InstantiatedScript:
         keys = extract_keys(args, self.const_params, self.tuning_params)
 
         # check if the compiled function exists
-        compiled_func: Optional[CompiledFunction] = self.dispatch_table.get(keys, None)
+        compiled_func: Optional[tvm_ffi.Function] = self.dispatch_table.get(keys, None)
 
         if compiled_func is None:
             # slow path
@@ -735,7 +735,7 @@ class InstantiatedScript:
                 self.jit_instances[jit_key] = jit_instance
 
             compiled_program = jit_instance.pick_best_program(args)
-            compiled_func = compiled_program.compiled_module.functions["launch"]
+            compiled_func = compiled_program.get_launch_func()
             self.dispatch_table[(jit_key, tuning_key)] = compiled_func
 
         # call the compiled function
