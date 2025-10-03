@@ -29,6 +29,7 @@ from hidet.ir.type import (
     ReferenceType,
     TensorPointerType,
     TensorType,
+    VoidType,
 )
 from hidet.ir.utils.call_graph import CallGraph
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
@@ -56,6 +57,8 @@ class UpdatedCUDACodeGen(CUDACodegen):
             base_type_doc = self(dtype)
             if v_type.use_bracket:
                 return attr_doc + base_type_doc + " " + name_doc + "[]"
+            elif func_kind == "public" and isinstance(dtype, VoidType):
+                return attr_doc + "void_p " + name_doc
             else:
                 return attr_doc + base_type_doc + " *" + restrict_item + name_doc
         elif isinstance(v_type, TensorPointerType):
@@ -153,6 +156,7 @@ class UpdatedCUDACodeGen(CUDACodegen):
     def require_headers(self) -> Doc:
         doc = Text("#include <tvm/ffi/function.h>") + NewLine()
         doc += Text("#include <hidet/tvm/ffi/extra_type_traits.h>") + NewLine()
+        doc += Text("#include <hidet/void_p.h>") + NewLine()
         doc += super().require_headers()
         return doc
 

@@ -1,7 +1,10 @@
+#pragma once
+
 #include <tvm/ffi/type_traits.h>
 #include <cuda.h>
 #include <cuda_fp16.h>
 #include <type_traits>
+#include <hidet/void_p.h>
 
 namespace tvm {
 namespace ffi {
@@ -19,6 +22,16 @@ inline std::string dtype_to_str(DLDataType dtype) {
     default: return "dtype(code=" + std::to_string(dtype.code) + ", bits=" + std::to_string(dtype.bits) + ", lanes=" + std::to_string(dtype.lanes) + ")";
   }
 }
+
+
+template <>
+struct TypeTraits<void_p> : public FallbackOnlyTraitsBase<void_p, DLTensor*> {
+  TVM_FFI_INLINE static std::string TypeStr() { return "void_p"; }  
+
+  TVM_FFI_INLINE static void_p ConvertFallbackValue(DLTensor* src) {
+    return src->data;
+  }
+};
 
 // Template specialization for half* 
 template <>
