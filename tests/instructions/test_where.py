@@ -55,6 +55,8 @@ def test_where(
     n: int,
     layout: RegisterLayout,
 ):
+    print(f"Testing where with m={m}, n={n}, layout={layout}")
+    print(tilus.option.get_option("cache_dir"))
     cond = torch.randint(0, 2, (m, n), dtype=torch.bool).cuda()
     x = torch.arange(m * n, dtype=torch.int32).reshape((m, n)).cuda()
     y = torch.arange(m * n, dtype=torch.int32).reshape((m, n)).cuda() + m * n
