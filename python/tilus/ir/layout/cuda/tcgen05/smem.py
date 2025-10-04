@@ -92,8 +92,18 @@ class CanonicalSharedLayout:
 
     def __post_init__(self):
         atom_size = 2**self.swizzle_mode.bbits * 8 * self.T
-        if (self.m > 1 and self.SBO % atom_size != 0) or (self.k > 1 and self.LBO % atom_size != 0):
-            raise ValueError(f"SBO {self.SBO} and LBO {self.LBO} must be divisible by atom size: {atom_size}")
+        if self.major_kind == "MN":
+            if self.swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
+                m_stride = self.SBO
+                k_stride = self.LBO
+            else:
+                m_stride = self.LBO
+                k_stride = self.SBO
+        else:
+            m_stride = self.SBO
+            k_stride = self.LBO
+        if (self.m > 1 and m_stride % atom_size != 0) or (self.k > 1 and k_stride % atom_size != 0):
+            raise ValueError(f"m_stride {m_stride} and k_stride {k_stride} must be divisible by atom size: {atom_size}")
 
     @property
     def S(self) -> int:

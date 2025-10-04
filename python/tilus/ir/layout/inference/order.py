@@ -34,14 +34,14 @@ from .inference_rules.reduce import ReduceRule
 from .inference_rules.transform_shared import SharedSliceRule, PermuteSharedRule
 from .inference_rules.store_shared import StoreSharedSwizzleRule
 from .inference_rules.tcgen05.ldst import Tcgen05LoadRule, Tcgen05StoreRule
-from .inference_rules.tcgen05.mma import Tcgen05MmaRule
+from .inference_rules.tcgen05.mma import Tcgen05MmaSSRule, Tcgen05MmaTSRule
 from .inference_rules.tcgen05.copy import Tcgen05CopyRule
 from .inference_rules.transform import SqueezeRule, UnsqueezeRule
 from .inference_rules.transpose import TransposeRule
 from .inference_rules.where import WhereRule
 
 inference_order: list[list[Type[LayoutInferenceRule]]] = [
-    [Tcgen05MmaRule],
+    [Tcgen05MmaSSRule, Tcgen05MmaTSRule],
     [MmaDotRule],
     [Tcgen05LoadRule, Tcgen05StoreRule],
     [Tcgen05CopyRule],
