@@ -86,7 +86,7 @@ class Tcgen05MmaRule(LayoutInferenceRule):
                         dtype=b_tensor.dtype,
                         major_kind="K",
                         swizzle_mode=swizzle_mode
-                    ).as_shared_layout().transpose()
+                    ).as_shared_layout().permute(dims=[1, 0])
                     ret[b_tensor] = b_layout
                 except ValueError:
                     continue

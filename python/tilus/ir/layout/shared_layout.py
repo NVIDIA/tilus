@@ -146,18 +146,10 @@ class SharedLayout(IRNode):
 
         return SharedLayout.create(shape=(extent,) + self.shape, size=extent * self.size, f_offset=f_offset)
     
-    def transpose(self, ranks: Optional[Sequence[int]] = None) -> SharedLayout:
-        if ranks is None:
-            ranks = list(reversed(range(len(self.shape))))
-        if set(ranks) != set(range(len(self.shape))):
-            raise ValueError(f"Ranks must be a permutation of {range(len(self.shape))}, got {ranks}")
-        return SharedLayout(
-            shape=tuple(self.shape[r] for r in ranks),
-            size=self.size,
-            axes=tuple(self.axes[r] for r in ranks),
-            offset=self.offset,
-        )
+    def permute(self, dims: Sequence[int]) -> SharedLayout:
+        from tilus.ir.layout.ops.shared_ops import shared_permute
 
+        return shared_permute(self, dims)
 
     def unsqueeze(self, dims: Sequence[int]) -> SharedLayout:
         shape = []

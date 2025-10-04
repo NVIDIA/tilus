@@ -14,15 +14,15 @@
 # limitations under the License.
 from tilus import SharedLayout
 from tilus.ir import SharedTensor
-from tilus.ir.instructions import SharedSliceInst
+from tilus.ir.instructions import SliceSharedInst, PermuteSharedInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.layout.ops import shared_compose, shared_row_major
 
 
-@register_rule(SharedSliceInst)
+@register_rule(SliceSharedInst)
 class SharedSliceRule(LayoutInferenceRule):
     @staticmethod
-    def inference(ctx: LayoutInferenceContext, inst: SharedSliceInst) -> dict[SharedTensor, SharedLayout]:
+    def inference(ctx: LayoutInferenceContext, inst: SliceSharedInst) -> dict[SharedTensor, SharedLayout]:
         a = inst.shared_input
         b = inst.shared_output
         if a.optional_layout is not None and b.optional_layout is not None:
@@ -35,5 +35,21 @@ class SharedSliceRule(LayoutInferenceRule):
             for i in range(len(a.shape)):
                 outer_shape.append(a.shape[i] // b_layout.shape[i])
             return {a: shared_compose(shared_row_major(*outer_shape), b_layout).simplify()}
+        else:
+            return {}
+
+@register_rule(PermuteSharedInst)
+class PermuteSharedRule(LayoutInferenceRule):
+    @staticmethod
+    def inference(ctx: LayoutInferenceContext, inst: PermuteSharedInst) -> dict[SharedTensor, SharedLayout]:
+        a = inst.shared_input
+        b = inst.shared_output
+        if a.optional_layout is not None and b.optional_layout is not None:
+            return {}
+        elif a.optional_layout is not None:
+            return {b: a.layout.permute(dims=inst.dims)}
+        elif b.optional_layout is not None:
+            reversed_dims = [inst.dims.index(i) for i in range(len(inst.dims))]
+            return {a: b.layout.permute(dims=reversed_dims)}
         else:
             return {}

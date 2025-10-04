@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 import typing
-from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
+from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union, overload
 
 from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
@@ -1541,34 +1541,37 @@ class Script:
             The register tensor with the specified dimension(s) unsqueezed.
         """
         return self._builder.unsqueeze(x, dim=dim, out=out)
+    
+    @overload
+    def transpose(self, x: SharedTensor) -> SharedTensor: 
+        """ Create a transposed view of a shared tensor. """
+        ...
+    
+    @overload
+    def transpose(self, x: RegisterTensor) -> RegisterTensor:
+        """ Create a transposed view of a register tensor. """
+        ...
 
     def transpose(
         self,
-        x: RegisterTensor,
-        *,
-        out: Optional[RegisterTensor] = None,
-    ) -> RegisterTensor:
-        """Transpose a 2-D register tensor.
+        x: RegisterTensor | SharedTensor,
+    ) -> RegisterTensor | SharedTensor:
+        """Transpose a 2-D register or shared tensor.
 
-        This instruction transposes a 2-D register tensor, swapping its first and second dimensions. This instruction
-        does not change the underlying data of the tensor, but only changes how the data is accessed. Thus, no
-        communication is needed between threads in the thread block.
-
+        This instruction transposes a 2-D register or shared tensor, swapping its first and second dimensions. 
+        This instruction does not change the underlying data of the tensor, but only create a tensor with a new layout.
 
         Parameters
         ----------
-        x: RegisterTensor
-            The register tensor to transpose. It must be a 2-D tensor.
-
-        out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+        x: RegisterTensor | SharedTensor
+            The register or shared tensor to transpose. It must be a 2-D tensor.
 
         Returns
         -------
-        ret: RegisterTensor
-            The transposed register tensor. The shape of the output tensor will be [x.shape[1], x.shape[0]].
+        ret: RegisterTensor | SharedTensor
+            The transposed register or shared tensor. The shape of the output tensor will be [x.shape[1], x.shape[0]].
         """
-        return self._builder.transpose(x, out=out)
+        return self._builder.transpose(x)
 
     def abs(
         self,

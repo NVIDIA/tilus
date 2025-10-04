@@ -82,19 +82,20 @@ from tilus.ir.instructions.generic import (
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
-    GlobalSliceInst,
+    SliceGlobalInst,
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
     LoadSharedGenericInst,
     LoadSharedInst,
     ModInst,
+    PermuteSharedInst,
     MulInst,
     PrintTensorInst,
     ReduceInst,
     RepeatInst,
     RepeatInterleaveInst,
-    SharedSliceInst,
+    SliceSharedInst,
     SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
@@ -417,7 +418,7 @@ class StmtBuilder(StmtBuilderCore):
         slice_shape: Sequence[Expr | int],
     ) -> GlobalTensor:
         offsets_ = [as_expr(offset) for offset in offsets]
-        inst = GlobalSliceInst.create(
+        inst = SliceGlobalInst.create(
             tensor=tensor,
             offsets=offsets_,
             dims=slice_dims,
@@ -712,15 +713,10 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
-    def transpose(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        if out is None:
-            if len(x.shape) != 2:
-                raise InstructionError(f"Transpose is only supported for 2D tensors, got shape {x.shape}")
-            shape = [x.shape[1], x.shape[0]]
-            out = RegisterTensor.create(dtype=x.dtype, shape=shape)
-        inst = TransposeInst.create(x, out)
+    def transpose(self, x: RegisterTensor | SharedTensor) -> RegisterTensor | SharedTensor:
+        inst = TransposeInst.create(x)
         self.append(inst)
-        return inst.register_output
+        return inst.register_or_shared_output
 
     def reduce(
         self,
@@ -905,6 +901,11 @@ class StmtBuilder(StmtBuilderCore):
     def free_shared(self, shared_value: SharedTensor) -> None:
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
+    
+    def permute_shared(self, tensor: SharedTensor, dims: tuple[int, ...]) -> SharedTensor:
+        inst = PermuteSharedInst.create(tensor, dims)
+        self.append(inst)
+        return inst.shared_output
 
     def slice_shared(
         self,
@@ -914,7 +915,7 @@ class StmtBuilder(StmtBuilderCore):
         slice_shape: Sequence[int],
     ) -> SharedTensor:
         offsets_ = [as_expr(offset) for offset in offsets]
-        inst = SharedSliceInst.create(
+        inst = SliceSharedInst.create(
             tensor=tensor,
             offsets=offsets_,
             dims=slice_dims,

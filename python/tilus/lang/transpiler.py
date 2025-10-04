@@ -56,7 +56,7 @@ from tilus.lang.constructs.contexts import TilusContext
 from tilus.lang.constructs.loops import TilusLoopIterable
 from tilus.lang.script import InstructionError, Script
 from tilus.utils import lcm
-
+from tilus.lang.methods import ReigsterTensorWithMethods, SharedTensorWithMethods, GlobalTensorWithMethods
 
 class TilusProgramError(HidetProgramError):
     pass
@@ -619,18 +619,22 @@ class Transpiler(PythonAstFunctor):
                     sb = self._script._builder
                     method_name = func.__name__
                     if isinstance(f_self, RegisterTensor):
-                        if func.__func__ is RegisterTensor.to:
-                            dtype = args[0]
-                            ret = sb.cast(f_self, dtype=dtype)
-                        elif hasattr(sb, method_name):
-                            args = [f_self, *args]
-                            ret = getattr(sb, method_name)(*args, **kwargs)
-                        else:
-                            raise NotImplementedError(f"RegisterTensor.{method_name} is not mapped yet.")
+                        tensor_with_methods = ReigsterTensorWithMethods(f_self, sb)
+                    elif isinstance(f_self, SharedTensor):
+                        tensor_with_methods = SharedTensorWithMethods(f_self, sb)
+                    elif isinstance(f_self, GlobalTensor):
+                        tensor_with_methods = GlobalTensorWithMethods(f_self, sb)
                     else:
                         raise NotImplementedError(
                             "Currently, only RegisterTensor methods are supported in Tilus Script."
                         )
+                    if not hasattr(tensor_with_methods, method_name):
+                        raise TilusProgramError(self, expr, 'Method "{}" is not found in {}.'.format(method_name, type(f_self).__name__))
+                    try:
+                        ret = getattr(tensor_with_methods, method_name)(*args, **kwargs)
+                    except RuntimeError as e:
+                        raise TilusProgramError(self, expr, 'Method "{}" is not implemented in {}.'.format(method_name, type(tensor_with_methods).__name__))
+                    
                 else:
                     # case 4
                     ret = func(*args, **kwargs)
@@ -750,6 +754,21 @@ class Transpiler(PythonAstFunctor):
     def visit_BinOp(self, expr: ast.BinOp) -> Union[hidet_ir.Expr, RegisterTensor, float, int, list, tuple, str]:
         from hidet import ir
 
+        op_dict = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.FloorDiv: operator.floordiv,
+            ast.Mod: operator.mod,
+            ast.BitXor: operator.xor,
+            ast.BitOr: operator.or_,
+            ast.BitAnd: operator.and_,
+            ast.Pow: primitives.pow,
+            ast.LShift: operator.lshift,
+            ast.RShift: operator.rshift,
+        }
+
         lhs = self.visit(expr.left)
         rhs = self.visit(expr.right)
         if isinstance(lhs, str) and isinstance(rhs, str):
@@ -761,56 +780,23 @@ class Transpiler(PythonAstFunctor):
         elif isinstance(lhs, (ir.Expr, float, int)) and isinstance(rhs, (ir.Expr, float, int)):
             from hidet.ir import primitives
 
-            op_dict = {
-                ast.Add: operator.add,
-                ast.Sub: operator.sub,
-                ast.Mult: operator.mul,
-                ast.Div: operator.truediv,
-                ast.FloorDiv: operator.floordiv,
-                ast.Mod: operator.mod,
-                ast.BitXor: operator.xor,
-                ast.BitOr: operator.or_,
-                ast.BitAnd: operator.and_,
-                ast.Pow: primitives.pow,
-                ast.LShift: operator.lshift,
-                ast.RShift: operator.rshift,
-            }
-
             if type(expr.op) in op_dict:
                 return op_dict[type(expr.op)](lhs, rhs)
             else:
                 type_name = type(expr.op).__name__
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
         elif isinstance(lhs, RegisterTensor) or isinstance(rhs, RegisterTensor):
-            sb = StmtBuilder()
-            if not isinstance(lhs, RegisterTensor):
-                lhs = sb.allocate_register(dtype=rhs.dtype, shape=rhs.shape, f_init=lambda _: rhs.dtype(lhs))
-            if not isinstance(rhs, RegisterTensor):
-                rhs = sb.allocate_register(dtype=lhs.dtype, shape=lhs.shape, f_init=lambda _: lhs.dtype(rhs))
-
-            assert isinstance(lhs, RegisterTensor) and isinstance(rhs, RegisterTensor)
-
-            inst_dict: dict[Any, Any] = {
-                ast.Add: "add",
-                ast.Sub: "sub",
-                ast.Mult: "mul",
-                ast.Div: "div",
-                ast.Mod: "mod",
-            }
-
-            f_compute_dict: dict[Any, Any] = {}
-            inst_name = inst_dict.get(type(expr.op), None)
-            f_compute = f_compute_dict.get(type(expr.op), None)
-            if inst_name is not None and hasattr(sb, inst_name):
-                output = getattr(sb, inst_name)(lhs, rhs)
-                self.current_scope.append(sb.flush_stmts())
-                return output
-            elif f_compute is not None:
-                output = sb.elementwise_binary(lhs, rhs, f_compute=f_compute)  # type: ignore
-                self.current_scope.append(sb.flush_stmts())
-                return output
+            if isinstance(lhs, RegisterTensor):
+                lhs = ReigsterTensorWithMethods(lhs, self._script._builder)
+            if isinstance(rhs, RegisterTensor):
+                rhs = ReigsterTensorWithMethods(rhs, self._script._builder)
+            
+            if type(expr.op) in op_dict:
+                return op_dict[type(expr.op)](lhs, rhs)
             else:
-                raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type(expr.op)))
+                type_name = type(expr.op).__name__
+                raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
+            
         else:
             raise HidetProgramError(
                 self, expr, "Can not apply operator {} to {} and {}.".format(expr.op, type(lhs), type(rhs))
