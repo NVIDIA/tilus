@@ -219,8 +219,6 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
             swizzled_offset_grid = get_offset_grid_of_swizzled_layout(
                 dtype_nbits=shared_tensor.dtype.nbits, shape=shared_tensor.shape, swizzle=swizzle
             )
-            print(f"swizzle: {swizzle}")
-            print(f"swizzled_offset_grid: {swizzled_offset_grid[:16]}")
             if swizzled_offset_grid is not None and np.array_equal(offset_grid, swizzled_offset_grid):
                 return SharedTensorInfo(
                     addr=self.shared_tensor_shared_space_addr[shared_tensor], shape=shared_tensor.shape, swizzle=swizzle
