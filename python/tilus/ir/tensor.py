@@ -452,6 +452,14 @@ class SharedTensor(Tensor):
             raise ValueError(f"Shape mismatch: provided shape {self.shape} does not match layout shape {layout.shape}.")
         return dataclasses.replace(self, optional_layout=layout)
 
+    """
+    The following methods are used for type hinting in Tilus Script. The corresponding operations/methods will be
+    converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
+    """
+
+    def permute(self, dims: tuple[int, ...]) -> SharedTensor:
+        raise RuntimeError("shared_tensor.permute(...) could only be used in Tilus Script.")
+
 
 @dataclass(frozen=True, eq=False)
 class TMemoryTensor(Tensor):

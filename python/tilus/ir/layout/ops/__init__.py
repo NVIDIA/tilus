@@ -27,4 +27,5 @@ from .shared_ops import (
     shared_column_major,
     shared_compose,
     shared_row_major,
+    shared_permute,
 )

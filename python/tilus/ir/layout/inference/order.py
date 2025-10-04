@@ -31,7 +31,7 @@ from .inference_rules.load_shared import (
 )
 from .inference_rules.mma_dot import MmaDotRule
 from .inference_rules.reduce import ReduceRule
-from .inference_rules.shared_slice import SharedSliceRule
+from .inference_rules.transform_shared import SharedSliceRule, PermuteSharedRule
 from .inference_rules.store_shared import StoreSharedSwizzleRule
 from .inference_rules.tcgen05.ldst import Tcgen05LoadRule, Tcgen05StoreRule
 from .inference_rules.tcgen05.mma import Tcgen05MmaRule
@@ -55,7 +55,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [EmptyRule],
     # shared memory rules
     [LoadSharedInferSwizzledSharedRule, StoreSharedSwizzleRule],
-    [SharedSliceRule],
+    [SharedSliceRule, PermuteSharedRule],
     [CopyAsyncRule],
     [LoadSharedInferRegisterRule],
     [LoadSharedInferRowMajorSharedRule],

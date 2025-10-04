@@ -25,10 +25,11 @@ from tilus.ir.instructions import (
     LoadSharedGenericInst,
     LoadSharedInst,
     PrintTensorInst,
-    SharedSliceInst,
+    SliceSharedInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
     StoreSharedInst,
+    PermuteSharedInst,
 )
 from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkGlobalToClusterSharedInst,
@@ -63,7 +64,8 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(LoadGlobalInst)
 @register_rule(LoadGlobalGenericInst)
 @register_rule(StoreGlobalInst)
-@register_rule(SharedSliceInst)
+@register_rule(SliceSharedInst)
+@register_rule(PermuteSharedInst)
 @register_rule(LoadSharedInst)
 @register_rule(LoadSharedGenericInst)
 @register_rule(FreeSharedInst)
