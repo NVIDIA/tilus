@@ -1,5 +1,7 @@
 from tilus.ir.tensor import SharedTensor
 from tilus.ir.builders import StmtBuilder
+from tilus.lang.methods.exception import TensorMethodError
+
 
 class SharedTensorWithMethods(SharedTensor):
     def __init__(self, tensor: SharedTensor, builder: StmtBuilder):
@@ -9,5 +11,8 @@ class SharedTensorWithMethods(SharedTensor):
     
     def permute(self, dims: tuple[int, ...]) -> SharedTensor:
         if set(dims) != set(range(len(self.tensor.shape))):
-            raise ValueError(f"Dims must be a permutation of {range(len(self.tensor.shape))}, got {dims}")
+            raise TensorMethodError(f"Dims must be a permutation of {range(len(self.tensor.shape))}, got {dims}")
         return self.builder.permute_shared(self.tensor, dims)
+
+    def transpose(self) -> SharedTensor:
+        return self.builder.permute_shared(self.tensor, dims=[1, 0])

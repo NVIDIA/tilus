@@ -632,8 +632,8 @@ class Transpiler(PythonAstFunctor):
                         raise TilusProgramError(self, expr, 'Method "{}" is not found in {}.'.format(method_name, type(f_self).__name__))
                     try:
                         ret = getattr(tensor_with_methods, method_name)(*args, **kwargs)
-                    except RuntimeError as e:
-                        raise TilusProgramError(self, expr, 'Method "{}" is not implemented in {}.'.format(method_name, type(tensor_with_methods).__name__))
+                    except TensorMethodError as e:
+                        raise TilusProgramError(self, expr, str(e))
                     
                 else:
                     # case 4

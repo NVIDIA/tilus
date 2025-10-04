@@ -146,6 +146,10 @@ class SharedLayout(IRNode):
 
         return SharedLayout.create(shape=(extent,) + self.shape, size=extent * self.size, f_offset=f_offset)
     
+    def transpose(self) -> SharedLayout:
+        assert len(self.shape) == 2
+        return self.permute(dims=[1, 0])
+    
     def permute(self, dims: Sequence[int]) -> SharedLayout:
         from tilus.ir.layout.ops.shared_ops import shared_permute
 

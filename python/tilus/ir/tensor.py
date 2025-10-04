@@ -459,6 +459,9 @@ class SharedTensor(Tensor):
 
     def permute(self, dims: tuple[int, ...]) -> SharedTensor:
         raise RuntimeError("shared_tensor.permute(...) could only be used in Tilus Script.")
+    
+    def transpose(self) -> SharedTensor:
+        raise RuntimeError("shared_tensor.transpose(...) could only be used in Tilus Script.")
 
 
 @dataclass(frozen=True, eq=False)

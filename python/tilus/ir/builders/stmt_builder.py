@@ -67,7 +67,8 @@ from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05StoreInst,
     Tcgen05ViewInst,
     Tcgen05WaitInst,
-    Tcgen05MmaInst,
+    Tcgen05MmaSSInst,
+    Tcgen05MmaTSInst,
 )
 from tilus.ir.instructions.generic import (
     AddInst,
@@ -1186,8 +1187,12 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05CommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
         self.append(inst)
 
-    def tcgen05_mma(self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool) -> None:
-        inst = Tcgen05MmaInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d)
+    def tcgen05_mma_ss(self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool) -> None:
+        inst = Tcgen05MmaSSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d)
+        self.append(inst)
+    
+    def tcgen05_mma_ts(self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool) -> None:
+        inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d)
         self.append(inst)
 
     # annotations
