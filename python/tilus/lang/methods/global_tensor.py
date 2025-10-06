@@ -1,5 +1,6 @@
-from tilus.ir.tensor import GlobalTensor
 from tilus.ir.builders import StmtBuilder
+from tilus.ir.tensor import GlobalTensor
+
 
 class GlobalTensorWithMethods(GlobalTensor):
     def __init__(self, tensor: GlobalTensor, builder: StmtBuilder):

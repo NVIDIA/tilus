@@ -17,7 +17,7 @@ from hidet.ir.expr import Expr, Var
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.backends.contexts import GlobalMemoryAllocationContext, GlobalTensorViewContext
 from tilus.ir import GlobalTensor
-from tilus.ir.instructions import AllocateGlobalInst, SliceGlobalInst, GlobalViewInst
+from tilus.ir.instructions import AllocateGlobalInst, GlobalViewInst, SliceGlobalInst
 from tilus.utils import cdiv
 
 

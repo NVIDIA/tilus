@@ -1,52 +1,63 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Literal, Optional, Sequence, cast
 
 import numpy as np
 from hidet.ir.expr import Expr, Var
 from hidet.ir.type import DataType
 from hidet.utils.py import prod
-
+from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05SwizzleMode
 from tilus.ir.layout.shared_layout import SharedLayout
 from tilus.ir.layout.utils.cute import CuteLayout, CuteSwizzle, IntTuple, SwizzledCuteLayout, cute_layout, tuple_product
 from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
 from tilus.utils import floor_log2
 
+# class Tcgen05SwizzleMode(Enum):
+#     """TCGen05 swizzle modes corresponding to cute Swizzle parameters"""
 
-class Tcgen05SwizzleMode(Enum):
-    """TCGen05 swizzle modes corresponding to cute Swizzle parameters"""
+#     NO_SWIZZLE = (0, 0, 0)  # No swizzling or Interleaved
+#     B32_SWIZZLE = (1, 4, 3)  # 32B Swizzling: Swizzle<1, 4, 3>
+#     B64_SWIZZLE = (2, 4, 3)  # 64B Swizzling: Swizzle<2, 4, 3>
+#     B128_SWIZZLE = (3, 4, 3)  # 128B Swizzling: Swizzle<3, 4, 3>
 
-    NO_SWIZZLE = (0, 0, 0)  # No swizzling or Interleaved
-    B32_SWIZZLE = (1, 4, 3)  # 32B Swizzling: Swizzle<1, 4, 3>
-    B64_SWIZZLE = (2, 4, 3)  # 64B Swizzling: Swizzle<2, 4, 3>
-    B128_SWIZZLE = (3, 4, 3)  # 128B Swizzling: Swizzle<3, 4, 3>
+#     def encode(self) -> int:
+#         # see https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-shared-memory-desc-layout
+#         return {
+#             Tcgen05SwizzleMode.NO_SWIZZLE: 0,
+#             Tcgen05SwizzleMode.B32_SWIZZLE: 6,
+#             Tcgen05SwizzleMode.B64_SWIZZLE: 4,
+#             Tcgen05SwizzleMode.B128_SWIZZLE: 2,
+#         }[self]
 
-    def encode(self) -> int:
-        # see https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-shared-memory-desc-layout
-        return {
-            Tcgen05SwizzleMode.NO_SWIZZLE: 0,
-            Tcgen05SwizzleMode.B32_SWIZZLE: 6,
-            Tcgen05SwizzleMode.B64_SWIZZLE: 4,
-            Tcgen05SwizzleMode.B128_SWIZZLE: 2,
-        }[self]
+#     @property
+#     def bbits(self) -> int:
+#         return self.value[0]
 
-    @property
-    def bbits(self) -> int:
-        return self.value[0]
+#     @property
+#     def mbase(self) -> int:
+#         return self.value[1]
 
-    @property
-    def mbase(self) -> int:
-        return self.value[1]
+#     @property
+#     def sshift(self) -> int:
+#         return self.value[2]
 
-    @property
-    def sshift(self) -> int:
-        return self.value[2]
+#     def as_cute_swizzle(self) -> CuteSwizzle:
+#         bbits, mbase, sshift = self.value
+#         return CuteSwizzle(bbits=bbits, mbase=mbase, sshift=sshift)
 
-    def as_cute_swizzle(self) -> CuteSwizzle:
-        bbits, mbase, sshift = self.value
-        return CuteSwizzle(bbits=bbits, mbase=mbase, sshift=sshift)
+
+def as_cute_swizzle(swizzle_mode: Tcgen05SwizzleMode) -> CuteSwizzle:
+    if swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
+        return CuteSwizzle(bbits=0, mbase=0, sshift=0)
+    elif swizzle_mode == Tcgen05SwizzleMode.B32_SWIZZLE:
+        return CuteSwizzle(bbits=1, mbase=4, sshift=3)
+    elif swizzle_mode == Tcgen05SwizzleMode.B64_SWIZZLE:
+        return CuteSwizzle(bbits=2, mbase=4, sshift=3)
+    elif swizzle_mode == Tcgen05SwizzleMode.B128_SWIZZLE:
+        return CuteSwizzle(bbits=3, mbase=4, sshift=3)
+    else:
+        raise ValueError(f"Unsupported swizzle mode: {swizzle_mode}")
 
 
 @dataclass(order=True, eq=True, unsafe_hash=True)
@@ -91,7 +102,7 @@ class CanonicalSharedLayout:
     T: int
 
     def __post_init__(self):
-        atom_size = 2**self.swizzle_mode.bbits * 8 * self.T
+        atom_size = 2 ** as_cute_swizzle(self.swizzle_mode).bbits * 8 * self.T
         if self.major_kind == "MN":
             if self.swizzle_mode == Tcgen05SwizzleMode.NO_SWIZZLE:
                 m_stride = self.SBO
@@ -165,8 +176,6 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
     """
     if len(shared_layout.shape) != 2:
         return None
-
-    shape_m, shape_k = shared_layout.shape
 
     # Calculate T from dtype: T = 128 / dtype.nbits
     if 128 % dtype.nbits != 0:
@@ -253,7 +262,8 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
         The shared memory layout of Tilus corresponding to the canonical layout.
     """
     swizzle_mode = canonical_layout.swizzle_mode
-    bbits, mbase, sshift = swizzle_mode.bbits, swizzle_mode.mbase, swizzle_mode.sshift
+    cute_swizzle = as_cute_swizzle(swizzle_mode)
+    bbits, mbase, sshift = cute_swizzle.bbits, cute_swizzle.mbase, cute_swizzle.sshift
     T, m, k, SBO, LBO = (
         canonical_layout.T,
         canonical_layout.m,
@@ -298,7 +308,7 @@ def generate_canonical_layout(
     if 128 % dtype.nbits != 0:
         raise ValueError(f"dtype {dtype.name} is not supported")
     T = 128 // dtype.nbits
-    S = 2**swizzle_mode.bbits
+    S = 2 ** as_cute_swizzle(swizzle_mode).bbits
     if major_kind == "MN":
         if shape[0] % (T * S) != 0 or shape[1] % 8 != 0:
             raise ValueError(f"shape {shape} is not supported")

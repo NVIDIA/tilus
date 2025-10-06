@@ -159,6 +159,7 @@ class Tcgen05CommitMulticastKind(Enum):
     NONE = ""
     CLUSTER = ".multicast::cluster"
 
+
 class Tcgen05MmaKind(Enum):
     F16 = ".kind::f16"
     TF32 = ".kind::tf32"
@@ -167,6 +168,19 @@ class Tcgen05MmaKind(Enum):
     MXF8F6F4 = ".kind::mx8f6f4"
     MXF4 = ".kind::mxf4"
     MXF4NVF4 = ".kind::mxf4nvf4"
+
+
+class Tcgen05SwizzleMode(Enum):
+    """TCGen05 swizzle modes corresponding to cute Swizzle parameters"""
+
+    NO_SWIZZLE = 0  # No swizzling or Interleaved
+    B32_SWIZZLE = 6  # 32B Swizzling: Swizzle<1, 4, 3>
+    B64_SWIZZLE = 4  # 64B Swizzling: Swizzle<2, 4, 3>
+    B128_SWIZZLE = 2  # 128B Swizzling: Swizzle<3, 4, 3>
+
+    def encode(self) -> int:
+        # see https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-shared-memory-desc-layout
+        return self.value
 
 
 def get_num_reg32(
@@ -246,6 +260,7 @@ def resolve_tcgen05_commit(
     ret = "cuda_tcgen05_commit_cta_group" + cta_group.value + multicast.value + ("_mask" if has_mask else "")
     ret = ret.replace(".", "_").replace("::", "_")
     return ret
+
 
 def resolve_tcgen05_mma(cta_group: Tcgen05CtaGroupKind, mma_kind: Tcgen05MmaKind, a_is_shared: bool) -> str:
     ret = "cuda_tcgen05_mma_cta_group" + cta_group.value + mma_kind.value + ("_a_shared" if a_is_shared else "_a_tmem")
@@ -432,26 +447,40 @@ def register_tcgen05_instructions():
         desc = desc | uint64(swizzle_mode & uint8(0b111)) << 61
         desc = desc | uint64(smem_addr & uint32(0x3FFF))
         return desc
-    
+
     # mma
     for cta_group in [Tcgen05CtaGroupKind.CTA_1, Tcgen05CtaGroupKind.CTA_2]:
         for mma_kind in [Tcgen05MmaKind.F16, Tcgen05MmaKind.TF32, Tcgen05MmaKind.F8F6F4, Tcgen05MmaKind.I8]:
             # a: shared memory
-            template = '{{.reg.pred p; setp.ne.u32 p, %4, 0; tcgen05.mma{cta_group}{mma_kind} [%0], %1, %2, %3, p;}}'.format(cta_group=cta_group.value, mma_kind=mma_kind.value)
+            template = (
+                "{{.reg.pred p; setp.ne.u32 p, %4, 0; tcgen05.mma{cta_group}{mma_kind} [%0], %1, %2, %3, p;}}".format(
+                    cta_group=cta_group.value, mma_kind=mma_kind.value
+                )
+            )
+
             @register_primitive_function_decorator
             @no_type_check
             @script
-            def tcgen05_mma_(d_tmem: uint32, a_desc: uint64, b_desc: uint64, i_desc: uint32, enable_input_d: uint32):
+            def tcgen05_mma_shared_a_(
+                d_tmem: uint32, a_desc: uint64, b_desc: uint64, i_desc: uint32, enable_input_d: uint32
+            ):
                 attrs.func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=True)
                 attrs.func_kind = "cuda_internal"
                 asm(template, inputs=[d_tmem, a_desc, b_desc, i_desc, enable_input_d], is_volatile=True)
 
             # a: tensor memory
-            template = '{{.reg.pred p; setp.ne.u32 p, %4, 0; tcgen05.mma{cta_group}{mma_kind} [%0], [%1], %2, %3, p;}}'.format(cta_group=cta_group.value, mma_kind=mma_kind.value)
+            template = (
+                "{{.reg.pred p; setp.ne.u32 p, %4, 0; tcgen05.mma{cta_group}{mma_kind} [%0], [%1], %2, %3, p;}}".format(
+                    cta_group=cta_group.value, mma_kind=mma_kind.value
+                )
+            )
+
             @register_primitive_function_decorator
             @no_type_check
             @script
-            def tcgen05_mma_(d_tmem: uint32, a_tmem: uint32, b_desc: uint64, i_desc: uint32, enable_input_d: uint32):
+            def tcgen05_mma_tmem_a_(
+                d_tmem: uint32, a_tmem: uint32, b_desc: uint64, i_desc: uint32, enable_input_d: uint32
+            ):
                 attrs.func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=False)
                 attrs.func_kind = "cuda_internal"
                 asm(template, inputs=[d_tmem, a_tmem, b_desc, i_desc, enable_input_d], is_volatile=True)
@@ -517,20 +546,21 @@ def tcgen05_encode_smem_descriptor(
         func_name, [uint32(smem_addr), uint32(lbo), uint32(sbo), uint8(mbo), uint8(stride_mode), uint8(swizzle_mode)]
     )
 
+
 def tcgen05_encode_mma_inst_descriptor(
     sparsity_selector: int,  # 2 bits
-    sparsity: int, # 1 bit: 0 for dense, 1 for sparse
+    sparsity: int,  # 1 bit: 0 for dense, 1 for sparse
     saturate_for_integer: int,  # 1 bit
-    d_dtype: int, # 2 bits
-    a_dtype: int, # 3 bits
-    b_dtype: int, # 3 bits
-    negate_a: int, # 1 bit
-    negate_b: int, # 1 bit
-    transpose_a: int, # 1 bit
-    transpose_b: int, # 1 bit
-    shifted_n: int, # 6 bits
-    shifted_m: int, # 5 bits
-    maximim_shift_in_ws: int, # 2 bits
+    d_dtype: int,  # 2 bits
+    a_dtype: int,  # 3 bits
+    b_dtype: int,  # 3 bits
+    negate_a: int,  # 1 bit
+    negate_b: int,  # 1 bit
+    transpose_a: int,  # 1 bit
+    transpose_b: int,  # 1 bit
+    shifted_n: int,  # 6 bits
+    shifted_m: int,  # 5 bits
+    maximim_shift_in_ws: int,  # 2 bits
 ) -> int:
     """
     See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instruction-descriptor

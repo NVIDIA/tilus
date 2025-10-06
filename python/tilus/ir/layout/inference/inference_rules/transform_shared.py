@@ -14,7 +14,7 @@
 # limitations under the License.
 from tilus import SharedLayout
 from tilus.ir import SharedTensor
-from tilus.ir.instructions import SliceSharedInst, PermuteSharedInst
+from tilus.ir.instructions import PermuteSharedInst, SliceSharedInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.layout.ops import shared_compose, shared_row_major
 
@@ -37,6 +37,7 @@ class SharedSliceRule(LayoutInferenceRule):
             return {a: shared_compose(shared_row_major(*outer_shape), b_layout).simplify()}
         else:
             return {}
+
 
 @register_rule(PermuteSharedInst)
 class PermuteSharedRule(LayoutInferenceRule):

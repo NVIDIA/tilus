@@ -24,12 +24,12 @@ from tilus.ir.instructions import (
     LoadGlobalInst,
     LoadSharedGenericInst,
     LoadSharedInst,
+    PermuteSharedInst,
     PrintTensorInst,
     SliceSharedInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
     StoreSharedInst,
-    PermuteSharedInst,
 )
 from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkGlobalToClusterSharedInst,
@@ -41,7 +41,7 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorGlobalToSharedInst,
     CopyAsyncTensorSharedToGlobalInst,
 )
-from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst, Tcgen05LoadInst, Tcgen05StoreInst, Tcgen05MmaSSInst
+from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst, Tcgen05LoadInst, Tcgen05MmaSSInst, Tcgen05StoreInst
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 
 

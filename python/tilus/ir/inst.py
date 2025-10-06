@@ -66,7 +66,7 @@ class Instruction(IRNode):
         x = self.inputs[0]
         assert isinstance(x, GlobalTensor)
         return x
-    
+
     @property
     def register_or_shared_input(self) -> RegisterTensor | SharedTensor:
         assert len(self.inputs) == 1

@@ -62,13 +62,13 @@ from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05CopyInst,
     Tcgen05DeallocInst,
     Tcgen05LoadInst,
+    Tcgen05MmaSSInst,
+    Tcgen05MmaTSInst,
     Tcgen05RelinquishAllocPermitInst,
     Tcgen05SliceInst,
     Tcgen05StoreInst,
     Tcgen05ViewInst,
     Tcgen05WaitInst,
-    Tcgen05MmaSSInst,
-    Tcgen05MmaTSInst,
 )
 from tilus.ir.instructions.generic import (
     AddInst,
@@ -83,19 +83,19 @@ from tilus.ir.instructions.generic import (
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
-    SliceGlobalInst,
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
     LoadSharedGenericInst,
     LoadSharedInst,
     ModInst,
-    PermuteSharedInst,
     MulInst,
+    PermuteSharedInst,
     PrintTensorInst,
     ReduceInst,
     RepeatInst,
     RepeatInterleaveInst,
+    SliceGlobalInst,
     SliceSharedInst,
     SqueezeInst,
     StoreGlobalGenericInst,
@@ -902,7 +902,7 @@ class StmtBuilder(StmtBuilderCore):
     def free_shared(self, shared_value: SharedTensor) -> None:
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
-    
+
     def permute_shared(self, tensor: SharedTensor, dims: tuple[int, ...]) -> SharedTensor:
         inst = PermuteSharedInst.create(tensor, dims)
         self.append(inst)
@@ -1190,7 +1190,7 @@ class StmtBuilder(StmtBuilderCore):
     def tcgen05_mma_ss(self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool) -> None:
         inst = Tcgen05MmaSSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d)
         self.append(inst)
-    
+
     def tcgen05_mma_ts(self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool) -> None:
         inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d)
         self.append(inst)

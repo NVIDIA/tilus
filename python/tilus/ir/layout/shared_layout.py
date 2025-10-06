@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Sequence, Optional
+from typing import Callable, Dict, List, Sequence
 
 from hidet.ir.expr import Expr, Var, as_expr
 
@@ -145,11 +145,11 @@ class SharedLayout(IRNode):
             return tile_offset + self(*axes[1:])
 
         return SharedLayout.create(shape=(extent,) + self.shape, size=extent * self.size, f_offset=f_offset)
-    
+
     def transpose(self) -> SharedLayout:
         assert len(self.shape) == 2
         return self.permute(dims=[1, 0])
-    
+
     def permute(self, dims: Sequence[int]) -> SharedLayout:
         from tilus.ir.layout.ops.shared_ops import shared_permute
 

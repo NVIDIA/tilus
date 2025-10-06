@@ -541,9 +541,11 @@ class FreeSharedInst(Instruction):
     def create(tensor: SharedTensor) -> FreeSharedInst:
         return FreeSharedInst(output=None, inputs=(tensor,))
 
+
 @dataclass(frozen=True, eq=False)
 class PermuteSharedInst(Instruction):
     dims: tuple[int, ...]
+
     @staticmethod
     def create(x: SharedTensor, dims: tuple[int, ...]) -> PermuteSharedInst:
         assert set(dims) == set(range(len(x.shape))), f"Dims must be a permutation of {range(len(x.shape))}, got {dims}"

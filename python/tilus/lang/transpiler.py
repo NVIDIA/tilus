@@ -54,9 +54,15 @@ from tilus.ir.tensor import GlobalTensor, Tensor
 from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
 from tilus.lang.constructs.contexts import TilusContext
 from tilus.lang.constructs.loops import TilusLoopIterable
+from tilus.lang.methods import (
+    GlobalTensorWithMethods,
+    ReigsterTensorWithMethods,
+    SharedTensorWithMethods,
+    TensorMethodError,
+)
 from tilus.lang.script import InstructionError, Script
 from tilus.utils import lcm
-from tilus.lang.methods import ReigsterTensorWithMethods, SharedTensorWithMethods, GlobalTensorWithMethods
+
 
 class TilusProgramError(HidetProgramError):
     pass
@@ -629,12 +635,13 @@ class Transpiler(PythonAstFunctor):
                             "Currently, only RegisterTensor methods are supported in Tilus Script."
                         )
                     if not hasattr(tensor_with_methods, method_name):
-                        raise TilusProgramError(self, expr, 'Method "{}" is not found in {}.'.format(method_name, type(f_self).__name__))
+                        raise TilusProgramError(
+                            self, expr, 'Method "{}" is not found in {}.'.format(method_name, type(f_self).__name__)
+                        )
                     try:
                         ret = getattr(tensor_with_methods, method_name)(*args, **kwargs)
                     except TensorMethodError as e:
                         raise TilusProgramError(self, expr, str(e))
-                    
                 else:
                     # case 4
                     ret = func(*args, **kwargs)
@@ -764,7 +771,6 @@ class Transpiler(PythonAstFunctor):
             ast.BitXor: operator.xor,
             ast.BitOr: operator.or_,
             ast.BitAnd: operator.and_,
-            ast.Pow: primitives.pow,
             ast.LShift: operator.lshift,
             ast.RShift: operator.rshift,
         }
@@ -778,8 +784,6 @@ class Transpiler(PythonAstFunctor):
             assert isinstance(expr.op, ast.Add)
             return list(lhs) + list(rhs)
         elif isinstance(lhs, (ir.Expr, float, int)) and isinstance(rhs, (ir.Expr, float, int)):
-            from hidet.ir import primitives
-
             if type(expr.op) in op_dict:
                 return op_dict[type(expr.op)](lhs, rhs)
             else:
@@ -790,13 +794,13 @@ class Transpiler(PythonAstFunctor):
                 lhs = ReigsterTensorWithMethods(lhs, self._script._builder)
             if isinstance(rhs, RegisterTensor):
                 rhs = ReigsterTensorWithMethods(rhs, self._script._builder)
-            
+
             if type(expr.op) in op_dict:
                 return op_dict[type(expr.op)](lhs, rhs)
             else:
                 type_name = type(expr.op).__name__
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
-            
+
         else:
             raise HidetProgramError(
                 self, expr, "Can not apply operator {} to {} and {}.".format(expr.op, type(lhs), type(rhs))

@@ -18,7 +18,7 @@ from typing import List, Sequence
 
 import tabulate
 from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var, as_expr
+from hidet.ir.expr import Expr, Var
 from hidet.utils import prod
 
 from tilus.extensions.hidet.ir.utils.index_transform import vector_mul
@@ -109,6 +109,7 @@ def shared_compose(lhs: SharedLayout, rhs: SharedLayout, *others: SharedLayout) 
     else:
         return shared_compose(_shared_compose(lhs, rhs), *others)
 
+
 def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
     """Permute the dimensions of the shared layout.
 
@@ -116,7 +117,7 @@ def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
     ----------
     layout: SharedLayout
         The layout to permute.
-    
+
     dims: Sequence[int]
         The permutation order of the dimensions. The length of dims must be equal to the number of dimensions of the
         layout.
@@ -127,9 +128,7 @@ def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
         The permuted layout.
     """
     if set(dims) != set(range(len(layout.shape))):
-        raise LayoutOperationError(
-            "Dims must be a permutation of {range(len(layout.shape))}, got {}".format(dims, range(len(layout.shape)))
-        )
+        raise LayoutOperationError("Dims must be a permutation of {}, got {}".format(range(len(layout.shape)), dims))
     shape = tuple(layout.shape[d] for d in dims)
     axes = tuple(layout.axes[d] for d in dims)
     return SharedLayout(shape=shape, size=layout.size, axes=axes, offset=layout.offset)

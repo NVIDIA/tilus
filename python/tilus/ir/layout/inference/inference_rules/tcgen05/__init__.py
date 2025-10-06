@@ -1,1 +1,1 @@
-from . import ldst, mma, copy
+from . import copy, ldst, mma

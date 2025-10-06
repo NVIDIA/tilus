@@ -54,7 +54,7 @@ class Tensor:
     def as_global_tensor(self) -> GlobalTensor:
         assert isinstance(self, GlobalTensor)
         return self
-    
+
     def as_shared_or_tmemory_tensor(self) -> SharedTensor | TMemoryTensor:
         assert isinstance(self, (SharedTensor, TMemoryTensor))
         return self
@@ -459,7 +459,7 @@ class SharedTensor(Tensor):
 
     def permute(self, dims: tuple[int, ...]) -> SharedTensor:
         raise RuntimeError("shared_tensor.permute(...) could only be used in Tilus Script.")
-    
+
     def transpose(self) -> SharedTensor:
         raise RuntimeError("shared_tensor.transpose(...) could only be used in Tilus Script.")
 

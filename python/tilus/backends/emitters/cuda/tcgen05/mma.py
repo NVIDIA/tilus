@@ -14,24 +14,21 @@
 # limitations under the License.
 
 
+from hidet.ir.dtypes import bfloat16, float16, float32, int8, int32, tfloat32, uint8
 from hidet.ir.type import DataType
-from hidet.ir.dtypes import float32, tfloat32, float16, bfloat16, int8, uint8, int32
-from tilus.extensions.hidet.ir.dtypes import float8_e4m3, float8_e5m2, float6_e2m3, float4_e2m1
+
 from tilus.backends.codegen import BaseInstEmitter, CodeGenerationFailed, register_emitter
-from tilus.ir.layout.cuda.tcgen05.smem import canonicalize_shared_layout
-from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
+from tilus.extensions.hidet.ir.dtypes import float4_e2m1, float6_e2m3, float8_e4m3, float8_e5m2
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
-    Tcgen05CommitMulticastKind,
-    Tcgen05CtaGroupKind,
-    tcgen05_mma_with_shared_a,
-    tcgen05_mma_with_tmem_a,
     Tcgen05MmaKind,
+    Tcgen05SwizzleMode,
 )
 from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05MmaSSInst,
 )
-from tilus.target import nvgpu_sm100
+from tilus.ir.layout.cuda.tcgen05.smem import canonicalize_shared_layout
 from tilus.ir.tensor import SharedTensor, TMemoryTensor
+from tilus.target import nvgpu_sm100
 from tilus.utils import gcd
 
 
@@ -46,13 +43,17 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
             return Tcgen05MmaKind.TF32
         elif all(dtype in (float16, bfloat16) for dtype in (a_dtype, b_dtype)) and d_dtype in (float16, float32):
             return Tcgen05MmaKind.F16
-        elif all(dtype in (float8_e4m3, float8_e5m2, float6_e2m3, float4_e2m1) for dtype in (a_dtype, b_dtype)) and d_dtype in (float16, float32):
+        elif all(
+            dtype in (float8_e4m3, float8_e5m2, float6_e2m3, float4_e2m1) for dtype in (a_dtype, b_dtype)
+        ) and d_dtype in (float16, float32):
             return Tcgen05MmaKind.F8F6F4
         elif all(dtype in (int8, uint8) for dtype in (a_dtype, b_dtype)) and d_dtype == int32:
             return Tcgen05MmaKind.I8
         else:
-            raise CodeGenerationFailed(f"Cannot infer the MMA kind from the given data types of a, b, and d: {a_dtype}, {b_dtype}, and {d_dtype}.")
-    
+            raise CodeGenerationFailed(
+                f"Cannot infer the MMA kind from the given data types of a, b, and d: {a_dtype}, {b_dtype}, and {d_dtype}."
+            )
+
     @staticmethod
     def get_inst_mnk(mma_kind: Tcgen05MmaKind, m_size: int, n_size: int, k_size: int) -> tuple[int, int, int]:
         """
@@ -69,6 +70,24 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
             return inst_m, inst_n, inst_k
         else:
             raise NotImplementedError(f"The given MMA kind is not supported yet: {mma_kind}")
+
+    @staticmethod
+    def check_majorness(a_majorness: str, b_majorness: str, type_size: int, swizzle_mode: Tcgen05SwizzleMode):
+        """
+        See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-matrices-valid-type-size-majorness-swizzle
+        """
+        if a_majorness == "row" and b_majorness == "column":
+            if type_size not in (4, 6, 8, 16, 32):
+                raise CodeGenerationFailed(
+                    f"The given type size is not supported for row-column majorness: {type_size}"
+                )
+        elif a_majorness == "column" and b_majorness == "row":
+            if type_size not in (8, 16):
+                raise CodeGenerationFailed(
+                    f"The given type size is not supported for column-row majorness: {type_size}"
+                )
+        else:
+            raise CodeGenerationFailed(f"The given majorness is not supported: {a_majorness} and {b_majorness}.")
 
     def emit(self, inst: Tcgen05MmaSSInst) -> None:
         a_tensor: SharedTensor = inst.inputs[0].as_shared_tensor()
@@ -87,18 +106,17 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
             raise NotImplementedError("Only support m_size = 128 for now.")
 
         # canonicalize the layouts
-        a_canonical = canonicalize_shared_layout(a_tensor.layout, dtype=a_tensor.dtype)               # [m, k]
-        b_canonical = canonicalize_shared_layout(b_tensor.layout.transpose(), dtype=b_tensor.dtype)   # [n, k]
+        a_canonical = canonicalize_shared_layout(a_tensor.layout, dtype=a_tensor.dtype)  # [m, k]
+        b_canonical = canonicalize_shared_layout(b_tensor.layout.transpose(), dtype=b_tensor.dtype)  # [n, k]
         if a_canonical is None:
             raise CodeGenerationFailed(f"Cannot canonicalize the layout of a tensor: {a_tensor.layout}.")
         if b_canonical is None:
             raise CodeGenerationFailed(f"Cannot canonicalize the layout of b tensor: {b_tensor.layout}.")
 
-        # get the ptx inst shape 
+        # get the ptx inst shape
         mma_kind = self.get_mma_kind(a_tensor.dtype, b_tensor.dtype, d_tensor.dtype)
         inst_m, inst_n, inst_k = self.get_inst_mnk(mma_kind, m_size, n_size, k_size)
 
         print(a_canonical)
         print(b_canonical)
         raise NotImplementedError("Not implemented yet.")
-

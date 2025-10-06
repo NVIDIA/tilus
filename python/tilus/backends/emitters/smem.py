@@ -19,7 +19,7 @@ from hidet.ir.type import tensor_pointer_type
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.backends.contexts import SharedMemoryAllocationContext
-from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst, SliceSharedInst, PermuteSharedInst
+from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst, PermuteSharedInst, SliceSharedInst
 from tilus.ir.tensor import SharedTensor
 
 
@@ -67,6 +67,7 @@ class SliceSharedInstEmitter(BaseInstEmitter):
             tp=int32,
             init=self.shared_tensor_shared_space_addr[shared_input] + slice_offset * shared_input.dtype.nbytes,
         )
+
 
 @register_emitter(PermuteSharedInst)
 class PermuteSharedInstEmitter(BaseInstEmitter):

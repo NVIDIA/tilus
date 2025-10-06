@@ -154,7 +154,9 @@ class Tcgen05InstructionGroup(InstructionGroup):
     def commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
         self._builder.tcgen05_commit(mbarrier, cta_mask)
 
-    def mma(self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool) -> None:
+    def mma(
+        self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool
+    ) -> None:
         if isinstance(a, SharedTensor):
             self._builder.tcgen05_mma_ss(a, b, d, enable_input_d)
         elif isinstance(a, TMemoryTensor):
@@ -1546,15 +1548,15 @@ class Script:
             The register tensor with the specified dimension(s) unsqueezed.
         """
         return self._builder.unsqueeze(x, dim=dim, out=out)
-    
+
     @overload
-    def transpose(self, x: SharedTensor) -> SharedTensor: 
-        """ Create a transposed view of a shared tensor. """
+    def transpose(self, x: SharedTensor) -> SharedTensor:
+        """Create a transposed view of a shared tensor."""
         ...
-    
+
     @overload
     def transpose(self, x: RegisterTensor) -> RegisterTensor:
-        """ Create a transposed view of a register tensor. """
+        """Create a transposed view of a register tensor."""
         ...
 
     def transpose(
@@ -1563,7 +1565,7 @@ class Script:
     ) -> RegisterTensor | SharedTensor:
         """Transpose a 2-D register or shared tensor.
 
-        This instruction transposes a 2-D register or shared tensor, swapping its first and second dimensions. 
+        This instruction transposes a 2-D register or shared tensor, swapping its first and second dimensions.
         This instruction does not change the underlying data of the tensor, but only create a tensor with a new layout.
 
         Parameters
