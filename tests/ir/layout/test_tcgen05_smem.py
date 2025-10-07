@@ -14,7 +14,7 @@
 # limitations under the License.
 import pytest
 from hidet.ir.dtypes import float16, float32
-from tilus.ir.layout.cuda.tcgen05_smem import (
+from tilus.ir.layout.cuda.tcgen05.smem import (
     CanonicalSharedLayout,
     Tcgen05SwizzleMode,
     canonicalize_shared_layout,

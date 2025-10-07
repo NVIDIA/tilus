@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 from typing import Sequence
 
 from hidet.ir.expr import Expr
@@ -23,77 +25,96 @@ from tilus.ir.tensor import RegisterTensor
 
 class RegisterTensorWithMethods(RegisterTensor):
     def __init__(self, tensor: RegisterTensor, builder: StmtBuilder):
-        super().__init__(tensor.dtype, tensor.shape, tensor.optional_layout)
         self.tensor: RegisterTensor = tensor
         self.builder: StmtBuilder = builder
 
     def __neg__(self) -> RegisterTensor:
         return self.builder.neg(self.tensor)
 
-    def __add__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+    def __add__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
         if not isinstance(other, RegisterTensor):
             other = self.builder.allocate_register(
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.add(self.tensor, other)
 
-    def __sub__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+    def __sub__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
         if not isinstance(other, RegisterTensor):
             other = self.builder.allocate_register(
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.sub(self.tensor, other)
 
-    def __mul__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+    def __mul__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
         if not isinstance(other, RegisterTensor):
             other = self.builder.allocate_register(
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.mul(self.tensor, other)
 
-    def __truediv__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+    def __truediv__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
         if not isinstance(other, RegisterTensor):
             other = self.builder.allocate_register(
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.div(self.tensor, other)
 
-    def __ge__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+    def __ge__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
         if not isinstance(other, RegisterTensor):
             other = self.builder.allocate_register(
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.greater_equal(self.tensor, other)
 
-    def __le__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+    def __le__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
         if not isinstance(other, RegisterTensor):
             other = self.builder.allocate_register(
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.less_equal(self.tensor, other)
 
-    def __gt__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+    def __gt__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
         if not isinstance(other, RegisterTensor):
             other = self.builder.allocate_register(
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.greater_than(self.tensor, other)
 
-    def __lt__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+    def __lt__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
         if not isinstance(other, RegisterTensor):
             other = self.builder.allocate_register(
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.less_than(self.tensor, other)
 
-    def __eq__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+    def __eq__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
         if not isinstance(other, RegisterTensor):
             other = self.builder.allocate_register(
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.equal(self.tensor, other)
 
-    def __ne__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+    def __ne__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
         if not isinstance(other, RegisterTensor):
             other = self.builder.allocate_register(
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)

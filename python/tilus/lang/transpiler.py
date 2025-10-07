@@ -797,7 +797,9 @@ class Transpiler(PythonAstFunctor):
                 rhs = RegisterTensorWithMethods(rhs, self._script._builder)
 
             if type(expr.op) in op_dict:
-                return op_dict[type(expr.op)](lhs, rhs)
+                ret = op_dict[type(expr.op)](lhs, rhs)
+                self.current_scope.append(self._script._builder.flush_stmts())
+                return ret
             else:
                 type_name = type(expr.op).__name__
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))

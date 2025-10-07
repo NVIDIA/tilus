@@ -20,7 +20,7 @@ from tilus.ir.layout import RegisterLayout, register_layout
 from tilus.ir.layout.ops import spatial
 
 
-class TestReduceKernel(tilus.Script):
+class ReduceKernelExample(tilus.Script):
     def __init__(self, layout: RegisterLayout, dim=0):
         super().__init__()
         self.layout = layout
@@ -66,6 +66,6 @@ def test_reduce_instruction(dim: int, layout: RegisterLayout):
     original_tensor = torch.arange(shape[0] * shape[1]).cuda().reshape(shape)
     expected = original_tensor.sum(dim=dim).to(torch.int32)
     actual = torch.empty_like(expected)
-    demo = TestReduceKernel(layout, dim=dim)
+    demo = ReduceKernelExample(layout, dim=dim)
     demo(actual)
     assert torch.allclose(actual, expected), f"Failed for layout {layout} and dim {dim}"
