@@ -49,7 +49,7 @@ class Tcgen05AllocDeallocEmitter(BaseInstEmitter):
         assert tmem_tensor.shape[0] == 128
         assert tmem_tensor.shape[1] * tmem_tensor.dtype.nbits % 32 == 0
         num_columns = tmem_tensor.shape[1] * tmem_tensor.dtype.nbits // 32
-        assert num_columns % 32 == 0 and 32 <= num_columns <= 512
+        assert num_columns % 32 == 0 and 32 <= num_columns <= 512, num_columns
         return num_columns
 
 

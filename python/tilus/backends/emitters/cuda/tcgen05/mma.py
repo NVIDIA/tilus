@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from hidet.ir.dtypes import bfloat16, float16, float32, int8, int32, tfloat32, uint8
+from hidet.ir.dtypes import bfloat16, float16, float32, int8, int32, tfloat32, uint8, uint32, uint64
 from hidet.ir.type import DataType
 
 from sympy.core import BooleanKind
@@ -140,16 +140,19 @@ class Tcgen05MmaSSInstMeta:
     cta_group: Tcgen05CtaGroupKind
     i_desc: Tcgen05MmaInstDesc
 
-    def __call__(self) -> Expr:
-        return tcgen05_mma_with_shared_a(
+    def emit(self, sb: StmtBuilder):
+        i_desc = sb.declare_var('i_desc', tp=uint32, init=self.i_desc.encoded())
+        a_desc = sb.declare_var('a_desc', tp=uint64, init=self.a_desc.encoded())
+        b_desc = sb.declare_var('b_desc', tp=uint64, init=self.b_desc.encoded())
+        sb.append(tcgen05_mma_with_shared_a(
             d_tmem=self.d_tmem_addr,
-            a_desc=self.a_desc.encoded(),
-            b_desc=self.b_desc.encoded(),
-            i_desc=self.i_desc.encoded(),
+            a_desc=a_desc,
+            b_desc=b_desc,
+            i_desc=i_desc,
             enable_input_d=False,
             cta_group=self.cta_group,
             mma_kind=self.kind,
-        )
+        ))
 
 
 @register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100)
@@ -312,4 +315,4 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
                         cta_group=Tcgen05CtaGroupKind.CTA_1,
                         i_desc=i_dest,
                     )
-                    self.append(inst())
+                    inst.emit(self)
