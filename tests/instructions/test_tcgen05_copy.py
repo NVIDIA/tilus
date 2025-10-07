@@ -18,7 +18,7 @@ import pytest
 import tilus
 import torch
 from tilus import int32, uint64
-from tilus.ir.layout.cuda.tcgen05_smem import (
+from tilus.ir.layout.cuda.tcgen05.smem import (
     Tcgen05SwizzleMode,
     generate_canonical_layout,
 )
