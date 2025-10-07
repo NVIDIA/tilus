@@ -792,9 +792,13 @@ class Transpiler(PythonAstFunctor):
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
         elif isinstance(lhs, RegisterTensor) or isinstance(rhs, RegisterTensor):
             if not isinstance(lhs, RegisterTensor):
-                lhs = self._script._builder.allocate_register(dtype=rhs.dtype, shape=rhs.shape, f_init=lambda _: rhs.dtype(lhs))
+                lhs = self._script._builder.allocate_register(
+                    dtype=rhs.dtype, shape=rhs.shape, f_init=lambda _: rhs.dtype(lhs)
+                )
             if not isinstance(rhs, RegisterTensor):
-                rhs = self._script._builder.allocate_register(dtype=lhs.dtype, shape=lhs.shape, f_init=lambda _: lhs.dtype(rhs))
+                rhs = self._script._builder.allocate_register(
+                    dtype=lhs.dtype, shape=lhs.shape, f_init=lambda _: lhs.dtype(rhs)
+                )
 
             if isinstance(lhs, RegisterTensor):
                 lhs = RegisterTensorWithMethods(lhs, self._script._builder)
