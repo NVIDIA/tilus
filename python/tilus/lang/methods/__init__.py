@@ -12,21 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import (
-    allocate_shared,
-    assign,
-    cp_async,
-    elementwise_binary,
-    elementwise_unary,
-    empty_rule,
-    ldst_global,
-    load_shared,
-    mma_dot,
-    reduce,
-    store_shared,
-    tcgen05,
-    transform,
-    transform_shared,
-    transpose,
-    where,
-)
+from .exception import TensorMethodError
+from .global_tensor import GlobalTensorWithMethods
+from .register_tensor import RegisterTensorWithMethods
+from .shared_tensor import SharedTensorWithMethods

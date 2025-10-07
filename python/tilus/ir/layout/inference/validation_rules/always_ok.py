@@ -24,8 +24,9 @@ from tilus.ir.instructions import (
     LoadGlobalInst,
     LoadSharedGenericInst,
     LoadSharedInst,
+    PermuteSharedInst,
     PrintTensorInst,
-    SharedSliceInst,
+    SliceSharedInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
     StoreSharedInst,
@@ -40,13 +41,14 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorGlobalToSharedInst,
     CopyAsyncTensorSharedToGlobalInst,
 )
-from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst, Tcgen05LoadInst, Tcgen05StoreInst
+from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst, Tcgen05LoadInst, Tcgen05MmaSSInst, Tcgen05StoreInst
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 
 
 @register_rule(Tcgen05LoadInst)  # todo: should have its own rule
 @register_rule(Tcgen05StoreInst)  # todo: should have its own rule
 @register_rule(Tcgen05CopyInst)  # todo: should have its own rule
+@register_rule(Tcgen05MmaSSInst)  # todo: should have its own rule
 @register_rule(CopyAsyncTensorGlobalToSharedInst)  # todo: should have its own rule
 @register_rule(CopyAsyncTensorSharedToGlobalInst)  # todo: should have its own rule
 @register_rule(CopyAsyncBulkSharedToClusterSharedInst)  # todo: should have its own rule
@@ -62,7 +64,8 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(LoadGlobalInst)
 @register_rule(LoadGlobalGenericInst)
 @register_rule(StoreGlobalInst)
-@register_rule(SharedSliceInst)
+@register_rule(SliceSharedInst)
+@register_rule(PermuteSharedInst)
 @register_rule(LoadSharedInst)
 @register_rule(LoadSharedGenericInst)
 @register_rule(FreeSharedInst)

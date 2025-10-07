@@ -12,21 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import (
-    allocate_shared,
-    assign,
-    cp_async,
-    elementwise_binary,
-    elementwise_unary,
-    empty_rule,
-    ldst_global,
-    load_shared,
-    mma_dot,
-    reduce,
-    store_shared,
-    tcgen05,
-    transform,
-    transform_shared,
-    transpose,
-    where,
-)
+from tilus.ir.builders import StmtBuilder
+from tilus.ir.tensor import GlobalTensor
+
+
+class GlobalTensorWithMethods(GlobalTensor):
+    def __init__(self, tensor: GlobalTensor, builder: StmtBuilder):
+        super().__init__(tensor.dtype, tensor.layout)
+        self.tensor = tensor
+        self.builder = builder

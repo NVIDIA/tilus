@@ -123,18 +123,18 @@ def get_offset_grid_of_swizzled_layout(
     if swizzle == TensorMapSwizzle.NONE:
         pass
     elif swizzle == TensorMapSwizzle.B32:
-        swizzles.append(Swizzle(c=1, d=log2(16), r=log2(128)))
+        swizzles.append(Swizzle(c=1, d=log2(128), r=log2(1024)))
     elif swizzle == TensorMapSwizzle.B64:
-        swizzles.append(Swizzle(c=2, d=log2(16), r=log2(128)))
+        swizzles.append(Swizzle(c=2, d=log2(128), r=log2(1024)))
     elif swizzle == TensorMapSwizzle.B128:
-        swizzles.append(Swizzle(c=3, d=log2(16), r=log2(128)))
+        swizzles.append(Swizzle(c=3, d=log2(128), r=log2(1024)))
     elif swizzle == TensorMapSwizzle.B128_ATOM_32B:
-        swizzles.append(Swizzle(c=3, d=log2(32), r=log2(256)))
+        swizzles.append(Swizzle(c=3, d=log2(256), r=log2(2048)))
     elif swizzle == TensorMapSwizzle.B128_ATOM_32B_FLIP_8B:
-        swizzles.append(Swizzle(c=3, d=log2(32), r=log2(256)))
-        swizzles.append(Swizzle(c=1, d=log2(8), r=log2(256)))
+        swizzles.append(Swizzle(c=3, d=log2(256), r=log2(2048)))
+        swizzles.append(Swizzle(c=1, d=log2(64), r=log2(512)))
     elif swizzle == TensorMapSwizzle.B128_ATOM_64B:
-        swizzles.append(Swizzle(c=3, d=log2(64), r=log2(512)))
+        swizzles.append(Swizzle(c=3, d=log2(512), r=log2(4096)))
     else:
         # unsupported swizzle
         return None
@@ -144,14 +144,14 @@ def get_offset_grid_of_swizzled_layout(
 
     # apply swizzling
     for swizzle in swizzles:
-        offset_grid = offset_grid ^ ((offset_grid >> swizzle.r) & ((1 << swizzle.c) - 1) << swizzle.d)
+        offset_grid = offset_grid ^ (((offset_grid >> swizzle.r) & ((1 << swizzle.c) - 1)) << swizzle.d)
 
     # convert back to dtype pointer offset
     if np.any(offset_grid & (dtype_nbits - 1)):
         # the offset is not aligned to the data type size
         return None
 
-    offset_grid = offset_grid >> log2(dtype_nbits)
+    offset_grid = offset_grid // dtype_nbits
     return offset_grid
 
 
@@ -223,7 +223,11 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
                 return SharedTensorInfo(
                     addr=self.shared_tensor_shared_space_addr[shared_tensor], shape=shared_tensor.shape, swizzle=swizzle
                 )
-        raise NotImplementedError("The shared tensor layout is not supported by TMA")
+        raise NotImplementedError(
+            "The shared tensor layout is not supported by TMA: \n"
+            + f"Shared tensor: {shared_tensor.dtype.name}{list(shared_tensor.shape)}\n"
+            + layout.visualize()
+        )
 
     def declare_host_buffer(self, name: str, dtype: DataType, shape: Sequence[int]) -> Var:
         from hidet.ir.layout import strided_layout

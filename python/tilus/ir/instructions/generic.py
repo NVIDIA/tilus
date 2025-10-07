@@ -73,7 +73,7 @@ class StoreGlobalInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class GlobalSliceInst(Instruction):
+class SliceGlobalInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: Optional[tuple[int, ...]]
 
@@ -83,11 +83,11 @@ class GlobalSliceInst(Instruction):
         offsets: Sequence[Expr],
         dims: Sequence[int],
         shape: Sequence[Expr | int],
-    ) -> SharedSliceInst:
+    ) -> SliceGlobalInst:
         from tilus.ir.layout.global_layout import global_slice
 
         output = GlobalTensor.create(dtype=tensor.dtype, layout=global_slice(tensor.layout, offsets, dims, shape))
-        return SharedSliceInst(
+        return SliceGlobalInst(
             output=output,
             inputs=(tensor,),
             offsets=tuple(offsets),
@@ -110,7 +110,7 @@ class StoreSharedInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class SharedSliceInst(Instruction):
+class SliceSharedInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: Optional[tuple[int, ...]]
 
@@ -120,9 +120,9 @@ class SharedSliceInst(Instruction):
         offsets: Sequence[Expr],
         dims: Sequence[int],
         shape: Sequence[int],
-    ) -> SharedSliceInst:
+    ) -> SliceSharedInst:
         output = SharedTensor.create(dtype=tensor.dtype, shape=shape)
-        return SharedSliceInst(
+        return SliceSharedInst(
             output=output,
             inputs=(tensor,),
             offsets=tuple(offsets),
@@ -540,6 +540,17 @@ class FreeSharedInst(Instruction):
     @staticmethod
     def create(tensor: SharedTensor) -> FreeSharedInst:
         return FreeSharedInst(output=None, inputs=(tensor,))
+
+
+@dataclass(frozen=True, eq=False)
+class PermuteSharedInst(Instruction):
+    dims: tuple[int, ...]
+
+    @staticmethod
+    def create(x: SharedTensor, dims: Sequence[int]) -> PermuteSharedInst:
+        assert set(dims) == set(range(len(x.shape))), f"Dims must be a permutation of {range(len(x.shape))}, got {dims}"
+        out = SharedTensor.create(dtype=x.dtype, shape=tuple(x.shape[d] for d in dims))
+        return PermuteSharedInst(output=out, inputs=(x,), dims=tuple(dims))
 
 
 @dataclass(frozen=True, eq=False)

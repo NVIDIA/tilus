@@ -307,7 +307,12 @@ def register_emitter(
             BaseInstEmitter.REGISTRY[inst_cls] = {}
 
         if target in BaseInstEmitter.REGISTRY[inst_cls]:
-            raise ValueError(f"Emitter for instruction {inst_cls} and target {target} already exists")
+            msg = [
+                f"Emitter for instruction {inst_cls} and target {target} already exists",
+                f" Registered emitter: {BaseInstEmitter.REGISTRY[inst_cls][target].__module__}",
+                f"Registering emitter: {emitter_cls.__module__}",
+            ]
+            raise ValueError("\n".join(msg))
 
         BaseInstEmitter.REGISTRY[inst_cls][target] = emitter_cls
         return emitter_cls

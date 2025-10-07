@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Optional, Sequence, no_type_check
 
 from hidet.ir.dtypes import int32, uint8, uint32, uint64
-from hidet.ir.expr import Expr
+from hidet.ir.expr import Expr, as_expr
 from hidet.ir.primitives.func import call_primitive_func
 from hidet.ir.stmt import asm
 from hidet.utils import initialize
@@ -160,6 +160,29 @@ class Tcgen05CommitMulticastKind(Enum):
     CLUSTER = ".multicast::cluster"
 
 
+class Tcgen05MmaKind(Enum):
+    F16 = ".kind::f16"
+    TF32 = ".kind::tf32"
+    F8F6F4 = ".kind::f8f6f4"
+    I8 = ".kind::i8"
+    MXF8F6F4 = ".kind::mx8f6f4"
+    MXF4 = ".kind::mxf4"
+    MXF4NVF4 = ".kind::mxf4nvf4"
+
+
+class Tcgen05SwizzleMode(Enum):
+    """TCGen05 swizzle modes corresponding to cute Swizzle parameters"""
+
+    NO_SWIZZLE = 0  # No swizzling or Interleaved
+    B32_SWIZZLE = 6  # 32B Swizzling: Swizzle<1, 4, 3>
+    B64_SWIZZLE = 4  # 64B Swizzling: Swizzle<2, 4, 3>
+    B128_SWIZZLE = 2  # 128B Swizzling: Swizzle<3, 4, 3>
+
+    def encode(self) -> int:
+        # see https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-shared-memory-desc-layout
+        return self.value
+
+
 def get_num_reg32(
     shape: Tcgen05LoadStoreShapeKind, num: Tcgen05LoadStoreNumKind, pack: Tcgen05LoadStorePackKind
 ) -> int:
@@ -235,6 +258,12 @@ def resolve_tcgen05_commit(
     cta_group: Tcgen05CtaGroupKind, multicast: Tcgen05CommitMulticastKind, has_mask: bool
 ) -> str:
     ret = "cuda_tcgen05_commit_cta_group" + cta_group.value + multicast.value + ("_mask" if has_mask else "")
+    ret = ret.replace(".", "_").replace("::", "_")
+    return ret
+
+
+def resolve_tcgen05_mma(cta_group: Tcgen05CtaGroupKind, mma_kind: Tcgen05MmaKind, a_is_shared: bool) -> str:
+    ret = "cuda_tcgen05_mma_cta_group" + cta_group.value + mma_kind.value + ("_a_shared" if a_is_shared else "_a_tmem")
     ret = ret.replace(".", "_").replace("::", "_")
     return ret
 
@@ -419,6 +448,43 @@ def register_tcgen05_instructions():
         desc = desc | uint64(smem_addr & uint32(0x3FFF))
         return desc
 
+    # mma
+    for cta_group in [Tcgen05CtaGroupKind.CTA_1, Tcgen05CtaGroupKind.CTA_2]:
+        for mma_kind in [Tcgen05MmaKind.F16, Tcgen05MmaKind.TF32, Tcgen05MmaKind.F8F6F4, Tcgen05MmaKind.I8]:
+            # a: shared memory
+            template = (
+                "{{.reg.pred p; setp.ne.u32 p, %4, 0; tcgen05.mma{cta_group}{mma_kind} [%0], %1, %2, %3, p;}}".format(
+                    cta_group=cta_group.value, mma_kind=mma_kind.value
+                )
+            )
+
+            @register_primitive_function_decorator
+            @no_type_check
+            @script
+            def tcgen05_mma_shared_a_(
+                d_tmem: uint32, a_desc: uint64, b_desc: uint64, i_desc: uint32, enable_input_d: uint32
+            ):
+                attrs.func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=True)
+                attrs.func_kind = "cuda_internal"
+                asm(template, inputs=[d_tmem, a_desc, b_desc, i_desc, enable_input_d], is_volatile=True)
+
+            # a: tensor memory
+            template = (
+                "{{.reg.pred p; setp.ne.u32 p, %4, 0; tcgen05.mma{cta_group}{mma_kind} [%0], [%1], %2, %3, p;}}".format(
+                    cta_group=cta_group.value, mma_kind=mma_kind.value
+                )
+            )
+
+            @register_primitive_function_decorator
+            @no_type_check
+            @script
+            def tcgen05_mma_tmem_a_(
+                d_tmem: uint32, a_tmem: uint32, b_desc: uint64, i_desc: uint32, enable_input_d: uint32
+            ):
+                attrs.func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=False)
+                attrs.func_kind = "cuda_internal"
+                asm(template, inputs=[d_tmem, a_tmem, b_desc, i_desc, enable_input_d], is_volatile=True)
+
 
 def tcgen05_relinquish_alloc_permit(cta_group: Tcgen05CtaGroupKind) -> Expr:
     func_name = resolve_tcgen05_relinquish_alloc_permit(cta_group)
@@ -481,6 +547,41 @@ def tcgen05_encode_smem_descriptor(
     )
 
 
+def tcgen05_encode_mma_inst_descriptor(
+    sparsity_selector: int,  # 2 bits
+    sparsity: int,  # 1 bit: 0 for dense, 1 for sparse
+    saturate_for_integer: int,  # 1 bit
+    d_dtype: int,  # 2 bits
+    a_dtype: int,  # 3 bits
+    b_dtype: int,  # 3 bits
+    negate_a: int,  # 1 bit
+    negate_b: int,  # 1 bit
+    transpose_a: int,  # 1 bit
+    transpose_b: int,  # 1 bit
+    shifted_n: int,  # 6 bits
+    shifted_m: int,  # 5 bits
+    maximim_shift_in_ws: int,  # 2 bits
+) -> int:
+    """
+    See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instruction-descriptor
+    """
+    desc: int = 0
+    desc |= sparsity_selector & 0b11
+    desc |= (sparsity & 0b1) << 2
+    desc |= (saturate_for_integer & 0b1) << 3
+    desc |= (d_dtype & 0b11) << 4
+    desc |= (a_dtype & 0b111) << 7
+    desc |= (b_dtype & 0b111) << 10
+    desc |= (negate_a & 0b1) << 13
+    desc |= (negate_b & 0b1) << 14
+    desc |= (transpose_a & 0b1) << 15
+    desc |= (transpose_b & 0b1) << 16
+    desc |= (shifted_n & 0b111111) << 17
+    desc |= (shifted_m & 0b11111) << 24
+    desc |= (maximim_shift_in_ws & 0b11) << 30
+    return desc
+
+
 def tcgen05_copy(
     taddr: Expr,
     sdesc: Expr,
@@ -504,3 +605,29 @@ def tcgen05_commit(
     else:
         args = [mbarrier, uint32(cta_mask)]
     return call_primitive_func(func_name, args)
+
+
+def tcgen05_mma_with_shared_a(
+    d_tmem: Expr,
+    a_desc: Expr,
+    b_desc: Expr,
+    i_desc: Expr,
+    enable_input_d: Expr | bool,
+    cta_group: Tcgen05CtaGroupKind,
+    mma_kind: Tcgen05MmaKind,
+) -> Expr:
+    func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=True)
+    return call_primitive_func(func_name, [d_tmem, a_desc, b_desc, i_desc, as_expr(enable_input_d)])
+
+
+def tcgen05_mma_with_tmem_a(
+    d_tmem: Expr,
+    a_tmem: Expr,
+    b_desc: Expr,
+    i_desc: Expr,
+    enable_input_d: Expr,
+    cta_group: Tcgen05CtaGroupKind,
+    mma_kind: Tcgen05MmaKind,
+) -> Expr:
+    func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=False)
+    return call_primitive_func(func_name, [d_tmem, a_tmem, b_desc, i_desc, enable_input_d])

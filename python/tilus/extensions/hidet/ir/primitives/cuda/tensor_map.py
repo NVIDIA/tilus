@@ -47,7 +47,10 @@ class TensorMapDataType(Enum):
 
     @classmethod
     def from_dtype(cls, dtype: DataType) -> TensorMapDataType:
-        return cls(dtype.name.upper())
+        if dtype.nbits == 8:
+            return cls.UINT8
+        else:
+            return cls(dtype.name.upper())
 
 
 class TensorMapInterleave(Enum):

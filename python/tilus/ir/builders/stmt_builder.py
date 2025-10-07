@@ -62,6 +62,8 @@ from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05CopyInst,
     Tcgen05DeallocInst,
     Tcgen05LoadInst,
+    Tcgen05MmaSSInst,
+    Tcgen05MmaTSInst,
     Tcgen05RelinquishAllocPermitInst,
     Tcgen05SliceInst,
     Tcgen05StoreInst,
@@ -81,7 +83,6 @@ from tilus.ir.instructions.generic import (
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
-    GlobalSliceInst,
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
@@ -89,11 +90,13 @@ from tilus.ir.instructions.generic import (
     LoadSharedInst,
     ModInst,
     MulInst,
+    PermuteSharedInst,
     PrintTensorInst,
     ReduceInst,
     RepeatInst,
     RepeatInterleaveInst,
-    SharedSliceInst,
+    SliceGlobalInst,
+    SliceSharedInst,
     SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
@@ -416,7 +419,7 @@ class StmtBuilder(StmtBuilderCore):
         slice_shape: Sequence[Expr | int],
     ) -> GlobalTensor:
         offsets_ = [as_expr(offset) for offset in offsets]
-        inst = GlobalSliceInst.create(
+        inst = SliceGlobalInst.create(
             tensor=tensor,
             offsets=offsets_,
             dims=slice_dims,
@@ -711,13 +714,8 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
-    def transpose(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        if out is None:
-            if len(x.shape) != 2:
-                raise InstructionError(f"Transpose is only supported for 2D tensors, got shape {x.shape}")
-            shape = [x.shape[1], x.shape[0]]
-            out = RegisterTensor.create(dtype=x.dtype, shape=shape)
-        inst = TransposeInst.create(x, out)
+    def transpose(self, x: RegisterTensor) -> RegisterTensor:
+        inst = TransposeInst.create(x)
         self.append(inst)
         return inst.register_output
 
@@ -905,6 +903,11 @@ class StmtBuilder(StmtBuilderCore):
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
 
+    def permute_shared(self, tensor: SharedTensor, dims: Sequence[int]) -> SharedTensor:
+        inst = PermuteSharedInst.create(tensor, dims)
+        self.append(inst)
+        return inst.shared_output
+
     def slice_shared(
         self,
         tensor: SharedTensor,
@@ -913,7 +916,7 @@ class StmtBuilder(StmtBuilderCore):
         slice_shape: Sequence[int],
     ) -> SharedTensor:
         offsets_ = [as_expr(offset) for offset in offsets]
-        inst = SharedSliceInst.create(
+        inst = SliceSharedInst.create(
             tensor=tensor,
             offsets=offsets_,
             dims=slice_dims,
@@ -1182,6 +1185,14 @@ class StmtBuilder(StmtBuilderCore):
 
     def tcgen05_commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
         inst = Tcgen05CommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
+        self.append(inst)
+
+    def tcgen05_mma_ss(self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor) -> None:
+        inst = Tcgen05MmaSSInst.create(a=a, b=b, d=d)
+        self.append(inst)
+
+    def tcgen05_mma_ts(self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor) -> None:
+        inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d)
         self.append(inst)
 
     # annotations

@@ -138,3 +138,25 @@ class Tcgen05CommitInst(Instruction):
     @staticmethod
     def create(mbarrier: Expr, cta_mask: Optional[int] = None) -> Tcgen05CommitInst:
         return Tcgen05CommitInst(output=None, inputs=(), mbarrier=mbarrier, cta_mask=cta_mask)
+
+
+@dataclass(frozen=True, eq=False)
+class Tcgen05MmaSSInst(Instruction):
+    @staticmethod
+    def create(
+        a: SharedTensor,
+        b: SharedTensor,
+        d: TMemoryTensor,
+    ) -> Tcgen05MmaSSInst:
+        return Tcgen05MmaSSInst(output=None, inputs=(a, b, d))
+
+
+@dataclass(frozen=True, eq=False)
+class Tcgen05MmaTSInst(Instruction):
+    @staticmethod
+    def create(
+        a: TMemoryTensor,
+        b: SharedTensor,
+        d: TMemoryTensor,
+    ) -> Tcgen05MmaTSInst:
+        return Tcgen05MmaTSInst(output=None, inputs=(a, b, d))

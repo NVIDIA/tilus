@@ -55,6 +55,10 @@ class Tensor:
         assert isinstance(self, GlobalTensor)
         return self
 
+    def as_shared_or_tmemory_tensor(self) -> SharedTensor | TMemoryTensor:
+        assert isinstance(self, (SharedTensor, TMemoryTensor))
+        return self
+
     def as_register_or_shared_tensor(self) -> RegisterTensor | SharedTensor:
         assert isinstance(self, (RegisterTensor, SharedTensor))
         return self
@@ -447,6 +451,17 @@ class SharedTensor(Tensor):
         if not same_list(self.shape, layout.shape):
             raise ValueError(f"Shape mismatch: provided shape {self.shape} does not match layout shape {layout.shape}.")
         return dataclasses.replace(self, optional_layout=layout)
+
+    """
+    The following methods are used for type hinting in Tilus Script. The corresponding operations/methods will be
+    converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
+    """
+
+    def permute(self, dims: tuple[int, ...]) -> SharedTensor:
+        raise RuntimeError("shared_tensor.permute(...) could only be used in Tilus Script.")
+
+    def transpose(self) -> SharedTensor:
+        raise RuntimeError("shared_tensor.transpose(...) could only be used in Tilus Script.")
 
 
 @dataclass(frozen=True, eq=False)

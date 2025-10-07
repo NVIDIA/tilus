@@ -110,6 +110,30 @@ def shared_compose(lhs: SharedLayout, rhs: SharedLayout, *others: SharedLayout) 
         return shared_compose(_shared_compose(lhs, rhs), *others)
 
 
+def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
+    """Permute the dimensions of the shared layout.
+
+    Parameters
+    ----------
+    layout: SharedLayout
+        The layout to permute.
+
+    dims: Sequence[int]
+        The permutation order of the dimensions. The length of dims must be equal to the number of dimensions of the
+        layout.
+
+    Returns
+    -------
+    ret: SharedLayout
+        The permuted layout.
+    """
+    if set(dims) != set(range(len(layout.shape))):
+        raise LayoutOperationError("Dims must be a permutation of {}, got {}".format(range(len(layout.shape)), dims))
+    shape = tuple(layout.shape[d] for d in dims)
+    axes = tuple(layout.axes[d] for d in dims)
+    return SharedLayout(shape=shape, size=layout.size, axes=axes, offset=layout.offset)
+
+
 def visualize_layout(layout: SharedLayout, tablefmt: str = "simple_grid") -> str:
     """
     Visualize the layout in a human-readable format.

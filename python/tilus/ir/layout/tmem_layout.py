@@ -12,21 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import (
-    allocate_shared,
-    assign,
-    cp_async,
-    elementwise_binary,
-    elementwise_unary,
-    empty_rule,
-    ldst_global,
-    load_shared,
-    mma_dot,
-    reduce,
-    store_shared,
-    tcgen05,
-    transform,
-    transform_shared,
-    transpose,
-    where,
-)
+import dataclasses
+
+from tilus.ir.node import IRNode
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class TMemLayout(IRNode):
+    shape: tuple[int, int]
+    mode_shape: tuple[int, ...]
+    lane_modes: tuple[int, ...]
+    column_modes: tuple[int, ...]
