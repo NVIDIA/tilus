@@ -292,6 +292,37 @@ class TmaInstructionGroup(InstructionGroup):
 
 
 class BarrierInstructionGroup(InstructionGroup):
+
+    def alloc(self, counts: Sequence[int]) -> list[Expr]:
+        """
+        Allocate a list of barriers in shared memory and initialize them with the given counts.
+
+        It's equivalent to the following code:
+        
+        ```python
+        barriers_shared = self.shared_tensor(dtype=uint64, shape=[len(counts)])
+        for i in range(len(counts)):
+            self.init(barriers_shared[i], counts[i])
+        self.sync()
+        barriers = [~barriers_shared[i] for i in range(len(counts))]
+        ```
+
+        Parameters
+        ----------
+        counts: Sequence[int]
+            The counts of the barriers to allocate.
+
+        Returns
+        -------
+        list[Expr]
+            The list of pointers to the barriers in shared memory.
+        """
+        mbarriers = self._builder.allocate_shared(dtype=uint64, shape=[len(counts)])
+        for i in range(len(counts)):
+            self.init(mbarriers[i], counts[i])
+        self.sync()
+        return [~mbarriers[i] for i in range(len(counts))]
+
     def init(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
         """Initialize a barrier.
 
