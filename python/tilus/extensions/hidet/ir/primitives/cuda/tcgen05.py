@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Optional, Sequence, no_type_check
 
 from hidet.ir.dtypes import int32, uint8, uint32, uint64
-from hidet.ir.expr import Expr
+from hidet.ir.expr import Expr, as_expr
 from hidet.ir.primitives.func import call_primitive_func
 from hidet.ir.stmt import asm
 from hidet.utils import initialize
@@ -617,7 +617,7 @@ def tcgen05_mma_with_shared_a(
     mma_kind: Tcgen05MmaKind,
 ) -> Expr:
     func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=True)
-    return call_primitive_func(func_name, [d_tmem, a_desc, b_desc, i_desc, enable_input_d])
+    return call_primitive_func(func_name, [d_tmem, a_desc, b_desc, i_desc, as_expr(enable_input_d)])
 
 
 def tcgen05_mma_with_tmem_a(

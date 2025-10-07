@@ -714,10 +714,10 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
-    def transpose(self, x: RegisterTensor | SharedTensor) -> RegisterTensor | SharedTensor:
+    def transpose(self, x: RegisterTensor) -> RegisterTensor:
         inst = TransposeInst.create(x)
         self.append(inst)
-        return inst.register_or_shared_output
+        return inst.register_output
 
     def reduce(
         self,
@@ -903,7 +903,7 @@ class StmtBuilder(StmtBuilderCore):
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
 
-    def permute_shared(self, tensor: SharedTensor, dims: tuple[int, ...]) -> SharedTensor:
+    def permute_shared(self, tensor: SharedTensor, dims: Sequence[int]) -> SharedTensor:
         inst = PermuteSharedInst.create(tensor, dims)
         self.append(inst)
         return inst.shared_output

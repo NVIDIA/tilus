@@ -56,7 +56,7 @@ from tilus.lang.constructs.contexts import TilusContext
 from tilus.lang.constructs.loops import TilusLoopIterable
 from tilus.lang.methods import (
     GlobalTensorWithMethods,
-    ReigsterTensorWithMethods,
+    RegisterTensorWithMethods,
     SharedTensorWithMethods,
     TensorMethodError,
 )
@@ -624,8 +624,9 @@ class Transpiler(PythonAstFunctor):
                     # case 2
                     sb = self._script._builder
                     method_name = func.__name__
+                    tensor_with_methods: RegisterTensorWithMethods | SharedTensorWithMethods | GlobalTensorWithMethods
                     if isinstance(f_self, RegisterTensor):
-                        tensor_with_methods = ReigsterTensorWithMethods(f_self, sb)
+                        tensor_with_methods = RegisterTensorWithMethods(f_self, sb)
                     elif isinstance(f_self, SharedTensor):
                         tensor_with_methods = SharedTensorWithMethods(f_self, sb)
                     elif isinstance(f_self, GlobalTensor):
@@ -791,9 +792,9 @@ class Transpiler(PythonAstFunctor):
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
         elif isinstance(lhs, RegisterTensor) or isinstance(rhs, RegisterTensor):
             if isinstance(lhs, RegisterTensor):
-                lhs = ReigsterTensorWithMethods(lhs, self._script._builder)
+                lhs = RegisterTensorWithMethods(lhs, self._script._builder)
             if isinstance(rhs, RegisterTensor):
-                rhs = ReigsterTensorWithMethods(rhs, self._script._builder)
+                rhs = RegisterTensorWithMethods(rhs, self._script._builder)
 
             if type(expr.op) in op_dict:
                 return op_dict[type(expr.op)](lhs, rhs)

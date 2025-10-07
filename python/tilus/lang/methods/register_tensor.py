@@ -7,7 +7,7 @@ from tilus.ir.builders import StmtBuilder
 from tilus.ir.tensor import RegisterTensor
 
 
-class ReigsterTensorWithMethods(RegisterTensor):
+class RegisterTensorWithMethods(RegisterTensor):
     def __init__(self, tensor: RegisterTensor, builder: StmtBuilder):
         super().__init__(tensor.dtype, tensor.shape, tensor.optional_layout)
         self.tensor: RegisterTensor = tensor

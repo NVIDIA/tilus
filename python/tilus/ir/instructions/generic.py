@@ -547,10 +547,10 @@ class PermuteSharedInst(Instruction):
     dims: tuple[int, ...]
 
     @staticmethod
-    def create(x: SharedTensor, dims: tuple[int, ...]) -> PermuteSharedInst:
+    def create(x: SharedTensor, dims: Sequence[int]) -> PermuteSharedInst:
         assert set(dims) == set(range(len(x.shape))), f"Dims must be a permutation of {range(len(x.shape))}, got {dims}"
-        out = SharedTensor.create(dtype=x.dtype, shape=(x.shape[d] for d in dims))
-        return PermuteSharedInst(output=out, inputs=(x,), dims=dims)
+        out = SharedTensor.create(dtype=x.dtype, shape=tuple(x.shape[d] for d in dims))
+        return PermuteSharedInst(output=out, inputs=(x,), dims=tuple(dims))
 
 
 @dataclass(frozen=True, eq=False)

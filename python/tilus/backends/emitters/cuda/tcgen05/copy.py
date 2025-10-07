@@ -23,19 +23,18 @@ from hidet.ir.expr import Expr
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE, LANE_STRIDE
+from tilus.backends.emitters.cuda.tcgen05.smem_desc import SharedMatrixDescriptor
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05CopyMulticastKind,
     Tcgen05CopyShapeKind,
     Tcgen05CtaGroupKind,
     tcgen05_copy,
-    tcgen05_encode_smem_descriptor,
 )
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
 from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst
 from tilus.ir.layout.cuda.tcgen05.smem import CanonicalSharedLayout, Tcgen05SwizzleMode, canonicalize_shared_layout
 from tilus.ir.tensor import SharedTensor, TMemoryTensor
 from tilus.target import nvgpu_sm100
-from tilus.backends.emitters.cuda.tcgen05.smem_desc import SharedMatrixDescriptor
 
 
 class GenerationFailedError(Exception):

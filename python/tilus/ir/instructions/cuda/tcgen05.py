@@ -17,7 +17,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
-from hidet.ir.dtypes import boolean
 from hidet.ir.expr import Expr
 from hidet.ir.type import DataType
 
@@ -143,7 +142,6 @@ class Tcgen05CommitInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaSSInst(Instruction):
-
     @staticmethod
     def create(
         a: SharedTensor,
@@ -155,7 +153,6 @@ class Tcgen05MmaSSInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaTSInst(Instruction):
-
     @staticmethod
     def create(
         a: TMemoryTensor,
