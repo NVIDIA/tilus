@@ -93,6 +93,7 @@ class Tcgen05MmaExample(tilus.Script):
         self.tcgen05.dealloc(t_d_storage)
 
 
+@tilus.testing.requires.nvgpu_sm100
 @pytest.mark.parametrize(
     "operand_dtype, accumulator_dtype, output_dtype, mma_m, mma_n, mma_k",
     [
