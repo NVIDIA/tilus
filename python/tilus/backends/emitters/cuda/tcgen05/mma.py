@@ -20,7 +20,7 @@ from hidet.ir.type import DataType
 
 from sympy.core import BooleanKind
 from tilus.backends.codegen import BaseInstEmitter, CodeGenerationFailed, register_emitter
-from tilus.extensions.hidet.ir.dtypes import float4_e2m1, float6_e2m3, float8_e4m3, float8_e5m2
+from tilus.extensions.hidet.ir.dtypes import float4_e2m1, float6_e2m3, float8_e4m3, float8_e5m2, float6_e3m2
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05MmaKind,
     Tcgen05SwizzleMode,
@@ -191,6 +191,15 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
             inst_n = gcd(n_size, 256)
             inst_k = 16
             return inst_m, inst_n, inst_k
+        elif mma_kind == Tcgen05MmaKind.F8F6F4:
+            if m_size not in (64, 128):
+                raise CodeGenerationFailed(f"The given m_size is not supported for F8F6F4 MMA kind: {m_size}")
+            if n_size % 8 != 0 or n_size < 8 or n_size > 256:
+                raise CodeGenerationFailed(f"The given n_size is not supported for F8F6F4 MMA kind: {n_size}")
+            inst_m = m_size
+            inst_n = gcd(n_size, 256)
+            inst_k = 32
+            return inst_m, inst_n, inst_k
         else:
             raise NotImplementedError(f"The given MMA kind is not supported yet: {mma_kind}")
 
@@ -247,16 +256,9 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
         mma_kind = self.get_mma_kind(a_tensor.dtype, b_tensor.dtype, d_tensor.dtype)
         inst_m, inst_n, inst_k = self.get_inst_mnk(mma_kind, m_size, n_size, k_size)
 
-        print(a_canonical)
-        print(b_canonical)
-        print(a_canonical.swizzled_cute_layout)
-        print(b_canonical.swizzled_cute_layout)
-        print(inst_m, inst_n, inst_k)
-
         repeat_m = m_size // inst_m
         repeat_n = n_size // inst_n
         repeat_k = k_size // inst_k
-        print(repeat_m, repeat_n, repeat_k)
 
         # construct the i_dest
         i_dest = Tcgen05MmaInstDesc.create(
