@@ -143,27 +143,23 @@ class Tcgen05CommitInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaSSInst(Instruction):
-    enable_input_d: Expr
 
     @staticmethod
     def create(
         a: SharedTensor,
         b: SharedTensor,
         d: TMemoryTensor,
-        enable_input_d: Expr | bool,
     ) -> Tcgen05MmaSSInst:
-        return Tcgen05MmaSSInst(output=None, inputs=(a, b, d), enable_input_d=boolean(enable_input_d))
+        return Tcgen05MmaSSInst(output=None, inputs=(a, b, d))
 
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaTSInst(Instruction):
-    enable_input_d: Expr
 
     @staticmethod
     def create(
         a: TMemoryTensor,
         b: SharedTensor,
         d: TMemoryTensor,
-        enable_input_d: Expr | bool,
     ) -> Tcgen05MmaTSInst:
-        return Tcgen05MmaTSInst(output=None, inputs=(a, b, d), enable_input_d=boolean(enable_input_d))
+        return Tcgen05MmaTSInst(output=None, inputs=(a, b, d))

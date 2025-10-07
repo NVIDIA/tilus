@@ -118,7 +118,7 @@ class CanonicalSharedLayout:
 
     @property
     def S(self) -> int:
-        return 2**self.swizzle_mode.bbits
+        return 2 ** as_cute_swizzle(self.swizzle_mode).bbits
 
     @property
     def dtype_nbits(self) -> int:
@@ -137,7 +137,7 @@ class CanonicalSharedLayout:
         else:
             shape = ((8, self.m), (self.T, self.S, self.k))
             strides = ((self.S * self.T, self.SBO), (1, self.T, self.LBO))
-        swizzle = self.swizzle_mode.as_cute_swizzle()
+        swizzle = as_cute_swizzle(self.swizzle_mode)
         return SwizzledCuteLayout(CuteLayout(shape, strides), swizzle)
 
     def as_shared_layout(self) -> SharedLayout:

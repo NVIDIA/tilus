@@ -12,24 +12,144 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
 
-
+from dataclasses import dataclass
 from hidet.ir.dtypes import bfloat16, float16, float32, int8, int32, tfloat32, uint8
 from hidet.ir.type import DataType
 
+from sympy.core import BooleanKind
 from tilus.backends.codegen import BaseInstEmitter, CodeGenerationFailed, register_emitter
 from tilus.extensions.hidet.ir.dtypes import float4_e2m1, float6_e2m3, float8_e4m3, float8_e5m2
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05MmaKind,
     Tcgen05SwizzleMode,
+    Tcgen05CtaGroupKind,
+    tcgen05_encode_mma_inst_descriptor,
+    tcgen05_mma_with_shared_a,
 )
 from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05MmaSSInst,
 )
 from tilus.ir.layout.cuda.tcgen05.smem import canonicalize_shared_layout
+from tilus.ir.layout.utils.cute import CuteLayout
 from tilus.ir.tensor import SharedTensor, TMemoryTensor
+from tilus.backends.emitters.cuda.tcgen05.smem_desc import SharedMatrixDescriptor
 from tilus.target import nvgpu_sm100
 from tilus.utils import gcd
+from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE, LANE_STRIDE
+
+
+@dataclass
+class Tcgen05MmaInstDesc:
+    """
+    See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instuction-desc-kind-tf32-f16-f8f6f4
+    """
+    sparsity_selector: int
+    sparsity: int
+    saturate_for_integer: int
+    d_dtype: int
+    a_dtype: int
+    b_dtype: int
+    negate_a: int
+    negate_b: int
+    transpose_a: int
+    transpose_b: int
+    n: int
+    m: int
+    maximim_shift_in_ws: int
+
+    def encoded(self) -> int:
+        return tcgen05_encode_mma_inst_descriptor(
+            sparsity_selector=self.sparsity_selector,
+            sparsity=self.sparsity,
+            saturate_for_integer=self.saturate_for_integer,
+            d_dtype=self.d_dtype,
+            a_dtype=self.a_dtype,
+            b_dtype=self.b_dtype,
+            negate_a=self.negate_a,
+            negate_b=self.negate_b,
+            transpose_a=self.transpose_a,
+            transpose_b=self.transpose_b,
+            shifted_n=self.n >> 3,
+            shifted_m=self.m >> 4,
+            maximim_shift_in_ws=self.maximim_shift_in_ws,
+        )
+
+    @staticmethod
+    def create(
+        mma_kind: Tcgen05MmaKind,
+        sparsity_selector: int,
+        sparsity: bool,
+        saturate_for_integer: bool,
+        d_dtype: DataType,
+        a_dtype: DataType,
+        b_dtype: DataType,
+        negate_a: bool,
+        negate_b: bool,
+        transpose_a: bool,
+        transpose_b: bool,
+        n: int,
+        m: int,
+        maximim_shift_in_ws: int,
+    ) -> Tcgen05MmaInstDesc:
+        assert sparsity_selector in (0, 1, 2, 3)
+
+        if mma_kind == Tcgen05MmaKind.TF32:
+            d_dtype_map = {float32: 0}
+            ab_dtype_map = {tfloat32: 0}
+        elif mma_kind == Tcgen05MmaKind.F16:
+            d_dtype_map = {float16: 0, float32: 1}
+            ab_dtype_map = {float16: 0, bfloat16: 1}
+        elif mma_kind == Tcgen05MmaKind.F8F6F4:
+            d_dtype_map = {float16: 0, float32: 1}
+            ab_dtype_map = {float8_e4m3: 0, float8_e5m2: 1, float6_e2m3: 3, float6_e3m2: 4, float4_e2m1: 5}
+        elif mma_kind == Tcgen05MmaKind.I8:
+            d_dtype_map = {int32: 0}
+            ab_dtype_map = {uint8: 0, int8: 1}
+        else:
+            raise NotImplementedError(f"The given MMA kind is not supported yet: {mma_kind}")
+        
+        if mma_kind == Tcgen05MmaKind.I8:
+            assert not negate_a and not negate_b
+        if mma_kind in (Tcgen05MmaKind.TF32, Tcgen05MmaKind.F16, Tcgen05MmaKind.F8F6F4):
+            assert saturate_for_integer == 0
+
+        return Tcgen05MmaInstDesc(
+            sparsity_selector=sparsity_selector,
+            sparsity=1 if sparsity else 0,
+            saturate_for_integer=1 if saturate_for_integer else 0,
+            d_dtype=d_dtype_map[d_dtype],
+            a_dtype=ab_dtype_map[a_dtype],
+            b_dtype=ab_dtype_map[b_dtype],
+            negate_a=1 if negate_a else 0,
+            negate_b=1 if negate_b else 0,
+            transpose_a=1 if transpose_a else 0,
+            transpose_b=1 if transpose_b else 0,
+            n=n,
+            m=m,
+            maximim_shift_in_ws=maximim_shift_in_ws,
+        )
+
+@dataclass
+class Tcgen05MmaSSInstMeta:
+    kind: Tcgen05MmaKind
+    a_desc: SharedMatrixDescriptor
+    b_desc: SharedMatrixDescriptor
+    d_tmem_addr: Expr
+    cta_group: Tcgen05CtaGroupKind
+    i_desc: Tcgen05MmaInstDesc
+
+    def __call__(self) -> Expr:
+        return tcgen05_mma_with_shared_a(
+            d_tmem=self.d_tmem_addr,
+            a_desc=self.a_desc.encoded(),
+            b_desc=self.b_desc.encoded(),
+            i_desc=self.i_desc.encoded(),
+            enable_input_d=False,
+            cta_group=self.cta_group,
+            mma_kind=self.kind,
+        )
 
 
 @register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100)
@@ -72,16 +192,18 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
             raise NotImplementedError(f"The given MMA kind is not supported yet: {mma_kind}")
 
     @staticmethod
-    def check_majorness(a_majorness: str, b_majorness: str, type_size: int, swizzle_mode: Tcgen05SwizzleMode):
+    def check_majorness(
+        a_major_kind: str, b_major_kind: str, type_size: int, swizzle_mode: Tcgen05SwizzleMode
+    ):
         """
         See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-matrices-valid-type-size-majorness-swizzle
         """
-        if a_majorness == "row" and b_majorness == "column":
+        if a_major_kind == "K" and b_major_kind == "K":
             if type_size not in (4, 6, 8, 16, 32):
                 raise CodeGenerationFailed(
                     f"The given type size is not supported for row-column majorness: {type_size}"
                 )
-        elif a_majorness == "column" and b_majorness == "row":
+        elif a_major_kind == "MN" and b_major_kind == "MN":
             if type_size not in (8, 16):
                 raise CodeGenerationFailed(
                     f"The given type size is not supported for column-row majorness: {type_size}"
@@ -112,6 +234,11 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
             raise CodeGenerationFailed(f"Cannot canonicalize the layout of a tensor: {a_tensor.layout}.")
         if b_canonical is None:
             raise CodeGenerationFailed(f"Cannot canonicalize the layout of b tensor: {b_tensor.layout}.")
+        
+        # check majorness
+        if a_canonical.swizzle_mode != b_canonical.swizzle_mode:
+            raise CodeGenerationFailed(f"The swizzle mode of a and b must be the same, but got {a_canonical.swizzle_mode} and {b_canonical.swizzle_mode}.")
+        self.check_majorness(a_canonical.major_kind, b_canonical.major_kind, type_size=a_tensor.dtype.nbits, swizzle_mode=a_canonical.swizzle_mode)
 
         # get the ptx inst shape
         mma_kind = self.get_mma_kind(a_tensor.dtype, b_tensor.dtype, d_tensor.dtype)
@@ -119,4 +246,70 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
 
         print(a_canonical)
         print(b_canonical)
-        raise NotImplementedError("Not implemented yet.")
+        print(a_canonical.swizzled_cute_layout)
+        print(b_canonical.swizzled_cute_layout)
+        print(inst_m, inst_n, inst_k)
+
+        repeat_m = m_size // inst_m
+        repeat_n = n_size // inst_n
+        repeat_k = k_size // inst_k
+        print(repeat_m, repeat_n, repeat_k)
+
+        # construct the i_dest
+        i_dest = Tcgen05MmaInstDesc.create(
+            mma_kind=mma_kind,
+            sparsity_selector=0,
+            sparsity=False,
+            saturate_for_integer=False,
+            d_dtype=d_tensor.dtype,
+            a_dtype=a_tensor.dtype,
+            b_dtype=b_tensor.dtype,
+            negate_a=False,
+            negate_b=False,
+            transpose_a=a_canonical.major_kind == "MN",
+            transpose_b=b_canonical.major_kind == "MN",
+            n=inst_n,
+            m=inst_m,
+            maximim_shift_in_ws=0,
+        )
+
+        a_cute_layout: CuteLayout = a_canonical.swizzled_cute_layout.layout
+        b_cute_layout: CuteLayout = b_canonical.swizzled_cute_layout.layout
+
+        a_shared_addr: Var = self.shared_tensor_shared_space_addr[a_tensor]
+        b_shared_addr: Var = self.shared_tensor_shared_space_addr[b_tensor]
+        d_tmem_addr: Var = self.tensor2var[d_tensor]
+
+
+        for k in range(repeat_k):
+            for i in range(repeat_m):
+                for j in range(repeat_n):
+                    # construct the a_dest
+                    a_offset = a_cute_layout(i * inst_m, k * inst_k)
+                    b_offset = b_cute_layout(j * inst_n, k * inst_k)
+                    a_desc = SharedMatrixDescriptor(
+                        addr=a_shared_addr + a_offset * a_tensor.dtype.nbytes,
+                        lbo=a_canonical.LBO * a_tensor.dtype.nbytes,
+                        sbo=a_canonical.SBO * a_tensor.dtype.nbytes,
+                        base_offset=0,
+                        stride_mode=0,
+                        swizzle_mode=a_canonical.swizzle_mode.encode(),
+                    )
+                    b_desc = SharedMatrixDescriptor(
+                        addr=b_shared_addr + b_offset * b_tensor.dtype.nbytes,
+                        lbo=b_canonical.LBO * b_tensor.dtype.nbytes,
+                        sbo=b_canonical.SBO * b_tensor.dtype.nbytes,
+                        base_offset=0,
+                        stride_mode=0,
+                        swizzle_mode=b_canonical.swizzle_mode.encode(),
+                    )
+                    d_offset = i * inst_m * LANE_STRIDE + j * inst_n * COLUMN_STRIDE
+                    inst = Tcgen05MmaSSInstMeta(
+                        kind=mma_kind,
+                        a_desc=a_desc,
+                        b_desc=b_desc,
+                        d_tmem_addr=d_tmem_addr + d_offset,
+                        cta_group=Tcgen05CtaGroupKind.CTA_1,
+                        i_desc=i_dest,
+                    )
+                    self.append(inst())

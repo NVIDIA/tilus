@@ -612,7 +612,7 @@ def tcgen05_mma_with_shared_a(
     a_desc: Expr,
     b_desc: Expr,
     i_desc: Expr,
-    enable_input_d: Expr,
+    enable_input_d: Expr | bool,
     cta_group: Tcgen05CtaGroupKind,
     mma_kind: Tcgen05MmaKind,
 ) -> Expr:

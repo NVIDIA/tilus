@@ -155,12 +155,12 @@ class Tcgen05InstructionGroup(InstructionGroup):
         self._builder.tcgen05_commit(mbarrier, cta_mask)
 
     def mma(
-        self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool
+        self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor
     ) -> None:
         if isinstance(a, SharedTensor):
-            self._builder.tcgen05_mma_ss(a, b, d, enable_input_d)
+            self._builder.tcgen05_mma_ss(a, b, d)
         elif isinstance(a, TMemoryTensor):
-            self._builder.tcgen05_mma_ts(a, b, d, enable_input_d)
+            self._builder.tcgen05_mma_ts(a, b, d)
         else:
             raise InstructionError(f"Invalid type of a: {type(a)}, expected SharedTensor or TMemoryTensor")
 
