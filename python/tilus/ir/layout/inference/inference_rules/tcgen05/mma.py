@@ -61,7 +61,7 @@ class Tcgen05MmaSSRule(LayoutInferenceRule):
                     a_layout_canonical = generate_canonical_layout(
                         shape=(m, k), dtype=a_tensor.dtype, major_kind="K", swizzle_mode=swizzle_mode
                     )
-                    ret[a_tensor] = a_layout_canonical.as_shared_layout()
+                    ret[a_tensor] = a_layout_canonical.as_shared_layout().simplify()
                 except ValueError:
                     continue
                 else:
@@ -77,7 +77,7 @@ class Tcgen05MmaSSRule(LayoutInferenceRule):
                     b_layout_canonical = generate_canonical_layout(
                         shape=(n, k), dtype=b_tensor.dtype, major_kind="K", swizzle_mode=swizzle_mode
                     )
-                    ret[b_tensor] = b_layout_canonical.as_shared_layout().permute(dims=[1, 0])
+                    ret[b_tensor] = b_layout_canonical.as_shared_layout().permute(dims=[1, 0]).simplify()
                 except ValueError:
                     continue
                 else:
@@ -123,6 +123,7 @@ class Tcgen05MmaTSRule(LayoutInferenceRule):
                         )
                         .as_shared_layout()
                         .permute(dims=[1, 0])
+                        .simplify()
                     )
                     ret[b_tensor] = b_layout
                 except ValueError:

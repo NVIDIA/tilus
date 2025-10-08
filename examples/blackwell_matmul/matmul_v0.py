@@ -1,5 +1,11 @@
+import os
+import torch
 import tilus
-from tilus import float16, float32, int32
+from tilus import float16, float32, int32, uint32
+from tilus.utils import cdiv
+
+tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
+tilus.option.debug.dump_ir()
 
 
 class BlackwellMatmul(tilus.Script):
@@ -25,7 +31,7 @@ class BlackwellMatmul(tilus.Script):
         offset_n: int32 = self.block_n * self.blockIdx.y
 
         g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
-        g_b = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
+        g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
         s_a = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[self.block_n, self.block_k])
         acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
@@ -51,6 +57,18 @@ class BlackwellMatmul(tilus.Script):
 
 def main():
     matmul = BlackwellMatmul()
+
+    m_size, n_size, k_size = 1024, 1024, 1024
+
+    a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
+    b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
+    c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+
+    matmul(m_size, n_size, k_size, a, b, c)
+    torch.cuda.synchronize()
+
+    c_ref = a @ b.T
+    torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
 
 
 if __name__ == "__main__":

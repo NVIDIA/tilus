@@ -17,7 +17,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir.dtypes import boolean, int32
+from hidet.ir.dtypes import boolean, int32, uint64
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
 from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
@@ -300,11 +300,11 @@ class BarrierInstructionGroup(InstructionGroup):
         It's equivalent to the following code:
         
         ```python
-        barriers_shared = self.shared_tensor(dtype=uint64, shape=[len(counts)])
-        for i in range(len(counts)):
-            self.init(barriers_shared[i], counts[i])
-        self.sync()
-        barriers = [~barriers_shared[i] for i in range(len(counts))]
+            barriers_shared = self.shared_tensor(dtype=uint64, shape=[len(counts)])
+            for i in range(len(counts)):
+                self.init(barriers_shared[i], counts[i])
+            self.sync()
+            barriers = [~barriers_shared[i] for i in range(len(counts))]
         ```
 
         Parameters
@@ -317,13 +317,14 @@ class BarrierInstructionGroup(InstructionGroup):
         list[Expr]
             The list of pointers to the barriers in shared memory.
         """
-        mbarriers = self._builder.allocate_shared(dtype=uint64, shape=[len(counts)])
+        mbarriers_shared = self._builder.allocate_shared(dtype=uint64, shape=[len(counts)])
+        mbarriers = [self._builder.tensor_element_ptr(mbarriers_shared, indices=[i]) for i in range(len(counts))]
         for i in range(len(counts)):
-            self.init(mbarriers[i], counts[i])
-        self.sync()
-        return [~mbarriers[i] for i in range(len(counts))]
+            self._builder.init_barrier(mbarriers[i], int32(counts[i]))
+        self._builder.syncthreads()
+        return mbarriers
 
-    def init(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
+    def init(self, barrier: Expr, count: Expr | int) -> None:
         """Initialize a barrier.
 
         This instruction initializes a memory barrier in shared memory. A barrier is an uint64 variable in shared
