@@ -38,7 +38,7 @@ from tilus.ir.instructions.cuda.tcgen05 import (
 from tilus.ir.layout.cuda.tcgen05.smem import canonicalize_shared_layout
 from tilus.ir.layout.utils.cute import CuteLayout
 from tilus.ir.tensor import SharedTensor, TMemoryTensor
-from tilus.target import nvgpu_sm100
+from tilus.target import nvgpu_sm100a
 from tilus.utils import gcd
 
 
@@ -163,7 +163,7 @@ class Tcgen05MmaSSInstMeta:
         )
 
 
-@register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100a)
 class TMemoryMmaSSEmitter(BaseInstEmitter):
     @staticmethod
     def get_mma_kind(a_dtype: DataType, b_dtype: DataType, d_dtype: DataType) -> Tcgen05MmaKind:

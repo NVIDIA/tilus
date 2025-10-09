@@ -13,7 +13,7 @@ def register_swizzle_primitive():
         attrs.func_kind = "cuda_internal"
         attrs.func_name = "swizzle"
 
-        return (x ^ ((x & ((1 << bbits) - 1) << (mbase + sshift)) >> sshift)) if bbits > 0 else x
+        return (x ^ ((x & (((1 << bbits) - 1) << (mbase + sshift))) >> sshift)) if bbits > 0 else x
 
     register_primitive_function(swizzle_impl.name, swizzle_impl)
 
@@ -23,10 +23,10 @@ def swizzle(x: Expr, mbase: Expr, bbits: Expr, sshift: Expr) -> Expr:
     Using the swizzle from cute:
 
     0bxxxxxxxxxxxxxxxYYYxxxxxxxZZZxxxx
-                              ^--^ MBase is the number of least-sig bits to keep constant
-                 ^-^       ^-^     BBits is the number of bits in the mask
-                   ^---------^     SShift is the distance to shift the YYY mask
-                                      (pos shifts YYY to the right, neg shifts YYY to the left)
+                                  ^--^ MBase is the number of least-sig bits to keep constant
+                     ^-^       ^-^     BBits is the number of bits in the mask
+                       ^---------^     SShift is the distance to shift the YYY mask
+                                          (pos shifts YYY to the right, neg shifts YYY to the left)
 
     e.g. Given
     0bxxxxxxxxxxxxxxxxYYxxxxxxxxxZZxxx

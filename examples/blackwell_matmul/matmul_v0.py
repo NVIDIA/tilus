@@ -7,6 +7,8 @@ from tilus.utils import cdiv
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 tilus.option.debug.dump_ir()
 
+tilus.target.set_current_target(tilus.target.nvgpu_sm100a)
+
 
 class BlackwellMatmul(tilus.Script):
     def __init__(self):
