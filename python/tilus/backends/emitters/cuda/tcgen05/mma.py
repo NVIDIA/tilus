@@ -62,6 +62,25 @@ class Tcgen05MmaInstDesc:
     m: int
     maximim_shift_in_ws: int
 
+    def __str__(self) -> str:
+        items = [
+            f"sparsity_selector: {self.sparsity_selector}",
+            f"sparsity: {self.sparsity}",
+            f"saturate_for_integer: {self.saturate_for_integer}",
+            f"d_dtype: {self.d_dtype}",
+            f"a_dtype: {self.a_dtype}",
+            f"b_dtype: {self.b_dtype}",
+            f"negate_a: {self.negate_a}",
+            f"negate_b: {self.negate_b}",
+            f"transpose_a: {self.transpose_a}",
+            f"transpose_b: {self.transpose_b}",
+            f"n: {self.n}",
+            f"m: {self.m}",
+            f"maximim_shift_in_ws: {self.maximim_shift_in_ws}",
+        ]
+        return "Tcgen05MmaInstDesc(" + ",\n  ".join(items) + "\n)"
+
+
     def encoded(self) -> int:
         return tcgen05_encode_mma_inst_descriptor(
             sparsity_selector=self.sparsity_selector,
@@ -150,17 +169,19 @@ class Tcgen05MmaSSInstMeta:
         i_desc = sb.declare_var("i_desc", tp=uint32, init=as_expr(self.i_desc.encoded()))
         a_desc = sb.declare_var("a_desc", tp=uint64, init=self.a_desc.encoded())
         b_desc = sb.declare_var("b_desc", tp=uint64, init=self.b_desc.encoded())
-        sb.append(
-            tcgen05_mma_with_shared_a(
-                d_tmem=self.d_tmem_addr,
-                a_desc=a_desc,
-                b_desc=b_desc,
-                i_desc=i_desc,
-                enable_input_d=False,
-                cta_group=self.cta_group,
-                mma_kind=self.kind,
+        # tcgen05.mma has single-thread semantics - only one thread should issue it
+        with sb.if_then(sb.current_thread == 0):
+            sb.append(
+                tcgen05_mma_with_shared_a(
+                    d_tmem=self.d_tmem_addr,
+                    a_desc=a_desc,
+                    b_desc=b_desc,
+                    i_desc=i_desc,
+                    enable_input_d=True,
+                    cta_group=self.cta_group,
+                    mma_kind=self.kind,
+                )
             )
-        )
 
 
 @register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100a)
@@ -320,7 +341,7 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
                         stride_mode=0,
                         swizzle_mode=b_canonical.swizzle_mode.encode(),
                     )
-                    d_offset = i * inst_m * LANE_STRIDE + j * inst_n * COLUMN_STRIDE
+                    d_offset = i * inst_m * LANE_STRIDE + j * inst_n * COLUMN_STRIDE 
                     inst_meta = Tcgen05MmaSSInstMeta(
                         kind=mma_kind,
                         a_desc=a_desc,

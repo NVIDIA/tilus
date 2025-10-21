@@ -6,6 +6,7 @@ from tilus.utils import cdiv
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 tilus.option.debug.dump_ir()
+tilus.utils.clear_cache()
 
 tilus.target.set_current_target(tilus.target.nvgpu_sm100a)
 
@@ -41,7 +42,9 @@ class BlackwellMatmul(tilus.Script):
         mbarriers = self.mbarrier.alloc(counts=[1])
         phase: uint32 = 0
 
-        self.print_tensor("t_acc: ", t_acc)
+        self.sync()
+        all_zero = self.tcgen05.load(t_acc, offsets=[0, 0], shape=[self.block_m, self.block_n]) == 0.0
+        self.static_assert(all_zero, "t_acc is not zero initialized")
 
         for offset_k in range(0, k_size, self.block_k):
             self.copy_async(src=g_a, dst=s_a, offsets=[offset_m, offset_k])
@@ -65,10 +68,11 @@ class BlackwellMatmul(tilus.Script):
 def main():
     matmul = BlackwellMatmul()
 
-    m_size, n_size, k_size = 128, 64, 32
+    # m_size, n_size, k_size = 128 * 2, 64 * 2, 4096
+    m_size, n_size, k_size = 4096, 4096, 4096
 
-    a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
-    b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
+    a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
+    b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
     c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
     matmul(m_size, n_size, k_size, a, b, c)
