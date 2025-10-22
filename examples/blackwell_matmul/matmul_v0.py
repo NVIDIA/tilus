@@ -1,15 +1,17 @@
 import os
 
+import pandas
 import tilus
 import torch
 from tilus import float16, float32, int32, uint32
-from tilus.utils import cdiv
+from tilus.utils import benchmark_func, cdiv
+
+# from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 tilus.option.debug.dump_ir()
-tilus.utils.clear_cache()
 
-tilus.target.set_current_target(tilus.target.nvgpu_sm100a)
+# tilus.target.set_current_target(tilus.target.nvgpu_sm100a)
 
 
 class BlackwellMatmul(tilus.Script):
@@ -81,22 +83,43 @@ class BlackwellMatmul(tilus.Script):
         self.tcgen05.dealloc(t_acc)
 
 
-def main():
+def main(bench=True):
     matmul = BlackwellMatmul()
 
-    m_size, n_size, k_size = 4096, 4096, 4096
+    headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
+    rows = []
 
-    a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
-    b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-    c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+    for m_size, n_size, k_size in [
+        [4096, 4096, 4096],
+        [4096, 4096, 14336],
+    ]:
+        print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
+        a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
+        b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
+        c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
-    matmul(m_size, n_size, k_size, a, b, c)
-    torch.cuda.synchronize()
+        matmul(m_size, n_size, k_size, a, b, c)
+        torch.cuda.synchronize()
 
-    c_ref = a @ b.T
+        c_ref = a @ b.T
 
-    torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
+        torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
+
+        # benchmark
+        if bench:
+            for name, func in [
+                ("torch", lambda: a @ b.T),
+                ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c)),
+            ]:
+                latency = benchmark_func(func, warmup=5, repeat=20)
+                tflops = 2 * m_size * n_size * k_size / latency * 1e-9
+                rows.append([m_size, n_size, k_size, name, latency, tflops])
+
+    if bench:
+        df = pandas.DataFrame(rows, columns=headers)
+        print(df)
 
 
 if __name__ == "__main__":
-    main()
+    main(bench=True)
+    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")

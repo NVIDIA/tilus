@@ -26,6 +26,7 @@ from hidet.ir.expr import (
     BitwiseAnd,
     BitwiseOr,
     Call,
+    Cast,
     Constant,
     Expr,
     LeftShift,
@@ -550,6 +551,9 @@ class GridAnalyzer(IRFunctor):
 
     def visit_BitwiseOr(self, e: BitwiseOr) -> TensorInfo:
         return TensorInfo.any(self.shape)
+
+    def visit_Cast(self, e: Cast) -> TensorInfo:
+        return self.visit(e.expr)
 
     def visit_Call(self, e: Call) -> TensorInfo:
         if e.func_var.name == "swizzle":
