@@ -355,6 +355,8 @@ class ReduceInstEmitter(BaseInstEmitter):
         if self.requires_inter_warp_reduction(inst):
             # reduce between warps
             self.inter_warp_reduce(inst)
+        else:
+            self.intra_warp_broadcast(inst)
 
     def emit(self, inst: ReduceInst) -> None:
         self.efficient_reduce(inst)
