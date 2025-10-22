@@ -5,6 +5,7 @@ import tilus
 import torch
 from tilus import float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
+
 # from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 
 if not tilus.target.get_current_target().supports(tilus.target.nvgpu_sm100a):
