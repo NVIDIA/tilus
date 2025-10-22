@@ -126,6 +126,7 @@ jobs:
       - name: Install example dependencies
         run: |
           pip install wheel
+          pip install torch==2.8 # since flash-attn only has pre-built wheels for torch<=2.8, todo: update this when flash-attn supports torch>=2.9
           pip install flash-attn --no-build-isolation 
 
       - name: Run examples

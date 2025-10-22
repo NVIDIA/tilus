@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Optional, Sequence
 
-from hidet.ir.expr import Expr
+from hidet.ir.expr import Expr, Var
 from hidet.ir.type import DataType
 from hidet.utils import same_list
 
@@ -332,6 +332,22 @@ class RegisterTensor(Tensor):
             A new tensor that is the result of the comparison.
         """
         raise RuntimeError("tensor == tensor could only be used in Tilus Script.")
+
+    def item(self) -> Var:
+        """Get the scalar value of the tensor.
+
+        The current tensor must be a scalar tensor:
+        - 0-rank tensor
+        - 1-rank tensor with shape [1]
+        - 2-rank tensor with shape [1, 1]
+        - ...
+
+        Returns
+        -------
+        ret: Var
+            The scalar value of the tensor.
+        """
+        raise RuntimeError("tensor.item(...) could only be used in Tilus Script.")
 
     def squeeze(self, dim: int | Sequence[int]) -> RegisterTensor:
         """Squeeze the tensor by removing dimensions of size 1.
