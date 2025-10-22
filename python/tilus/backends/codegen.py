@@ -27,6 +27,7 @@ from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, threadIdx
 from hidet.ir.stmt import DeclareScope, LaunchKernelStmt
 from hidet.ir.stmt import Stmt as HidetStmt
+from hidet.utils import prod
 from hidet.utils.doc import Doc, Text
 
 from tilus.extensions.hidet.ir.module import merge_ir_modules
@@ -590,8 +591,21 @@ class FunctionCodegen(IRFunctor):
             raise ValueError("Unknown tensor pointer space: {}".format(stmt.space))
 
     def visit_TensorElemValueStmt(self, stmt: TensorElemValueStmt) -> None:
-        assert isinstance(stmt.tensor, (GlobalTensor, SharedTensor))
-        self.builder.declare(stmt.var, init=self.tensor2var[stmt.tensor][stmt.tensor.layout(*stmt.indices)])
+        if isinstance(stmt.tensor, (GlobalTensor, SharedTensor)):
+            value = self.tensor2var[stmt.tensor][stmt.tensor.layout(*stmt.indices)]
+        elif isinstance(stmt.tensor, RegisterTensor):
+            if not prod(stmt.tensor.shape) == 1:
+                raise ValueError(
+                    "Indexing into the a non-scalar register tensor is not supported yet: {}".format(stmt.tensor)
+                )
+            value = self.tensor2var[stmt.tensor][0]
+        else:
+            raise ValueError(
+                "Only global tensor, shared tensor, and scalar register tensor are supported for indexing, got {}".format(
+                    stmt.tensor
+                )
+            )
+        self.builder.declare(stmt.var, init=value)
 
     def visit_ReturnStmt(self, stmt: ReturnStmt) -> None:
         self.builder.ret()

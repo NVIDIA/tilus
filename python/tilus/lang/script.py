@@ -1677,15 +1677,34 @@ class Script:
         self,
         x: RegisterTensor,
         *,
-        dim: int,
+        dim: Optional[int | Sequence[int]] = None,
         keepdim: bool,
         op: str,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        return self._builder.reduce(x, dim=dim, keepdim=keepdim, op=op, out=out)
+        if dim is None:
+            dim = range(len(x.shape))
+        dims: list[int] = []
+        if isinstance(dim, int):
+            dims = [dim]
+        else:
+            dims = list(dim)
+        dims = sorted(dims, reverse=True)
+        cur = x
+        for i, dim in enumerate(dims):
+            if i < len(dims) - 1:
+                cur = self._builder.reduce(cur, dim=dim, keepdim=keepdim, op=op)
+            else:
+                out = self._builder.reduce(cur, dim=dim, keepdim=keepdim, op=op, out=out)
+        return out
 
     def sum(
-        self, x: RegisterTensor, *, dim: int, keepdim: bool = False, out: Optional[RegisterTensor] = None
+        self,
+        x: RegisterTensor,
+        *,
+        dim: Optional[int | Sequence[int]] = None,
+        keepdim: bool = False,
+        out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         """Sum the elements along a specified dimension.
 
@@ -1698,8 +1717,9 @@ class Script:
         ----------
         x: RegisterTensor
             The register tensor to reduce.
-        dim: int
-            The dimension along which to compute the sum. This should be a valid dimension index for the tensor.
+        dim: int | Sequence[int], optional
+            The dimension(s) along which to compute the sum. They should be in range of [0, len(x.shape)). If not provided,
+            all dimensions will be reduced.
         keepdim: bool, optional
             Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
             same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
@@ -1716,7 +1736,12 @@ class Script:
         return self._reduce(x, dim=dim, keepdim=keepdim, op="sum", out=out)
 
     def max(
-        self, x: RegisterTensor, *, dim: int, keepdim: bool = False, out: Optional[RegisterTensor] = None
+        self,
+        x: RegisterTensor,
+        *,
+        dim: Optional[int | Sequence[int]] = None,
+        keepdim: bool = False,
+        out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         """Compute the maximum value along a dimension.
 
@@ -1724,8 +1749,9 @@ class Script:
         ----------
         x: RegisterTensor
             The register tensor to reduce.
-        dim: int
-            The dimension along which to compute the maximum value. This should be a valid dimension index for the tensor.
+        dim: int | Sequence[int], optional
+            The dimension(s) along which to compute the maximum value. They should be in range of [0, len(x.shape)). If not provided,
+            all dimensions will be reduced.
         keepdim: bool, optional
             Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
             same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
@@ -1742,7 +1768,12 @@ class Script:
         return self._reduce(x, dim=dim, keepdim=keepdim, op="max", out=out)
 
     def min(
-        self, x: RegisterTensor, *, dim: int, keepdim: bool = False, out: Optional[RegisterTensor] = None
+        self,
+        x: RegisterTensor,
+        *,
+        dim: Optional[int | Sequence[int]] = None,
+        keepdim: bool = False,
+        out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         """Compute the minimum value along a dimension.
 
@@ -1755,8 +1786,9 @@ class Script:
         ----------
         x: RegisterTensor
             The register tensor to reduce.
-        dim: int
-            The dimension along which to compute the minimum value. This should be a valid dimension index for the tensor.
+        dim: int | Sequence[int], optional
+            The dimension(s) along which to compute the minimum value. They should be in range of [0, len(x.shape)). If not provided,
+            all dimensions will be reduced.
         keepdim: bool, optional
             Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
             same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
@@ -1771,6 +1803,86 @@ class Script:
             The register tensor containing the minimum value along the specified dimension.
         """
         return self._reduce(x, dim=dim, keepdim=keepdim, op="min", out=out)
+
+    def any(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: Optional[int | Sequence[int]] = None,
+        keepdim: bool = False,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        """Compute whether there is a non-zero element along a dimension.
+
+        This instruction computes whether any element in the register tensor `x` along the specified
+        dimension `dim` is non-zero. If `keepdim` is set to `True`, the output tensor will have the same number of dimensions as the
+        input tensor, with the specified dimension reduced to size 1. If `keepdim` is set to `False`, the output tensor will have the
+        specified dimension removed, resulting in a tensor with one less dimension.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to reduce. It must be a boolean tensor.
+        dim: int | Sequence[int], optional
+            The dimension(s) along which to compute the any value. They should be in range of [0, len(x.shape)). If not provided,
+            all dimensions will be reduced.
+        keepdim: bool, optional
+            Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
+            same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
+            the output tensor will have the specified dimension removed, resulting in a tensor with one less dimension.
+            Default is `False`.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the boolean result of whether any element in the register tensor `x` along the specified
+            dimension `dim` is non-zero. The data type of the output tensor will be boolean.
+        """
+        if x.dtype != boolean:
+            raise InstructionError("The input tensor must be a boolean tensor.")
+        return self._reduce(x, dim=dim, keepdim=keepdim, op="any", out=out)
+
+    def all(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: Optional[int | Sequence[int]] = None,
+        keepdim: bool = False,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        """Compute whether all elements are non-zero along a dimension.
+
+        This instruction computes whether all elements in the register tensor `x` along the specified
+        dimension `dim` are non-zero. If `keepdim` is set to `True`, the output tensor will have the same number of dimensions as the
+        input tensor, with the specified dimension reduced to size 1. If `keepdim` is set to `False`, the output tensor will have the
+        specified dimension removed, resulting in a tensor with one less dimension.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            The register tensor to reduce. It must be a boolean tensor.
+        dim: int | Sequence[int], optional
+            The dimension along which to compute the all value. This should be a valid dimension index for the tensor. If not provided,
+            all dimensions will be reduced.
+        keepdim: bool, optional
+            Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the same number of dimensions as the
+            input tensor, with the specified dimension reduced to size 1. If `keepdim` is set to `False`, the output tensor will have the
+            specified dimension removed, resulting in a tensor with one less dimension.
+            Default is `False`.
+        out: RegisterTensor, optional
+            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The register tensor containing the boolean result of whether all elements in the register tensor `x` along the specified
+            dimension `dim` are non-zero. The data type of the output tensor will be boolean.
+        """
+        if x.dtype != boolean:
+            raise InstructionError("The input tensor must be a boolean tensor.")
+        return self._reduce(x, dim=dim, keepdim=keepdim, op="all", out=out)
 
     def store_global_generic(
         self,

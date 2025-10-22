@@ -734,7 +734,13 @@ class StmtBuilder(StmtBuilderCore):
                 shape[dim] = 1
             else:
                 shape.pop(dim)
-            out = RegisterTensor.create(dtype=x.dtype, shape=shape)
+            if op in ("min", "max", "sum"):
+                dtype = x.dtype
+            elif op in ("any", "all"):
+                dtype = boolean
+            else:
+                raise NotImplementedError(f"Unsupported reduction operation: {op}")
+            out = RegisterTensor.create(dtype=dtype, shape=shape)
         inst = ReduceInst.create(x=x, output=out, dim=dim, op=op, keepdim=keepdim)
         self.append(inst)
         return inst.register_output

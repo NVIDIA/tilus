@@ -18,8 +18,8 @@ import functools
 
 from hidet import boolean
 from hidet.ir import DataType
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var, cast, if_then_else, logical_and
+from hidet.ir.dtypes import int32, uint32
+from hidet.ir.expr import Expr, Var, bitwise_and, bitwise_or, cast, if_then_else, logical_and
 from hidet.ir.primitives.cuda.shfl import shfl_down_sync, shfl_up_sync
 from hidet.ir.type import tensor_pointer_type
 from hidet.utils.py import is_power_of_two
@@ -44,8 +44,14 @@ class ReduceInstEmitter(BaseInstEmitter):
             return dtype.min_value
         elif op == "min":
             return dtype.max_value
+        elif op == "any":
+            assert dtype == boolean
+            return dtype.zero
+        elif op == "all":
+            assert dtype == boolean
+            return boolean.true
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(f"Unsupported reduction operation: {op}")
 
     def scalar_reduce(self, lhs: Expr, rhs: Expr, op: str) -> Expr:
         from hidet.ir.primitives import max, min
@@ -56,8 +62,12 @@ class ReduceInstEmitter(BaseInstEmitter):
             return max(lhs, rhs)
         elif op == "min":
             return min(lhs, rhs)
+        elif op == "any":
+            return bitwise_or(lhs, rhs)  # we do not use logical_or since it has short-circuit behavior
+        elif op == "all":
+            return bitwise_and(lhs, rhs)  # we do not use logical_and since it has short-circuit behavior
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(f"Unsupported reduction operation: {op}")
 
     def intra_thread_reduce(self, inst: ReduceInst) -> None:
         src: RegisterTensor = inst.register_input
@@ -134,7 +144,10 @@ class ReduceInstEmitter(BaseInstEmitter):
                     value=self.scalar_reduce(
                         lhs=dst_buf[dst_local],
                         rhs=shfl_down_sync(
-                            mask=0xFFFFFFFF, var=dst_buf[dst_local], delta=1 << lane_bit, width=1 << (lane_bit + 1)
+                            mask=uint32(0xFFFFFFFF),
+                            var=dst_buf[dst_local],
+                            delta=1 << lane_bit,
+                            width=1 << (lane_bit + 1),
                         ),
                         op=inst.op,
                     ),
@@ -156,7 +169,7 @@ class ReduceInstEmitter(BaseInstEmitter):
                     buf=dst_buf,
                     indices=[dst_local],
                     value=shfl_up_sync(
-                        mask=0xFFFFFFFF, var=dst_buf[dst_local], delta=1 << lane_bit, width=1 << (lane_bit + 1)
+                        mask=uint32(0xFFFFFFFF), var=dst_buf[dst_local], delta=1 << lane_bit, width=1 << (lane_bit + 1)
                     ),
                 )
 
@@ -342,9 +355,6 @@ class ReduceInstEmitter(BaseInstEmitter):
         if self.requires_inter_warp_reduction(inst):
             # reduce between warps
             self.inter_warp_reduce(inst)
-        else:
-            # broadcast within warp, we only need to do broadcast when we did not do inter-warp reduction
-            self.intra_warp_broadcast(inst)
 
     def emit(self, inst: ReduceInst) -> None:
         self.efficient_reduce(inst)

@@ -416,7 +416,7 @@ class ReduceInst(Instruction):
     dim: int
     op: str
     keepdim: bool
-    VALID_OPS: ClassVar[tuple[str, ...]] = ("sum", "max", "min")
+    VALID_OPS: ClassVar[tuple[str, ...]] = ("sum", "max", "min", "any", "all")
 
     @staticmethod
     def create(

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from hidet.ir.expr import Expr
+from hidet.ir.expr import Expr, Var
 from hidet.ir.type import DataType
 
 from tilus.ir.builders import StmtBuilder
@@ -120,6 +120,10 @@ class RegisterTensorWithMethods(RegisterTensor):
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.not_equal(self.tensor, other)
+
+    def item(self) -> Var:
+        indices = [0 for _ in range(len(self.tensor.shape))]
+        return self.builder.tensor_element_value(self.tensor, indices)
 
     def squeeze(self, dim: int | Sequence[int]) -> RegisterTensor:
         return self.builder.squeeze(self.tensor, dim)
