@@ -1,6 +1,7 @@
 import os
-import torch
+
 import tilus
+import torch
 from tilus import float16, float32, int32, uint32
 from tilus.utils import cdiv
 
@@ -17,9 +18,9 @@ class BlackwellMatmul(tilus.Script):
         self.block_m = 128
         self.block_n = 64
         self.block_k = 16
-    
+
     def __call__(
-        self, 
+        self,
         m_size: int32,
         n_size: int,
         k_size: int,
@@ -37,14 +38,19 @@ class BlackwellMatmul(tilus.Script):
         g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
         s_a = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[self.block_n, self.block_k])
-        t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
+        # allocate a tensor in tensor memory (tmem)
+        t_acc = self.tcgen05.alloc(
+            dtype=float32, shape=[self.block_m, self.block_n], init=0.0
+        )
+
+        # allocate one barrier in shared memory
         mbarriers = self.mbarrier.alloc(counts=[1])
+
+        # use a phase to record the current phase of the barrier
         phase: uint32 = 0
 
         self.sync()
-        all_zero = self.tcgen05.load(t_acc, offsets=[0, 0], shape=[self.block_m, self.block_n]) == 0.0
-        self.static_assert(all_zero, "t_acc is not zero initialized")
 
         for offset_k in range(0, k_size, self.block_k):
             self.copy_async(src=g_a, dst=s_a, offsets=[offset_m, offset_k])
@@ -52,23 +58,32 @@ class BlackwellMatmul(tilus.Script):
             self.copy_async_wait_all()
             self.sync()
 
+            # perform tcgen05 mma on two shared tensors
             self.tcgen05.mma(s_a, s_b.transpose(), t_acc)
+
+            # commit the mma operation the finish of the committed operations will trigger a arrive event on the barrier
             self.tcgen05.commit(mbarrier=mbarriers[0])
+
+            # wait for all pending arrivals to finish (in this case, the expected count = 1, which is the operation of mma)
             self.mbarrier.wait(mbarriers[0], phase=phase)
             phase ^= 1
 
-        r_acc = self.tcgen05.load(t_acc, offsets=[0, 0], shape=[self.block_m, self.block_n])
+        # load the result from tensor memory to register
+        r_acc = self.tcgen05.load(
+            t_acc, offsets=[0, 0], shape=[self.block_m, self.block_n]
+        )
+
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
         self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
 
-        self.tcgen05.dealloc(t_acc)
+        # all allocated tensor memory must be deallocated
         self.sync()
+        self.tcgen05.dealloc(t_acc)
 
 
 def main():
     matmul = BlackwellMatmul()
 
-    # m_size, n_size, k_size = 128 * 2, 64 * 2, 4096
     m_size, n_size, k_size = 4096, 4096, 4096
 
     a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
@@ -79,12 +94,6 @@ def main():
     torch.cuda.synchronize()
 
     c_ref = a @ b.T
-
-    print(a)
-    print(b)
-    print(c_ref)
-    print(c)
-
 
     torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
 

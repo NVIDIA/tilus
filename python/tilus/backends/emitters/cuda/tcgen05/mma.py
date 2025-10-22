@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.builders import StmtBuilder
 from hidet.ir.dtypes import bfloat16, float16, float32, int8, int32, tfloat32, uint8, uint32, uint64
 from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.type import DataType
@@ -79,7 +78,6 @@ class Tcgen05MmaInstDesc:
             f"maximim_shift_in_ws: {self.maximim_shift_in_ws}",
         ]
         return "Tcgen05MmaInstDesc(" + ",\n  ".join(items) + "\n)"
-
 
     def encoded(self) -> int:
         return tcgen05_encode_mma_inst_descriptor(
@@ -165,7 +163,7 @@ class Tcgen05MmaSSInstMeta:
     cta_group: Tcgen05CtaGroupKind
     i_desc: Tcgen05MmaInstDesc
 
-    def emit(self, sb: StmtBuilder) -> None:
+    def emit(self, sb: BaseInstEmitter) -> None:
         i_desc = sb.declare_var("i_desc", tp=uint32, init=as_expr(self.i_desc.encoded()))
         a_desc = sb.declare_var("a_desc", tp=uint64, init=self.a_desc.encoded())
         b_desc = sb.declare_var("b_desc", tp=uint64, init=self.b_desc.encoded())
@@ -341,7 +339,7 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
                         stride_mode=0,
                         swizzle_mode=b_canonical.swizzle_mode.encode(),
                     )
-                    d_offset = i * inst_m * LANE_STRIDE + j * inst_n * COLUMN_STRIDE 
+                    d_offset = i * inst_m * LANE_STRIDE + j * inst_n * COLUMN_STRIDE
                     inst_meta = Tcgen05MmaSSInstMeta(
                         kind=mma_kind,
                         a_desc=a_desc,

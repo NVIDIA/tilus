@@ -25,6 +25,7 @@ from hidet.ir.expr import (
     BinaryExpr,
     BitwiseAnd,
     BitwiseOr,
+    Call,
     Constant,
     Expr,
     LeftShift,
@@ -34,7 +35,6 @@ from hidet.ir.expr import (
     Multiply,
     RightShift,
     Sub,
-    Call,
     Var,
 )
 from hidet.ir.functors import IRFunctor
@@ -550,29 +550,35 @@ class GridAnalyzer(IRFunctor):
 
     def visit_BitwiseOr(self, e: BitwiseOr) -> TensorInfo:
         return TensorInfo.any(self.shape)
-    
-    def visit_Call(self, e: Call):
+
+    def visit_Call(self, e: Call) -> TensorInfo:
         if e.func_var.name == "swizzle":
             # y = swizzle(x, mbase, bbits, sshift) = x ^ ((x & ((1 << bbits) - 1) << (mbase + sshift)) >> sshift)
             x, mbase, bbits, sshift = e.args
             if not all(isinstance(arg, Constant) for arg in [mbase, bbits, sshift]):
-                raise NotImplementedError("Swizzle mbase, bbits, and sshift must be constants, got {}.".format(e.args[1:]))
+                raise NotImplementedError(
+                    "Swizzle mbase, bbits, and sshift must be constants, got {}.".format(e.args[1:])
+                )
             mbase = int(mbase)
             bbits = int(bbits)
             sshift = int(sshift)
             x_tensor_info: TensorInfo = self.visit(x)
             y_infos: list[DimensionInfo] = []
             for x_info in x_tensor_info.infos:
-                y_infos.append(DimensionInfo(
-                    value=x_info.value ^ ((x_info.value & (((1 << bbits) - 1) << (mbase + sshift))) >> sshift) if x_info.value is not None else None,
-                    continuity=gcd(x_info.continuity, 1 << mbase),
-                    constancy=gcd(x_info.constancy, 1 << mbase),
-                    divisibility=gcd(x_info.divisibility, 1 << mbase),
-                ))
+                y_infos.append(
+                    DimensionInfo(
+                        value=x_info.value ^ ((x_info.value & (((1 << bbits) - 1) << (mbase + sshift))) >> sshift)
+                        if x_info.value is not None
+                        else None,
+                        continuity=gcd(x_info.continuity, 1 << mbase),
+                        constancy=gcd(x_info.constancy, 1 << mbase),
+                        divisibility=gcd(x_info.divisibility, 1 << mbase),
+                    )
+                )
             return TensorInfo(self.shape, y_infos)
         else:
             raise NotImplementedError("Function {} is not supported in grid analysis yet.".format(e.func_var.name))
-    
+
 
 def analyze_grid(
     shape: Sequence[int],

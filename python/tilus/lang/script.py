@@ -108,7 +108,9 @@ class InstructionGroup:
 
 
 class Tcgen05InstructionGroup(InstructionGroup):
-    def alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int = 1) -> TMemoryTensor:
+    def alloc(
+        self, dtype: DataType, shape: Sequence[int], cta_group: int = 1, init: Optional[Expr | float | int] = None
+    ) -> TMemoryTensor:
         if cta_group not in [1, 2]:
             raise InstructionError("cta_group must be 1 or 2")
         if len(shape) != 2:
@@ -122,7 +124,15 @@ class Tcgen05InstructionGroup(InstructionGroup):
             raise InstructionError(
                 "num_columns must be a power of two and in the range [32, 512], got {}".format(num_columns)
             )
-        return self._builder.tcgen05_alloc(dtype, shape, cta_group)
+        ret = self._builder.tcgen05_alloc(dtype, shape, cta_group)
+        if init is not None:
+            self._builder.tcgen05_store(
+                ret,
+                src=self._builder.allocate_register(dtype=dtype, shape=shape, f_init=lambda _: dtype(init)),
+                offsets=[0, 0],
+            )
+            self._builder.tcgen05_wait_store()
+        return ret
 
     def dealloc(self, tensor: TMemoryTensor) -> None:
         self._builder.tcgen05_dealloc(tensor)
@@ -292,13 +302,12 @@ class TmaInstructionGroup(InstructionGroup):
 
 
 class BarrierInstructionGroup(InstructionGroup):
-
-    def alloc(self, counts: Sequence[int]) -> list[Expr]:
+    def alloc(self, counts: Sequence[int]) -> list[Var]:
         """
         Allocate a list of barriers in shared memory and initialize them with the given counts.
 
         It's equivalent to the following code:
-        
+
         ```python
             barriers_shared = self.shared_tensor(dtype=uint64, shape=[len(counts)])
             for i in range(len(counts)):
