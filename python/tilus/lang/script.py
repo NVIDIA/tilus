@@ -17,7 +17,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir.dtypes import boolean, int32
+from hidet.ir.dtypes import boolean, int32, uint64
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
 from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
@@ -108,7 +108,9 @@ class InstructionGroup:
 
 
 class Tcgen05InstructionGroup(InstructionGroup):
-    def alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int = 1) -> TMemoryTensor:
+    def alloc(
+        self, dtype: DataType, shape: Sequence[int], cta_group: int = 1, init: Optional[Expr | float | int] = None
+    ) -> TMemoryTensor:
         if cta_group not in [1, 2]:
             raise InstructionError("cta_group must be 1 or 2")
         if len(shape) != 2:
@@ -122,7 +124,15 @@ class Tcgen05InstructionGroup(InstructionGroup):
             raise InstructionError(
                 "num_columns must be a power of two and in the range [32, 512], got {}".format(num_columns)
             )
-        return self._builder.tcgen05_alloc(dtype, shape, cta_group)
+        ret = self._builder.tcgen05_alloc(dtype, shape, cta_group)
+        if init is not None:
+            self._builder.tcgen05_store(
+                ret,
+                src=self._builder.allocate_register(dtype=dtype, shape=shape, f_init=lambda _: dtype(init)),
+                offsets=[0, 0],
+            )
+            self._builder.tcgen05_wait_store()
+        return ret
 
     def dealloc(self, tensor: TMemoryTensor) -> None:
         self._builder.tcgen05_dealloc(tensor)
@@ -292,7 +302,38 @@ class TmaInstructionGroup(InstructionGroup):
 
 
 class BarrierInstructionGroup(InstructionGroup):
-    def init(self, barrier: Expr, count: Optional[Expr | int] = None) -> None:
+    def alloc(self, counts: Sequence[int]) -> list[Var]:
+        """
+        Allocate a list of barriers in shared memory and initialize them with the given counts.
+
+        It's equivalent to the following code:
+
+        ```python
+            barriers_shared = self.shared_tensor(dtype=uint64, shape=[len(counts)])
+            for i in range(len(counts)):
+                self.init(barriers_shared[i], counts[i])
+            self.sync()
+            barriers = [~barriers_shared[i] for i in range(len(counts))]
+        ```
+
+        Parameters
+        ----------
+        counts: Sequence[int]
+            The counts of the barriers to allocate.
+
+        Returns
+        -------
+        list[Expr]
+            The list of pointers to the barriers in shared memory.
+        """
+        mbarriers_shared = self._builder.allocate_shared(dtype=uint64, shape=[len(counts)])
+        mbarriers = [self._builder.tensor_element_ptr(mbarriers_shared, indices=[i]) for i in range(len(counts))]
+        for i in range(len(counts)):
+            self._builder.init_barrier(mbarriers[i], int32(counts[i]))
+        self._builder.syncthreads()
+        return mbarriers
+
+    def init(self, barrier: Expr, count: Expr | int) -> None:
         """Initialize a barrier.
 
         This instruction initializes a memory barrier in shared memory. A barrier is an uint64 variable in shared

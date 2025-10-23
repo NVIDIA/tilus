@@ -15,7 +15,21 @@
 from typing import Sequence
 
 import numpy as np
-from hidet.ir.expr import Add, BitwiseAnd, BitwiseXor, Constant, Div, Expr, Mod, Multiply, RightShift, Sub, Var
+from hidet.ir.expr import (
+    Add,
+    BitwiseAnd,
+    BitwiseXor,
+    Call,
+    Cast,
+    Constant,
+    Div,
+    Expr,
+    Mod,
+    Multiply,
+    RightShift,
+    Sub,
+    Var,
+)
 from hidet.ir.functors import IRFunctor
 
 
@@ -61,6 +75,18 @@ class VectorizedEvaluator(IRFunctor):
 
     def visit_RightShift(self, e: RightShift) -> np.ndarray:
         return np.right_shift(self.visit(e.a), self.visit(e.b))
+
+    def visit_Cast(self, e: Cast) -> np.ndarray:
+        return self.visit(e.expr)
+
+    def visit_Call(self, e: Call) -> np.ndarray:
+        if e.func_var.name == "swizzle":
+            x, mbase, bbits, sshift = [self.visit(arg) for arg in e.args]
+            return np.where(bbits > 0, x ^ ((x & (((1 << bbits) - 1) << (mbase + sshift))) >> sshift), x)
+        else:
+            raise NotImplementedError(
+                "Function {} is not supported in vectorized evaluation yet.".format(e.func_var.name)
+            )
 
 
 def vectorized_evaluate(expr: Expr, var2value: dict[Var, np.ndarray]) -> np.ndarray:

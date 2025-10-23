@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.builders import StmtBuilder
 from hidet.ir.dtypes import bfloat16, float16, float32, int8, int32, tfloat32, uint8, uint32, uint64
 from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.type import DataType
@@ -38,7 +37,7 @@ from tilus.ir.instructions.cuda.tcgen05 import (
 from tilus.ir.layout.cuda.tcgen05.smem import canonicalize_shared_layout
 from tilus.ir.layout.utils.cute import CuteLayout
 from tilus.ir.tensor import SharedTensor, TMemoryTensor
-from tilus.target import nvgpu_sm100
+from tilus.target import nvgpu_sm100a
 from tilus.utils import gcd
 
 
@@ -61,6 +60,24 @@ class Tcgen05MmaInstDesc:
     n: int
     m: int
     maximim_shift_in_ws: int
+
+    def __str__(self) -> str:
+        items = [
+            f"sparsity_selector: {self.sparsity_selector}",
+            f"sparsity: {self.sparsity}",
+            f"saturate_for_integer: {self.saturate_for_integer}",
+            f"d_dtype: {self.d_dtype}",
+            f"a_dtype: {self.a_dtype}",
+            f"b_dtype: {self.b_dtype}",
+            f"negate_a: {self.negate_a}",
+            f"negate_b: {self.negate_b}",
+            f"transpose_a: {self.transpose_a}",
+            f"transpose_b: {self.transpose_b}",
+            f"n: {self.n}",
+            f"m: {self.m}",
+            f"maximim_shift_in_ws: {self.maximim_shift_in_ws}",
+        ]
+        return "Tcgen05MmaInstDesc(" + ",\n  ".join(items) + "\n)"
 
     def encoded(self) -> int:
         return tcgen05_encode_mma_inst_descriptor(
@@ -146,24 +163,26 @@ class Tcgen05MmaSSInstMeta:
     cta_group: Tcgen05CtaGroupKind
     i_desc: Tcgen05MmaInstDesc
 
-    def emit(self, sb: StmtBuilder) -> None:
+    def emit(self, sb: BaseInstEmitter) -> None:
         i_desc = sb.declare_var("i_desc", tp=uint32, init=as_expr(self.i_desc.encoded()))
         a_desc = sb.declare_var("a_desc", tp=uint64, init=self.a_desc.encoded())
         b_desc = sb.declare_var("b_desc", tp=uint64, init=self.b_desc.encoded())
-        sb.append(
-            tcgen05_mma_with_shared_a(
-                d_tmem=self.d_tmem_addr,
-                a_desc=a_desc,
-                b_desc=b_desc,
-                i_desc=i_desc,
-                enable_input_d=False,
-                cta_group=self.cta_group,
-                mma_kind=self.kind,
+        # tcgen05.mma has single-thread semantics - only one thread should issue it
+        with sb.if_then(sb.current_thread == 0):
+            sb.append(
+                tcgen05_mma_with_shared_a(
+                    d_tmem=self.d_tmem_addr,
+                    a_desc=a_desc,
+                    b_desc=b_desc,
+                    i_desc=i_desc,
+                    enable_input_d=True,
+                    cta_group=self.cta_group,
+                    mma_kind=self.kind,
+                )
             )
-        )
 
 
-@register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100)
+@register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100a)
 class TMemoryMmaSSEmitter(BaseInstEmitter):
     @staticmethod
     def get_mma_kind(a_dtype: DataType, b_dtype: DataType, d_dtype: DataType) -> Tcgen05MmaKind:

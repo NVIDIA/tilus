@@ -16,8 +16,10 @@ from __future__ import annotations
 
 from typing import Sequence, Union
 
+from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr
 from hidet.utils import prod
+from tilus.extensions.hidet.ir.primitives.swizzle import swizzle
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
 
 Int = Expr | int
@@ -104,8 +106,9 @@ class CuteSwizzle:
         else:
             # 0xxxxYYYxxZZZxxxx
             # z_mask = ((1 << self.bbits) - 1) << self.mbase
-            y_mask = ((1 << self.bbits) - 1) << (self.mbase + self.sshift)
-            return offset ^ ((offset & y_mask) >> self.sshift)
+            # y_mask = ((1 << self.bbits) - 1) << (self.mbase + self.sshift)
+            # return offset ^ ((offset & y_mask) >> self.sshift)
+            return swizzle(int32(offset), self.mbase, self.bbits, self.sshift)
 
 
 class SwizzledCuteLayout:
