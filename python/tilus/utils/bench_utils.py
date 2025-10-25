@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import functools
-from typing import Any, Callable, List, Union, no_type_check
+from typing import Any, Callable, no_type_check
 
 import numpy as np
 import torch
@@ -56,9 +56,8 @@ def benchmark_func(
     run_func: Callable[[], Any],
     warmup: int = 1,
     repeat: int = 5,
-    median: bool = True,
     clear_l2_cache: bool = True,
-) -> Union[List[float], float]:
+) -> float:
     num_bytes = 128 * 1024 * 1024
     memory_slab = torch.empty(num_bytes, dtype=torch.int8, device="cuda")
 
@@ -86,7 +85,4 @@ def benchmark_func(
     torch.cuda.synchronize()
     results = [events[i * 2].elapsed_time(events[i * 2 + 1]) for i in range(warmup, warmup + repeat)]
 
-    if median:
-        return float(np.median(results))
-    else:
-        return results
+    return float(np.median(results))

@@ -51,7 +51,7 @@ class BlackwellMatmul(tilus.Script):
         )
 
         # allocate one barrier in shared memory
-        mbarriers = self.mbarrier.alloc(counts=[1])
+        tma_barrier, mma_barrier = self.mbarrier.alloc(counts=[1, 1])
 
         # use a phase to record the current phase of the barrier
         phase: uint32 = 0
@@ -59,20 +59,30 @@ class BlackwellMatmul(tilus.Script):
         self.sync()
 
         for offset_k in range(0, k_size, self.block_k):
-            self.copy_async(src=g_a, dst=s_a, offsets=[offset_m, offset_k])
-            self.copy_async(src=g_b, dst=s_b, offsets=[offset_n, offset_k])
-            self.copy_async_wait_all()
-            self.sync()
+            with self.single_thread():  # we use a single thread to issue the TMA copy
+                self.tma.global_to_shared(
+                    src=g_a,
+                    dst=s_a,
+                    offsets=[offset_m, offset_k],
+                    mbarrier=tma_barrier,
+                )
+                self.tma.global_to_shared(
+                    src=g_b,
+                    dst=s_b,
+                    offsets=[offset_n, offset_k],
+                    mbarrier=tma_barrier,
+                )
+                self.mbarrier.arrive(tma_barrier)
+                self.mbarrier.wait(tma_barrier, phase=phase)
 
-            with self.single_thread():
                 # perform tcgen05 mma on two shared tensors
                 self.tcgen05.mma(s_a, s_b.transpose(), t_acc)
 
                 # commit the mma operation the finish of the committed operations will trigger a arrive event on the barrier
-                self.tcgen05.commit(mbarrier=mbarriers[0])
+                self.tcgen05.commit(mbarrier=mma_barrier)
 
                 # wait for all pending arrivals to finish (in this case, the expected count = 1, which is the operation of mma)
-                self.mbarrier.wait(mbarriers[0], phase=phase)
+                self.mbarrier.wait(mma_barrier, phase=phase)
             self.sync()
 
             phase ^= 1
