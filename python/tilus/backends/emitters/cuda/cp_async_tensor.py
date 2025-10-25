@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import functools
+import typing
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import Optional, Sequence
@@ -143,8 +144,8 @@ def get_offset_grid_of_swizzled_layout(
     offset_grid = offset_grid * dtype_nbits
 
     # apply swizzling
-    for swizzle in swizzles:
-        offset_grid = offset_grid ^ (((offset_grid >> swizzle.r) & ((1 << swizzle.c) - 1)) << swizzle.d)
+    for swz in swizzles:
+        offset_grid = offset_grid ^ (((offset_grid >> swz.r) & ((1 << swz.c) - 1)) << swz.d)
 
     # convert back to dtype pointer offset
     if np.any(offset_grid & (dtype_nbits - 1)):
@@ -159,13 +160,13 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
     def resolve_global_tensor_info(
         self, global_tensor: GlobalTensor, offsets: Sequence[Expr], dims: Sequence[int]
     ) -> GlobalTensorInfo:
-        ctx: GlobalTensorViewContext = GlobalTensorViewContext.current()
+        g_ctx: GlobalTensorViewContext = GlobalTensorViewContext.current()
 
         # get the global tensor view
-        if global_tensor not in ctx.tensor2view:
+        if global_tensor not in g_ctx.tensor2view:
             raise ValueError("TMA only supports global tensors created by global_view with pointer as kernel parameter")
 
-        view = ctx.tensor2view[global_tensor]
+        view = g_ctx.tensor2view[global_tensor]
 
         # process the indexing
         assert len(offsets) == len(global_tensor.shape)
@@ -180,7 +181,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
             coefficients = decompose_linear(offset, coordinates=coordinates)
         except LinearDecompositionError:
             raise ValueError("TMA only supports strided global tensors")
-        coefficients = simplify(coefficients)
+        coefficients = typing.cast(list[Expr], simplify(coefficients))
 
         # get the starting address of the tensor box that is being copied
         dtype = global_tensor.dtype

@@ -124,3 +124,7 @@ module = [
 ]
 disable_error_code = ["attr-defined"]
 
+[tool.pyright]
+typeCheckingMode = "basic"
+reportInvalidTypeForm = "none" # we allow complex type annotations in Tilus Script
+reportIncompatibleMethodOverride = "none"

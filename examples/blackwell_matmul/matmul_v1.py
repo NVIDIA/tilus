@@ -1,0 +1,140 @@
+import os
+
+import pandas
+import tilus
+import torch
+from tilus import float16, float32, int32, uint32
+from tilus.utils import benchmark_func, cdiv
+
+# from tilus.extensions.hidet.utils.ncu_utils import ncu_run
+
+if not tilus.target.get_current_target().supports(tilus.target.nvgpu_sm100a):
+    # skip this example if the current target does not support nvgpu_sm100a
+    exit(0)
+
+tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
+tilus.option.debug.dump_ir()
+
+# tilus.target.set_current_target(tilus.target.nvgpu_sm100a)
+
+
+class BlackwellMatmul(tilus.Script):
+    def __init__(self):
+        super().__init__()
+        self.block_m = 128
+        self.block_n = 64
+        self.block_k = 16
+
+    def __call__(
+        self,
+        m_size: int32,
+        n_size: int,
+        k_size: int,
+        a_ptr: ~float16,
+        b_ptr: ~float16,
+        c_ptr: ~float16,
+    ):
+        self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
+        self.attrs.warps = 4
+
+        offset_m: int32 = self.block_m * self.blockIdx.x
+        offset_n: int32 = self.block_n * self.blockIdx.y
+
+        g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
+        g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
+        s_a = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
+        s_b = self.shared_tensor(dtype=float16, shape=[self.block_n, self.block_k])
+
+        # allocate a tensor in tensor memory (tmem)
+        t_acc = self.tcgen05.alloc(
+            dtype=float32, shape=[self.block_m, self.block_n], init=0.0
+        )
+
+        # allocate one barrier in shared memory
+        tma_barrier, mma_barrier = self.mbarrier.alloc(counts=[1, 1])
+
+        # use a phase to record the current phase of the barrier
+        phase: uint32 = 0
+
+        self.sync()
+
+        for offset_k in range(0, k_size, self.block_k):
+            with self.single_thread():  # we use a single thread to issue the TMA copy
+                self.tma.global_to_shared(
+                    src=g_a,
+                    dst=s_a,
+                    offsets=[offset_m, offset_k],
+                    mbarrier=tma_barrier,
+                )
+                self.tma.global_to_shared(
+                    src=g_b,
+                    dst=s_b,
+                    offsets=[offset_n, offset_k],
+                    mbarrier=tma_barrier,
+                )
+                self.mbarrier.arrive(tma_barrier)
+            self.mbarrier.wait(tma_barrier, phase=phase)
+
+            # perform tcgen05 mma on two shared tensors
+            self.tcgen05.mma(s_a, s_b.transpose(), t_acc)
+
+            # commit the mma operation the finish of the committed operations will trigger a arrive event on the barrier
+            self.tcgen05.commit(mbarrier=mma_barrier)
+
+            # wait for all pending arrivals to finish (in this case, the expected count = 1, which is the operation of mma)
+            self.mbarrier.wait(mma_barrier, phase=phase)
+            phase ^= 1
+
+        # load the result from tensor memory to register
+        r_acc = self.tcgen05.load(
+            t_acc, offsets=[0, 0], shape=[self.block_m, self.block_n]
+        )
+
+        g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
+        self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
+
+        # all allocated tensor memory must be deallocated
+        self.sync()
+        self.tcgen05.dealloc(t_acc)
+
+
+def main(bench=True):
+    matmul = BlackwellMatmul()
+
+    headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
+    rows = []
+
+    for m_size, n_size, k_size in [
+        [4096, 4096, 4096],
+        [4096, 4096, 14336],
+    ]:
+        print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
+        a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
+        b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
+        c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+
+        matmul(m_size, n_size, k_size, a, b, c)
+        torch.cuda.synchronize()
+
+        c_ref = a @ b.T
+
+        torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
+
+        # benchmark
+        if bench:
+            for name, func in [
+                ("torch", lambda: a @ b.T),
+                ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c)),
+            ]:
+                latency = benchmark_func(func, warmup=5, repeat=20)
+                tflops = 2 * m_size * n_size * k_size / latency * 1e-9
+                rows.append([m_size, n_size, k_size, name, latency, tflops])
+
+    if bench:
+        df = pandas.DataFrame(rows, columns=headers)
+        print(df)
+
+
+if __name__ == "__main__":
+    main(bench=True)
+    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")

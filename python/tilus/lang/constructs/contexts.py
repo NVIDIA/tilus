@@ -19,6 +19,16 @@ from tilus.ir.stmt import Stmt
 
 
 class TilusContext:
+    def __enter__(self) -> Any:
+        raise RuntimeError(
+            "This function should never be called since the context enter/exit is handled by TilusTranspiler."
+        )
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        raise RuntimeError(
+            "This function should never be called since the context enter/exit is handled by TilusTranspiler."
+        )
+
     def bind_value(self) -> Optional[Any]:
         raise NotImplementedError()
 
