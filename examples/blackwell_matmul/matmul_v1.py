@@ -6,8 +6,6 @@ import torch
 from tilus import float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
-# from tilus.extensions.hidet.utils.ncu_utils import ncu_run
-
 if not tilus.target.get_current_target().supports(tilus.target.nvgpu_sm100a):
     # skip this example if the current target does not support nvgpu_sm100a
     exit(0)
@@ -18,12 +16,14 @@ tilus.option.debug.dump_ir()
 # tilus.target.set_current_target(tilus.target.nvgpu_sm100a)
 
 
+@tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
+@tilus.autotune("block_k", [16, 32, 64])
 class BlackwellMatmul(tilus.Script):
-    def __init__(self):
+    def __init__(self, block_m: int, block_n: int, block_k: int):
         super().__init__()
-        self.block_m = 128
-        self.block_n = 64
-        self.block_k = 16
+        self.block_m = block_m
+        self.block_n = block_n
+        self.block_k = block_k
 
     def __call__(
         self,
@@ -73,16 +73,18 @@ class BlackwellMatmul(tilus.Script):
                     mbarrier=tma_barrier,
                 )
                 self.mbarrier.arrive(tma_barrier)
-            self.mbarrier.wait(tma_barrier, phase=phase)
+                self.mbarrier.wait(tma_barrier, phase=phase)
 
-            # perform tcgen05 mma on two shared tensors
-            self.tcgen05.mma(s_a, s_b.transpose(), t_acc)
+                # perform tcgen05 mma on two shared tensors
+                self.tcgen05.mma(s_a, s_b.transpose(), t_acc)
 
-            # commit the mma operation the finish of the committed operations will trigger a arrive event on the barrier
-            self.tcgen05.commit(mbarrier=mma_barrier)
+                # commit the mma operation the finish of the committed operations will trigger a arrive event on the barrier
+                self.tcgen05.commit(mbarrier=mma_barrier)
 
-            # wait for all pending arrivals to finish (in this case, the expected count = 1, which is the operation of mma)
-            self.mbarrier.wait(mma_barrier, phase=phase)
+                # wait for all pending arrivals to finish (in this case, the expected count = 1, which is the operation of mma)
+                self.mbarrier.wait(mma_barrier, phase=phase)
+            self.sync()
+
             phase ^= 1
 
         # load the result from tensor memory to register

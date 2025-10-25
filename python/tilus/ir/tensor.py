@@ -397,7 +397,7 @@ class SharedTensor(Tensor):
     shape: tuple[int, ...]
     optional_layout: Optional[SharedLayout]
 
-    def __getitem__(self, indices: tuple[Expr | int, ...] | Expr | int) -> SharedTensor | Expr:
+    def __getitem__(self, indices: tuple[Expr | int, ...] | Expr | int) -> SharedTensor:
         raise RuntimeError("shared_tensor[...] could only be used in Tilus Script.")
 
     @staticmethod
