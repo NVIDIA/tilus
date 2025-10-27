@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from hidet.ir.expr import Var
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.tensor import SharedTensor
 from tilus.lang.methods.exception import TensorMethodError
@@ -22,6 +23,12 @@ class SharedTensorWithMethods(SharedTensor):
         super().__init__(tensor.dtype, tensor.shape, tensor.optional_layout)
         self.tensor: SharedTensor = tensor
         self.builder: StmtBuilder = builder
+
+    def item_ptr(self) -> Var:
+        return self.builder.tensor_item_ptr(self.tensor, space="generic")
+
+    def item(self) -> Var:
+        return self.builder.tensor_item_value(self.tensor)
 
     def permute(self, dims: tuple[int, ...]) -> SharedTensor:
         if set(dims) != set(range(len(self.tensor.shape))):

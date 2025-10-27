@@ -123,7 +123,7 @@ class RegisterTensorWithMethods(RegisterTensor):
 
     def item(self) -> Var:
         indices = [0 for _ in range(len(self.tensor.shape))]
-        return self.builder.tensor_element_value(self.tensor, indices)
+        return self.builder.tensor_item_value(self.tensor, indices)
 
     def squeeze(self, dim: int | Sequence[int]) -> RegisterTensor:
         return self.builder.squeeze(self.tensor, dim)

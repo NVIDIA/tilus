@@ -46,8 +46,8 @@ from tilus.ir.stmt import (
     LetStmt,
     ReturnStmt,
     SeqStmt,
-    TensorElemPtrStmt,
-    TensorElemValueStmt,
+    TensorItemPtrStmt,
+    TensorItemValueStmt,
     ThreadGroupStmt,
     WhileStmt,
 )
@@ -567,15 +567,15 @@ class FunctionCodegen(IRFunctor):
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:
         self.builder.assign(stmt.var, value=stmt.value)
 
-    def visit_TensorElemPtrStmt(self, stmt: TensorElemPtrStmt) -> None:
+    def visit_TensorItemPtrStmt(self, stmt: TensorItemPtrStmt) -> None:
         if stmt.space in ["generic", "global"]:
             if stmt.space == "generic":
                 assert isinstance(stmt.tensor, (GlobalTensor, SharedTensor))
             else:
                 assert isinstance(stmt.tensor, GlobalTensor)
             ptr = self.tensor2var[stmt.tensor]
-            if stmt.indices is not None:
-                ptr = ptr + stmt.tensor.layout(*stmt.indices)
+            indices = [int32.zero for _ in range(len(stmt.tensor.shape))]
+            ptr = ptr + stmt.tensor.layout(*indices)
             self.builder.declare(stmt.ptr_var, ptr)
         elif stmt.space == "local":
             raise NotImplementedError("Local tensor pointer is not supported yet.")
@@ -584,15 +584,16 @@ class FunctionCodegen(IRFunctor):
                 raise ValueError("Expected a SharedTensor for shared tensor pointer, got: {}".format(stmt.tensor))
             shared_tensor: SharedTensor = stmt.tensor
             addr = self.shared_tensor_addr[shared_tensor]
-            if stmt.indices is not None:
-                addr = addr + shared_tensor.layout(*stmt.indices) * shared_tensor.dtype.nbytes
+            indices = [int32.zero for _ in range(len(shared_tensor.shape))]
+            addr = addr + shared_tensor.layout(*indices) * shared_tensor.dtype.nbytes
             self.builder.declare(stmt.ptr_var, addr)
         else:
             raise ValueError("Unknown tensor pointer space: {}".format(stmt.space))
 
-    def visit_TensorElemValueStmt(self, stmt: TensorElemValueStmt) -> None:
+    def visit_TensorItemValueStmt(self, stmt: TensorItemValueStmt) -> None:
         if isinstance(stmt.tensor, (GlobalTensor, SharedTensor)):
-            value = self.tensor2var[stmt.tensor][stmt.tensor.layout(*stmt.indices)]
+            indices = [int32.zero for _ in range(len(stmt.tensor.shape))]
+            value = self.tensor2var[stmt.tensor][stmt.tensor.layout(*indices)]
         elif isinstance(stmt.tensor, RegisterTensor):
             if not prod(stmt.tensor.shape) == 1:
                 raise ValueError(

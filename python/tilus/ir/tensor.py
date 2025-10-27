@@ -62,6 +62,22 @@ class Tensor:
     def as_register_or_shared_tensor(self) -> RegisterTensor | SharedTensor:
         assert isinstance(self, (RegisterTensor, SharedTensor))
         return self
+    
+    """
+    The following methods are used for type hinting in Tilus Script. The corresponding operations/methods will be
+    converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
+    """
+
+    def item(self) -> Var:
+        """Get the scalar value of the tensor.
+
+        Returns
+        -------
+        ret: Var
+            The scalar value of the tensor.
+        """
+        raise RuntimeError("tensor.item(...) could only be used in Tilus Script.")
+
 
 
 @dataclass(frozen=True, eq=False)
@@ -339,22 +355,6 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor == tensor could only be used in Tilus Script.")
 
-    def item(self) -> Var:
-        """Get the scalar value of the tensor.
-
-        The current tensor must be a scalar tensor:
-        - 0-rank tensor
-        - 1-rank tensor with shape [1]
-        - 2-rank tensor with shape [1, 1]
-        - ...
-
-        Returns
-        -------
-        ret: Var
-            The scalar value of the tensor.
-        """
-        raise RuntimeError("tensor.item(...) could only be used in Tilus Script.")
-
     def squeeze(self, dim: int | Sequence[int]) -> RegisterTensor:
         """Squeeze the tensor by removing dimensions of size 1.
 
@@ -480,6 +480,9 @@ class SharedTensor(Tensor):
     converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
     """
 
+    def item_ptr(self) -> Var:
+        raise RuntimeError("shared_tensor.item_ptr(...) could only be used in Tilus Script.")
+
     def permute(self, dims: tuple[int, ...]) -> SharedTensor:
         raise RuntimeError("shared_tensor.permute(...) could only be used in Tilus Script.")
 
@@ -547,18 +550,25 @@ class GlobalTensor(Tensor):
         """
         return self.layout.size
 
-    def __getitem__(self, indices: tuple[Expr | int, ...] | Expr | int) -> Expr:
+    def with_layout(self, layout: GlobalLayout) -> GlobalTensor:
+        if not isinstance(layout, GlobalLayout):
+            raise ValueError(f"Layout must be a GlobalLayout, but got {type(layout)}.")
+        return dataclasses.replace(self, layout=layout)
+
+    """
+    The following methods are used for type hinting in Tilus Script. The corresponding operations/methods will be
+    converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
+    """
+
+    def __getitem__(self, indices: tuple[Expr | int, ...] | Expr | int) -> GlobalTensor:
         """Access the global tensor with the given indices.
 
         This method allows you to access elements of the global tensor using indices.
-
-        **This method is intended to be used in Tilus Script only.**
 
         Parameters
         ----------
         indices: tuple[Expr | int, ...] | Expr | int
             The indices to access the global tensor.
-
 
         Returns
         -------
@@ -567,7 +577,5 @@ class GlobalTensor(Tensor):
         """
         raise RuntimeError("global_tensor[...] could only be used in Tilus Script.")
 
-    def with_layout(self, layout: GlobalLayout) -> GlobalTensor:
-        if not isinstance(layout, GlobalLayout):
-            raise ValueError(f"Layout must be a GlobalLayout, but got {type(layout)}.")
-        return dataclasses.replace(self, layout=layout)
+    def item_ptr(self) -> Var:
+        raise RuntimeError("shared_tensor.item_ptr(...) could only be used in Tilus Script.")

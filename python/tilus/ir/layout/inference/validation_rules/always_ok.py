@@ -31,8 +31,12 @@ from tilus.ir.instructions import (
     StoreGlobalInst,
     StoreSharedInst,
     SliceRegisterInst,
-    SliceAssignInst
+    SliceAssignInst,
+    StoreGlobalGenericInst,
+    StoreSharedGenericInst,
+    LoadGlobalGenericInst,
 )
+from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixInst
 from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkGlobalToClusterSharedInst,
     CopyAsyncBulkGlobalToSharedInst,
@@ -61,7 +65,9 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(CopyAsyncInst)  # todo: should have its own rule
 @register_rule(SliceRegisterInst)  # todo: should have its own rule
 @register_rule(SliceAssignInst)  # todo: should have its own rule
-@register_rule(StoreGlobalGenericInst)
+@register_rule(LoadMatrixInst)  # todo: should have its own rule
+@register_rule(StoreGlobalGenericInst) # todo: should have its own rule
+@register_rule(StoreSharedGenericInst) # todo: should have its own rule
 @register_rule(StoreSharedInst)
 @register_rule(PrintTensorInst)
 @register_rule(FormatPrintInst)

@@ -14,7 +14,7 @@
 # limitations under the License.
 from typing import Callable
 
-from tilus.target import Target, get_current_target, nvgpu_sm80, nvgpu_sm90, nvgpu_sm100
+from tilus.target import Target, get_current_target, nvgpu_sm80, nvgpu_sm90, nvgpu_sm100, nvgpu_sm100a
 
 
 def _requires(target: Target) -> Callable[[Callable], Callable]:
@@ -53,3 +53,4 @@ class requires:
     nvgpu_sm90 = _requires(nvgpu_sm90)
     nvgpu_sm80 = _requires(nvgpu_sm80)
     nvgpu_sm100 = _requires(nvgpu_sm100)
+    nvgpu_sm100a = _requires(nvgpu_sm100a)

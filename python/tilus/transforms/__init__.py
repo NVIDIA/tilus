@@ -35,6 +35,7 @@ def get_default_passes() -> list[Pass]:
         layout_inference_pass(),
         lower_to_load_matrix_pass(),
         lower_load_store_pass(),
+        layout_inference_pass(),
         bound_aware_simplify_pass(),
         analyze_scalar_pass(),
     ]

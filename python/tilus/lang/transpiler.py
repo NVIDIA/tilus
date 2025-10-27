@@ -1219,7 +1219,7 @@ class Transpiler(PythonAstFunctor):
                         "Index dimension {} does not match tensor shape {}.".format(len(indices), buf.shape),
                     )
                 sb = StmtBuilder()
-                ptr = sb.tensor_element_ptr(buf, indices, space="generic")
+                ptr = sb.tensor_item_ptr(buf, indices, space="generic")
                 self.current_scope.append(sb.flush_stmts())
                 return ptr
             elif isinstance(buf, RegisterTensor):

@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from hidet.ir.expr import Var
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.tensor import GlobalTensor
 
@@ -21,3 +22,9 @@ class GlobalTensorWithMethods(GlobalTensor):
         super().__init__(tensor.dtype, tensor.layout)
         self.tensor = tensor
         self.builder = builder
+
+    def item_ptr(self) -> Var:
+        return self.builder.tensor_item_ptr(self.tensor, space="global")
+
+    def item(self) -> Var:
+        return self.builder.tensor_item_value(self.tensor)

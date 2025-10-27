@@ -26,7 +26,7 @@ class Tcgen05Example(tilus.Script):
         self.tcgen05.relinquish_alloc_permit(cta_group=1)
 
 
-@tilus.testing.requires.nvgpu_sm100
+@tilus.testing.requires.nvgpu_sm100a
 def test_tcgen_alloc_free():
     kernel = Tcgen05Example()
     kernel()
