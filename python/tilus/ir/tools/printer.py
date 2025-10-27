@@ -320,7 +320,9 @@ class IRPrinter(IRFunctor):
             + self.printer(stmt.ptr_var.type)
             + " = "
             + self.visit(stmt.tensor)
-            + ".item_ptr(space='" + stmt.space + "')"
+            + ".item_ptr(space='"
+            + stmt.space
+            + "')"
         )
         return doc
 

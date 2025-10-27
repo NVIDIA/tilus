@@ -24,11 +24,11 @@ from . import (
     gmem,
     ldst,
     reduce,
+    regs,
     shuffle,
     smem,
     sync,
     transform,
     view,
     where,
-    regs,
 )

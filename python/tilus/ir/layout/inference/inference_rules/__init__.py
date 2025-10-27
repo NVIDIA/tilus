@@ -23,11 +23,11 @@ from . import (
     load_shared,
     mma_dot,
     reduce,
+    slice_register,
     store_shared,
     tcgen05,
     transform,
     transform_shared,
     transpose,
-    slice_register,
     where,
 )

@@ -13,11 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Optional, Sequence
+
 from tilus import RegisterLayout
-from tilus.ir.instructions import SliceRegisterInst, SliceAssignInst
+from tilus.ir.instructions import SliceAssignInst, SliceRegisterInst
+from tilus.ir.layout import ops
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.tensor import RegisterTensor
-from tilus.ir.layout import ops
+
 
 class BaseSliceRegisterRule(LayoutInferenceRule):
     @staticmethod
@@ -26,7 +28,7 @@ class BaseSliceRegisterRule(LayoutInferenceRule):
         rhs = ops.local(*shape)
         full_layout = lhs * rhs
         return full_layout
-    
+
     @staticmethod
     def get_sliced_layout(full_layout: RegisterLayout, slice_dims: Optional[Sequence[int]]) -> RegisterLayout:
         if slice_dims is None:
@@ -35,9 +37,9 @@ class BaseSliceRegisterRule(LayoutInferenceRule):
         sliced_layout = ops.reduce(full_layout, dims=reduce_dims, keepdims=False)
         return sliced_layout
 
+
 @register_rule(SliceRegisterInst)
 class SliceRegisterRule(BaseSliceRegisterRule):
-
     @staticmethod
     def inference(ctx: LayoutInferenceContext, inst: SliceRegisterInst) -> dict[RegisterTensor, RegisterLayout]:
         src = inst.register_input
@@ -49,11 +51,11 @@ class SliceRegisterRule(BaseSliceRegisterRule):
             ret[src] = src_layout
         else:
             src_layout = src.optional_layout
-        
+
         if dst.optional_layout is None:
             dst_layout = SliceRegisterRule.get_sliced_layout(src_layout, inst.dims)
             ret[dst] = dst_layout
-        
+
         return ret
 
 

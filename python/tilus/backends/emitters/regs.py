@@ -12,13 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import tensor_var
-from hidet.ir.tools import rewrite
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.ir import RegisterTensor
+from tilus.ir.instructions import SliceAssignInst, SliceRegisterInst
 from tilus.ir.layout import RegisterLayout
-from tilus.ir.instructions import SliceRegisterInst, SliceAssignInst
 
 
 @register_emitter(SliceRegisterInst)
@@ -29,7 +27,7 @@ class SliceRegisterInstEmitter(BaseInstEmitter):
         src_tensor: RegisterTensor = inst.register_input
         src_layout: RegisterLayout = src_tensor.layout
 
-        dst_var = self.get_or_allocate_var(tensor=dst_tensor, name='slice_regs')
+        dst_var = self.get_or_allocate_var(tensor=dst_tensor, name="slice_regs")
         src_var = self.tensor2var[src_tensor]
 
         with self.for_range(extent=dst_layout.local_size) as dst_local:

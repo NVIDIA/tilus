@@ -338,10 +338,8 @@ class Transpiler(PythonAstFunctor):
             sb = StmtBuilder()
             dst_tensor = self.visit(lhs.value)
             if not isinstance(dst_tensor, RegisterTensor):
-                raise TilusProgramError(
-                    self, lhs, "The left side of subscript assignment must be a RegisterTensor."
-                )
-            
+                raise TilusProgramError(self, lhs, "The left side of subscript assignment must be a RegisterTensor.")
+
             # extract offsets and slice_dims
             indices = self.visit(lhs.slice)
             offsets = []
@@ -362,19 +360,16 @@ class Transpiler(PythonAstFunctor):
                     slice_dims.append(dim)
                 else:
                     offsets.append(as_expr(index))
-            
+
             # process rhs
             if isinstance(rhs, RegisterTensor):
                 rhs_tensor = rhs
             else:
-                rhs_tensor = sb.allocate_register(dtype=dst_tensor.dtype, shape=[], f_init=lambda _: dst_tensor.dtype(rhs))
-            
-            sb.slice_assign_register(
-                output=dst_tensor,
-                x=rhs_tensor,
-                offsets=offsets,
-                dims=slice_dims
-            )
+                rhs_tensor = sb.allocate_register(
+                    dtype=dst_tensor.dtype, shape=[], f_init=lambda _: dst_tensor.dtype(rhs)
+                )
+
+            sb.slice_assign_register(output=dst_tensor, x=rhs_tensor, offsets=offsets, dims=slice_dims)
 
             self.current_scope.append(sb.flush_stmts())
         elif isinstance(lhs, ast.Attribute):
@@ -1064,7 +1059,9 @@ class Transpiler(PythonAstFunctor):
 
             if isinstance(var_value, RegisterTensor):
                 if isinstance(value, (int, float, hidet_ir.Expr)):
-                    value = sb.allocate_register(dtype=var_value.dtype, shape=var_value.shape, f_init=lambda axes: value)
+                    value = sb.allocate_register(
+                        dtype=var_value.dtype, shape=var_value.shape, f_init=lambda axes: value
+                    )
                 if isinstance(stmt.op, ast.Add):
                     sb.add(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.Sub):
@@ -1118,7 +1115,9 @@ class Transpiler(PythonAstFunctor):
             #     raise HidetProgramError(self, stmt.target, "AugAssign only support RegisterTensor as subscript target.")
             raise NotImplementedError("AugAssign on Subscript is not implemented yet.")
         else:
-            raise HidetProgramError(self, stmt.target, "AugAssign only support variable name or RegisterTensor as target.")
+            raise HidetProgramError(
+                self, stmt.target, "AugAssign only support variable name or RegisterTensor as target."
+            )
         self.current_scope.append(sb.flush_stmts())
 
     def visit_For(self, stmt: ast.For) -> None:
@@ -1219,7 +1218,7 @@ class Transpiler(PythonAstFunctor):
                         "Index dimension {} does not match tensor shape {}.".format(len(indices), buf.shape),
                     )
                 sb = StmtBuilder()
-                ptr = sb.tensor_item_ptr(buf, indices, space="generic")
+                ptr = sb.tensor_item_ptr(buf, space="generic")
                 self.current_scope.append(sb.flush_stmts())
                 return ptr
             elif isinstance(buf, RegisterTensor):

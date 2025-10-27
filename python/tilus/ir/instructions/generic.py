@@ -43,16 +43,13 @@ class SliceAssignInst(Instruction):
 
     @staticmethod
     def create(
-        dst: RegisterTensor,
-        src: RegisterTensor,
-        offsets: Sequence[Expr],
-        dims: Optional[Sequence[int]]
+        dst: RegisterTensor, src: RegisterTensor, offsets: Sequence[Expr], dims: Optional[Sequence[int]]
     ) -> SliceAssignInst:
         return SliceAssignInst(
             output=None,
             inputs=(dst, src),
             offsets=tuple(offsets),
-            dims=tuple(i for i in range(len(dst.shape))) if dims is None else tuple(dims)
+            dims=tuple(i for i in range(len(dst.shape))) if dims is None else tuple(dims),
         )
 
 
@@ -229,6 +226,7 @@ class StoreSharedGenericInst(Instruction):
         mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
         return StoreSharedGenericInst(output=None, inputs=(x,), ptr=ptr, axes=axes, offset=offset, mask=mask)
 
+
 @dataclass(frozen=True, eq=False)
 class SliceRegisterInst(Instruction):
     offsets: tuple[Expr, ...]
@@ -248,6 +246,7 @@ class SliceRegisterInst(Instruction):
             offsets=tuple(offsets),
             dims=tuple(dims) if len(dims) < len(tensor.shape) else None,
         )
+
 
 @dataclass(frozen=True, eq=False)
 class CastInst(Instruction):

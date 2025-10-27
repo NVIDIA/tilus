@@ -31,6 +31,7 @@ from .inference_rules.load_shared import (
 )
 from .inference_rules.mma_dot import MmaDotRule
 from .inference_rules.reduce import ReduceRule
+from .inference_rules.slice_register import SliceAssignRule, SliceRegisterRule
 from .inference_rules.store_shared import StoreSharedSwizzleRule
 from .inference_rules.tcgen05.copy import Tcgen05CopyRule
 from .inference_rules.tcgen05.ldst import Tcgen05LoadRule, Tcgen05StoreRule
@@ -39,7 +40,6 @@ from .inference_rules.transform import SqueezeRule, UnsqueezeRule
 from .inference_rules.transform_shared import PermuteSharedRule, SharedSliceRule
 from .inference_rules.transpose import TransposeRule
 from .inference_rules.where import WhereRule
-from .inference_rules.slice_register import SliceRegisterRule, SliceAssignRule
 
 inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [SliceRegisterRule, SliceAssignRule],

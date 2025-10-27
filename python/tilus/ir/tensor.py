@@ -62,7 +62,7 @@ class Tensor:
     def as_register_or_shared_tensor(self) -> RegisterTensor | SharedTensor:
         assert isinstance(self, (RegisterTensor, SharedTensor))
         return self
-    
+
     """
     The following methods are used for type hinting in Tilus Script. The corresponding operations/methods will be
     converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
@@ -77,7 +77,6 @@ class Tensor:
             The scalar value of the tensor.
         """
         raise RuntimeError("tensor.item(...) could only be used in Tilus Script.")
-
 
 
 @dataclass(frozen=True, eq=False)
@@ -100,8 +99,10 @@ class RegisterTensor(Tensor):
 
     def __getitem__(self, indices: tuple[Expr | int | slice] | Expr | int | slice) -> RegisterTensor:
         raise RuntimeError("register_tensor[...] could only be used in Tilus Script.")
-    
-    def __setitem__(self, indices: tuple[Expr | int | slice] | Expr | int | slice, value: RegisterTensor | Expr) -> None:
+
+    def __setitem__(
+        self, indices: tuple[Expr | int | slice] | Expr | int | slice, value: RegisterTensor | Expr
+    ) -> None:
         raise RuntimeError("register_tensor[...] = value could only be used in Tilus Script.")
 
     @staticmethod
@@ -413,7 +414,7 @@ class SharedTensor(Tensor):
         if shape is None and optional_layout is None:
             raise ValueError("Either shape or layout must be provided to create a SharedTensor.")
         elif shape is None:
-            assert optional_layout is not None 
+            assert optional_layout is not None
             shape = optional_layout.shape
         elif optional_layout is None:
             pass  # layout is optional
