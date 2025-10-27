@@ -24,6 +24,7 @@ from . import (
     gmem,
     ldst,
     reduce,
+    regs,
     shuffle,
     smem,
     sync,

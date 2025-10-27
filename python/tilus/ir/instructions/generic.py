@@ -32,8 +32,25 @@ from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 @dataclass(frozen=True, eq=False)
 class AssignInst(Instruction):
     @staticmethod
-    def create(output: Tensor, x: Tensor) -> AssignInst:
-        return AssignInst(output=output, inputs=(x,))
+    def create(dst: RegisterTensor, src: RegisterTensor) -> AssignInst:
+        return AssignInst(output=None, inputs=(dst, src))
+
+
+@dataclass(frozen=True, eq=False)
+class SliceAssignInst(Instruction):
+    offsets: tuple[Expr, ...]
+    dims: Optional[tuple[int, ...]]
+
+    @staticmethod
+    def create(
+        dst: RegisterTensor, src: RegisterTensor, offsets: Sequence[Expr], dims: Optional[Sequence[int]]
+    ) -> SliceAssignInst:
+        return SliceAssignInst(
+            output=None,
+            inputs=(dst, src),
+            offsets=tuple(offsets),
+            dims=tuple(i for i in range(len(dst.shape))) if dims is None else tuple(dims),
+        )
 
 
 @dataclass(frozen=True, eq=False)
@@ -208,6 +225,27 @@ class StoreSharedGenericInst(Instruction):
         offset = as_expr(f_offset(axes))
         mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
         return StoreSharedGenericInst(output=None, inputs=(x,), ptr=ptr, axes=axes, offset=offset, mask=mask)
+
+
+@dataclass(frozen=True, eq=False)
+class SliceRegisterInst(Instruction):
+    offsets: tuple[Expr, ...]
+    dims: Optional[tuple[int, ...]]
+
+    @staticmethod
+    def create(
+        tensor: RegisterTensor,
+        offsets: Sequence[Expr],
+        dims: Sequence[int],
+        shape: Sequence[int],
+    ) -> SliceRegisterInst:
+        output = RegisterTensor.create(dtype=tensor.dtype, shape=shape)
+        return SliceRegisterInst(
+            output=output,
+            inputs=(tensor,),
+            offsets=tuple(offsets),
+            dims=tuple(dims) if len(dims) < len(tensor.shape) else None,
+        )
 
 
 @dataclass(frozen=True, eq=False)

@@ -12,7 +12,7 @@ class PrintTmemTensor(tilus.Script):
         self.print_tensor("t_a: ", t_a)
 
 
-@requires.nvgpu_sm100
+@requires.nvgpu_sm100a
 def test_print_tmem_tensor():
     kernel = PrintTmemTensor()
     kernel()

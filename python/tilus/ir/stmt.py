@@ -118,18 +118,16 @@ class EvaluateStmt(Stmt):
 
 
 @dataclass(frozen=True, eq=False)
-class TensorElemPtrStmt(Stmt):
+class TensorItemPtrStmt(Stmt):
     ptr_var: Var
     tensor: Tensor
-    indices: Optional[tuple[Expr, ...]]
     space: str  # 'generic', 'shared', 'global', 'local'
 
 
 @dataclass(frozen=True, eq=False)
-class TensorElemValueStmt(Stmt):
+class TensorItemValueStmt(Stmt):
     var: Var
     tensor: Tensor
-    indices: tuple[Expr, ...]
 
 
 @dataclass(frozen=True, eq=False)

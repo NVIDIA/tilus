@@ -144,7 +144,7 @@ class FusedRecurrentGatedDeltaRuleUpdateFwdKernel(tilus.Script):
 
         # load initial state
         if USE_INITIAL_STATE:
-            state_idx: int32 = initial_state_indices[i_t]
+            state_idx: int32 = initial_state_indices[i_t].item()
             r_h = self.load_global(
                 initial_state_source,
                 offsets=[state_idx, i_hv, 0, i_bv * self.BV],
@@ -156,7 +156,7 @@ class FusedRecurrentGatedDeltaRuleUpdateFwdKernel(tilus.Script):
             r_h = self.register_tensor(dtype=float32, shape=[K, self.BV], init=0.0)
 
         # H' = alpha * H : [K, BV] = [] * [K, BV]
-        alpha: float32 = math.exp(g_g[0, i_t, i_hv])
+        alpha: float32 = math.exp(g_g[0, i_t, i_hv].item())
         r_h = r_h * alpha
 
         # p = k * H : [BV] = reduce([K, 1] * [K, BV], dim=0)
@@ -164,7 +164,7 @@ class FusedRecurrentGatedDeltaRuleUpdateFwdKernel(tilus.Script):
         # self.print_tensor('r_p ', r_p)
 
         # r = beta * (v - p) : [BV] = [] * ([BV] - [BV])
-        beta: float32 = float32(g_beta[0, i_t, i_hv])
+        beta: float32 = float32(g_beta[0, i_t, i_hv].item())
         r_v = self.load_global(
             g_v, offsets=[0, i_t, i_hv, i_bv * self.BV], shape=[self.BV], dims=[3]
         ).to(float32)
@@ -379,7 +379,7 @@ class FusedSigmoidGatingDeltaRuleUpdateKernel(tilus.Script):
 
         # Load initial state
         if USE_INITIAL_STATE:
-            state_idx: int32 = initial_state_indices[i_t]
+            state_idx: int32 = initial_state_indices[i_t].item()
             r_h = self.load_global(
                 initial_state_source,
                 offsets=[state_idx, i_hv, 0, i_bv * self.BV],

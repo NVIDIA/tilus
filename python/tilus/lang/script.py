@@ -327,7 +327,12 @@ class BarrierInstructionGroup(InstructionGroup):
             The list of pointers to the barriers in shared memory.
         """
         mbarriers_shared = self._builder.allocate_shared(dtype=uint64, shape=[len(counts)])
-        mbarriers = [self._builder.tensor_element_ptr(mbarriers_shared, indices=[i]) for i in range(len(counts))]
+        mbarriers = [
+            self._builder.tensor_item_ptr(
+                self._builder.slice_shared(mbarriers_shared, offsets=[i], slice_dims=[], slice_shape=[])
+            )
+            for i in range(len(counts))
+        ]
         for i in range(len(counts)):
             self._builder.init_barrier(mbarriers[i], int32(counts[i]))
         self._builder.syncthreads()

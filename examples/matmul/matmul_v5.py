@@ -166,7 +166,7 @@ class MatmulV5(tilus.Script):
             semaphores = self.global_tensor(
                 dtype=int32, shape=[m_blocks, n_blocks], requires_clean=True
             )
-            semaphore: ~int32 = ~semaphores[self.blockIdx.x, self.blockIdx.y]
+            semaphore: ~int32 = semaphores[self.blockIdx.x, self.blockIdx.y].item_ptr()
 
             # load and accumulate the partial result in global memory
             if self.blockIdx.z > 0:

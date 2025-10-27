@@ -35,8 +35,8 @@ from tilus.ir.stmt import (
     LetStmt,
     ReturnStmt,
     SeqStmt,
-    TensorElemPtrStmt,
-    TensorElemValueStmt,
+    TensorItemPtrStmt,
+    TensorItemValueStmt,
     ThreadGroupStmt,
     WhileStmt,
 )
@@ -311,7 +311,7 @@ class IRPrinter(IRFunctor):
     def visit_AssignStmt(self, stmt: AssignStmt) -> Doc:
         return NewLine() + self.visit(stmt.var) + " = " + self.visit(stmt.value)
 
-    def visit_TensorElemPtrStmt(self, stmt: TensorElemPtrStmt) -> Doc:
+    def visit_TensorItemPtrStmt(self, stmt: TensorItemPtrStmt) -> Doc:
         doc = Doc()
         doc += (
             NewLine()
@@ -319,14 +319,14 @@ class IRPrinter(IRFunctor):
             + ": "
             + self.printer(stmt.ptr_var.type)
             + " = "
-            + "~"
             + self.visit(stmt.tensor)
+            + ".item_ptr(space='"
+            + stmt.space
+            + "')"
         )
-        if stmt.indices is not None:
-            doc += "[" + self.visit(stmt.indices) + "]"
         return doc
 
-    def visit_TensorElemValueStmt(self, stmt: TensorElemValueStmt) -> Any:
+    def visit_TensorItemValueStmt(self, stmt: TensorItemValueStmt) -> Any:
         doc = Doc()
         doc += (
             NewLine()
@@ -335,9 +335,7 @@ class IRPrinter(IRFunctor):
             + self.printer(stmt.var.type)
             + " = "
             + self.visit(stmt.tensor)
-            + "["
-            + self.visit(stmt.indices)
-            + "]"
+            + ".item()"
         )
         return doc
 

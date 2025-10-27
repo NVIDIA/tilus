@@ -4,8 +4,7 @@
         "reportInvalidTypeForm": "none" // Tilus rely on variables as type hints, for cursor to work properly
     },
     "python.testing.pytestArgs": [
-        "tests", 
-        "-s",
+        "tests"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true

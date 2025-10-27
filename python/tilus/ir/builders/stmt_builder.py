@@ -22,7 +22,7 @@ from hidet.ir.expr import Equal, Expr, LessEqual, LessThan, NotEqual, Var, as_ex
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
 from hidet.ir.utils import broadcast_shapes, can_broadcast
-from hidet.utils import same_list
+from hidet.utils import prod, same_list
 
 from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.instructions.annotation import AnnotateLayoutInst
@@ -95,7 +95,9 @@ from tilus.ir.instructions.generic import (
     ReduceInst,
     RepeatInst,
     RepeatInterleaveInst,
+    SliceAssignInst,
     SliceGlobalInst,
+    SliceRegisterInst,
     SliceSharedInst,
     SqueezeInst,
     StoreGlobalGenericInst,
@@ -120,8 +122,8 @@ from tilus.ir.stmt import (
     InstStmt,
     SeqStmt,
     Stmt,
-    TensorElemPtrStmt,
-    TensorElemValueStmt,
+    TensorItemPtrStmt,
+    TensorItemValueStmt,
     ThreadGroupStmt,
     WhileStmt,
 )
@@ -328,24 +330,27 @@ class StmtBuilderCore:
     def assign(self, var: Var, value: Expr) -> None:
         self.append(AssignStmt(var, value))
 
-    def tensor_ptr(self, tensor: Tensor, space: str = "generic") -> Var:
-        return self.tensor_element_ptr(tensor, indices=None, space=space)
-
-    def tensor_element_ptr(
-        self, tensor: Tensor, indices: Optional[Sequence[Expr | int]] = None, space: str = "generic"
-    ) -> Var:
+    def tensor_item_ptr(self, tensor: Tensor, space: str = "generic") -> Var:
         if space in ["generic", "global"]:
             ptr_var = Var("ptr", type=~tensor.dtype)
         else:
             ptr_var = Var("ptr", int32)
-        if indices is not None:
-            indices = tuple(as_expr(e) for e in indices)
-        self.append(TensorElemPtrStmt(ptr_var, tensor, indices=indices, space=space))
+        if isinstance(tensor, (SharedTensor, GlobalTensor)):
+            if prod(tensor.shape) != 1:
+                raise ValueError("tensor_item_ptr requires tensor with a single element")
+        else:
+            raise ValueError("tensor_item_ptr only supports SharedTensor and GlobalTensor")
+        self.append(TensorItemPtrStmt(ptr_var, tensor, space=space))
         return ptr_var
 
-    def tensor_element_value(self, tensor: Tensor, indices: Sequence[Expr | int]) -> Var:
+    def tensor_item_value(self, tensor: Tensor) -> Var:
+        if isinstance(tensor, (SharedTensor, GlobalTensor, RegisterTensor)):
+            if prod(tensor.shape) != 1:
+                raise ValueError("tensor_item_value requires tensor with a single element")
+        else:
+            raise ValueError("tensor_item_value only supports SharedTensor, GlobalTensor and RegisterTensor")
         var = Var("val", type=tensor.dtype)
-        self.append(TensorElemValueStmt(var, tensor, indices=tuple(as_expr(e) for e in indices)))
+        self.append(TensorItemValueStmt(var, tensor))
         return var
 
     def append(self, inst_or_stmt: Union[Instruction, Stmt]) -> None:
@@ -372,6 +377,19 @@ class StmtBuilderCore:
 
 
 class StmtBuilder(StmtBuilderCore):
+    def tensor_ptr(self, tensor: Tensor, space: str = "generic") -> Var:
+        if isinstance(tensor, GlobalTensor):
+            tensor = self.slice_global(
+                tensor, offsets=[0 for _ in range(len(tensor.shape))], slice_dims=[], slice_shape=[]
+            )
+        elif isinstance(tensor, SharedTensor):
+            tensor = self.slice_shared(
+                tensor, offsets=[0 for _ in range(len(tensor.shape))], slice_dims=[], slice_shape=[]
+            )
+        else:
+            raise ValueError("tensor_ptr only supports GlobalTensor and SharedTensor")
+        return self.tensor_item_ptr(tensor, space=space)
+
     # register value operations
     def allocate_register(
         self,
@@ -430,6 +448,21 @@ class StmtBuilder(StmtBuilderCore):
 
     def assign_register(self, output: RegisterTensor, x: RegisterTensor) -> None:
         inst = AssignInst.create(output, x)
+        self.append(inst)
+
+    def slice_assign_register(
+        self,
+        output: RegisterTensor,
+        x: RegisterTensor,
+        offsets: Sequence[Expr | int],
+        dims: Optional[Sequence[int]] = None,
+    ) -> None:
+        inst = SliceAssignInst.create(
+            dst=output,
+            src=x,
+            offsets=[as_expr(offset) for offset in offsets],
+            dims=dims,
+        )
         self.append(inst)
 
     def view(
@@ -716,6 +749,23 @@ class StmtBuilder(StmtBuilderCore):
 
     def transpose(self, x: RegisterTensor) -> RegisterTensor:
         inst = TransposeInst.create(x)
+        self.append(inst)
+        return inst.register_output
+
+    def slice_register(
+        self,
+        tensor: RegisterTensor,
+        offsets: Sequence[Expr | int],
+        slice_dims: Sequence[int],
+        slice_shape: Sequence[int],
+    ) -> RegisterTensor:
+        offsets_ = [as_expr(offset) for offset in offsets]
+        inst = SliceRegisterInst.create(
+            tensor=tensor,
+            offsets=offsets_,
+            dims=slice_dims,
+            shape=slice_shape,
+        )
         self.append(inst)
         return inst.register_output
 

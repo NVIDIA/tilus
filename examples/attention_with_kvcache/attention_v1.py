@@ -126,12 +126,12 @@ class AttentionWithKVCache(tilus.Script):
         self.copy_async(
             src=g_k_cache,
             dst=s_k,
-            offsets=[g_block_table[bs, 0], 0, head // group_heads, 0],
+            offsets=[g_block_table[bs, 0].item(), 0, head // group_heads, 0],
             dims=[1, 3],
         )
         self.copy_async_commit_group()
 
-        q_left_len = g_cache_seqlens[bs] - seqlen_q
+        q_left_len = g_cache_seqlens[bs].item() - seqlen_q
         kv_offset_end: int32 = q_left_len + q_offset + self.block_q
         for kv_offset in self.range(0, kv_offset_end, self.block_kv):
             self.copy_async_wait_group(0)
@@ -140,7 +140,7 @@ class AttentionWithKVCache(tilus.Script):
                 src=g_v_cache,
                 dst=s_v,
                 offsets=[
-                    g_block_table[bs, kv_offset // page_block_size],
+                    g_block_table[bs, kv_offset // page_block_size].item(),
                     kv_offset % page_block_size,
                     head // group_heads,
                     0,
@@ -167,7 +167,7 @@ class AttentionWithKVCache(tilus.Script):
                 src=g_k_cache,
                 dst=s_k,
                 offsets=[
-                    g_block_table[bs, preload_kv_offset // page_block_size],
+                    g_block_table[bs, preload_kv_offset // page_block_size].item(),
                     preload_kv_offset % page_block_size,
                     head // group_heads,
                     0,

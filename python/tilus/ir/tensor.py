@@ -63,6 +63,21 @@ class Tensor:
         assert isinstance(self, (RegisterTensor, SharedTensor))
         return self
 
+    """
+    The following methods are used for type hinting in Tilus Script. The corresponding operations/methods will be
+    converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
+    """
+
+    def item(self) -> Var:
+        """Get the scalar value of the tensor.
+
+        Returns
+        -------
+        ret: Var
+            The scalar value of the tensor.
+        """
+        raise RuntimeError("tensor.item(...) could only be used in Tilus Script.")
+
 
 @dataclass(frozen=True, eq=False)
 class RegisterTensor(Tensor):
@@ -81,6 +96,14 @@ class RegisterTensor(Tensor):
 
     shape: tuple[int, ...]
     optional_layout: Optional[RegisterLayout] = None
+
+    def __getitem__(self, indices: tuple[Expr | int | slice] | Expr | int | slice) -> RegisterTensor:
+        raise RuntimeError("register_tensor[...] could only be used in Tilus Script.")
+
+    def __setitem__(
+        self, indices: tuple[Expr | int | slice] | Expr | int | slice, value: RegisterTensor | Expr
+    ) -> None:
+        raise RuntimeError("register_tensor[...] = value could only be used in Tilus Script.")
 
     @staticmethod
     def create(
@@ -212,6 +235,21 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor + tensor could only be used in Tilus Script.")
 
+    def __radd__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform right-side addition with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to add to this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the addition.
+        """
+        raise RuntimeError("tensor + tensor could only be used in Tilus Script.")
+
     def __sub__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """Perform subtraction with another tensor or a scalar.
 
@@ -228,8 +266,39 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
 
+    def __rsub__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform right-side subtraction with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to subtract from this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the subtraction.
+
+        """
+        raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
+
     def __mul__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """Perform multiplication with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to multiply with this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the multiplication.
+        """
+        raise RuntimeError("tensor * tensor could only be used in Tilus Script.")
+
+    def __rmul__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform right-side multiplication with another tensor or a scalar.
 
         Parameters
         ----------
@@ -333,22 +402,6 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor == tensor could only be used in Tilus Script.")
 
-    def item(self) -> Var:
-        """Get the scalar value of the tensor.
-
-        The current tensor must be a scalar tensor:
-        - 0-rank tensor
-        - 1-rank tensor with shape [1]
-        - 2-rank tensor with shape [1, 1]
-        - ...
-
-        Returns
-        -------
-        ret: Var
-            The scalar value of the tensor.
-        """
-        raise RuntimeError("tensor.item(...) could only be used in Tilus Script.")
-
     def squeeze(self, dim: int | Sequence[int]) -> RegisterTensor:
         """Squeeze the tensor by removing dimensions of size 1.
 
@@ -402,11 +455,12 @@ class SharedTensor(Tensor):
 
     @staticmethod
     def create(
-        dtype: DataType, *, shape: Sequence[int] = None, optional_layout: Optional[SharedLayout] = None
+        dtype: DataType, *, shape: Optional[Sequence[int]] = None, optional_layout: Optional[SharedLayout] = None
     ) -> SharedTensor:
         if shape is None and optional_layout is None:
             raise ValueError("Either shape or layout must be provided to create a SharedTensor.")
         elif shape is None:
+            assert optional_layout is not None
             shape = optional_layout.shape
         elif optional_layout is None:
             pass  # layout is optional
@@ -472,6 +526,9 @@ class SharedTensor(Tensor):
     The following methods are used for type hinting in Tilus Script. The corresponding operations/methods will be
     converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
     """
+
+    def item_ptr(self) -> Var:
+        raise RuntimeError("shared_tensor.item_ptr(...) could only be used in Tilus Script.")
 
     def permute(self, dims: tuple[int, ...]) -> SharedTensor:
         raise RuntimeError("shared_tensor.permute(...) could only be used in Tilus Script.")
@@ -540,18 +597,25 @@ class GlobalTensor(Tensor):
         """
         return self.layout.size
 
-    def __getitem__(self, indices: tuple[Expr | int, ...] | Expr | int) -> Expr:
+    def with_layout(self, layout: GlobalLayout) -> GlobalTensor:
+        if not isinstance(layout, GlobalLayout):
+            raise ValueError(f"Layout must be a GlobalLayout, but got {type(layout)}.")
+        return dataclasses.replace(self, layout=layout)
+
+    """
+    The following methods are used for type hinting in Tilus Script. The corresponding operations/methods will be
+    converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
+    """
+
+    def __getitem__(self, indices: tuple[Expr | int, ...] | Expr | int) -> GlobalTensor:
         """Access the global tensor with the given indices.
 
         This method allows you to access elements of the global tensor using indices.
-
-        **This method is intended to be used in Tilus Script only.**
 
         Parameters
         ----------
         indices: tuple[Expr | int, ...] | Expr | int
             The indices to access the global tensor.
-
 
         Returns
         -------
@@ -560,7 +624,5 @@ class GlobalTensor(Tensor):
         """
         raise RuntimeError("global_tensor[...] could only be used in Tilus Script.")
 
-    def with_layout(self, layout: GlobalLayout) -> GlobalTensor:
-        if not isinstance(layout, GlobalLayout):
-            raise ValueError(f"Layout must be a GlobalLayout, but got {type(layout)}.")
-        return dataclasses.replace(self, layout=layout)
+    def item_ptr(self) -> Var:
+        raise RuntimeError("shared_tensor.item_ptr(...) could only be used in Tilus Script.")

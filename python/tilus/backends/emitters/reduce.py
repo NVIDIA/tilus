@@ -77,6 +77,7 @@ class ReduceInstEmitter(BaseInstEmitter):
         src_buf: Var = self.tensor2var[src]
         dst_buf: Var = self.get_or_allocate_var(dst)
 
+        dst_local: Expr
         with self.for_range(dst.layout.local_size, attr="u") as dst_local:
             self.buffer_store(dst_buf, indices=[dst_local], value=self.scalar_init_value(inst.op, dst.dtype))
 

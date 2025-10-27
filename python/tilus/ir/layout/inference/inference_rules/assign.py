@@ -22,8 +22,8 @@ from tilus.ir.tensor import RegisterTensor
 class AssignRule(LayoutInferenceRule):
     @staticmethod
     def inference(ctx: LayoutInferenceContext, inst: AssignInst) -> dict[RegisterTensor, RegisterLayout]:
-        x = inst.register_input
-        y = inst.register_output
+        x = inst.inputs[1].as_register_tensor()
+        y = inst.inputs[0].as_register_tensor()
 
         if x.optional_layout is not None and y.optional_layout is not None:
             return {}

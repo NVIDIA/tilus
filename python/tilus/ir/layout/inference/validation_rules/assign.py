@@ -21,8 +21,8 @@ from tilus.ir.tensor import RegisterTensor
 class AssignRule(LayoutValidationRule):
     @staticmethod
     def validate(inst: AssignInst) -> bool:
-        x: RegisterTensor = inst.register_input
-        y: RegisterTensor = inst.register_output
+        x: RegisterTensor = inst.inputs[1].as_register_tensor()
+        y: RegisterTensor = inst.inputs[0].as_register_tensor()
 
         fa = x.layout.spatial_mfunction()
         fb = y.layout.spatial_mfunction()

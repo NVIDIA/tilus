@@ -330,12 +330,48 @@ class Transpiler(PythonAstFunctor):
                             lhs,
                             "Different types of RegisterValue are not allowed to be assigned to each other. ",
                         )
-                    self.current_scope.append(AssignInst.create(output=lookup_result, x=rhs))
+                    self.current_scope.append(AssignInst.create(dst=lookup_result, src=rhs))
                 else:
                     raise TilusProgramError(self, lhs, "Unexpected assignee: {}".format(type(lookup_result)))
         elif isinstance(lhs, ast.Subscript):
             # example: a[3, 4] = 5.0
-            raise NotImplementedError("subscript assignment")
+            sb = StmtBuilder()
+            dst_tensor = self.visit(lhs.value)
+            if not isinstance(dst_tensor, RegisterTensor):
+                raise TilusProgramError(self, lhs, "The left side of subscript assignment must be a RegisterTensor.")
+
+            # extract offsets and slice_dims
+            indices = self.visit(lhs.slice)
+            offsets = []
+            slice_dims = []
+
+            if not isinstance(indices, Sequence):
+                indices = [indices]
+            else:
+                indices = list(indices)
+            while len(indices) < len(dst_tensor.shape):
+                indices.append(slice(None, None, None))
+            for dim, index in enumerate(indices):
+                if isinstance(index, slice):
+                    if index.start is not None:
+                        offsets.append(as_expr(index.start))
+                    else:
+                        offsets.append(Constant(0, data_type("int32")))
+                    slice_dims.append(dim)
+                else:
+                    offsets.append(as_expr(index))
+
+            # process rhs
+            if isinstance(rhs, RegisterTensor):
+                rhs_tensor = rhs
+            else:
+                rhs_tensor = sb.allocate_register(
+                    dtype=dst_tensor.dtype, shape=[], f_init=lambda _: dst_tensor.dtype(rhs)
+                )
+
+            sb.slice_assign_register(output=dst_tensor, x=rhs_tensor, offsets=offsets, dims=slice_dims)
+
+            self.current_scope.append(sb.flush_stmts())
         elif isinstance(lhs, ast.Attribute):
             # example: self.attrs.blocks = 16, 16
             lhs_base = self.visit(lhs.value)
@@ -880,7 +916,7 @@ class Transpiler(PythonAstFunctor):
 
         if isinstance(base, Sequence):
             return base[indices]
-        elif isinstance(base, (GlobalTensor, SharedTensor)):
+        elif isinstance(base, (GlobalTensor, SharedTensor, RegisterTensor)):
             if not isinstance(indices, Sequence):
                 indices = [indices]
             else:
@@ -912,32 +948,32 @@ class Transpiler(PythonAstFunctor):
                 raise TilusProgramError(self, expr, "Too many indices for tensor of shape {}.".format(base.shape))
 
             sb = StmtBuilder()
-            if len(slice_dims) == 0:
-                # indexing
-                var = sb.tensor_element_value(base, indices)
-                self.current_scope.append(sb.flush_stmts())
-                return var
+            sliced_tensor: Union[GlobalTensor, SharedTensor, RegisterTensor]
+            if isinstance(base, GlobalTensor):
+                sliced_tensor = sb.slice_global(
+                    tensor=base,
+                    offsets=offsets,
+                    slice_dims=slice_dims,
+                    slice_shape=[base.shape[dim] for dim in slice_dims],
+                )
+            elif isinstance(base, SharedTensor):
+                sliced_tensor = sb.slice_shared(
+                    tensor=base,
+                    offsets=offsets,
+                    slice_dims=slice_dims,
+                    slice_shape=[base.shape[dim] for dim in slice_dims],
+                )
+            elif isinstance(base, RegisterTensor):
+                sliced_tensor = sb.slice_register(
+                    tensor=base,
+                    offsets=offsets,
+                    slice_dims=slice_dims,
+                    slice_shape=[base.shape[dim] for dim in slice_dims],
+                )
             else:
-                # slicing
-                sliced_tensor: Union[GlobalTensor, SharedTensor]
-                if isinstance(base, GlobalTensor):
-                    sliced_tensor = sb.slice_global(
-                        tensor=base,
-                        offsets=offsets,
-                        slice_dims=slice_dims,
-                        slice_shape=[base.shape[dim] for dim in slice_dims],
-                    )
-                else:
-                    sliced_tensor = sb.slice_shared(
-                        tensor=base,
-                        offsets=offsets,
-                        slice_dims=slice_dims,
-                        slice_shape=[base.shape[dim] for dim in slice_dims],
-                    )
-                self.current_scope.append(sb.flush_stmts())
-                return sliced_tensor
-        elif isinstance(base, RegisterTensor):
-            raise TilusProgramError(self, expr, "Tilus Script does not support indexing/slicing on RegisterTensor.")
+                assert False
+            self.current_scope.append(sb.flush_stmts())
+            return sliced_tensor
         else:
             raise NotImplementedError()
 
@@ -1015,47 +1051,73 @@ class Transpiler(PythonAstFunctor):
             return hidet_ir.expr.if_then_else(cond, then_expr, else_expr)
 
     def visit_AugAssign(self, stmt: ast.AugAssign) -> None:
+        sb = StmtBuilder()
         if isinstance(stmt.target, ast.Name):
             target = ast.Name(stmt.target.id, ast.Load())
             var_value = self.visit(target)
-        else:
-            raise HidetProgramError(self, stmt.target, "AugAssign only support variable name as target.")
-        value = self.visit(stmt.value)
+            value = self.visit(stmt.value)
 
-        sb = StmtBuilder()
-        if isinstance(var_value, RegisterTensor):
-            if isinstance(value, (int, float, hidet_ir.Expr)):
-                value = sb.allocate_register(dtype=var_value.dtype, shape=var_value.shape, f_init=lambda axes: value)
-            if isinstance(stmt.op, ast.Add):
-                sb.add(x=var_value, y=value, out=var_value)
-            elif isinstance(stmt.op, ast.Sub):
-                sb.sub(x=var_value, y=value, out=var_value)
-            elif isinstance(stmt.op, ast.Mult):
-                sb.mul(x=var_value, y=value, out=var_value)
-            elif isinstance(stmt.op, ast.Div):
-                sb.div(x=var_value, y=value, out=var_value)
-            elif isinstance(stmt.op, ast.FloorDiv):
-                sb.div(x=var_value, y=value, out=var_value)
-            elif isinstance(stmt.op, ast.Mod):
-                sb.mod(x=var_value, y=value, out=var_value)
+            if isinstance(var_value, RegisterTensor):
+                if isinstance(value, (int, float, hidet_ir.Expr)):
+                    value = sb.allocate_register(
+                        dtype=var_value.dtype, shape=var_value.shape, f_init=lambda axes: value
+                    )
+                if isinstance(stmt.op, ast.Add):
+                    sb.add(x=var_value, y=value, out=var_value)
+                elif isinstance(stmt.op, ast.Sub):
+                    sb.sub(x=var_value, y=value, out=var_value)
+                elif isinstance(stmt.op, ast.Mult):
+                    sb.mul(x=var_value, y=value, out=var_value)
+                elif isinstance(stmt.op, ast.Div):
+                    sb.div(x=var_value, y=value, out=var_value)
+                elif isinstance(stmt.op, ast.FloorDiv):
+                    sb.div(x=var_value, y=value, out=var_value)
+                elif isinstance(stmt.op, ast.Mod):
+                    sb.mod(x=var_value, y=value, out=var_value)
+                else:
+                    raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
+            elif isinstance(var_value, hidet_ir.Var) and isinstance(value, (int, float, hidet_ir.Expr)):
+                op_dict = {
+                    ast.Add: operator.add,
+                    ast.Sub: operator.sub,
+                    ast.Mult: operator.mul,
+                    ast.Div: operator.truediv,
+                    ast.FloorDiv: operator.floordiv,
+                    ast.Mod: operator.mod,
+                    ast.RShift: operator.rshift,
+                    ast.LShift: operator.lshift,
+                    ast.BitXor: operator.xor,
+                }
+                sb.assign(var=var_value, value=op_dict[type(stmt.op)](var_value, value))
             else:
                 raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
-        elif isinstance(var_value, hidet_ir.Var) and isinstance(value, (int, float, hidet_ir.Expr)):
-            op_dict = {
-                ast.Add: operator.add,
-                ast.Sub: operator.sub,
-                ast.Mult: operator.mul,
-                ast.Div: operator.truediv,
-                ast.FloorDiv: operator.floordiv,
-                ast.Mod: operator.mod,
-                ast.RShift: operator.rshift,
-                ast.LShift: operator.lshift,
-                ast.BitXor: operator.xor,
-            }
-            sb.assign(var=var_value, value=op_dict[type(stmt.op)](var_value, value))
+        elif isinstance(stmt.target, ast.Subscript):
+            # target = self.visit(stmt.target)
+            # value = self.visit(stmt.value)
+            # if isinstance(target, RegisterTensor):
+            #     if isinstance(value, (int, float, hidet_ir.Expr)):
+            #         value = sb.allocate_register(dtype=target.dtype, shape=target.shape, f_init=lambda axes: target.dtype(value))
+            #     if isinstance(stmt.op, ast.Add):
+            #         sb.add(x=target, y=value, out=target)
+            #     elif isinstance(stmt.op, ast.Sub):
+            #         sb.sub(x=target, y=value, out=target)
+            #     elif isinstance(stmt.op, ast.Mult):
+            #         sb.mul(x=target, y=value, out=target)
+            #     elif isinstance(stmt.op, ast.Div):
+            #         sb.div(x=target, y=value, out=target)
+            #     elif isinstance(stmt.op, ast.FloorDiv):
+            #         sb.div(x=target, y=value, out=target)
+            #     elif isinstance(stmt.op, ast.Mod):
+            #         sb.mod(x=target, y=value, out=target)
+            #     else:
+            #         raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
+            # else:
+            #     raise HidetProgramError(self, stmt.target, "AugAssign only support RegisterTensor as subscript target.")
+            raise NotImplementedError("AugAssign on Subscript is not implemented yet.")
         else:
-            raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
-
+            raise HidetProgramError(
+                self, stmt.target, "AugAssign only support variable name or RegisterTensor as target."
+            )
         self.current_scope.append(sb.flush_stmts())
 
     def visit_For(self, stmt: ast.For) -> None:
@@ -1156,7 +1218,7 @@ class Transpiler(PythonAstFunctor):
                         "Index dimension {} does not match tensor shape {}.".format(len(indices), buf.shape),
                     )
                 sb = StmtBuilder()
-                ptr = sb.tensor_element_ptr(buf, indices, space="generic")
+                ptr = sb.tensor_item_ptr(buf, space="generic")
                 self.current_scope.append(sb.flush_stmts())
                 return ptr
             elif isinstance(buf, RegisterTensor):
