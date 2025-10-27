@@ -235,6 +235,21 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor + tensor could only be used in Tilus Script.")
 
+    def __radd__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform right-side addition with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to add to this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the addition.
+        """
+        raise RuntimeError("tensor + tensor could only be used in Tilus Script.")
+
     def __sub__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """Perform subtraction with another tensor or a scalar.
 
@@ -251,8 +266,39 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
 
+    def __rsub__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform right-side subtraction with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to subtract from this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the subtraction.
+
+        """
+        raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
+
     def __mul__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """Perform multiplication with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to multiply with this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the multiplication.
+        """
+        raise RuntimeError("tensor * tensor could only be used in Tilus Script.")
+
+    def __rmul__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform right-side multiplication with another tensor or a scalar.
 
         Parameters
         ----------
