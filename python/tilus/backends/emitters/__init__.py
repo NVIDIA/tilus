@@ -30,4 +30,5 @@ from . import (
     transform,
     view,
     where,
+    regs,
 )

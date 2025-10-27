@@ -30,6 +30,8 @@ from tilus.ir.instructions import (
     StoreGlobalGenericInst,
     StoreGlobalInst,
     StoreSharedInst,
+    SliceRegisterInst,
+    SliceAssignInst
 )
 from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkGlobalToClusterSharedInst,
@@ -57,6 +59,8 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(CopyAsyncBulkSharedToGlobalInst)  # todo: should have its own rule
 @register_rule(CopyAsyncGenericInst)  # todo: should have its own rule
 @register_rule(CopyAsyncInst)  # todo: should have its own rule
+@register_rule(SliceRegisterInst)  # todo: should have its own rule
+@register_rule(SliceAssignInst)  # todo: should have its own rule
 @register_rule(StoreGlobalGenericInst)
 @register_rule(StoreSharedInst)
 @register_rule(PrintTensorInst)

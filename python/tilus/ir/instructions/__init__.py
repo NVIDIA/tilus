@@ -65,6 +65,8 @@ from .generic import (
     ShuffleUpInst,
     SliceGlobalInst,
     SliceSharedInst,
+    SliceRegisterInst,
+    SliceAssignInst,
     SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,

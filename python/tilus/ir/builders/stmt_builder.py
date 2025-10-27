@@ -96,6 +96,8 @@ from tilus.ir.instructions.generic import (
     RepeatInst,
     RepeatInterleaveInst,
     SliceGlobalInst,
+    SliceRegisterInst,
+    SliceAssignInst,
     SliceSharedInst,
     SqueezeInst,
     StoreGlobalGenericInst,
@@ -431,6 +433,15 @@ class StmtBuilder(StmtBuilderCore):
     def assign_register(self, output: RegisterTensor, x: RegisterTensor) -> None:
         inst = AssignInst.create(output, x)
         self.append(inst)
+    
+    def slice_assign_register(self, output: RegisterTensor, x: RegisterTensor, offsets: Sequence[Expr | int], dims: Optional[Sequence[int]] = None) -> None:
+        inst = SliceAssignInst.create(
+            dst=output,
+            src=x,
+            offsets=[as_expr(offset) for offset in offsets],
+            dims=dims,
+        )
+        self.append(inst)
 
     def view(
         self,
@@ -716,6 +727,17 @@ class StmtBuilder(StmtBuilderCore):
 
     def transpose(self, x: RegisterTensor) -> RegisterTensor:
         inst = TransposeInst.create(x)
+        self.append(inst)
+        return inst.register_output
+    
+    def slice_register(self, tensor: RegisterTensor, offsets: Sequence[Expr | int], slice_dims: Sequence[int], slice_shape: Sequence[int]) -> RegisterTensor:
+        offsets_ = [as_expr(offset) for offset in offsets]
+        inst = SliceRegisterInst.create(
+            tensor=tensor,
+            offsets=offsets_,
+            dims=slice_dims,
+            shape=slice_shape,
+        )
         self.append(inst)
         return inst.register_output
 

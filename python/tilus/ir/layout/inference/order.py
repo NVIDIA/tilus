@@ -39,8 +39,10 @@ from .inference_rules.transform import SqueezeRule, UnsqueezeRule
 from .inference_rules.transform_shared import PermuteSharedRule, SharedSliceRule
 from .inference_rules.transpose import TransposeRule
 from .inference_rules.where import WhereRule
+from .inference_rules.slice_register import SliceRegisterRule, SliceAssignRule
 
 inference_order: list[list[Type[LayoutInferenceRule]]] = [
+    [SliceRegisterRule, SliceAssignRule],
     [Tcgen05MmaSSRule, Tcgen05MmaTSRule],
     [MmaDotRule],
     [Tcgen05LoadRule, Tcgen05StoreRule],

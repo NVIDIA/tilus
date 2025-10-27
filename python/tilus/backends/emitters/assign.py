@@ -17,14 +17,14 @@ from tilus.ir.instructions import AssignInst
 
 
 @register_emitter(AssignInst)
-class AllocateInstEmitter(BaseInstEmitter):
+class AssignInstEmitter(BaseInstEmitter):
     def emit(self, inst: AssignInst) -> None:  # type: ignore
-        value = inst.register_output
-        input_value = inst.inputs[0].as_register_tensor()
-        var = self.get_or_allocate_var(tensor=value, name="regs")
-        assert input_value.dtype == value.dtype
-        assert input_value.layout == value.layout
-        with self.for_range(value.layout.local_size) as i:
-            self.buffer_store(buf=var, indices=[i], value=self.tensor2var[input_value][i])
+        dst_tensor = inst.inputs[0].as_register_tensor()
+        src_tensor = inst.inputs[1].as_register_tensor()
+        var = self.get_or_allocate_var(tensor=dst_tensor, name="regs")
+        assert src_tensor.dtype == dst_tensor.dtype
+        assert src_tensor.layout == dst_tensor.layout
+        with self.for_range(dst_tensor.layout.local_size) as i:
+            self.buffer_store(buf=var, indices=[i], value=self.tensor2var[src_tensor][i])
 
-        self.tensor2var[value] = var
+        self.tensor2var[dst_tensor] = var

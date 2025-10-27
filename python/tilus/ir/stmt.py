@@ -133,6 +133,13 @@ class TensorElemValueStmt(Stmt):
 
 
 @dataclass(frozen=True, eq=False)
+class TensorElemStoreStmt(Stmt):
+    tensor: Tensor
+    indices: tuple[Expr, ...]
+    value: Expr
+
+
+@dataclass(frozen=True, eq=False)
 class InstStmt(Stmt):
     inst: Instruction
 

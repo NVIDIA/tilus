@@ -28,5 +28,6 @@ from . import (
     transform,
     transform_shared,
     transpose,
+    slice_register,
     where,
 )

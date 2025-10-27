@@ -82,6 +82,12 @@ class RegisterTensor(Tensor):
     shape: tuple[int, ...]
     optional_layout: Optional[RegisterLayout] = None
 
+    def __getitem__(self, indices: tuple[Expr | int | slice] | Expr | int | slice) -> RegisterTensor:
+        raise RuntimeError("register_tensor[...] could only be used in Tilus Script.")
+    
+    def __setitem__(self, indices: tuple[Expr | int | slice] | Expr | int | slice, value: RegisterTensor | Expr) -> None:
+        raise RuntimeError("register_tensor[...] = value could only be used in Tilus Script.")
+
     @staticmethod
     def create(
         dtype: DataType, *, shape: Sequence[int], optional_layout: Optional[RegisterLayout] = None
@@ -402,11 +408,12 @@ class SharedTensor(Tensor):
 
     @staticmethod
     def create(
-        dtype: DataType, *, shape: Sequence[int] = None, optional_layout: Optional[SharedLayout] = None
+        dtype: DataType, *, shape: Optional[Sequence[int]] = None, optional_layout: Optional[SharedLayout] = None
     ) -> SharedTensor:
         if shape is None and optional_layout is None:
             raise ValueError("Either shape or layout must be provided to create a SharedTensor.")
         elif shape is None:
+            assert optional_layout is not None 
             shape = optional_layout.shape
         elif optional_layout is None:
             pass  # layout is optional
