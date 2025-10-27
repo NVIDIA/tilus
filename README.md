@@ -1,7 +1,7 @@
 # Tilus: A Tile-Level GPU Kernel Programming Language
 [Documentation](https://nvidia.github.io/tilus/index.html) | [Paper](https://arxiv.org/abs/2504.12984)
 
-**Tilus** is a powerful domain-specific language (DSL) for GPU programming that offers:
+**Tilus** is a powerful research domain-specific language (DSL) for GPU programming that offers:
 
 * **Thread-block-level granularity** with **tensors** as the primary data type.
 * **Explicit control** over shared memory and register tensors (unlike Triton).
