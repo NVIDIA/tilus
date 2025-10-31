@@ -12,7 +12,7 @@ public:
   template <typename T>
   void_p(T *ptr) : internal_ptr(static_cast<void *>(ptr)) {}
 
-  // 3. Implicit template conversion operator (Allows implicit conversion back to ANY T*) This allows: int* ip = p; 
+  // 3. Implicit template conversion operator (Allows implicit conversion back to ANY T*) This allows: int* ip = p;
   // (where p holds an int*)
   template <typename T> operator T *() const {
     return static_cast<T *>(internal_ptr);

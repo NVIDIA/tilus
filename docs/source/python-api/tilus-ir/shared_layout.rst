@@ -19,4 +19,3 @@ We can use the following functions to create a shared layout:
     shared_row_major
     shared_column_major
     shared_compose
-

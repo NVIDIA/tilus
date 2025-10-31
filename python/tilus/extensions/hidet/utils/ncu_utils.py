@@ -31,20 +31,20 @@ _ncu_template = """
 --kernel-name regex:"{kernel_regex}"
 --force-overwrite
 --set full
---rule CPIStall 
---rule FPInstructions 
---rule HighPipeUtilization 
---rule IssueSlotUtilization 
---rule LaunchConfiguration 
---rule Occupancy 
---rule PCSamplingData 
---rule SOLBottleneck 
---rule SOLFPRoofline 
---rule SharedMemoryConflicts 
---rule SlowPipeLimiter 
---rule ThreadDivergence 
+--rule CPIStall
+--rule FPInstructions
+--rule HighPipeUtilization
+--rule IssueSlotUtilization
+--rule LaunchConfiguration
+--rule Occupancy
+--rule PCSamplingData
+--rule SOLBottleneck
+--rule SOLFPRoofline
+--rule SharedMemoryConflicts
+--rule SlowPipeLimiter
+--rule ThreadDivergence
 --rule UncoalescedGlobalAccess
---rule UncoalescedSharedAccess 
+--rule UncoalescedSharedAccess
 --import-source yes
 --check-exit-code yes
 {python_executable} {python_script} {args}

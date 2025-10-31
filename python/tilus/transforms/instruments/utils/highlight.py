@@ -163,11 +163,11 @@ TEMPLATE = """<!DOCTYPE html>
       background-color: #e0e0e0;
       color: #000;
       text-decoration: none;
-    } 
+    }
     main {
       padding: 2em;
-      margin-left: 200px; 
-      padding-left: 2em; 
+      margin-left: 200px;
+      padding-left: 2em;
       flex-grow: 1;
       overflow-x: auto;
     }

@@ -29,4 +29,3 @@ We require the user to explicitly or implicitly define the layout of global tens
 the kernel and the host. As for shared and register tensors, the layout can be explicitly defined by the user, or
 automatically inferred by the tilus compiler based on the usage of the tensor. We give a brief overview of the layout
 inference algorithm adopted by tilus in :doc:`layout-inference`.
-

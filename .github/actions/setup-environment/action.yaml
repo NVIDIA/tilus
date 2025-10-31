@@ -32,7 +32,7 @@ runs:
         }
 
         # Install required packages
-        install_package git 
+        install_package git
         install_package cmake
       shell: bash
 
@@ -45,7 +45,7 @@ runs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ inputs.python-version }}
-    
+
     - name: Setup proxy cache
       uses: nv-gha-runners/setup-proxy-cache@main
       if: hashFiles('/etc/buildkit/buildkitd.toml') != ''

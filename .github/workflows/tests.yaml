@@ -2,7 +2,7 @@ name: PR Tests
 
 on:
   push:
-    branches: 
+    branches:
       - "pull-request/[0-9]+"
 
 concurrency:
@@ -42,7 +42,7 @@ jobs:
             examples/**
             pyproject.toml
           base_sha: 'origin/main'
-        
+
       - name: Check for changes in docs
         id: changed-docs
         uses: step-security/changed-files@v46
@@ -59,7 +59,7 @@ jobs:
     continue-on-error: true
     strategy:
       matrix:
-        runner: 
+        runner:
           - linux-amd64-gpu-l4-latest-1
     runs-on: ${{ matrix.runner }}
     container:
@@ -127,7 +127,7 @@ jobs:
         run: |
           pip install wheel
           pip install torch==2.8 # since flash-attn only has pre-built wheels for torch<=2.8, todo: update this when flash-attn supports torch>=2.9
-          pip install flash-attn --no-build-isolation 
+          pip install flash-attn --no-build-isolation
 
       - name: Run examples
         run: |
@@ -144,7 +144,7 @@ jobs:
           echo "Tests result: ${{ needs.tests.result }}"
           echo "Docs result: ${{ needs.docs.result }}"
           echo "Examples result: ${{ needs.examples.result }}"
-          
+
           # Check if any required job failed
           if [[ "${{ needs.tests.result }}" == "failure" ]] || [[ "${{ needs.docs.result }}" == "failure" ]] || [[ "${{ needs.examples.result }}" == "failure" ]]; then
             echo "One or more functional tests failed"

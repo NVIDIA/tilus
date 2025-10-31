@@ -64,7 +64,3 @@ Tilus supports the following data types. All of them are instances of the :class
   - :py:data:`tilus.float5_e2m2`
   - :py:data:`tilus.float4_e2m1`
   - :py:data:`tilus.float3_e1m1`
-
-
-
-

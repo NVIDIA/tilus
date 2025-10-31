@@ -28,4 +28,3 @@ tilus.ir
     register_layout
     shared_layout
     global_layout
-

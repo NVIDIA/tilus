@@ -38,7 +38,7 @@ echo "Found $(echo "$pyfiles" | wc -l) Python files"
 # Loop through each file more traditionally
 for script in $pyfiles; do
     ((total_scripts++))
-    
+
     if ! run_script "$script"; then
         failed_scripts+=("$script")
         ((failed_count++))
@@ -64,6 +64,3 @@ else
     echo "All scripts passed successfully!"
     exit 0
 fi
-
-
-

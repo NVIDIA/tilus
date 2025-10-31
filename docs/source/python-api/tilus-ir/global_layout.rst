@@ -21,4 +21,3 @@ We can use the following functions to create a global layout:
     global_column_major
     global_strides
     global_compose
-

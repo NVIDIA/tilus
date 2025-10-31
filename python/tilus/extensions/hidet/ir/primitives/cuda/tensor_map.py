@@ -145,17 +145,17 @@ def encode_tensor_map(
     """
     template_string = (
         """cuTensorMapEncodeTiled(
-    {{}}, 
-    {dtype}, 
-    {{}}, 
-    {{}}, 
-    {{}}, 
-    {{}}, 
-    {{}}, 
-    {{}}, 
-    {interleave}, 
-    {swizzle}, 
-    {l2_promotion}, 
+    {{}},
+    {dtype},
+    {{}},
+    {{}},
+    {{}},
+    {{}},
+    {{}},
+    {{}},
+    {interleave},
+    {swizzle},
+    {l2_promotion},
     {oob_fill}
 );
 """.format(
