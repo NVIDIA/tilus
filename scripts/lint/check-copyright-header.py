@@ -131,12 +131,9 @@ def process_directory(target_dirs, use_short_header=False, check_only=False):
 
 def main():
     parser = argparse.ArgumentParser(description="Check and fix copyright headers in source files")
-    parser.add_argument("--check", action="store_true",
-                       help="Only check if files have headers, don't modify them")
-    parser.add_argument("--fix", action="store_true",
-                       help="Automatically add missing headers to files")
-    parser.add_argument("--check-and-fix", action="store_true",
-                       help="Check and fix missing headers in files")
+    parser.add_argument("--check", action="store_true", help="Only check if files have headers, don't modify them")
+    parser.add_argument("--fix", action="store_true", help="Automatically add missing headers to files")
+    parser.add_argument("--check-and-fix", action="store_true", help="Check and fix missing headers in files")
 
     args = parser.parse_args()
 
@@ -154,11 +151,13 @@ def main():
 
     # Process directories with full license header
     full_total, full_need_update, full_updated, full_files_needing_update = process_directory(
-        TARGET_DIRS, use_short_header=False, check_only=check_only or check_and_fix)
+        TARGET_DIRS, use_short_header=False, check_only=check_only or check_and_fix
+    )
 
     # Process directories with short license header
     short_total, short_need_update, short_updated, short_files_needing_update = process_directory(
-        SHORT_LICENSE_TARGET_DIRS, use_short_header=True, check_only=check_only or check_and_fix)
+        SHORT_LICENSE_TARGET_DIRS, use_short_header=True, check_only=check_only or check_and_fix
+    )
 
     # Combined totals
     total_files = full_total + short_total
@@ -184,9 +183,11 @@ def main():
 
             # Process directories again with fix mode
             full_total_fix, full_need_update_fix, full_updated_fix, _ = process_directory(
-                TARGET_DIRS, use_short_header=False, check_only=False)
+                TARGET_DIRS, use_short_header=False, check_only=False
+            )
             short_total_fix, short_need_update_fix, short_updated_fix, _ = process_directory(
-                SHORT_LICENSE_TARGET_DIRS, use_short_header=True, check_only=False)
+                SHORT_LICENSE_TARGET_DIRS, use_short_header=True, check_only=False
+            )
 
             total_updated_fix = full_updated_fix + short_updated_fix
 
@@ -207,5 +208,7 @@ def main():
         if need_update > 0 and updated == 0:
             sys.exit(1)
         sys.exit(0)
+
+
 if __name__ == "__main__":
     main()

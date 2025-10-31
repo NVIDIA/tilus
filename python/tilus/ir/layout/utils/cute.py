@@ -22,7 +22,7 @@ from hidet.utils import prod
 from tilus.extensions.hidet.ir.primitives.swizzle import swizzle
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
 
-Int = Expr | int
+Int = Union[Expr, int]
 IntTuple = Int | Sequence[Union[Int, "IntTuple"]]
 
 

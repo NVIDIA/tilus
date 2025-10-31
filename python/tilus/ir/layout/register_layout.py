@@ -18,7 +18,7 @@ import dataclasses
 import itertools
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Sequence
+from typing import Sequence, Union
 
 import tabulate
 from hidet.ir.expr import Expr
@@ -28,7 +28,7 @@ from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize, i
 from tilus.ir.layout.mfunction import MultiFunction, multi_function
 from tilus.ir.node import IRNode
 
-Int = int | Expr
+Int = Union[Expr, int]
 
 
 @dataclass(frozen=True, eq=False)
