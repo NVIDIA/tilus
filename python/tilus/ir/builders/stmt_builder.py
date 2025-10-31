@@ -48,10 +48,10 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
 )
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mbarrier import (
+    AllocBarrierInst,
     ArriveBarrierInst,
     ArriveRemoteBarrierInst,
     FenceProxyCopyAsync,
-    InitBarrierInst,
     WaitBarrierInst,
 )
 from tilus.ir.instructions.cuda.mma_dot import DotInst
@@ -1158,19 +1158,27 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     # barrier
-    def init_barrier(self, barrier: Expr, count: Optional[Expr] = None) -> None:
-        inst = InitBarrierInst.create(barrier=barrier, count=count)
+    def allocate_barrier(self, counts: Sequence[Expr | int | None]) -> RegisterTensor:
+        counts_expr = [as_expr(c) if c is not None else None for c in counts]
+        inst = AllocBarrierInst.create(counts=counts_expr)
         self.append(inst)
+        return inst.register_output
 
-    def arrive_barrier(self, barrier: Expr) -> None:
+    def arrive_barrier(self, barrier: Expr | RegisterTensor) -> None:
+        if isinstance(barrier, RegisterTensor):
+            barrier = self.tensor_item_value(barrier)
         inst = ArriveBarrierInst.create(barrier=barrier)
         self.append(inst)
 
-    def arrive_remote_barrier(self, barrier: Expr, remote_block: Expr | int) -> None:
+    def arrive_remote_barrier(self, barrier: Expr | RegisterTensor, remote_block: Expr | int) -> None:
+        if isinstance(barrier, RegisterTensor):
+            barrier = self.tensor_item_value(barrier)
         inst = ArriveRemoteBarrierInst.create(barrier=barrier, remote_block=remote_block)
         self.append(inst)
 
-    def wait_barrier(self, barrier: Expr, phase: Expr) -> None:
+    def wait_barrier(self, barrier: Expr | RegisterTensor, phase: Expr) -> None:
+        if isinstance(barrier, RegisterTensor):
+            barrier = self.tensor_item_value(barrier)
         inst = WaitBarrierInst.create(barrier=barrier, phase=phase)
         self.append(inst)
 
@@ -1239,7 +1247,9 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05CopyInst.create(src=src, dst=dst)
         self.append(inst)
 
-    def tcgen05_commit(self, mbarrier: Expr, cta_mask: Optional[int] = None) -> None:
+    def tcgen05_commit(self, mbarrier: Expr | RegisterTensor, cta_mask: Optional[int] = None) -> None:
+        if isinstance(mbarrier, RegisterTensor):
+            mbarrier = self.tensor_item_value(mbarrier)
         inst = Tcgen05CommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
         self.append(inst)
 

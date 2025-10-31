@@ -21,6 +21,7 @@ from . import (
     empty_rule,
     ldst_global,
     load_shared,
+    mbarrier,
     mma_dot,
     reduce,
     slice_register,

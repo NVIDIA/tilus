@@ -17,7 +17,7 @@ from typing import Literal
 import pytest
 import tilus
 import torch
-from tilus import int32, uint64
+from tilus import int32
 from tilus.ir.layout.cuda.tcgen05.smem import (
     Tcgen05SwizzleMode,
     generate_canonical_layout,
@@ -50,9 +50,7 @@ class TmemCopyExample(tilus.Script):
         s_x = self.shared_tensor(dtype=int32, shape=[self.block_m, self.block_n])
         t_x = self.tcgen05.alloc(dtype=int32, shape=[self.block_m, self.block_n])
 
-        barriers = self.shared_tensor(dtype=uint64, shape=[1])
-        self.mbarrier.init(~barriers[0], count=1)
-        self.sync()
+        barriers = self.mbarrier.alloc(count=[1])
 
         # load x from global to shared
         self.copy_async(src=g_x, dst=s_x, offsets=[m_offset, n_offset])
@@ -61,8 +59,8 @@ class TmemCopyExample(tilus.Script):
 
         # copy x from shared to tmem
         self.tcgen05.copy(src=s_x, dst=t_x)
-        self.tcgen05.commit(mbarrier=~barriers[0])
-        self.mbarrier.wait(~barriers[0], phase=0)
+        self.tcgen05.commit(mbarrier=barriers[0])
+        self.mbarrier.wait(barriers[0], phase=0)
 
         # load y from tmem to register
         r_y = self.tcgen05.load(t_x, offsets=[0, 0], shape=[self.block_m, self.block_n])

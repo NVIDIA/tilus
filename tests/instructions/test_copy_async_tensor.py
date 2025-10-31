@@ -12,9 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import pytest
 import tilus
 import torch
-from tilus import float16, int32, uint64
+from tilus import float16, int32
 from tilus.testing import requires
 from tilus.utils import cdiv
 
@@ -38,10 +39,7 @@ class CopyAsyncTensorExample(tilus.Script):
         s_x = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_n])
         s_y = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_n])
 
-        barriers = self.shared_tensor(dtype=uint64, shape=[1])
-
-        load_barrier: ~uint64 = ~barriers[0]
-        self.mbarrier.init(load_barrier, count=1)
+        load_barrier = self.mbarrier.alloc(count=1)
         self.sync()
 
         with self.single_thread():
@@ -84,3 +82,7 @@ def test_copy_async_tensor_cta():
     torch.cuda.synchronize()
 
     torch.testing.assert_close(y, x + 1)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

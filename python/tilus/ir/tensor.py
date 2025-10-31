@@ -431,6 +431,9 @@ class RegisterTensor(Tensor):
     def to(self, dtype: DataType) -> RegisterTensor:
         raise RuntimeError("tensor.to(...) could only be used in Tilus Script.")
 
+    def tolist(self) -> Expr | list:
+        raise RuntimeError("tensor.tolist() could only be used in Tilus Script.")
+
 
 @dataclass(frozen=True, eq=False)
 class SharedTensor(Tensor):

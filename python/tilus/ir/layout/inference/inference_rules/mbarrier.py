@@ -12,35 +12,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .global_ops import (
-    global_column_major,
-    global_compose,
-    global_row_major,
-    global_slice,
-    global_strides,
-)
-from .register_ops import (
-    auto_local_spatial,
-    column_local,
-    column_spatial,
-    compose,
-    concat,
-    divide,
-    flatten,
-    left_divide,
-    local,
-    permute,
-    reduce,
-    register_layout,
-    replicated,
-    reshape,
-    spatial,
-    squeeze,
-    unsqueeze,
-)
-from .shared_ops import (
-    shared_column_major,
-    shared_compose,
-    shared_permute,
-    shared_row_major,
-)
+from tilus import RegisterLayout
+from tilus.ir.instructions import AllocBarrierInst
+from tilus.ir.layout import ops
+from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
+from tilus.ir.tensor import RegisterTensor
+
+
+@register_rule(AllocBarrierInst)
+class AllocBarrierRule(LayoutInferenceRule):
+    @staticmethod
+    def inference(ctx: LayoutInferenceContext, inst: AllocBarrierInst) -> dict[RegisterTensor, RegisterLayout]:
+        out = inst.register_output
+
+        if out.optional_layout is not None:
+            return {}
+
+        return {out: ops.replicated(*out.shape, num_workers=ctx.num_threads)}

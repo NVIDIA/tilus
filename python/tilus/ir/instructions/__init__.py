@@ -30,7 +30,7 @@ from .cuda.cp_async_bulk import (
     CopyAsyncBulkSharedToGlobalInst,
 )
 from .cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
-from .cuda.mbarrier import ArriveBarrierInst, ArriveRemoteBarrierInst, InitBarrierInst, WaitBarrierInst
+from .cuda.mbarrier import AllocBarrierInst, ArriveBarrierInst, ArriveRemoteBarrierInst, WaitBarrierInst
 from .cuda.mma_dot import DotInst
 from .cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from .cuda.simt_dot import SimtDotInst

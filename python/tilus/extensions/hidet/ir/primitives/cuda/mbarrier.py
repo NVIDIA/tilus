@@ -24,40 +24,37 @@ from hidet.utils import initialize
 
 @initialize()
 def register_mbarrier_primitives():
-
     @no_type_check
     @script
     def cuda_mbarrier_init_shared(mbarrier_addr: u32, arrive_count: u32):
         attrs.func_kind = "cuda_internal"
         asm("mbarrier.init.shared::cta.b64 [%0], %1;", inputs=[mbarrier_addr, arrive_count], is_volatile=True)
-    
+
+    @no_type_check
     @script
     def cuda_mbarrier_wait_shared(mbarrier_addr: u32, phase: u32):
-        attrs.func_kind = 'cuda_internal'
+        attrs.func_kind = "cuda_internal"
         ticks = u32(10_000_000)
         asm(
-            template='{ .reg.pred P1; LAB_WAIT: mbarrier.try_wait.parity.shared::cta.b64 P1, [%0], %1, %2; @!P1 bra.uni LAB_WAIT; }',
-            inputs=[mbarrier_addr, phase, ticks], is_volatile=True
+            template="{ .reg.pred P1; LAB_WAIT: mbarrier.try_wait.parity.shared::cta.b64 P1, [%0], %1, %2; @!P1 bra.uni LAB_WAIT; }",
+            inputs=[mbarrier_addr, phase, ticks],
+            is_volatile=True,
         )
 
+    @no_type_check
     @script
     def cuda_mbarrier_arrive_cta_shared(mbarrier_addr: u32):
-        attrs.func_kind = 'cuda_internal'
-        asm(
-            template='mbarrier.arrive.shared::cta.b64 _, [%0];', 
-            inputs=[mbarrier_addr], is_volatile=True
-        )
+        attrs.func_kind = "cuda_internal"
+        asm(template="mbarrier.arrive.shared::cta.b64 _, [%0];", inputs=[mbarrier_addr], is_volatile=True)
 
-    func_name = 'cuda_mbarrier_arrive'
-
+    @no_type_check
     @script
-    def cuda_mbarrier_arrive_cluster_shared(mbarrier_addr, cta_id: u32, pred: u32):
-        attrs.func_name = func_name
-        attrs.func_kind = 'cuda_internal'
+    def cuda_mbarrier_arrive_cluster_shared(mbarrier_addr: u32, cta_id: u32, pred: u32):
+        attrs.func_kind = "cuda_internal"
         asm(
-            template='{ .reg.pred p; .reg.b32 remAddr32; setp.eq.u32 p, %2, 1; @p mapa.shared::cluster.u32 remAddr32, %0, %1; @p mbarrier.arrive.release.cluster.shared::cluster.b64 _, [remAddr32]; }', 
-            inputs=[mbarrier_addr, cta_id, pred], 
-            is_volatile=True
+            template="{ .reg.pred p; .reg.b32 remAddr32; setp.eq.u32 p, %2, 1; @p mapa.shared::cluster.u32 remAddr32, %0, %1; @p mbarrier.arrive.release.cluster.shared::cluster.b64 _, [remAddr32]; }",
+            inputs=[mbarrier_addr, cta_id, pred],
+            is_volatile=True,
         )
 
     @no_type_check
@@ -82,20 +79,32 @@ def register_mbarrier_primitives():
             is_volatile=True,
         )
 
-    for func in [cuda_mbarrier_expect_tx_cta_shared, cuda_mbarrier_expect_tx_cluster_shared]:
+    for func in [
+        cuda_mbarrier_init_shared,
+        cuda_mbarrier_wait_shared,
+        cuda_mbarrier_arrive_cta_shared,
+        cuda_mbarrier_arrive_cluster_shared,
+        cuda_mbarrier_expect_tx_cta_shared,
+        cuda_mbarrier_expect_tx_cluster_shared,
+    ]:
         register_primitive_function(name=func.name, func_or_type=func)
+
 
 def mbarrier_init_shared(mbarrier_addr: Expr, arrive_count: Union[int, Expr]) -> Expr:
     return call_primitive_func("cuda_mbarrier_init_shared", args=[mbarrier_addr, u32(arrive_count)])
 
+
 def mbarrier_wait_shared(mbarrier_addr: Expr, phase: Union[int, Expr]) -> Expr:
     return call_primitive_func("cuda_mbarrier_wait_shared", args=[mbarrier_addr, u32(phase)])
+
 
 def mbarrier_arrive_cta_shared(mbarrier_addr: Expr) -> Expr:
     return call_primitive_func("cuda_mbarrier_arrive_cta_shared", args=[mbarrier_addr])
 
+
 def mbarrier_arrive_cluster_shared(mbarrier_addr: Expr, cta_id: Union[int, Expr], pred: Union[bool, Expr]) -> Expr:
     return call_primitive_func("cuda_mbarrier_arrive_cluster_shared", args=[mbarrier_addr, u32(cta_id), boolean(pred)])
+
 
 def mbarrier_expect_tx_cta_shared(mbarrier_addr: Expr, transaction_bytes: Union[int, Expr]) -> Expr:
     if isinstance(transaction_bytes, int):
