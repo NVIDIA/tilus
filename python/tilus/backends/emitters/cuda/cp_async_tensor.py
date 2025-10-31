@@ -35,7 +35,6 @@ from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import (
     cp_async_tensor_shared_to_global,
     cp_async_tensor_wait_group,
 )
-from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import mbarrier_expect_tx_cta_shared
 from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import (
     CUtensorMapType,
@@ -314,14 +313,13 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         tensor_coords = inst.offsets
         transaction_bytes = prod(shared_tensor.shape) * dtype.nbytes
         with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
-            barrier_addr = self.declare_var("barrier_addr", uint32, init=cvta_generic_to_shared(inst.mbarrier))
-            self.append(mbarrier_expect_tx_cta_shared(mbarrier_addr=barrier_addr, transaction_bytes=transaction_bytes))
+            self.append(mbarrier_expect_tx_cta_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=transaction_bytes))
             self.append(
                 cp_async_tensor_global_to_shared(
                     dst=shared_addr,
                     src_tensor_map=~tensor_map,
                     coords=list(reversed(tensor_coords)),
-                    mbarrier=barrier_addr,
+                    mbarrier=inst.mbarrier,
                     cta_group=None,
                     cache_policy=inst.cache_policy,
                 )

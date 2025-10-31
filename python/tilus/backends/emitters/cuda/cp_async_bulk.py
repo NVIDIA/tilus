@@ -160,7 +160,7 @@ class BulkCopyAsyncGlobalToSharedInstEmitter(BulkCopyAsyncBetweenGlobalShared):
         )
 
     def emit(self, inst: CopyAsyncBulkGlobalToSharedInst) -> None:
-        self.barrier_addr = self.declare_var(name="barrier_addr", tp=uint32, init=cvta_generic_to_shared(inst.mbarrier))
+        self.barrier_addr = self.declare_var(name="barrier_addr", tp=uint32, init=inst.mbarrier)
         self.common_emit(
             shared_tensor=inst.inputs[0].as_shared_tensor(),
             global_tensor=inst.inputs[1].as_global_tensor(),
@@ -227,7 +227,7 @@ class CopyAsyncBulkGlobalToClusterSharedEmitter(BulkCopyAsyncBetweenGlobalShared
             )
 
     def emit(self, inst: CopyAsyncBulkGlobalToClusterSharedInst) -> None:
-        self.barrier_addr = self.declare_var(name="barrier_addr", tp=uint32, init=cvta_generic_to_shared(inst.mbarrier))
+        self.barrier_addr = self.declare_var(name="barrier_addr", tp=uint32, init=inst.mbarrier)
         self.common_emit(
             shared_tensor=inst.inputs[0].as_shared_tensor(),
             global_tensor=inst.inputs[1].as_global_tensor(),

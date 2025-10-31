@@ -13,7 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from hidet.ir.dtypes import boolean, int32
-from hidet.ir.primitives.cuda.barrier import fence_view_async_shared, mbarrier_arrive, mbarrier_init, mbarrier_wait
+from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
+from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
+    mbarrier_init_shared,
+    mbarrier_wait_shared,
+    mbarrier_arrive_cta_shared,
+    mbarrier_arrive_cluster_shared,
+)
 
 from tilus.backends.codegen import BaseInstEmitter, register_emitter
 from tilus.ir.instructions.cuda.mbarrier import (
@@ -31,26 +37,26 @@ class InitBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: InitBarrierInst) -> None:
         with self.if_then(self.current_thread == 0):
             count = inst.count if inst.count is not None else int32(self.current_num_threads)
-            self.append(mbarrier_init(inst.barrier, count))
+            self.append(mbarrier_init_shared(inst.barrier, count))
             self.append(fence_view_async_shared())
 
 
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
 class ArriveBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveBarrierInst) -> None:
-        self.append(mbarrier_arrive(inst.barrier))
+        self.append(mbarrier_arrive_cta_shared(inst.barrier))
 
 
 @register_emitter(ArriveRemoteBarrierInst, target=nvgpu_sm80)
 class ArriveRemoteBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveRemoteBarrierInst) -> None:
-        self.append(mbarrier_arrive(inst.barrier, inst.remote_block, pred=boolean.true))
+        self.append(mbarrier_arrive_cluster_shared(inst.barrier, inst.remote_block, pred=boolean.true))
 
 
 @register_emitter(WaitBarrierInst, target=nvgpu_sm90)
 class WaitBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: WaitBarrierInst) -> None:
-        self.append(mbarrier_wait(inst.barrier, inst.phase))
+        self.append(mbarrier_wait_shared(inst.barrier, inst.phase))
 
 
 @register_emitter(FenceProxyCopyAsync, target=nvgpu_sm90)
