@@ -135,20 +135,30 @@ def main():
                        help="Only check if files have headers, don't modify them")
     parser.add_argument("--fix", action="store_true",
                        help="Automatically add missing headers to files")
+    parser.add_argument("--check-and-fix", action="store_true",
+                       help="Check and fix missing headers in files")
 
     args = parser.parse_args()
 
-    # Default behavior is fix if neither check nor fix is specified
-    if not args.check and not args.fix:
+    # Ensure only one of the three arguments is set
+    selected_args = [args.check, args.fix, args.check_and_fix]
+    if sum(selected_args) > 1:
+        parser.error("Only one of --check, --fix, or --check-and-fix can be specified")
+
+    # Default behavior is fix if no arguments are specified
+    if not any(selected_args):
         args.fix = True
 
-    check_only = args.check    # Process directories with full license header
+    check_only = args.check
+    check_and_fix = args.check_and_fix
+
+    # Process directories with full license header
     full_total, full_need_update, full_updated, full_files_needing_update = process_directory(
-        TARGET_DIRS, use_short_header=False, check_only=check_only)
+        TARGET_DIRS, use_short_header=False, check_only=check_only or check_and_fix)
 
     # Process directories with short license header
     short_total, short_need_update, short_updated, short_files_needing_update = process_directory(
-        SHORT_LICENSE_TARGET_DIRS, use_short_header=True, check_only=check_only)
+        SHORT_LICENSE_TARGET_DIRS, use_short_header=True, check_only=check_only or check_and_fix)
 
     # Combined totals
     total_files = full_total + short_total
@@ -161,11 +171,33 @@ def main():
             print(f"Found {need_update} files missing copyright headers:")
             for filepath in all_files_needing_update:
                 print(f"  {filepath}")
+            print("Running the following command to fix the issues:")
+            print("   python scripts/lint/check-copyright-header.py --fix")
             sys.exit(1)
         else:
             print(f"All {total_files} source files have copyright headers.")
             sys.exit(0)
-    else:
+    elif check_and_fix:
+        if need_update > 0:
+            # Files need fixing, so run the fix process
+            print(f"Found {need_update} files missing copyright headers. Fixing them...")
+
+            # Process directories again with fix mode
+            full_total_fix, full_need_update_fix, full_updated_fix, _ = process_directory(
+                TARGET_DIRS, use_short_header=False, check_only=False)
+            short_total_fix, short_need_update_fix, short_updated_fix, _ = process_directory(
+                SHORT_LICENSE_TARGET_DIRS, use_short_header=True, check_only=False)
+
+            total_updated_fix = full_updated_fix + short_updated_fix
+
+            print(f"Fixed copyright headers in {total_updated_fix} files:")
+            for filepath in all_files_needing_update:
+                print(f"  {filepath}")
+            sys.exit(1)
+        else:
+            print(f"All {total_files} source files have copyright headers.")
+            sys.exit(0)
+    else:  # --fix mode
         print(f"Total source files found (.py/.sh): {total_files}")
         print(f"Files with full header: {full_total} (need update: {full_need_update}, updated: {full_updated})")
         print(f"Files with short header: {short_total} (need update: {short_need_update}, updated: {short_updated})")

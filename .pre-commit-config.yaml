@@ -1,6 +1,14 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
+-   repo: local
+    hooks:
+    -   id: check-copyright-header
+        name: Check copyright headers
+        entry: python scripts/lint/check-copyright-header.py --check-and-fix
+        language: system
+        types: [python]
+        pass_filenames: false
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
     hooks:
@@ -8,11 +16,3 @@ repos:
     -   id: end-of-file-fixer
     -   id: check-yaml
     -   id: check-added-large-files
--   repo: local
-    hooks:
-    -   id: check-copyright-header
-        name: Check copyright headers
-        entry: python scripts/lint/check-copyright-header.py --check
-        language: system
-        types: [python]
-        pass_filenames: false
