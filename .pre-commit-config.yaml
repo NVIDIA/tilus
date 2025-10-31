@@ -5,9 +5,9 @@ repos:
     # Ruff version
     rev: v0.12.3
     hooks:
-    # Run the linter with automatic fixes - uses [tool.ruff] config from pyproject.toml
+    # Run the linter with fixes (CI will detect if files were modified)
     -   id: ruff-check
-        name: Ruff linter (with fixes)
+        name: Ruff linter
         args: [--fix]
         types_or: [python, pyi, jupyter]
     # Run the formatter - uses [tool.ruff] config from pyproject.toml
