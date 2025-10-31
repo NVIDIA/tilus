@@ -36,12 +36,6 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-    -   id: check-commit-signature
-        name: Check commit signatures
-        entry: python scripts/lint/check-commit-signature.py --check
-        language: system
-        pass_filenames: false
-        stages: [manual]
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:

@@ -16,7 +16,20 @@
 import argparse
 import subprocess
 import sys
-from typing import List, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
+
+
+@dataclass
+class CommitSignatureStatus:
+    """Status of a commit's signatures."""
+
+    hash: str
+    has_signoff: bool
+    has_gpg_signature: bool
+    gpg_status: str  # "valid", "invalid", "missing", "error"
+    gpg_details: str
+    short_info: str
 
 
 def run_git_command(args: List[str], capture_output: bool = True) -> Tuple[int, str, str]:
@@ -47,6 +60,41 @@ def get_merge_base(branch: str = "main") -> str:
     return base_commit
 
 
+def check_working_tree_clean() -> bool:
+    """Check if the working tree is clean (no unstaged changes)."""
+    exit_code, output, stderr = run_git_command(["status", "--porcelain"])
+    if exit_code != 0:
+        print(f"Error checking git status: {stderr}")
+        return False
+
+    return len(output.strip()) == 0
+
+
+def prompt_for_clean_working_tree() -> None:
+    """Check for unstaged changes and prompt user to clean them."""
+    if check_working_tree_clean():
+        return  # Working tree is clean, proceed
+
+    print("\n⚠️  WORKING TREE NOT CLEAN")
+    print("The following files have unstaged changes:")
+
+    # Show the status
+    exit_code, output, stderr = run_git_command(["status", "--porcelain"], capture_output=False)
+
+    print("\n❌ Cannot proceed with rebase while there are unstaged changes.")
+    print("\n🔧 TO FIX THIS, choose one of the following:")
+    print("   1. Commit your changes:")
+    print("      git add .")
+    print('      git commit -m "Your commit message"')
+    print("   2. Stash your changes:")
+    print("      git stash")
+    print("   3. Discard your changes (CAREFUL!):")
+    print("      git checkout -- .")
+    print("\n💡 Then run the script again.")
+
+    sys.exit(1)
+
+
 def get_commit_range(base_commit: str) -> List[str]:
     """Get list of commit hashes between base_commit and HEAD."""
     exit_code, commit_list, stderr = run_git_command(["rev-list", f"{base_commit}..HEAD"])
@@ -68,6 +116,46 @@ def check_commit_signature(commit_hash: str) -> bool:
     return "Signed-off-by:" in commit_message
 
 
+def check_gpg_signature(commit_hash: str) -> Tuple[bool, str, str]:
+    """Check if a commit has a valid GPG signature.
+
+    Returns:
+        Tuple of (has_signature, status, details)
+        status: "valid", "invalid", "missing", "error"
+    """
+    exit_code, output, stderr = run_git_command(["verify-commit", commit_hash])
+
+    if exit_code == 0:
+        return True, "valid", output
+    elif "no signature found" in stderr.lower() or "bad signature" in output.lower():
+        return False, "missing", stderr
+    elif "bad signature" in stderr.lower() or "invalid" in stderr.lower():
+        return True, "invalid", stderr
+    else:
+        return False, "error", f"Unknown error: {stderr}"
+
+
+def get_comprehensive_commit_status(commit_hash: str) -> CommitSignatureStatus:
+    """Get comprehensive signature status for a commit."""
+    # Check sign-off
+    has_signoff = check_commit_signature(commit_hash)
+
+    # Check GPG signature
+    has_gpg, gpg_status, gpg_details = check_gpg_signature(commit_hash)
+
+    # Get commit info
+    short_info = get_commit_info(commit_hash)
+
+    return CommitSignatureStatus(
+        hash=commit_hash,
+        has_signoff=has_signoff,
+        has_gpg_signature=has_gpg,
+        gpg_status=gpg_status,
+        gpg_details=gpg_details,
+        short_info=short_info,
+    )
+
+
 def get_commit_info(commit_hash: str) -> str:
     """Get short commit info for display."""
     exit_code, info, stderr = run_git_command(["log", "--format=%h %s", "-n", "1", commit_hash])
@@ -76,30 +164,167 @@ def get_commit_info(commit_hash: str) -> str:
     return info
 
 
-def check_commits(base_commit: str) -> Tuple[List[str], List[str]]:
+def check_commits(base_commit: str) -> Dict[str, List[CommitSignatureStatus]]:
     """Check all commits between base and HEAD for signatures.
 
     Returns:
-        Tuple of (signed_commits, unsigned_commits)
+        Dict with keys: "all_good", "missing_signoff", "missing_gpg", "invalid_gpg", "missing_both"
     """
     commits = get_commit_range(base_commit)
 
     if not commits:
         print("No commits found between base and HEAD")
-        return [], []
-
-    signed_commits = []
-    unsigned_commits = []
+        return {"all_good": [], "missing_signoff": [], "missing_gpg": [], "invalid_gpg": [], "missing_both": []}
 
     print(f"Checking {len(commits)} commits for signatures...")
 
-    for commit in commits:
-        if check_commit_signature(commit):
-            signed_commits.append(commit)
-        else:
-            unsigned_commits.append(commit)
+    # Categorize commits
+    all_good = []
+    missing_signoff = []
+    missing_gpg = []
+    invalid_gpg = []
+    missing_both = []
 
-    return signed_commits, unsigned_commits
+    for commit in commits:
+        status = get_comprehensive_commit_status(commit)
+
+        # Categorize based on status
+        if status.has_signoff and status.gpg_status == "valid":
+            all_good.append(status)
+        elif not status.has_signoff and status.gpg_status in ["missing", "error"]:
+            missing_both.append(status)
+        elif not status.has_signoff:
+            missing_signoff.append(status)
+        elif status.gpg_status in ["missing", "error"]:
+            missing_gpg.append(status)
+        elif status.gpg_status == "invalid":
+            invalid_gpg.append(status)
+        else:
+            # Edge case - has signoff but something else is wrong with GPG
+            if status.has_signoff:
+                missing_gpg.append(status)
+            else:
+                missing_signoff.append(status)
+
+    return {
+        "all_good": all_good,
+        "missing_signoff": missing_signoff,
+        "missing_gpg": missing_gpg,
+        "invalid_gpg": invalid_gpg,
+        "missing_both": missing_both,
+    }
+
+
+def print_signature_report(results: Dict[str, List[CommitSignatureStatus]]) -> None:
+    """Print a comprehensive human-readable report of signature status."""
+    total_commits = sum(len(commits) for commits in results.values())
+
+    print(f"\n{'=' * 60}")
+    print("COMMIT SIGNATURE ANALYSIS REPORT")
+    print(f"{'=' * 60}")
+    print(f"Total commits analyzed: {total_commits}")
+
+    # Print good commits
+    if results["all_good"]:
+        print(f"\n✅ FULLY SIGNED COMMITS ({len(results['all_good'])}):")
+        print("   These commits have both DCO sign-off and valid GPG signatures")
+        for status in results["all_good"]:
+            print(f"   {status.short_info}")
+
+    # Print issues with clear explanations and todos
+    issues_found = False
+
+    if results["missing_both"]:
+        issues_found = True
+        print(f"\n❌ MISSING BOTH SIGNATURES ({len(results['missing_both'])}):")
+        print("   ⚠️  CRITICAL: These commits lack both DCO sign-off AND GPG signatures")
+        print("   📋 TODO: Add both sign-off and GPG signature")
+        for status in results["missing_both"]:
+            print(f"   {status.short_info}")
+        print("\n   🔧 HOW TO FIX:")
+        print("      1. For DCO sign-off: Run the script with --fix")
+        print("      2. For GPG signatures: git rebase --gpg-sign <base_commit>")
+        print("      3. Or configure: git config commit.gpgsign true")
+
+    if results["missing_signoff"]:
+        issues_found = True
+        print(f"\n📝 MISSING DCO SIGN-OFF ({len(results['missing_signoff'])}):")
+        print("   ⚠️  These commits lack 'Signed-off-by:' lines (Developer Certificate of Origin)")
+        print("   📋 TODO: Add DCO sign-off to comply with contribution guidelines")
+        for status in results["missing_signoff"]:
+            print(f"   {status.short_info}")
+        print("\n   🔧 HOW TO FIX:")
+        print("      Run: python scripts/lint/check-commit-signature.py --fix")
+        print("      Or manually: git rebase --signoff <base_commit>")
+
+    if results["missing_gpg"]:
+        issues_found = True
+        print(f"\n🔐 MISSING GPG SIGNATURES ({len(results['missing_gpg'])}):")
+        print("   ⚠️  These commits are not cryptographically signed")
+        print("   📋 TODO: Add GPG signatures for authenticity verification")
+        for status in results["missing_gpg"]:
+            print(f"   {status.short_info}")
+        print("\n   🔧 HOW TO FIX:")
+        print("      1. Set up GPG key: gpg --full-generate-key")
+        print("      2. Configure git: git config user.signingkey <key_id>")
+        print("      3. Re-sign commits: git rebase --gpg-sign <base_commit>")
+        print("      4. Or enable by default: git config commit.gpgsign true")
+
+    if results["invalid_gpg"]:
+        issues_found = True
+        print(f"\n🚫 INVALID GPG SIGNATURES ({len(results['invalid_gpg'])}):")
+        print("   ⚠️  SECURITY WARNING: These commits have invalid or corrupted signatures")
+        print("   📋 TODO: Investigate and re-sign these commits")
+        for status in results["invalid_gpg"]:
+            print(f"   {status.short_info}")
+            print(f"      Error: {status.gpg_details}")
+        print("\n   🔧 HOW TO FIX:")
+        print("      1. Verify your GPG key is valid: gpg --list-secret-keys")
+        print("      2. Re-sign the commits: git rebase --gpg-sign <base_commit>")
+        print("      3. If key is compromised, revoke and create new key")
+
+    # Summary and recommendations
+    print(f"\n{'=' * 60}")
+    if not issues_found:
+        print("🎉 EXCELLENT! All commits are properly signed with both DCO and GPG signatures.")
+        print("   Your commits meet the highest security and compliance standards.")
+    else:
+        print("📊 SUMMARY OF ISSUES:")
+        if results["missing_both"]:
+            print(f"   • {len(results['missing_both'])} commits missing BOTH signatures (highest priority)")
+        if results["missing_signoff"]:
+            print(f"   • {len(results['missing_signoff'])} commits missing DCO sign-off")
+        if results["missing_gpg"]:
+            print(f"   • {len(results['missing_gpg'])} commits missing GPG signatures")
+        if results["invalid_gpg"]:
+            print(f"   • {len(results['invalid_gpg'])} commits with INVALID GPG signatures")
+
+        print("\n🎯 QUICK ACTION PLAN:")
+        print("   1. Run with --fix to add missing DCO sign-offs")
+        print("   2. Set up GPG signing: git config commit.gpgsign true")
+        print("   3. Re-sign commits: git rebase --gpg-sign <base_commit>")
+
+    print(f"{'=' * 60}")
+
+
+def get_fix_summary(results: Dict[str, List[CommitSignatureStatus]]) -> str:
+    """Generate a summary of what the fix operation will do."""
+    commits_needing_signoff = len(results["missing_signoff"]) + len(results["missing_both"])
+
+    if commits_needing_signoff == 0:
+        return "✅ All commits already have DCO sign-off!"
+
+    summary = f"📝 Will add DCO sign-off to {commits_needing_signoff} commits:\n"
+
+    for status in results["missing_signoff"] + results["missing_both"]:
+        summary += f"   • {status.short_info}\n"
+
+    if results["missing_gpg"] or results["invalid_gpg"]:
+        gpg_count = len(results["missing_gpg"]) + len(results["invalid_gpg"])
+        summary += f"\n🔐 Note: {gpg_count} commits will still need GPG signatures after this fix.\n"
+        summary += "    Use 'git rebase --gpg-sign <base_commit>' to add GPG signatures.\n"
+
+    return summary
 
 
 def fix_commit_signatures(base_commit: str) -> bool:
@@ -144,41 +369,52 @@ def main():
         print(f"Base commit: {base_commit[:8]}")
 
         if args.check:
-            # Check mode: report unsigned commits and exit with appropriate code
-            signed_commits, unsigned_commits = check_commits(base_commit)
+            # Check mode: report signature status and exit with appropriate code
+            results = check_commits(base_commit)
 
-            if signed_commits:
-                print(f"\n✅ Signed commits ({len(signed_commits)}):")
-                for commit in signed_commits:
-                    print(f"  {get_commit_info(commit)}")
+            # Print comprehensive report
+            print_signature_report(results)
 
-            if unsigned_commits:
-                print(f"\n❌ Unsigned commits ({len(unsigned_commits)}):")
-                for commit in unsigned_commits:
-                    print(f"  {get_commit_info(commit)}")
-                print("\nRun with --fix to sign these commits:")
-                print(f"  python {sys.argv[0]} --fix")
+            # Exit with error if any issues found
+            issues_found = any(len(commits) > 0 for key, commits in results.items() if key != "all_good")
+
+            if issues_found:
+                print("\n❌ Issues found with commit signatures.")
+                print(f"💡 Run 'python {sys.argv[0]} --fix' to fix DCO sign-off issues.")
                 sys.exit(1)
             else:
-                print(f"\n✅ All {len(signed_commits)} commits are properly signed!")
+                print("\n✅ All commits have proper signatures!")
                 sys.exit(0)
 
         elif args.fix:
-            # Fix mode: sign all commits
-            signed_commits, unsigned_commits = check_commits(base_commit)
+            # Fix mode: only fix DCO sign-off (GPG signatures require separate handling)
 
-            if not unsigned_commits:
-                print("✅ All commits are already signed!")
+            # Check for unstaged changes before proceeding
+            print("Checking working tree status...")
+            prompt_for_clean_working_tree()
+
+            results = check_commits(base_commit)
+
+            commits_needing_signoff = len(results["missing_signoff"]) + len(results["missing_both"])
+
+            if commits_needing_signoff == 0:
+                print("✅ All commits already have DCO sign-off!")
+
+                # Check if only GPG issues remain
+                gpg_issues = len(results["missing_gpg"]) + len(results["invalid_gpg"])
+                if gpg_issues > 0:
+                    print(f"\n🔐 Note: {gpg_issues} commits still need GPG signatures.")
+                    print("    Use 'git rebase --gpg-sign <base_commit>' to add GPG signatures.")
+
                 sys.exit(0)
 
-            print(f"\n📝 Found {len(unsigned_commits)} unsigned commits:")
-            for commit in unsigned_commits:
-                print(f"  {get_commit_info(commit)}")
+            # Show what will be fixed
+            print(get_fix_summary(results))
 
             # Ask for confirmation unless non-interactive mode
             if not args.non_interactive:
                 try:
-                    response = input(f"\nSign these {len(unsigned_commits)} commits? [y/N]: ")
+                    response = input(f"\nAdd DCO sign-off to {commits_needing_signoff} commits? [y/N]: ")
                     if response.lower() not in ["y", "yes"]:
                         print("Aborted by user")
                         sys.exit(1)
@@ -186,7 +422,7 @@ def main():
                     print("\nAborted by user")
                     sys.exit(1)
             else:
-                print(f"\nRunning in non-interactive mode, proceeding to sign {len(unsigned_commits)} commits...")
+                print(f"\nRunning in non-interactive mode, proceeding to sign {commits_needing_signoff} commits...")
 
             # Perform the fix
             if fix_commit_signatures(base_commit):
