@@ -1,0 +1,45 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version
+    rev: v0.12.3
+    hooks:
+    # Run the linter with fixes (CI will detect if files were modified)
+    -   id: ruff-check
+        name: Ruff linter
+        args: [--fix]
+        types_or: [python, pyi, jupyter]
+    # Run the formatter - uses [tool.ruff] config from pyproject.toml
+    -   id: ruff-format
+        name: Ruff formatter
+        types_or: [python, pyi, jupyter]
+-   repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+    -   id: mypy
+        name: MyPy type checking
+        # Uses [tool.mypy] configuration from pyproject.toml
+        additional_dependencies: [
+            types-tabulate,
+            types-tqdm,
+        ]
+        # Only check files in the python package (matches original script scope)
+        files: ^python/
+        # Exclude hidet extensions (they have special mypy overrides in pyproject.toml)
+        exclude: ^python/tilus/extensions/hidet/
+-   repo: local
+    hooks:
+    -   id: check-copyright-header
+        name: Check copyright headers
+        entry: python scripts/lint/check-copyright-header.py --check-and-fix
+        language: system
+        types: [python]
+        pass_filenames: false
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files

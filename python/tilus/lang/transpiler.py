@@ -543,10 +543,10 @@ class Transpiler(PythonAstFunctor):
             """
             There are different kinds of function calls in Tilus Script:
             1. inlined kernel procedure, it is a method of the user-defined Script subclass
-            2. (global, shared or register) tensor method, such as `tensor.to(dtype)`, etc. 
+            2. (global, shared or register) tensor method, such as `tensor.to(dtype)`, etc.
             3. python builtin function, such as `max`, `min`, for scalar expressions.
             4. other function/method calls
-            
+
             We treat 1 to 3 specially, and call the function directly in 4.
             """
 

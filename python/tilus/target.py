@@ -82,13 +82,13 @@ class Target:
 
 """
   Predefined targets
-  
+
   The generic ones:
     - gpgpu/any: any GPU
     - amdgpu/any: any AMD GPU
     - nvgpu/any: any NVIDIA GPU
   are used to represent the generic targets that our compilation process (like scheduler) can work on.
-  
+
   Each specific GPU must be represented by a specific target, e.g., amdgpu/gfx1100 for AMD RX 7900 XTX.
 """
 gpgpu_any = Target(kind="gpgpu", arch="any", properties=TargetProperties())
@@ -111,9 +111,9 @@ amdgpu_gfx1100 = Target(
 
 """
     NVIDIA GPUs
-    
+
     See Also: https://docs.nvidia.com/cuda/cuda-c-programming-guide/#compute-capabilities
-    
+
     Suffixes:
     - No suffix: Base architecture
     - 'f': Family variant

@@ -336,7 +336,7 @@ class cuda:
             core = shared_row_major(rows, 2).swizzle(dim=1, regards_dim=0, log_step=2)
         else:
             """
-            0 
+            0
             1
             2
             3

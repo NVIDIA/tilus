@@ -20,5 +20,3 @@ Where ``dtype`` is one of the scalar types (e.g., :py:data:`~tilus.float32`) in 
 
 **Void Pointer** A special pointer type :py:data:`tilus.ir.void_p`, which represents a pointer to an unspecified data
 type, is often used as a generic pointer type.
-
-

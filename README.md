@@ -16,10 +16,10 @@ Tilus is pronounced as tie-lus, /ˈtaɪləs/.
 ### Installation
 Install Tilus using `pip`:
 ```
-pip install tilus 
+pip install tilus
 ```
 
-> [!NOTE]  
+> [!NOTE]
 > Tilus depends on `cuda-python`. If your GPU driver is older than **580.65.06**, you will need to install an older version of cuda-python to ensure compatibility.
 > ```
 > pip install tilus "cuda-python<13"
@@ -27,7 +27,7 @@ pip install tilus
 
 ### Usage
 
-To get started, refer to the [tutorials](https://nvidia.github.io/tilus/getting-started/tutorials/__init__.html) to learn how to program kernels with Tilus. 
+To get started, refer to the [tutorials](https://nvidia.github.io/tilus/getting-started/tutorials/__init__.html) to learn how to program kernels with Tilus.
 
 You can also check more [examples](https://github.com/NVIDIA/tilus/tree/main/examples) of using Tilus.
 
@@ -50,5 +50,5 @@ This project is based on the following research paper:
 We would like to acknowledge the following projects for their influence on Tilus's design and development:
 - **Hidet**: We take Hidet IR as our low-level target and reuse its runtime system.
 - **TVM**: Hidet's initial IR was adopted from TVM, and we also learned a lot from TVM on how to build a compiler.
-- **Triton**: The core idea of defining kernels at a thread-block level and working with tiles was inspired by Triton. 
+- **Triton**: The core idea of defining kernels at a thread-block level and working with tiles was inspired by Triton.
 - **Hexcute**: We adopted the idea of using automatic layout inference to simplify programming from Hexcute.

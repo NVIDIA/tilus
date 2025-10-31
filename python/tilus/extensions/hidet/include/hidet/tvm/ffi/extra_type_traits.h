@@ -26,7 +26,7 @@ inline std::string dtype_to_str(DLDataType dtype) {
 
 template <>
 struct TypeTraits<void_p> : public FallbackOnlyTraitsBase<void_p, DLTensor*, int64_t, uint64_t> {
-  TVM_FFI_INLINE static std::string TypeStr() { return "void_p"; }  
+  TVM_FFI_INLINE static std::string TypeStr() { return "void_p"; }
 
   TVM_FFI_INLINE static void_p ConvertFallbackValue(DLTensor* src) {
     return src->data;
@@ -41,10 +41,10 @@ struct TypeTraits<void_p> : public FallbackOnlyTraitsBase<void_p, DLTensor*, int
   }
 };
 
-// Template specialization for half* 
+// Template specialization for half*
 template <>
 struct TypeTraits<half*> : public FallbackOnlyTraitsBase<half*, DLTensor*> {
-  TVM_FFI_INLINE static std::string TypeStr() { return "float16*"; }  
+  TVM_FFI_INLINE static std::string TypeStr() { return "float16*"; }
 
   TVM_FFI_INLINE static half* ConvertFallbackValue(DLTensor* src) {
     if (src->dtype.code != kDLFloat || src->dtype.bits != 16) {
@@ -57,7 +57,7 @@ struct TypeTraits<half*> : public FallbackOnlyTraitsBase<half*, DLTensor*> {
 // Template specialization for __nv_bfloat16*
 template <>
 struct TypeTraits<__nv_bfloat16*> : public FallbackOnlyTraitsBase<__nv_bfloat16*, DLTensor*> {
-  TVM_FFI_INLINE static std::string TypeStr() { return "bfloat16*"; }  
+  TVM_FFI_INLINE static std::string TypeStr() { return "bfloat16*"; }
 
   TVM_FFI_INLINE static __nv_bfloat16* ConvertFallbackValue(DLTensor* src) {
     if (src->dtype.code != kDLBfloat || src->dtype.bits != 16) {
@@ -70,7 +70,7 @@ struct TypeTraits<__nv_bfloat16*> : public FallbackOnlyTraitsBase<__nv_bfloat16*
 // Template specialization for float*, double*
 template <typename Float>
 struct TypeTraits<Float*, std::enable_if_t<std::is_floating_point_v<Float>>> : public FallbackOnlyTraitsBase<Float*, DLTensor*> {
-  TVM_FFI_INLINE static std::string TypeStr() { return "float" + std::to_string(sizeof(Float) * 8); }  
+  TVM_FFI_INLINE static std::string TypeStr() { return "float" + std::to_string(sizeof(Float) * 8); }
 
   TVM_FFI_INLINE static Float* ConvertFallbackValue(DLTensor* src) {
     if (src->dtype.code != kDLFloat || src->dtype.bits != sizeof(Float) * 8) {
@@ -83,7 +83,7 @@ struct TypeTraits<Float*, std::enable_if_t<std::is_floating_point_v<Float>>> : p
 // Template specialization for int32_t*, int16_t*, etc.
 template <typename Int>
 struct TypeTraits<Int*, std::enable_if_t<std::is_signed_v<Int> && std::is_integral_v<Int>>> : public FallbackOnlyTraitsBase<Int*, DLTensor*> {
-  TVM_FFI_INLINE static std::string TypeStr() { return "int" + std::to_string(sizeof(Int) * 8); }  
+  TVM_FFI_INLINE static std::string TypeStr() { return "int" + std::to_string(sizeof(Int) * 8); }
 
   TVM_FFI_INLINE static Int* ConvertFallbackValue(DLTensor* src) {
     if (src->dtype.code != kDLInt || src->dtype.bits != sizeof(Int) * 8) {
@@ -96,10 +96,10 @@ struct TypeTraits<Int*, std::enable_if_t<std::is_signed_v<Int> && std::is_integr
 // Template specialization for uint32_t*, uint16_t*, etc.
 template<typename UInt>
 struct TypeTraits<UInt*, std::enable_if_t<std::is_unsigned_v<UInt> && std::is_integral_v<UInt>>> : public FallbackOnlyTraitsBase<UInt*, DLTensor*> {
-  TVM_FFI_INLINE static std::string TypeStr() { return "uint" + std::to_string(sizeof(UInt) * 8); }  
+  TVM_FFI_INLINE static std::string TypeStr() { return "uint" + std::to_string(sizeof(UInt) * 8); }
 
   TVM_FFI_INLINE static UInt* ConvertFallbackValue(DLTensor* src) {
-    if ((src->dtype.code != kDLUInt || src->dtype.bits != sizeof(UInt) * 8) 
+    if ((src->dtype.code != kDLUInt || src->dtype.bits != sizeof(UInt) * 8)
         && (src->dtype.code != kDLBool || src->dtype.bits != 8)
       ) {
       TVM_FFI_THROW(ValueError) << "Expect a tensor with " << sizeof(UInt) * 8 << " bit unsigned integer, got a tensor with dtype " << dtype_to_str(src->dtype);

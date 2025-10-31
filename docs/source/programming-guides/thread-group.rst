@@ -61,24 +61,24 @@ Basic Usage Examples
     class MyScript(tilus.Script):
         def __init__(self):
             super().__init__()
-            
+
         def __call__(self, ...):
             # Specify 4 warps = 128 threads total
             self.attrs.warps = 4
-            
+
             # All threads execute this
             data = self.register_tensor(dtype=f32, shape=[16])
-            
+
             # Only threads in group 0 execute this block (threads 0-31)
             with self.thread_group(0, num_groups=4):
                 # Instructions for first quarter of threads
                 result = self.load_global(src, offsets=[0, 0])
-                
+
             # Only threads in group 1 execute this block (threads 32-63)
             with self.thread_group(1, num_groups=4):
                 # Instructions for second quarter of threads
                 result = self.load_global(src, offsets=[16, 0])
-            
+
             # All threads execute this again
             self.sync()
 
@@ -89,17 +89,17 @@ Basic Usage Examples
     class MyScript(tilus.Script):
         def __init__(self):
             super().__init__()
-            
+
         def __call__(self, ...):
             # Specify 4 warps = 128 threads total
             self.attrs.warps = 4
-            
+
             # Only threads in group 0 execute this (32 threads: 0-31)
             with self.thread_group(0, group_size=32):
                 # First group of 32 threads processes first chunk
                 data = self.load_global(src, offsets=[0, 0])
-                
-            # Only threads in group 1 execute this (32 threads: 32-63)  
+
+            # Only threads in group 1 execute this (32 threads: 32-63)
             with self.thread_group(1, group_size=32):
                 # Second group of 32 threads processes second chunk
                 data = self.load_global(src, offsets=[32, 0])
@@ -111,24 +111,24 @@ Basic Usage Examples
     class MyScript(tilus.Script):
         def __init__(self):
             super().__init__()
-            
+
         def __call__(self, ...):
             # Specify 4 warps = 128 threads total
             self.attrs.warps = 4
-            
+
             # First level: split into 4 groups of 32 threads each
             with self.thread_group(0, num_groups=4):
                 # Only first group (threads 0-31) enters here
-                
+
                 # Second level: further split into 2 sub-groups of 16 threads each
                 with self.thread_group(0, num_groups=2):
                     # Only threads 0-15 execute this
                     fine_grained_work()
-                    
+
                 with self.thread_group(1, num_groups=2):
                     # Only threads 16-31 execute this
                     different_fine_grained_work()
-                
+
                 # Back to first level - all threads 0-31 execute this
                 self.sync()
 
@@ -142,20 +142,20 @@ The ``self.sync()`` instruction synchronizes all threads in the **current thread
     class MyScript(tilus.Script):
         def __init__(self):
             super().__init__()
-            
+
         def __call__(self, ...):
             # Specify 4 warps = 128 threads total
             self.attrs.warps = 4
-            
+
             with self.thread_group(0, num_groups=2):
                 # Some work by first half of threads (threads 0-63)
                 work_part_1()
-                
+
                 # Synchronize only threads in group 0
                 self.sync()  # Only waits for threads 0-63
-                
+
                 # Continue with synchronized work
                 work_part_2()
-            
+
             # Synchronize all threads in the thread block
             self.sync()

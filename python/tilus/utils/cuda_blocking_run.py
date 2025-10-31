@@ -21,7 +21,7 @@ import subprocess
 import sys
 
 _cuda_blocking_template = """
-    CUDA_LAUNCH_BLOCKING=1 {python_executable} {python_script} {args} 
+    CUDA_LAUNCH_BLOCKING=1 {python_executable} {python_script} {args}
 """.replace("\n", " ").strip()
 
 

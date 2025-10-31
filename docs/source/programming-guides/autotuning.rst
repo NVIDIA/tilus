@@ -68,4 +68,3 @@ When we launch the kernel, tilus will automatically compile the kernel with all 
 The kernels will be compiled in parallel when we first call the kernel with a specific input size triggering the JIT
 compilation (:doc:`tilus-script`). We can use :py:func:`tilus.option.parallel_workers` to control the number of
 parallel workers to compile the kernels.
-

@@ -12,7 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import argparse
 import os
+import sys
 from datetime import datetime
 
 current_year = datetime.now().year
@@ -41,12 +43,12 @@ SHORT_LICENSE_HEADER = """
 
 LICENSE_LINE = "# SPDX-License-Identifier: Apache-2.0\n"
 TARGET_DIRS = [
-    os.path.join(os.path.dirname(__file__), "..", "python"),
-    os.path.join(os.path.dirname(__file__), "..", "tests"),
-    os.path.join(os.path.dirname(__file__), "..", "scripts"),
+    os.path.join(os.path.dirname(__file__), "..", "..", "python"),
+    os.path.join(os.path.dirname(__file__), "..", "..", "tests"),
+    os.path.join(os.path.dirname(__file__), "..", "..", "scripts"),
 ]
 SHORT_LICENSE_TARGET_DIRS = [
-    os.path.join(os.path.dirname(__file__), "..", "examples"),
+    os.path.join(os.path.dirname(__file__), "..", "..", "examples"),
 ]
 
 
@@ -95,10 +97,11 @@ def add_license_to_file(filepath, filetype, use_short_header=False):
     return True
 
 
-def process_directory(target_dirs, use_short_header=False):
+def process_directory(target_dirs, use_short_header=False, check_only=False):
     total_files = 0
     need_update = 0
     updated = 0
+    files_needing_update = []
 
     for target_dir in target_dirs:
         for root, _, files in os.walk(target_dir):
@@ -116,31 +119,95 @@ def process_directory(target_dirs, use_short_header=False):
                     # File needs update if it has no header
                     if not has_any_header:
                         need_update += 1
-                        if add_license_to_file(
-                            filepath, filetype=file.split(".")[-1], use_short_header=use_short_header
-                        ):
-                            updated += 1
+                        files_needing_update.append(filepath)
+                        if not check_only:
+                            if add_license_to_file(
+                                filepath, filetype=file.split(".")[-1], use_short_header=use_short_header
+                            ):
+                                updated += 1
 
-    return total_files, need_update, updated
+    return total_files, need_update, updated, files_needing_update
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Check and fix copyright headers in source files")
+    parser.add_argument("--check", action="store_true", help="Only check if files have headers, don't modify them")
+    parser.add_argument("--fix", action="store_true", help="Automatically add missing headers to files")
+    parser.add_argument("--check-and-fix", action="store_true", help="Check and fix missing headers in files")
+
+    args = parser.parse_args()
+
+    # Ensure only one of the three arguments is set
+    selected_args = [args.check, args.fix, args.check_and_fix]
+    if sum(selected_args) > 1:
+        parser.error("Only one of --check, --fix, or --check-and-fix can be specified")
+
+    # Default behavior is fix if no arguments are specified
+    if not any(selected_args):
+        args.fix = True
+
+    check_only = args.check
+    check_and_fix = args.check_and_fix
+
     # Process directories with full license header
-    full_total, full_need_update, full_updated = process_directory(TARGET_DIRS, use_short_header=False)
+    full_total, full_need_update, full_updated, full_files_needing_update = process_directory(
+        TARGET_DIRS, use_short_header=False, check_only=check_only or check_and_fix
+    )
 
     # Process directories with short license header
-    short_total, short_need_update, short_updated = process_directory(SHORT_LICENSE_TARGET_DIRS, use_short_header=True)
+    short_total, short_need_update, short_updated, short_files_needing_update = process_directory(
+        SHORT_LICENSE_TARGET_DIRS, use_short_header=True, check_only=check_only or check_and_fix
+    )
 
     # Combined totals
     total_files = full_total + short_total
     need_update = full_need_update + short_need_update
     updated = full_updated + short_updated
+    all_files_needing_update = full_files_needing_update + short_files_needing_update
 
-    print(f"Total source files found (.py/.sh): {total_files}")
-    print(f"Files with full header: {full_total} (need update: {full_need_update}, updated: {full_updated})")
-    print(f"Files with short header: {short_total} (need update: {short_need_update}, updated: {short_updated})")
-    print(f"Total files needing update: {need_update}")
-    print(f"Total files updated: {updated}")
+    if check_only:
+        if need_update > 0:
+            print(f"Found {need_update} files missing copyright headers:")
+            for filepath in all_files_needing_update:
+                print(f"  {filepath}")
+            print("Running the following command to fix the issues:")
+            print("   python scripts/lint/check-copyright-header.py --fix")
+            sys.exit(1)
+        else:
+            print(f"All {total_files} source files have copyright headers.")
+            sys.exit(0)
+    elif check_and_fix:
+        if need_update > 0:
+            # Files need fixing, so run the fix process
+            print(f"Found {need_update} files missing copyright headers. Fixing them...")
+
+            # Process directories again with fix mode
+            full_total_fix, full_need_update_fix, full_updated_fix, _ = process_directory(
+                TARGET_DIRS, use_short_header=False, check_only=False
+            )
+            short_total_fix, short_need_update_fix, short_updated_fix, _ = process_directory(
+                SHORT_LICENSE_TARGET_DIRS, use_short_header=True, check_only=False
+            )
+
+            total_updated_fix = full_updated_fix + short_updated_fix
+
+            print(f"Fixed copyright headers in {total_updated_fix} files:")
+            for filepath in all_files_needing_update:
+                print(f"  {filepath}")
+            sys.exit(1)
+        else:
+            print(f"All {total_files} source files have copyright headers.")
+            sys.exit(0)
+    else:  # --fix mode
+        print(f"Total source files found (.py/.sh): {total_files}")
+        print(f"Files with full header: {full_total} (need update: {full_need_update}, updated: {full_updated})")
+        print(f"Files with short header: {short_total} (need update: {short_need_update}, updated: {short_updated})")
+        print(f"Total files needing update: {need_update}")
+        print(f"Total files updated: {updated}")
+
+        if need_update > 0 and updated == 0:
+            sys.exit(1)
+        sys.exit(0)
 
 
 if __name__ == "__main__":
