@@ -138,11 +138,11 @@ class RegisterTensorWithMethods(RegisterTensor):
         return self.builder.cast(self.tensor, dtype=dtype)
 
     def tolist(self) -> Expr | list:
-        if len(self.shape) == 0:
+        if len(self.tensor.shape) == 0:
             return self.builder.tensor_item_value(self.tensor)
         else:
             ret = []
-            for indices in itertools.product(*(range(s) for s in self.shape)):
+            for indices in itertools.product(*(range(s) for s in self.tensor.shape)):
                 ret.append(
                     self.builder.tensor_item_value(
                         self.builder.slice_register(self.tensor, offsets=indices, slice_dims=[], slice_shape=[])

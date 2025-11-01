@@ -52,7 +52,7 @@ class BlackwellMatmul(tilus.Script):
             dtype=float32, shape=[self.block_m, self.block_n], init=0.0
         )
 
-        # allocate barriers
+        # allocate barriers 
         tma_barrier, mma_barrier = self.mbarrier.alloc(count=[1, 1]).tolist()
 
         # use a phase to record the current phase of the barrier
