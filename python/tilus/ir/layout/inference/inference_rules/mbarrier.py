@@ -1,4 +1,3 @@
-#!/bin/bash
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -13,12 +12,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-set -e
+from tilus import RegisterLayout
+from tilus.ir.instructions import AllocBarrierInst
+from tilus.ir.layout import ops
+from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
+from tilus.ir.tensor import RegisterTensor
 
-MAIN_BRANCH="main"
 
-git fetch origin
-BASE=$(git merge-base HEAD origin/$MAIN_BRANCH)
+@register_rule(AllocBarrierInst)
+class AllocBarrierRule(LayoutInferenceRule):
+    @staticmethod
+    def inference(ctx: LayoutInferenceContext, inst: AllocBarrierInst) -> dict[RegisterTensor, RegisterLayout]:
+        out = inst.register_output
 
-# Sign all unsigned commits in one rebase
-git rebase $BASE --signoff
+        if out.optional_layout is not None:
+            return {}
+
+        return {out: ops.replicated(*out.shape, num_workers=ctx.num_threads)}

@@ -12,9 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import pytest
 import tilus
 import torch
-from tilus import int32, uint64
+from tilus import int32
 from tilus.testing import requires
 
 
@@ -30,10 +31,7 @@ class DemoBarrier(tilus.Script):
         g_x = self.global_view(x_ptr, dtype=int32, shape=[n])
         g_y = self.global_view(y_ptr, dtype=int32, shape=[n])
         s_x = self.shared_tensor(dtype=int32, shape=[self.block_size])
-        barriers = self.shared_tensor(dtype=uint64, shape=[1])
-
-        self.mbarrier.init(~barriers[0], count=self.attrs.warps * 32)
-        self.sync()
+        barriers = self.mbarrier.alloc(count=[self.attrs.warps * 32])
 
         phase: int32 = 0
         for bi in self.range(0, n, self.block_size):
@@ -41,14 +39,14 @@ class DemoBarrier(tilus.Script):
                 dst=s_x, src=self.load_global(g_x, offsets=[bi * self.block_size], shape=[self.block_size])
             )
 
-            self.mbarrier.arrive(~barriers[0])
-            self.mbarrier.wait(~barriers[0], phase)
+            self.mbarrier.arrive(barriers[0])
+            self.mbarrier.wait(barriers[0], phase)
             phase ^= 1
 
             self.store_global(dst=g_y, src=self.load_shared(s_x) + 1, offsets=[bi * self.block_size])
 
-            self.mbarrier.arrive(~barriers[0])
-            self.mbarrier.wait(~barriers[0], phase)
+            self.mbarrier.arrive(barriers[0])
+            self.mbarrier.wait(barriers[0], phase)
             phase ^= 1
 
 
@@ -61,3 +59,7 @@ def test_mbarrier():
     kernel(n, x, y)
     torch.cuda.synchronize()
     torch.testing.assert_close(y, x + 1)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

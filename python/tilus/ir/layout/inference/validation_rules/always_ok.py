@@ -15,6 +15,7 @@
 from tilus.ir.instructions import (
     AllocateRegisterInst,
     AllocateSharedInst,
+    AllocBarrierInst,
     CopyAsyncGenericInst,
     CopyAsyncInst,
     FormatPrintInst,
@@ -66,6 +67,7 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(LoadMatrixInst)  # todo: should have its own rule
 @register_rule(StoreGlobalGenericInst)  # todo: should have its own rule
 @register_rule(StoreSharedGenericInst)  # todo: should have its own rule
+@register_rule(AllocBarrierInst)  # todo: should have its own rule
 @register_rule(StoreSharedInst)
 @register_rule(PrintTensorInst)
 @register_rule(FormatPrintInst)

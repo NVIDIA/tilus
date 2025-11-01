@@ -53,7 +53,7 @@ class BlackwellMatmul(tilus.Script):
         )
 
         # allocate one barrier in shared memory
-        tma_barrier, mma_barrier = self.mbarrier.alloc(counts=[1, 1])
+        tma_barrier, mma_barrier = self.mbarrier.alloc(count=[1, 1]).tolist()
 
         # use a phase to record the current phase of the barrier
         phase: uint32 = 0

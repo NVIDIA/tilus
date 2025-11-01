@@ -29,6 +29,7 @@ from .inference_rules.load_shared import (
     LoadSharedInferRowMajorSharedRule,
     LoadSharedInferSwizzledSharedRule,
 )
+from .inference_rules.mbarrier import AllocBarrierRule
 from .inference_rules.mma_dot import MmaDotRule
 from .inference_rules.reduce import ReduceRule
 from .inference_rules.slice_register import SliceAssignRule, SliceRegisterRule
@@ -42,7 +43,7 @@ from .inference_rules.transpose import TransposeRule
 from .inference_rules.where import WhereRule
 
 inference_order: list[list[Type[LayoutInferenceRule]]] = [
-    [SliceRegisterRule, SliceAssignRule],
+    [SliceRegisterRule, SliceAssignRule, AllocBarrierRule],
     [Tcgen05MmaSSRule, Tcgen05MmaTSRule],
     [MmaDotRule],
     [Tcgen05LoadRule, Tcgen05StoreRule],

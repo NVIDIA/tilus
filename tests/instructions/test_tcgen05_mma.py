@@ -16,7 +16,7 @@ import pytest
 import tilus
 import torch
 from hidet.ir.type import DataType
-from tilus import float8_e4m3, float16, float32, uint64, void_p
+from tilus import float8_e4m3, float16, float32, void_p
 from tilus.utils import cdiv, dtype_to_torch
 
 
@@ -55,11 +55,9 @@ class Tcgen05MmaExample(tilus.Script):
         )
         t_d = self.tcgen05.slice(t_d_storage, offsets=[0, 0], shape=[self.mma_m, self.mma_n])
 
-        mbarriers = self.shared_tensor(dtype=uint64, shape=[2])
-        tma_mbarrier = ~mbarriers[0]
-        mma_mbarrier = ~mbarriers[1]
-        self.mbarrier.init(tma_mbarrier, count=1)
-        self.mbarrier.init(mma_mbarrier, count=1)
+        mbarriers = self.mbarrier.alloc(count=[1, 1])
+        tma_mbarrier = mbarriers[0]
+        mma_mbarrier = mbarriers[1]
         self.sync()
 
         # load a and b from global to shared

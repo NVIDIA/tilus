@@ -99,6 +99,31 @@ def local(*shape: int, ranks: Optional[Sequence[int]] = None) -> RegisterLayout:
     return register_layout(shape=shape, mode_shape=shape, spatial_modes=[], local_modes=local_modes)
 
 
+def replicated(*shape: int, num_workers: int) -> RegisterLayout:
+    """
+    Create a full replicated layout.
+
+    A full replicated layout is a layout that replicates the entire tensor across all workers.
+    Any worker can access the entire tensor.
+
+    Parameters
+    ----------
+    *shape:
+        The shape of the layout. Each entry in shape must be a positive constant integer.
+    num_workers: int
+        The number of workers.
+
+    Returns
+    -------
+    ret: RegisterLayout
+        The full replicated layout.
+    """
+    replicated_unit = RegisterLayout(
+        shape=tuple(), mode_shape=tuple(), spatial_modes=(-num_workers,), local_modes=tuple()
+    )
+    return replicated_unit * local(*shape)
+
+
 def column_spatial(*shape: int) -> RegisterLayout:
     """
     Create a spatial layout in column-major order.

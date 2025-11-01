@@ -15,22 +15,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Sequence
 
 from hidet import uint32
 from hidet.ir.expr import Expr
 
 from tilus.ir.inst import Instruction
+from tilus.ir.tensor import RegisterTensor
 
 
 @dataclass(frozen=True, eq=False)
-class InitBarrierInst(Instruction):
-    barrier: Expr
-    count: Optional[Expr]
+class AllocBarrierInst(Instruction):
+    counts: tuple[Expr | None, ...]
 
     @staticmethod
-    def create(barrier: Expr, count: Optional[Expr]) -> InitBarrierInst:
-        return InitBarrierInst(output=None, inputs=(), barrier=barrier, count=count)
+    def create(counts: Sequence[Expr | None]) -> AllocBarrierInst:
+        out = RegisterTensor.create(dtype=uint32, shape=[len(counts)], optional_layout=None)
+        return AllocBarrierInst(output=out, inputs=(), counts=tuple(counts))
 
 
 @dataclass(frozen=True, eq=False)

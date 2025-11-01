@@ -32,6 +32,7 @@ from .register_ops import (
     permute,
     reduce,
     register_layout,
+    replicated,
     reshape,
     spatial,
     squeeze,
