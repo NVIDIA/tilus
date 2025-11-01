@@ -48,7 +48,8 @@ class Cast(Script):
 
         offset = self.blockIdx.x * self.layout.size
         g_src = self.global_view(ptr=src_ptr, dtype=self.src_dtype, shape=[n])
-        r_src = self.load_global(g_src, offsets=[offset], layout=self.layout)
+        r_src = self.load_global(g_src, offsets=[offset], shape=self.layout.shape)
+        self.annotate_layout(r_src, self.layout)
         r_dst = self.cast(r_src, dtype=self.dst_dtype)
         g_dst = self.global_view(ptr=dst_ptr, dtype=self.dst_dtype, shape=[n])
         self.store_global(g_dst, r_dst, offsets=[offset])

@@ -951,8 +951,7 @@ class Script:
         /,
         *,
         offsets: Sequence[Expr | int],
-        shape: Optional[Sequence[int]] = None,
-        layout: Optional[RegisterLayout] = None,
+        shape: Sequence[int],
         dims: Optional[Sequence[int]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
@@ -997,7 +996,7 @@ class Script:
             raise InstructionError(
                 "The number of offsets must be equal to the number of dimensions of the global tensor"
             )
-        return self._builder.load_global(x=src, offsets=offsets, dims=dims, shape=shape, layout=layout, output=out)
+        return self._builder.load_global(x=src, offsets=offsets, dims=dims, shape=shape, output=out)
 
     def store_global(
         self,

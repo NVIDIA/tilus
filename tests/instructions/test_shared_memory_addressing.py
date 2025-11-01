@@ -31,7 +31,7 @@ class SharedMemoryAddressingExample(tilus.Script):
         self.attrs.warps = 1
 
         a = self.shared_tensor(dtype=uint8, shape=[1024])
-        a_ptr: ~uint8 = ~a[0]
+        a_ptr: ~uint8 = a[0].item_ptr()
         a_addr_cta: uint32 = cvta_generic_to_shared(a_ptr)
         a_addr_cluster: uint32 = cvta_generic_to_cluster_shared(a_ptr)
         a_addr_cluster_mapa_0: uint32 = mapa_shared(a_addr_cta, cta_rank=1 << 0)
