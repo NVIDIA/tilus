@@ -18,7 +18,7 @@ from typing import Callable, List, Optional, Sequence, Type, Union
 
 from hidet.ir import primitives
 from hidet.ir.dtypes import boolean, int32
-from hidet.ir.expr import Equal, Expr, LessEqual, LessThan, NotEqual, Var, as_expr
+from hidet.ir.expr import Equal, Expr, LessEqual, LessThan, NotEqual, BitwiseXor, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
 from hidet.ir.utils import broadcast_shapes, can_broadcast
@@ -869,6 +869,11 @@ class StmtBuilder(StmtBuilderCore):
         self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None
     ) -> RegisterTensor:
         return self.elementwise_binary(x, y, f_compute=lambda a, b: NotEqual(a, b), out=out)
+    
+    def bitwise_xor(
+        self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        return self.elementwise_binary(x, y, f_compute=lambda a, b: BitwiseXor(a, b), out=out)
 
     def maximum(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_binary(x, y, f_compute=lambda a, b: primitives.max(a, b), out=out)

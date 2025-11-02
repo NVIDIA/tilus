@@ -60,8 +60,10 @@ class Attributes:
         self._blocks = value
 
     @property
-    def cluster_blocks(self) -> Sequence[Expr | int] | int | None:
+    def cluster_blocks(self) -> Sequence[Expr | int] | int:
         """The number of blocks per cluster."""
+        if self._cluster_blocks is None:
+            raise ValueError("The number of blocks per cluster is not set")
         return self._cluster_blocks
 
     @cluster_blocks.setter

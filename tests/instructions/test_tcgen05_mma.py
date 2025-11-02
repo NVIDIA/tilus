@@ -52,15 +52,9 @@ class Tcgen05MmaExample(tilus.Script):
         t_d_storage = self.tcgen05.alloc(
             dtype=self.accumulator_dtype,
             shape=[self.mma_m, cdiv(self.mma_n, self.column_granularity) * self.column_granularity],
+            init=0.0
         )
         t_d = self.tcgen05.slice(t_d_storage, offsets=[0, 0], shape=[self.mma_m, self.mma_n])
-
-        self.tcgen05.store(
-            t_d,
-            self.register_tensor(dtype=self.accumulator_dtype, shape=[self.mma_m, self.mma_n], init=0.0),
-            offsets=[0, 0],
-        )
-        self.tcgen05.wait_store()
 
         mbarriers = self.mbarrier.alloc(count=[1, 1])
         tma_mbarrier = mbarriers[0]

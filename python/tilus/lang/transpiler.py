@@ -170,7 +170,7 @@ class Transpiler(PythonAstFunctor):
         self.func_params: list[Var] = []
         self.var2divisibility: dict[Var, int] = {}
 
-        self._script: Optional[Script] = None
+        self._optional_script: Optional[Script] = None
 
     def visit(self, node):
         from hidet.ir.library.tune import ScheduleError
@@ -203,9 +203,9 @@ class Transpiler(PythonAstFunctor):
 
     @property
     def script(self) -> Script:
-        if self._script is None:
+        if self._optional_script is None:
             raise RuntimeError("The script is not set.")
-        return self._script
+        return self._optional_script
 
     def transpile(
         self, script: Script, name2consts: dict[str, Union[int, float, str, Any]], name2divisibility: dict[str, int]
@@ -247,13 +247,13 @@ class Transpiler(PythonAstFunctor):
 
             script._set_builder(StmtBuilder())
             script._optinal_transpiler = self
-            self._script = script
+            self._optional_script = script
 
             function = self.visit(parsed)
             assert isinstance(function, Function)
 
             # prevent loop reference
-            self._script = None
+            self._optional_script = None
             script._set_builder(None)
             script._optinal_transpiler = None
 
@@ -264,10 +264,8 @@ class Transpiler(PythonAstFunctor):
     ) -> None:
         # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         # check the rhs value, must be an instance of rhs_allowed_types or a list of these kinds of elements.
-        host_var_types: Tuple[Any, ...] = (RegisterLayout, str, list, tuple, dict)
-        var_types = (hidet_ir.Expr, tilus_ir.Tensor, float, int, str, type(None))
-        rhs_allowed_types = var_types + host_var_types
-        assert isinstance(rhs, rhs_allowed_types), 'unexpected value "{}" with type {}'.format(rhs, type(rhs))
+        supported_rhs_types = (RegisterLayout, str, list, tuple, dict, hidet_ir.Expr, tilus_ir.Tensor, float, int, str, type(None))
+        assert isinstance(rhs, supported_rhs_types), 'unexpected value "{}" with type {}'.format(rhs, type(rhs))
 
         # three cases of assignment:
         #    1. v = ...
@@ -293,7 +291,7 @@ class Transpiler(PythonAstFunctor):
                     if type_annotation is not None and rhs is not None:
                         resolved_annotation = self.visit(type_annotation)
                         if resolved_annotation in (int, str, float):
-                            rhs = resolved_annotation(rhs)
+                            rhs = resolved_annotation(rhs)   # type: ignore
                             self.current_scope.bind(var_name, rhs)
                         else:
                             if not isinstance(resolved_annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
@@ -301,15 +299,11 @@ class Transpiler(PythonAstFunctor):
                                     self, lhs, "Invalid type annotation: {}".format(resolved_annotation)
                                 )
                             if not isinstance(rhs, hidet_ir.Expr):
-                                rhs = as_expr(rhs)
+                                rhs = as_expr(rhs)  # type: ignore
                             stmt = DeclareStmt(var=Var(hint=var_name, type=resolved_annotation), init=rhs)
                             self.current_scope.append(stmt)
                             self.current_scope.bind(var_name, stmt.var)
                     else:
-                        # if rhs is None:
-                        #     raise TilusProgramError(
-                        #         self, lhs, "Trying to assign None to a variable, which is not allowed."
-                        #     )
                         self.current_scope.bind(var_name, rhs)
             else:
                 # assignment
@@ -378,10 +372,10 @@ class Transpiler(PythonAstFunctor):
 
             if lhs_base is self.script.attrs:
                 # we only allow the kernel function to assign self.attrs.xxx = ...
-                if isinstance(rhs, (tuple, list)):
-                    rhs = [hidet_ir.tools.simplify(v) for v in rhs]
+                if isinstance(rhs, Sequence):
+                    rhs = [hidet_ir.tools.simplify(v) for v in rhs] # type: ignore
                 else:
-                    rhs = hidet_ir.tools.simplify(rhs)
+                    rhs = hidet_ir.tools.simplify(rhs) # type: ignore
                 setattr(self.script.attrs, lhs.attr, rhs)
             else:
                 raise HidetProgramError(self, lhs, "Invalid assignment.")
@@ -537,7 +531,9 @@ class Transpiler(PythonAstFunctor):
             kwargs = self.visit(expr.keywords[0].value)
         else:
             # func(a=1, b=2, c=3)
-            kwargs = {kwarg.arg: self.visit(kwarg.value) for kwarg in expr.keywords}
+            if any(kwarg.arg is None for kwarg in expr.keywords):
+                raise TilusProgramError(self, expr, "Mixing of keyword arguments and **kwargs is not supported.")
+            kwargs = {kwarg.arg: self.visit(kwarg.value) for kwarg in expr.keywords if kwarg.arg is not None}
 
         try:
             """
@@ -658,7 +654,7 @@ class Transpiler(PythonAstFunctor):
                     self.current_scope.append(func_scope.flush_stmts())
                 elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor)):
                     # case 2
-                    sb = self._script._builder
+                    sb = self.script._builder
                     method_name = func.__name__
                     tensor_with_methods: RegisterTensorWithMethods | SharedTensorWithMethods | GlobalTensorWithMethods
                     if isinstance(f_self, RegisterTensor):
@@ -746,7 +742,7 @@ class Transpiler(PythonAstFunctor):
 
             # some functions might update use the script builder to add new statements
             # so we need to flush the builder stack to the current scope
-            builder_stack: list[list[Stmt]] = self._script._builder._stack
+            builder_stack: list[list[Stmt]] = self.script._builder._stack
             assert len(builder_stack) == 1
             if len(builder_stack[0]) > 0:
                 self.current_scope.stmts.extend(builder_stack[0])
@@ -828,22 +824,22 @@ class Transpiler(PythonAstFunctor):
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
         elif isinstance(lhs, RegisterTensor) or isinstance(rhs, RegisterTensor):
             if not isinstance(lhs, RegisterTensor):
-                lhs = self._script._builder.allocate_register(
+                lhs = self.script._builder.allocate_register(
                     dtype=rhs.dtype, shape=rhs.shape, f_init=lambda _: rhs.dtype(lhs)
                 )
             if not isinstance(rhs, RegisterTensor):
-                rhs = self._script._builder.allocate_register(
+                rhs = self.script._builder.allocate_register(
                     dtype=lhs.dtype, shape=lhs.shape, f_init=lambda _: lhs.dtype(rhs)
                 )
 
             if isinstance(lhs, RegisterTensor):
-                lhs = RegisterTensorWithMethods(lhs, self._script._builder)
+                lhs = RegisterTensorWithMethods(lhs, self.script._builder)
             if isinstance(rhs, RegisterTensor):
-                rhs = RegisterTensorWithMethods(rhs, self._script._builder)
+                rhs = RegisterTensorWithMethods(rhs, self.script._builder)
 
             if type(expr.op) in op_dict:
                 ret = op_dict[type(expr.op)](lhs, rhs)
-                self.current_scope.append(self._script._builder.flush_stmts())
+                self.current_scope.append(self.script._builder.flush_stmts())
                 return ret
             else:
                 type_name = type(expr.op).__name__
@@ -1060,7 +1056,7 @@ class Transpiler(PythonAstFunctor):
             if isinstance(var_value, RegisterTensor):
                 if isinstance(value, (int, float, hidet_ir.Expr)):
                     value = sb.allocate_register(
-                        dtype=var_value.dtype, shape=var_value.shape, f_init=lambda axes: value
+                        dtype=var_value.dtype, shape=var_value.shape, f_init=lambda _: var_value.dtype(value)
                     )
                 if isinstance(stmt.op, ast.Add):
                     sb.add(x=var_value, y=value, out=var_value)
