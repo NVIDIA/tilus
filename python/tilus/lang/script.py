@@ -60,8 +60,10 @@ class Attributes:
         self._blocks = value
 
     @property
-    def cluster_blocks(self) -> Sequence[Expr | int] | int | None:
+    def cluster_blocks(self) -> Sequence[Expr | int] | int:
         """The number of blocks per cluster."""
+        if self._cluster_blocks is None:
+            raise ValueError("The number of blocks per cluster is not set")
         return self._cluster_blocks
 
     @cluster_blocks.setter
@@ -951,8 +953,7 @@ class Script:
         /,
         *,
         offsets: Sequence[Expr | int],
-        shape: Optional[Sequence[int]] = None,
-        layout: Optional[RegisterLayout] = None,
+        shape: Sequence[int],
         dims: Optional[Sequence[int]] = None,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
@@ -997,7 +998,7 @@ class Script:
             raise InstructionError(
                 "The number of offsets must be equal to the number of dimensions of the global tensor"
             )
-        return self._builder.load_global(x=src, offsets=offsets, dims=dims, shape=shape, layout=layout, output=out)
+        return self._builder.load_global(x=src, offsets=offsets, dims=dims, shape=shape, output=out)
 
     def store_global(
         self,

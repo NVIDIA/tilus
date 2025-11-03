@@ -122,6 +122,15 @@ class RegisterTensorWithMethods(RegisterTensor):
             )
         return self.builder.not_equal(self.tensor, other)
 
+    def __xor__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
+        if isinstance(other, RegisterTensorWithMethods):
+            other = other.tensor
+        if not isinstance(other, RegisterTensor):
+            other = self.builder.allocate_register(
+                dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
+            )
+        return self.builder.bitwise_xor(self.tensor, other)
+
     def item(self) -> Var:
         return self.builder.tensor_item_value(self.tensor)
 
@@ -138,11 +147,11 @@ class RegisterTensorWithMethods(RegisterTensor):
         return self.builder.cast(self.tensor, dtype=dtype)
 
     def tolist(self) -> Expr | list:
-        if len(self.shape) == 0:
+        if len(self.tensor.shape) == 0:
             return self.builder.tensor_item_value(self.tensor)
         else:
             ret = []
-            for indices in itertools.product(*(range(s) for s in self.shape)):
+            for indices in itertools.product(*(range(s) for s in self.tensor.shape)):
                 ret.append(
                     self.builder.tensor_item_value(
                         self.builder.slice_register(self.tensor, offsets=indices, slice_dims=[], slice_shape=[])

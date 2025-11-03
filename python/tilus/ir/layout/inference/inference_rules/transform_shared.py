@@ -28,7 +28,7 @@ class SharedSliceRule(LayoutInferenceRule):
         if a.optional_layout is not None and b.optional_layout is not None:
             return {}
         elif a.optional_layout is not None:
-            return {b: a.layout.slice(offsets=inst.offsets, slice_dims=inst.dims, slice_shape=b.shape)}
+            return {b: a.layout.slice(offsets=inst.offsets, slice_dims=inst.dims, slice_shape=b.shape).simplify()}
         elif b.optional_layout is not None:
             b_layout = b.layout.unsqueeze(dims=range(len(a.shape) - len(b.shape)))
             outer_shape = []

@@ -170,7 +170,7 @@ class Transpiler(PythonAstFunctor):
         self.func_params: list[Var] = []
         self.var2divisibility: dict[Var, int] = {}
 
-        self._script: Optional[Script] = None
+        self._optional_script: Optional[Script] = None
 
     def visit(self, node):
         from hidet.ir.library.tune import ScheduleError
@@ -203,9 +203,9 @@ class Transpiler(PythonAstFunctor):
 
     @property
     def script(self) -> Script:
-        if self._script is None:
+        if self._optional_script is None:
             raise RuntimeError("The script is not set.")
-        return self._script
+        return self._optional_script
 
     def transpile(
         self, script: Script, name2consts: dict[str, Union[int, float, str, Any]], name2divisibility: dict[str, int]
@@ -247,13 +247,13 @@ class Transpiler(PythonAstFunctor):
 
             script._set_builder(StmtBuilder())
             script._optinal_transpiler = self
-            self._script = script
+            self._optional_script = script
 
             function = self.visit(parsed)
             assert isinstance(function, Function)
 
             # prevent loop reference
-            self._script = None
+            self._optional_script = None
             script._set_builder(None)
             script._optinal_transpiler = None
 
@@ -264,10 +264,20 @@ class Transpiler(PythonAstFunctor):
     ) -> None:
         # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         # check the rhs value, must be an instance of rhs_allowed_types or a list of these kinds of elements.
-        host_var_types: Tuple[Any, ...] = (RegisterLayout, str, list, tuple, dict)
-        var_types = (hidet_ir.Expr, tilus_ir.Tensor, float, int, str, type(None))
-        rhs_allowed_types = var_types + host_var_types
-        assert isinstance(rhs, rhs_allowed_types), 'unexpected value "{}" with type {}'.format(rhs, type(rhs))
+        supported_rhs_types = (
+            RegisterLayout,
+            str,
+            list,
+            tuple,
+            dict,
+            hidet_ir.Expr,
+            tilus_ir.Tensor,
+            float,
+            int,
+            str,
+            type(None),
+        )
+        assert isinstance(rhs, supported_rhs_types), 'unexpected value "{}" with type {}'.format(rhs, type(rhs))
 
         # three cases of assignment:
         #    1. v = ...
@@ -293,7 +303,7 @@ class Transpiler(PythonAstFunctor):
                     if type_annotation is not None and rhs is not None:
                         resolved_annotation = self.visit(type_annotation)
                         if resolved_annotation in (int, str, float):
-                            rhs = resolved_annotation(rhs)
+                            rhs = resolved_annotation(rhs)  # type: ignore
                             self.current_scope.bind(var_name, rhs)
                         else:
                             if not isinstance(resolved_annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
@@ -301,15 +311,11 @@ class Transpiler(PythonAstFunctor):
                                     self, lhs, "Invalid type annotation: {}".format(resolved_annotation)
                                 )
                             if not isinstance(rhs, hidet_ir.Expr):
-                                rhs = as_expr(rhs)
+                                rhs = as_expr(rhs)  # type: ignore
                             stmt = DeclareStmt(var=Var(hint=var_name, type=resolved_annotation), init=rhs)
                             self.current_scope.append(stmt)
                             self.current_scope.bind(var_name, stmt.var)
                     else:
-                        # if rhs is None:
-                        #     raise TilusProgramError(
-                        #         self, lhs, "Trying to assign None to a variable, which is not allowed."
-                        #     )
                         self.current_scope.bind(var_name, rhs)
             else:
                 # assignment
@@ -378,10 +384,10 @@ class Transpiler(PythonAstFunctor):
 
             if lhs_base is self.script.attrs:
                 # we only allow the kernel function to assign self.attrs.xxx = ...
-                if isinstance(rhs, (tuple, list)):
-                    rhs = [hidet_ir.tools.simplify(v) for v in rhs]
+                if isinstance(rhs, Sequence):
+                    rhs = [hidet_ir.tools.simplify(v) for v in rhs]  # type: ignore
                 else:
-                    rhs = hidet_ir.tools.simplify(rhs)
+                    rhs = hidet_ir.tools.simplify(rhs)  # type: ignore
                 setattr(self.script.attrs, lhs.attr, rhs)
             else:
                 raise HidetProgramError(self, lhs, "Invalid assignment.")
@@ -537,7 +543,9 @@ class Transpiler(PythonAstFunctor):
             kwargs = self.visit(expr.keywords[0].value)
         else:
             # func(a=1, b=2, c=3)
-            kwargs = {kwarg.arg: self.visit(kwarg.value) for kwarg in expr.keywords}
+            if any(kwarg.arg is None for kwarg in expr.keywords):
+                raise TilusProgramError(self, expr, "Mixing of keyword arguments and **kwargs is not supported.")
+            kwargs = {kwarg.arg: self.visit(kwarg.value) for kwarg in expr.keywords if kwarg.arg is not None}
 
         try:
             """
@@ -658,7 +666,7 @@ class Transpiler(PythonAstFunctor):
                     self.current_scope.append(func_scope.flush_stmts())
                 elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor)):
                     # case 2
-                    sb = self._script._builder
+                    sb = self.script._builder
                     method_name = func.__name__
                     tensor_with_methods: RegisterTensorWithMethods | SharedTensorWithMethods | GlobalTensorWithMethods
                     if isinstance(f_self, RegisterTensor):
@@ -681,7 +689,10 @@ class Transpiler(PythonAstFunctor):
                         raise TilusProgramError(self, expr, str(e))
                 else:
                     # case 4
-                    ret = func(*args, **kwargs)
+                    try:
+                        ret = func(*args, **kwargs)
+                    except TypeError as e:
+                        raise TilusProgramError(self, expr, str(e)) from e
             elif isinstance(func, types.FunctionType):
                 # case 4
                 ret = func(*args, **kwargs)
@@ -746,7 +757,7 @@ class Transpiler(PythonAstFunctor):
 
             # some functions might update use the script builder to add new statements
             # so we need to flush the builder stack to the current scope
-            builder_stack: list[list[Stmt]] = self._script._builder._stack
+            builder_stack: list[list[Stmt]] = self.script._builder._stack
             assert len(builder_stack) == 1
             if len(builder_stack[0]) > 0:
                 self.current_scope.stmts.extend(builder_stack[0])
@@ -828,22 +839,22 @@ class Transpiler(PythonAstFunctor):
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
         elif isinstance(lhs, RegisterTensor) or isinstance(rhs, RegisterTensor):
             if not isinstance(lhs, RegisterTensor):
-                lhs = self._script._builder.allocate_register(
+                lhs = self.script._builder.allocate_register(
                     dtype=rhs.dtype, shape=rhs.shape, f_init=lambda _: rhs.dtype(lhs)
                 )
             if not isinstance(rhs, RegisterTensor):
-                rhs = self._script._builder.allocate_register(
+                rhs = self.script._builder.allocate_register(
                     dtype=lhs.dtype, shape=lhs.shape, f_init=lambda _: lhs.dtype(rhs)
                 )
 
             if isinstance(lhs, RegisterTensor):
-                lhs = RegisterTensorWithMethods(lhs, self._script._builder)
+                lhs = RegisterTensorWithMethods(lhs, self.script._builder)
             if isinstance(rhs, RegisterTensor):
-                rhs = RegisterTensorWithMethods(rhs, self._script._builder)
+                rhs = RegisterTensorWithMethods(rhs, self.script._builder)
 
             if type(expr.op) in op_dict:
                 ret = op_dict[type(expr.op)](lhs, rhs)
-                self.current_scope.append(self._script._builder.flush_stmts())
+                self.current_scope.append(self.script._builder.flush_stmts())
                 return ret
             else:
                 type_name = type(expr.op).__name__
@@ -1060,7 +1071,7 @@ class Transpiler(PythonAstFunctor):
             if isinstance(var_value, RegisterTensor):
                 if isinstance(value, (int, float, hidet_ir.Expr)):
                     value = sb.allocate_register(
-                        dtype=var_value.dtype, shape=var_value.shape, f_init=lambda axes: value
+                        dtype=var_value.dtype, shape=var_value.shape, f_init=lambda _: var_value.dtype(value)
                     )
                 if isinstance(stmt.op, ast.Add):
                     sb.add(x=var_value, y=value, out=var_value)
@@ -1092,28 +1103,69 @@ class Transpiler(PythonAstFunctor):
             else:
                 raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
         elif isinstance(stmt.target, ast.Subscript):
-            # target = self.visit(stmt.target)
-            # value = self.visit(stmt.value)
-            # if isinstance(target, RegisterTensor):
-            #     if isinstance(value, (int, float, hidet_ir.Expr)):
-            #         value = sb.allocate_register(dtype=target.dtype, shape=target.shape, f_init=lambda axes: target.dtype(value))
-            #     if isinstance(stmt.op, ast.Add):
-            #         sb.add(x=target, y=value, out=target)
-            #     elif isinstance(stmt.op, ast.Sub):
-            #         sb.sub(x=target, y=value, out=target)
-            #     elif isinstance(stmt.op, ast.Mult):
-            #         sb.mul(x=target, y=value, out=target)
-            #     elif isinstance(stmt.op, ast.Div):
-            #         sb.div(x=target, y=value, out=target)
-            #     elif isinstance(stmt.op, ast.FloorDiv):
-            #         sb.div(x=target, y=value, out=target)
-            #     elif isinstance(stmt.op, ast.Mod):
-            #         sb.mod(x=target, y=value, out=target)
-            #     else:
-            #         raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
-            # else:
-            #     raise HidetProgramError(self, stmt.target, "AugAssign only support RegisterTensor as subscript target.")
-            raise NotImplementedError("AugAssign on Subscript is not implemented yet.")
+            # example: a[3, 4] = 5.0
+            sb = StmtBuilder()
+            dst_tensor = self.visit(stmt.target.value)
+            if not isinstance(dst_tensor, RegisterTensor):
+                raise TilusProgramError(
+                    self, stmt.target, "The left side of subscript assignment must be a RegisterTensor."
+                )
+
+            # extract offsets and slice_dims
+            indices = self.visit(stmt.target.slice)
+            offsets = []
+            slice_dims = []
+
+            if not isinstance(indices, Sequence):
+                indices = [indices]
+            else:
+                indices = list(indices)
+            while len(indices) < len(dst_tensor.shape):
+                indices.append(slice(None, None, None))
+            for dim, index in enumerate(indices):
+                if isinstance(index, slice):
+                    if index.start is not None:
+                        offsets.append(as_expr(index.start))
+                    else:
+                        offsets.append(Constant(0, data_type("int32")))
+                    slice_dims.append(dim)
+                else:
+                    offsets.append(as_expr(index))
+
+            # process rhs
+            rhs = self.visit(stmt.value)
+            if isinstance(stmt.value, RegisterTensor):
+                rhs_tensor = rhs
+            else:
+                rhs_tensor = sb.allocate_register(
+                    dtype=dst_tensor.dtype, shape=[], f_init=lambda _: dst_tensor.dtype(rhs)
+                )
+            lhs_tensor = sb.slice_register(
+                tensor=dst_tensor,
+                offsets=offsets,
+                slice_dims=slice_dims,
+                slice_shape=[dst_tensor.shape[dim] for dim in slice_dims],
+            )
+
+            if isinstance(stmt.op, ast.Add):
+                result = sb.add(x=lhs_tensor, y=rhs_tensor)
+            elif isinstance(stmt.op, ast.Sub):
+                result = sb.sub(x=lhs_tensor, y=rhs_tensor)
+            elif isinstance(stmt.op, ast.Mult):
+                result = sb.mul(x=lhs_tensor, y=rhs_tensor)
+            elif isinstance(stmt.op, ast.Div):
+                result = sb.div(x=lhs_tensor, y=rhs_tensor)
+            elif isinstance(stmt.op, ast.FloorDiv):
+                result = sb.div(x=lhs_tensor, y=rhs_tensor)
+            elif isinstance(stmt.op, ast.Mod):
+                result = sb.mod(x=lhs_tensor, y=rhs_tensor)
+            elif isinstance(stmt.op, ast.BitXor):
+                result = sb.bitwise_xor(x=lhs_tensor, y=rhs_tensor)
+            else:
+                raise HidetProgramError(self, stmt, "NotImplemented AugAssign for operator: {}".format(type(stmt.op)))
+
+            sb.slice_assign_register(output=dst_tensor, x=result, offsets=offsets, dims=slice_dims)
+            self.current_scope.append(sb.flush_stmts())
         else:
             raise HidetProgramError(
                 self, stmt.target, "AugAssign only support variable name or RegisterTensor as target."
@@ -1342,3 +1394,59 @@ class Transpiler(PythonAstFunctor):
         self.current_scope.append(processed_body)
         if len(stmt.items) != 1:
             raise NotImplementedError("Tilus only support with statement with a single context manager.")
+
+    def process_generator(self, elt: ast.expr, generators: list[ast.comprehension]) -> list:
+        if len(generators) == 0:
+            return [self.visit(elt)]
+        else:
+            generator = generators[0]
+            if generator.is_async:
+                raise HidetProgramError(self, generator, "Hidet currently do not support async generator.")
+            assert isinstance(generator, ast.comprehension)
+            iterator = self.visit(generator.iter)
+            names: list[str] = []
+            if isinstance(generator.target, ast.Name):
+                names = [generator.target.id]
+            elif isinstance(generator.target, ast.Tuple):
+                for target in generator.target.elts:
+                    if not isinstance(target, ast.Name):
+                        raise HidetProgramError(
+                            self, target, "Hidet currently only support binding a single name or a tuple of names"
+                        )
+                    names.append(target.id)
+            else:
+                raise HidetProgramError(
+                    self,
+                    generator.target,
+                    "Hidet do not support generator target with type {}.".format(type(generator.target)),
+                )
+            result = []
+            for it in iterator:
+                if len(names) == 1:
+                    self.current_scope.bind(names[0], it)
+                else:
+                    if len(names) != len(it):
+                        raise HidetProgramError(
+                            self, generator, "Can not unpack {} values to {} names.".format(len(it), len(names))
+                        )
+                    for name, value in zip(names, it):
+                        self.current_scope.bind(name, value)
+                if not all(self.visit(cond) for cond in generator.ifs):
+                    continue
+                result.extend(self.process_generator(elt, generators[1:]))
+            return result
+
+    def visit_ListComp(self, expr: ast.ListComp) -> list:
+        return self.process_generator(expr.elt, expr.generators)
+
+    def visit_DictComp(self, expr: ast.DictComp) -> dict:
+        kv_pair = ast.Tuple([expr.key, expr.value])
+        kv_pairs = self.process_generator(kv_pair, expr.generators)
+        return {k: v for k, v in kv_pairs}
+
+    def visit_SetComp(self, expr: ast.SetComp) -> set:
+        values = self.process_generator(expr.elt, expr.generators)
+        return set(values)
+
+    def visit_GeneratorExp(self, expr: ast.GeneratorExp) -> list:
+        return self.process_generator(expr.elt, expr.generators)

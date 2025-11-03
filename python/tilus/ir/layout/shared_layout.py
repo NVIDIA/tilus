@@ -111,13 +111,16 @@ class SharedLayout(IRNode):
         return SharedLayout.create(shape=slice_shape, size=self.size, f_offset=f_offset)
 
     def simplify(self) -> SharedLayout:
+        from tilus.extensions.hidet.ir.tools import simplify_expr
         from tilus.extensions.hidet.transforms.rule_based_simplifier import BoundInfo, RuleBasedSimplifier
 
         var2bound: Dict[Var, BoundInfo] = {
             axis: BoundInfo(min_value=0, max_value=extent - 1) for axis, extent in zip(self.axes, self.shape)
         }
         simplifier = RuleBasedSimplifier(var2bound=var2bound)
-        return SharedLayout(shape=self.shape, size=self.size, axes=self.axes, offset=simplifier(self.offset))
+        return SharedLayout(
+            shape=self.shape, size=self.size, axes=self.axes, offset=simplify_expr(simplifier(self.offset))
+        )
 
     def swizzle(self, dim: int, regards_dim: int, log_step: int) -> SharedLayout:
         ndims = len(self.shape)

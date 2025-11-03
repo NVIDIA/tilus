@@ -18,7 +18,7 @@ from typing import Callable, List, Optional, Sequence, Type, Union
 
 from hidet.ir import primitives
 from hidet.ir.dtypes import boolean, int32
-from hidet.ir.expr import Equal, Expr, LessEqual, LessThan, NotEqual, Var, as_expr
+from hidet.ir.expr import BitwiseXor, Equal, Expr, LessEqual, LessThan, NotEqual, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
 from hidet.ir.utils import broadcast_shapes, can_broadcast
@@ -269,7 +269,7 @@ class WhileContext(StmtContext):
 
 
 class ThreadGroupContext(StmtContext):
-    def __init__(self, vb: StmtBuilderCore, group_index: int, group_size: Optional[int]):
+    def __init__(self, vb: StmtBuilderCore, group_index: int, group_size: int):
         super().__init__(vb)
         self.group_index: int = group_index
         self.group_size: int = group_size
@@ -402,8 +402,15 @@ class StmtBuilder(StmtBuilderCore):
         wrapped_f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
         if f_init is not None:
 
-            def wrapped_f_init(axes: Sequence[Var]) -> Expr:
+            def wrapped_f_init_(axes: Sequence[Var]) -> Expr:
                 return as_expr(f_init(axes))
+
+            wrapped_f_init = wrapped_f_init_
+
+        if shape is None:
+            if layout is None:
+                raise ValueError("Either shape or layout must be provided")
+            shape = layout.shape
 
         output = RegisterTensor.create(dtype, shape=shape, optional_layout=layout)
 
@@ -639,11 +646,13 @@ class StmtBuilder(StmtBuilderCore):
         dst: SharedTensor,
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
-        mbarrier: Expr,
+        mbarrier: Expr | RegisterTensor,
         cache_policy: Optional[Expr] = None,
     ) -> None:
         if dims is None:
             dims = list(range(len(src.shape)))
+        if isinstance(mbarrier, RegisterTensor):
+            mbarrier = self.tensor_item_value(mbarrier)
         inst = CopyAsyncTensorGlobalToSharedInst.create(
             src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, cache_policy=cache_policy
         )
@@ -861,6 +870,11 @@ class StmtBuilder(StmtBuilderCore):
     ) -> RegisterTensor:
         return self.elementwise_binary(x, y, f_compute=lambda a, b: NotEqual(a, b), out=out)
 
+    def bitwise_xor(
+        self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None
+    ) -> RegisterTensor:
+        return self.elementwise_binary(x, y, f_compute=lambda a, b: BitwiseXor(a, b), out=out)
+
     def maximum(self, x: RegisterTensor, y: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_binary(x, y, f_compute=lambda a, b: primitives.max(a, b), out=out)
 
@@ -1028,22 +1042,18 @@ class StmtBuilder(StmtBuilderCore):
     def load_global(
         self,
         x: GlobalTensor,
+        *,
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
-        shape: Optional[Sequence[int]] = None,
-        layout: Optional[RegisterLayout] = None,
+        shape: Sequence[int],
         output: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         if output is None:
-            output = RegisterTensor.create(dtype=x.dtype, shape=shape, optional_layout=layout)
+            output = RegisterTensor.create(dtype=x.dtype, shape=shape)
         else:
             if shape is not None and not same_list(shape, output.shape):
                 raise InstructionError(
                     f"Shape mismatch: expected {output.shape}, but got {shape} for output of load_global"
-                )
-            if layout is not None and output.layout != layout:
-                raise InstructionError(
-                    f"Layout mismatch: expected {output.layout}, but got {layout} for output of load_global"
                 )
         if dims is None:
             assert len(x.shape) == len(output.shape)
@@ -1190,7 +1200,7 @@ class StmtBuilder(StmtBuilderCore):
     def tcgen05_alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int) -> TMemoryTensor:
         inst = Tcgen05AllocInst.create(dtype=dtype, shape=shape, cta_group=cta_group)
         self.append(inst)
-        return inst.output.as_tmemory_tensor()
+        return inst.tmemory_output
 
     def tcgen05_dealloc(self, tmem: TMemoryTensor) -> None:
         inst = Tcgen05DeallocInst.create(tmem)
@@ -1209,14 +1219,14 @@ class StmtBuilder(StmtBuilderCore):
             raise InstructionError(f"The length of slice_shape must be 2, but got {len(slice_shape)}")
         inst = Tcgen05SliceInst.create(tmem=tmem, offsets=offsets, shape=slice_shape)
         self.append(inst)
-        return inst.output.as_tmemory_tensor()
+        return inst.tmemory_output
 
     def tcgen05_view(self, tmem: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> TMemoryTensor:
         if len(shape) != 2:
             raise InstructionError(f"The length of shape must be 2, but got {len(shape)}")
         inst = Tcgen05ViewInst.create(tmem=tmem, dtype=dtype, shape=shape)
         self.append(inst)
-        return inst.output.as_tmemory_tensor()
+        return inst.tmemory_output
 
     def tcgen05_load(self, tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
         if any(not isinstance(ofs, int) for ofs in offsets):
@@ -1225,7 +1235,7 @@ class StmtBuilder(StmtBuilderCore):
             raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
         inst = Tcgen05LoadInst.create(tmem=tmem, offsets=offsets, shape=shape)
         self.append(inst)
-        return inst.output.as_register_tensor()
+        return inst.register_output
 
     def tcgen05_store(self, tmem: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int]) -> None:
         if any(not isinstance(ofs, int) for ofs in offsets):

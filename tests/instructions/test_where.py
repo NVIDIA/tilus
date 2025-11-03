@@ -41,12 +41,14 @@ class TestWhereKernel(tilus.Script):
         gy = self.global_view(y_ptr, dtype=int32, shape=(m, n))
         go = self.global_view(out_ptr, dtype=int32, shape=(m, n))
 
-        rc = self.load_global(gc, offsets=[m_offset, n_offset], layout=self.layout)
+        rc = self.load_global(gc, offsets=[m_offset, n_offset], shape=self.layout.shape)
         rx = self.load_global(gx, offsets=[m_offset, n_offset], shape=[self.block_m, self.block_n])
         ry = self.load_global(gy, offsets=[m_offset, n_offset], shape=[self.block_m, self.block_n])
         ro = self.where(rc, rx, ry)
 
         self.store_global(go, ro, offsets=[m_offset, n_offset])
+
+        self.annotate_layout(rc, self.layout)
 
 
 @pytest.mark.parametrize("m, n, layout", [[16, 16, spatial(4, 8)], [128, 128, local(2, 2).spatial(4, 8).local(2, 2)]])
@@ -65,3 +67,7 @@ def test_where(
     kernel(m, n, cond, x, y, actual)
 
     assert torch.allclose(actual, expected), f"Failed for layout {layout} with m={m}, n={n}"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

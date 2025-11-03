@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from tilus.ir.node import IRNode
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, TMemoryTensor
 
 
 @dataclass(frozen=True, eq=False)
@@ -44,6 +44,11 @@ class Instruction(IRNode):
     @property
     def global_output(self) -> GlobalTensor:
         assert isinstance(self.output, GlobalTensor), self.output
+        return self.output
+
+    @property
+    def tmemory_output(self) -> TMemoryTensor:
+        assert isinstance(self.output, TMemoryTensor), self.output
         return self.output
 
     @property

@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, Optional, Sequence, Set, Type
 
 from hidet.ir import FuncType
-from hidet.ir.builders import FunctionBuilder, StmtBuilder
+from hidet.ir.builders import FunctionBuilder
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var, tensor_pointer_var, tensor_var
 from hidet.ir.func import Function as HidetFunction
@@ -30,6 +30,7 @@ from hidet.ir.stmt import Stmt as HidetStmt
 from hidet.utils import prod
 from hidet.utils.doc import Doc, Text
 
+from tilus.extensions.hidet.ir.builders.stmt_builder import TypedStmtBuilder as StmtBuilder
 from tilus.extensions.hidet.ir.module import merge_ir_modules
 from tilus.extensions.hidet.ir.tools.verifier import verify as verify_ir_module
 from tilus.ir.func import Function
@@ -129,6 +130,8 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def current_thread(self) -> Expr:
+        if self._codegen.current_thread is None:
+            raise RuntimeError("Current thread is not set")
         return self._codegen.current_thread
 
     @property
@@ -465,7 +468,7 @@ class FunctionCodegen(IRFunctor):
         contexts = {cls: cls(self) for cls in BaseEmitContext.REGISTRY}
 
         for ctx in contexts.values():
-            type(ctx)._current = ctx
+            setattr(type(ctx), "_current", ctx)
 
         # initialize all contexts
         for ctx in contexts.values():
@@ -479,7 +482,7 @@ class FunctionCodegen(IRFunctor):
             ctx.finalize()
 
         for ctx in contexts.values():
-            type(ctx)._current = None
+            setattr(type(ctx), "_current", None)
 
         # create the kernel function
         self.builder.extend_params(self.extra_params)

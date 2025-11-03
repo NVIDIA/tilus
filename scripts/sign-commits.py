@@ -392,8 +392,8 @@ def main():
             # Ask for confirmation unless non-interactive mode
             if not args.non_interactive:
                 try:
-                    response = input(f"\nAdd DCO sign-off to {commits_needing_signoff} commits? [y/N]: ")
-                    if response.lower() not in ["y", "yes"]:
+                    response = input(f"\nAdd DCO sign-off to {commits_needing_signoff} commits? [Y/n]: ")
+                    if response.lower().strip() not in ["y", "yes", ""]:
                         print("Aborted by user")
                         sys.exit(1)
                 except KeyboardInterrupt:
