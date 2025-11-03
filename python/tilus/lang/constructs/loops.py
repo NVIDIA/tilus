@@ -12,11 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import builtins
 from typing import Literal, Optional
 
 from hidet.ir.expr import Constant, Expr, Var, as_expr
-from hidet.ir.tools import simplify
 
+from tilus.extensions.hidet.ir.tools import simplify_expr
 from tilus.ir.builders import IRBuilder
 from tilus.ir.stmt import DeclareStmt, ForStmt, Stmt
 
@@ -36,10 +37,20 @@ class RangeLoop(TilusLoopIterable):
     def __init__(
         self, start: Expr | int, stop: Expr | int, step: Expr | int, unroll: Optional[Literal["all"] | int] = None
     ):
-        self.start: Expr = simplify(as_expr(start))
-        self.stop: Expr = simplify(as_expr(stop))
-        self.step: Expr = simplify(as_expr(step))
+        self.start: Expr = simplify_expr(as_expr(start))
+        self.stop: Expr = simplify_expr(as_expr(stop))
+        self.step: Expr = simplify_expr(as_expr(step))
         self.unroll: Optional[Literal["all"] | int] = unroll
+
+    def __iter__(self):
+        try:
+            start = int(self.start)
+            stop = int(self.stop)
+            step = int(self.step)
+            print("start:", start, "stop:", stop, "step:", step)
+            return builtins.range(start, stop, step).__iter__()
+        except:  # noqa: E722
+            raise TypeError("Cannot iterate over RangeLoop with non-constant bounds.")
 
     def generate_loop_statement(self, loop_vars: list[Var], body: Stmt) -> Stmt:
         assert len(loop_vars) == self.num_loop_vars()
@@ -54,7 +65,12 @@ class RangeLoop(TilusLoopIterable):
             case factor:
                 unroll_factor = factor
 
-        if isinstance(self.start, Constant) and self.start == 0 and isinstance(self.step, Constant) and self.step == 1:
+        if (
+            isinstance(self.start, Constant)
+            and int(self.start) == 0
+            and isinstance(self.step, Constant)
+            and int(self.step) == 1
+        ):
             # range(stop)
             return ForStmt(
                 iter_var=loop_vars[0],

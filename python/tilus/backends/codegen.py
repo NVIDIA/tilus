@@ -30,9 +30,9 @@ from hidet.ir.stmt import Stmt as HidetStmt
 from hidet.utils import prod
 from hidet.utils.doc import Doc, Text
 
+from tilus.extensions.hidet.ir.builders.stmt_builder import TypedStmtBuilder as StmtBuilder
 from tilus.extensions.hidet.ir.module import merge_ir_modules
 from tilus.extensions.hidet.ir.tools.verifier import verify as verify_ir_module
-from tilus.extensions.hidet.ir.builders.stmt_builder import TypedStmtBuilder as StmtBuilder
 from tilus.ir.func import Function
 from tilus.ir.functors import IRFunctor
 from tilus.ir.inst import Instruction

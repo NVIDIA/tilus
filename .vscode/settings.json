@@ -7,5 +7,6 @@
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "livePreview.defaultPreviewPath": "/examples/blackwell_matmul/cache/scripts/blackwell_matmul/4096-4096-1-fe204594/failed/building/0/ir/programs.html"
 }

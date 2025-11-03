@@ -121,7 +121,7 @@ class RegisterTensorWithMethods(RegisterTensor):
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.not_equal(self.tensor, other)
-    
+
     def __xor__(self, other: RegisterTensorWithMethods | RegisterTensor | int | float | Expr) -> RegisterTensor:
         if isinstance(other, RegisterTensorWithMethods):
             other = other.tensor
@@ -130,7 +130,7 @@ class RegisterTensorWithMethods(RegisterTensor):
                 dtype=self.tensor.dtype, shape=self.tensor.shape, f_init=lambda _: self.tensor.dtype(other)
             )
         return self.builder.bitwise_xor(self.tensor, other)
-    
+
     def item(self) -> Var:
         return self.builder.tensor_item_value(self.tensor)
 

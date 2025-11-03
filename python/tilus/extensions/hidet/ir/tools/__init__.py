@@ -14,3 +14,4 @@
 # limitations under the License.
 from . import type_infer
 from .rewriter import rewrite
+from .simplifier import simplify_expr

@@ -101,7 +101,7 @@ class RegisterTensor(Tensor):
         raise RuntimeError("register_tensor[...] could only be used in Tilus Script.")
 
     def __setitem__(
-        self, indices: tuple[Expr | int | slice] | Expr | int | slice, value: RegisterTensor | Expr
+        self, indices: tuple[Expr | int | slice] | Expr | int | slice, value: RegisterTensor | Expr | int | float | None
     ) -> None:
         raise RuntimeError("register_tensor[...] = value could only be used in Tilus Script.")
 
@@ -251,7 +251,6 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
 
-
     def __mul__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """Perform multiplication with another tensor or a scalar.
 
@@ -386,7 +385,7 @@ class RegisterTensor(Tensor):
             A new tensor that is the result of the bitwise XOR operation.
         """
         raise RuntimeError("tensor ^ tensor could only be used in Tilus Script.")
-    
+
     # r-version of operators
 
     def __radd__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
@@ -419,7 +418,7 @@ class RegisterTensor(Tensor):
 
         """
         raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
-    
+
     # i-version of operator
     def __iadd__(self, other: RegisterTensor | int | float | Expr) -> None:
         """In-place addition operation.

@@ -22,6 +22,8 @@ tilus.option.debug.dump_ir()
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmul(tilus.Script):
+    debug_schedule = dict(block_m=128, block_n=64, block_k=32, stages=3)
+
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -46,8 +48,12 @@ class BlackwellMatmul(tilus.Script):
 
         g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
-        s_a = self.shared_tensor(dtype=float16, shape=[self.stages, self.block_m, self.block_k])
-        s_b = self.shared_tensor(dtype=float16, shape=[self.stages, self.block_n, self.block_k])
+        s_a = self.shared_tensor(
+            dtype=float16, shape=[self.stages, self.block_m, self.block_k]
+        )
+        s_b = self.shared_tensor(
+            dtype=float16, shape=[self.stages, self.block_n, self.block_k]
+        )
 
         # allocate a tensor in tensor memory (tmem)
         t_acc = self.tcgen05.alloc(
@@ -83,7 +89,7 @@ class BlackwellMatmul(tilus.Script):
 
         for offset_k in range(0, k_size, self.block_k):
             with self.single_thread():  # we use a single thread to issue the TMA copy
-                # preload 
+                # preload
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a[preload_stage],
@@ -97,9 +103,13 @@ class BlackwellMatmul(tilus.Script):
                     mbarrier=tma_barriers[preload_stage],
                 )
                 self.mbarrier.arrive(tma_barriers[preload_stage])
-                self.mbarrier.wait(tma_barriers[current_stage], phase=tma_phases[current_stage].item())
+                self.mbarrier.wait(
+                    tma_barriers[current_stage], phase=tma_phases[current_stage].item()
+                )
 
-                self.tcgen05.mma(s_a[current_stage], s_b[current_stage].transpose(), t_acc)
+                self.tcgen05.mma(
+                    s_a[current_stage], s_b[current_stage].transpose(), t_acc
+                )
                 self.tcgen05.commit(mbarrier=mma_barrier)
                 self.mbarrier.wait(mma_barrier, phase=mma_phase)
 

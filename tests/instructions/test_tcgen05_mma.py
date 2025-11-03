@@ -52,7 +52,7 @@ class Tcgen05MmaExample(tilus.Script):
         t_d_storage = self.tcgen05.alloc(
             dtype=self.accumulator_dtype,
             shape=[self.mma_m, cdiv(self.mma_n, self.column_granularity) * self.column_granularity],
-            init=0.0
+            init=0.0,
         )
         t_d = self.tcgen05.slice(t_d_storage, offsets=[0, 0], shape=[self.mma_m, self.mma_n])
 
