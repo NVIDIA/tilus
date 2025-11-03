@@ -26,6 +26,7 @@ class AllocateInstEmitter(BaseInstEmitter):
         output: RegisterTensor = inst.register_output
         var = self.declare(tensor_var("regs", shape=[output.local_size], dtype=output.dtype))
         if inst.init is not None:
+            assert inst.axes is not None
             axes = inst.axes
             init = inst.init
             with self.for_range(output.local_size) as i:

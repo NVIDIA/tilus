@@ -54,7 +54,7 @@ class MmaDotInstEmitter(BaseInstEmitter):
             with self.for_grid(list(warp_repeat)) as repeat_indices:
                 from hidet.ir.mapping import spatial_map
 
-                spatial_indices: Tuple[Expr, Expr, Expr] = spatial_map(warp_spatial, ranks=[1, 2, 0])(warp_id)[0]
+                spatial_indices: Tuple[Expr, ...] = spatial_map(warp_spatial, ranks=[1, 2, 0])(warp_id)[0]  # type: ignore
 
                 mma_indices = [
                     (spatial_indices[0] * warp_repeat[0] + repeat_indices[0]) * simt_m,

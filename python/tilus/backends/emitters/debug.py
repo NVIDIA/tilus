@@ -30,7 +30,7 @@ from tilus.utils import prod
 
 @register_emitter(PrintTensorInst, target=gpgpu_any)
 class PrintValueInstEmitter(BaseInstEmitter):
-    def print_left_bracket(self, indices: List[Expr], shape: List[int]) -> None:
+    def print_left_bracket(self, indices: Sequence[Expr], shape: Sequence[int]) -> None:
         # left [
         if len(shape) >= 1:
             with self.if_then(logical_and(self.current_thread == 0, indices[-1] == 0)):

@@ -16,7 +16,7 @@ from typing import List, Optional, Sequence
 
 from hidet.ir import logical_and
 from hidet.ir.dtypes import boolean, int32, uint32
-from hidet.ir.expr import Expr, Var
+from hidet.ir.expr import Expr
 from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from hidet.ir.utils.index_transform import index_deserialize
 
@@ -79,6 +79,7 @@ class BulkCopyAsyncBetweenGlobalShared(CopyAysncBaseEmitter):
         | CopyAsyncBulkGlobalToSharedInst
         | CopyAsyncBulkGlobalToClusterSharedInst,
     ) -> None:
+        dims = dims if dims is not None else list(range(len(shared_tensor.shape)))
         analysis: CopyAsyncAnalysisResult = self.analyze(
             shared_tensor=shared_tensor,
             global_tensor=global_tensor,
@@ -143,24 +144,22 @@ class BulkCopyAsyncBetweenGlobalShared(CopyAysncBaseEmitter):
 class BulkCopyAsyncGlobalToSharedInstEmitter(BulkCopyAsyncBetweenGlobalShared):
     def __init__(self, codegen):
         super().__init__(codegen)
-        self.barrier_addr: Optional[Var] = None
 
     def emit_cp_async(
         self, shared_address: Expr, global_address: Expr, size: int, inst: CopyAsyncBulkGlobalToSharedInst
     ) -> None:
-        self.append(mbarrier_expect_tx_cta_shared(mbarrier_addr=self.barrier_addr, transaction_bytes=size))
+        self.append(mbarrier_expect_tx_cta_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=size))
         self.append(
             cp_async_bulk_global_to_shared(
                 dst=shared_address,
                 src=global_address,
                 size=int32(size),
-                mbarrier=self.barrier_addr,
+                mbarrier=inst.mbarrier,
                 l2_evict=inst.evict,
             )
         )
 
     def emit(self, inst: CopyAsyncBulkGlobalToSharedInst) -> None:
-        self.barrier_addr = self.declare_var(name="barrier_addr", tp=uint32, init=inst.mbarrier)
         self.common_emit(
             shared_tensor=inst.inputs[0].as_shared_tensor(),
             global_tensor=inst.inputs[1].as_global_tensor(),
@@ -200,7 +199,6 @@ class CopyAysncBulkSharedToGlobalInstEmitter(BulkCopyAsyncBetweenGlobalShared):
 class CopyAsyncBulkGlobalToClusterSharedEmitter(BulkCopyAsyncBetweenGlobalShared):
     def __init__(self, codegen):
         super().__init__(codegen)
-        self.barrier_addr: Optional[Var] = None
 
     @staticmethod
     def get_smallest_block_rank(cta_mask: int) -> int:
@@ -213,21 +211,20 @@ class CopyAsyncBulkGlobalToClusterSharedEmitter(BulkCopyAsyncBetweenGlobalShared
         self, shared_address: Expr, global_address: Expr, size: int, inst: CopyAsyncBulkGlobalToClusterSharedInst
     ) -> None:
         with self.if_then((1 << self.block_rank_in_cluster) & inst.cta_mask):
-            self.append(mbarrier_expect_tx_cta_shared(mbarrier_addr=self.barrier_addr, transaction_bytes=size))
+            self.append(mbarrier_expect_tx_cta_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=size))
         with self.if_then(self.block_rank_in_cluster == uint32(self.get_smallest_block_rank(inst.cta_mask))):
             self.append(
                 cp_async_bulk_global_to_cluster_shared(
                     dst=shared_address,
                     src=global_address,
                     size=int32(size),
-                    mbarrier=self.barrier_addr,
+                    mbarrier=inst.mbarrier,
                     cta_mask=inst.cta_mask,
                     l2_evict=inst.evict,
                 )
             )
 
     def emit(self, inst: CopyAsyncBulkGlobalToClusterSharedInst) -> None:
-        self.barrier_addr = self.declare_var(name="barrier_addr", tp=uint32, init=inst.mbarrier)
         self.common_emit(
             shared_tensor=inst.inputs[0].as_shared_tensor(),
             global_tensor=inst.inputs[1].as_global_tensor(),
