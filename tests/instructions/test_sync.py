@@ -26,11 +26,11 @@ class SyncExample(tilus.Script):
             with self.thread_group(group_index=0, group_size=32):
                 self.printf("Hello from group 0\n")
             self.sync()
-        
+
             with self.thread_group(group_index=1, group_size=32):
                 self.printf("Hello from group 1\n")
         self.sync()
-    
+
 
 @tilus.testing.requires.nvgpu_sm90
 def test_sync():

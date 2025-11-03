@@ -18,10 +18,10 @@ from typing import Sequence
 
 from hidet.ir.builders import StmtBuilder
 from hidet.ir.dtypes import uint32, uint64
-from hidet.ir.expr import Var, Expr
+from hidet.ir.expr import Expr, Var
+from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
 from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
-from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
 
 from tilus.backends.context import BaseEmitContext
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import mbarrier_init_shared
@@ -33,7 +33,7 @@ class BarrierAllocContext(BaseEmitContext):
     """Context used to manage the allocation of barriers."""
 
     def __post_init__(self):
-        self.counts: list[Expr]= []
+        self.counts: list[Expr] = []
         self.barriers: list[Var] = []
         self.barrier_addr: Var = Var("barriers", type=uint32)
 

@@ -17,10 +17,14 @@ tilus.option.debug.dump_ir()
 tilus.utils.clear_cache()
 
 
-@tilus.autotune("block_m, block_n", [
-    [128, 64], [128, 128], 
-    # [128, 256]
-])
+@tilus.autotune(
+    "block_m, block_n",
+    [
+        [128, 64],
+        [128, 128],
+        # [128, 256]
+    ],
+)
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmul(tilus.Script):

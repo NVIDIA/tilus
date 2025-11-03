@@ -12,19 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import typing
 
-from hidet.ir.dtypes import boolean, int32, uint32, uint64
-from hidet.ir.expr import Expr
+from hidet.ir.dtypes import boolean
 from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
-from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
-from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
     mbarrier_arrive_cluster_shared,
     mbarrier_arrive_cta_shared,
-    mbarrier_init_shared,
     mbarrier_wait_shared,
 )
 from tilus.ir.instructions.cuda.mbarrier import (
@@ -34,7 +29,6 @@ from tilus.ir.instructions.cuda.mbarrier import (
     FenceProxyCopyAsync,
     WaitBarrierInst,
 )
-from tilus.ir.tensor import SharedTensor
 from tilus.target import nvgpu_sm80, nvgpu_sm90
 
 
