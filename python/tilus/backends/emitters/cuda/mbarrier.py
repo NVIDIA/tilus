@@ -44,34 +44,13 @@ class AllocBarrierInstEmitter(BaseInstEmitter):
         out = inst.register_output
         out_var = self.get_or_allocate_var(out)
 
-        smem_ctx = self.contexts.smem_alloc_ctx
-        smem_tensor = SharedTensor.create(dtype=uint64, shape=[len(inst.counts)])
-        mbarriers_offset = smem_ctx.allocate_shared_tensor(smem_tensor, nbytes=uint64.nbytes * len(inst.counts))
-        mbarriers_addr = cvta_generic_to_shared(dynamic_shared_memory(byte_offset=mbarriers_offset, dtype=uint64))
-        mbarriers_var = self.declare_var(name="mbarriers", tp=uint32, init=mbarriers_addr)
+        counts = [c if c is not None else self.current_num_threads for c in inst.counts]
+        barriers = self.contexts.barrier_alloc_ctx.allocate_barriers(counts=counts)
 
-        with self.for_range(extent=len(inst.counts)) as i:
-            self.buffer_store(out_var, indices=[i], value=mbarriers_var + uint64.nbytes * i)
+        for i in range(len(barriers)):
+            self.buffer_store(out_var, indices=[i], value=barriers[i])
 
-        with self.if_then(self.current_thread == 0):
-            for i in range(len(inst.counts)):
-                count: Expr
-                if inst.counts[i] is None:
-                    count = typing.cast(Expr, int32(self.current_num_threads))
-                else:
-                    count = typing.cast(Expr, inst.counts[i])
-                self.append(mbarrier_init_shared(out_var[i], arrive_count=count))
-        self.append(fence_view_async_shared())
         self.sync()
-
-
-# @register_emitter(InitBarrierInst, target=nvgpu_sm80)
-# class InitBarrierInstEmitter(BaseInstEmitter):
-#     def emit(self, inst: InitBarrierInst) -> None:
-#         with self.if_then(self.current_thread == 0):
-#             count = inst.count if inst.count is not None else int32(self.current_num_threads)
-#             self.append(mbarrier_init_shared(inst.barrier, count))
-#             self.append(fence_view_async_shared())
 
 
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)

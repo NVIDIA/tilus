@@ -18,9 +18,10 @@ from typing import Sequence
 
 from hidet.ir.builders import StmtBuilder
 from hidet.ir.dtypes import uint32, uint64
-from hidet.ir.expr import Var
+from hidet.ir.expr import Var, Expr
 from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
+from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
 
 from tilus.backends.context import BaseEmitContext
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import mbarrier_init_shared
@@ -32,7 +33,7 @@ class BarrierAllocContext(BaseEmitContext):
     """Context used to manage the allocation of barriers."""
 
     def __post_init__(self):
-        self.counts: list[int] = []
+        self.counts: list[Expr]= []
         self.barriers: list[Var] = []
         self.barrier_addr: Var = Var("barriers", type=uint32)
 
@@ -50,14 +51,15 @@ class BarrierAllocContext(BaseEmitContext):
         for i in range(num_barriers):
             sb.declare(v=self.barriers[i], init=self.barrier_addr + uint32(i * uint64.nbytes))
             sb.append(mbarrier_init_shared(mbarrier_addr=self.barriers[i], arrive_count=uint32(self.counts[i])))
+        sb.append(fence_view_async_shared())
         self.kernel_prepend(sb.finish())
 
-    def allocate_barriers(self, counts: Sequence[int]) -> list[Var]:
+    def allocate_barriers(self, counts: Sequence[Expr | int]) -> list[Var]:
         """
         Allocate a list of barriers with given counts. Each barrier is a 64-bit data structure stored in shared memory.
         This function returns the address of the first barrier in the shared space.
         """
         barrier_vars = [Var("barrier_{}".format(c), type=uint32) for c in counts]
-        self.counts.extend(counts)
+        self.counts.extend([uint32(c) if isinstance(c, int) else c for c in counts])
         self.barriers.extend(barrier_vars)
         return barrier_vars
