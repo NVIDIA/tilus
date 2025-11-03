@@ -89,6 +89,9 @@ class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
         self.assign(tmem_var, cast(smem_ptr, ~int32)[0])
         self.sync()
 
+        # mark the tensor as allocated in the tcgen05 context to track allocations
+        tcgen05_ctx.mark_tmemory_tensor_allocate(tmem_tensor)
+
 
 @register_emitter(Tcgen05DeallocInst, target=nvgpu_sm100)
 class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
@@ -108,6 +111,9 @@ class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
                     cta_group=Tcgen05CtaGroupKind.from_int(tcgen05_ctx.get_cta_group()),
                 )
             )
+        
+        # mark the tensor as deallocated in the tcgen05 context to track allocations
+        tcgen05_ctx.mark_tmemory_tensor_deallocate(tmem_tensor)
 
 
 @register_emitter(Tcgen05RelinquishAllocPermitInst, target=nvgpu_sm100)

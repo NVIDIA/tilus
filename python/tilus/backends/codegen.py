@@ -148,7 +148,7 @@ class FunctionCodegen(IRFunctor):
         if kernel_func.kind == "cuda_kernel":
             func_var = Var(hint=None, type=FuncType.from_func(kernel_func), name=kernel_func.name)
             dynamic_shared_bytes = kernel_func.get_attr("cuda.dynamic_smem_bytes", int32(0))
-            assert isinstance(dynamic_shared_bytes, Expr)
+            assert isinstance(dynamic_shared_bytes, Expr | int)
 
             # set max dynamic shared memory bytes if needed
             with self.host_builder.if_then(dynamic_shared_bytes > 48 * 1024):
@@ -163,7 +163,7 @@ class FunctionCodegen(IRFunctor):
                     grid_dim=normalize_dim3(kernel_func.get_attr("cuda.grid_dim")),  # type: ignore
                     cluster_dim=normalize_dim3(kernel_func.get_attr("cuda.cluster_dim", default=1)),  # type: ignore
                     block_dim=normalize_dim3(kernel_func.get_attr("cuda.block_dim")),  # type: ignore
-                    shared_mem=dynamic_shared_bytes,
+                    shared_mem=int32(dynamic_shared_bytes),
                     target="cuda",
                 )
             )
