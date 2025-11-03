@@ -59,7 +59,7 @@ class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
         if self.current_num_threads < 32:
             raise ValueError("tcgen05_alloc requires at least 32 threads in the current thread group")
 
-        tmem_tensor = inst.output.as_tmemory_tensor()
+        tmem_tensor = inst.tmemory_output
         num_columns = self.get_num_columns(tmem_tensor)
 
         # set the cta group in the tcgen05 context
@@ -106,7 +106,7 @@ class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
                 tcgen05_dealloc(
                     taddr=tmem_var,
                     num_columns=uint32(num_columns),
-                    cta_group=Tcgen05CtaGroupKind.from_int(tcgen05_ctx.cta_group),
+                    cta_group=Tcgen05CtaGroupKind.from_int(tcgen05_ctx.get_cta_group()),
                 )
             )
 
@@ -121,7 +121,7 @@ class Tcgen05RelinquishAllocPermitEmitter(BaseInstEmitter):
 class TMemorySliceEmitter(BaseInstEmitter):
     def emit(self, inst: Tcgen05SliceInst) -> None:
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
-        output_tmem_tensor = inst.output.as_tmemory_tensor()
+        output_tmem_tensor = inst.tmemory_output
         tmem_addr = self.get_or_allocate_var(tmem_tensor)
 
         sliced_addr = self.get_or_allocate_var(output_tmem_tensor, name="tmem_slice")
@@ -135,7 +135,7 @@ class TMemorySliceEmitter(BaseInstEmitter):
 class TMemoryViewEmitter(BaseInstEmitter):
     def emit(self, inst: Tcgen05ViewInst) -> None:
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
-        output_tmem_tensor = inst.output.as_tmemory_tensor()
+        output_tmem_tensor = inst.tmemory_output
 
         if (
             tmem_tensor.dtype.nbits * tmem_tensor.shape[1]

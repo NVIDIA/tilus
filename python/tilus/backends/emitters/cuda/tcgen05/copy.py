@@ -76,6 +76,7 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
         """
         cute_layout = canonical.swizzled_cute_layout.layout
         m, n = cute_layout.flattened_shape
+        assert isinstance(m, int) and isinstance(n, int), "Only static shape is supported in tcgen05.copy emitter"
 
         if shape_kind.n % canonical.dtype_nbits != 0:
             raise GenerationFailedError(

@@ -33,7 +33,7 @@ class TMemoryCommitEmitter(BaseInstEmitter):
         with self.if_then(self.current_thread == 0):
             self.append(
                 tcgen05_commit(
-                    mbarrier=cvta_generic_to_shared(inst.mbarrier),
+                    mbarrier=inst.mbarrier,
                     cta_mask=inst.cta_mask,
                     cta_group=Tcgen05CtaGroupKind.CTA_1,
                     multicast=Tcgen05CommitMulticastKind.NONE,
