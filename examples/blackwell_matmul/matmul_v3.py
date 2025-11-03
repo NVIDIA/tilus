@@ -20,12 +20,8 @@ tilus.option.debug.dump_ir()
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmul(tilus.Script):
-    debug_schedule = dict(
-        block_m=128,
-        block_n=64,
-        block_k=16,
-        stages=2
-    )
+    debug_schedule = dict(block_m=128, block_n=64, block_k=16, stages=1)
+
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -63,18 +59,28 @@ class BlackwellMatmul(tilus.Script):
         )
 
         # allocate barriers and the initial phases
-        consumer_barriers = self.mbarrier.alloc(count=[1 for _ in range(self.stages)])   # whether the data is ready for consumption
-        producer_barriers = self.mbarrier.alloc(count=[1 for _ in range(self.stages)])   # whether the data is ready to be filled
-        consumer_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=0)  # all stages are not ready for consumption at the beginning
-        producer_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=1)  # all stages are ready to be filled at the beginning
+        consumer_barriers = self.mbarrier.alloc(
+            count=[1 for _ in range(self.stages)]
+        )  # whether the data is ready for consumption
+        producer_barriers = self.mbarrier.alloc(
+            count=[1 for _ in range(self.stages)]
+        )  # whether the data is ready to be filled
+        consumer_phases = self.register_tensor(
+            dtype=uint32, shape=[self.stages], init=0
+        )  # all stages are not ready for consumption at the beginning
+        producer_phases = self.register_tensor(
+            dtype=uint32, shape=[self.stages], init=1
+        )  # all stages are ready to be filled at the beginning
 
         with self.thread_group(group_index=0, group_size=32):
             # tma warp
-            stage: uint32 = 0
+            stage: int32 = 0
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
-                self.printf("[producer][offset=%d][stage=%d] waiting, phase=%d\n", offset_k, stage, producer_phases[stage].item())
-                self.mbarrier.wait(producer_barriers[stage], phase=producer_phases[stage])  # wait until the stage is ready to be filled
-                self.printf("[producer][offset=%d][stage=%d] proceeding\n", offset_k, stage)
+                # self.printf("[producer][offset=%d][stage=%d] waiting, phase=%d\n", offset_k, stage, producer_phases[stage].item())
+                self.mbarrier.wait(
+                    producer_barriers[stage], phase=producer_phases[stage]
+                )  # wait until the stage is ready to be filled
+                # self.printf("[producer][offset=%d][stage=%d] proceeding\n", offset_k, stage)
                 producer_phases[stage] ^= 1
                 with self.single_thread():
                     self.tma.global_to_shared(
@@ -90,24 +96,24 @@ class BlackwellMatmul(tilus.Script):
                         mbarrier=consumer_barriers[stage],
                     )
                     self.mbarrier.arrive(consumer_barriers[stage])
-                self.printf("[producer][offset=%d][stage=%d] finished\n", offset_k, stage)
+                # self.printf("[producer][offset=%d][stage=%d] finished\n", offset_k, stage)
                 stage = (stage + 1) % self.stages
 
         with self.thread_group(group_index=1, group_size=32):
             # mma warp
-            stage: uint32 = 0
+            stage: int32 = 0
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
-                self.printf("[consumer][offset=%d][stage=%d] waiting, phase=%d\n", offset_k, stage, consumer_phases[stage].item())
-                self.mbarrier.wait(consumer_barriers[stage], phase=consumer_phases[stage])  # wait until the stage is ready for consumption
-                self.printf("[consumer][offset=%d][stage=%d] proceeding\n", offset_k, stage)
+                # self.printf("[consumer][offset=%d][stage=%d] waiting, phase=%d\n", offset_k, stage, consumer_phases[stage].item())
+                self.mbarrier.wait(
+                    consumer_barriers[stage], phase=consumer_phases[stage]
+                )  # wait until the stage is ready for consumption
+                # self.printf("[consumer][offset=%d][stage=%d] proceeding\n", offset_k, stage)
                 consumer_phases[stage] ^= 1
                 with self.single_thread():
-                    self.tcgen05.mma(
-                        s_a[stage], s_b[stage].transpose(), t_acc
-                    )
+                    self.tcgen05.mma(s_a[stage], s_b[stage].transpose(), t_acc)
                     self.tcgen05.commit(mbarrier=producer_barriers[stage])
                     self.mbarrier.arrive(producer_barriers[stage])
-                self.printf("[consumer][offset=%d][stage=%d] finished\n", offset_k, stage)
+                # self.printf("[consumer][offset=%d][stage=%d] finished\n", offset_k, stage)
                 stage = (stage + 1) % self.stages
 
         self.sync()

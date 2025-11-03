@@ -20,7 +20,7 @@ from hidet.ir.primitives.cuda.cp_async import cp_async_commit_group, cp_async_wa
 from hidet.ir.type import DataType
 from hidet.ir.utils.index_transform import index_deserialize
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import uint32x2, uint32x4
 from tilus.extensions.hidet.ir.primitives.cuda.cp_async import cp_async
 from tilus.extensions.hidet.ir.tools import rewrite

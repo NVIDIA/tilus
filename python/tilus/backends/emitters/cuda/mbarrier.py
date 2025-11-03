@@ -20,8 +20,7 @@ from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
 from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.backends.contexts.smem import SharedMemoryAllocationContext
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
     mbarrier_arrive_cluster_shared,
     mbarrier_arrive_cta_shared,
@@ -45,7 +44,7 @@ class AllocBarrierInstEmitter(BaseInstEmitter):
         out = inst.register_output
         out_var = self.get_or_allocate_var(out)
 
-        smem_ctx = SharedMemoryAllocationContext.current()
+        smem_ctx = self.contexts.smem_alloc_ctx
         smem_tensor = SharedTensor.create(dtype=uint64, shape=[len(inst.counts)])
         mbarriers_offset = smem_ctx.allocate_shared_tensor(smem_tensor, nbytes=uint64.nbytes * len(inst.counts))
         mbarriers_addr = cvta_generic_to_shared(dynamic_shared_memory(byte_offset=mbarriers_offset, dtype=uint64))

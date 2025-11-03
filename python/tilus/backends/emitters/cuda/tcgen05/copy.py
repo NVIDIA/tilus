@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from hidet.ir.dtypes import uint64
 from hidet.ir.expr import Expr
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE, LANE_STRIDE
 from tilus.backends.emitters.cuda.tcgen05.smem_desc import SharedMatrixDescriptor
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (

@@ -15,7 +15,7 @@
 from hidet.ir.expr import tensor_var
 from hidet.ir.tools import rewrite
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.ir import RegisterTensor
 from tilus.ir.instructions import AllocateRegisterInst
 

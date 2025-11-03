@@ -18,8 +18,7 @@ from hidet.ir import logical_or
 from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import cast
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.backends.contexts import SharedMemoryAllocationContext, Tcgen05EmitContext
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05CtaGroupKind,
@@ -63,11 +62,11 @@ class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
         num_columns = self.get_num_columns(tmem_tensor)
 
         # set the cta group in the tcgen05 context
-        tcgen05_ctx = Tcgen05EmitContext.current()
+        tcgen05_ctx = self.contexts.tcgen05_ctx
         tcgen05_ctx.set_cta_group(inst.cta_group)
 
         # allocate a workspace in shared memory to hold the tensor memory handle
-        smem_ctx = SharedMemoryAllocationContext.current()
+        smem_ctx = self.contexts.smem_alloc_ctx
         smem_ptr = smem_ctx.request_shared_workspace(nbytes=4)
 
         # call tcgen05_alloc
@@ -97,7 +96,7 @@ class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
         tmem_var = self.get_or_allocate_var(tmem_tensor)
         num_columns = self.get_num_columns(tmem_tensor)
-        tcgen05_ctx = Tcgen05EmitContext.current()
+        tcgen05_ctx = self.contexts.tcgen05_ctx
 
         if self.current_num_threads < 32:
             raise ValueError("tcgen05_dealloc requires at least 32 threads in the current thread group")

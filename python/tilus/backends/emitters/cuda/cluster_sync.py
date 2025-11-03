@@ -14,7 +14,7 @@
 # limitations under the License.
 from hidet.ir.primitives.cuda.cluster import this_cluster
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
 
 

@@ -14,8 +14,7 @@
 # limitations under the License.
 
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05CommitMulticastKind,
     Tcgen05CtaGroupKind,

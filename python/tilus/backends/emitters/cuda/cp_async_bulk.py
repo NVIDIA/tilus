@@ -20,7 +20,7 @@ from hidet.ir.expr import Expr, Var
 from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from hidet.ir.utils.index_transform import index_deserialize
 
-from tilus.backends.codegen import FunctionCodegen, register_emitter
+from tilus.backends.emitter import register_emitter
 from tilus.backends.emitters.cuda.cp_async_base import (
     CopyAsyncAnalysisResult,
     CopyAsyncAnalysisSharedToSharedResult,
@@ -141,7 +141,7 @@ class BulkCopyAsyncBetweenGlobalShared(CopyAysncBaseEmitter):
 
 @register_emitter(CopyAsyncBulkGlobalToSharedInst, target=nvgpu_sm90)
 class BulkCopyAsyncGlobalToSharedInstEmitter(BulkCopyAsyncBetweenGlobalShared):
-    def __init__(self, codegen: FunctionCodegen):
+    def __init__(self, codegen):
         super().__init__(codegen)
         self.barrier_addr: Optional[Var] = None
 
@@ -198,7 +198,7 @@ class CopyAysncBulkSharedToGlobalInstEmitter(BulkCopyAsyncBetweenGlobalShared):
 
 @register_emitter(CopyAsyncBulkGlobalToClusterSharedInst, target=nvgpu_sm90)
 class CopyAsyncBulkGlobalToClusterSharedEmitter(BulkCopyAsyncBetweenGlobalShared):
-    def __init__(self, codegen: FunctionCodegen):
+    def __init__(self, codegen):
         super().__init__(codegen)
         self.barrier_addr: Optional[Var] = None
 

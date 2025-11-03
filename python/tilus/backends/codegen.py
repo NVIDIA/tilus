@@ -14,23 +14,21 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional, Sequence, Set, Type
+from typing import Dict, Optional, Set, Type
 
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder
 from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var, tensor_pointer_var, tensor_var
+from hidet.ir.expr import Expr, Var
 from hidet.ir.func import Function as HidetFunction
 from hidet.ir.module import IRModule
 from hidet.ir.primitives import set_kernel_max_dynamic_smem_bytes
-from hidet.ir.primitives.cuda.cluster import this_cluster
-from hidet.ir.primitives.cuda.vars import blockIdx, dim3, threadIdx
-from hidet.ir.stmt import DeclareScope, LaunchKernelStmt
-from hidet.ir.stmt import Stmt as HidetStmt
+from hidet.ir.primitives.cuda.vars import threadIdx
+from hidet.ir.stmt import LaunchKernelStmt
 from hidet.utils import prod
 from hidet.utils.doc import Doc, Text
 
-from tilus.extensions.hidet.ir.builders.stmt_builder import TypedStmtBuilder as StmtBuilder
+from tilus.backends.emitter import BaseInstEmitter
 from tilus.extensions.hidet.ir.module import merge_ir_modules
 from tilus.extensions.hidet.ir.tools.verifier import verify as verify_ir_module
 from tilus.ir.func import Function
@@ -57,7 +55,7 @@ from tilus.ir.tools import IRPrinter
 from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.ir.utils.normalize import normalize_dim3
 from tilus.ir.utils.thread_group_stack import ThreadGroupStack
-from tilus.target import Target, get_current_target, gpgpu_any, match_target
+from tilus.target import get_current_target, match_target
 
 
 class InvalidInstruction(Exception):
@@ -69,282 +67,6 @@ class CodeGenerationFailed(Exception):
     pass
 
 
-class BaseInstEmitter(StmtBuilder):
-    # inst -> emitter
-    REGISTRY: Dict[Type[Instruction], Dict[Target, Type["BaseInstEmitter"]]] = {}
-
-    def __init__(self, codegen: FunctionCodegen) -> None:
-        super().__init__()
-        self._codegen: FunctionCodegen = codegen
-
-    def sync(self):
-        from hidet.ir.primitives.cuda import syncthreads
-
-        if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
-            self.append(syncthreads())
-        else:
-            from hidet.ir.primitives.cuda.barrier import barrier_sync
-
-            barrier = self._codegen.thread_group_stack.stack_depth() - 1
-            count = self._codegen.thread_group_stack.group_size[-1]
-            self.append(barrier_sync(barrier=barrier, count=count))
-
-    def sync_reduce(self, value: Expr, op: str) -> Expr:
-        if get_current_target().is_nvgpu():
-            from hidet.ir.primitives.cuda.barrier import barrier_sync
-            from hidet.ir.primitives.cuda.sync import syncthreads_and, syncthreads_or
-
-            op2sync = {"and": syncthreads_and, "or": syncthreads_or}
-            syncthreads_op = op2sync[op]
-
-            if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
-                return syncthreads_op(value)
-            else:
-                barrier = self._codegen.thread_group_stack.stack_depth() - 1
-                count = self._codegen.thread_group_stack.group_size[-1]
-                self.append(barrier_sync(barrier=barrier, count=count))
-                raise NotImplementedError("barrier_sync_reduce")
-        else:
-            raise NotImplementedError()
-
-    def get_or_allocate_var(self, tensor: Tensor, name: Optional[str] = None) -> Var:
-        if tensor in self.tensor2var:
-            return self.tensor2var[tensor]
-        else:
-            if isinstance(tensor, RegisterTensor):
-                name = name if name else "regs"
-                var = self.declare(
-                    tensor_var(name, shape=[tensor.local_size], dtype=tensor.dtype), scope=DeclareScope.Register
-                )
-            elif isinstance(tensor, SharedTensor):
-                name = name if name else "smem"
-                var = self.declare(tensor_pointer_var(name, shape=[tensor.size], dtype=tensor.dtype))
-            elif isinstance(tensor, GlobalTensor):
-                name = name if name else "gmem"
-                var = self.declare(tensor_pointer_var(name, shape=[tensor.size], dtype=tensor.dtype))
-            else:
-                name = name if name else "tmem"
-                var = self.declare_var(name, tp=int32)
-            self.tensor2var[tensor] = var
-            return var
-
-    @property
-    def current_thread(self) -> Expr:
-        if self._codegen.current_thread is None:
-            raise RuntimeError("Current thread is not set")
-        return self._codegen.current_thread
-
-    @property
-    def current_num_threads(self) -> int:
-        return self._codegen.thread_group_stack.group_size[-1]
-
-    @property
-    def current_thread_group_begin(self) -> int:
-        return self._codegen.thread_group_stack.thread_begin[-1]
-
-    @property
-    def current_thread_group_end(self) -> int:
-        return self._codegen.thread_group_stack.thread_end[-1]
-
-    @property
-    def block_rank_in_cluster(self) -> Expr:
-        return this_cluster.block_rank
-
-    @property
-    def blockIdx(self) -> dim3:
-        return blockIdx
-
-    @property
-    def thread_groups(self):
-        return self._codegen.thread_group_stack
-
-    @property
-    def tensor2var(self) -> Dict[Tensor, Var]:
-        return self._codegen.tensor2var
-
-    @property
-    def shared_tensor_shared_space_addr(self):
-        return self._codegen.shared_tensor_addr
-
-    @property
-    def num_warps(self) -> int:
-        return self._codegen.function.metadata.num_warps
-
-    @property
-    def function(self) -> Function:
-        return self._codegen.function
-
-    @property
-    def analysis(self):
-        return self._codegen.function.metadata.analysis
-
-    @property
-    def kernel_params(self) -> Sequence[Var]:
-        return self._codegen.builder.params
-
-    def kernel_prepend(self, stmt: Expr | HidetStmt) -> None:
-        """Prepend a statement to the kernel function.
-
-        Parameters
-        ----------
-        stmt: Expr or HidetStmt
-            The statement to be prepended.
-        """
-        self._codegen.builder.scope_stack[-1].insert(0, stmt)
-
-    def kernel_append(self, stmt: Expr | HidetStmt) -> None:
-        """Append a statement to the kernel function.
-
-        Parameters
-        ----------
-        stmt: Expr or HidetStmt
-            The statement to be appended.
-        """
-        self._codegen.builder.append(stmt)
-
-    @property
-    def host_builder(self) -> FunctionBuilder:
-        return self._codegen.host_builder
-
-    @property
-    def builder(self) -> FunctionBuilder:
-        return self._codegen.builder
-
-    def append_extra_param(self, var: Var) -> None:
-        """Append an extra parameter to the kernel function.
-
-        This method marks a variable in the host function to be passed as an extra parameter to the kernel function.
-        The `var` must be a variable defined in the host function. The kernel function can directly use the `var` in the
-        kernel body after this method is called.
-        """
-        self._codegen.extra_params.append(var)
-
-    def emit(self, inst: Instruction) -> None:
-        raise NotImplementedError()
-
-
-class BaseEmitContext:
-    REGISTRY: list[Type[BaseEmitContext]] = []
-
-    def __init__(self, codegen: FunctionCodegen):
-        self.codegen = codegen
-
-    @staticmethod
-    def current() -> Any:
-        raise NotImplementedError()
-
-    def host_prepend(self, stmt: Expr | HidetStmt) -> None:
-        """Prepend a statement to the host function.
-
-        Parameters
-        ----------
-        stmt: Expr or HidetStmt
-            The statement to be prepended.
-        """
-        self.codegen.host_builder.scope_stack[-1].insert(0, stmt)
-
-    def host_append(self, stmt: Expr | HidetStmt) -> None:
-        """Append a statement to the host function.
-
-        Parameters
-        ----------
-        stmt: Expr or HidetStmt
-            The statement to be appended.
-        """
-        self.codegen.host_builder.append(stmt)
-
-    def kernel_prepend(self, stmt: Expr | HidetStmt) -> None:
-        """Prepend a statement to the kernel function.
-
-        Parameters
-        ----------
-        stmt: Expr or HidetStmt
-            The statement to be prepended.
-        """
-        self.codegen.builder.scope_stack[-1].insert(0, stmt)
-
-    def kernel_append(self, stmt: Expr | HidetStmt) -> None:
-        """Append a statement to the kernel function.
-
-        Parameters
-        ----------
-        stmt: Expr or HidetStmt
-            The statement to be appended.
-        """
-        self.codegen.builder.append(stmt)
-
-    def append_extra_param(self, var: Var) -> None:
-        """Append an extra parameter to the kernel function.
-
-        This method marks a variable in the host function to be passed as an extra parameter to the kernel function.
-        The `var` must be a variable defined in the host function. The kernel function can directly use the `var` in the
-        kernel body after this method is called.
-        """
-        self.codegen.extra_params.append(var)
-
-    def initialize(self):
-        """Initialize the context.
-
-        This method is called before the codegen starts for all instructions.
-        """
-        pass
-
-    def finalize(self):
-        """Finalize the context.
-
-        This method is called when the codegen is finished for all instructions.
-        """
-        pass
-
-
-def register_emitter(
-    inst_cls: Type[Instruction], *, target: Optional[Target] = None
-) -> Callable[[Type[BaseInstEmitter]], Type[BaseInstEmitter]]:
-    assert issubclass(inst_cls, Instruction)
-    if target is None:
-        target = gpgpu_any
-
-    def decorator(emitter_cls: Type[BaseInstEmitter]) -> Type[BaseInstEmitter]:
-        assert issubclass(emitter_cls, BaseInstEmitter)
-
-        if inst_cls not in BaseInstEmitter.REGISTRY:
-            BaseInstEmitter.REGISTRY[inst_cls] = {}
-
-        if target in BaseInstEmitter.REGISTRY[inst_cls]:
-            msg = [
-                f"Emitter for instruction {inst_cls} and target {target} already exists",
-                f" Registered emitter: {BaseInstEmitter.REGISTRY[inst_cls][target].__module__}",
-                f"Registering emitter: {emitter_cls.__module__}",
-            ]
-            raise ValueError("\n".join(msg))
-
-        BaseInstEmitter.REGISTRY[inst_cls][target] = emitter_cls
-        return emitter_cls
-
-    return decorator
-
-
-def register_emit_context(ctx_cls):
-    if ctx_cls in BaseEmitContext.REGISTRY:
-        raise ValueError(f"Emit context {ctx_cls} already registered")
-    BaseEmitContext.REGISTRY.append(ctx_cls)
-    return ctx_cls
-
-
-def resolve_inst_emitter(inst_cls: Type[Instruction]) -> Optional[Type[BaseInstEmitter]]:
-    target = get_current_target()
-    emitter_classes = {}
-    for registry_inst_cls, registry_emitter_classes in BaseInstEmitter.REGISTRY.items():
-        if issubclass(inst_cls, registry_inst_cls):
-            emitter_classes.update(registry_emitter_classes)
-            break
-
-    matched_target = match_target(target, list(emitter_classes))
-    if matched_target is None:
-        return None
-    return emitter_classes[matched_target]
-
-
 class CommentInlinedIRPrinter(IRPrinter):
     def add_key_comment(self, key_hint: str, comment: str | Doc) -> Doc:
         return Text(comment) if isinstance(comment, str) else comment
@@ -353,6 +75,8 @@ class CommentInlinedIRPrinter(IRPrinter):
 class FunctionCodegen(IRFunctor):
     def __init__(self) -> None:
         super().__init__()
+        from tilus.backends.contexts.contexts import EmitContexts
+
         self._function: Optional[Function] = None
         self._builder: Optional[FunctionBuilder] = None
         self._host_builder: Optional[FunctionBuilder] = None
@@ -364,6 +88,9 @@ class FunctionCodegen(IRFunctor):
         # tensor mapping
         self.tensor2var: Dict[Tensor, Var] = {}
         self.shared_tensor_addr: dict[SharedTensor, Var] = {}  # shared tensor to uint32 addr in shared space
+
+        # codegen contexts
+        self.contexts: EmitContexts = EmitContexts(self)
 
         # stacks of for_thread_groups
         self._current_thread: Optional[Var] = None
@@ -389,12 +116,26 @@ class FunctionCodegen(IRFunctor):
 
     @property
     def current_thread(self):
+        assert self._current_thread is not None
         return self._current_thread
+
+    def resolve_inst_emitter(self, inst_cls: Type[Instruction]) -> Optional[Type[BaseInstEmitter]]:
+        target = get_current_target()
+        emitter_classes = {}
+        for registry_inst_cls, registry_emitter_classes in BaseInstEmitter.REGISTRY.items():
+            if issubclass(inst_cls, registry_inst_cls):
+                emitter_classes.update(registry_emitter_classes)
+                break
+
+        matched_target = match_target(target, list(emitter_classes))
+        if matched_target is None:
+            return None
+        return emitter_classes[matched_target]
 
     def check_emitter_existence(self) -> None:
         failed_instructions: Set[str] = set()
         for inst in collect_instructions(self.function):
-            if resolve_inst_emitter(inst.__class__) is None:
+            if self.resolve_inst_emitter(inst.__class__) is None:
                 failed_instructions.add(inst.__class__.__name__)
 
         if failed_instructions:
@@ -407,6 +148,7 @@ class FunctionCodegen(IRFunctor):
         if kernel_func.kind == "cuda_kernel":
             func_var = Var(hint=None, type=FuncType.from_func(kernel_func), name=kernel_func.name)
             dynamic_shared_bytes = kernel_func.get_attr("cuda.dynamic_smem_bytes", int32(0))
+            assert isinstance(dynamic_shared_bytes, Expr)
 
             # set max dynamic shared memory bytes if needed
             with self.host_builder.if_then(dynamic_shared_bytes > 48 * 1024):
@@ -418,9 +160,9 @@ class FunctionCodegen(IRFunctor):
                 LaunchKernelStmt(
                     func_var=func_var,
                     args=kernel_args,
-                    grid_dim=normalize_dim3(kernel_func.get_attr("cuda.grid_dim")),
-                    cluster_dim=normalize_dim3(kernel_func.get_attr("cuda.cluster_dim", default=1)),
-                    block_dim=normalize_dim3(kernel_func.get_attr("cuda.block_dim")),
+                    grid_dim=normalize_dim3(kernel_func.get_attr("cuda.grid_dim")),  # type: ignore
+                    cluster_dim=normalize_dim3(kernel_func.get_attr("cuda.cluster_dim", default=1)),  # type: ignore
+                    block_dim=normalize_dim3(kernel_func.get_attr("cuda.block_dim")),  # type: ignore
                     shared_mem=dynamic_shared_bytes,
                     target="cuda",
                 )
@@ -464,25 +206,14 @@ class FunctionCodegen(IRFunctor):
         self._current_thread = threadIdx.x
         self.thread_group_stack.push(group_index=0, group_size=func.metadata.num_warps * 32)
 
-        # create all contexts
-        contexts = {cls: cls(self) for cls in BaseEmitContext.REGISTRY}
-
-        for ctx in contexts.values():
-            setattr(type(ctx), "_current", ctx)
-
         # initialize all contexts
-        for ctx in contexts.values():
-            ctx.initialize()
+        self.contexts.initialize()
 
         # emit body
         self.visit(func.body)
 
         # finalize all contexts
-        for ctx in contexts.values():
-            ctx.finalize()
-
-        for ctx in contexts.values():
-            setattr(type(ctx), "_current", None)
+        self.contexts.finalize()
 
         # create the kernel function
         self.builder.extend_params(self.extra_params)
@@ -559,11 +290,9 @@ class FunctionCodegen(IRFunctor):
         self.builder.declare(stmt.var, init=stmt.init)
 
     def visit_LetStmt(self, stmt: LetStmt) -> None:
-        from tilus.backends.contexts.invariant_ctx import InvariantTrackingContext
-
         with self.builder.lets(bind_vars=stmt.bind_vars, values=stmt.bind_values):
             for bind_var, bind_value in zip(stmt.bind_vars, stmt.bind_values):
-                ctx: InvariantTrackingContext = InvariantTrackingContext.current()
+                ctx = self.contexts.invariant_ctx
                 ctx.bind(bind_var, bind_value)
             self.visit(stmt.body)
 
@@ -624,7 +353,7 @@ class FunctionCodegen(IRFunctor):
             self.builder.comment(str(self.printer(inst)), style="/*")
 
         # implement the vm instruction
-        emitter_cls = resolve_inst_emitter(inst.__class__)
+        emitter_cls = self.resolve_inst_emitter(inst.__class__)
         if emitter_cls is None:
             raise RuntimeError("Can not resolve the emitter for instruction: {}".format(inst.__class__.__name__))
         emitter = emitter_cls(self)

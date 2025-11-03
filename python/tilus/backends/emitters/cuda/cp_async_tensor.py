@@ -26,8 +26,7 @@ from hidet.ir.tools import simplify
 from hidet.ir.type import DataType, PointerType, TensorType, sizeof
 
 from tilus import SharedLayout
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.backends.contexts import GlobalTensorViewContext, InvariantTrackingContext
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import (
     cp_async_tensor_commit_group,
@@ -159,7 +158,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
     def resolve_global_tensor_info(
         self, global_tensor: GlobalTensor, offsets: Sequence[Expr], dims: Sequence[int]
     ) -> GlobalTensorInfo:
-        g_ctx: GlobalTensorViewContext = GlobalTensorViewContext.current()
+        g_ctx = self.contexts.global_view_ctx
 
         # get the global tensor view
         if global_tensor not in g_ctx.tensor2view:
@@ -190,7 +189,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         strides = tuple(coefficients[:-1])
 
         # rewrite the ptr, shape, and strides to grid-invariant form (so that they can be used in host code)
-        ctx: InvariantTrackingContext = InvariantTrackingContext.current()
+        ctx = self.contexts.invariant_ctx
         ptr = ctx.rewrite_to_grid_invariant(ptr)
         shape = tuple(ctx.rewrite_to_grid_invariant(s) for s in shape)
         strides = tuple(ctx.rewrite_to_grid_invariant(s) for s in strides)

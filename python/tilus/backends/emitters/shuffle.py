@@ -15,8 +15,7 @@
 from hidet.ir.dtypes import boolean, uint8, uint32
 from hidet.ir.expr import Expr, Var, bitwise_and, cast, left_shift, logical_and, tensor_pointer_var
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.backends.contexts import SharedMemoryAllocationContext
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.ldst import load, store
 from tilus.ir.instructions.generic import ShuffleBaseInst, ShuffleDownInst, ShuffleUpInst
 from tilus.target import nvgpu_any
@@ -34,7 +33,7 @@ class ShuffleBaseInstEmitter(BaseInstEmitter):
         num_groups = max([i // inst.width for i in range(self.num_warps) if inst.mask & (1 << i)]) + 1
         warp_nbytes: int = thread_nbytes * 32
 
-        smem_ctx: SharedMemoryAllocationContext = SharedMemoryAllocationContext.current()
+        smem_ctx = self.contexts.smem_alloc_ctx
 
         smem_nbytes = num_groups * (inst.width - inst.delta) * warp_nbytes
         smem_buf: Var = self.declare(

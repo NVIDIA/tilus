@@ -14,7 +14,7 @@
 # limitations under the License.
 from hidet.ir.expr import Var, cast, tensor_pointer_var
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.ir.instructions import ViewInst
 
 

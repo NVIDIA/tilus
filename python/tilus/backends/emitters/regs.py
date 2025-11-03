@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.ir import RegisterTensor
 from tilus.ir.instructions import SliceAssignInst, SliceRegisterInst
 from tilus.ir.layout import RegisterLayout

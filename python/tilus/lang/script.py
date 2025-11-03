@@ -17,7 +17,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir.dtypes import boolean, int32
+from hidet.ir.dtypes import boolean
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
 from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim

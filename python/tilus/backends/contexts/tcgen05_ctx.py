@@ -16,16 +16,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-from tilus.backends.codegen import BaseEmitContext, FunctionCodegen, register_emit_context
+from tilus.backends.context import BaseEmitContext
 
 
-@register_emit_context
 class Tcgen05EmitContext(BaseEmitContext):
     _current: Optional[Tcgen05EmitContext] = None
 
-    def __init__(self, codegen: FunctionCodegen):
-        super().__init__(codegen)
-
+    def __post_init__(self):
         # the cta_group used by the tcgen05 instructions
         # PTX requires all tcgen05 instructions in the kernel use the same cta_group value
         # thus, we only ask the user to give cta_group in the tcgen05.alloc instruction and we track it here

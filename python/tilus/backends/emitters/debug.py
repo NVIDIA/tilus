@@ -18,7 +18,7 @@ from hidet.ir.dtypes import bfloat16, boolean, float16, float32, int4b, int8, in
 from hidet.ir.expr import Expr, cast, logical_and
 from hidet.ir.primitives.debug import printf
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import float6_e3m2, float8_e4m3
 from tilus.ir.instructions import FormatPrintInst, PrintTensorInst
 from tilus.ir.layout import RegisterLayout

@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Callable, List, Optional, Sequence, Type, Union
 
 from hidet.ir import primitives
-from hidet.ir.dtypes import boolean, int32
+from hidet.ir.dtypes import boolean, int32, uint32
 from hidet.ir.expr import BitwiseXor, Equal, Expr, LessEqual, LessThan, NotEqual, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
