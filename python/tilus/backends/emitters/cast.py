@@ -19,7 +19,7 @@ from hidet.ir.dtypes.floats import FloatType
 from hidet.ir.expr import Expr, Var, cast, tensor_pointer_var, tensor_var
 from hidet.ir.primitives.cuda.half import fma_f16x2, sub_f16x2
 from hidet.ir.primitives.cuda.prmt import prmt
-from hidet.ir.type import Callable, DataType, PointerType, TensorPointerType, TensorType
+from hidet.ir.type import BaseType, Callable, DataType, PointerType, TensorPointerType, TensorType
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import (
@@ -54,7 +54,7 @@ def get_base_type(tp):
         raise ValueError()
 
 
-def get_data_type(tp: TensorPointerType | TensorType | PointerType) -> DataType:
+def get_data_type(tp: BaseType) -> DataType:
     base_type = get_base_type(tp)
     if isinstance(base_type, DataType):
         return base_type
