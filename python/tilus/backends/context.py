@@ -35,6 +35,10 @@ class BaseEmitContext(Generic[T]):
     def __post_init__(self):
         pass
 
+    @property
+    def contexts(self):
+        return self.codegen.contexts
+
     def host_prepend(self, stmt: Expr | HidetStmt) -> None:
         """Prepend a statement to the host function.
 
@@ -43,7 +47,7 @@ class BaseEmitContext(Generic[T]):
         stmt: Expr or HidetStmt
             The statement to be prepended.
         """
-        self.codegen.host_builder.scope_stack[-1].insert(0, stmt)
+        self.codegen.host_builder.scope_stack[0].insert(0, stmt)
 
     def host_append(self, stmt: Expr | HidetStmt) -> None:
         """Append a statement to the host function.
@@ -63,7 +67,7 @@ class BaseEmitContext(Generic[T]):
         stmt: Expr or HidetStmt
             The statement to be prepended.
         """
-        self.codegen.builder.scope_stack[-1].insert(0, stmt)
+        self.codegen.builder.scope_stack[0].insert(0, stmt)
 
     def kernel_append(self, stmt: Expr | HidetStmt) -> None:
         """Append a statement to the kernel function.

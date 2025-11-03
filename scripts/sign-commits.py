@@ -220,18 +220,18 @@ def check_commits(base_commit: str) -> Dict[str, List[CommitSignatureStatus]]:
 
 def find_first_unsigned_commit(base_commit: str) -> str:
     """Find the first commit that needs signing, starting from the merge base.
-    
+
     Returns the commit hash of the first commit that needs DCO sign-off,
     or the base_commit if all commits are properly signed.
     """
     commits = get_commit_range(base_commit)
-    
+
     if not commits:
         return base_commit
-    
+
     # Check commits in reverse order (oldest first) to find the first unsigned one
     commits.reverse()
-    
+
     for commit in commits:
         if not check_commit_signature(commit):
             # Found the first commit that needs signing
@@ -240,10 +240,10 @@ def find_first_unsigned_commit(base_commit: str) -> str:
             if exit_code == 0:
                 return parent
             else:
-                # If we can't get the parent (e.g., this is the first commit), 
+                # If we can't get the parent (e.g., this is the first commit),
                 # fall back to the base commit
                 return base_commit
-    
+
     # All commits are properly signed
     return base_commit
 
@@ -337,7 +337,7 @@ def fix_commit_signatures(base_commit: str) -> bool:
     """Use git rebase --signoff to sign all commits from the first unsigned commit."""
     # Find the optimal rebase point (first unsigned commit)
     optimal_base = find_first_unsigned_commit(base_commit)
-    
+
     if optimal_base == base_commit:
         # Check if there are any commits that need signing
         commits = get_commit_range(base_commit)
@@ -346,17 +346,17 @@ def fix_commit_signatures(base_commit: str) -> bool:
             if unsigned_count == 0:
                 print("✅ All commits are already properly signed")
                 return True
-        
+
         print(f"Signing all commits between {base_commit[:8]} and HEAD...")
         rebase_target = base_commit
     else:
         # Get commit count for both ranges for comparison
         original_commits = get_commit_range(base_commit)
         optimized_commits = get_commit_range(optimal_base)
-        
+
         print(f"🚀 Optimization: Instead of rebasing {len(original_commits)} commits from {base_commit[:8]},")
         print(f"   rebasing only {len(optimized_commits)} commits from {optimal_base[:8]} (first unsigned commit)")
-        
+
         rebase_target = optimal_base
 
     # Run git rebase with --signoff
@@ -440,13 +440,13 @@ def main():
 
             # Show what will be fixed
             print(get_fix_summary(results))
-            
+
             # Show optimization info
             optimal_base = find_first_unsigned_commit(base_commit)
             if optimal_base != base_commit:
                 original_commits = get_commit_range(base_commit)
                 optimized_commits = get_commit_range(optimal_base)
-                print(f"\n🚀 Optimization detected:")
+                print("\n🚀 Optimization detected:")
                 print(f"   • Original plan: rebase {len(original_commits)} commits from {base_commit[:8]}")
                 print(f"   • Optimized plan: rebase {len(optimized_commits)} commits from {optimal_base[:8]}")
                 print(f"   • Saving {len(original_commits) - len(optimized_commits)} unnecessary rebases!")

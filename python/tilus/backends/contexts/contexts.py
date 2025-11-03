@@ -16,7 +16,9 @@ from tilus.backends.context import BaseEmitContext
 from tilus.backends.contexts.global_view_ctx import GlobalTensorViewContext
 from tilus.backends.contexts.gmem_alloc_ctx import GlobalMemoryAllocationContext
 from tilus.backends.contexts.invariant_ctx import InvariantTrackingContext
+from tilus.backends.contexts.mbarrier_alloc_ctx import BarrierAllocContext
 from tilus.backends.contexts.smem_alloc_ctx import SharedMemoryAllocationContext
+from tilus.backends.contexts.sync_ctx import SyncContext
 from tilus.backends.contexts.tcgen05_ctx import Tcgen05EmitContext
 
 
@@ -32,6 +34,8 @@ class EmitContexts:
         self.invariant_ctx: InvariantTrackingContext = InvariantTrackingContext(codegen)
         self.smem_alloc_ctx: SharedMemoryAllocationContext = SharedMemoryAllocationContext(codegen)
         self.tcgen05_ctx: Tcgen05EmitContext = Tcgen05EmitContext(codegen)
+        self.barrier_alloc_ctx: BarrierAllocContext = BarrierAllocContext(codegen)
+        self.sync_ctx: SyncContext = SyncContext(codegen)
 
     def contexts(self) -> list[BaseEmitContext]:
         """Get all contexts as a list.
@@ -56,5 +60,5 @@ class EmitContexts:
 
         This method is called when the codegen is finished for all instructions.
         """
-        for ctx in self.contexts():
+        for ctx in reversed(self.contexts()):
             ctx.finalize()

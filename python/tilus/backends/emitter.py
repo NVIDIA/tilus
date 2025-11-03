@@ -19,6 +19,7 @@ from typing import Callable, Dict, Optional, Sequence, Type
 from hidet.ir.builders import FunctionBuilder
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var, tensor_pointer_var, tensor_var
+from hidet.ir.primitives.cuda import syncthreads
 from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3
 from hidet.ir.stmt import DeclareScope
@@ -44,20 +45,13 @@ class BaseInstEmitter(StmtBuilder):
         self._codegen: FunctionCodegen = codegen
 
     def sync(self):
-        from hidet.ir.primitives.cuda import syncthreads
-
         if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
             self.append(syncthreads())
         else:
-            from hidet.ir.primitives.cuda.barrier import barrier_sync
-
-            barrier = self._codegen.thread_group_stack.stack_depth() - 1
-            count = self._codegen.thread_group_stack.group_size[-1]
-            self.append(barrier_sync(barrier=barrier, count=count))
+            self.contexts.sync_ctx.sync()
 
     def sync_reduce(self, value: Expr, op: str) -> Expr:
         if get_current_target().is_nvgpu():
-            from hidet.ir.primitives.cuda.barrier import barrier_sync
             from hidet.ir.primitives.cuda.sync import syncthreads_and, syncthreads_or
 
             op2sync = {"and": syncthreads_and, "or": syncthreads_or}
@@ -66,10 +60,7 @@ class BaseInstEmitter(StmtBuilder):
             if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
                 return syncthreads_op(value)
             else:
-                barrier = self._codegen.thread_group_stack.stack_depth() - 1
-                count = self._codegen.thread_group_stack.group_size[-1]
-                self.append(barrier_sync(barrier=barrier, count=count))
-                raise NotImplementedError("barrier_sync_reduce")
+                raise NotImplementedError("sync_reduce in sub-cta thread groups is not implemented")
         else:
             raise NotImplementedError()
 

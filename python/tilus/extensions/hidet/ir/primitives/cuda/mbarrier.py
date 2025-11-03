@@ -85,9 +85,9 @@ def register_mbarrier_primitives():
         asm(
             template="{ "
             "  .reg.pred P1; "
-            "  .reg.b64 phase; "
-            "  mbarrier.arrive.shared::cta.b64 phase, [%0]; "
-            "  LAB_WAIT: mbarrier.try_wait.parity.shared::cta.b64 P1, [%0], phase, %1; "
+            "  .reg.b64 state; "
+            "  mbarrier.arrive.shared::cta.b64 state, [%0]; "
+            "  LAB_WAIT: mbarrier.try_wait.shared::cta.b64 P1, [%0], state, %1; "
             "  @!P1 bra.uni LAB_WAIT; "
             "}",
             inputs=[mbarrier_addr, ticks],
@@ -101,6 +101,7 @@ def register_mbarrier_primitives():
         cuda_mbarrier_arrive_cluster_shared,
         cuda_mbarrier_expect_tx_cta_shared,
         cuda_mbarrier_expect_tx_cluster_shared,
+        cuda_mbarrier_sync,
     ]:
         register_primitive_function(name=func.name, func_or_type=func)
 
