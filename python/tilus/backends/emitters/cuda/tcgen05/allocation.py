@@ -111,7 +111,7 @@ class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
                     cta_group=Tcgen05CtaGroupKind.from_int(tcgen05_ctx.get_cta_group()),
                 )
             )
-        
+
         # mark the tensor as deallocated in the tcgen05 context to track allocations
         tcgen05_ctx.mark_tmemory_tensor_deallocate(tmem_tensor)
 
