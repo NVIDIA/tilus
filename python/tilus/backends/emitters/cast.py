@@ -16,12 +16,12 @@ from typing import Dict, Tuple
 
 from hidet.ir.dtypes import bfloat16, float16, int8, uint8, uint32
 from hidet.ir.dtypes.floats import FloatType
-from hidet.ir.expr import Expr, Var, cast, tensor_pointer_var, tensor_var, var
+from hidet.ir.expr import Expr, Var, cast, tensor_pointer_var, tensor_var
 from hidet.ir.primitives.cuda.half import fma_f16x2, sub_f16x2
 from hidet.ir.primitives.cuda.prmt import prmt
-from hidet.ir.type import Callable, DataType, PointerType, TensorPointerType, TensorType
+from hidet.ir.type import BaseType, Callable, DataType, PointerType, TensorPointerType, TensorType
 
-from tilus.backends.codegen import BaseInstEmitter, FunctionCodegen, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.dtypes import (
     float6_e3m2,
     float8_e4m3,
@@ -54,8 +54,16 @@ def get_base_type(tp):
         raise ValueError()
 
 
+def get_data_type(tp: BaseType) -> DataType:
+    base_type = get_base_type(tp)
+    if isinstance(base_type, DataType):
+        return base_type
+    else:
+        raise TypeError("Type is not DataType: {}".format(tp))
+
+
 class CastInstBaseEmitter(BaseInstEmitter):
-    def __init__(self, codegen: FunctionCodegen) -> None:
+    def __init__(self, codegen):
         super().__init__(codegen)
         self.specialized_cast: Dict[Tuple[DataType, DataType], Callable[[Var, Var], None]] = {}
         self.size: int = -1
@@ -275,8 +283,8 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             self.cast_generic(src, dst)
             return
 
-        src_dtype = get_base_type(src.type)
-        dst_dtype = get_base_type(dst.type)
+        src_dtype = get_data_type(src.type)
+        dst_dtype = get_data_type(dst.type)
 
         assert src_dtype.is_integer() and src_dtype.nbits <= 8 and int(src_dtype.min_value) >= 0
         assert dst_dtype == float16
@@ -349,8 +357,8 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
         # float8_e4m3: 1, 4, 3
         #     float16: 1, 5, 10
         with self.for_range(extent=self.size // 4) as i:
-            p = self.declare(var("a", uint32))
-            q = self.declare(var("b", uint32))
+            p = self.declare_var("a", uint32)
+            q = self.declare_var("b", uint32)
             self.append(prmt(d=~p, a=src_uint32[i], b=uint32(0), c=uint32(0x1404)))
             self.append(prmt(d=~q, a=src_uint32[i], b=uint32(0), c=uint32(0x3424)))
             # 0x3F80: 0b0011111110000000
@@ -377,8 +385,8 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
         # float8_e4m3: 1, 4, 3
         #    bfloat16: 1, 8, 7
         with self.for_range(extent=self.size // 4) as i:
-            p = self.declare(var("a", uint32))
-            q = self.declare(var("b", uint32))
+            p = self.declare_var("a", uint32)
+            q = self.declare_var("b", uint32)
             self.append(prmt(d=~p, a=src_uint32[i], b=uint32(0), c=uint32(0x1404)))
             self.append(prmt(d=~q, a=src_uint32[i], b=uint32(0), c=uint32(0x3424)))
             # 0x07F0: 0b0000011111110000
@@ -435,8 +443,8 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             self.cast_generic(src, dst)
             return
 
-        src_dtype = get_base_type(src.type)
-        dst_dtype = get_base_type(dst.type)
+        src_dtype = get_data_type(src.type)
+        dst_dtype = get_data_type(dst.type)
 
         assert src_dtype.is_float() and dst_dtype.nbits < 8
         assert dst_dtype.is_float() and dst_dtype.nbits == 16
@@ -454,12 +462,12 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             assert isinstance(dst_dtype, FloatType)
 
             # adjust bits position to align the intersection of mantissa and exponent for the two data types
-            uint16_mask = ((1 << (src_dtype.nbits - 1)) - 1) << (dst_dtype.mantissa_nbits - src_dtype.mantissa_nbits)
+            uint16_mask = ((1 << (src_dtype.nbits - 1)) - 1) << (dst_dtype.mantissa_nbits - src_dtype.mantissa_nbits)  # type: ignore
             uint32_mask = uint32(uint16_mask << 16 | uint16_mask)
             self.append(
                 lop3(
                     d=~p,
-                    a=p >> (dst_dtype.exponent_nbits - src_dtype.exponent_nbits),
+                    a=p >> (dst_dtype.exponent_nbits - src_dtype.exponent_nbits),  # type: ignore
                     b=uint32_mask,
                     c=p & uint32(0x80008000),
                     imm_lut=lambda a, b, c: (a & b) | c,
@@ -467,10 +475,10 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             )
 
             # adjust to fix e_bias
-            e_bias_adjust = 2 ** (dst_dtype.exponent_nbits - 1) - 2 ** (src_dtype.exponent_nbits - 1)
+            e_bias_adjust = 2 ** (dst_dtype.exponent_nbits - 1) - 2 ** (src_dtype.exponent_nbits - 1)  # type: ignore
             power_e_bias_adjust_uint16 = (
-                e_bias_adjust + 2 ** (dst_dtype.exponent_nbits - 1) - 1
-            ) << dst_dtype.mantissa_nbits
+                e_bias_adjust + 2 ** (dst_dtype.exponent_nbits - 1) - 1  # type: ignore
+            ) << dst_dtype.mantissa_nbits  # type: ignore
             power_e_bias_adjust_uint32 = uint32(power_e_bias_adjust_uint16 << 16 | power_e_bias_adjust_uint16)
 
             if dst_dtype == bfloat16:

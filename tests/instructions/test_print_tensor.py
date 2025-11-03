@@ -24,6 +24,7 @@ class PrintTmemTensor(tilus.Script):
 
         t_a = self.tcgen05.alloc(dtype=float32, shape=[128, 32])
         self.print_tensor("t_a: ", t_a)
+        self.tcgen05.dealloc(t_a)
 
 
 @requires.nvgpu_sm100a

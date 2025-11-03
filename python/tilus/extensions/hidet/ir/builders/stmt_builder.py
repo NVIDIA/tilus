@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Generic, TypeVar, cast
+from typing import Generic, Sequence, TypeVar, cast
 
 from hidet.ir.builders.stmt_builder import StmtBuilder, StmtScope
 from hidet.ir.expr import Expr, Var
@@ -32,3 +32,6 @@ class TypedStmtScope(StmtScope, Generic[T]):
 class TypedStmtBuilder(StmtBuilder):
     def for_range(self, extent: Expr | int, *, attr: str | ForStmtAttr | None = None) -> TypedStmtScope[Var]:
         return cast(TypedStmtScope[Var], super().for_range(extent, attr=attr))
+
+    def for_grid(self, shape: Sequence[Expr | int]) -> TypedStmtScope[list[Var]]:
+        return cast(TypedStmtScope[list[Var]], super().for_grid(shape))

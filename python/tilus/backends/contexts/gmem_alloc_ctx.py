@@ -21,28 +21,17 @@ from hidet.ir.dtypes import int32, uint8
 from hidet.ir.expr import Expr, Var, cast
 from hidet.ir.primitives.runtime import request_cuda_workspace
 
-from tilus.backends.codegen import BaseEmitContext, FunctionCodegen, register_emit_context
+from tilus.backends.context import BaseEmitContext
 from tilus.target import get_current_target
 
 
-@register_emit_context
 class GlobalMemoryAllocationContext(BaseEmitContext):
-    _current: Optional[GlobalMemoryAllocationContext] = None
-
-    def __init__(self, codegen: FunctionCodegen):
-        super().__init__(codegen)
-
+    def __post_init__(self):
         self.gmem_base_ptr: Var = Var(hint="gmem", type=~uint8)
         self.gmem_allocated: Optional[Expr] = None
 
         self.gmem_clean_base_ptr: Var = Var(hint="gmem_clean", type=~uint8)
         self.gmem_clean_allocated: Optional[Expr] = None
-
-    @staticmethod
-    def current() -> GlobalMemoryAllocationContext:
-        if GlobalMemoryAllocationContext._current is None:
-            raise RuntimeError("No GlobalMemoryAllocationContext is currently active.")
-        return GlobalMemoryAllocationContext._current
 
     def allocate_global_memory(self, nbytes: Expr | int, clean: bool) -> Expr:
         nbytes = (nbytes + 127) // 128 * 128  # align to 128 bytes

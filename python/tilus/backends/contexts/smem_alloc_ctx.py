@@ -21,7 +21,7 @@ from hidet.ir.dtypes import uint8
 from hidet.ir.expr import Expr, Var
 from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 
-from tilus.backends.codegen import BaseEmitContext, FunctionCodegen, register_emit_context
+from tilus.backends.context import BaseEmitContext
 from tilus.ir.tensor import SharedTensor
 from tilus.target import get_current_target
 
@@ -79,12 +79,8 @@ class SharedMemoryAllocator:
         del self.addr2nbytes[addr]
 
 
-@register_emit_context
 class SharedMemoryAllocationContext(BaseEmitContext):
-    _current: Optional[SharedMemoryAllocationContext] = None
-
-    def __init__(self, codegen: FunctionCodegen):
-        super().__init__(codegen)
+    def __post_init__(self):
         # shared memory allocator
         self.smem_allocator: SharedMemoryAllocator = SharedMemoryAllocator()
 
@@ -94,12 +90,6 @@ class SharedMemoryAllocationContext(BaseEmitContext):
         # maximum shared workspace bytes requested by all instructions
         self.shared_workspace_var: Optional[Var] = None
         self.shared_workspace_bytes: int = 0
-
-    @staticmethod
-    def current() -> SharedMemoryAllocationContext:
-        if SharedMemoryAllocationContext._current is None:
-            raise RuntimeError("No SharedMemoryAllocationContext is currently active.")
-        return SharedMemoryAllocationContext._current
 
     def allocate_shared_tensor(self, tensor: SharedTensor, nbytes: int) -> int:
         addr: int = self.smem_allocator.allocate(nbytes)

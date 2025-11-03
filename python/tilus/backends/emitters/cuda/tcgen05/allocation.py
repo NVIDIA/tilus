@@ -18,8 +18,7 @@ from hidet.ir import logical_or
 from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import cast
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.backends.contexts import SharedMemoryAllocationContext, Tcgen05EmitContext
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05CtaGroupKind,
@@ -59,15 +58,15 @@ class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
         if self.current_num_threads < 32:
             raise ValueError("tcgen05_alloc requires at least 32 threads in the current thread group")
 
-        tmem_tensor = inst.output.as_tmemory_tensor()
+        tmem_tensor = inst.tmemory_output
         num_columns = self.get_num_columns(tmem_tensor)
 
         # set the cta group in the tcgen05 context
-        tcgen05_ctx = Tcgen05EmitContext.current()
+        tcgen05_ctx = self.contexts.tcgen05_ctx
         tcgen05_ctx.set_cta_group(inst.cta_group)
 
         # allocate a workspace in shared memory to hold the tensor memory handle
-        smem_ctx = SharedMemoryAllocationContext.current()
+        smem_ctx = self.contexts.smem_alloc_ctx
         smem_ptr = smem_ctx.request_shared_workspace(nbytes=4)
 
         # call tcgen05_alloc
@@ -90,6 +89,9 @@ class Tcgen05AllocEmitter(Tcgen05AllocDeallocEmitter):
         self.assign(tmem_var, cast(smem_ptr, ~int32)[0])
         self.sync()
 
+        # mark the tensor as allocated in the tcgen05 context to track allocations
+        tcgen05_ctx.mark_tmemory_tensor_allocate(tmem_tensor)
+
 
 @register_emitter(Tcgen05DeallocInst, target=nvgpu_sm100)
 class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
@@ -97,7 +99,7 @@ class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
         tmem_var = self.get_or_allocate_var(tmem_tensor)
         num_columns = self.get_num_columns(tmem_tensor)
-        tcgen05_ctx = Tcgen05EmitContext.current()
+        tcgen05_ctx = self.contexts.tcgen05_ctx
 
         if self.current_num_threads < 32:
             raise ValueError("tcgen05_dealloc requires at least 32 threads in the current thread group")
@@ -106,9 +108,12 @@ class Tcgen05DeallocEmitter(Tcgen05AllocDeallocEmitter):
                 tcgen05_dealloc(
                     taddr=tmem_var,
                     num_columns=uint32(num_columns),
-                    cta_group=Tcgen05CtaGroupKind.from_int(tcgen05_ctx.cta_group),
+                    cta_group=Tcgen05CtaGroupKind.from_int(tcgen05_ctx.get_cta_group()),
                 )
             )
+
+        # mark the tensor as deallocated in the tcgen05 context to track allocations
+        tcgen05_ctx.mark_tmemory_tensor_deallocate(tmem_tensor)
 
 
 @register_emitter(Tcgen05RelinquishAllocPermitInst, target=nvgpu_sm100)
@@ -121,7 +126,7 @@ class Tcgen05RelinquishAllocPermitEmitter(BaseInstEmitter):
 class TMemorySliceEmitter(BaseInstEmitter):
     def emit(self, inst: Tcgen05SliceInst) -> None:
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
-        output_tmem_tensor = inst.output.as_tmemory_tensor()
+        output_tmem_tensor = inst.tmemory_output
         tmem_addr = self.get_or_allocate_var(tmem_tensor)
 
         sliced_addr = self.get_or_allocate_var(output_tmem_tensor, name="tmem_slice")
@@ -135,7 +140,7 @@ class TMemorySliceEmitter(BaseInstEmitter):
 class TMemoryViewEmitter(BaseInstEmitter):
     def emit(self, inst: Tcgen05ViewInst) -> None:
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
-        output_tmem_tensor = inst.output.as_tmemory_tensor()
+        output_tmem_tensor = inst.tmemory_output
 
         if (
             tmem_tensor.dtype.nbits * tmem_tensor.shape[1]

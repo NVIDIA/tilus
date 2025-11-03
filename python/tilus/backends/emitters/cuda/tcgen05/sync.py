@@ -14,8 +14,7 @@
 # limitations under the License.
 
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05CommitMulticastKind,
     Tcgen05CtaGroupKind,
@@ -33,7 +32,7 @@ class TMemoryCommitEmitter(BaseInstEmitter):
         with self.if_then(self.current_thread == 0):
             self.append(
                 tcgen05_commit(
-                    mbarrier=cvta_generic_to_shared(inst.mbarrier),
+                    mbarrier=inst.mbarrier,
                     cta_mask=inst.cta_mask,
                     cta_group=Tcgen05CtaGroupKind.CTA_1,
                     multicast=Tcgen05CommitMulticastKind.NONE,

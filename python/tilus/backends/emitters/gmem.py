@@ -14,8 +14,7 @@
 # limitations under the License.
 from hidet.ir.expr import Expr, Var
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
-from tilus.backends.contexts import GlobalMemoryAllocationContext, GlobalTensorViewContext
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.ir import GlobalTensor
 from tilus.ir.instructions import AllocateGlobalInst, GlobalViewInst, SliceGlobalInst
 from tilus.utils import cdiv
@@ -24,7 +23,7 @@ from tilus.utils import cdiv
 @register_emitter(GlobalViewInst)
 class GlobalViewInstEmitter(BaseInstEmitter):
     def emit(self, inst: GlobalViewInst) -> None:
-        ctx: GlobalTensorViewContext = GlobalTensorViewContext.current()
+        ctx = self.contexts.global_view_ctx
         global_tensor = inst.global_output
         self.assign(self.get_or_allocate_var(global_tensor), inst.ptr)
 
@@ -36,7 +35,7 @@ class GlobalViewInstEmitter(BaseInstEmitter):
 class AllocateGlobalInstEmitter(BaseInstEmitter):
     def emit(self, inst: AllocateGlobalInst) -> None:
         tensor = inst.global_output
-        ctx = GlobalMemoryAllocationContext.current()
+        ctx = self.contexts.gmem_alloc_ctx
         ptr: Expr = ctx.allocate_global_memory(
             nbytes=cdiv(tensor.layout.size * tensor.dtype.nbits * 8, 8), clean=inst.require_clean
         )

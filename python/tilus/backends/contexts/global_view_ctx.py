@@ -15,12 +15,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from hidet.ir.expr import Var
 from hidet.ir.type import DataType
 
-from tilus.backends.codegen import BaseEmitContext, FunctionCodegen, register_emit_context
+from tilus.backends.context import BaseEmitContext
 from tilus.ir import GlobalLayout
 from tilus.ir.tensor import GlobalTensor
 
@@ -32,21 +31,11 @@ class GlobalTensorView:
     layout: GlobalLayout
 
 
-@register_emit_context
 class GlobalTensorViewContext(BaseEmitContext):
     """Context used to track the global tensor views that takes kernel parameters as ptr."""
 
-    _current: Optional[GlobalTensorViewContext] = None
-
-    def __init__(self, codegen: FunctionCodegen):
-        super().__init__(codegen)
+    def __post_init__(self):
         self.tensor2view: dict[GlobalTensor, GlobalTensorView] = {}
-
-    @staticmethod
-    def current() -> GlobalTensorViewContext:
-        if GlobalTensorViewContext._current is None:
-            raise RuntimeError("No GlobalTensorViewContext is currently active.")
-        return GlobalTensorViewContext._current
 
     def add_tensor_view(self, tensor: GlobalTensor, ptr: Var, layout: GlobalLayout) -> None:
         assert tensor not in self.tensor2view

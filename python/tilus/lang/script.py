@@ -17,7 +17,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir.dtypes import boolean, int32
+from hidet.ir.dtypes import boolean
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
 from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
@@ -435,7 +435,7 @@ class BarrierInstructionGroup(InstructionGroup):
         """
         self._builder.arrive_remote_barrier(barrier, remote_block)
 
-    def wait(self, barrier: Expr | RegisterTensor, phase: Expr | int) -> None:
+    def wait(self, barrier: Expr | RegisterTensor, phase: Expr | RegisterTensor | int) -> None:
         """Wait at a barrier.
 
         This instruction makes the threads in the current thread group wait at the specified barrier until the pending
@@ -453,10 +453,11 @@ class BarrierInstructionGroup(InstructionGroup):
         barrier: Expr | RegisterTensor
             The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
             with single element representing the address of the barrier.
-        phase: Expr | int
-            The phase value to wait for. It must be evaluated to either 0 or 1.
+        phase: Expr | RegisterTensor | int
+            The phase value to wait for. It must be evaluated to either 0 or 1. It can also be a register tensor with single
+            element representing the phase value.
         """
-        self._builder.wait_barrier(barrier, phase if isinstance(phase, Expr) else int32(phase))
+        self._builder.wait_barrier(barrier, phase)
 
 
 class Script:

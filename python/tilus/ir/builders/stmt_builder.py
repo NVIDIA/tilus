@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Callable, List, Optional, Sequence, Type, Union
 
 from hidet.ir import primitives
-from hidet.ir.dtypes import boolean, int32
+from hidet.ir.dtypes import boolean, int32, uint32
 from hidet.ir.expr import BitwiseXor, Equal, Expr, LessEqual, LessThan, NotEqual, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
@@ -1186,9 +1186,13 @@ class StmtBuilder(StmtBuilderCore):
         inst = ArriveRemoteBarrierInst.create(barrier=barrier, remote_block=remote_block)
         self.append(inst)
 
-    def wait_barrier(self, barrier: Expr | RegisterTensor, phase: Expr) -> None:
+    def wait_barrier(self, barrier: Expr | RegisterTensor, phase: Expr | int | RegisterTensor) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
+        if isinstance(phase, RegisterTensor):
+            phase = self.tensor_item_value(phase)
+        elif isinstance(phase, int):
+            phase = uint32(phase)
         inst = WaitBarrierInst.create(barrier=barrier, phase=phase)
         self.append(inst)
 

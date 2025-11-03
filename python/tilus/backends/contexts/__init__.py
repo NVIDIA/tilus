@@ -12,8 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from tilus.backends.contexts.contexts import EmitContexts
 from tilus.backends.contexts.global_view_ctx import GlobalTensorView, GlobalTensorViewContext
-from tilus.backends.contexts.gmem import GlobalMemoryAllocationContext
+from tilus.backends.contexts.gmem_alloc_ctx import GlobalMemoryAllocationContext
 from tilus.backends.contexts.invariant_ctx import InvariantTrackingContext
-from tilus.backends.contexts.smem import SharedMemoryAllocationContext
+from tilus.backends.contexts.smem_alloc_ctx import SharedMemoryAllocationContext
 from tilus.backends.contexts.tcgen05_ctx import Tcgen05EmitContext

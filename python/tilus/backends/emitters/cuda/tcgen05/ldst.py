@@ -19,7 +19,7 @@ from typing import Sequence
 from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import Expr, cast
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05LoadStoreNumKind,
     Tcgen05LoadStorePackKind,

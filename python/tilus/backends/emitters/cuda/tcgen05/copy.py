@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from hidet.ir.dtypes import uint64
 from hidet.ir.expr import Expr
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE, LANE_STRIDE
 from tilus.backends.emitters.cuda.tcgen05.smem_desc import SharedMatrixDescriptor
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
@@ -76,6 +76,7 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
         """
         cute_layout = canonical.swizzled_cute_layout.layout
         m, n = cute_layout.flattened_shape
+        assert isinstance(m, int) and isinstance(n, int), "Only static shape is supported in tcgen05.copy emitter"
 
         if shape_kind.n % canonical.dtype_nbits != 0:
             raise GenerationFailedError(

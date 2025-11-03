@@ -20,7 +20,8 @@ from hidet.ir.dtypes import bfloat16, float16, float32, int8, int32, tfloat32, u
 from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.type import DataType
 
-from tilus.backends.codegen import BaseInstEmitter, CodeGenerationFailed, register_emitter
+from tilus.backends.codegen import CodeGenerationFailed
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE, LANE_STRIDE
 from tilus.backends.emitters.cuda.tcgen05.smem_desc import SharedMatrixDescriptor
 from tilus.extensions.hidet.ir.dtypes import float4_e2m1, float6_e2m3, float6_e3m2, float8_e4m3, float8_e5m2

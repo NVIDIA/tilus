@@ -15,7 +15,7 @@
 from hidet.ir.expr import tensor_var
 from hidet.ir.tools import rewrite
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.ir import RegisterTensor
 from tilus.ir.instructions import AllocateRegisterInst
 
@@ -26,6 +26,7 @@ class AllocateInstEmitter(BaseInstEmitter):
         output: RegisterTensor = inst.register_output
         var = self.declare(tensor_var("regs", shape=[output.local_size], dtype=output.dtype))
         if inst.init is not None:
+            assert inst.axes is not None
             axes = inst.axes
             init = inst.init
             with self.for_range(output.local_size) as i:

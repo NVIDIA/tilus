@@ -16,7 +16,7 @@ from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import equal
 from hidet.ir.primitives.cuda.ldst import load, store
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.ir.instructions import LockSemaphoreInst, ReleaseSemaphoreInst
 
 

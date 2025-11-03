@@ -15,7 +15,7 @@
 from hidet.ir.expr import Var
 from hidet.ir.utils.broadcast_utils import broadcast_indices
 
-from tilus.backends.codegen import BaseInstEmitter, register_emitter
+from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.ir.instructions import ElementwiseBinaryBaseInst, ElementwiseUnaryBaseInst
 from tilus.ir.tensor import RegisterTensor
 
@@ -29,7 +29,8 @@ class ElementwiseUnaryInstEmitter(BaseInstEmitter):
         y_buf = self.get_or_allocate_var(y_tensor)
 
         with self.for_range(extent=y_tensor.local_size) as i:
-            self.buffer_store(buf=y_buf, indices=[i], value=inst.f_compute(x_buf[i]))
+            v = self.declare_var("v", tp=x_tensor.dtype, init=x_buf[i])
+            self.buffer_store(buf=y_buf, indices=[i], value=inst.f_compute(v))
 
 
 @register_emitter(ElementwiseBinaryBaseInst)
@@ -48,4 +49,6 @@ class ElementwiseBinaryInstEmitter(BaseInstEmitter):
             x_local = x_tensor.layout.get_local(x_indices)
             y_local = y_tensor.layout.get_local(y_indices)
 
-            self.buffer_store(buf=z_buf, indices=[i], value=inst.f_compute(x_buf[x_local], y_buf[y_local]))
+            lhs = self.declare_var("lhs", tp=x_tensor.dtype, init=x_buf[x_local])
+            rhs = self.declare_var("rhs", tp=y_tensor.dtype, init=y_buf[y_local])
+            self.buffer_store(buf=z_buf, indices=[i], value=inst.f_compute(lhs, rhs))
