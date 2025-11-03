@@ -689,7 +689,10 @@ class Transpiler(PythonAstFunctor):
                         raise TilusProgramError(self, expr, str(e))
                 else:
                     # case 4
-                    ret = func(*args, **kwargs)
+                    try:
+                        ret = func(*args, **kwargs)
+                    except TypeError as e:
+                        raise TilusProgramError(self, expr, str(e)) from e
             elif isinstance(func, types.FunctionType):
                 # case 4
                 ret = func(*args, **kwargs)

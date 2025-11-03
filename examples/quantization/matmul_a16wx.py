@@ -81,8 +81,9 @@ class QuantizedMatmulChangeLayout(QuantizedMatmulCommon):
 
         g_src = self.global_view(src_ptr, dtype=self.b_dtype, shape=[k_size, n_size])
         r_src = self.load_global(
-            g_src, offsets=[offset_k, offset_n], layout=self.tile_layout
+            g_src, offsets=[offset_k, offset_n], shape=self.tile_layout.shape
         )
+        self.annotate_layout(r_src, self.tile_layout)
         r_dst = self.view(r_src, layout=self.flatten_tile_layout, dtype=uint8)
         g_dst = self.global_view(
             dst_ptr,
@@ -127,8 +128,9 @@ class QuantizedMatmulRestoreLayout(QuantizedMatmulCommon):
         r_src = self.load_global(
             g_src,
             offsets=[self.blockIdx.x, self.blockIdx.y, 0],
-            layout=self.flatten_tile_layout,
+            shape=self.flatten_tile_layout.shape,
         )
+        self.annotate_layout(r_src, self.flatten_tile_layout)
         r_dst = self.view(r_src, layout=self.tile_layout, dtype=self.b_dtype)
         g_dst = self.global_view(dst_ptr, dtype=self.b_dtype, shape=[k_size, n_size])
         self.store_global(g_dst, r_dst, offsets=[offset_k, offset_n], dims=[2])
