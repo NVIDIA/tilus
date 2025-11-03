@@ -14,6 +14,7 @@ if not tilus.target.get_current_target().supports(tilus.target.nvgpu_sm100a):
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 tilus.option.debug.dump_ir()
+tilus.utils.clear_cache()
 
 # tilus.target.set_current_target(tilus.target.nvgpu_sm100a)
 
@@ -22,7 +23,7 @@ tilus.option.debug.dump_ir()
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmul(tilus.Script):
-    debug_schedule = dict(block_m=128, block_n=64, block_k=32, stages=3)
+    debug_schedule = dict(block_m=128, block_n=64, block_k=16, stages=3)
 
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
@@ -67,17 +68,18 @@ class BlackwellMatmul(tilus.Script):
         mma_phase: uint32 = 0
 
         for i in range(self.stages - 1):
+            offset_k = i * self.block_k
             with self.single_thread():
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a[i],
-                    offsets=[offset_m, i * self.block_k],
+                    offsets=[offset_m, offset_k],
                     mbarrier=tma_barriers[i],
                 )
                 self.tma.global_to_shared(
                     src=g_b,
                     dst=s_b[i],
-                    offsets=[offset_n, i * self.block_k],
+                    offsets=[offset_n, offset_k],
                     mbarrier=tma_barriers[i],
                 )
                 self.mbarrier.arrive(tma_barriers[i])
@@ -87,19 +89,20 @@ class BlackwellMatmul(tilus.Script):
         current_stage: int32 = 0
         preload_stage: int32 = self.stages - 1
 
-        for offset_k in range(0, k_size, self.block_k):
+        for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
             with self.single_thread():  # we use a single thread to issue the TMA copy
                 # preload
+                preload_offset_k = offset_k + (self.stages - 1) * self.block_k
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a[preload_stage],
-                    offsets=[offset_m, offset_k],
+                    offsets=[offset_m, preload_offset_k],
                     mbarrier=tma_barriers[preload_stage],
                 )
                 self.tma.global_to_shared(
                     src=g_b,
                     dst=s_b[preload_stage],
-                    offsets=[offset_n, offset_k],
+                    offsets=[offset_n, preload_offset_k],
                     mbarrier=tma_barriers[preload_stage],
                 )
                 self.mbarrier.arrive(tma_barriers[preload_stage])
@@ -112,6 +115,10 @@ class BlackwellMatmul(tilus.Script):
                 )
                 self.tcgen05.commit(mbarrier=mma_barrier)
                 self.mbarrier.wait(mma_barrier, phase=mma_phase)
+
+            # self.print_tensor('s_a: ', s_a[current_stage])
+            # self.print_tensor('s_b: ', s_b[current_stage])
+            # self.print_tensor('t_acc: ', t_acc)
 
             tma_phases[current_stage] ^= 1
             mma_phase ^= 1
@@ -139,13 +146,25 @@ def main(bench=True):
     rows = []
 
     for m_size, n_size, k_size in [
+        # [128, 64, 16 * 100],
         [4096, 4096, 4096],
         [4096, 4096, 14336],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
         b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
+        # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
+        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
         c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+
+        # for i in range(m_size):
+        #     for k in range(k_size):
+        #         # a[i, k] = (i + k) / (m_size + k_size)
+        #         a[i, k] = k * 2 // k_size
+        # for j in range(n_size):
+        #     for k in range(k_size):
+        #         # b[j, k] = (j + k) / (n_size + k_size)
+        #         b[j, k] = k * 2 // k_size
 
         matmul(m_size, n_size, k_size, a, b, c)
         torch.cuda.synchronize()
@@ -171,4 +190,5 @@ def main(bench=True):
 
 if __name__ == "__main__":
     main(bench=True)
+    # main(bench=False)
     # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")

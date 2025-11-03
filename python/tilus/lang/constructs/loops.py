@@ -47,7 +47,6 @@ class RangeLoop(TilusLoopIterable):
             start = int(self.start)
             stop = int(self.stop)
             step = int(self.step)
-            print("start:", start, "stop:", stop, "step:", step)
             return builtins.range(start, stop, step).__iter__()
         except:  # noqa: E722
             raise TypeError("Cannot iterate over RangeLoop with non-constant bounds.")
