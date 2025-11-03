@@ -14,17 +14,12 @@ if not tilus.target.get_current_target().supports(tilus.target.nvgpu_sm100a):
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 tilus.option.debug.dump_ir()
-tilus.utils.clear_cache()
-
-# tilus.target.set_current_target(tilus.target.nvgpu_sm100a)
 
 
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmul(tilus.Script):
-    debug_schedule = dict(block_m=128, block_n=64, block_k=16, stages=3)
-
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -116,10 +111,6 @@ class BlackwellMatmul(tilus.Script):
                 self.tcgen05.commit(mbarrier=mma_barrier)
                 self.mbarrier.wait(mma_barrier, phase=mma_phase)
 
-            # self.print_tensor('s_a: ', s_a[current_stage])
-            # self.print_tensor('s_b: ', s_b[current_stage])
-            # self.print_tensor('t_acc: ', t_acc)
-
             tma_phases[current_stage] ^= 1
             mma_phase ^= 1
             preload_stage = (preload_stage + 1) % self.stages
@@ -146,25 +137,13 @@ def main(bench=True):
     rows = []
 
     for m_size, n_size, k_size in [
-        # [128, 64, 16 * 100],
         [4096, 4096, 4096],
         [4096, 4096, 14336],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
         b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-        # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
-        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
         c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
-
-        # for i in range(m_size):
-        #     for k in range(k_size):
-        #         # a[i, k] = (i + k) / (m_size + k_size)
-        #         a[i, k] = k * 2 // k_size
-        # for j in range(n_size):
-        #     for k in range(k_size):
-        #         # b[j, k] = (j + k) / (n_size + k_size)
-        #         b[j, k] = k * 2 // k_size
 
         matmul(m_size, n_size, k_size, a, b, c)
         torch.cuda.synchronize()
@@ -190,5 +169,4 @@ def main(bench=True):
 
 if __name__ == "__main__":
     main(bench=True)
-    # main(bench=False)
     # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
