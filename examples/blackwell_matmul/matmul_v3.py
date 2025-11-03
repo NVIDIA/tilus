@@ -17,11 +17,15 @@ tilus.option.debug.dump_ir()
 tilus.utils.clear_cache()
 
 
-@tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
+@tilus.autotune("block_m, block_n", [
+    [128, 64], [128, 128], 
+    # [128, 256]
+])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmul(tilus.Script):
-    debug_schedule = dict(block_m=128, block_n=64, block_k=16, stages=1)
+    # debug_schedule = dict(block_m=128, block_n=64, block_k=16, stages=3)
+    # debug_schedule = dict(block_m=128, block_n=256, block_k=64, stages=3)
 
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
@@ -77,11 +81,9 @@ class BlackwellMatmul(tilus.Script):
             # tma warp
             stage: int32 = 0
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
-                self.printf("[producer][offset=%d][stage=%d] waiting, phase=%d\n", offset_k, stage, producer_phases[stage].item())
                 self.mbarrier.wait(
                     producer_barriers[stage], phase=producer_phases[stage]
                 )  # wait until the stage is ready to be filled
-                self.printf("[producer][offset=%d][stage=%d] proceeding\n", offset_k, stage)
                 producer_phases[stage] ^= 1
                 with self.single_thread():
                     self.tma.global_to_shared(
@@ -97,24 +99,19 @@ class BlackwellMatmul(tilus.Script):
                         mbarrier=consumer_barriers[stage],
                     )
                     self.mbarrier.arrive(consumer_barriers[stage])
-                self.printf("[producer][offset=%d][stage=%d] finished\n", offset_k, stage)
                 stage = (stage + 1) % self.stages
 
         with self.thread_group(group_index=1, group_size=32):
             # mma warp
             stage: int32 = 0
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
-                self.printf("[consumer][offset=%d][stage=%d] waiting, phase=%d\n", offset_k, stage, consumer_phases[stage].item())
                 self.mbarrier.wait(
                     consumer_barriers[stage], phase=consumer_phases[stage]
                 )  # wait until the stage is ready for consumption
-                self.printf("[consumer][offset=%d][stage=%d] proceeding\n", offset_k, stage)
                 consumer_phases[stage] ^= 1
                 with self.single_thread():
                     self.tcgen05.mma(s_a[stage], s_b[stage].transpose(), t_acc)
                     self.tcgen05.commit(mbarrier=producer_barriers[stage])
-                    self.mbarrier.arrive(producer_barriers[stage])
-                self.printf("[consumer][offset=%d][stage=%d] finished\n", offset_k, stage)
                 stage = (stage + 1) % self.stages
 
         self.sync()
@@ -139,15 +136,15 @@ def main(bench=True):
     rows = []
 
     for m_size, n_size, k_size in [
-        [128, 64, 16 * 3]
-        # [4096, 4096, 4096],
-        # [4096, 4096, 14336],
+        # [128, 64, 16 * 100]
+        [4096, 4096, 4096],
+        [4096, 4096, 14336],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
-        # a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
-        # b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-        a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
-        b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
+        a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
+        b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
+        # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
+        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
         c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
         matmul(m_size, n_size, k_size, a, b, c)
