@@ -40,6 +40,11 @@ class BarrierAllocContext(BaseEmitContext):
     def finalize(self):
         # allocate shared memory for all barriers
         num_barriers = len(self.counts)
+
+        if num_barriers == 0:
+            # No barriers to allocate
+            return
+
         tensor = SharedTensor(dtype=uint64, shape=(num_barriers,), optional_layout=ops.shared_row_major(num_barriers))
         virtual_smem_addr = self.contexts.smem_alloc_ctx.allocate_shared_tensor(tensor, nbytes=tensor.nbytes)
         sb = StmtBuilder()
