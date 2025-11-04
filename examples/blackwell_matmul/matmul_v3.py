@@ -14,23 +14,12 @@ if not tilus.target.get_current_target().supports(tilus.target.nvgpu_sm100a):
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 tilus.option.debug.dump_ir()
-tilus.utils.clear_cache()
 
 
-@tilus.autotune(
-    "block_m, block_n",
-    [
-        [128, 64],
-        [128, 128],
-        # [128, 256]
-    ],
-)
+@tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmul(tilus.Script):
-    # debug_schedule = dict(block_m=128, block_n=64, block_k=16, stages=3)
-    # debug_schedule = dict(block_m=128, block_n=256, block_k=64, stages=3)
-
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -74,16 +63,13 @@ class BlackwellMatmul(tilus.Script):
         producer_barriers = self.mbarrier.alloc(
             count=[1 for _ in range(self.stages)]
         )  # whether the data is ready to be filled
-        consumer_phases = self.register_tensor(
-            dtype=uint32, shape=[self.stages], init=0
-        )  # all stages are not ready for consumption at the beginning
-        producer_phases = self.register_tensor(
-            dtype=uint32, shape=[self.stages], init=1
-        )  # all stages are ready to be filled at the beginning
 
         with self.thread_group(group_index=0, group_size=32):
             # tma warp
             stage: int32 = 0
+            producer_phases = self.register_tensor(
+                dtype=uint32, shape=[self.stages], init=1
+            )  # all stages are ready to be filled at the beginning
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
                 self.mbarrier.wait(
                     producer_barriers[stage], phase=producer_phases[stage]
@@ -105,8 +91,19 @@ class BlackwellMatmul(tilus.Script):
                     self.mbarrier.arrive(consumer_barriers[stage])
                 stage = (stage + 1) % self.stages
 
+            # remaining mma stages to wait for completion
+            for _ in self.range(min(self.stages, cdiv(k_size, self.block_k))):
+                self.mbarrier.wait(
+                    producer_barriers[stage], phase=producer_phases[stage]
+                )  # wait until the stage is ready to be filled
+                producer_phases[stage] ^= 1
+                stage = (stage + 1) % self.stages
+
         with self.thread_group(group_index=1, group_size=32):
             # mma warp
+            consumer_phases = self.register_tensor(
+                dtype=uint32, shape=[self.stages], init=0
+            )  # all stages are not ready for consumption at the beginning
             stage: int32 = 0
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
                 self.mbarrier.wait(
@@ -140,15 +137,12 @@ def main(bench=True):
     rows = []
 
     for m_size, n_size, k_size in [
-        # [128, 64, 16 * 100]
         [4096, 4096, 4096],
         [4096, 4096, 14336],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
         b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-        # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
-        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
         c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
         matmul(m_size, n_size, k_size, a, b, c)

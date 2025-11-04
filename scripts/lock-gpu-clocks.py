@@ -45,7 +45,6 @@ import subprocess
 import sys
 import time
 
-from cuda.bindings import runtime
 from pynvml import (
     NVML_CLOCK_ID_CURRENT,
     NVML_CLOCK_LIMIT_ID_TDP,
@@ -53,6 +52,7 @@ from pynvml import (
     NVML_FEATURE_DISABLED,
     NVML_FEATURE_ENABLED,
     nvmlDeviceGetClock,
+    nvmlDeviceGetMaxClockInfo,
     nvmlDeviceGetHandleByIndex,
     nvmlDeviceResetGpuLockedClocks,
     nvmlDeviceSetGpuLockedClocks,
@@ -86,16 +86,14 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-def query_gpu_clocks(handle):
-    base_clock = nvmlDeviceGetClock(handle, NVML_CLOCK_SM, NVML_CLOCK_ID_CURRENT)
-    print(f"GPU {args.gpu} current clocks: {base_clock} MHz")
-
-
 def main():
     if not args.reset and args.clock is None:
         nvmlInit()
         handle = nvmlDeviceGetHandleByIndex(args.gpu)
-        query_gpu_clocks(handle)
+        current_clocks = nvmlDeviceGetClock(handle, NVML_CLOCK_SM, NVML_CLOCK_ID_CURRENT)
+        max_clocks = nvmlDeviceGetMaxClockInfo(handle, NVML_CLOCK_SM)
+        print(f"GPU {args.gpu} current clocks: {current_clocks} MHz")
+        print(f"GPU {args.gpu} maximum clocks: {max_clocks} MHz")
         nvmlShutdown()
         exit(0)
 
@@ -127,11 +125,7 @@ def main():
         if args.clock == "base":
             nvmlDeviceSetGpuLockedClocks(handle, NVML_CLOCK_LIMIT_ID_TDP, NVML_CLOCK_LIMIT_ID_TDP)
         elif args.clock == "max":
-            error, prop = runtime.cudaGetDeviceProperties(args.gpu)
-            if error != 0:
-                print(f"Error getting device properties: {error}")
-                sys.exit(1)
-            max_clock = prop.clockRate
+            max_clock = nvmlDeviceGetMaxClockInfo(handle, NVML_CLOCK_SM)
             nvmlDeviceSetGpuLockedClocks(handle, max_clock, max_clock)
         else:
             assert False
@@ -139,7 +133,8 @@ def main():
         assert False
 
     time.sleep(0.10)  # wait until the clocks are changed
-    query_gpu_clocks(handle)  # print the current GPU clocks
+    current_clocks = nvmlDeviceGetClock(handle, NVML_CLOCK_SM, NVML_CLOCK_ID_CURRENT)
+    print(f"GPU {args.gpu} current clocks after change: {current_clocks} MHz")
     nvmlShutdown()
 
 
