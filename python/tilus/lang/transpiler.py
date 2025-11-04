@@ -1450,3 +1450,6 @@ class Transpiler(PythonAstFunctor):
 
     def visit_GeneratorExp(self, expr: ast.GeneratorExp) -> list:
         return self.process_generator(expr.elt, expr.generators)
+
+    def visit_Pass(self, stmt: ast.Pass) -> None:
+        self.current_scope.append(SeqStmt(tuple()))

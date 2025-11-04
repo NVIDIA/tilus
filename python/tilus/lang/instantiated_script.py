@@ -151,9 +151,9 @@ def generate_schedules(
         except TypeError as e:
             stack = inspect.stack()
             frame = stack[4]
+            code_context = "" if frame.code_context is None else frame.code_context[0].strip()
             raise TypeError(
-                str(e) + f'\n  File "{frame.filename}", line {frame.lineno}, in {frame.function}'
-                f"\n    {frame.code_context[0].strip()}"
+                str(e) + f'\n  File "{frame.filename}", line {frame.lineno}, in {frame.function}\n    {code_context}'
             ) from None
         schedule = dict(bound_args.arguments)
         schedule.pop("self")  # remove the 'self' argument

@@ -49,6 +49,7 @@ class ThreadGroupExample(tilus.Script):
         self.sync()
 
 
+@tilus.testing.requires.nvgpu_sm90
 def test_thread_group():
     n = 1024
     x = torch.randn(n, dtype=torch.float16, device="cuda")

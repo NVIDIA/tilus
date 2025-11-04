@@ -30,7 +30,7 @@ class LockSemaphoreEmitter(BaseInstEmitter):
             semaphore_value = self.declare_var("semaphore_value", tp=int32, init=-int32.one)
             with self.if_then(self.current_thread == 0):
                 self.assign(semaphore_value, load(addr=semaphore, space="generic", sync="acquire", scope="gpu"))
-            cond = self.sync_reduce(equal(semaphore_value, semaphore_expect), op="or")
+            cond = self.sync_reduce(equal(semaphore_value, semaphore_expect), op="or")  # type: ignore
             with self.if_then(cond):
                 self.brk()
 
