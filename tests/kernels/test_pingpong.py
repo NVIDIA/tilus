@@ -47,6 +47,7 @@ class PingPongExample(tilus.Script):
                 self.mbarrier.arrive(a_ready)
 
 
+@tilus.testing.requires.nvgpu_sm90
 def test_ping_pong_example():
     kernel = PingPongExample()
     kernel()
