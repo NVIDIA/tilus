@@ -460,6 +460,17 @@ class BarrierInstructionGroup(InstructionGroup):
         self._builder.wait_barrier(barrier, phase)
 
 
+class ClusterLaunchControlInstructionGroup(InstructionGroup):
+    def try_cancel(self, dst: SharedTensor, mbarrier: Expr | RegisterTensor) -> None:
+        self._builder.cluster_launch_control_try_cancel(dst, mbarrier)
+
+    def is_canceled(self, cancel_response: RegisterTensor) -> RegisterTensor:
+        return self._builder.cluster_launch_control_is_canceled(cancel_response)
+
+    def get_first_cta(self, cancel_response: RegisterTensor) -> RegisterTensor:
+        return self._builder.cluster_launch_control_get_first_cta(cancel_response)
+
+
 class Script:
     """A script is a user-defined kernel function that can be compiled and executed on the GPU."""
 
@@ -495,6 +506,7 @@ class Script:
         self.tcgen05 = Tcgen05InstructionGroup()
         self.tma = TmaInstructionGroup()
         self.mbarrier = BarrierInstructionGroup()
+        self.clc = ClusterLaunchControlInstructionGroup()
 
     def __call__(self, *args, **kwargs):
         raise RuntimeError("This method should never be called.")

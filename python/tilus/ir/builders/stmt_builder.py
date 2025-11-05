@@ -26,6 +26,11 @@ from hidet.utils import prod, same_list
 
 from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.instructions.annotation import AnnotateLayoutInst
+from tilus.ir.instructions.cuda.clc import (
+    ClusterLaunchControlGetFirstCtaInst,
+    ClusterLaunchControlIsCanceledInst,
+    ClusterLaunchControlTryCancelInst,
+)
 from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
 from tilus.ir.instructions.cuda.cp_async import (
     CopyAsyncCommitGroupInst,
@@ -1199,6 +1204,22 @@ class StmtBuilder(StmtBuilderCore):
     def fence_proxy_copy_async(self):
         inst = FenceProxyCopyAsync.create()
         self.append(inst)
+
+    def cluster_launch_control_try_cancel(self, dst: SharedTensor, mbarrier: Expr | RegisterTensor) -> None:
+        if isinstance(mbarrier, RegisterTensor):
+            mbarrier = self.tensor_item_value(mbarrier)
+        inst = ClusterLaunchControlTryCancelInst.create(dst=dst, mbarrier=mbarrier)
+        self.append(inst)
+
+    def cluster_launch_control_is_canceled(self, cancel_response: RegisterTensor) -> RegisterTensor:
+        inst = ClusterLaunchControlIsCanceledInst.create(cancel_response=cancel_response)
+        self.append(inst)
+        return inst.register_output
+
+    def cluster_launch_control_get_first_cta(self, cancel_response: RegisterTensor) -> RegisterTensor:
+        inst = ClusterLaunchControlGetFirstCtaInst.create(cancel_response=cancel_response)
+        self.append(inst)
+        return inst.register_output
 
     # tmem tensor (tcgen05)
     def tcgen05_alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int) -> TMemoryTensor:
