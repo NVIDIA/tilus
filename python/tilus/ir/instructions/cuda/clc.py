@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.dtypes import boolean, int32
+from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr
 
 from tilus.ir.inst import Instruction
@@ -26,23 +26,18 @@ from tilus.ir.tensor import RegisterTensor, SharedTensor
 @dataclass(frozen=True, eq=False)
 class ClusterLaunchControlTryCancelInst(Instruction):
     mbarrier: Expr
+    multicast: Expr
 
     @staticmethod
-    def create(response: SharedTensor, mbarrier: Expr) -> ClusterLaunchControlTryCancelInst:
-        return ClusterLaunchControlTryCancelInst(output=None, inputs=(response,), mbarrier=mbarrier)
+    def create(response: SharedTensor, mbarrier: Expr, multicast: Expr) -> ClusterLaunchControlTryCancelInst:
+        return ClusterLaunchControlTryCancelInst(
+            output=None, inputs=(response,), mbarrier=mbarrier, multicast=multicast
+        )
 
 
 @dataclass(frozen=True, eq=False)
-class ClusterLaunchControlIsCanceledInst(Instruction):
+class ClusterLaunchControlQueryResponseInst(Instruction):
     @staticmethod
-    def create(response: RegisterTensor) -> ClusterLaunchControlIsCanceledInst:
-        predicate = RegisterTensor(dtype=boolean, shape=())
-        return ClusterLaunchControlIsCanceledInst(output=predicate, inputs=(response,))
-
-
-@dataclass(frozen=True, eq=False)
-class ClusterLaunchControlGetFirstCtaInst(Instruction):
-    @staticmethod
-    def create(response: RegisterTensor) -> ClusterLaunchControlGetFirstCtaInst:
-        cta_id = RegisterTensor(dtype=int32, shape=(3,))
-        return ClusterLaunchControlGetFirstCtaInst(output=cta_id, inputs=(response,))
+    def create(response: SharedTensor) -> ClusterLaunchControlQueryResponseInst:
+        cta_pred = RegisterTensor(dtype=int32, shape=(4,))  # (is_valid, ctaid_x, ctaid_y, ctaid_z)
+        return ClusterLaunchControlQueryResponseInst(output=cta_pred, inputs=(response,))

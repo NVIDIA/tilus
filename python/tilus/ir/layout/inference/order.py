@@ -19,6 +19,7 @@ from tilus.utils import initialize
 
 from .inference_rules.allocate_shared import AllocateSharedRule
 from .inference_rules.assign import AssignRule
+from .inference_rules.clc import ClusterLaunchControlQueryResponseInstRule, ClusterLaunchControlTryCancelInstRule
 from .inference_rules.cp_async import CopyAsyncRule
 from .inference_rules.elementwise_binary import BinaryRule
 from .inference_rules.elementwise_unary import UnaryRule
@@ -55,6 +56,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [WhereRule],
     [AssignRule],
     [StoreGlobalRule],
+    [ClusterLaunchControlTryCancelInstRule, ClusterLaunchControlQueryResponseInstRule],
     [EmptyRule],
     # shared memory rules
     [LoadSharedInferSwizzledSharedRule, StoreSharedSwizzleRule],

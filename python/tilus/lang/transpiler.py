@@ -285,6 +285,9 @@ class Transpiler(PythonAstFunctor):
         #    3. attr.name = ...
         if isinstance(lhs, ast.Name):
             var_name: str = lhs.id
+            if var_name == "_":
+                # discard the assignment to '_' variable
+                return
             lookup_result = self.current_scope.lookup(var_name, search_parents=True)
             if lookup_result is None:
                 # bind a new name to the right side, the rhs could be

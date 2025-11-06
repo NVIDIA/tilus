@@ -72,7 +72,7 @@ def register_mbarrier_primitives():
     def cuda_mbarrier_expect_tx_cluster_shared(mbarrier_addr: u32, transaction_bytes: u32):
         attrs.func_kind = "cuda_internal"
         asm(
-            template="mbarrier.expect_tx.cluster.shared::cta.b64 [%0], %1;",
+            template="mbarrier.expect_tx.relaxed.cluster.shared::cta.b64 [%0], %1;",
             inputs=[mbarrier_addr, transaction_bytes],
             is_volatile=True,
         )

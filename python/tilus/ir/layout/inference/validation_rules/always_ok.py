@@ -35,6 +35,7 @@ from tilus.ir.instructions import (
     StoreSharedGenericInst,
     StoreSharedInst,
 )
+from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
 from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkGlobalToClusterSharedInst,
     CopyAsyncBulkGlobalToSharedInst,
@@ -68,6 +69,8 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(StoreGlobalGenericInst)  # todo: should have its own rule
 @register_rule(StoreSharedGenericInst)  # todo: should have its own rule
 @register_rule(AllocBarrierInst)  # todo: should have its own rule
+@register_rule(ClusterLaunchControlTryCancelInst)
+@register_rule(ClusterLaunchControlQueryResponseInst)
 @register_rule(StoreSharedInst)
 @register_rule(PrintTensorInst)
 @register_rule(FormatPrintInst)

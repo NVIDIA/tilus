@@ -464,18 +464,19 @@ class BarrierInstructionGroup(InstructionGroup):
 
 
 class ClusterLaunchControlInstructionGroup(InstructionGroup):
-    def try_cancel(self, response: SharedTensor, mbarrier: Expr | RegisterTensor) -> None:
-        self._builder.cluster_launch_control_try_cancel(response, mbarrier)
+    def try_cancel(self, response: SharedTensor, mbarrier: Expr | RegisterTensor, multicast: Expr | bool) -> None:
+        self._builder.cluster_launch_control_try_cancel(response, mbarrier, multicast)
 
-    def is_canceled(self, cancel_response: RegisterTensor) -> RegisterTensor:
-        return self._builder.cluster_launch_control_is_canceled(cancel_response)
-
-    def get_first_cta(self, cancel_response: RegisterTensor) -> tuple[Expr, Expr, Expr]:
-        regs_cta_id = self._builder.cluster_launch_control_get_first_cta(cancel_response)
-        cta_id = []
-        for i in range(3):
-            cta_id.append(self._builder.tensor_item_value(self._builder.slice_register(regs_cta_id, offsets=[i], slice_dims=[], slice_shape=[])))
-        return tuple(cta_id)
+    def query_response(self, response: SharedTensor) -> tuple[Var, Var, Var, Var]:
+        ret = self._builder.cluster_launch_control_query_response(response)
+        items = []
+        for i in range(4):  # (is_canceled, first_cta_x, first_cta_y, first_cta_z)
+            items.append(
+                self._builder.tensor_item_value(
+                    self._builder.slice_register(ret, offsets=[i], slice_dims=[], slice_shape=[])
+                )
+            )
+        return tuple(items)
 
 
 class Script:

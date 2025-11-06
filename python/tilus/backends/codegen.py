@@ -343,6 +343,9 @@ class FunctionCodegen(IRFunctor):
     def visit_ReturnStmt(self, stmt: ReturnStmt) -> None:
         self.builder.ret()
 
+    def visit_BreakStmt(self, stmt):
+        self.builder.brk()
+
     def visit_InstStmt(self, stmt: InstStmt) -> None:
         self.visit(stmt.inst)
 
