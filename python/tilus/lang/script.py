@@ -476,7 +476,7 @@ class ClusterLaunchControlInstructionGroup(InstructionGroup):
                     self._builder.slice_register(ret, offsets=[i], slice_dims=[], slice_shape=[])
                 )
             )
-        return tuple(items)
+        return items
 
 
 class Script:

@@ -58,7 +58,7 @@ def register_functions():
             "selp.s32 %3, 1, 0, p1; "
             "@p1 clusterlaunchcontrol.query_cancel.get_first_ctaid.v4.b32.b128 {%0, %1, %2, _}, clc_result; "
             "}",
-            outputs=[outputs[0], outputs[1], outputs[2], outputs[3]],
+            outputs=[outputs[1], outputs[2], outputs[3], outputs[0]],
             inputs=[response_smem_addr],
             is_volatile=True,
             memory_fence=True,
