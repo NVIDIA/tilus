@@ -306,6 +306,9 @@ class TmaInstructionGroup(InstructionGroup):
 
 
 class BarrierInstructionGroup(InstructionGroup):
+    producer_initial_phase = 1
+    consumer_initial_phase = 0
+
     @typing.overload
     def alloc(self, count: Optional[Expr | int] = None) -> Expr:
         """Allocate a barrier in shared memory and get its address in shared space.
@@ -461,14 +464,18 @@ class BarrierInstructionGroup(InstructionGroup):
 
 
 class ClusterLaunchControlInstructionGroup(InstructionGroup):
-    def try_cancel(self, dst: SharedTensor, mbarrier: Expr | RegisterTensor) -> None:
-        self._builder.cluster_launch_control_try_cancel(dst, mbarrier)
+    def try_cancel(self, response: SharedTensor, mbarrier: Expr | RegisterTensor) -> None:
+        self._builder.cluster_launch_control_try_cancel(response, mbarrier)
 
     def is_canceled(self, cancel_response: RegisterTensor) -> RegisterTensor:
         return self._builder.cluster_launch_control_is_canceled(cancel_response)
 
-    def get_first_cta(self, cancel_response: RegisterTensor) -> RegisterTensor:
-        return self._builder.cluster_launch_control_get_first_cta(cancel_response)
+    def get_first_cta(self, cancel_response: RegisterTensor) -> tuple[Expr, Expr, Expr]:
+        regs_cta_id = self._builder.cluster_launch_control_get_first_cta(cancel_response)
+        cta_id = []
+        for i in range(3):
+            cta_id.append(self._builder.tensor_item_value(self._builder.slice_register(regs_cta_id, offsets=[i], slice_dims=[], slice_shape=[])))
+        return tuple(cta_id)
 
 
 class Script:
@@ -513,9 +520,9 @@ class Script:
 
     def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
         self._optional_builder = builder
-        self.tcgen05._set_builder(builder)
-        self.tma._set_builder(builder)
-        self.mbarrier._set_builder(builder)
+        for value in self.__dict__.values():
+            if isinstance(value, InstructionGroup):
+                value._set_builder(builder)
 
     @property
     def _builder(self) -> StmtBuilder:

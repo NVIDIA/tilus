@@ -28,21 +28,21 @@ class ClusterLaunchControlTryCancelInst(Instruction):
     mbarrier: Expr
 
     @staticmethod
-    def create(dst: SharedTensor, mbarrier: Expr) -> ClusterLaunchControlTryCancelInst:
-        return ClusterLaunchControlTryCancelInst(output=None, inputs=(dst,), mbarrier=mbarrier)
+    def create(response: SharedTensor, mbarrier: Expr) -> ClusterLaunchControlTryCancelInst:
+        return ClusterLaunchControlTryCancelInst(output=None, inputs=(response,), mbarrier=mbarrier)
 
 
 @dataclass(frozen=True, eq=False)
 class ClusterLaunchControlIsCanceledInst(Instruction):
     @staticmethod
-    def create(cancel_response: RegisterTensor) -> ClusterLaunchControlIsCanceledInst:
+    def create(response: RegisterTensor) -> ClusterLaunchControlIsCanceledInst:
         predicate = RegisterTensor(dtype=boolean, shape=())
-        return ClusterLaunchControlIsCanceledInst(output=predicate, inputs=(cancel_response,))
+        return ClusterLaunchControlIsCanceledInst(output=predicate, inputs=(response,))
 
 
 @dataclass(frozen=True, eq=False)
 class ClusterLaunchControlGetFirstCtaInst(Instruction):
     @staticmethod
-    def create(cancel_response: RegisterTensor) -> ClusterLaunchControlGetFirstCtaInst:
+    def create(response: RegisterTensor) -> ClusterLaunchControlGetFirstCtaInst:
         cta_id = RegisterTensor(dtype=int32, shape=(3,))
-        return ClusterLaunchControlGetFirstCtaInst(output=cta_id, inputs=(cancel_response,))
+        return ClusterLaunchControlGetFirstCtaInst(output=cta_id, inputs=(response,))

@@ -1287,6 +1287,12 @@ class Transpiler(PythonAstFunctor):
                 value = sb.neg(value)
                 self.current_scope.append(sb.flush_stmts())
                 return value
+            elif isinstance(expr.op, ast.Not):
+                # not v
+                sb = StmtBuilder()
+                value = sb.logical_not(value)
+                self.current_scope.append(sb.flush_stmts())
+                return value
             else:
                 raise HidetProgramError(self, expr, "Can not recognize unary operator for RegisterTensor.")
         elif isinstance(value, hidet_ir.Node):

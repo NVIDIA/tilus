@@ -18,7 +18,7 @@ from typing import Callable, List, Optional, Sequence, Type, Union
 
 from hidet.ir import primitives
 from hidet.ir.dtypes import boolean, int32, uint32
-from hidet.ir.expr import BitwiseXor, Equal, Expr, LessEqual, LessThan, NotEqual, Var, as_expr
+from hidet.ir.expr import BitwiseXor, Equal, Expr, LogicalNot, LessEqual, LessThan, NotEqual, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
 from hidet.ir.utils import broadcast_shapes, can_broadcast
@@ -929,6 +929,9 @@ class StmtBuilder(StmtBuilderCore):
     def log(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.log(arg), out=out)
 
+    def logical_not(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: LogicalNot(arg), out=out)
+
     def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None, cond: Expr = boolean.true) -> None:
         inst = PrintTensorInst.create(tensor, cond=cond, msg=msg, fmt=fmt)
         self.append(inst)
@@ -1205,19 +1208,19 @@ class StmtBuilder(StmtBuilderCore):
         inst = FenceProxyCopyAsync.create()
         self.append(inst)
 
-    def cluster_launch_control_try_cancel(self, dst: SharedTensor, mbarrier: Expr | RegisterTensor) -> None:
+    def cluster_launch_control_try_cancel(self, response: SharedTensor, mbarrier: Expr | RegisterTensor) -> None:
         if isinstance(mbarrier, RegisterTensor):
             mbarrier = self.tensor_item_value(mbarrier)
-        inst = ClusterLaunchControlTryCancelInst.create(dst=dst, mbarrier=mbarrier)
+        inst = ClusterLaunchControlTryCancelInst.create(response=response, mbarrier=mbarrier)
         self.append(inst)
 
-    def cluster_launch_control_is_canceled(self, cancel_response: RegisterTensor) -> RegisterTensor:
-        inst = ClusterLaunchControlIsCanceledInst.create(cancel_response=cancel_response)
+    def cluster_launch_control_is_canceled(self, response: RegisterTensor) -> RegisterTensor:
+        inst = ClusterLaunchControlIsCanceledInst.create(response=response)
         self.append(inst)
         return inst.register_output
 
-    def cluster_launch_control_get_first_cta(self, cancel_response: RegisterTensor) -> RegisterTensor:
-        inst = ClusterLaunchControlGetFirstCtaInst.create(cancel_response=cancel_response)
+    def cluster_launch_control_get_first_cta(self, response: RegisterTensor) -> RegisterTensor:
+        inst = ClusterLaunchControlGetFirstCtaInst.create(response=response)
         self.append(inst)
         return inst.register_output
 
