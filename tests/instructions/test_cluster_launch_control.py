@@ -1,8 +1,21 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import pytest
-import os
 import tilus
 import torch
-from tilus import int32, uint32, uint8, boolean
+from tilus import boolean, int32, uint8
 from tilus.utils import cdiv
 
 
@@ -29,9 +42,11 @@ class ClusterLaunchControlExample(tilus.Script):
 
         g_out = self.global_view(p_out, dtype=int32, shape=[n])
 
-        self.shared_tensor(dtype=uint8, shape=[156 * 1024]) # 156KB shared memory used to make each SM only have one block
+        self.shared_tensor(
+            dtype=uint8, shape=[156 * 1024]
+        )  # 156KB shared memory used to make each SM only have one block
 
-        is_first_block_in_cluster: boolean = (self.cluster.block_rank() == 0)
+        is_first_block_in_cluster: boolean = self.cluster.block_rank() == 0
 
         cancel_response = self.shared_tensor(dtype=int32, shape=[self.num_stages, 4])
         producer_mbarriers = self.mbarrier.alloc(count=[self.warps * 32 for _ in range(self.num_stages)])
@@ -43,7 +58,7 @@ class ClusterLaunchControlExample(tilus.Script):
 
         # wait all barriers are allocated and initialized in all blocks in the cluster
         # it's necessary. If not, some blocks may run and modify the barrier of other blocks before they are initialized.
-        self.cluster.sync()  
+        self.cluster.sync()
 
         offset_n: int32 = self.blockIdx.x * self.block_n
 
@@ -51,15 +66,19 @@ class ClusterLaunchControlExample(tilus.Script):
         while True:
             # tile scheduler, as producer of clc pipeline
             if is_first_block_in_cluster:
-                with self.thread_group(group_index=0, group_size=32):  
+                with self.thread_group(group_index=0, group_size=32):
                     self.mbarrier.wait(producer_mbarriers[producer_stage], phase=producer_phase)
-                    self.clc.try_cancel(cancel_response[producer_stage], mbarrier=consumer_mbarriers[producer_stage], multicast=True)
+                    self.clc.try_cancel(
+                        cancel_response[producer_stage], mbarrier=consumer_mbarriers[producer_stage], multicast=True
+                    )
                     producer_stage = (1 + producer_stage) % self.num_stages
                     producer_phase = producer_phase ^ (producer_stage == 0)
-        
+
             # store the result
-            self.store_global(dst=g_out, src=self.register_tensor(dtype=int32, shape=[self.block_n], init=1), offsets=[offset_n])
-        
+            self.store_global(
+                dst=g_out, src=self.register_tensor(dtype=int32, shape=[self.block_n], init=1), offsets=[offset_n]
+            )
+
             # consumer of clc pipeline
             self.mbarrier.wait(consumer_mbarriers[consumer_stage], phase=consumer_phase)
             is_valid, blockIdx = self.clc.query_response(cancel_response[consumer_stage])
@@ -70,7 +89,6 @@ class ClusterLaunchControlExample(tilus.Script):
                 offset_n = (blockIdx.x + self.cluster.block_id().x) * self.block_n
             else:
                 break
-
 
 
 @tilus.testing.requires.nvgpu_sm100
@@ -87,7 +105,7 @@ def test_cluster_launch_control(cluster_blocks, num_stages, warps):
         num_stages=num_stages,
     )
 
-    out = torch.zeros(n, dtype=torch.int32, device='cuda')
+    out = torch.zeros(n, dtype=torch.int32, device="cuda")
     kernel(n, out)
     torch.cuda.synchronize()
     torch.testing.assert_close(out, torch.ones_like(out))
@@ -95,4 +113,3 @@ def test_cluster_launch_control(cluster_blocks, num_stages, warps):
 
 if __name__ == "__main__":
     pytest.main([__file__])
-

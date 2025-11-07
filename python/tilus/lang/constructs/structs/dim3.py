@@ -26,5 +26,8 @@ class Dim3:
         yield self.y
         yield self.z
 
+    def __len__(self):
+        return 3
+
     def to_tuple(self):
         return (self.x, self.y, self.z)

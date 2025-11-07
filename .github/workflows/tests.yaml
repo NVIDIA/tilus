@@ -131,7 +131,7 @@ jobs:
 
       - name: Run examples
         run: |
-          bash .github/workflows/scripts/run-examples.sh
+          bash ./scripts/run-examples.sh
 
   all-functional-tests:
     name: All Functional Tests
