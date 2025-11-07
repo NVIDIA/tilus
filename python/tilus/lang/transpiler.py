@@ -264,20 +264,20 @@ class Transpiler(PythonAstFunctor):
     ) -> None:
         # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         # check the rhs value, must be an instance of rhs_allowed_types or a list of these kinds of elements.
-        supported_rhs_types = (
-            RegisterLayout,
-            str,
-            list,
-            tuple,
-            dict,
-            hidet_ir.Expr,
-            tilus_ir.Tensor,
-            float,
-            int,
-            str,
-            type(None),
-        )
-        assert isinstance(rhs, supported_rhs_types), 'unexpected value "{}" with type {}'.format(rhs, type(rhs))
+        # supported_rhs_types = (
+        #     RegisterLayout,
+        #     str,
+        #     list,
+        #     tuple,
+        #     dict,
+        #     hidet_ir.Expr,
+        #     tilus_ir.Tensor,
+        #     float,
+        #     int,
+        #     str,
+        #     type(None),
+        # )
+        # assert isinstance(rhs, supported_rhs_types), 'unexpected value "{}" with type {}'.format(rhs, type(rhs))
 
         # three cases of assignment:
         #    1. v = ...

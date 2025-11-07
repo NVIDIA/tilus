@@ -26,6 +26,7 @@ from tilus.ir.stmt import (
     AssignStmt,
     BreakStmt,
     DeclareStmt,
+    EvaluateStmt,
     ForStmt,
     IfStmt,
     InstStmt,
@@ -106,6 +107,8 @@ class IRFunctor:
             ret = self.visit_LetStmt(node)
         elif isinstance(node, AssignStmt):
             ret = self.visit_AssignStmt(node)
+        elif isinstance(node, EvaluateStmt):
+            ret = self.visit_EvaluateStmt(node)
         elif isinstance(node, TensorItemPtrStmt):
             ret = self.visit_TensorItemPtrStmt(node)
         elif isinstance(node, TensorItemValueStmt):
@@ -208,6 +211,9 @@ class IRFunctor:
         raise NotImplementedError()
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> Any:
+        raise NotImplementedError()
+
+    def visit_EvaluateStmt(self, stmt: EvaluateStmt) -> Any:
         raise NotImplementedError()
 
     def visit_TensorItemPtrStmt(self, stmt: TensorItemPtrStmt) -> Any:
@@ -359,6 +365,14 @@ class IRRewriter(IRFunctor):
             return stmt
         else:
             return AssignStmt(stmt.var, value)
+    
+    def visit_EvaluateStmt(self, stmt):
+        expr = self.visit(stmt.expr)
+        pred = self.visit(stmt.pred)
+        if expr is stmt.expr and pred is stmt.pred:
+            return stmt
+        else:
+            return EvaluateStmt(expr=expr, pred=pred)
 
     def visit_TensorItemPtrStmt(self, stmt: TensorItemPtrStmt) -> Stmt:
         tensor = self.visit(stmt.tensor)
@@ -514,6 +528,10 @@ class IRVisitor(IRFunctor):
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:
         self.visit(stmt.var)
         self.visit(stmt.value)
+
+    def visit_EvaluateStmt(self, stmt: EvaluateStmt) -> None:
+        self.visit(stmt.expr)
+        self.visit(stmt.pred)
 
     def visit_TensorItemPtrStmt(self, stmt: TensorItemPtrStmt) -> None:
         self.visit(stmt.ptr_var)

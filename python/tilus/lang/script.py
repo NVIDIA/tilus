@@ -17,7 +17,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir.dtypes import boolean
+from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
 from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
@@ -36,6 +36,7 @@ from tilus.ir.layout import (
 from tilus.ir.prog import Program
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, TMemoryTensor
 from tilus.lang.constructs.contexts import ThreadGroupContext
+from tilus.lang.constructs.structs import Dim3
 from tilus.lang.modules.cuda import cuda
 from tilus.lang.modules.utils import utils
 from tilus.utils import is_power_of_two
@@ -406,37 +407,65 @@ class BarrierInstructionGroup(InstructionGroup):
         else:
             return self._builder.tensor_item_value(tensor)
 
-    def arrive(self, barrier: Expr | RegisterTensor) -> None:
+    def arrive(self, barrier: Expr | RegisterTensor, count: Expr | int, multicast=False) -> None:
         """Arrive at a barrier.
 
-        This instruction decreases the pending arrivals of given barrier by the number of threads in the thread group
-        that call the instruction.
+        This instruction decreases the pending arrivals of given barrier by the given `count`. When multicast is set to True,
+        the arrival is performed in multicast mode that will be performed for all thread blocks in the block cluster, by the
+        current thread group.
+        
+        Parameters
+        ----------
+        barrier: Expr | RegisterTensor
+            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
+            with single element representing the address of the barrier.
+        count: Expr | int
+            The number of threads arriving at the barrier. It must be evaluated to a positive int32.
+        multicast: bool, optional
+            Whether to perform the arrival in multicast mode for all thread blocks in the block cluster. Defaults to False.
+        """
+        self._builder.arrive_barrier(barrier, count, multicast=multicast)
+    
+    def expect_tx(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int, multicast: bool) -> None:
+        """Expect asynchronous memory transactions at a barrier.
+
+        This instruction increases the `tx-count` of the given barrier by the specified number of transaction bytes.
+        It is typically used before issuing asynchronous memory copy operations that are associated with the barrier.
 
         Parameters
         ----------
         barrier: Expr | RegisterTensor
             The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
             with single element representing the address of the barrier.
+        transaction_bytes: Expr | int
+            The number of bytes expected to be transferred asynchronously. It must be evaluated to a non-negative int32.
+        multicast: bool
+            Whether to perform the expectation in multicast mode for all thread blocks in the block cluster. Defaults to False.
         """
-        self._builder.arrive_barrier(barrier)
+        self._builder.expect_tx_barrier(barrier, transaction_bytes, multicast=multicast)
+    
+    def arrive_and_expect_tx(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int, multicast: bool) -> None:
+        """Arrive at a barrier and expect asynchronous memory transactions.
 
-    def arrive_remote(self, barrier: Expr, remote_block: Expr | int) -> None:
-        """Arrive at a remote barrier.
+        This instruction decreases the pending arrivals by one, and increases the `tx-count` by the specified number of transaction bytes. 
 
-        This instruction decreases the pending arrivals of the barrier in the remote block by the number of threads in
-        the thread group that call the instruction.
+        It's equivalent to
+        
+        .. code-block:: python
+            self.mbarrier.expect_tx(barrier, transaction_bytes, multicast)
+            self.mbarrier.arrive(barrier, 1, multicast)
 
         Parameters
         ----------
         barrier: Expr | RegisterTensor
-            The pointer to the barrier in shared memory in the current thread block. The offset of the barrier will be
-            used to locate the barrier in the remote block. It should be an uint32 expression, or a register tensor with
-            single element representing the address of the barrier.
-        remote_block: Expr | int
-            The thread block index of the remote thread block that the current block is signaling the arrival to. It
-            should be an expression that evaluates to a non-negative int32.
+            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
+            with single element representing the address of the barrier.
+        transaction_bytes: Expr | int
+            The number of bytes expected to be transferred asynchronously. It must be evaluated to a non-negative int32.
+        multicast: bool
+            Whether to perform the operation in multicast mode for all thread blocks in the block cluster. Defaults to False.
         """
-        self._builder.arrive_remote_barrier(barrier, remote_block)
+        self._builder.arrive_and_expect_tx_barrier(barrier, transaction_bytes, multicast=multicast)
 
     def wait(self, barrier: Expr | RegisterTensor, phase: Expr | RegisterTensor | int) -> None:
         """Wait at a barrier.
@@ -467,7 +496,7 @@ class ClusterLaunchControlInstructionGroup(InstructionGroup):
     def try_cancel(self, response: SharedTensor, mbarrier: Expr | RegisterTensor, multicast: Expr | bool) -> None:
         self._builder.cluster_launch_control_try_cancel(response, mbarrier, multicast)
 
-    def query_response(self, response: SharedTensor) -> tuple[Var, Var, Var, Var]:
+    def query_response(self, response: SharedTensor) -> tuple[Var, Dim3]:
         ret = self._builder.cluster_launch_control_query_response(response)
         items = []
         for i in range(4):  # (is_canceled, first_cta_x, first_cta_y, first_cta_z)
@@ -476,7 +505,41 @@ class ClusterLaunchControlInstructionGroup(InstructionGroup):
                     self._builder.slice_register(ret, offsets=[i], slice_dims=[], slice_shape=[])
                 )
             )
-        return items
+        return (items[0], Dim3(items[1], items[2], items[3]))
+
+class BlockClusterInstructionGroup(InstructionGroup):
+    def sync(self) -> None:
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import (
+            cluster_sync
+        )
+        self._builder.evaluate(pred=None, expr=cluster_sync())
+
+    def block_id(self) -> Dim3:
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import (
+            block_id_in_cluster
+        )
+        return Dim3(
+            self._builder.declare(type=int32, init=block_id_in_cluster('x'), hint='block_id_in_cluster_x'),
+            self._builder.declare(type=int32, init=block_id_in_cluster('y'), hint='block_id_in_cluster_y'),
+            self._builder.declare(type=int32, init=block_id_in_cluster('z'), hint='block_id_in_cluster_z'),
+        )
+
+    def shape(self) -> Dim3:
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import (
+            cluster_shape
+        )
+        return Dim3(
+            self._builder.declare(type=int32, init=cluster_shape('x'), hint='cluster_dim_x'),
+            self._builder.declare(type=int32, init=cluster_shape('y'), hint='cluster_dim_y'),
+            self._builder.declare(type=int32, init=cluster_shape('z'), hint='cluster_dim_z'),
+        )
+
+    def block_rank(self) -> Var:
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import (
+            block_rank_in_cluster
+        )
+        return self._builder.declare(type=int32, init=block_rank_in_cluster(), hint='block_rank_in_cluster')
+
 
 
 class Script:
@@ -489,13 +552,15 @@ class Script:
     debug_schedule: Optional[dict[str, Any]] = None
 
     def __new__(cls, *args, **kwargs):
-        from tilus.lang.instantiated_script import InstantiatedScriptCache
+        from tilus.lang.instantiated_script import InstantiatedScriptCache, InstantiatedScript
 
-        return InstantiatedScriptCache.get(
+        instantiated_script: InstantiatedScript = InstantiatedScriptCache.get(
             script_cls=cls,
             script_args=args,
             script_kwargs=kwargs,
         )
+
+        return instantiated_script
 
     def __init__(self) -> None:
         # builder used to append instructions
@@ -515,6 +580,7 @@ class Script:
         self.tma = TmaInstructionGroup()
         self.mbarrier = BarrierInstructionGroup()
         self.clc = ClusterLaunchControlInstructionGroup()
+        self.cluster = BlockClusterInstructionGroup()
 
     def __call__(self, *args, **kwargs):
         raise RuntimeError("This method should never be called.")
@@ -580,18 +646,14 @@ class Script:
         return self._attrs
 
     @property
-    def blockIdx(self) -> dim3:
+    def blockIdx(self) -> Dim3:
         """Get the block index of the current thread block."""
-        return blockIdx
+        return Dim3(blockIdx.x, blockIdx.y, blockIdx.z)
 
     @property
-    def gridDim(self) -> dim3:
+    def gridDim(self) -> Dim3:
         """Get the grid dimension of the kernel."""
-        return gridDim
-
-    @property
-    def block_rank_in_cluster(self) -> Expr:
-        return this_cluster.block_rank  # type: ignore[attr-defined]
+        return Dim3(gridDim.x, gridDim.y, gridDim.z)
 
     # the following functions should only be called in the __call__ function to construct the script program
 

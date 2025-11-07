@@ -25,7 +25,8 @@ from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
-    ArriveRemoteBarrierInst,
+    ExpectTxBarrierInst,
+    ArriveAndExpectTxBarrierInst,
     FenceProxyCopyAsync,
     WaitBarrierInst,
 )
@@ -50,14 +51,22 @@ class AllocBarrierInstEmitter(BaseInstEmitter):
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
 class ArriveBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveBarrierInst) -> None:
-        self.append(mbarrier_arrive_cta_shared(inst.barrier))
+        if not inst.multicast:
+            # perform on local cta
+            self.append(mbarrier_arrive_cta_shared(inst.barrier))
+        else:
+            # perform on all ctas in the cluster
+            pass
 
+@register_emitter(ExpectTxBarrierInst, target=nvgpu_sm90)
+class ExpectTxBarrierInstEmitter(BaseInstEmitter):
+    def emit(self, inst: ExpectTxBarrierInst) -> None:
+        pass
 
-@register_emitter(ArriveRemoteBarrierInst, target=nvgpu_sm80)
-class ArriveRemoteBarrierInstEmitter(BaseInstEmitter):
-    def emit(self, inst: ArriveRemoteBarrierInst) -> None:
-        self.append(mbarrier_arrive_cluster_shared(inst.barrier, inst.remote_block, pred=boolean.true))
-
+@register_emitter(ArriveAndExpectTxBarrierInst, target=nvgpu_sm90)
+class ArriveAndExpectTxBarrierInstEmitter(BaseInstEmitter):
+    def emit(self, inst: ArriveAndExpectTxBarrierInst) -> None:
+        pass
 
 @register_emitter(WaitBarrierInst, target=nvgpu_sm90)
 class WaitBarrierInstEmitter(BaseInstEmitter):

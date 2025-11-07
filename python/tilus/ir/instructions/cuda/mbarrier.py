@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Optional, Sequence
 
 from hidet import uint32
 from hidet.ir.expr import Expr
@@ -37,21 +37,35 @@ class AllocBarrierInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class ArriveBarrierInst(Instruction):
     barrier: Expr
+    count: Expr
+    multicast: bool
 
     @staticmethod
-    def create(barrier: Expr) -> ArriveBarrierInst:
-        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier)
+    def create(barrier: Expr, count: Expr, multicast: bool) -> ArriveBarrierInst:
+        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier, count=count, multicast=multicast)
 
 
 @dataclass(frozen=True, eq=False)
-class ArriveRemoteBarrierInst(Instruction):
+class ExpectTxBarrierInst(Instruction):
     barrier: Expr
-    remote_block: Expr
+    transaction_bytes: Expr
+    multicast: bool
 
     @staticmethod
-    def create(barrier: Expr, remote_block: Expr | int) -> ArriveRemoteBarrierInst:
-        remote_block = uint32(remote_block) if isinstance(remote_block, int) else remote_block
-        return ArriveRemoteBarrierInst(output=None, inputs=(), barrier=barrier, remote_block=remote_block)
+    def create(barrier: Expr, transaction_bytes: Expr, multicast: bool) -> ExpectTxBarrierInst:
+        return ExpectTxBarrierInst(output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, multicast=multicast)
+
+
+@dataclass(frozen=True, eq=False)
+class ArriveAndExpectTxBarrierInst(Instruction):
+    barrier: Expr
+    transaction_bytes: Expr
+    # assume arrive count is 1
+    multicast: bool
+
+    @staticmethod
+    def create(barrier: Expr, transaction_bytes: Expr, multicast: bool) -> ArriveAndExpectTxBarrierInst:
+        return ArriveAndExpectTxBarrierInst(output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, multicast=multicast)
 
 
 @dataclass(frozen=True, eq=False)
