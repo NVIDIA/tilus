@@ -105,7 +105,13 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def block_rank_in_cluster(self) -> Expr:
-        return this_cluster.block_rank
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster, cluster_blocks
+        return block_rank_in_cluster()
+    
+    @property
+    def blocks_per_cluster(self) -> Expr:
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster, cluster_blocks
+        return cluster_blocks()
 
     @property
     def blockIdx(self) -> dim3:

@@ -34,7 +34,7 @@ from tilus.extensions.hidet.ir.primitives.cuda.copy_async_bulk import (
 )
 from tilus.extensions.hidet.ir.primitives.cuda.mapa import mapa_shared
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
-    mbarrier_expect_tx_cta_shared,
+    mbarrier_expect_tx_shared,
 )
 from tilus.ir import GlobalTensor
 from tilus.ir.instructions import (
@@ -148,7 +148,7 @@ class BulkCopyAsyncGlobalToSharedInstEmitter(BulkCopyAsyncBetweenGlobalShared):
     def emit_cp_async(
         self, shared_address: Expr, global_address: Expr, size: int, inst: CopyAsyncBulkGlobalToSharedInst
     ) -> None:
-        self.append(mbarrier_expect_tx_cta_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=size))
+        self.append(mbarrier_expect_tx_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=size))
         self.append(
             cp_async_bulk_global_to_shared(
                 dst=shared_address,
@@ -211,7 +211,7 @@ class CopyAsyncBulkGlobalToClusterSharedEmitter(BulkCopyAsyncBetweenGlobalShared
         self, shared_address: Expr, global_address: Expr, size: int, inst: CopyAsyncBulkGlobalToClusterSharedInst
     ) -> None:
         with self.if_then((1 << self.block_rank_in_cluster) & inst.cta_mask):
-            self.append(mbarrier_expect_tx_cta_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=size))
+            self.append(mbarrier_expect_tx_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=size))
         with self.if_then(self.block_rank_in_cluster == uint32(self.get_smallest_block_rank(inst.cta_mask))):
             self.append(
                 cp_async_bulk_global_to_cluster_shared(
@@ -282,7 +282,7 @@ class CopyAsyncBulkSharedToClusterSharedEmitter(CopyAysncBaseEmitter):
                 "dst_addr", tp=uint32, init=remote_dst_base_addr + shared_dst.layout(*shared_indices) * dtype.nbytes
             )
             with self.if_then(self.block_rank_in_cluster == uint32(inst.remote_rank)):
-                self.append(mbarrier_expect_tx_cta_shared(barrier_addr, transaction_bytes=cp_size))
+                self.append(mbarrier_expect_tx_shared(barrier_addr, transaction_bytes=cp_size))
             self.append(
                 cp_async_bulk_shared_to_cluster_shared(
                     dst=dst_addr, src=src_addr, size=int32(cp_size), mbarrier=barrier_addr

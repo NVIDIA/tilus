@@ -37,35 +37,11 @@ class AllocBarrierInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class ArriveBarrierInst(Instruction):
     barrier: Expr
-    count: Expr
-    multicast: bool
+    per_thread_count: Expr
 
     @staticmethod
-    def create(barrier: Expr, count: Expr, multicast: bool) -> ArriveBarrierInst:
-        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier, count=count, multicast=multicast)
-
-
-@dataclass(frozen=True, eq=False)
-class ExpectTxBarrierInst(Instruction):
-    barrier: Expr
-    transaction_bytes: Expr
-    multicast: bool
-
-    @staticmethod
-    def create(barrier: Expr, transaction_bytes: Expr, multicast: bool) -> ExpectTxBarrierInst:
-        return ExpectTxBarrierInst(output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, multicast=multicast)
-
-
-@dataclass(frozen=True, eq=False)
-class ArriveAndExpectTxBarrierInst(Instruction):
-    barrier: Expr
-    transaction_bytes: Expr
-    # assume arrive count is 1
-    multicast: bool
-
-    @staticmethod
-    def create(barrier: Expr, transaction_bytes: Expr, multicast: bool) -> ArriveAndExpectTxBarrierInst:
-        return ArriveAndExpectTxBarrierInst(output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, multicast=multicast)
+    def create(barrier: Expr, per_thread_count: Expr) -> ArriveBarrierInst:
+        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier, per_thread_count=per_thread_count)
 
 
 @dataclass(frozen=True, eq=False)

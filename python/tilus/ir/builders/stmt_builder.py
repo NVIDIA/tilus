@@ -51,8 +51,6 @@ from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
-    ExpectTxBarrierInst,
-    ArriveAndExpectTxBarrierInst,
     FenceProxyCopyAsync,
     WaitBarrierInst,
 )
@@ -288,6 +286,9 @@ class StmtBuilderCore:
     def __init__(self) -> None:
         # context stack
         self._stack: List[List[Stmt]] = [[]]
+    
+    def is_empty(self):
+        return len(self._stack) == 1 and len(self._stack[0]) == 0
 
     def for_range(
         self, extent: Union[Expr, int], iter_name_hint: str = "i", unroll_factor: Optional[int] = None
@@ -1183,34 +1184,28 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
-    def arrive_barrier(self, barrier: Expr | RegisterTensor, count: Expr | int, multicast: bool) -> None:
+    def arrive_barrier(self, barrier: Expr | RegisterTensor, per_thread_count: Expr | int) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
-        if isinstance(count, int):
-            count = as_expr(count)
-        inst = ArriveBarrierInst.create(barrier=barrier, count=count, multicast=multicast)
+        if isinstance(per_thread_count, int):
+            per_thread_count = as_expr(per_thread_count)
+        inst = ArriveBarrierInst.create(barrier=barrier, per_thread_count=per_thread_count)
         self.append(inst)
     
-    def expect_tx_barrier(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int, multicast: bool) -> None:
-        if isinstance(barrier, RegisterTensor):
-            barrier = self.tensor_item_value(barrier)
-        if isinstance(transaction_bytes, int):
-            transaction_bytes = as_expr(transaction_bytes)
-        inst = ExpectTxBarrierInst.create(barrier=barrier, transaction_bytes=transaction_bytes, multicast=multicast)
-        self.append(inst)
-    
-    def arrive_and_expect_tx_barrier(
-        self,
-        barrier: Expr | RegisterTensor,
-        transaction_bytes: Expr | int,
-        multicast: bool,
+    def arrive_barrier_multicast(
+        self, barrier: Expr | RegisterTensor, per_thread_count: Expr | int, multicast: Expr | bool
     ) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
-        if isinstance(transaction_bytes, int):
-            transaction_bytes = as_expr(transaction_bytes)
-        inst = ArriveAndExpectTxBarrierInst.create(barrier=barrier, transaction_bytes=transaction_bytes, multicast=multicast)
+        if isinstance(per_thread_count, int):
+            per_thread_count = as_expr(per_thread_count)
+        if isinstance(multicast, bool):
+            multicast = boolean(multicast)
+        inst = ArriveBarrierMulticastInst.create(
+            barrier=barrier, per_thread_count=per_thread_count, multicast=multicast
+        )
         self.append(inst)
+    
 
     def wait_barrier(self, barrier: Expr | RegisterTensor, phase: Expr | int | RegisterTensor) -> None:
         if isinstance(barrier, RegisterTensor):

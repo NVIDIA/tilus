@@ -19,7 +19,7 @@ and cluster/block identification within a cluster programming model.
 """
 from typing import Literal, no_type_check
 
-from hidet.ir.dtypes import uint32
+from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr
 from hidet.ir.primitives.cuda.funcs import call_cuda
 from hidet.ir.primitives.func import register_primitive_function
@@ -68,138 +68,149 @@ def register_cluster_instructions():
 
     @no_type_check
     @script
-    def cuda_cluster_grid_dim_x() -> uint32:
+    def cuda_cluster_grid_dim_x() -> int32:
         """Get number of clusters in grid (x dimension)."""
         attrs.func_name = "cuda_cluster_grid_dim_x"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%nclusterid.x;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%nclusterid.x;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_cluster_grid_dim_y() -> uint32:
+    def cuda_cluster_grid_dim_y() -> int32:
         """Get number of clusters in grid (y dimension)."""
         attrs.func_name = "cuda_cluster_grid_dim_y"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%nclusterid.y;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%nclusterid.y;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_cluster_grid_dim_z() -> uint32:
+    def cuda_cluster_grid_dim_z() -> int32:
         """Get number of clusters in grid (z dimension)."""
         attrs.func_name = "cuda_cluster_grid_dim_z"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%nclusterid.z;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%nclusterid.z;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_cluster_id_in_grid_x() -> uint32:
+    def cuda_cluster_id_in_grid_x() -> int32:
         """Get cluster ID in grid (x dimension)."""
         attrs.func_name = "cuda_cluster_id_in_grid_x"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%clusterid.x;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%clusterid.x;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_cluster_id_in_grid_y() -> uint32:
+    def cuda_cluster_id_in_grid_y() -> int32:
         """Get cluster ID in grid (y dimension)."""
         attrs.func_name = "cuda_cluster_id_in_grid_y"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%clusterid.y;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%clusterid.y;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_cluster_id_in_grid_z() -> uint32:
+    def cuda_cluster_id_in_grid_z() -> int32:
         """Get cluster ID in grid (z dimension)."""
         attrs.func_name = "cuda_cluster_id_in_grid_z"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%clusterid.z;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%clusterid.z;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_block_id_in_cluster_x() -> uint32:
+    def cuda_block_id_in_cluster_x() -> int32:
         """Get block ID within cluster (x dimension)."""
         attrs.func_name = "cuda_block_id_in_cluster_x"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%cluster_ctaid.x;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%cluster_ctaid.x;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_block_id_in_cluster_y() -> uint32:
+    def cuda_block_id_in_cluster_y() -> int32:
         """Get block ID within cluster (y dimension)."""
         attrs.func_name = "cuda_block_id_in_cluster_y"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%cluster_ctaid.y;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%cluster_ctaid.y;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_block_id_in_cluster_z() -> uint32:
+    def cuda_block_id_in_cluster_z() -> int32:
         """Get block ID within cluster (z dimension)."""
         attrs.func_name = "cuda_block_id_in_cluster_z"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%cluster_ctaid.z;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%cluster_ctaid.z;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_cluster_shape_x() -> uint32:
+    def cuda_cluster_shape_x() -> int32:
         """Get cluster shape (x dimension)."""
         attrs.func_name = "cuda_cluster_shape_x"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%cluster_nctaid.x;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%cluster_nctaid.x;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_cluster_shape_y() -> uint32:
+    def cuda_cluster_blocks() -> int32:
+        """Get number of blocks in the cluster (1D)."""
+        attrs.func_name = "cuda_cluster_blocks"
+        attrs.func_kind = "cuda_internal"
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%cluster_nctarank;", outputs=[ret], inputs=[])
+        return ret
+
+    @no_type_check
+    @script
+    def cuda_cluster_shape_y() -> int32:
         """Get cluster shape (y dimension)."""
         attrs.func_name = "cuda_cluster_shape_y"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%cluster_nctaid.y;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%cluster_nctaid.y;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_cluster_shape_z() -> uint32:
+    def cuda_cluster_shape_z() -> int32:
         """Get cluster shape (z dimension)."""
         attrs.func_name = "cuda_cluster_shape_z"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%cluster_nctaid.z;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%cluster_nctaid.z;", outputs=[ret], inputs=[])
         return ret
 
     @no_type_check
     @script
-    def cuda_block_rank_in_cluster() -> uint32:
+    def cuda_block_rank_in_cluster() -> int32:
         """Get 1D block rank within cluster."""
         attrs.func_name = "cuda_block_rank_in_cluster"
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        asm(template="mov.u32 %0, %%cluster_ctarank;", outputs=[ret], inputs=[])
+        ret: int32 = 0
+        asm(template="mov.s32 %0, %%cluster_ctarank;", outputs=[ret], inputs=[])
         return ret
 
     # Register all functions
     for func in [
         cuda_cluster_arrive_relaxed,
         cuda_cluster_arrive,
+        cuda_cluster_blocks,
         cuda_cluster_wait,
         cuda_cluster_sync,
         cuda_cluster_grid_dim_x,
@@ -370,3 +381,17 @@ def block_rank_in_cluster() -> Expr:
         The 1D block rank within the cluster.
     """
     return call_cuda("block_rank_in_cluster", args=[])
+
+def cluster_blocks() -> Expr:
+    """
+    Get the number of blocks in the cluster (1D).
+
+    Returns the total number of blocks in the cluster as a single integer.
+    Equivalent to CuTe's cluster_blocks(). Requires SM90+ architecture.
+
+    Returns
+    -------
+    ret : Expr
+        The number of blocks in the cluster (1D).
+    """
+    return call_cuda("cluster_blocks", args=[])

@@ -407,65 +407,39 @@ class BarrierInstructionGroup(InstructionGroup):
         else:
             return self._builder.tensor_item_value(tensor)
 
-    def arrive(self, barrier: Expr | RegisterTensor, count: Expr | int, multicast=False) -> None:
+    def arrive(self, barrier: Expr | RegisterTensor, per_thread_count: Expr | int = 1) -> None:
         """Arrive at a barrier.
 
-        This instruction decreases the pending arrivals of given barrier by the given `count`. When multicast is set to True,
-        the arrival is performed in multicast mode that will be performed for all thread blocks in the block cluster, by the
-        current thread group.
-        
+        This instruction decreases the pending arrivals of given barrier by `per thread count` * `num threads in thread group`.
+        Each thread in the current thread group is assumed to arrive with `per thread count`.
+
         Parameters
         ----------
         barrier: Expr | RegisterTensor
             The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
             with single element representing the address of the barrier.
-        count: Expr | int
-            The number of threads arriving at the barrier. It must be evaluated to a positive int32.
-        multicast: bool, optional
-            Whether to perform the arrival in multicast mode for all thread blocks in the block cluster. Defaults to False.
+        per_thread_count: Expr | int
+            The number of arrivals contributed by each thread in the current thread group. It must be evaluated to a positive int32.
+            By default, it is 1.
         """
-        self._builder.arrive_barrier(barrier, count, multicast=multicast)
+        self._builder.arrive_barrier(barrier, per_thread_count=per_thread_count)
     
-    def expect_tx(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int, multicast: bool) -> None:
-        """Expect asynchronous memory transactions at a barrier.
+    def multicast_arrive(self, barrier: Expr | RegisterTensor, per_barrier_count: Expr | int = 1) -> None:
+        """ Arrive the barriers in all thread blocks in the cluster.
 
-        This instruction increases the `tx-count` of the given barrier by the specified number of transaction bytes.
-        It is typically used before issuing asynchronous memory copy operations that are associated with the barrier.
-
-        Parameters
-        ----------
-        barrier: Expr | RegisterTensor
-            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
-            with single element representing the address of the barrier.
-        transaction_bytes: Expr | int
-            The number of bytes expected to be transferred asynchronously. It must be evaluated to a non-negative int32.
-        multicast: bool
-            Whether to perform the expectation in multicast mode for all thread blocks in the block cluster. Defaults to False.
-        """
-        self._builder.expect_tx_barrier(barrier, transaction_bytes, multicast=multicast)
-    
-    def arrive_and_expect_tx(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int, multicast: bool) -> None:
-        """Arrive at a barrier and expect asynchronous memory transactions.
-
-        This instruction decreases the pending arrivals by one, and increases the `tx-count` by the specified number of transaction bytes. 
-
-        It's equivalent to
-        
-        .. code-block:: python
-            self.mbarrier.expect_tx(barrier, transaction_bytes, multicast)
-            self.mbarrier.arrive(barrier, 1, multicast)
+        This instruction decreases the pending arrivals of given barrier by `per barrier count`. It also decreases the mbarriers 
+        at other blocks in the cluster by `per barrier count`.
 
         Parameters
         ----------
         barrier: Expr | RegisterTensor
             The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
             with single element representing the address of the barrier.
-        transaction_bytes: Expr | int
-            The number of bytes expected to be transferred asynchronously. It must be evaluated to a non-negative int32.
-        multicast: bool
-            Whether to perform the operation in multicast mode for all thread blocks in the block cluster. Defaults to False.
+        per_barrier_count: Expr | int
+            The number of arrivals contributed by each barrier in the cluster. It must be evaluated to a positive int32.
+            By default, it is 1.
         """
-        self._builder.arrive_and_expect_tx_barrier(barrier, transaction_bytes, multicast=multicast)
+        pass
 
     def wait(self, barrier: Expr | RegisterTensor, phase: Expr | RegisterTensor | int) -> None:
         """Wait at a barrier.
