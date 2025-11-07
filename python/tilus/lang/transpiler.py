@@ -37,7 +37,6 @@ from tilus.ir.builders import IRBuilder, StmtBuilder
 from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions import AssignInst
-from tilus.ir.layout import RegisterLayout
 from tilus.ir.stmt import (
     AssignStmt,
     BreakStmt,
@@ -264,20 +263,20 @@ class Transpiler(PythonAstFunctor):
     ) -> None:
         # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         # check the rhs value, must be an instance of rhs_allowed_types or a list of these kinds of elements.
-        supported_rhs_types = (
-            RegisterLayout,
-            str,
-            list,
-            tuple,
-            dict,
-            hidet_ir.Expr,
-            tilus_ir.Tensor,
-            float,
-            int,
-            str,
-            type(None),
-        )
-        assert isinstance(rhs, supported_rhs_types), 'unexpected value "{}" with type {}'.format(rhs, type(rhs))
+        # supported_rhs_types = (
+        #     RegisterLayout,
+        #     str,
+        #     list,
+        #     tuple,
+        #     dict,
+        #     hidet_ir.Expr,
+        #     tilus_ir.Tensor,
+        #     float,
+        #     int,
+        #     str,
+        #     type(None),
+        # )
+        # assert isinstance(rhs, supported_rhs_types), 'unexpected value "{}" with type {}'.format(rhs, type(rhs))
 
         # three cases of assignment:
         #    1. v = ...
@@ -285,6 +284,9 @@ class Transpiler(PythonAstFunctor):
         #    3. attr.name = ...
         if isinstance(lhs, ast.Name):
             var_name: str = lhs.id
+            if var_name == "_":
+                # discard the assignment to '_' variable
+                return
             lookup_result = self.current_scope.lookup(var_name, search_parents=True)
             if lookup_result is None:
                 # bind a new name to the right side, the rhs could be
@@ -1285,6 +1287,12 @@ class Transpiler(PythonAstFunctor):
                 # -v
                 sb = StmtBuilder()
                 value = sb.neg(value)
+                self.current_scope.append(sb.flush_stmts())
+                return value
+            elif isinstance(expr.op, ast.Not):
+                # not v
+                sb = StmtBuilder()
+                value = sb.logical_not(value)
                 self.current_scope.append(sb.flush_stmts())
                 return value
             else:

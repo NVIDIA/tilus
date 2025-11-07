@@ -29,6 +29,7 @@ from tilus.ir.stmt import (
     AssignStmt,
     BreakStmt,
     DeclareStmt,
+    EvaluateStmt,
     ForStmt,
     IfStmt,
     InstStmt,
@@ -292,6 +293,11 @@ class IRPrinter(IRFunctor):
         if stmt.init is not None:
             ret += " = " + self.visit(stmt.init)
         return ret
+
+    def visit_EvaluateStmt(self, stmt: EvaluateStmt) -> Doc:
+        doc = Doc()
+        doc += NewLine() + self.visit(stmt.expr)
+        return doc
 
     def visit_LetStmt(self, stmt: LetStmt) -> Doc:
         doc = Doc()

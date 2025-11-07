@@ -227,6 +227,23 @@ class NVCC(SourceCompiler):
 
         self.run_compile_command(" ".join(command), src_path, out_lib_path, keep_files)
 
+        if tilus.option.get_option("debug.dump_ir"):
+            # dump the the SASS code from the lib
+            target_sass_path = src_path.removesuffix(".cu") + ".sass"
+            with open(target_sass_path, "w", encoding="utf-8") as f:
+                try:
+                    subprocess.run(
+                        [
+                            "cuobjdump",
+                            "-sass",
+                            out_lib_path,
+                        ],
+                        stdout=f,
+                        check=True,
+                    )
+                except subprocess.CalledProcessError as e:
+                    f.write("Failed to dump SASS code from {}: {}\n".format(out_lib_path, str(e)))
+
 
 def compile_source(
     source_file: str,

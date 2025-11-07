@@ -13,7 +13,6 @@ if not tilus.target.get_current_target().supports(tilus.target.nvgpu_sm100a):
     exit(0)
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
-tilus.option.debug.dump_ir()
 
 
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])

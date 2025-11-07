@@ -12,16 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import (
-    blackwell,
-    cluster_sync,
-    cp_async,
-    cp_async_bulk,
-    cp_async_tensor,
-    ldmatrix,
-    mbarrier,
-    mma_dot,
-    semaphore,
-    simt_dot,
-    tcgen05,
-)
+from hidet.ir.expr import Var
+
+
+class Dim3:
+    def __init__(self, x: Var, y: Var, z: Var):
+        self.x: Var = x
+        self.y: Var = y
+        self.z: Var = z
+
+    def __iter__(self):
+        yield self.x
+        yield self.y
+        yield self.z
+
+    def __len__(self):
+        return 3
+
+    def to_tuple(self):
+        return (self.x, self.y, self.z)

@@ -18,7 +18,7 @@ from typing import Callable, List, Optional, Sequence, Type, Union
 
 from hidet.ir import primitives
 from hidet.ir.dtypes import boolean, int32, uint32
-from hidet.ir.expr import BitwiseXor, Equal, Expr, LessEqual, LessThan, NotEqual, Var, as_expr
+from hidet.ir.expr import BitwiseXor, Equal, Expr, LessEqual, LessThan, LogicalNot, NotEqual, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
 from hidet.ir.utils import broadcast_shapes, can_broadcast
@@ -26,6 +26,7 @@ from hidet.utils import prod, same_list
 
 from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.instructions.annotation import AnnotateLayoutInst
+from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
 from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
 from tilus.ir.instructions.cuda.cp_async import (
     CopyAsyncCommitGroupInst,
@@ -50,7 +51,6 @@ from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
-    ArriveRemoteBarrierInst,
     FenceProxyCopyAsync,
     WaitBarrierInst,
 )
@@ -117,6 +117,7 @@ from tilus.ir.stmt import (
     AssignStmt,
     BreakStmt,
     DeclareStmt,
+    EvaluateStmt,
     ForStmt,
     IfStmt,
     InstStmt,
@@ -286,6 +287,9 @@ class StmtBuilderCore:
         # context stack
         self._stack: List[List[Stmt]] = [[]]
 
+    def is_empty(self):
+        return len(self._stack) == 1 and len(self._stack[0]) == 0
+
     def for_range(
         self, extent: Union[Expr, int], iter_name_hint: str = "i", unroll_factor: Optional[int] = None
     ) -> ForContext:
@@ -329,6 +333,9 @@ class StmtBuilderCore:
 
     def assign(self, var: Var, value: Expr) -> None:
         self.append(AssignStmt(var, value))
+
+    def evaluate(self, pred: Optional[Expr], expr: Expr) -> None:
+        self.append(EvaluateStmt(expr=expr, pred=pred))
 
     def tensor_item_ptr(self, tensor: Tensor, space: str = "generic") -> Var:
         if space in ["generic", "global"]:
@@ -924,6 +931,9 @@ class StmtBuilder(StmtBuilderCore):
     def log(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.log(arg), out=out)
 
+    def logical_not(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: LogicalNot(arg), out=out)
+
     def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None, cond: Expr = boolean.true) -> None:
         inst = PrintTensorInst.create(tensor, cond=cond, msg=msg, fmt=fmt)
         self.append(inst)
@@ -1174,16 +1184,12 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
-    def arrive_barrier(self, barrier: Expr | RegisterTensor) -> None:
+    def arrive_barrier(self, barrier: Expr | RegisterTensor, per_thread_count: Expr | int) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
-        inst = ArriveBarrierInst.create(barrier=barrier)
-        self.append(inst)
-
-    def arrive_remote_barrier(self, barrier: Expr | RegisterTensor, remote_block: Expr | int) -> None:
-        if isinstance(barrier, RegisterTensor):
-            barrier = self.tensor_item_value(barrier)
-        inst = ArriveRemoteBarrierInst.create(barrier=barrier, remote_block=remote_block)
+        if isinstance(per_thread_count, int):
+            per_thread_count = as_expr(per_thread_count)
+        inst = ArriveBarrierInst.create(barrier=barrier, per_thread_count=per_thread_count)
         self.append(inst)
 
     def wait_barrier(self, barrier: Expr | RegisterTensor, phase: Expr | int | RegisterTensor) -> None:
@@ -1199,6 +1205,21 @@ class StmtBuilder(StmtBuilderCore):
     def fence_proxy_copy_async(self):
         inst = FenceProxyCopyAsync.create()
         self.append(inst)
+
+    def cluster_launch_control_try_cancel(
+        self, response: SharedTensor, mbarrier: Expr | RegisterTensor, multicast: Expr | bool
+    ) -> None:
+        if isinstance(mbarrier, RegisterTensor):
+            mbarrier = self.tensor_item_value(mbarrier)
+        if isinstance(multicast, bool):
+            multicast = boolean(multicast)
+        inst = ClusterLaunchControlTryCancelInst.create(response=response, mbarrier=mbarrier, multicast=multicast)
+        self.append(inst)
+
+    def cluster_launch_control_query_response(self, response: SharedTensor) -> RegisterTensor:
+        inst = ClusterLaunchControlQueryResponseInst.create(response=response)
+        self.append(inst)
+        return inst.register_output
 
     # tmem tensor (tcgen05)
     def tcgen05_alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int) -> TMemoryTensor:

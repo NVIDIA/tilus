@@ -13,19 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from hidet.ir.dtypes import boolean
 from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
-    mbarrier_arrive_cluster_shared,
-    mbarrier_arrive_cta_shared,
+    mbarrier_arrive_shared,
     mbarrier_wait_shared,
 )
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
-    ArriveRemoteBarrierInst,
     FenceProxyCopyAsync,
     WaitBarrierInst,
 )
@@ -50,13 +47,7 @@ class AllocBarrierInstEmitter(BaseInstEmitter):
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
 class ArriveBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveBarrierInst) -> None:
-        self.append(mbarrier_arrive_cta_shared(inst.barrier))
-
-
-@register_emitter(ArriveRemoteBarrierInst, target=nvgpu_sm80)
-class ArriveRemoteBarrierInstEmitter(BaseInstEmitter):
-    def emit(self, inst: ArriveRemoteBarrierInst) -> None:
-        self.append(mbarrier_arrive_cluster_shared(inst.barrier, inst.remote_block, pred=boolean.true))
+        self.append(mbarrier_arrive_shared(inst.barrier, count=inst.per_thread_count))
 
 
 @register_emitter(WaitBarrierInst, target=nvgpu_sm90)

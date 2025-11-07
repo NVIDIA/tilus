@@ -9,7 +9,6 @@ from tilus import boolean, f32, int32, void_p
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
-tilus.option.debug.dump_ir()
 pd.options.display.max_columns = None
 pd.options.display.width = 1000
 

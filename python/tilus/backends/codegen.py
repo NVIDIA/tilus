@@ -39,6 +39,7 @@ from tilus.ir.prog import Program
 from tilus.ir.stmt import (
     AssignStmt,
     DeclareStmt,
+    EvaluateStmt,
     ForStmt,
     IfStmt,
     InstStmt,
@@ -299,6 +300,13 @@ class FunctionCodegen(IRFunctor):
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:
         self.builder.assign(stmt.var, value=stmt.value)
 
+    def visit_EvaluateStmt(self, stmt: EvaluateStmt) -> None:
+        if stmt.pred is not None:
+            with self.builder.if_then(stmt.pred):
+                self.builder.append(stmt.expr)
+        else:
+            self.builder.append(stmt.expr)
+
     def visit_TensorItemPtrStmt(self, stmt: TensorItemPtrStmt) -> None:
         if stmt.space in ["generic", "global"]:
             if stmt.space == "generic":
@@ -342,6 +350,9 @@ class FunctionCodegen(IRFunctor):
 
     def visit_ReturnStmt(self, stmt: ReturnStmt) -> None:
         self.builder.ret()
+
+    def visit_BreakStmt(self, stmt):
+        self.builder.brk()
 
     def visit_InstStmt(self, stmt: InstStmt) -> None:
         self.visit(stmt.inst)

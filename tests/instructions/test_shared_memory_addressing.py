@@ -44,7 +44,7 @@ class SharedMemoryAddressingExample(tilus.Script):
             self.blockIdx.x,
             self.blockIdx.y,
             self.blockIdx.z,
-            self.block_rank_in_cluster,
+            self.cluster.block_rank(),
             a_ptr,
         )
         self.printf(
@@ -52,7 +52,7 @@ class SharedMemoryAddressingExample(tilus.Script):
             self.blockIdx.x,
             self.blockIdx.y,
             self.blockIdx.z,
-            self.block_rank_in_cluster,
+            self.cluster.block_rank(),
             a_addr_cta,
         )
         self.printf(
@@ -60,7 +60,7 @@ class SharedMemoryAddressingExample(tilus.Script):
             self.blockIdx.x,
             self.blockIdx.y,
             self.blockIdx.z,
-            self.block_rank_in_cluster,
+            self.cluster.block_rank(),
             a_addr_cluster,
         )
         self.printf(
@@ -68,7 +68,7 @@ class SharedMemoryAddressingExample(tilus.Script):
             self.blockIdx.x,
             self.blockIdx.y,
             self.blockIdx.z,
-            self.block_rank_in_cluster,
+            self.cluster.block_rank(),
             a_addr_cluster_mapa_0,
         )
         self.printf(
@@ -76,7 +76,7 @@ class SharedMemoryAddressingExample(tilus.Script):
             self.blockIdx.x,
             self.blockIdx.y,
             self.blockIdx.z,
-            self.block_rank_in_cluster,
+            self.cluster.block_rank(),
             a_addr_cluster_mapa_1,
         )
         self.printf(
@@ -84,7 +84,7 @@ class SharedMemoryAddressingExample(tilus.Script):
             self.blockIdx.x,
             self.blockIdx.y,
             self.blockIdx.z,
-            self.block_rank_in_cluster,
+            self.cluster.block_rank(),
             a_addr_generic_from_cta,
         )
         self.printf(
@@ -92,7 +92,7 @@ class SharedMemoryAddressingExample(tilus.Script):
             self.blockIdx.x,
             self.blockIdx.y,
             self.blockIdx.z,
-            self.block_rank_in_cluster,
+            self.cluster.block_rank(),
             a_addr_generic_from_cluster,
         )
 
