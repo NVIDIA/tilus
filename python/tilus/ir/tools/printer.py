@@ -293,7 +293,7 @@ class IRPrinter(IRFunctor):
         if stmt.init is not None:
             ret += " = " + self.visit(stmt.init)
         return ret
-    
+
     def visit_EvaluateStmt(self, stmt: EvaluateStmt) -> Doc:
         doc = Doc()
         doc += NewLine() + self.visit(stmt.expr)

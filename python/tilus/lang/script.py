@@ -19,8 +19,7 @@ from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, U
 
 from hidet.ir.dtypes import boolean, int32
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
-from hidet.ir.primitives.cuda.cluster import this_cluster
-from hidet.ir.primitives.cuda.vars import blockIdx, dim3, gridDim
+from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
 from hidet.ir.tools import infer_type
 from hidet.ir.type import DataType
 
@@ -423,11 +422,11 @@ class BarrierInstructionGroup(InstructionGroup):
             By default, it is 1.
         """
         self._builder.arrive_barrier(barrier, per_thread_count=per_thread_count)
-    
-    def multicast_arrive(self, barrier: Expr | RegisterTensor, per_barrier_count: Expr | int = 1) -> None:
-        """ Arrive the barriers in all thread blocks in the cluster.
 
-        This instruction decreases the pending arrivals of given barrier by `per barrier count`. It also decreases the mbarriers 
+    def multicast_arrive(self, barrier: Expr | RegisterTensor, per_barrier_count: Expr | int = 1) -> None:
+        """Arrive the barriers in all thread blocks in the cluster.
+
+        This instruction decreases the pending arrivals of given barrier by `per barrier count`. It also decreases the mbarriers
         at other blocks in the cluster by `per barrier count`.
 
         Parameters
@@ -481,39 +480,35 @@ class ClusterLaunchControlInstructionGroup(InstructionGroup):
             )
         return (items[0], Dim3(items[1], items[2], items[3]))
 
+
 class BlockClusterInstructionGroup(InstructionGroup):
     def sync(self) -> None:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import (
-            cluster_sync
-        )
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import cluster_sync
+
         self._builder.evaluate(pred=None, expr=cluster_sync())
 
     def block_id(self) -> Dim3:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import (
-            block_id_in_cluster
-        )
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_id_in_cluster
+
         return Dim3(
-            self._builder.declare(type=int32, init=block_id_in_cluster('x'), hint='block_id_in_cluster_x'),
-            self._builder.declare(type=int32, init=block_id_in_cluster('y'), hint='block_id_in_cluster_y'),
-            self._builder.declare(type=int32, init=block_id_in_cluster('z'), hint='block_id_in_cluster_z'),
+            self._builder.declare(type=int32, init=block_id_in_cluster("x"), hint="block_id_in_cluster_x"),
+            self._builder.declare(type=int32, init=block_id_in_cluster("y"), hint="block_id_in_cluster_y"),
+            self._builder.declare(type=int32, init=block_id_in_cluster("z"), hint="block_id_in_cluster_z"),
         )
 
     def shape(self) -> Dim3:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import (
-            cluster_shape
-        )
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import cluster_shape
+
         return Dim3(
-            self._builder.declare(type=int32, init=cluster_shape('x'), hint='cluster_dim_x'),
-            self._builder.declare(type=int32, init=cluster_shape('y'), hint='cluster_dim_y'),
-            self._builder.declare(type=int32, init=cluster_shape('z'), hint='cluster_dim_z'),
+            self._builder.declare(type=int32, init=cluster_shape("x"), hint="cluster_dim_x"),
+            self._builder.declare(type=int32, init=cluster_shape("y"), hint="cluster_dim_y"),
+            self._builder.declare(type=int32, init=cluster_shape("z"), hint="cluster_dim_z"),
         )
 
     def block_rank(self) -> Var:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import (
-            block_rank_in_cluster
-        )
-        return self._builder.declare(type=int32, init=block_rank_in_cluster(), hint='block_rank_in_cluster')
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster
 
+        return self._builder.declare(type=int32, init=block_rank_in_cluster(), hint="block_rank_in_cluster")
 
 
 class Script:
@@ -526,7 +521,7 @@ class Script:
     debug_schedule: Optional[dict[str, Any]] = None
 
     def __new__(cls, *args, **kwargs):
-        from tilus.lang.instantiated_script import InstantiatedScriptCache, InstantiatedScript
+        from tilus.lang.instantiated_script import InstantiatedScript, InstantiatedScriptCache
 
         instantiated_script: InstantiatedScript = InstantiatedScriptCache.get(
             script_cls=cls,

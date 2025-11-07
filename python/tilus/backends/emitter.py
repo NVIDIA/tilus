@@ -20,7 +20,6 @@ from hidet.ir.builders import FunctionBuilder
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var, tensor_pointer_var, tensor_var
 from hidet.ir.primitives.cuda import syncthreads
-from hidet.ir.primitives.cuda.cluster import this_cluster
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3
 from hidet.ir.stmt import DeclareScope
 from hidet.ir.stmt import Stmt as HidetStmt
@@ -105,12 +104,14 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def block_rank_in_cluster(self) -> Expr:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster, cluster_blocks
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster
+
         return block_rank_in_cluster()
-    
+
     @property
     def blocks_per_cluster(self) -> Expr:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster, cluster_blocks
+        from tilus.extensions.hidet.ir.primitives.cuda.cluster import cluster_blocks
+
         return cluster_blocks()
 
     @property

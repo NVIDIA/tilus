@@ -17,6 +17,7 @@
 This module provides low-level PTX primitives for cluster synchronization
 and cluster/block identification within a cluster programming model.
 """
+
 from typing import Literal, no_type_check
 
 from hidet.ir.dtypes import int32
@@ -291,7 +292,7 @@ def cluster_sync():
     return call_cuda("cluster_sync", args=[])
 
 
-def cluster_grid_dim(dim: Literal['x', 'y', 'z']) -> Expr:
+def cluster_grid_dim(dim: Literal["x", "y", "z"]) -> Expr:
     """
     Get the number of clusters in the grid along the specified dimension.
 
@@ -310,7 +311,7 @@ def cluster_grid_dim(dim: Literal['x', 'y', 'z']) -> Expr:
     return call_cuda(f"cluster_grid_dim_{dim}", args=[])
 
 
-def cluster_id_in_grid(dim: Literal['x', 'y', 'z']) -> Expr:
+def cluster_id_in_grid(dim: Literal["x", "y", "z"]) -> Expr:
     """
     Get the cluster ID in the grid along the specified dimension.
 
@@ -329,7 +330,7 @@ def cluster_id_in_grid(dim: Literal['x', 'y', 'z']) -> Expr:
     return call_cuda(f"cluster_id_in_grid_{dim}", args=[])
 
 
-def cluster_shape(dim: Literal['x', 'y', 'z']) -> Expr:
+def cluster_shape(dim: Literal["x", "y", "z"]) -> Expr:
     """
     Get the cluster shape along the specified dimension.
 
@@ -349,7 +350,7 @@ def cluster_shape(dim: Literal['x', 'y', 'z']) -> Expr:
     return call_cuda(f"cluster_shape_{dim}", args=[])
 
 
-def block_id_in_cluster(dim: Literal['x', 'y', 'z']) -> Expr:
+def block_id_in_cluster(dim: Literal["x", "y", "z"]) -> Expr:
     """
     Get the block ID within the cluster along the specified dimension.
 
@@ -381,6 +382,7 @@ def block_rank_in_cluster() -> Expr:
         The 1D block rank within the cluster.
     """
     return call_cuda("block_rank_in_cluster", args=[])
+
 
 def cluster_blocks() -> Expr:
     """

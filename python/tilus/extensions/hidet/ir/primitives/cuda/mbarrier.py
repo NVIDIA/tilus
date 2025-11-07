@@ -76,7 +76,7 @@ def register_mbarrier_primitives():
             inputs=[mbarrier_addr, transaction_bytes, cta_id, pred],
             is_volatile=True,
         )
-    
+
     @no_type_check
     @script
     def cuda_mbarrier_arrive_and_expect_tx_shared(mbarrier_addr: u32, transaction_bytes: u32):
@@ -84,17 +84,19 @@ def register_mbarrier_primitives():
         asm(
             template="mbarrier.arrive.expect_tx.release.cta.shared::cta.b64 _, [%0], %1;",
             inputs=[mbarrier_addr, transaction_bytes],
-            is_volatile=True
+            is_volatile=True,
         )
 
     @no_type_check
     @script
-    def cuda_mbarrier_arrive_and_expect_tx_remote_shared(mbarrier_addr: u32, transaction_bytes: u32, cta_id: u32, pred: u32):
+    def cuda_mbarrier_arrive_and_expect_tx_remote_shared(
+        mbarrier_addr: u32, transaction_bytes: u32, cta_id: u32, pred: u32
+    ):
         attrs.func_kind = "cuda_internal"
         asm(
             template="{ .reg.pred p; .reg.b32 remAddr32; setp.eq.u32 p, %3, 1; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.arrive.expect_tx.release.cluster.shared::cluster.b64 _, [remAddr32], %1; }",
             inputs=[mbarrier_addr, transaction_bytes, cta_id, pred],
-            is_volatile=True
+            is_volatile=True,
         )
 
     @no_type_check
@@ -210,7 +212,9 @@ def mbarrier_arrive_shared(mbarrier_addr: Expr, count: Expr | int) -> Expr:
     return call_primitive_func("cuda_mbarrier_arrive_shared", args=[mbarrier_addr, count])
 
 
-def mbarrier_arrive_remote_shared(mbarrier_addr: Expr, count: Expr | int, cta_id: Union[int, Expr], pred: Union[bool, Expr]) -> Expr:
+def mbarrier_arrive_remote_shared(
+    mbarrier_addr: Expr, count: Expr | int, cta_id: Union[int, Expr], pred: Union[bool, Expr]
+) -> Expr:
     """
     Perform an arrive operation on a remote mbarrier object in cluster shared memory.
 
@@ -238,7 +242,9 @@ def mbarrier_arrive_remote_shared(mbarrier_addr: Expr, count: Expr | int, cta_id
     --------
     mbarrier.arrive : PTX ISA documentation section 9.7.13.15.13
     """
-    return call_primitive_func("cuda_mbarrier_arrive_remote_shared", args=[mbarrier_addr, u32(count), u32(cta_id), boolean(pred)])
+    return call_primitive_func(
+        "cuda_mbarrier_arrive_remote_shared", args=[mbarrier_addr, u32(count), u32(cta_id), boolean(pred)]
+    )
 
 
 def mbarrier_sync_shared(mbarrier_addr: Expr) -> Expr:
@@ -294,7 +300,9 @@ def mbarrier_expect_tx_shared(mbarrier_addr: Expr, transaction_bytes: Union[int,
     return call_primitive_func("cuda_mbarrier_expect_tx_shared", args=[mbarrier_addr, u32(transaction_bytes)])
 
 
-def mbarrier_expect_tx_remote_shared(mbarrier_addr: Expr, transaction_bytes: Union[int, Expr], cta_id: Union[int, Expr], pred: Union[bool, Expr]) -> Expr:
+def mbarrier_expect_tx_remote_shared(
+    mbarrier_addr: Expr, transaction_bytes: Union[int, Expr], cta_id: Union[int, Expr], pred: Union[bool, Expr]
+) -> Expr:
     """
     Increase the transaction count of a remote mbarrier object in cluster shared memory.
 
@@ -322,7 +330,11 @@ def mbarrier_expect_tx_remote_shared(mbarrier_addr: Expr, transaction_bytes: Uni
     --------
     mbarrier.expect_tx : PTX ISA documentation section 9.7.13.15.11
     """
-    return call_primitive_func("cuda_mbarrier_expect_tx_remote_shared", args=[mbarrier_addr, u32(transaction_bytes), u32(cta_id), boolean(pred)])
+    return call_primitive_func(
+        "cuda_mbarrier_expect_tx_remote_shared",
+        args=[mbarrier_addr, u32(transaction_bytes), u32(cta_id), boolean(pred)],
+    )
+
 
 def mbarrier_arrive_and_expect_tx_shared(mbarrier_addr: Expr, transaction_bytes: Union[int, Expr]) -> Expr:
     """
@@ -348,9 +360,14 @@ def mbarrier_arrive_and_expect_tx_shared(mbarrier_addr: Expr, transaction_bytes:
     --------
     mbarrier.arrive.expect_tx : PTX ISA documentation section 9.7.13.15.13
     """
-    return call_primitive_func("cuda_mbarrier_arrive_and_expect_tx_shared", args=[mbarrier_addr, u32(transaction_bytes)])
+    return call_primitive_func(
+        "cuda_mbarrier_arrive_and_expect_tx_shared", args=[mbarrier_addr, u32(transaction_bytes)]
+    )
 
-def mbarrier_arrive_and_expect_tx_remote_shared(mbarrier_addr: Expr, transaction_bytes: Union[int, Expr], cta_id: Union[int, Expr], pred: Union[bool, Expr]) -> Expr:
+
+def mbarrier_arrive_and_expect_tx_remote_shared(
+    mbarrier_addr: Expr, transaction_bytes: Union[int, Expr], cta_id: Union[int, Expr], pred: Union[bool, Expr]
+) -> Expr:
     """
     Perform combined expect-tx and arrive operations on a remote mbarrier object.
 
@@ -378,4 +395,7 @@ def mbarrier_arrive_and_expect_tx_remote_shared(mbarrier_addr: Expr, transaction
     --------
     mbarrier.arrive.expect_tx : PTX ISA documentation section 9.7.13.15.13
     """
-    return call_primitive_func("cuda_mbarrier_arrive_and_expect_tx_remote_shared", args=[mbarrier_addr, u32(transaction_bytes), u32(cta_id), boolean(pred)])
+    return call_primitive_func(
+        "cuda_mbarrier_arrive_and_expect_tx_remote_shared",
+        args=[mbarrier_addr, u32(transaction_bytes), u32(cta_id), boolean(pred)],
+    )

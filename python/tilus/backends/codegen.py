@@ -299,7 +299,7 @@ class FunctionCodegen(IRFunctor):
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:
         self.builder.assign(stmt.var, value=stmt.value)
-    
+
     def visit_EvaluateStmt(self, stmt: EvaluateStmt) -> None:
         if stmt.pred is not None:
             with self.builder.if_then(stmt.pred):

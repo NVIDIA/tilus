@@ -365,7 +365,7 @@ class IRRewriter(IRFunctor):
             return stmt
         else:
             return AssignStmt(stmt.var, value)
-    
+
     def visit_EvaluateStmt(self, stmt):
         expr = self.visit(stmt.expr)
         pred = self.visit(stmt.pred)

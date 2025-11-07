@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from hidet.ir.dtypes import boolean, uint32
-from hidet.ir.expr import Constant
 from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter

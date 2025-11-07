@@ -286,7 +286,7 @@ class StmtBuilderCore:
     def __init__(self) -> None:
         # context stack
         self._stack: List[List[Stmt]] = [[]]
-    
+
     def is_empty(self):
         return len(self._stack) == 1 and len(self._stack[0]) == 0
 
@@ -333,7 +333,7 @@ class StmtBuilderCore:
 
     def assign(self, var: Var, value: Expr) -> None:
         self.append(AssignStmt(var, value))
-    
+
     def evaluate(self, pred: Optional[Expr], expr: Expr) -> None:
         self.append(EvaluateStmt(expr=expr, pred=pred))
 
@@ -1191,21 +1191,6 @@ class StmtBuilder(StmtBuilderCore):
             per_thread_count = as_expr(per_thread_count)
         inst = ArriveBarrierInst.create(barrier=barrier, per_thread_count=per_thread_count)
         self.append(inst)
-    
-    def arrive_barrier_multicast(
-        self, barrier: Expr | RegisterTensor, per_thread_count: Expr | int, multicast: Expr | bool
-    ) -> None:
-        if isinstance(barrier, RegisterTensor):
-            barrier = self.tensor_item_value(barrier)
-        if isinstance(per_thread_count, int):
-            per_thread_count = as_expr(per_thread_count)
-        if isinstance(multicast, bool):
-            multicast = boolean(multicast)
-        inst = ArriveBarrierMulticastInst.create(
-            barrier=barrier, per_thread_count=per_thread_count, multicast=multicast
-        )
-        self.append(inst)
-    
 
     def wait_barrier(self, barrier: Expr | RegisterTensor, phase: Expr | int | RegisterTensor) -> None:
         if isinstance(barrier, RegisterTensor):

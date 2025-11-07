@@ -13,15 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from hidet.ir.expr import logical_or
-from hidet.ir.dtypes import uint32
+
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.clc import (
     cluster_launch_control_query_response,
     cluster_launch_control_try_cancel,
 )
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
-    mbarrier_arrive_and_expect_tx_shared,
     mbarrier_arrive_and_expect_tx_remote_shared,
+    mbarrier_arrive_and_expect_tx_shared,
 )
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
 from tilus.ir.tensor import SharedTensor
@@ -43,10 +43,15 @@ class ClusterLaunchControlTryCancelEmitter(BaseInstEmitter):
                 )
         else:
             if self.current_num_threads < 32:
-                raise ValueError("Cluster launch control multicast arrive requires at least 32 threads in the current thread group.")
+                raise ValueError(
+                    "Cluster launch control multicast arrive requires at least 32 threads in the current thread group."
+                )
             self.append(
                 mbarrier_arrive_and_expect_tx_remote_shared(
-                    inst.mbarrier, transaction_bytes=16, cta_id=self.current_thread, pred=self.current_thread < self.blocks_per_cluster
+                    inst.mbarrier,
+                    transaction_bytes=16,
+                    cta_id=self.current_thread,
+                    pred=self.current_thread < self.blocks_per_cluster,
                 )
             )
             with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
