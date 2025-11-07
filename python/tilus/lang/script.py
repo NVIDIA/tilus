@@ -17,7 +17,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir.dtypes import boolean, int32
+from hidet.ir.dtypes import boolean
 from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
 from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
 from hidet.ir.tools import infer_type
@@ -33,12 +33,17 @@ from tilus.ir.layout import (
     global_strides,
 )
 from tilus.ir.prog import Program
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, TMemoryTensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.constructs.contexts import ThreadGroupContext
 from tilus.lang.constructs.structs import Dim3
-from tilus.lang.modules.cuda import cuda
-from tilus.lang.modules.utils import utils
-from tilus.utils import is_power_of_two
+from tilus.lang.instructions import (
+    BarrierInstructionGroup,
+    BlockClusterInstructionGroup,
+    ClusterLaunchControlInstructionGroup,
+    InstructionGroup,
+    Tcgen05InstructionGroup,
+    TmaInstructionGroup,
+)
 
 
 class Attributes:
@@ -96,421 +101,6 @@ class Attributes:
             self._warps = value
 
 
-class InstructionGroup:
-    def __init__(self):
-        self._optinal_builder: Optional[StmtBuilder] = None
-
-    def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
-        self._optional_builder = builder
-
-    @property
-    def _builder(self) -> StmtBuilder:
-        if self._optional_builder is None:
-            raise InstructionError("Did you forget to call `super().__init__()` for the Tilus Script?")
-
-        return self._optional_builder
-
-
-class Tcgen05InstructionGroup(InstructionGroup):
-    def alloc(
-        self, dtype: DataType, shape: Sequence[int], cta_group: int = 1, init: Optional[Expr | float | int] = None
-    ) -> TMemoryTensor:
-        if cta_group not in [1, 2]:
-            raise InstructionError("cta_group must be 1 or 2")
-        if len(shape) != 2:
-            raise InstructionError("shape must be a sequence of length 2, got {}".format(shape))
-        if shape[0] != 128:
-            raise InstructionError("shape[0] must be 128, got {}".format(shape[0]))
-        if dtype.nbits > 32 or 32 % dtype.nbits != 0:
-            raise InstructionError("dtype must be 8-bit, 16-bit, or 32-bit, got {}".format(dtype))
-        num_columns = shape[1] * dtype.nbits // 32
-        if not is_power_of_two(num_columns) or num_columns < 32 or num_columns > 512:
-            raise InstructionError(
-                "num_columns must be a power of two and in the range [32, 512], got {}".format(num_columns)
-            )
-        ret = self._builder.tcgen05_alloc(dtype, shape, cta_group)
-        if init is not None:
-            self._builder.tcgen05_store(
-                ret,
-                src=self._builder.allocate_register(dtype=dtype, shape=shape, f_init=lambda _: dtype(init)),
-                offsets=[0, 0],
-            )
-            self._builder.tcgen05_wait_store()
-        return ret
-
-    def dealloc(self, tensor: TMemoryTensor) -> None:
-        self._builder.tcgen05_dealloc(tensor)
-
-    def slice(self, tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> TMemoryTensor:
-        return self._builder.tcgen05_slice(tensor, offsets, shape)
-
-    def view(self, tensor: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> TMemoryTensor:
-        return self._builder.tcgen05_view(tensor, dtype, shape)
-
-    def relinquish_alloc_permit(self, cta_group: int) -> None:
-        self._builder.tcgen05_relinquish_alloc_permit(cta_group)
-
-    def load(self, tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
-        return self._builder.tcgen05_load(tensor, offsets, shape)
-
-    def store(self, tensor: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int] = (0, 0)) -> None:
-        return self._builder.tcgen05_store(tensor, src, offsets)
-
-    def wait_load(self) -> None:
-        self._builder.tcgen05_wait_load()
-
-    def wait_store(self) -> None:
-        self._builder.tcgen05_wait_store()
-
-    def copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
-        self._builder.tcgen05_copy(src, dst)
-
-    def commit(self, mbarrier: Expr | RegisterTensor, cta_mask: Optional[int] = None) -> None:
-        self._builder.tcgen05_commit(mbarrier, cta_mask)
-
-    def mma(self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor) -> None:
-        if isinstance(a, SharedTensor):
-            self._builder.tcgen05_mma_ss(a, b, d)
-        elif isinstance(a, TMemoryTensor):
-            self._builder.tcgen05_mma_ts(a, b, d)
-        else:
-            raise InstructionError(f"Invalid type of a: {type(a)}, expected SharedTensor or TMemoryTensor")
-
-
-class TmaInstructionGroup(InstructionGroup):
-    def global_to_shared(
-        self,
-        *,
-        src: GlobalTensor,
-        dst: SharedTensor,
-        offsets: Sequence[Expr | int],
-        dims: Optional[Sequence[int]] = None,
-        mbarrier: Expr | RegisterTensor,
-        cache_policy: Optional[Expr] = None,
-    ) -> None:
-        """
-        TMA async copy from global to shared tensor asynchronously.
-
-        This instruction issues a TMA tensor async copy from global to shared tensor.
-
-        The `src` parameter specifies the global tensor to copy from, while the `dst` parameter specifies the shared
-        tensor to copy to.
-
-        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
-        will be copied from. The length of this sequence must match the number of dimensions of the global tensor.
-
-        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
-        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
-
-        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
-        to the barrier in shared memory.
-
-        The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
-
-        Parameters
-        ----------
-        src: GlobalTensor
-            The global tensor to copy from.
-        dst: SharedTensor
-            The shared tensor to copy to.
-        offsets: Sequence[Expr | int]
-            The offsets for each dimension of the global tensor where the tile will be copied from. The
-            length of this sequence must match the number of dimensions of the global tensor.
-        dims: Sequence[int]
-            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
-            number of dimensions of the shared tensor being copied to.
-        mbarrier: Expr | RegisterTensor
-            The memory barrier to be used for synchronizing the copy operation. It should be an uint32 expression specifying the address
-            of the barrier in shared space. It can also be a register tensor with a single element of uint32 type containing the address of the barrier.
-        cache_policy: Optional[Expr]
-            The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
-        """
-        self._builder.copy_async_tensor_global_to_shared(
-            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, cache_policy=cache_policy
-        )
-
-    def shared_to_global(
-        self,
-        src: SharedTensor,
-        dst: GlobalTensor,
-        offsets: Sequence[Expr | int],
-        dims: Optional[Sequence[int]] = None,
-        cache_policy: Optional[Expr] = None,
-    ) -> None:
-        """
-        TMA async copy from shared to global tensor asynchronously.
-
-        This instruction issues a TMA tensor async copy from shared to global tensor.
-
-        The `src` parameter specifies the shared tensor to copy from, while the `dst` parameter specifies the global
-        tensor to copy to.
-
-        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
-        will be copied to. The length of this sequence must match the number of dimensions of the global tensor.
-
-        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
-        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
-
-        The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
-
-        Parameters
-        ----------
-        src: SharedTensor
-            The shared tensor to copy from.
-        dst: GlobalTensor
-            The global tensor to copy to.
-        offsets: Sequence[Expr | int]
-            The offsets for each dimension of the global tensor where the tile will be copied to. The
-            length of this sequence must match the number of dimensions of the global tensor.
-        dims: Sequence[int]
-            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
-            number of dimensions of the shared tensor being copied from.
-        cache_policy: Optional[Expr]
-            The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
-        """
-        self._builder.copy_async_tensor_shared_to_global(
-            src=src, dst=dst, offsets=offsets, dims=dims, cache_policy=cache_policy
-        )
-
-    def commit_group(self):
-        """
-        Commit the previously issued async tensor copy operations.
-
-        This instruction commits the previously issued async tensor copy operations.
-
-        """
-        self._builder.copy_async_tensor_commit_group()
-
-    def wait_group(self, n: int) -> None:
-        """
-        Wait for the previously issued async tensor copy operations to complete.
-
-        This instruction waits for the previously issued async tensor copy operations to complete.
-        The `n` parameter specifies the number of groups to allow to be on-the-fly.
-
-        Parameters
-        ----------
-        n: int
-            The number of groups to allow to be on-the-fly. It should be an integer larger or equal to 0.
-        """
-        self._builder.copy_async_tensor_wait_group(n)
-
-    def fence_proxy_copy_async(self):
-        """
-        Makes the modifications to shared tensors visible to TMA engine.
-
-        This instruction makes the modifications to shared tensors visible to TMA engine. It should be in the thread group
-        that has made modifications to shared tensors, and before copy the shared tensors to global memory with TMA-related instructions.
-        """
-        self._builder.fence_proxy_copy_async()
-
-
-class BarrierInstructionGroup(InstructionGroup):
-    producer_initial_phase = 1
-    consumer_initial_phase = 0
-
-    @typing.overload
-    def alloc(self, count: Optional[Expr | int] = None) -> Expr:
-        """Allocate a barrier in shared memory and get its address in shared space.
-
-         A barrier is an 64-bit data structure, encoded as uint64, in shared memory.
-         A barrier contains the following information in the 64 bits:
-
-         - The current phase of the barrier (i.e., phase): 0 or 1.
-         - The count of pending arrivals in the current phase: 1 to 2^20 - 1.
-         - The count of expected arrivals in the next phase: 0 to 2^20 - 1.
-         - The count of pending asynchronous memory transactions in the current phase (i.e., `tx-count`):
-           -(2^20 - 1) to 2^20 - 1.
-
-         This instruction allocates an uint64 in shared memory to be used as a mbarrier. The parameter `count` specifies the
-         expected arrivals for the barrier.  After initialization, the barrier will have the following initial state:
-
-         - phase = 0
-         - pending arrivals = counts[i]
-         - expected arrivals = counts[i]
-         - tx-count = 0
-
-         When `count` is not provided, it defaults to the number of threads in the current thread group.
-
-         Asynchronous memory copy instructions (e.g., `copy_async_tensor` instructions) that
-         take a barrier as an argument will:
-
-         - increase the `tx-count` by the number of bytes to be copied before the copy starts.
-         - decrease the `tx-count` by the number of bytes copied after the copy completes asynchronously.
-
-         The `mbarrier.arrive` instruction will decrease the pending arrivals by the number of threads in the thread
-         group that call the instruction.
-
-         The `mbarrier.wait` instruction will make the thread group wait until the given phase has finished.
-
-         Once the following conditions are met for the current phase:
-
-         - pending arrivals == 0
-         - tx-count == 0
-
-         The barrier will switch to the next phase, and the following will happen:
-
-         - phase = phase ^ 1
-         - pending arrivals = expected arrivals in the next phase
-         - expected arrivals does not change
-         - tx-count = 0
-
-         Parameters
-        ----------
-         count: Expr | int, optional
-             The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
-             to a positive int32. When not provided, it defaults to the number of threads in the current thread group.
-
-         Returns
-         -------
-         ret: Expr
-             The shared memory address in shared space that points to the allocated barrier. The shared memory address has
-             uint32 data type.
-        """
-        ...
-
-    @typing.overload
-    def alloc(self, count: Sequence[Expr | int]) -> RegisterTensor:
-        """
-        Allocate multiple barriers in shared memory and get their addresses.
-
-        This instruction allocates multiple barriers in shared memory, and returns a register tensor containing the
-        shared memory addresses of the allocated barriers. The register tensor has shape (len(count),) and dtype uint32.
-        Each barrier is initialized with the corresponding expected arrivals specified in the `count` sequence.
-
-        Parameters
-        ----------
-        count: Sequence[Expr | int]
-            A sequence specifying the number of threads that must arrive at each barrier before any of them can proceed.
-
-        Returns
-        -------
-        ret: RegisterTensor
-            A register tensor of shape (len(count),) and dtype uint32, containing the shared memory addresses of the allocated barriers.
-
-        See Alos
-        --------
-        See also the single barrier allocation method for more details on barrier behavior.
-        """
-        ...
-
-    def alloc(self, count: Sequence[Expr | int] | Optional[Expr | int] = None) -> RegisterTensor | Expr:
-        counts: list[Expr | None]
-        if isinstance(count, Sequence):
-            counts = [as_expr(c) if isinstance(c, (Expr, int)) else None for c in count]
-        else:
-            counts = [as_expr(count) if isinstance(count, (Expr, int)) else None]
-        tensor = self._builder.allocate_barrier(counts)
-        if isinstance(count, Sequence):
-            return tensor
-        else:
-            return self._builder.tensor_item_value(tensor)
-
-    def arrive(self, barrier: Expr | RegisterTensor, per_thread_count: Expr | int = 1) -> None:
-        """Arrive at a barrier.
-
-        This instruction decreases the pending arrivals of given barrier by `per thread count` * `num threads in thread group`.
-        Each thread in the current thread group is assumed to arrive with `per thread count`.
-
-        Parameters
-        ----------
-        barrier: Expr | RegisterTensor
-            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
-            with single element representing the address of the barrier.
-        per_thread_count: Expr | int
-            The number of arrivals contributed by each thread in the current thread group. It must be evaluated to a positive int32.
-            By default, it is 1.
-        """
-        self._builder.arrive_barrier(barrier, per_thread_count=per_thread_count)
-
-    def multicast_arrive(self, barrier: Expr | RegisterTensor, per_barrier_count: Expr | int = 1) -> None:
-        """Arrive the barriers in all thread blocks in the cluster.
-
-        This instruction decreases the pending arrivals of given barrier by `per barrier count`. It also decreases the mbarriers
-        at other blocks in the cluster by `per barrier count`.
-
-        Parameters
-        ----------
-        barrier: Expr | RegisterTensor
-            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
-            with single element representing the address of the barrier.
-        per_barrier_count: Expr | int
-            The number of arrivals contributed by each barrier in the cluster. It must be evaluated to a positive int32.
-            By default, it is 1.
-        """
-        pass
-
-    def wait(self, barrier: Expr | RegisterTensor, phase: Expr | RegisterTensor | int) -> None:
-        """Wait at a barrier.
-
-        This instruction makes the threads in the current thread group wait at the specified barrier until the pending
-        arrivals and tx-count of the given phase are both zero.
-
-        When the barrier's current phase is not equal to the specified `phase`, the threads will proceed without waiting
-        since the specified phase has already finished.
-
-        When the barrier's current phase is equal to the specified `phase`, the threads will wait until both the pending
-        arrivals and tx-count of the current phase are zero. Once these conditions are met, the barrier will switch to
-        the next phase, and the threads will proceed.
-
-        Parameters
-        ----------
-        barrier: Expr | RegisterTensor
-            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
-            with single element representing the address of the barrier.
-        phase: Expr | RegisterTensor | int
-            The phase value to wait for. It must be evaluated to either 0 or 1. It can also be a register tensor with single
-            element representing the phase value.
-        """
-        self._builder.wait_barrier(barrier, phase)
-
-
-class ClusterLaunchControlInstructionGroup(InstructionGroup):
-    def try_cancel(self, response: SharedTensor, mbarrier: Expr | RegisterTensor, multicast: Expr | bool) -> None:
-        self._builder.cluster_launch_control_try_cancel(response, mbarrier, multicast)
-
-    def query_response(self, response: SharedTensor) -> tuple[Var, Dim3]:
-        ret = self._builder.cluster_launch_control_query_response(response)
-        items = []
-        for i in range(4):  # (is_canceled, first_cta_x, first_cta_y, first_cta_z)
-            items.append(
-                self._builder.tensor_item_value(
-                    self._builder.slice_register(ret, offsets=[i], slice_dims=[], slice_shape=[])
-                )
-            )
-        return (items[0], Dim3(items[1], items[2], items[3]))
-
-
-class BlockClusterInstructionGroup(InstructionGroup):
-    def sync(self) -> None:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import cluster_sync
-
-        self._builder.evaluate(pred=None, expr=cluster_sync())
-
-    def block_id(self) -> Dim3:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_id_in_cluster
-
-        return Dim3(
-            self._builder.declare(type=int32, init=block_id_in_cluster("x"), hint="block_id_in_cluster_x"),
-            self._builder.declare(type=int32, init=block_id_in_cluster("y"), hint="block_id_in_cluster_y"),
-            self._builder.declare(type=int32, init=block_id_in_cluster("z"), hint="block_id_in_cluster_z"),
-        )
-
-    def shape(self) -> Dim3:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import cluster_shape
-
-        return Dim3(
-            self._builder.declare(type=int32, init=cluster_shape("x"), hint="cluster_dim_x"),
-            self._builder.declare(type=int32, init=cluster_shape("y"), hint="cluster_dim_y"),
-            self._builder.declare(type=int32, init=cluster_shape("z"), hint="cluster_dim_z"),
-        )
-
-    def block_rank(self) -> Var:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster
-
-        return self._builder.declare(type=int32, init=block_rank_in_cluster(), hint="block_rank_in_cluster")
-
-
 class Script:
     """A script is a user-defined kernel function that can be compiled and executed on the GPU."""
 
@@ -536,13 +126,8 @@ class Script:
         from tilus.lang.transpiler import Transpiler
 
         self._optional_builder: Optional[StmtBuilder] = None
-        self._optinal_transpiler: Optional[Transpiler] = None
-
+        self._optional_transpiler: Optional[Transpiler] = None
         self._attrs: Attributes = Attributes()
-
-        # the following primitives could be used in the __init__ function to prepare the layouts
-        self.cuda = cuda
-        self.utils = utils
 
         # instruction groups
         self.tcgen05 = Tcgen05InstructionGroup()
@@ -569,8 +154,8 @@ class Script:
 
     @property
     def _transpiler(self):
-        assert self._optinal_transpiler is not None
-        return self._optinal_transpiler
+        assert self._optional_transpiler is not None
+        return self._optional_transpiler
 
     def program(self) -> Program:
         """
@@ -751,7 +336,7 @@ class Script:
                     raise InstructionError(
                         "We only allow to specify the divisibility of kernel parameter, got {}".format(a.name)
                     )
-                self._optinal_transpiler.var2divisibility[a] = int(term.a.b.value)  # type: ignore[arg-type]
+                self._optional_transpiler.var2divisibility[a] = int(term.a.b.value)  # type: ignore[arg-type]
             else:
                 raise InstructionError("Can not recognize the condition in assume: {}".format(term))
 
