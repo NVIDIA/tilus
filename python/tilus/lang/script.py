@@ -18,7 +18,7 @@ import typing
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type, Union
 
 from hidet.ir.dtypes import boolean
-from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var, as_expr
+from hidet.ir.expr import Constant, Expr, Var, as_expr
 from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
 from hidet.ir.tools import infer_type
 from hidet.ir.type import DataType
@@ -123,10 +123,8 @@ class Script:
 
     def __init__(self) -> None:
         # builder used to append instructions
-        from tilus.lang.transpiler import Transpiler
 
         self._optional_builder: Optional[StmtBuilder] = None
-        self._optional_transpiler: Optional[Transpiler] = None
         self._attrs: Attributes = Attributes()
 
         # instruction groups
@@ -151,11 +149,6 @@ class Script:
             raise InstructionError("Did you forget to call `super().__init__()` for the Tilus Script?")
 
         return self._optional_builder
-
-    @property
-    def _transpiler(self):
-        assert self._optional_transpiler is not None
-        return self._optional_transpiler
 
     def program(self) -> Program:
         """
@@ -306,39 +299,8 @@ class Script:
             if not cond:
                 raise InstructionError("The condition must be True")
             return
-        if not isinstance(cond, Expr):
-            raise InstructionError("The condition must be a boolean expression")
-
-        # decompose the condition into conjuncture terms
-        stack = [cond]
-        terms: list[Expr] = []
-        while stack:
-            expr = stack.pop()
-            if isinstance(expr, LogicalAnd):
-                stack.append(expr.a)
-                stack.append(expr.b)
-            else:
-                terms.append(expr)
-
-        # analyze the conjunctures
-        for term in terms:
-            # a % c == 0
-            if (
-                isinstance(term, Equal)
-                and isinstance(term.a, Mod)
-                and isinstance(term.a.b, Constant)
-                and isinstance(term.a.a, Var)
-                and isinstance(term.b, Constant)
-                and term.b.value == 0
-            ):
-                a = term.a.a
-                if a not in self._transpiler.func_params:
-                    raise InstructionError(
-                        "We only allow to specify the divisibility of kernel parameter, got {}".format(a.name)
-                    )
-                self._optional_transpiler.var2divisibility[a] = int(term.a.b.value)  # type: ignore[arg-type]
-            else:
-                raise InstructionError("Can not recognize the condition in assume: {}".format(term))
+        assert isinstance(cond, Expr), "The condition must be a boolean expression"
+        self._builder.assume(cond)
 
     @staticmethod
     def thread_group(group_index: int, group_size: int) -> ThreadGroupContext:

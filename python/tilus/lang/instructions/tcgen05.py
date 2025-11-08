@@ -13,11 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Optional, Sequence
-from hidet.ir.type import DataType
+
 from hidet.ir.expr import Expr
-from tilus.ir.tensor import TMemoryTensor, RegisterTensor, SharedTensor
-from tilus.ir.builders import StmtBuilder
+from hidet.ir.type import DataType
+
 from tilus.ir.inst import InstructionError
+from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor
 from tilus.utils import is_power_of_two
 
 from .root import InstructionGroup

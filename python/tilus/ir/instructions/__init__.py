@@ -14,7 +14,6 @@
 # limitations under the License.
 from tilus.ir.inst import Instruction
 
-from .annotation import AnnotateLayoutInst
 from .cuda.cluster_sync import ClusterSyncThreadsInst
 from .cuda.cp_async import (
     CopyAsyncCommitGroupInst,
@@ -80,3 +79,4 @@ from .generic import (
     ViewInst,
     WhereInst,
 )
+from .hints import AnnotateLayoutInst, AssumeInst

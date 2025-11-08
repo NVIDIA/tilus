@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from hidet.ir.expr import Expr
 from tilus.ir.inst import Instruction
 from tilus.ir.layout import RegisterLayout, SharedLayout
 from tilus.ir.tensor import RegisterTensor, SharedTensor, Tensor
@@ -34,3 +35,12 @@ class AnnotateLayoutInst(Instruction):
         else:
             raise ValueError(f"Tensor must be a RegisterTensor or SharedTensor, but got {type(tensor)}.")
         return AnnotateLayoutInst(output=None, inputs=(tensor,), layout=layout)
+
+
+@dataclass(frozen=True, eq=False)
+class AssumeInst(Instruction):
+    condition: Expr
+
+    @staticmethod
+    def create(condition: Expr) -> AssumeInst:
+        return AssumeInst(output=None, inputs=(), condition=condition)

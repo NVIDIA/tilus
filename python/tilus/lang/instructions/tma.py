@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Optional, Sequence
-from hidet.ir.type import DataType
+
 from hidet.ir.expr import Expr
-from tilus.ir.tensor import TMemoryTensor, RegisterTensor, SharedTensor, GlobalTensor
-from tilus.ir.builders import StmtBuilder
-from tilus.ir.inst import InstructionError
-from tilus.utils import is_power_of_two
+
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor
 
 from .root import InstructionGroup
+
+
 class TmaInstructionGroup(InstructionGroup):
     def global_to_shared(
         self,

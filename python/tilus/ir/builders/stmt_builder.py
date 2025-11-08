@@ -25,7 +25,6 @@ from hidet.ir.utils import broadcast_shapes, can_broadcast
 from hidet.utils import prod, same_list
 
 from tilus.ir.inst import Instruction, InstructionError
-from tilus.ir.instructions.annotation import AnnotateLayoutInst
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
 from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
 from tilus.ir.instructions.cuda.cp_async import (
@@ -112,6 +111,7 @@ from tilus.ir.instructions.generic import (
     ViewInst,
     WhereInst,
 )
+from tilus.ir.instructions.hints import AnnotateLayoutInst, AssumeInst
 from tilus.ir.layout import GlobalLayout, RegisterLayout, global_row_major
 from tilus.ir.stmt import (
     AssignStmt,
@@ -1299,4 +1299,8 @@ class StmtBuilder(StmtBuilderCore):
     # annotations
     def annotate_layout(self, tensor: RegisterTensor | SharedTensor, layout: RegisterLayout | SharedLayout) -> None:
         inst = AnnotateLayoutInst.create(tensor=tensor, layout=layout)
+        self.append(inst)
+
+    def assume(self, condition: Expr) -> None:
+        inst = AssumeInst.create(condition=condition)
         self.append(inst)

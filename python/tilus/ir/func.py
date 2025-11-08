@@ -77,6 +77,9 @@ class Metadata:
     def with_num_blocks(self, grid_blocks: tuple[Expr, Expr, Expr]) -> Metadata:
         return dataclasses.replace(self, grid_blocks=grid_blocks)
 
+    def with_param2divisibility(self, divisibility: Mapping[Var, int]) -> Metadata:
+        return dataclasses.replace(self, param2divisibility=frozendict(divisibility))
+
 
 @dataclass(frozen=True, eq=False)
 class Function(IRNode):

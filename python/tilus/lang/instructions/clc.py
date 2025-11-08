@@ -12,15 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional, Sequence
-from hidet.ir.type import DataType
 from hidet.ir.expr import Expr, Var
-from tilus.ir.tensor import TMemoryTensor, RegisterTensor, SharedTensor
-from tilus.ir.builders import StmtBuilder
-from tilus.ir.inst import InstructionError
-from tilus.utils import is_power_of_two
-from tilus.lang.constructs.structs import Dim3
 
+from tilus.ir.tensor import RegisterTensor, SharedTensor
+from tilus.lang.constructs.structs import Dim3
 
 from .root import InstructionGroup
 

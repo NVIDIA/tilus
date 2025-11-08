@@ -14,14 +14,13 @@
 # limitations under the License.
 import typing
 from typing import Optional, Sequence
-from hidet.ir.type import DataType
+
 from hidet.ir.expr import Expr, as_expr
-from tilus.ir.tensor import TMemoryTensor, RegisterTensor, SharedTensor
-from tilus.ir.builders import StmtBuilder
-from tilus.ir.inst import InstructionError
-from tilus.utils import is_power_of_two
+
+from tilus.ir.tensor import RegisterTensor
 
 from .root import InstructionGroup
+
 
 class BarrierInstructionGroup(InstructionGroup):
     producer_initial_phase = 1
