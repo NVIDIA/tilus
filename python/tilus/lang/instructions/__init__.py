@@ -15,6 +15,6 @@
 from .clc import ClusterLaunchControlInstructionGroup
 from .cluster import BlockClusterInstructionGroup
 from .mbarrier import BarrierInstructionGroup
-from .root import InstructionGroup
+from .root import InstructionGroup, RootInstructionGroup
 from .tcgen05 import Tcgen05InstructionGroup
 from .tma import TmaInstructionGroup

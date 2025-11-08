@@ -35,19 +35,10 @@ from tilus.extensions.hidet.ir.tools.type_infer import infer_type
 from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Function, Metadata
-from tilus.ir.inst import Instruction
-from tilus.ir.instructions import AssignInst
 from tilus.ir.stmt import (
-    AssignStmt,
-    BreakStmt,
     DeclareStmt,
-    EvaluateStmt,
-    IfStmt,
-    InstStmt,
-    ReturnStmt,
     SeqStmt,
     Stmt,
-    WhileStmt,
 )
 from tilus.ir.tensor import GlobalTensor, Tensor
 from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
@@ -72,7 +63,6 @@ class Scope:
         self.name2var: dict[str, Var] = {}
         self.name2value: dict[str, Tensor] = {}
         self.name2host_var: dict[str, Any] = {}
-        self.stmts: list[Stmt] = []
 
     @staticmethod
     def default_top_level():
@@ -88,7 +78,6 @@ class Scope:
             self.name2value[name] = var_or_value
         else:
             self.name2host_var[name] = var_or_value
-        # print('binding {} with {}'.format(name, var_or_value))
 
     def lookup(self, name: str, search_parents: bool = True) -> Var | Tensor | Any | None:
         if name in self.name2var:
@@ -100,15 +89,6 @@ class Scope:
         if search_parents and self.parent:
             return self.parent.lookup(name, search_parents)
         return None
-
-    def append(self, inst_or_stmt: Instruction | Stmt) -> None:
-        stmt = inst_or_stmt if isinstance(inst_or_stmt, Stmt) else InstStmt(inst_or_stmt)
-        self.stmts.append(stmt)
-
-    def flush_stmts(self) -> Stmt:
-        seq_stmt = SeqStmt.create(seq=self.stmts)
-        self.stmts.clear()
-        return seq_stmt
 
 
 class ScopeStack:
@@ -278,9 +258,8 @@ class Transpiler(PythonAstFunctor):
             #    3.1) if there is type annotation, we define a scalar variable
             #    3.2) otherwise, we bind the host expression to the name
             if isinstance(rhs, hidet_ir.Expr):
-                stmt = DeclareStmt(var=Var(hint=var_name, type=hidet_ir.infer_type(rhs)), init=rhs)
-                self.current_scope.append(stmt)
-                self.current_scope.bind(var_name, stmt.var)
+                var = self.builder.declare(type=hidet_ir.infer_type(rhs), init=rhs, hint=var_name)
+                self.current_scope.bind(var_name, var)
             elif isinstance(rhs, tilus_ir.Tensor):
                 self.current_scope.bind(var_name, rhs)
             else:
@@ -297,7 +276,7 @@ class Transpiler(PythonAstFunctor):
                         if not isinstance(rhs, hidet_ir.Expr):
                             rhs = as_expr(rhs)  # type: ignore
                         stmt = DeclareStmt(var=Var(hint=var_name, type=resolved_annotation), init=rhs)
-                        self.current_scope.append(stmt)
+                        self.builder.append(stmt)
                         self.current_scope.bind(var_name, stmt.var)
                 else:
                     self.current_scope.bind(var_name, rhs)
@@ -306,7 +285,7 @@ class Transpiler(PythonAstFunctor):
             if isinstance(lookup_result, Var):
                 if not isinstance(rhs, (hidet_ir.Expr, int, float, str)):
                     raise TilusProgramError(self, lhs, "Assignment between Var is only accepted for hidet_ir.Expr.")
-                self.current_scope.append(AssignStmt(var=lookup_result, value=as_expr(rhs)))
+                self.builder.assign(var=lookup_result, value=as_expr(rhs))
             elif isinstance(lookup_result, Tensor):
                 if not isinstance(rhs, RegisterTensor) or not isinstance(lookup_result, RegisterTensor):
                     raise TilusProgramError(self, lhs, "Assignment between Value is only accepted for RegisterValue.")
@@ -318,7 +297,7 @@ class Transpiler(PythonAstFunctor):
                         lhs,
                         "Different types of RegisterValue are not allowed to be assigned to each other. ",
                     )
-                self.current_scope.append(AssignInst.create(dst=lookup_result, src=rhs))
+                self.builder.assign_register(output=lookup_result, x=rhs)
             else:
                 raise TilusProgramError(self, lhs, "Unexpected assignee: {}".format(type(lookup_result)))
 
@@ -326,7 +305,6 @@ class Transpiler(PythonAstFunctor):
         self, lhs: ast.Subscript, rhs: Any, type_annotation: Optional[ast.expr] = None
     ) -> None:
         # example: a[3, 4] = 5.0
-        sb = StmtBuilder()
         dst_tensor = self.visit(lhs.value)
         if not isinstance(dst_tensor, RegisterTensor):
             raise TilusProgramError(self, lhs, "The left side of subscript assignment must be a RegisterTensor.")
@@ -356,11 +334,11 @@ class Transpiler(PythonAstFunctor):
         if isinstance(rhs, RegisterTensor):
             rhs_tensor = rhs
         else:
-            rhs_tensor = sb.allocate_register(dtype=dst_tensor.dtype, shape=[], f_init=lambda _: dst_tensor.dtype(rhs))
+            rhs_tensor = self.builder.allocate_register(
+                dtype=dst_tensor.dtype, shape=[], f_init=lambda _: dst_tensor.dtype(rhs)
+            )
 
-        sb.slice_assign_register(output=dst_tensor, x=rhs_tensor, offsets=offsets, dims=slice_dims)
-
-        self.current_scope.append(sb.flush_stmts())
+        self.builder.slice_assign_register(output=dst_tensor, x=rhs_tensor, offsets=offsets, dims=slice_dims)
 
     def process_attribute_assign(
         self, lhs: ast.Attribute, rhs: Any, type_annotation: Optional[ast.expr] = None
@@ -489,7 +467,7 @@ class Transpiler(PythonAstFunctor):
             return Function.create(
                 name=func_def.name,
                 params=func_params,
-                body=scope.flush_stmts(),
+                body=self.builder.flush_stmts(),
                 metadata=Metadata.create(
                     grid_blocks=blocks,
                     cluster_blocks=blocks_per_cluster,
@@ -506,7 +484,7 @@ class Transpiler(PythonAstFunctor):
             # do nothing
             return
         elif isinstance(value, hidet_ir.Expr):
-            self.current_scope.append(EvaluateStmt(expr=value, pred=None))
+            self.builder.evaluate(pred=None, expr=value)
         elif isinstance(value, Tensor):
             # do nothing
             return
@@ -559,7 +537,7 @@ class Transpiler(PythonAstFunctor):
                     bound_args: inspect.BoundArguments = sig.bind(*args, **kwargs)
 
                     ret = None
-                    with self.scope() as func_scope:
+                    with self.scope():
                         # bind the parameters to the arguments in a new scope
                         for param_name in sig.parameters:
                             param: inspect.Parameter = sig.parameters[param_name]
@@ -593,7 +571,6 @@ class Transpiler(PythonAstFunctor):
                                     )
                                 self.current_scope.bind(param_name, arg)
                             elif isinstance(annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
-                                sb = StmtBuilder()
                                 if not isinstance(arg, (hidet_ir.Expr, int, bool, float)):
                                     raise TilusProgramError(
                                         self,
@@ -602,9 +579,8 @@ class Transpiler(PythonAstFunctor):
                                             param_name, type(arg).__name__
                                         ),
                                     )
-                                var = sb.declare(type=annotation, init=as_expr(arg))
+                                var = self.builder.declare(type=annotation, init=as_expr(arg))
                                 self.current_scope.bind(param_name, var)
-                                self.current_scope.append(sb.flush_stmts())
                             elif annotation in [bool, int, float]:
                                 if not isinstance(arg, Constant) and not isinstance(arg, annotation):
                                     raise TilusProgramError(
@@ -654,7 +630,6 @@ class Transpiler(PythonAstFunctor):
                                 continue
                             self.visit(stmt)
                         self.file, self.start_lineno, self.start_column = old
-                    self.current_scope.append(func_scope.flush_stmts())
                 elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor)):
                     # case 2
                     sb = self.script._builder
@@ -746,13 +721,6 @@ class Transpiler(PythonAstFunctor):
                 # case 4
                 ret = func(*args, **kwargs)
 
-            # some functions might update use the script builder to add new statements
-            # so we need to flush the builder stack to the current scope
-            builder_stack: list[list[Stmt]] = self.script._builder._stack
-            assert len(builder_stack) == 1
-            if len(builder_stack[0]) > 0:
-                self.current_scope.stmts.extend(builder_stack[0])
-                builder_stack[0].clear()
             return ret
         except InstructionError as e:
             raise HidetProgramError(self, expr, str(e)) from e
@@ -830,13 +798,9 @@ class Transpiler(PythonAstFunctor):
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
         elif isinstance(lhs, RegisterTensor) or isinstance(rhs, RegisterTensor):
             if not isinstance(lhs, RegisterTensor):
-                lhs = self.script._builder.allocate_register(
-                    dtype=rhs.dtype, shape=rhs.shape, f_init=lambda _: rhs.dtype(lhs)
-                )
+                lhs = self.builder.allocate_register(dtype=rhs.dtype, shape=rhs.shape, f_init=lambda _: rhs.dtype(lhs))
             if not isinstance(rhs, RegisterTensor):
-                rhs = self.script._builder.allocate_register(
-                    dtype=lhs.dtype, shape=lhs.shape, f_init=lambda _: lhs.dtype(rhs)
-                )
+                rhs = self.builder.allocate_register(dtype=lhs.dtype, shape=lhs.shape, f_init=lambda _: lhs.dtype(rhs))
 
             if isinstance(lhs, RegisterTensor):
                 lhs = RegisterTensorWithMethods(lhs, self.script._builder)
@@ -844,13 +808,10 @@ class Transpiler(PythonAstFunctor):
                 rhs = RegisterTensorWithMethods(rhs, self.script._builder)
 
             if type(expr.op) in op_dict:
-                ret = op_dict[type(expr.op)](lhs, rhs)
-                self.current_scope.append(self.script._builder.flush_stmts())
-                return ret
+                return op_dict[type(expr.op)](lhs, rhs)
             else:
                 type_name = type(expr.op).__name__
                 raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
-
         else:
             raise HidetProgramError(
                 self, expr, "Can not apply operator {} to {} and {}.".format(expr.op, type(lhs), type(rhs))
@@ -949,24 +910,23 @@ class Transpiler(PythonAstFunctor):
             if len(indices) > len(base.shape):
                 raise TilusProgramError(self, expr, "Too many indices for tensor of shape {}.".format(base.shape))
 
-            sb = StmtBuilder()
             sliced_tensor: Union[GlobalTensor, SharedTensor, RegisterTensor]
             if isinstance(base, GlobalTensor):
-                sliced_tensor = sb.slice_global(
+                sliced_tensor = self.builder.slice_global(
                     tensor=base,
                     offsets=offsets,
                     slice_dims=slice_dims,
                     slice_shape=[base.shape[dim] for dim in slice_dims],
                 )
             elif isinstance(base, SharedTensor):
-                sliced_tensor = sb.slice_shared(
+                sliced_tensor = self.builder.slice_shared(
                     tensor=base,
                     offsets=offsets,
                     slice_dims=slice_dims,
                     slice_shape=[base.shape[dim] for dim in slice_dims],
                 )
             elif isinstance(base, RegisterTensor):
-                sliced_tensor = sb.slice_register(
+                sliced_tensor = self.builder.slice_register(
                     tensor=base,
                     offsets=offsets,
                     slice_dims=slice_dims,
@@ -974,7 +934,6 @@ class Transpiler(PythonAstFunctor):
                 )
             else:
                 assert False
-            self.current_scope.append(sb.flush_stmts())
             return sliced_tensor
         else:
             raise NotImplementedError()
@@ -993,27 +952,25 @@ class Transpiler(PythonAstFunctor):
         operands = [self.visit(expr.left)] + [self.visit(v) for v in expr.comparators]
 
         if any(isinstance(operand, RegisterTensor) for operand in operands):
-            sb = StmtBuilder()
             operands = [
                 operand
                 if isinstance(operand, RegisterTensor)
-                else sb.allocate_register(dtype=infer_type(operand), shape=[], f_init=lambda axes: operand)
+                else self.builder.allocate_register(dtype=infer_type(operand), shape=[], f_init=lambda axes: operand)
                 for operand in operands
             ]
             op_dict = {
-                ast.Eq: sb.equal,
-                ast.NotEq: sb.not_equal,
-                ast.Gt: sb.greater_than,
-                ast.Lt: sb.less_than,
-                ast.GtE: sb.greater_equal,
-                ast.LtE: sb.less_than,
+                ast.Eq: self.builder.equal,
+                ast.NotEq: self.builder.not_equal,
+                ast.Gt: self.builder.greater_than,
+                ast.Lt: self.builder.less_than,
+                ast.GtE: self.builder.greater_equal,
+                ast.LtE: self.builder.less_equal,
             }
             left = operands.pop(0)
             for op, right in zip(expr.ops, operands):
                 if type(op) not in op_dict:
                     raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type(op)))
                 left = op_dict[type(op)](left, right)
-            self.current_scope.append(sb.flush_stmts())
             return left
         else:
             operands = [as_expr(operand) for operand in operands]
@@ -1053,7 +1010,6 @@ class Transpiler(PythonAstFunctor):
             return hidet_ir.expr.if_then_else(cond, then_expr, else_expr)
 
     def visit_AugAssign(self, stmt: ast.AugAssign) -> None:
-        sb = StmtBuilder()
         if isinstance(stmt.target, ast.Name):
             target = ast.Name(stmt.target.id, ast.Load())
             var_value = self.visit(target)
@@ -1061,21 +1017,21 @@ class Transpiler(PythonAstFunctor):
 
             if isinstance(var_value, RegisterTensor):
                 if isinstance(value, (int, float, hidet_ir.Expr)):
-                    value = sb.allocate_register(
+                    value = self.builder.allocate_register(
                         dtype=var_value.dtype, shape=var_value.shape, f_init=lambda _: var_value.dtype(value)
                     )
                 if isinstance(stmt.op, ast.Add):
-                    sb.add(x=var_value, y=value, out=var_value)
+                    self.builder.add(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.Sub):
-                    sb.sub(x=var_value, y=value, out=var_value)
+                    self.builder.sub(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.Mult):
-                    sb.mul(x=var_value, y=value, out=var_value)
+                    self.builder.mul(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.Div):
-                    sb.div(x=var_value, y=value, out=var_value)
+                    self.builder.div(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.FloorDiv):
-                    sb.div(x=var_value, y=value, out=var_value)
+                    self.builder.div(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.Mod):
-                    sb.mod(x=var_value, y=value, out=var_value)
+                    self.builder.mod(x=var_value, y=value, out=var_value)
                 else:
                     raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
             elif isinstance(var_value, hidet_ir.Var) and isinstance(value, (int, float, hidet_ir.Expr)):
@@ -1090,12 +1046,11 @@ class Transpiler(PythonAstFunctor):
                     ast.LShift: operator.lshift,
                     ast.BitXor: operator.xor,
                 }
-                sb.assign(var=var_value, value=op_dict[type(stmt.op)](var_value, value))
+                self.builder.assign(var=var_value, value=op_dict[type(stmt.op)](var_value, value))
             else:
                 raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
         elif isinstance(stmt.target, ast.Subscript):
             # example: a[3, 4] = 5.0
-            sb = StmtBuilder()
             dst_tensor = self.visit(stmt.target.value)
             if not isinstance(dst_tensor, RegisterTensor):
                 raise TilusProgramError(
@@ -1128,10 +1083,10 @@ class Transpiler(PythonAstFunctor):
             if isinstance(stmt.value, RegisterTensor):
                 rhs_tensor = rhs
             else:
-                rhs_tensor = sb.allocate_register(
+                rhs_tensor = self.builder.allocate_register(
                     dtype=dst_tensor.dtype, shape=[], f_init=lambda _: dst_tensor.dtype(rhs)
                 )
-            lhs_tensor = sb.slice_register(
+            lhs_tensor = self.builder.slice_register(
                 tensor=dst_tensor,
                 offsets=offsets,
                 slice_dims=slice_dims,
@@ -1139,29 +1094,27 @@ class Transpiler(PythonAstFunctor):
             )
 
             if isinstance(stmt.op, ast.Add):
-                result = sb.add(x=lhs_tensor, y=rhs_tensor)
+                result = self.builder.add(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.Sub):
-                result = sb.sub(x=lhs_tensor, y=rhs_tensor)
+                result = self.builder.sub(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.Mult):
-                result = sb.mul(x=lhs_tensor, y=rhs_tensor)
+                result = self.builder.mul(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.Div):
-                result = sb.div(x=lhs_tensor, y=rhs_tensor)
+                result = self.builder.div(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.FloorDiv):
-                result = sb.div(x=lhs_tensor, y=rhs_tensor)
+                result = self.builder.div(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.Mod):
-                result = sb.mod(x=lhs_tensor, y=rhs_tensor)
+                result = self.builder.mod(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.BitXor):
-                result = sb.bitwise_xor(x=lhs_tensor, y=rhs_tensor)
+                result = self.builder.bitwise_xor(x=lhs_tensor, y=rhs_tensor)
             else:
                 raise HidetProgramError(self, stmt, "NotImplemented AugAssign for operator: {}".format(type(stmt.op)))
 
-            sb.slice_assign_register(output=dst_tensor, x=result, offsets=offsets, dims=slice_dims)
-            self.current_scope.append(sb.flush_stmts())
+            self.builder.slice_assign_register(output=dst_tensor, x=result, offsets=offsets, dims=slice_dims)
         else:
             raise HidetProgramError(
                 self, stmt.target, "AugAssign only support variable name or RegisterTensor as target."
             )
-        self.current_scope.append(sb.flush_stmts())
 
     def visit_For(self, stmt: ast.For) -> None:
         # create loop vars
@@ -1198,7 +1151,7 @@ class Transpiler(PythonAstFunctor):
                     self, stmt, f"Expect {num_loop_vars} loop variables, but got {len(iter_targets)}."
                 )
 
-            with self.scope() as for_scope:
+            with self.builder.block(), self.scope() as for_scope:
                 for var in loop_vars:
                     assert var.hint is not None
                     for_scope.bind(name=var.hint, var_or_value=var)
@@ -1206,9 +1159,8 @@ class Transpiler(PythonAstFunctor):
                     for_scope.bind(name, value)
                 for s in stmt.body:
                     self.visit(s)
-            body = for_scope.flush_stmts()
-            for_stmt = stmt_iter.generate_loop_statement(loop_vars=loop_vars, body=body)
-            self.current_scope.append(for_stmt)
+                body = self.builder.pop_innermost_last()
+            self.builder.append(stmt_iter.generate_loop_statement(loop_vars=loop_vars, body=body))
         else:
             msg = "For loop iterable must be a one of the following types: \n1.\n  for ... in range(...): \n      ...\n"
             raise HidetProgramError(self, stmt.iter, msg)
@@ -1227,16 +1179,13 @@ class Transpiler(PythonAstFunctor):
                 for s in stmt.orelse:
                     self.visit(s)
         else:
-            with self.scope() as then_scope:
+            with self.builder.if_then(cond=cond), self.scope():
                 for s in stmt.body:
                     self.visit(s)
-            with self.scope() as else_scope:
-                for s in stmt.orelse:
-                    self.visit(s)
-
-            then_body = then_scope.flush_stmts()
-            else_body = else_scope.flush_stmts() if len(stmt.orelse) > 0 else None
-            self.current_scope.append(IfStmt(cond=cond, then_body=then_body, else_body=else_body))
+            if len(stmt.orelse) > 0:
+                with self.builder.otherwise(), self.scope():
+                    for s in stmt.orelse:
+                        self.visit(s)
 
     def visit_UnaryOp(
         self, expr: ast.UnaryOp
@@ -1260,10 +1209,7 @@ class Transpiler(PythonAstFunctor):
                         expr.operand,
                         "Index dimension {} does not match tensor shape {}.".format(len(indices), buf.shape),
                     )
-                sb = StmtBuilder()
-                ptr = sb.tensor_item_ptr(buf, space="generic")
-                self.current_scope.append(sb.flush_stmts())
-                return ptr
+                return self.builder.tensor_item_ptr(buf, space="generic")
             elif isinstance(buf, RegisterTensor):
                 raise ValueError("Can not addressing the element of a RegisterTensor.")
 
@@ -1274,16 +1220,10 @@ class Transpiler(PythonAstFunctor):
                 return value
             elif isinstance(expr.op, ast.USub):
                 # -v
-                sb = StmtBuilder()
-                value = sb.neg(value)
-                self.current_scope.append(sb.flush_stmts())
-                return value
+                return self.builder.neg(value)
             elif isinstance(expr.op, ast.Not):
                 # not v
-                sb = StmtBuilder()
-                value = sb.logical_not(value)
-                self.current_scope.append(sb.flush_stmts())
-                return value
+                return self.builder.logical_not(value)
             else:
                 raise HidetProgramError(self, expr, "Can not recognize unary operator for RegisterTensor.")
         elif isinstance(value, hidet_ir.Node):
@@ -1322,20 +1262,17 @@ class Transpiler(PythonAstFunctor):
 
     def visit_While(self, stmt: ast.While) -> None:
         cond = self.visit(stmt.test)
-        with self.scope() as while_scope:
+        with self.builder.while_loop(cond=as_expr(cond)), self.scope():
             for s in stmt.body:
                 self.visit(s)
-        body = while_scope.flush_stmts()
-        while_stmt = WhileStmt(cond=as_expr(cond), body=body)
-        self.current_scope.append(while_stmt)
 
     def visit_Break(self, stmt: ast.Break) -> None:
-        self.current_scope.append(BreakStmt())
+        self.builder.brk()
 
     def visit_Return(self, stmt: ast.Return) -> None:
         if stmt.value is not None:
             raise TilusProgramError(self, stmt, "Return statement in Tilus Script does not support returning a value.")
-        self.current_scope.append(ReturnStmt())
+        self.builder.ret()
 
     def visit_Slice(self, expr: ast.Slice) -> slice:
         return slice(
@@ -1361,7 +1298,7 @@ class Transpiler(PythonAstFunctor):
 
         with_context: TilusContext = with_item_visited
 
-        with self.scope() as with_scope:
+        with self.builder.block(), self.scope():
             # bind the value to the context variable
             if with_item.optional_vars is not None:
                 if not isinstance(with_item.optional_vars, ast.Name):
@@ -1376,8 +1313,7 @@ class Transpiler(PythonAstFunctor):
                 if isinstance(bind_value, hidet_ir.Expr):
                     from hidet.ir.tools import infer_type
 
-                    bind_var = Var(hint=bind_name, type=infer_type(bind_value))
-                    self.current_scope.append(DeclareStmt(var=bind_var, init=bind_value))
+                    bind_var = self.builder.declare(type=infer_type(bind_value), init=bind_value, hint=bind_name)
                     self.current_scope.bind(bind_name, var_or_value=bind_var)
                 else:
                     self.current_scope.bind(with_item.optional_vars.id, bind_value)
@@ -1385,12 +1321,10 @@ class Transpiler(PythonAstFunctor):
             for body_stmt in stmt.body:
                 self.visit(body_stmt)
 
-        with_body = with_scope.flush_stmts()
+        with_body = self.builder.pop_innermost_last()
         processed_body = with_context.post_process(with_body)
         assert isinstance(processed_body, Stmt)
-        self.current_scope.append(processed_body)
-        if len(stmt.items) != 1:
-            raise NotImplementedError("Tilus only support with statement with a single context manager.")
+        self.builder.append(processed_body)
 
     def process_generator(self, elt: ast.expr, generators: list[ast.comprehension]) -> list:
         if len(generators) == 0:
@@ -1449,4 +1383,4 @@ class Transpiler(PythonAstFunctor):
         return self.process_generator(expr.elt, expr.generators)
 
     def visit_Pass(self, stmt: ast.Pass) -> None:
-        self.current_scope.append(SeqStmt(tuple()))
+        self.builder.append(SeqStmt(tuple()))

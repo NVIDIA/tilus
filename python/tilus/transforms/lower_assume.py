@@ -12,15 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import Var, Expr, LogicalAnd, Equal, Mod, Constant
-from tilus.ir.func import Function, Metadata
+from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var
+
+from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.instructions import AssumeInst
-from tilus.ir.layout import RegisterLayout, SharedLayout
-from tilus.ir.layout.inference import infer_layout, verify_layouts
-from tilus.ir.layout.inference.inference import LayoutInferenceError
-from tilus.ir.tensor import RegisterTensor, SharedTensor
-from tilus.ir.tools import IRPrinter, rewrite
 from tilus.transforms.base import Pass
 from tilus.utils import gcd
 
@@ -78,9 +74,7 @@ class ApplyAssumeRewriter(IRRewriter):
                     param2divisibility[var] = gcd(param2divisibility[var], self.param2divisibility[var])
                 else:
                     param2divisibility[var] = self.param2divisibility[var]
-            return updated_func.with_metadata(
-                updated_func.metadata.with_param2divisibility(param2divisibility)
-            )
+            return updated_func.with_metadata(updated_func.metadata.with_param2divisibility(param2divisibility))
 
 
 class LowerAssumePass(Pass):
@@ -89,6 +83,6 @@ class LowerAssumePass(Pass):
         func = apply_assume(func)
         return func
 
+
 def lower_assume_pass() -> Pass:
     return LowerAssumePass()
-
