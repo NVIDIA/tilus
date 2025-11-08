@@ -380,7 +380,7 @@ class JitInstance:
         program: Program = job[0]
         options: BuildOptions = job[1]
         try:
-            build_program(program, options=options, load=False)
+            build_program(program, options=options)
         except Exception:
             return traceback.format_exc()
         else:

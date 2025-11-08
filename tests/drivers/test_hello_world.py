@@ -12,7 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus.drivers import build_program
+import pytest
+from tilus.drivers import build_and_load_program
 from tilus.ir.builders import IRBuilder
 from tilus.runtime import CompiledProgram
 
@@ -26,6 +27,10 @@ def test_compile_hello_world():
 
     program = ib.flush_program()
 
-    compiled_module: CompiledProgram = build_program(program)
+    compiled_module: CompiledProgram = build_and_load_program(program)
 
     compiled_module()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

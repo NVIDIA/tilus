@@ -246,9 +246,7 @@ def get_cache_dir(prog: Program, options: BuildOptions) -> Path:
     return cache_dir
 
 
-def build_program(
-    prog: Program, options: Optional[BuildOptions] = None, load: bool = True
-) -> Optional[CompiledProgram]:
+def build_program(prog: Program, options: Optional[BuildOptions] = None) -> str:
     """
     Build the program into a compiled program that could be executed directly.
 
@@ -260,13 +258,10 @@ def build_program(
     options: BuildOptions, optional
         The options for building the program.
 
-    load: bool
-        Whether to load the compiled module after building. Default is False.
-
     Returns
     -------
-    compiled_module: CompiledProgram, optional
-        The compiled program.
+    ret: str
+        The path to the directory storing the compiled program.
     """
     if options is None:
         options = BuildOptions()
@@ -274,17 +269,14 @@ def build_program(
 
     # the program has finished building the program, load the compiled module
     if compiled_program_exists(cache_dir):
-        if load:
-            return load_compiled_program(cache_dir)
-        else:
-            return None
+        return str(cache_dir)
 
     # lock the cache directory to prevent multiple processes from building the program at the same time
     lock_path = cache_dir / ".lock"
     with filelock.FileLock(str(lock_path)):
         # check if the program has been built by another process
         if compiled_program_exists(cache_dir):
-            return load_compiled_program(cache_dir)
+            return str(cache_dir)
 
         # otherwise, build the program
         # 0. verify the program
@@ -312,7 +304,23 @@ def build_program(
         target = tilus.target.get_current_target()
         compile_source(source_file=str(src_path), output_library_file=str(lib_path), target=target)
 
-        if load:
-            return load_compiled_program(cache_dir)
-        else:
-            return None
+    return str(cache_dir)
+
+
+def build_and_load_program(prog: Program, options: Optional[BuildOptions] = None) -> CompiledProgram:
+    """
+    Build the program into a compiled program that could be executed directly, and load the compiled program.
+
+    Parameters
+    ----------
+    prog: Program
+        The program to build.
+    options: BuildOptions, optional
+        The options for building the program.
+
+    Returns
+    -------
+    ret: CompiledProgram
+        The compiled program.
+    """
+    return load_compiled_program(build_program(prog, options))
