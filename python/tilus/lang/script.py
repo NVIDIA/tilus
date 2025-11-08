@@ -20,20 +20,10 @@ from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type
 from hidet.ir.expr import Constant, Expr, Var
 from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
 
-from tilus.ir.builders import StmtBuilder
-from tilus.ir.inst import InstructionError
 from tilus.ir.prog import Program
 from tilus.lang.constructs.contexts import ThreadGroupContext
 from tilus.lang.constructs.structs import Dim3
-from tilus.lang.instructions import (
-    BarrierInstructionGroup,
-    BlockClusterInstructionGroup,
-    ClusterLaunchControlInstructionGroup,
-    InstructionGroup,
-    RootInstructionGroup,
-    Tcgen05InstructionGroup,
-    TmaInstructionGroup,
-)
+from tilus.lang.instructions import InstructionInterface
 from tilus.lang.modules.cuda import cuda
 
 
@@ -92,7 +82,7 @@ class Attributes:
             self._warps = value
 
 
-class Script(RootInstructionGroup):
+class Script(InstructionInterface):
     """A script is a user-defined kernel function that can be compiled and executed on the GPU."""
 
     # the compiled program will print the instruction output of the specified block
@@ -113,36 +103,16 @@ class Script(RootInstructionGroup):
         return instantiated_script
 
     def __init__(self) -> None:
-        # builder used to append instructions
+        super().__init__()
 
-        self._optional_builder: Optional[StmtBuilder] = None
+        # attributes
         self._attrs: Attributes = Attributes()
 
         # modules
         self.cuda = cuda
 
-        # instruction groups
-        self.tcgen05 = Tcgen05InstructionGroup()
-        self.tma = TmaInstructionGroup()
-        self.mbarrier = BarrierInstructionGroup()
-        self.clc = ClusterLaunchControlInstructionGroup()
-        self.cluster = BlockClusterInstructionGroup()
-
     def __call__(self, *args, **kwargs):
         raise RuntimeError("This method should never be called.")
-
-    def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
-        super()._set_builder(builder)
-        for value in self.__dict__.values():
-            if isinstance(value, InstructionGroup):
-                value._set_builder(builder)
-
-    @property
-    def _builder(self) -> StmtBuilder:
-        if self._optional_builder is None:
-            raise InstructionError("Did you forget to call `super().__init__()` for the Tilus Script?")
-
-        return self._optional_builder
 
     def program(self) -> Program:
         """

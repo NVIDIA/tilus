@@ -12,5 +12,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .constructs.state import State
-from .script import Attributes, Script
+from typing import Optional
+
+from tilus.ir.builders import StmtBuilder
+
+_current_builder: Optional[StmtBuilder] = None
+
+
+class InstructionGroup:
+    @staticmethod
+    def _set_builder(builder: Optional[StmtBuilder]) -> None:
+        global _current_builder
+        _current_builder = builder
+
+    @property
+    def _builder(self) -> StmtBuilder:
+        global _current_builder
+        assert _current_builder is not None
+        return _current_builder

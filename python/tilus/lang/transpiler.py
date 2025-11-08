@@ -32,25 +32,23 @@ from hidet.lang.transpiler import HidetProgramError, PythonAstFunctor
 import tilus.lang.constructs.loops
 from tilus import ir as tilus_ir
 from tilus.extensions.hidet.ir.tools.type_infer import infer_type
-from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Function, Metadata
-from tilus.ir.stmt import (
-    DeclareStmt,
-    SeqStmt,
-    Stmt,
-)
-from tilus.ir.tensor import GlobalTensor, Tensor
+from tilus.ir.inst import InstructionError
+from tilus.ir.stmt import DeclareStmt, SeqStmt, Stmt
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
+from tilus.lang.constructs import State
 from tilus.lang.constructs.contexts import TilusContext
 from tilus.lang.constructs.loops import TilusLoopIterable
+from tilus.lang.instructions import InstructionGroup
 from tilus.lang.methods import (
     GlobalTensorWithMethods,
     RegisterTensorWithMethods,
     SharedTensorWithMethods,
     TensorMethodError,
 )
-from tilus.lang.script import InstructionError, Script
+from tilus.lang.script import Script
 
 
 class TilusProgramError(HidetProgramError):
@@ -232,7 +230,7 @@ class Transpiler(PythonAstFunctor):
             for name, value in env.items():
                 env_scope.bind(name, value)
 
-            script._set_builder(self.builder)
+            InstructionGroup._set_builder(self.builder)
             self._optional_script = script
 
             function = self.visit(parsed)
@@ -240,7 +238,7 @@ class Transpiler(PythonAstFunctor):
 
             # prevent loop reference
             self._optional_script = None
-            script._set_builder(None)
+            InstructionGroup._set_builder(None)
 
             return function
 
@@ -399,6 +397,98 @@ class Transpiler(PythonAstFunctor):
         else:
             raise TilusProgramError(self, arg, "Tilus expect a type annotation for this parameter.")
 
+    def transpile_call(self, call_expr, func, *args, **kwargs):
+        sig: inspect.Signature = inspect.signature(func)
+        bound_args: inspect.BoundArguments = sig.bind(*args, **kwargs)
+
+        ret = None
+        with self.scope():
+            # bind the parameters to the arguments in a new scope
+            for param_name in sig.parameters:
+                param: inspect.Parameter = sig.parameters[param_name]
+                arg = bound_args.arguments[param_name]
+                annotation = param.annotation
+                if param_name == "self":
+                    continue
+                if annotation is inspect.Parameter.empty:
+                    raise TilusProgramError(
+                        self, call_expr, 'Parameter "{}" has no type annotation.'.format(param_name)
+                    )
+                if isinstance(annotation, str):
+                    raise TilusProgramError(
+                        self,
+                        call_expr,
+                        (
+                            "A python string as parameter type annotation detected. \n"
+                            'This is usually because "from __future__ import annotations" has been used.\n'
+                            "Currently, tilus script is not compatible with this feature. \n"
+                            "Please considering not using it in module that defines tilus script."
+                        ),
+                    )
+                if annotation in (RegisterTensor, SharedTensor, GlobalTensor):
+                    if not isinstance(arg, annotation):
+                        raise TilusProgramError(
+                            self,
+                            call_expr,
+                            'Parameter "{}" expects a {} but got {}.'.format(
+                                param_name, annotation.__name__, type(arg).__name__
+                            ),
+                        )
+                    self.current_scope.bind(param_name, arg)
+                elif isinstance(annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
+                    if not isinstance(arg, (hidet_ir.Expr, int, bool, float)):
+                        raise TilusProgramError(
+                            self,
+                            call_expr,
+                            'Parameter "{}" expects an expression but got {}.'.format(param_name, type(arg).__name__),
+                        )
+                    var = self.builder.declare(type=annotation, init=as_expr(arg))
+                    self.current_scope.bind(param_name, var)
+                elif annotation in [bool, int, float]:
+                    if not isinstance(arg, Constant) and not isinstance(arg, annotation):
+                        raise TilusProgramError(
+                            self,
+                            call_expr,
+                            'Parameter "{}" expects a constant but got {}.'.format(param_name, type(arg).__name__),
+                        )
+                    self.current_scope.bind(param_name, annotation(arg))
+                else:
+                    raise TilusProgramError(
+                        self,
+                        call_expr,
+                        'Parameter "{}" has an unsupported type annotation: {}.\n'.format(param_name, annotation)
+                        + "Currently, we only support data type, pointer, and tensors as type annotations.",
+                    )
+
+            # process the body
+            lines, start_line = inspect.getsourcelines(func)
+            file: Optional[str] = inspect.getsourcefile(func)
+            if file is None:
+                raise RuntimeError('Can not get the source file of the given function "{}".'.format(func.__name__))
+
+            source = "".join(lines)
+            source, col_offset = eliminate_indent(source)
+            source, inc_lineno = eliminate_decorators(source)
+            start_line += inc_lineno
+            parsed: ast.Module = ast.parse(source=source)
+            func_defs = parsed.body
+            assert len(func_defs) == 1 and isinstance(func_defs[0], ast.FunctionDef)
+            func_def: ast.FunctionDef = func_defs[0]
+
+            old = self.file, self.start_lineno, self.start_column
+            self.file, self.start_lineno, self.start_column = file, start_line, col_offset
+            for i, stmt in enumerate(func_def.body):
+                if isinstance(stmt, ast.Return):
+                    if i != len(func_def.body) - 1:
+                        raise TilusProgramError(
+                            self, stmt, "Return statement must be the last statement in a tilus procedure."
+                        )
+                    ret = self.visit(stmt.value)
+                    continue
+                self.visit(stmt)
+            self.file, self.start_lineno, self.start_column = old
+            return ret
+
     def visit_FunctionDef(self, func_def: ast.FunctionDef) -> Function:
         func_params = []
         with self.scope() as scope:
@@ -523,10 +613,11 @@ class Transpiler(PythonAstFunctor):
         try:
             """
             There are different kinds of function calls in Tilus Script:
-            1. inlined kernel procedure, it is a method of the user-defined Script subclass
+            1. inlined kernel procedure, it is a method of the user-defined Script subclass, or a user-defined State subclass.
             2. (global, shared or register) tensor method, such as `tensor.to(dtype)`, etc.
             3. python builtin function, such as `max`, `min`, for scalar expressions.
-            4. other function/method calls
+            4. subclass of tilus.State
+            5. other function/method calls
 
             We treat 1 to 3 specially, and call the function directly in 4.
             """
@@ -535,105 +626,11 @@ class Transpiler(PythonAstFunctor):
                 f_self = func.__self__
                 f_func = func.__func__
                 if f_self is self.script and getattr(Script, f_func.__name__, None) is not f_func:
-                    # case 1.
-                    args = [f_self, *args]
-                    sig: inspect.Signature = inspect.signature(f_func)
-                    bound_args: inspect.BoundArguments = sig.bind(*args, **kwargs)
-
-                    ret = None
-                    with self.scope():
-                        # bind the parameters to the arguments in a new scope
-                        for param_name in sig.parameters:
-                            param: inspect.Parameter = sig.parameters[param_name]
-                            arg = bound_args.arguments[param_name]
-                            annotation = param.annotation
-                            if param_name == "self":
-                                continue
-                            if annotation is inspect.Parameter.empty:
-                                raise TilusProgramError(
-                                    self, expr, 'Parameter "{}" has no type annotation.'.format(param_name)
-                                )
-                            if isinstance(annotation, str):
-                                raise TilusProgramError(
-                                    self,
-                                    expr,
-                                    (
-                                        "A python string as parameter type annotation detected. \n"
-                                        'This is usually because "from __future__ import annotations" has been used.\n'
-                                        "Currently, tilus script is not compatible with this feature. \n"
-                                        "Please considering not using it in module that defines tilus script."
-                                    ),
-                                )
-                            if annotation in (RegisterTensor, SharedTensor, GlobalTensor):
-                                if not isinstance(arg, annotation):
-                                    raise TilusProgramError(
-                                        self,
-                                        expr,
-                                        'Parameter "{}" expects a {} but got {}.'.format(
-                                            param_name, annotation.__name__, type(arg).__name__
-                                        ),
-                                    )
-                                self.current_scope.bind(param_name, arg)
-                            elif isinstance(annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
-                                if not isinstance(arg, (hidet_ir.Expr, int, bool, float)):
-                                    raise TilusProgramError(
-                                        self,
-                                        expr,
-                                        'Parameter "{}" expects an expression but got {}.'.format(
-                                            param_name, type(arg).__name__
-                                        ),
-                                    )
-                                var = self.builder.declare(type=annotation, init=as_expr(arg))
-                                self.current_scope.bind(param_name, var)
-                            elif annotation in [bool, int, float]:
-                                if not isinstance(arg, Constant) and not isinstance(arg, annotation):
-                                    raise TilusProgramError(
-                                        self,
-                                        expr,
-                                        'Parameter "{}" expects a constant but got {}.'.format(
-                                            param_name, type(arg).__name__
-                                        ),
-                                    )
-                                self.current_scope.bind(param_name, annotation(arg))
-                            else:
-                                raise TilusProgramError(
-                                    self,
-                                    expr,
-                                    'Parameter "{}" has an unsupported type annotation: {}.\n'.format(
-                                        param_name, annotation
-                                    )
-                                    + "Currently, we only support data type, pointer, and tensors as type annotations.",
-                                )
-
-                        # process the body
-                        lines, start_line = inspect.getsourcelines(f_func)
-                        file: Optional[str] = inspect.getsourcefile(f_func)
-                        if file is None:
-                            raise RuntimeError(
-                                'Can not get the source file of the given function "{}".'.format(f_func.__name__)
-                            )
-
-                        source = "".join(lines)
-                        source, col_offset = eliminate_indent(source)
-                        source, inc_lineno = eliminate_decorators(source)
-                        start_line += inc_lineno
-                        parsed: ast.Module = ast.parse(source=source)
-                        func_defs = parsed.body
-                        assert len(func_defs) == 1 and isinstance(func_defs[0], ast.FunctionDef)
-                        func_def: ast.FunctionDef = func_defs[0]
-
-                        old = self.file, self.start_lineno, self.start_column
-                        self.file, self.start_lineno, self.start_column = file, start_line, col_offset
-                        for i, stmt in enumerate(func_def.body):
-                            if isinstance(stmt, ast.Return):
-                                if i != len(func_def.body) - 1:
-                                    raise TilusProgramError(
-                                        self, stmt, "Return statement must be the last statement in a tilus procedure."
-                                    )
-                                ret = self.visit(stmt.value)
-                                continue
-                            self.visit(stmt)
-                        self.file, self.start_lineno, self.start_column = old
+                    # case 1 (Script method)
+                    ret = self.transpile_call(f_func, f_self, *args, **kwargs)
+                elif isinstance(f_self, State) and getattr(State, f_func.__name__, None) is not f_func:
+                    # case 1 (State method)
+                    ret = self.transpile_call(f_func, f_self, *args, **kwargs)
                 elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor)):
                     # case 2
                     sb = self.script._builder
@@ -663,9 +660,6 @@ class Transpiler(PythonAstFunctor):
                         ret = func(*args, **kwargs)
                     except TypeError as e:
                         raise TilusProgramError(self, expr, str(e)) from e
-            elif isinstance(func, types.FunctionType):
-                # case 4
-                ret = func(*args, **kwargs)
             elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):
                 # case 3
                 from hidet import ir
@@ -721,8 +715,13 @@ class Transpiler(PythonAstFunctor):
                                     func.__qualname__
                                 ),
                             )
-            else:
+            elif inspect.isclass(func) and issubclass(func, State):
                 # case 4
+                state_cls: Type[State] = func
+                state_obj = object.__new__(state_cls)
+                ret = self.transpile_call(expr, state_cls.__init__, state_obj, *args, **kwargs)
+            else:
+                # case 5
                 ret = func(*args, **kwargs)
 
             return ret
