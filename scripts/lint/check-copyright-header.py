@@ -14,6 +14,7 @@
 # limitations under the License.
 import argparse
 import os
+import subprocess
 import sys
 from datetime import datetime
 
@@ -50,6 +51,34 @@ TARGET_DIRS = [
 SHORT_LICENSE_TARGET_DIRS = [
     os.path.join(os.path.dirname(__file__), "..", "..", "examples"),
 ]
+
+
+def get_git_tracked_files():
+    """Get a set of all files tracked by git in the repository."""
+    try:
+        # Get the git repository root
+        repo_root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], stderr=subprocess.DEVNULL, text=True
+        ).strip()
+
+        # Get all tracked files
+        git_files = subprocess.check_output(["git", "ls-files"], cwd=repo_root, text=True).strip().split("\n")
+
+        # Convert to absolute paths
+        tracked_files = {os.path.join(repo_root, f) for f in git_files if f}
+        return tracked_files
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # If git is not available or not in a git repo, return None
+        # This will cause the script to process all files (backward compatibility)
+        return None
+
+
+def is_git_tracked(filepath, tracked_files):
+    """Check if a file is tracked by git."""
+    if tracked_files is None:
+        # If we couldn't get git tracked files, process all files
+        return True
+    return os.path.abspath(filepath) in tracked_files
 
 
 def add_license_to_file(filepath, filetype, use_short_header=False):
@@ -103,12 +132,20 @@ def process_directory(target_dirs, use_short_header=False, check_only=False):
     updated = 0
     files_needing_update = []
 
+    # Get git tracked files once at the start
+    tracked_files = get_git_tracked_files()
+
     for target_dir in target_dirs:
         for root, _, files in os.walk(target_dir):
             for file in files:
                 if file.endswith(".py") or file.endswith(".sh"):
-                    total_files += 1
                     filepath = os.path.join(root, file)
+
+                    total_files += 1
+
+                    # Skip files not tracked by git
+                    if not is_git_tracked(filepath, tracked_files):
+                        continue
                     with open(filepath, "r", encoding="utf-8") as f:
                         lines = f.readlines()
 

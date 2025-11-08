@@ -57,7 +57,7 @@ class BlackwellMatmul(tilus.Script):
 
         # allocate barriers and the initial phases
         consumer_barriers = self.mbarrier.alloc(
-            count=[1 for _ in range(self.stages)]
+            count=[2 for _ in range(self.stages)]
         )  # whether the data is ready for consumption
         producer_barriers = self.mbarrier.alloc(
             count=[1 for _ in range(self.stages)]
@@ -87,7 +87,6 @@ class BlackwellMatmul(tilus.Script):
                         offsets=[offset_n, offset_k],
                         mbarrier=consumer_barriers[stage],
                     )
-                    self.mbarrier.arrive(consumer_barriers[stage])
                 stage = (stage + 1) % self.stages
 
             # remaining mma stages to wait for completion

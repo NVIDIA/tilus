@@ -56,7 +56,7 @@ class BlackwellMatmul(tilus.Script):
         )
 
         # allocate barriers
-        tma_barriers = self.mbarrier.alloc(count=[1 for _ in range(self.stages)])
+        tma_barriers = self.mbarrier.alloc(count=[2 for _ in range(self.stages)])
         mma_barrier = self.mbarrier.alloc(count=1)
         tma_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=0)
         mma_phase: uint32 = 0
@@ -76,7 +76,6 @@ class BlackwellMatmul(tilus.Script):
                     offsets=[offset_n, offset_k],
                     mbarrier=tma_barriers[i],
                 )
-                self.mbarrier.arrive(tma_barriers[i])
 
         self.sync()
 
@@ -99,7 +98,6 @@ class BlackwellMatmul(tilus.Script):
                     offsets=[offset_n, preload_offset_k],
                     mbarrier=tma_barriers[preload_stage],
                 )
-                self.mbarrier.arrive(tma_barriers[preload_stage])
                 self.mbarrier.wait(
                     tma_barriers[current_stage], phase=tma_phases[current_stage].item()
                 )

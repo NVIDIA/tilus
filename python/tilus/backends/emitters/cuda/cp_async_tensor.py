@@ -34,7 +34,9 @@ from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import (
     cp_async_tensor_shared_to_global,
     cp_async_tensor_wait_group,
 )
-from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import mbarrier_expect_tx_shared
+from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
+    mbarrier_arrive_and_expect_tx_shared,
+)
 from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import (
     CUtensorMapType,
     TensorMapDataType,
@@ -312,7 +314,9 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         tensor_coords = inst.offsets
         transaction_bytes = prod(shared_tensor.shape) * dtype.nbytes
         with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
-            self.append(mbarrier_expect_tx_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=transaction_bytes))
+            self.append(
+                mbarrier_arrive_and_expect_tx_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=transaction_bytes)
+            )
             self.append(
                 cp_async_tensor_global_to_shared(
                     dst=shared_addr,
