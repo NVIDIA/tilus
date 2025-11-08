@@ -56,7 +56,7 @@ class Tcgen05MmaExample(tilus.Script):
         )
         t_d = self.tcgen05.slice(t_d_storage, offsets=[0, 0], shape=[self.mma_m, self.mma_n])
 
-        mbarriers = self.mbarrier.alloc(count=[1, 1])
+        mbarriers = self.mbarrier.alloc(count=[2, 1])  # 2 since there are two tma copies
         tma_mbarrier = mbarriers[0]
         mma_mbarrier = mbarriers[1]
         self.sync()
@@ -75,7 +75,6 @@ class Tcgen05MmaExample(tilus.Script):
                 offsets=[0, 0],
                 mbarrier=tma_mbarrier,
             )
-            self.mbarrier.arrive(tma_mbarrier)
         self.mbarrier.wait(tma_mbarrier, phase=0)
 
         # perform mma

@@ -46,8 +46,10 @@ class TmaInstructionGroup(InstructionGroup):
         The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
         the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
 
-        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should be an uint64 pointer
-        to the barrier in shared memory.
+        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should be an uint32
+        expression or a register tensor with one element of uint32 type specifying the address of the barrier in shared space.
+        This instruction will signal an arrival to the barrier and increase the expect-tx by the number of bytes pending in the copy operation.
+        Upon finishing the underlying TMA operation, the TMA engine will signal to reduce the expect-rx by the same number of bytes.
 
         The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
 

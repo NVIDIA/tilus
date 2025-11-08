@@ -49,7 +49,6 @@ class CopyAsyncTensorExample(tilus.Script):
                 offsets=[m_offset, n_offset],
                 mbarrier=load_barrier,
             )
-            self.mbarrier.arrive(load_barrier)
         self.mbarrier.wait(load_barrier, phase=0)
 
         x = self.load_shared(s_x)

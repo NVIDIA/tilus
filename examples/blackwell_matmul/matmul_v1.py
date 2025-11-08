@@ -52,7 +52,7 @@ class BlackwellMatmul(tilus.Script):
         )
 
         # allocate barriers
-        tma_barrier, mma_barrier = self.mbarrier.alloc(count=[1, 1]).tolist()
+        tma_barrier, mma_barrier = self.mbarrier.alloc(count=[2, 1]).tolist()
 
         # use a phase to record the current phase of the barrier
         phase: uint32 = 0
@@ -73,7 +73,6 @@ class BlackwellMatmul(tilus.Script):
                     offsets=[offset_n, offset_k],
                     mbarrier=tma_barrier,
                 )
-                self.mbarrier.arrive(tma_barrier)
                 self.mbarrier.wait(tma_barrier, phase=phase)
 
                 # perform tcgen05 mma on two shared tensors
