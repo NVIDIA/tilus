@@ -141,11 +141,11 @@ def process_directory(target_dirs, use_short_header=False, check_only=False):
                 if file.endswith(".py") or file.endswith(".sh"):
                     filepath = os.path.join(root, file)
 
+                    total_files += 1
+
                     # Skip files not tracked by git
                     if not is_git_tracked(filepath, tracked_files):
                         continue
-
-                    total_files += 1
                     with open(filepath, "r", encoding="utf-8") as f:
                         lines = f.readlines()
 
