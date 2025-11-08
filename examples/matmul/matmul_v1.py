@@ -11,6 +11,7 @@ to optimize performance.
 
 import tilus
 from tilus import float16, float32, int32
+from tilus.utils import cdiv
 
 
 class MatmulV1(tilus.Script):
@@ -31,8 +32,8 @@ class MatmulV1(tilus.Script):
         c_ptr: ~float16,
     ):
         self.attrs.blocks = [
-            self.utils.ceil_div(m_size, self.block_m),
-            self.utils.ceil_div(n_size, self.block_n),
+            cdiv(m_size, self.block_m),
+            cdiv(n_size, self.block_n),
         ]
         self.attrs.warps = self.num_warps
 

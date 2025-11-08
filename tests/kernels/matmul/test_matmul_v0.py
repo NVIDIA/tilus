@@ -18,6 +18,7 @@ import pytest
 import tilus
 import torch
 from tilus import float16, float32, int32
+from tilus.utils import cdiv
 
 
 class MatmulV0(tilus.Script):
@@ -28,7 +29,7 @@ class MatmulV0(tilus.Script):
         self.block_k = 16
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
-        self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
+        self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
         self.attrs.warps = 1
 
         offset_m: int32 = self.block_m * self.blockIdx.x
@@ -38,7 +39,7 @@ class MatmulV0(tilus.Script):
         gb = self.global_view(b_ptr, dtype=float16, shape=[k_size, n_size])
         acc = self.register_tensor(dtype=float32, shape=[self.block_m, self.block_n], init=lambda i, j: float32.zero)
 
-        k_blocks = self.utils.ceil_div(k_size, self.block_k)
+        k_blocks = cdiv(k_size, self.block_k)
         for k in range(k_blocks):
             offset_k = k * self.block_k
 

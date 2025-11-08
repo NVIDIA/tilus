@@ -144,7 +144,7 @@ class FusedRecurrentGatedDeltaRuleUpdateFwdKernel(tilus.Script):
 
         # load initial state
         if USE_INITIAL_STATE:
-            state_idx: int32 = initial_state_indices[i_t].item()
+            state_idx = initial_state_indices[i_t].item()
             r_h = self.load_global(
                 initial_state_source,
                 offsets=[state_idx, i_hv, 0, i_bv * self.BV],
@@ -152,7 +152,7 @@ class FusedRecurrentGatedDeltaRuleUpdateFwdKernel(tilus.Script):
                 dims=[2, 3],
             )
         else:
-            state_idx: int32 = -1
+            state_idx = -1
             r_h = self.register_tensor(dtype=float32, shape=[K, self.BV], init=0.0)
 
         # H' = alpha * H : [K, BV] = [] * [K, BV]
@@ -215,7 +215,7 @@ def fused_recurrent_gated_delta_rule_update_fwd_tilus(
     USE_INITIAL_STATE = True
     USE_QK_L2NORM_IN_KERNEL = use_qk_l2norm_in_kernel
 
-    FusedRecurrentGatedDeltaRuleUpdateFwdKernel()(
+    FusedRecurrentGatedDeltaRuleUpdateFwdKernel()(  # type: ignore[call-arg]
         q,
         k,
         v,
@@ -265,7 +265,7 @@ def fused_gdn_gating_tilus(
     g = torch.empty_like(a, dtype=torch.float32)
 
     # Run the Tilus kernel
-    FusedGdnGatingKernel()(
+    FusedGdnGatingKernel()(  # type: ignore[call-arg]
         g,
         A_log,
         a,
@@ -379,7 +379,7 @@ class FusedSigmoidGatingDeltaRuleUpdateKernel(tilus.Script):
 
         # Load initial state
         if USE_INITIAL_STATE:
-            state_idx: int32 = initial_state_indices[i_t].item()
+            state_idx = initial_state_indices[i_t].item()
             r_h = self.load_global(
                 initial_state_source,
                 offsets=[state_idx, i_hv, 0, i_bv * self.BV],
@@ -387,7 +387,7 @@ class FusedSigmoidGatingDeltaRuleUpdateKernel(tilus.Script):
                 dims=[2, 3],
             )
         else:
-            state_idx: int32 = -1
+            state_idx = -1
             r_h = self.register_tensor(dtype=float32, shape=[K, self.BV], init=0.0)
 
         # Apply gating to hidden state: H' = alpha * H
@@ -445,7 +445,7 @@ def sigmoid_gating_delta_rule_update_tilus(
     initial_state_indices: torch.Tensor,
     use_qk_l2norm_in_kernel: bool = False,
     cu_seqlens: torch.Tensor = None,
-):
+) -> torch.Tensor:
     """
     Tilus implementation of sigmoid gating delta rule update using a single fused kernel.
 
@@ -485,7 +485,7 @@ def sigmoid_gating_delta_rule_update_tilus(
     USE_QK_L2NORM_IN_KERNEL = use_qk_l2norm_in_kernel
 
     # Run the fused kernel
-    FusedSigmoidGatingDeltaRuleUpdateKernel()(
+    FusedSigmoidGatingDeltaRuleUpdateKernel()(  # type: ignore[call-arg]
         A_log,
         a,
         dt_bias,

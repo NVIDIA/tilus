@@ -9,11 +9,11 @@ repos:
     -   id: ruff-check
         name: Ruff linter
         args: [--fix]
-        types_or: [python, pyi, jupyter]
+        types_or: [python, pyi]
     # Run the formatter - uses [tool.ruff] config from pyproject.toml
     -   id: ruff-format
         name: Ruff formatter
-        types_or: [python, pyi, jupyter]
+        types_or: [python, pyi]
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
     hooks:
@@ -24,8 +24,8 @@ repos:
             types-tabulate,
             types-tqdm,
         ]
-        # Only check files in the python package (matches original script scope)
-        files: ^python/
+        # Check files in the python package, examples, and tests folders
+        files: ^(python|examples|tests)/
         # Exclude hidet extensions (they have special mypy overrides in pyproject.toml)
         exclude: ^python/tilus/extensions/hidet/
 -   repo: local

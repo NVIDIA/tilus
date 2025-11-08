@@ -45,7 +45,7 @@ import pandas
 import tilus
 import torch
 from tilus import float16, float32, int32
-from tilus.utils import benchmark_func
+from tilus.utils import benchmark_func, cdiv
 
 
 @tilus.autotune("num_warps", [4, 8])
@@ -70,10 +70,7 @@ class MatmulV4(tilus.Script):
         b_ptr: ~float16,
         c_ptr: ~float16,
     ):
-        self.attrs.blocks = [
-            self.utils.ceil_div(m_size, self.block_m),
-            self.utils.ceil_div(n_size, self.block_n),
-        ]
+        self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
         self.attrs.warps = self.num_warps
 
         block_m, block_n, block_k = self.block_m, self.block_n, self.block_k

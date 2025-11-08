@@ -26,23 +26,24 @@ class ReduceKernelExample(tilus.Script):
         self.layout = layout
         self.dim = dim
 
-    def __call__(self, out_ptr: ~int32):
+    def __call__(self, out_ptr: ~int32) -> None:
         self.attrs.blocks = 1
         self.attrs.warps = self.layout.spatial_size // 32
 
         a = self.register_tensor(
             dtype=int32,
             shape=self.layout.shape,
-            layout=self.layout,
             init=lambda i, j: i * self.layout.shape[1] + j,
         )
         b = self.sum(a, dim=self.dim, keepdim=True)
         g_out = self.global_view(ptr=out_ptr, dtype=int32, shape=b.shape)
         self.store_global(g_out, b, offsets=[0, 0], dims=[0, 1])
 
+        self.annotate_layout(a, self.layout)
+
 
 class AnyAllInstExample(tilus.Script):
-    def __call__(self, x_ptr: ~int32, y_ptr: ~boolean):
+    def __call__(self, x_ptr: ~int32, y_ptr: ~boolean) -> None:
         self.attrs.blocks = 1
         self.attrs.warps = 1
 

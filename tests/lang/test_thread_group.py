@@ -23,7 +23,7 @@ class ThreadGroupExample(tilus.Script):
         super().__init__()
         self.block: int = 64
 
-    def __call__(self, n: int32, x_ptr: ~float16, y_ptr: ~float16):
+    def __call__(self, n: int32, x_ptr: ~float16, y_ptr: ~float16) -> None:
         self.attrs.blocks = cdiv(n, self.block)
         self.attrs.warps = 4
 

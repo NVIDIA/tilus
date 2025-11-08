@@ -63,7 +63,9 @@ class FlashAttention(tilus.Script):
         )
         assert self.qk_config.lc == self.sv_config.la
 
-    def apply_mask(self, score: RegisterTensor, q_offset: int32, kv_offset: int32):
+    def apply_mask(
+        self, score: RegisterTensor, q_offset: int32, kv_offset: int32
+    ) -> None:
         mask = self.register_tensor(
             dtype=boolean,
             shape=[self.block_q, self.block_kv],
@@ -109,7 +111,7 @@ class FlashAttention(tilus.Script):
         m: RegisterTensor,  # f32[block_q, 1]
         l: RegisterTensor,  # f32[block_q, 1]
         check_bounds: bool,
-    ):
+    ) -> None:
         # wait for the async copy of k to finish
         self.copy_async_wait_group(0)
         self.sync()
@@ -312,7 +314,7 @@ def flash_attention(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-):
+) -> torch.Tensor:
     """
     Flash attention function for variable length sequences.
 
@@ -333,7 +335,7 @@ def flash_attention(
         The output tensor of shape (bs, seqlen, num_heads, head_size).
     """
     out = torch.empty_like(q)
-    FlashAttention(
+    FlashAttention(  # type: ignore[call-arg]
         dtype=tilus.float16,
         num_heads=q.size(2),
         num_heads_kv=k.size(2),
@@ -346,7 +348,7 @@ def flash_attention_reference(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-):
+) -> torch.Tensor:
     bs, seqlen, num_heads, head_size = q.size()
     _, _, num_heads_kv, _ = k.size()
     assert q.size(0) == k.size(0) == v.size(0), "Batch size must match for q, k, and v."
@@ -391,7 +393,7 @@ def flash_attention_flash_attn(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-):
+) -> torch.Tensor:
     from flash_attn import flash_attn_func
 
     return flash_attn_func(q, k, v, causal=True)

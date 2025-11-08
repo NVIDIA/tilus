@@ -40,6 +40,6 @@ def test_multi_function_multiplication(
     a: MultiFunction,
     b: MultiFunction,
     expected: MultiFunction,
-):
+) -> None:
     actual = a * b
     assert actual == expected, f"Expected {expected}, but got {actual} for {a} * {b}"

@@ -91,6 +91,7 @@ check_untyped_defs = true
 disallow_incomplete_defs = true
 allow_redefinition = true
 strict_optional = false
+explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = ["tilus.*"]
@@ -104,6 +105,10 @@ disable_error_code = [
     #         ...
     "override",
 ]
+
+[[tool.mypy.overrides]]
+module = ["examples.*", "tests.*"]
+disable_error_code = ["override", "valid-type", "call-arg", "no-untyped-def", "has-type", "no-redef"]
 
 [[tool.mypy.overrides]]
 module = ["hidet.*"]

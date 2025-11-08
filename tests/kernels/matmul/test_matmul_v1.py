@@ -18,18 +18,18 @@ import pytest
 import tilus
 import torch
 from tilus import float16, float32, int32
+from tilus.utils import cdiv
 
 
 class MatmulV1(tilus.Script):
     def __init__(self):
         super().__init__()
-        self.mma = self.cuda.resolve_dot_config(float16, float32, num_warps=1, m=16, n=8, k=16)
-        self.block_m = self.mma.m
-        self.block_n = self.mma.n
-        self.block_k = self.mma.k
+        self.block_m = 16
+        self.block_n = 8
+        self.block_k = 16
 
     def __call__(self, m_size: int32, n_size: int, k_size: int, a_ptr: ~float16, b_ptr: ~float16, c_ptr: ~float16):
-        self.attrs.blocks = [self.utils.ceil_div(m_size, self.block_m), self.utils.ceil_div(n_size, self.block_n)]
+        self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
         self.attrs.warps = 1
 
         offset_m: int32 = self.block_m * self.blockIdx.x
@@ -48,8 +48,8 @@ class MatmulV1(tilus.Script):
             self.store_shared(sb, ldb)
             self.sync()
 
-            a = self.load_shared(sa, layout=self.mma.la)
-            b = self.load_shared(sb, layout=self.mma.lb)
+            a = self.load_shared(sa)
+            b = self.load_shared(sb)
             acc = self.dot(a, b, acc)
             self.sync()
 

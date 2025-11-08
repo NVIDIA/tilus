@@ -561,7 +561,7 @@ class AllocateGlobalInst(Instruction):
         return AllocateGlobalInst(output=output, inputs=(), require_clean=require_clean)
 
     def with_output(self, global_output: GlobalTensor) -> AllocateGlobalInst:
-        return dataclasses.replace(self, output=global_output)
+        return dataclasses.replace(self, output=global_output)  # type: ignore[call-arg]
 
 
 @dataclass(frozen=True, eq=False)

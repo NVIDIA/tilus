@@ -22,7 +22,7 @@ from hidet.ir.type import BaseType
 
 from tilus.ir.builders.stmt_builder import StmtBuilder
 from tilus.ir.func import Function, Metadata
-from tilus.ir.stmt import SeqStmt
+from tilus.ir.stmt import SeqStmt, Stmt
 from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
 
 
@@ -85,7 +85,7 @@ class FunctionBuilder(StmtBuilder):
         self._built_function: Optional[Function] = None
 
     def _reset(self):
-        self._stack = [[]]  # for StatementBuilder
+        self._stack: list[list[Stmt]] = [[]]  # for StatementBuilder
 
         self._name = None
         self._params = []

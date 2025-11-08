@@ -244,7 +244,7 @@ def cast_ix_to_i32_ref(n: int, dtype: IntegerSubbyteType) -> int:
         tilus.u1,
     ],
 )
-def test_cast_int_subbyte_to_int32(dtype: IntegerSubbyteType):
+def test_cast_int_subbyte_to_int32(dtype: IntegerSubbyteType) -> None:
     nbits = dtype.nbits
     for n in range(1 << nbits):
         x = tilus.full(shape=[128], fill_value=n, dtype=getattr(tilus, "u{}".format(nbits))).view(dtype=dtype)

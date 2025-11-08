@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import functools
+import typing
 
 import hidet
 import pytest
@@ -20,6 +21,7 @@ import tabulate
 import torch
 from hidet.ir.dtypes import f32, uint8
 from hidet.lang import attrs
+from hidet.runtime.compiled_module import CompiledModule
 from tilus.extensions.hidet.ir.dtypes import (
     float4_e2m1,
     float5_e2m2,
@@ -36,11 +38,12 @@ from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
 
 
 @functools.cache
-def cast_from_f32_kernel(dtype: FloatSubbyteType):
+def cast_from_f32_kernel(dtype: FloatSubbyteType) -> CompiledModule:
     from tilus.extensions.hidet.ir.primitives.cuda.cast import cast_subbyte_float_from_f32
 
     with hidet.script_module() as script_module:
 
+        @typing.no_type_check
         @hidet.script
         def _cast_from_f32(dst: ~uint8, src: ~f32):
             attrs.func_kind = "cuda_kernel"
@@ -55,11 +58,12 @@ def cast_from_f32_kernel(dtype: FloatSubbyteType):
 
 
 @functools.cache
-def cast_to_f32_kernel(dtype: FloatSubbyteType):
+def cast_to_f32_kernel(dtype: FloatSubbyteType) -> CompiledModule:
     from tilus.extensions.hidet.ir.primitives.cuda.cast import cast_subbyte_float_to_f32
 
     with hidet.script_module() as script_module:
 
+        @typing.no_type_check
         @hidet.script
         def _cast_to_f32(dst: ~f32, src: ~uint8):
             attrs.func_kind = "cuda_kernel"
@@ -73,21 +77,21 @@ def cast_to_f32_kernel(dtype: FloatSubbyteType):
     return func
 
 
-def cast_from_f32(v_f32, dtype: FloatSubbyteType):
+def cast_from_f32(v_f32: float, dtype: FloatSubbyteType) -> torch.types.Number:
     src = torch.full([1], fill_value=v_f32, dtype=torch.float32).cuda()
     dst = torch.empty([1], dtype=torch.uint8).cuda()
     cast_from_f32_kernel(dtype)(dst, src)
     return dst.item()
 
 
-def cast_to_f32(n, dtype: FloatSubbyteType):
+def cast_to_f32(n: int, dtype: FloatSubbyteType) -> torch.types.Number:
     src = torch.full([1], fill_value=n, dtype=torch.uint8).cuda()
     dst = torch.empty([1], dtype=torch.float32).cuda()
     cast_to_f32_kernel(dtype)(dst, src)
     return dst.item()
 
 
-def cast_to_f32_ref(n, dtype: FloatSubbyteType):
+def cast_to_f32_ref(n: int, dtype: FloatSubbyteType) -> float:
     exponent_nbits, mantissa_nbits = dtype.exponent_nbits, dtype.mantissa_nbits
 
     exponent = (n >> mantissa_nbits) & ((1 << exponent_nbits) - 1)
@@ -116,7 +120,7 @@ def cast_to_f32_ref(n, dtype: FloatSubbyteType):
         float4_e2m1,
     ],
 )
-def test_cast(dtype: FloatSubbyteType):
+def test_cast(dtype: FloatSubbyteType) -> None:
     nbits = dtype.nbits
 
     headers = ["n", "bits", "expected", "actual", "cast_back"]

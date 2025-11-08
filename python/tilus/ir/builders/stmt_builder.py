@@ -25,7 +25,6 @@ from hidet.ir.utils import broadcast_shapes, can_broadcast
 from hidet.utils import prod, same_list
 
 from tilus.ir.inst import Instruction, InstructionError
-from tilus.ir.instructions.annotation import AnnotateLayoutInst
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
 from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
 from tilus.ir.instructions.cuda.cp_async import (
@@ -112,6 +111,7 @@ from tilus.ir.instructions.generic import (
     ViewInst,
     WhereInst,
 )
+from tilus.ir.instructions.hints import AnnotateLayoutInst, AssumeInst
 from tilus.ir.layout import GlobalLayout, RegisterLayout, global_row_major
 from tilus.ir.stmt import (
     AssignStmt,
@@ -121,6 +121,7 @@ from tilus.ir.stmt import (
     ForStmt,
     IfStmt,
     InstStmt,
+    ReturnStmt,
     SeqStmt,
     Stmt,
     TensorItemPtrStmt,
@@ -282,6 +283,17 @@ class ThreadGroupContext(StmtContext):
         self.append(ThreadGroupStmt(group_index=self.group_index, group_size=self.group_size, body=self.pop()))
 
 
+class BlockContext(StmtContext):
+    def __init__(self, vb: StmtBuilderCore):
+        super().__init__(vb)
+
+    def __enter__(self) -> None:
+        self.enter()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.append(self.pop())
+
+
 class StmtBuilderCore:
     def __init__(self) -> None:
         # context stack
@@ -320,8 +332,15 @@ class StmtBuilderCore:
     def otherwise(self) -> OtherwiseContext:
         return OtherwiseContext(self)
 
+    def block(self) -> BlockContext:
+        return BlockContext(self)
+
     def brk(self):
         stmt = BreakStmt()
+        self._stack[-1].append(stmt)
+
+    def ret(self):
+        stmt = ReturnStmt()
         self._stack[-1].append(stmt)
 
     def declare(self, type: BaseType, init: Optional[Expr | float | int] = None, hint: Optional[str] = None) -> Var:
@@ -367,6 +386,11 @@ class StmtBuilderCore:
             stmt = inst_or_stmt
         self._stack[-1].append(stmt)
 
+    def pop_innermost_last(self) -> Stmt:
+        if not self._stack[-1]:
+            raise ValueError("The innermost stack is empty, can not pop the last statement.")
+        return self._stack[-1].pop()
+
     def flush_stmts(self) -> Stmt:
         if len(self._stack) != 1:
             raise ValueError("Unbalanced context stack")
@@ -402,8 +426,7 @@ class StmtBuilder(StmtBuilderCore):
         self,
         dtype: DataType,
         *,
-        shape: Optional[Sequence[int]] = None,
-        layout: Optional[RegisterLayout] = None,
+        shape: Sequence[int],
         f_init: Optional[Callable[[Sequence[Var]], Union[Expr, float, int]]] = None,
     ) -> RegisterTensor:
         wrapped_f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
@@ -414,13 +437,7 @@ class StmtBuilder(StmtBuilderCore):
 
             wrapped_f_init = wrapped_f_init_
 
-        if shape is None:
-            if layout is None:
-                raise ValueError("Either shape or layout must be provided")
-            shape = layout.shape
-
-        output = RegisterTensor.create(dtype, shape=shape, optional_layout=layout)
-
+        output = RegisterTensor.create(dtype, shape=shape)
         inst = AllocateRegisterInst.create(output=output, f_init=wrapped_f_init)
         self.append(inst)
         return inst.register_output
@@ -972,10 +989,8 @@ class StmtBuilder(StmtBuilderCore):
 
     # shared value operations
 
-    def allocate_shared(
-        self, dtype: DataType, shape: Sequence[int], layout: Optional[SharedLayout] = None
-    ) -> SharedTensor:
-        inst = AllocateSharedInst.create(output=SharedTensor.create(dtype=dtype, shape=shape, optional_layout=layout))
+    def allocate_shared(self, dtype: DataType, shape: Sequence[int]) -> SharedTensor:
+        inst = AllocateSharedInst.create(output=SharedTensor.create(dtype=dtype, shape=shape))
         self.append(inst)
         return inst.shared_output
 
@@ -1299,4 +1314,8 @@ class StmtBuilder(StmtBuilderCore):
     # annotations
     def annotate_layout(self, tensor: RegisterTensor | SharedTensor, layout: RegisterLayout | SharedLayout) -> None:
         inst = AnnotateLayoutInst.create(tensor=tensor, layout=layout)
+        self.append(inst)
+
+    def assume(self, condition: Expr) -> None:
+        inst = AssumeInst.create(condition=condition)
         self.append(inst)

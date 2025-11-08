@@ -39,7 +39,7 @@ class Tcgen05MmaExample(tilus.Script):
         self.mma_k = mma_k
         self.column_granularity = 32 * 32 // self.accumulator_dtype.nbits
 
-    def __call__(self, a_ptr: void_p, b_ptr: void_p, d_ptr: void_p):
+    def __call__(self, a_ptr: void_p, b_ptr: void_p, d_ptr: void_p) -> None:
         self.attrs.blocks = 1
         self.attrs.warps = 4
 
