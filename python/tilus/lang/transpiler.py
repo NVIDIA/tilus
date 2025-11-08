@@ -439,8 +439,12 @@ class Transpiler(PythonAstFunctor):
                     divisibility[param_var] = self.name2divisibility[arg_name]
 
             # return type
-            if func_def.returns is not None and not isinstance(func_def.returns, type(None)):
-                raise TilusProgramError(self, func_def.returns, "Tilus does not support return type annotation.")
+            if func_def.returns is not None:
+                ret_type = self.visit(func_def.returns)
+                if ret_type is not None:
+                    raise TilusProgramError(
+                        self, func_def.returns, "Tilus does not support return type annotation, got {}".format(ret_type)
+                    )
 
             # process function body
             for stmt in func_def.body:
