@@ -168,7 +168,7 @@ class FlashAttention(tilus.Script):
         k_ptr: void_p,
         v_ptr: void_p,
         o_ptr: void_p,
-    ) -> None:
+    ):
         """
         ```
             load query to register

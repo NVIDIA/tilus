@@ -274,13 +274,14 @@ class QuantizedMatmul(QuantizedMatmulCommon):
             shape=[k_size // self.group_size, n_size],
         )
 
-        sa = self.shared_tensor(dtype=self.a_dtype, layout=self.layout_sa)
-        sb = self.shared_tensor(dtype=uint8, layout=self.layout_sb)
-        ss = self.shared_tensor(dtype=self.a_dtype, layout=self.layout_ss)
+        sa = self.shared_tensor(
+            dtype=self.a_dtype, shape=[self.num_stages, block_m, block_k]
+        )
+        sb = self.shared_tensor(dtype=uint8, shape=self.layout_sb.shape)
+        ss = self.shared_tensor(dtype=self.a_dtype, shape=[self.num_stages, 1, block_n])
         acc = self.register_tensor(
             dtype=float32,
             shape=[self.block_m, self.block_n],
-            layout=self.mma.lc,
             init=0.0,
         )
 
@@ -308,11 +309,9 @@ class QuantizedMatmul(QuantizedMatmulCommon):
             start_offset_k, end_offset_k, block_k, unroll=self.num_stages
         ):
             # computation for current tile
-            a = self.load_shared(sa[current_stage], layout=self.mma.la)
-            scale = self.load_shared(ss[current_stage], layout=self.layout_rs)
-            b_flattened = self.load_shared(
-                sb[current_stage], layout=self.layout_rb_flattened
-            )
+            a = self.load_shared(sa[current_stage])
+            scale = self.load_shared(ss[current_stage])
+            b_flattened = self.load_shared(sb[current_stage])
             b_low_precision = self.view(
                 b_flattened, dtype=self.b_dtype, layout=self.mma.lb
             )
@@ -349,6 +348,12 @@ class QuantizedMatmul(QuantizedMatmulCommon):
             preload_stage = (preload_stage + 1) % self.num_stages
             self.sync()
 
+            # annotate layouts
+            self.annotate_layout(a, layout=self.mma.la)
+            self.annotate_layout(scale, layout=self.layout_rs)
+            self.annotate_layout(b_flattened, layout=self.layout_rb_flattened)
+            self.annotate_layout(b_low_precision, layout=self.mma.lb)
+
         # there might be on-fly copy_async in the pipeline, we need to wait for all of them
         self.copy_async_wait_all()
         self.sync()
@@ -357,7 +362,7 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         self.free_shared(ss)
 
         # cast the accumulator to float16 and change the register tensor's layout
-        sc = self.shared_tensor(dtype=float16, layout=self.layout_sc)
+        sc = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_n])
         casted_acc = self.cast(acc, dtype=float16)
         self.store_shared(sc, casted_acc)
         self.sync()
@@ -390,6 +395,13 @@ class QuantizedMatmul(QuantizedMatmulCommon):
             self.release_semaphore(
                 semaphore, value=(self.blockIdx.z + 1) % self.split_k_factor
             )
+
+        # annotate layouts
+        self.annotate_layout(sc, layout=self.layout_sc)
+        self.annotate_layout(sa, layout=self.layout_sa)
+        self.annotate_layout(sb, layout=self.layout_sb)
+        self.annotate_layout(ss, layout=self.layout_ss)
+        self.annotate_layout(acc, layout=self.mma.lc)
 
 
 class QuantizedLinear(nn.Module):

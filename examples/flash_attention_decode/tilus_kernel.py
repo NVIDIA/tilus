@@ -27,7 +27,7 @@ class FusedGdnGatingKernel(tilus.Script):
         num_heads: int,
         beta: float,
         threshold: float,
-    ) -> None:
+    ):
         self.attrs.warps = self.num_warps
         self.attrs.blocks = (batch, cdiv(num_heads, self.block_heads))
 
@@ -311,7 +311,7 @@ class FusedSigmoidGatingDeltaRuleUpdateKernel(tilus.Script):
         MAX_T: int,
         USE_INITIAL_STATE: bool,
         USE_QK_L2NORM_IN_KERNEL: bool,
-    ) -> None:
+    ):
         self.attrs.warps = self.num_warps
         self.attrs.blocks = (T, cdiv(V, self.BV), HV)
 

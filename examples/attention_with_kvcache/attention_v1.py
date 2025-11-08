@@ -51,7 +51,7 @@ class AttentionWithKVCache(tilus.Script):
         page_block_size: int,
         num_heads_kv: int,
         max_num_blocks_per_seq: int32,
-    ) -> None:
+    ):
         self.static_assert(
             page_block_size % self.block_kv == 0,
             "page_block_size must be multiple of block_kv",
