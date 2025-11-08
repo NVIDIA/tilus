@@ -20,25 +20,11 @@ from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import DataType
 
-from tilus.ir.builders import StmtBuilder
 from tilus.ir.inst import InstructionError
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 
-
-class InstructionGroup:
-    def __init__(self):
-        self._optional_builder: Optional[StmtBuilder] = None
-
-    def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
-        self._optional_builder = builder
-
-    @property
-    def _builder(self) -> StmtBuilder:
-        if self._optional_builder is None:
-            raise RuntimeError("Did you forget to call `super().__init__()` for the Tilus Script?")
-
-        return self._optional_builder
+from .base import InstructionGroup
 
 
 class RootInstructionGroup(InstructionGroup):
@@ -73,8 +59,6 @@ class RootInstructionGroup(InstructionGroup):
             return
         assert isinstance(cond, Expr), "The condition must be a boolean expression"
         self._builder.assume(cond)
-
-    # instructions
 
     def register_tensor(
         self,

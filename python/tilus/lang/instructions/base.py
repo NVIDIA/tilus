@@ -12,31 +12,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Optional
+
 from tilus.ir.builders import StmtBuilder
-from tilus.ir.inst import InstructionError
-
-from .clc import ClusterLaunchControlInstructionGroup
-from .cluster import BlockClusterInstructionGroup
-from .mbarrier import BarrierInstructionGroup
-from .root import RootInstructionGroup
-from .tcgen05 import Tcgen05InstructionGroup
-from .tma import TmaInstructionGroup
 
 
-class InstructionInterface(RootInstructionGroup):
+class InstructionGroup:
     def __init__(self):
-        super().__init__()
+        self._optional_builder: Optional[StmtBuilder] = None
 
-        # instruction groups
-        self.tcgen05 = Tcgen05InstructionGroup()
-        self.tma = TmaInstructionGroup()
-        self.mbarrier = BarrierInstructionGroup()
-        self.clc = ClusterLaunchControlInstructionGroup()
-        self.cluster = BlockClusterInstructionGroup()
+    def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
+        self._optional_builder = builder
 
     @property
     def _builder(self) -> StmtBuilder:
         if self._optional_builder is None:
-            raise InstructionError("Did you forget to call `super().__init__()` for the Tilus Script?")
+            raise RuntimeError("Did you forget to call `super().__init__()` for the Tilus Script?")
 
         return self._optional_builder
