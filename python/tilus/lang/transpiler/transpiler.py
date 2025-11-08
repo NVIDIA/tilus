@@ -27,82 +27,30 @@ from hidet.ir.expr import Constant, Var, as_expr
 from hidet.ir.primitives.cuda.vars import blockIdx
 from hidet.ir.type import BaseType, data_type
 from hidet.lang.script import eliminate_decorators, eliminate_indent
-from hidet.lang.transpiler import HidetProgramError, PythonAstFunctor
+from hidet.lang.transpiler import PythonAstFunctor
 
-import tilus.lang.constructs.loops
 from tilus import ir as tilus_ir
 from tilus.extensions.hidet.ir.tools.type_infer import infer_type
-from tilus.ir import RegisterTensor, SharedTensor
-from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Function, Metadata
-from tilus.ir.stmt import (
-    DeclareStmt,
-    SeqStmt,
-    Stmt,
-)
-from tilus.ir.tensor import GlobalTensor, Tensor
+from tilus.ir.inst import InstructionError
+from tilus.ir.stmt import DeclareStmt, SeqStmt, Stmt
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
+from tilus.ir.utils import frozendict
 from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
+from tilus.lang.constructs import State
 from tilus.lang.constructs.contexts import TilusContext
 from tilus.lang.constructs.loops import TilusLoopIterable
+from tilus.lang.instructions import builder_context
 from tilus.lang.methods import (
     GlobalTensorWithMethods,
     RegisterTensorWithMethods,
     SharedTensorWithMethods,
     TensorMethodError,
 )
-from tilus.lang.script import InstructionError, Script
+from tilus.lang.script import Attributes, Script
 
-
-class TilusProgramError(HidetProgramError):
-    pass
-
-
-class Scope:
-    def __init__(self, parent: Optional[Scope]):
-        self.parent: Optional[Scope] = parent
-        self.name2var: dict[str, Var] = {}
-        self.name2value: dict[str, Tensor] = {}
-        self.name2host_var: dict[str, Any] = {}
-
-    @staticmethod
-    def default_top_level():
-        scope = Scope(None)
-        # when user use range(...), it will be translated to tilus.lang.constructs.loops.range(...)
-        scope.bind("range", tilus.lang.constructs.loops.range)
-        return scope
-
-    def bind(self, name: str, var_or_value: Var | Tensor | Any) -> None:
-        if isinstance(var_or_value, Var):
-            self.name2var[name] = var_or_value
-        elif isinstance(var_or_value, Tensor):
-            self.name2value[name] = var_or_value
-        else:
-            self.name2host_var[name] = var_or_value
-
-    def lookup(self, name: str, search_parents: bool = True) -> Var | Tensor | Any | None:
-        if name in self.name2var:
-            return self.name2var[name]
-        if name in self.name2value:
-            return self.name2value[name]
-        if name in self.name2host_var:
-            return self.name2host_var[name]
-        if search_parents and self.parent:
-            return self.parent.lookup(name, search_parents)
-        return None
-
-
-class ScopeStack:
-    def __init__(self) -> None:
-        self.scopes: list[Scope] = [Scope.default_top_level()]
-
-    def __enter__(self) -> Scope:
-        parent = self.scopes[-1]
-        scope = Scope(parent)
-        self.scopes.append(scope)
-        return scope
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.scopes.pop()
+from .builder import ScopedProgramBuilder
+from .common import TilusProgramError
 
 
 class LambdaProxy:
@@ -114,13 +62,13 @@ class LambdaProxy:
 
     def __call__(self, *args, **kwargs):
         if kwargs:
-            raise HidetProgramError(
+            raise TilusProgramError(
                 self.translator, self.lambda_expr, "Do not support keyword arguments in lambda function."
             )
 
         with self.translator.scope() as lambda_params_scope:
             if len(args) != len(self.lambda_expr.args.args):
-                raise HidetProgramError(
+                raise TilusProgramError(
                     self.translator,
                     self.lambda_expr,
                     "The number of arguments does not match the lambda function definition.",
@@ -131,52 +79,85 @@ class LambdaProxy:
             return self.translator.visit(self.lambda_expr.body)
 
 
-class Transpiler(PythonAstFunctor):
+class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
     def __init__(self) -> None:
-        super().__init__(file="", start_lineno=0, start_column=0)
-        self.builder = StmtBuilder()
-        self.scope_stack = ScopeStack()
-        self.type_annotations: dict[str, Any] = {}
-        self.name2consts: dict[str, Union[int, float, str, Any]] = {}
-        self.name2divisibility: dict[str, int] = {}
-
+        PythonAstFunctor.__init__(self, file="", start_lineno=0, start_column=0)  # type: ignore[call-arg]
+        ScopedProgramBuilder.__init__(self)
         self._optional_script: Optional[Script] = None
 
     def visit(self, node):
         """dispatch method for visiting an AST node."""
-        from hidet.ir.library.tune import ScheduleError
 
         method = "visit_" + node.__class__.__name__
         if hasattr(self, method):
             visitor = getattr(self, method)
         else:
             msg = "The AST node {} is not supported in HidetScript.".format(node.__class__.__name__)
-            raise HidetProgramError(self, node, msg)
+            raise TilusProgramError(self, node, msg)
 
         try:
             return visitor(node)
-        except ScheduleError:
-            raise
-        except HidetProgramError:
+        except TilusProgramError as e:
+            if e.obj is None and isinstance(node, (ast.stmt, ast.expr)):
+                e.obj = node
             raise
         except InstructionError as e:
-            raise HidetProgramError(self, node, str(e)) from e
+            raise TilusProgramError(self, node, str(e)) from e
         except Exception as e:
-            # import traceback
-            raise HidetProgramError(self, node, "Internal exception occurred during transpiling this ast node.") from e
-
-    def scope(self) -> ScopeStack:
-        return self.scope_stack
-
-    @property
-    def current_scope(self) -> Scope:
-        return self.scope_stack.scopes[-1]
+            raise TilusProgramError(self, node, "Internal exception occurred during transpiling this ast node.") from e
 
     @property
     def script(self) -> Script:
         if self._optional_script is None:
             raise RuntimeError("The script is not set.")
         return self._optional_script
+
+    def create_script_call_args(
+        self,
+        script: Script,
+        name2consts: dict[str, int | float | str],
+    ) -> dict[str, Script | State | Var | int | float | str | bool]:
+        inspect_sig: inspect.Signature = inspect.signature(script.__class__.__call__)
+        params: dict[str, Script | State | Var | int | float | str | bool] = {}
+        for idx, (name, param) in enumerate(inspect_sig.parameters.items()):
+            # self parameter
+            if idx == 0:
+                params[name] = script
+                continue
+
+            # constant parameter
+            if name in name2consts:
+                params[name] = name2consts[name]
+                continue
+
+            # all other parameters will be the parameters of the kernel function
+            # it must have type annotation
+            if param.annotation is inspect.Parameter.empty:
+                raise TilusProgramError(
+                    self,
+                    None,
+                    f'Parameter "{name}" has no type annotation, tilus requires type annotation for each parameter.',
+                )
+            param_type = param.annotation
+            if not isinstance(param_type, BaseType):
+                raise TilusProgramError(
+                    self,
+                    None,
+                    f'Parameter "{name}" has invalid type annotation "{param_type}", tilus requires a BaseType type annotation for each parameter.',
+                )
+            param_var = Var(hint=name, type=param_type)
+            params[name] = param_var
+
+        # return type
+        if inspect_sig.return_annotation is not inspect.Signature.empty:
+            raise TilusProgramError(
+                self,
+                None,
+                "Tilus does not support return type annotation for __call__ method, got {}".format(
+                    inspect_sig.return_annotation
+                ),
+            )
+        return params
 
     def transpile(
         self, script: Script, name2consts: dict[str, Union[int, float, str, Any]], name2divisibility: dict[str, int]
@@ -199,107 +180,253 @@ class Transpiler(PythonAstFunctor):
         Different divisibility will also trigger JIT recompilation of the Tilus Script. This parameter provides the mapping
         from variable names to their divisibility during one JIT compilation.
         """
-        # Extract the source code of given function
-        method = script.__class__.__call__
-        lines, start_line = inspect.getsourcelines(method)
-        file: Optional[str] = inspect.getsourcefile(method)
-        if file is None:
-            file = ""
+        # declare or bind the parameters of the __call__ method
+        params: dict[str, Script | State | Var | int | float | str | bool] = self.create_script_call_args(
+            script, name2consts
+        )
+        kernel_params: tuple[Var, ...] = tuple(param for param in params.values() if isinstance(param, Var))
 
-        source = "".join(lines)
-        source, col_offset = eliminate_indent(source)
-        source, inc_lineno = eliminate_decorators(source)
-        start_line += inc_lineno
-        parsed: ast.AST = ast.parse(source=source)
-        self.file = file
-        self.start_lineno = start_line
-        self.start_column = col_offset
+        # transpile the __call__ method body
+        with builder_context(self):
+            self.transpile_call(script.__class__.__call__, params.values(), {})
+        body: Stmt = self.flush_stmts()
 
+        # check and create metadata
+        if script.attrs.blocks is None:
+            raise RuntimeError("The script.attrs.blocks is not set.")
+        if script.attrs.warps is None:
+            raise RuntimeError("The script.attrs.warps is not set.")
+        param2divisibility: dict[Var, int] = {}
+        for name in name2divisibility:
+            param = params[name]
+            assert isinstance(param, Var)
+            param2divisibility[param] = name2divisibility[name]
+        metadata = Metadata(
+            grid_blocks=normalize_grid_blocks(script.attrs.blocks),
+            cluster_blocks=normalize_cluster_blocks(script.attrs.cluster_blocks),
+            block_indices=(blockIdx.x, blockIdx.y, blockIdx.z),
+            num_warps=script.attrs.warps,
+            param2divisibility=frozendict(param2divisibility),
+            analysis=None,
+        )
+
+        func = Function(name=script.__class__.__name__, params=kernel_params, body=body, metadata=metadata)
+
+        return func
+
+    def get_external_env(self, func: Union[types.FunctionType, types.MethodType]) -> dict[str, Any]:
         # Get the environment (globals and binding of free variables)
         # See the data model of python for the details of func.__globals__, func.__closure__ and func.__code__:
         #     https://docs.python.org/3/reference/datamodel.html
-        env: dict[str, Any] = method.__globals__.copy()
-        func_freevar_names: list[str] = list(method.__code__.co_freevars)
-        func_freevar_cells: list[Any] = [v.cell_contents for v in method.__closure__] if method.__closure__ else []
+        if isinstance(func, types.MethodType):
+            assert isinstance(func.__func__, types.FunctionType)
+            func = func.__func__
+        env: dict[str, Any] = func.__globals__.copy()
+        func_freevar_names: list[str] = list(func.__code__.co_freevars)
+        func_freevar_cells: list[Any] = [v.cell_contents for v in func.__closure__] if func.__closure__ else []
         assert len(func_freevar_names) == len(func_freevar_cells)
         env.update(dict(zip(func_freevar_names, func_freevar_cells)))
+        return env
 
-        # get the type annotations of function parameters.
-        self.type_annotations = dict(method.__annotations__.items())
-        self.name2consts = name2consts
-        self.name2divisibility = name2divisibility
-        with self.scope() as env_scope:
-            for name, value in env.items():
-                env_scope.bind(name, value)
+    def transpile_call(self, func, args, kwargs):
+        sig: inspect.Signature = inspect.signature(func)
+        bound_args: inspect.BoundArguments = sig.bind(*args, **kwargs)
 
-            script._set_builder(self.builder)
-            self._optional_script = script
+        ret = None
 
-            function = self.visit(parsed)
-            assert isinstance(function, Function)
+        # we need to dump the current scopes and push it to a stack
+        self.dump_and_push_scopes()
 
-            # prevent loop reference
-            self._optional_script = None
-            script._set_builder(None)
+        with self.scope():  # external scope
+            # bind the external environment in a new scope
+            external_env = self.get_external_env(func)
+            for name, value in external_env.items():
+                self.bind(name, value)
 
-            return function
+            with self.scope():  # parameter scope
+                # bind the parameters to the arguments in a new scope
+                for idx, param_name in enumerate(sig.parameters):
+                    param: inspect.Parameter = sig.parameters[param_name]
+                    arg = bound_args.arguments[param_name]
+                    annotation = param.annotation
 
-    def process_name_assign(self, lhs: ast.Name, rhs: Any, type_annotation: Optional[ast.expr] = None) -> None:
-        var_name: str = lhs.id
-        if var_name == "_":
+                    if idx == 0:
+                        # the self parameter, it does not have type annotation, treat it as host_var
+                        self.bind(param_name, arg)
+                    elif annotation is inspect.Parameter.empty:
+                        # for all other parameters, it must have type annotation to be executed in transpile-mode
+                        raise TilusProgramError(self, None, 'Parameter "{}" has no type annotation.'.format(param_name))
+                    elif isinstance(annotation, str):
+                        # this usually happens when "from __future__ import annotations" is used
+                        # in such case, the annotation is stored as a string
+                        # we currently do not support this feature
+                        raise TilusProgramError(
+                            self,
+                            None,
+                            (
+                                "A python string as parameter type annotation detected. \n"
+                                'This is usually because "from __future__ import annotations" has been used.\n'
+                                "Currently, tilus script is not compatible with this feature. \n"
+                                "Please considering not using it in module that defines tilus script."
+                            ),
+                        )
+                    elif annotation in (RegisterTensor, SharedTensor, GlobalTensor):
+                        # tensor parameters are passed by reference
+                        if not isinstance(arg, annotation):
+                            raise TilusProgramError(
+                                self,
+                                None,
+                                'Parameter "{}" expects a {} but got {}.'.format(
+                                    param_name, annotation.__name__, type(arg).__name__
+                                ),
+                            )
+                        self.bind(param_name, arg)
+                    elif isinstance(annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
+                        # scalar parameters are passed by value
+                        if not isinstance(arg, (hidet_ir.Expr, int, bool, float)):
+                            raise TilusProgramError(
+                                self,
+                                None,
+                                'Parameter "{}" expects an expression but got {}.'.format(
+                                    param_name, type(arg).__name__
+                                ),
+                            )
+                        var = self.declare(type=annotation, init=as_expr(arg))
+                        self.bind(param_name, var)
+                    elif annotation in [bool, int, float]:
+                        # python built-in constants are passed by value, but we don't need to declare a variable for them
+                        # since they are immutable
+                        if not isinstance(arg, Constant) and not isinstance(arg, annotation):
+                            raise TilusProgramError(
+                                self,
+                                None,
+                                'Parameter "{}" expects a constant but got {}.'.format(param_name, type(arg).__name__),
+                            )
+                        self.bind(param_name, annotation(arg))
+                    elif inspect.isclass(annotation) and issubclass(annotation, State):
+                        # State are passed by reference
+                        state_cls: Type[State] = annotation
+                        if not isinstance(arg, state_cls):
+                            raise TilusProgramError(
+                                self,
+                                None,
+                                'Parameter "{}" expects a {} but got {}.'.format(
+                                    param_name, state_cls.__name__, type(arg).__name__
+                                ),
+                            )
+                        self.bind(param_name, arg)
+                    else:
+                        # unsupported type annotation
+                        raise TilusProgramError(
+                            self,
+                            None,
+                            'Parameter "{}" has an unsupported type annotation: {}.\n'.format(param_name, annotation)
+                            + "Currently, we only support data type, pointer, and tensors as type annotations.",
+                        )
+
+                # process the body, we transpile-run the function body in the new scope in the current scope stack,
+                # instead of creating a new Function. It implements the inlined kernel procedure feature.
+                lines, start_line = inspect.getsourcelines(func)
+                file: Optional[str] = inspect.getsourcefile(func)
+                if file is None:
+                    raise RuntimeError('Can not get the source file of the given function "{}".'.format(func.__name__))
+
+                source = "".join(lines)
+                source, col_offset = eliminate_indent(source)
+                source, inc_lineno = eliminate_decorators(source)
+                start_line += inc_lineno
+                parsed: ast.Module = ast.parse(source=source)
+                func_defs = parsed.body
+                assert len(func_defs) == 1 and isinstance(func_defs[0], ast.FunctionDef)
+                func_def: ast.FunctionDef = func_defs[0]
+
+                old = self.file, self.start_lineno, self.start_column  # type: ignore[has-type]
+                self.file, self.start_lineno, self.start_column = file, start_line, col_offset
+                with self.scope():  # body scope
+                    for i, stmt in enumerate(func_def.body):
+                        if isinstance(stmt, ast.Return):
+                            if i != len(func_def.body) - 1:
+                                raise TilusProgramError(
+                                    self, stmt, "Return statement must be the last statement in a tilus procedure."
+                                )
+                            ret = self.visit(stmt.value)
+                            continue
+                        self.visit(stmt)
+                self.file, self.start_lineno, self.start_column = old
+
+        # after the function call, pop and restore the caller's scopes
+        self.pop_and_restore_scopes()
+
+        return ret
+
+    def assign_value_to_var(self, var: Union[Var, Tensor], value: Any) -> None:
+        if isinstance(var, Var):
+            if not isinstance(value, (hidet_ir.Expr, int, float, str)):
+                raise TilusProgramError(self, None, "Assignment between Var is only accepted for hidet_ir.Expr.")
+            self.assign(var=var, value=as_expr(value))
+        elif isinstance(var, Tensor):
+            if not isinstance(value, RegisterTensor) or not isinstance(var, RegisterTensor):
+                raise TilusProgramError(self, None, "Assignment between Value is only accepted for RegisterValue.")
+            from hidet.ir.type import type_equal
+
+            if not type_equal(var.dtype, value.dtype):
+                raise TilusProgramError(
+                    self,
+                    None,
+                    "Different types of RegisterValue are not allowed to be assigned to each other. ",
+                )
+            self.assign_register(output=var, x=value)
+        else:
+            assert False
+
+    def process_name_assign(self, name: str, rhs: Any, type_annotation: Optional[ast.expr] = None) -> None:
+        if name == "_":
             # discard the assignment to '_' variable
             return
-        lookup_result = self.current_scope.lookup(var_name, search_parents=True)
-        if lookup_result is None:
+        bound_value = self.lookup(name)
+        value = rhs
+        if bound_value is None:
             # bind a new name to the right side, the rhs could be
             #  1) a hidet expression => we define a new scalar variable
             #  2) a tilus value => we bind the value to the name
             #  3) other host expressions
             #    3.1) if there is type annotation, we define a scalar variable
             #    3.2) otherwise, we bind the host expression to the name
-            if isinstance(rhs, hidet_ir.Expr):
-                var = self.builder.declare(type=hidet_ir.infer_type(rhs), init=rhs, hint=var_name)
-                self.current_scope.bind(var_name, var)
-            elif isinstance(rhs, tilus_ir.Tensor):
-                self.current_scope.bind(var_name, rhs)
+            if isinstance(value, hidet_ir.Expr):
+                var = self.declare(type=hidet_ir.infer_type(value), init=value, hint=name)
+                self.bind(name, var)
+            elif isinstance(value, tilus_ir.Tensor):
+                self.bind(name, value)
             else:
-                if type_annotation is not None and rhs is not None:
+                if value is None:
+                    raise TilusProgramError(self, None, "Cannot bind or assign None value.")
+                if type_annotation is not None:
                     resolved_annotation = self.visit(type_annotation)
                     if resolved_annotation in (int, str, float):
-                        rhs = resolved_annotation(rhs)  # type: ignore
-                        self.current_scope.bind(var_name, rhs)
+                        value = resolved_annotation(value)  # type: ignore
+                        self.bind(name, value)
                     else:
                         if not isinstance(resolved_annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
                             raise TilusProgramError(
-                                self, lhs, "Invalid type annotation: {}".format(resolved_annotation)
+                                self, type_annotation, "Invalid type annotation: {}".format(resolved_annotation)
                             )
-                        if not isinstance(rhs, hidet_ir.Expr):
-                            rhs = as_expr(rhs)  # type: ignore
-                        stmt = DeclareStmt(var=Var(hint=var_name, type=resolved_annotation), init=rhs)
-                        self.builder.append(stmt)
-                        self.current_scope.bind(var_name, stmt.var)
+                        if not isinstance(value, hidet_ir.Expr):
+                            value = as_expr(value)  # type: ignore
+                        stmt = DeclareStmt(var=Var(hint=name, type=resolved_annotation), init=value)
+                        self.append(stmt)
+                        self.bind(name, stmt.var)
                 else:
-                    self.current_scope.bind(var_name, rhs)
+                    if isinstance(value, State):
+                        # we allow to bind State without type annotation
+                        self.bind(name, value)
+                    else:
+                        raise TilusProgramError(self, None, "Cannot bind or assign value without type annotation.")
         else:
             # assignment
-            if isinstance(lookup_result, Var):
-                if not isinstance(rhs, (hidet_ir.Expr, int, float, str)):
-                    raise TilusProgramError(self, lhs, "Assignment between Var is only accepted for hidet_ir.Expr.")
-                self.builder.assign(var=lookup_result, value=as_expr(rhs))
-            elif isinstance(lookup_result, Tensor):
-                if not isinstance(rhs, RegisterTensor) or not isinstance(lookup_result, RegisterTensor):
-                    raise TilusProgramError(self, lhs, "Assignment between Value is only accepted for RegisterValue.")
-                from hidet.ir.type import type_equal
-
-                if not type_equal(lookup_result.dtype, rhs.dtype):
-                    raise TilusProgramError(
-                        self,
-                        lhs,
-                        "Different types of RegisterValue are not allowed to be assigned to each other. ",
-                    )
-                self.builder.assign_register(output=lookup_result, x=rhs)
+            if isinstance(bound_value, (Var, Tensor)):
+                self.assign_value_to_var(bound_value, value)
             else:
-                raise TilusProgramError(self, lhs, "Unexpected assignee: {}".format(type(lookup_result)))
+                raise TilusProgramError(self, None, "Unexpected assignee: {}".format(type(bound_value)))
 
     def process_subscript_assign(
         self, lhs: ast.Subscript, rhs: Any, type_annotation: Optional[ast.expr] = None
@@ -334,11 +461,21 @@ class Transpiler(PythonAstFunctor):
         if isinstance(rhs, RegisterTensor):
             rhs_tensor = rhs
         else:
-            rhs_tensor = self.builder.allocate_register(
+            rhs_tensor = self.allocate_register(
                 dtype=dst_tensor.dtype, shape=[], f_init=lambda _: dst_tensor.dtype(rhs)
             )
 
-        self.builder.slice_assign_register(output=dst_tensor, x=rhs_tensor, offsets=offsets, dims=slice_dims)
+        self.slice_assign_register(output=dst_tensor, x=rhs_tensor, offsets=offsets, dims=slice_dims)
+
+    def get_attribute_chain(self, node: ast.Attribute) -> list[str]:
+        if isinstance(node.value, ast.Attribute):
+            attrs = self.get_attribute_chain(node.value)
+            attrs.append(node.attr)
+            return attrs
+        elif isinstance(node.value, ast.Name):
+            return [node.value.id, node.attr]
+        else:
+            raise TilusProgramError(self, node, "Invalid attribute access: {}".format(ast.dump(node)))
 
     def process_attribute_assign(
         self, lhs: ast.Attribute, rhs: Any, type_annotation: Optional[ast.expr] = None
@@ -346,15 +483,19 @@ class Transpiler(PythonAstFunctor):
         # example: self.attrs.blocks = 16, 16
         lhs_base = self.visit(lhs.value)
 
-        if lhs_base is self.script.attrs:
-            # we only allow the kernel function to assign self.attrs.xxx = ...
-            if isinstance(rhs, Sequence):
-                rhs = [hidet_ir.tools.simplify(v) for v in rhs]  # type: ignore
+        if isinstance(lhs_base, Attributes):
+            setattr(lhs_base, lhs.attr, rhs)
+        elif isinstance(lhs_base, State):
+            # State.xxx = ...
+            if hasattr(lhs_base, lhs.attr):
+                # we have defined the attribute, assign it
+                self.assign_value_to_var(getattr(lhs_base, lhs.attr), rhs)
             else:
-                rhs = hidet_ir.tools.simplify(rhs)  # type: ignore
-            setattr(self.script.attrs, lhs.attr, rhs)
+                name = "_".join(self.get_attribute_chain(lhs))
+                self.process_name_assign(name=name, rhs=rhs, type_annotation=type_annotation)
+                setattr(lhs_base, lhs.attr, self.lookup(name))
         else:
-            raise HidetProgramError(self, lhs, "Invalid assignment.")
+            raise TilusProgramError(self, lhs, "Invalid assignment: {}".format(type(lhs_base)))
 
     def process_assign(
         self, lhs: Union[ast.Attribute, ast.Subscript, ast.Name], rhs: Any, type_annotation: Optional[ast.expr] = None
@@ -364,122 +505,13 @@ class Transpiler(PythonAstFunctor):
         #    2. a[i, j] = ...
         #    3. attr.name = ...
         if isinstance(lhs, ast.Name):
-            self.process_name_assign(lhs, rhs, type_annotation)
+            self.process_name_assign(lhs.id, rhs, type_annotation)
         elif isinstance(lhs, ast.Subscript):
             self.process_subscript_assign(lhs, rhs, type_annotation)
         elif isinstance(lhs, ast.Attribute):
             self.process_attribute_assign(lhs, rhs, type_annotation)
         else:
-            type_name = type(lhs).__name__
-            raise HidetProgramError(self, lhs, 'Cannot recognize "{}" as left side of assignment.'.format(type_name))
-
-    def visit_Module(self, module: ast.Module) -> Function:
-        if len(module.body) != 1 or not isinstance(module.body[0], ast.FunctionDef):
-            msg = "The module expects to have only one function definition statement, got\n"
-            msg += str(ast.unparse(module))
-            raise TilusProgramError(self, module, msg)
-        return self.visit(module.body[0])
-
-    def process_param_type(
-        self, arg: ast.AST, arg_type: Union[BaseType, Type[int], Type[float], Type[bool]]
-    ) -> BaseType:
-        if isinstance(arg_type, BaseType):
-            return arg_type
-        elif isinstance(arg_type, str):
-            raise TilusProgramError(
-                self,
-                arg,
-                (
-                    "A python string as parameter type annotation detected. \n"
-                    'This is usually because "from __future__ import annotations" has been used.\n'
-                    "Currently, tilus script is not compatible with this feature. \n"
-                    "Please considering not using it in module that defines tilus script."
-                ),
-            )
-        else:
-            raise TilusProgramError(self, arg, "Tilus expect a type annotation for this parameter.")
-
-    def visit_FunctionDef(self, func_def: ast.FunctionDef) -> Function:
-        func_params = []
-        with self.scope() as scope:
-            # process function arguments
-            args: ast.arguments = func_def.args
-
-            # make sure that the function parameters only have normal positional arguments
-            if args.vararg is not None:
-                raise TilusProgramError(self, args.vararg, 'Tilus program does not support "*args" arguments.')
-            if args.kwarg is not None:
-                raise TilusProgramError(self, args.kwarg, 'Tilus program does not support "**kwargs" arguments.')
-
-            divisibility: dict[Var, int] = {}
-            for idx, arg in enumerate(args.args):
-                arg_name = arg.arg
-
-                # self parameter
-                if idx == 0:
-                    scope.bind(arg_name, self.script)
-                    continue
-
-                # constant parameter
-                if arg_name in self.name2consts:
-                    value = self.name2consts[arg_name]
-                    self.current_scope.bind(arg_name, value)
-                    continue
-
-                # all other parameters will be the parameters of the kernel function
-                # it must have type annotation
-                if arg_name not in self.type_annotations:
-                    raise TilusProgramError(self, arg, "Tilus expects type annotation for each function parameter.")
-
-                arg_type = self.type_annotations[arg_name]
-                param_var = Var(hint=arg_name, type=self.process_param_type(arg, arg_type))
-                func_params.append(param_var)
-                scope.bind(arg_name, param_var)
-                if arg_name in self.name2divisibility:
-                    divisibility[param_var] = self.name2divisibility[arg_name]
-
-            # return type
-            if func_def.returns is not None:
-                ret_type = self.visit(func_def.returns)
-                if ret_type is not None:
-                    raise TilusProgramError(
-                        self, func_def.returns, "Tilus does not support return type annotation, got {}".format(ret_type)
-                    )
-
-            # process function body
-            for stmt in func_def.body:
-                self.visit(stmt)
-
-            # process the attributes
-            attrs = self.script.attrs
-            if attrs.blocks is None:
-                msg = (
-                    "Tilus script should set the number of blocks via self.blocks = ... like\n"
-                    "    self.blocks = dim_x\n"
-                    "or\n"
-                    "    self.blocks = dim_x, dim_y"
-                )
-                raise TilusProgramError(self, func_def, msg)
-            blocks = normalize_grid_blocks(attrs.blocks)
-            blocks_per_cluster = normalize_cluster_blocks(attrs.cluster_blocks)
-            if attrs.warps is None:
-                raise TilusProgramError(
-                    self, func_def, "Tilus script should set the number of warps via self.warps = ..."
-                )
-            warps = attrs.warps
-
-            return Function.create(
-                name=func_def.name,
-                params=func_params,
-                body=self.builder.flush_stmts(),
-                metadata=Metadata.create(
-                    grid_blocks=blocks,
-                    cluster_blocks=blocks_per_cluster,
-                    block_indices=[blockIdx.x, blockIdx.y, blockIdx.z],  # type: ignore
-                    num_warps=warps,
-                    divisibility=divisibility,
-                ),
-            )
+            assert False
 
     def visit_Expr(self, expr: ast.Expr) -> None:
         value = self.visit(expr.value)
@@ -488,7 +520,7 @@ class Transpiler(PythonAstFunctor):
             # do nothing
             return
         elif isinstance(value, hidet_ir.Expr):
-            self.builder.evaluate(pred=None, expr=value)
+            self.evaluate(pred=None, expr=value)
         elif isinstance(value, Tensor):
             # do nothing
             return
@@ -523,10 +555,11 @@ class Transpiler(PythonAstFunctor):
         try:
             """
             There are different kinds of function calls in Tilus Script:
-            1. inlined kernel procedure, it is a method of the user-defined Script subclass
+            1. inlined kernel procedure, it is a method of the user-defined Script subclass, or a user-defined State subclass.
             2. (global, shared or register) tensor method, such as `tensor.to(dtype)`, etc.
             3. python builtin function, such as `max`, `min`, for scalar expressions.
-            4. other function/method calls
+            4. subclass of tilus.State
+            5. other function/method calls
 
             We treat 1 to 3 specially, and call the function directly in 4.
             """
@@ -534,117 +567,22 @@ class Transpiler(PythonAstFunctor):
             if isinstance(func, types.MethodType):
                 f_self = func.__self__
                 f_func = func.__func__
-                if f_self is self.script and getattr(Script, f_func.__name__, None) is not f_func:
-                    # case 1.
-                    args = [f_self, *args]
-                    sig: inspect.Signature = inspect.signature(f_func)
-                    bound_args: inspect.BoundArguments = sig.bind(*args, **kwargs)
-
-                    ret = None
-                    with self.scope():
-                        # bind the parameters to the arguments in a new scope
-                        for param_name in sig.parameters:
-                            param: inspect.Parameter = sig.parameters[param_name]
-                            arg = bound_args.arguments[param_name]
-                            annotation = param.annotation
-                            if param_name == "self":
-                                continue
-                            if annotation is inspect.Parameter.empty:
-                                raise TilusProgramError(
-                                    self, expr, 'Parameter "{}" has no type annotation.'.format(param_name)
-                                )
-                            if isinstance(annotation, str):
-                                raise TilusProgramError(
-                                    self,
-                                    expr,
-                                    (
-                                        "A python string as parameter type annotation detected. \n"
-                                        'This is usually because "from __future__ import annotations" has been used.\n'
-                                        "Currently, tilus script is not compatible with this feature. \n"
-                                        "Please considering not using it in module that defines tilus script."
-                                    ),
-                                )
-                            if annotation in (RegisterTensor, SharedTensor, GlobalTensor):
-                                if not isinstance(arg, annotation):
-                                    raise TilusProgramError(
-                                        self,
-                                        expr,
-                                        'Parameter "{}" expects a {} but got {}.'.format(
-                                            param_name, annotation.__name__, type(arg).__name__
-                                        ),
-                                    )
-                                self.current_scope.bind(param_name, arg)
-                            elif isinstance(annotation, (hidet_ir.DataType, hidet_ir.PointerType)):
-                                if not isinstance(arg, (hidet_ir.Expr, int, bool, float)):
-                                    raise TilusProgramError(
-                                        self,
-                                        expr,
-                                        'Parameter "{}" expects an expression but got {}.'.format(
-                                            param_name, type(arg).__name__
-                                        ),
-                                    )
-                                var = self.builder.declare(type=annotation, init=as_expr(arg))
-                                self.current_scope.bind(param_name, var)
-                            elif annotation in [bool, int, float]:
-                                if not isinstance(arg, Constant) and not isinstance(arg, annotation):
-                                    raise TilusProgramError(
-                                        self,
-                                        expr,
-                                        'Parameter "{}" expects a constant but got {}.'.format(
-                                            param_name, type(arg).__name__
-                                        ),
-                                    )
-                                self.current_scope.bind(param_name, annotation(arg))
-                            else:
-                                raise TilusProgramError(
-                                    self,
-                                    expr,
-                                    'Parameter "{}" has an unsupported type annotation: {}.\n'.format(
-                                        param_name, annotation
-                                    )
-                                    + "Currently, we only support data type, pointer, and tensors as type annotations.",
-                                )
-
-                        # process the body
-                        lines, start_line = inspect.getsourcelines(f_func)
-                        file: Optional[str] = inspect.getsourcefile(f_func)
-                        if file is None:
-                            raise RuntimeError(
-                                'Can not get the source file of the given function "{}".'.format(f_func.__name__)
-                            )
-
-                        source = "".join(lines)
-                        source, col_offset = eliminate_indent(source)
-                        source, inc_lineno = eliminate_decorators(source)
-                        start_line += inc_lineno
-                        parsed: ast.Module = ast.parse(source=source)
-                        func_defs = parsed.body
-                        assert len(func_defs) == 1 and isinstance(func_defs[0], ast.FunctionDef)
-                        func_def: ast.FunctionDef = func_defs[0]
-
-                        old = self.file, self.start_lineno, self.start_column
-                        self.file, self.start_lineno, self.start_column = file, start_line, col_offset
-                        for i, stmt in enumerate(func_def.body):
-                            if isinstance(stmt, ast.Return):
-                                if i != len(func_def.body) - 1:
-                                    raise TilusProgramError(
-                                        self, stmt, "Return statement must be the last statement in a tilus procedure."
-                                    )
-                                ret = self.visit(stmt.value)
-                                continue
-                            self.visit(stmt)
-                        self.file, self.start_lineno, self.start_column = old
+                if isinstance(f_self, Script) and getattr(Script, f_func.__name__, None) is not f_func:
+                    # case 1 (Script method)
+                    ret = self.transpile_call(f_func, [f_self, *args], kwargs)
+                elif isinstance(f_self, State) and getattr(State, f_func.__name__, None) is not f_func:
+                    # case 1 (State method)
+                    ret = self.transpile_call(f_func, [f_self, *args], kwargs)
                 elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor)):
                     # case 2
-                    sb = self.script._builder
                     method_name = func.__name__
                     tensor_with_methods: RegisterTensorWithMethods | SharedTensorWithMethods | GlobalTensorWithMethods
                     if isinstance(f_self, RegisterTensor):
-                        tensor_with_methods = RegisterTensorWithMethods(f_self, sb)
+                        tensor_with_methods = RegisterTensorWithMethods(f_self, self)
                     elif isinstance(f_self, SharedTensor):
-                        tensor_with_methods = SharedTensorWithMethods(f_self, sb)
+                        tensor_with_methods = SharedTensorWithMethods(f_self, self)
                     elif isinstance(f_self, GlobalTensor):
-                        tensor_with_methods = GlobalTensorWithMethods(f_self, sb)
+                        tensor_with_methods = GlobalTensorWithMethods(f_self, self)
                     else:
                         raise NotImplementedError(
                             "Currently, only RegisterTensor methods are supported in Tilus Script."
@@ -663,9 +601,6 @@ class Transpiler(PythonAstFunctor):
                         ret = func(*args, **kwargs)
                     except TypeError as e:
                         raise TilusProgramError(self, expr, str(e)) from e
-            elif isinstance(func, types.FunctionType):
-                # case 4
-                ret = func(*args, **kwargs)
             elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):
                 # case 3
                 from hidet import ir
@@ -706,44 +641,42 @@ class Transpiler(PythonAstFunctor):
                         }
                         if len(kwargs) > 0:
                             msg = "Hidet do not support calling builtin function with keyword argument."
-                            raise HidetProgramError(self, expr, msg)
+                            raise TilusProgramError(self, expr, msg)
                         if func in func_map:
                             arity, hidet_func = func_map[func]  # type: ignore[index]
                             if len(args) != arity:
                                 msg = f'Hidet builtin function "{func.__name__}" takes {arity} arguments.'
-                                raise HidetProgramError(self, expr, msg)
+                                raise TilusProgramError(self, expr, msg)
                             ret = hidet_func(*args)  # type: ignore[operator]
                         else:
-                            raise HidetProgramError(
+                            raise TilusProgramError(
                                 self,
                                 expr,
                                 'Currently, do not support calling python builtin function "{}".'.format(
                                     func.__qualname__
                                 ),
                             )
-            else:
+            elif inspect.isclass(func) and issubclass(func, State):
                 # case 4
+                state_cls: Type[State] = func
+                state_obj = object.__new__(state_cls)
+                self.transpile_call(state_cls.__init__, [state_obj, *args], kwargs)
+                ret = state_obj
+            else:
+                # case 5
                 ret = func(*args, **kwargs)
 
             return ret
         except InstructionError as e:
-            raise HidetProgramError(self, expr, str(e)) from e
+            raise TilusProgramError(self, expr, str(e)) from e
 
     def visit_Attribute(self, expr: ast.Attribute) -> Any:
-        from hidet.ir.primitives.cuda.vars import blockIdx
-
         base = self.visit(expr.value)
         attr = expr.attr
-
         if hasattr(base, attr):
             ret = getattr(base, attr)
         else:
-            raise HidetProgramError(self, expr, 'Can not access attribute "{}" of object {}.'.format(attr, base))
-
-        self_attributes = {self.script.blockIdx: blockIdx}
-        for key in self_attributes:
-            if ret is key:
-                return self_attributes[key]
+            raise TilusProgramError(self, expr, 'Can not access attribute "{}" of object {}.'.format(attr, base))
         return ret
 
     def visit_Name(self, expr: ast.Name) -> Any:
@@ -751,15 +684,15 @@ class Transpiler(PythonAstFunctor):
             raise ValueError("Internal Error, please deal with all Store behavior in parent nodes like Assign.")
         elif isinstance(expr.ctx, ast.Load):
             name: str = expr.id
-            var = self.current_scope.lookup(name)
+            var = self.lookup(name)
             if var is None:
                 if name in builtins.__dict__:
                     # access builtin functions such as max, min
                     return getattr(builtins, name)
-                raise HidetProgramError(self, expr, "Trying to access variable without definition: {}".format(name))
+                raise TilusProgramError(self, expr, "Trying to access variable without definition: {}".format(name))
             return var
         elif isinstance(expr.ctx, ast.Del):
-            raise HidetProgramError(self, expr, "Hidet does not support del statement.")
+            raise TilusProgramError(self, expr, "Hidet does not support del statement.")
         else:
             raise ValueError()
 
@@ -799,25 +732,25 @@ class Transpiler(PythonAstFunctor):
                 return op_dict[type(expr.op)](lhs, rhs)
             else:
                 type_name = type(expr.op).__name__
-                raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
+                raise TilusProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
         elif isinstance(lhs, RegisterTensor) or isinstance(rhs, RegisterTensor):
             if not isinstance(lhs, RegisterTensor):
-                lhs = self.builder.allocate_register(dtype=rhs.dtype, shape=rhs.shape, f_init=lambda _: rhs.dtype(lhs))
+                lhs = self.allocate_register(dtype=rhs.dtype, shape=rhs.shape, f_init=lambda _: rhs.dtype(lhs))
             if not isinstance(rhs, RegisterTensor):
-                rhs = self.builder.allocate_register(dtype=lhs.dtype, shape=lhs.shape, f_init=lambda _: lhs.dtype(rhs))
+                rhs = self.allocate_register(dtype=lhs.dtype, shape=lhs.shape, f_init=lambda _: lhs.dtype(rhs))
 
             if isinstance(lhs, RegisterTensor):
-                lhs = RegisterTensorWithMethods(lhs, self.script._builder)
+                lhs = RegisterTensorWithMethods(lhs, self)
             if isinstance(rhs, RegisterTensor):
-                rhs = RegisterTensorWithMethods(rhs, self.script._builder)
+                rhs = RegisterTensorWithMethods(rhs, self)
 
             if type(expr.op) in op_dict:
                 return op_dict[type(expr.op)](lhs, rhs)
             else:
                 type_name = type(expr.op).__name__
-                raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
+                raise TilusProgramError(self, expr, "Currently, we do not support {} operator.".format(type_name))
         else:
-            raise HidetProgramError(
+            raise TilusProgramError(
                 self, expr, "Can not apply operator {} to {} and {}.".format(expr.op, type(lhs), type(rhs))
             )
 
@@ -832,7 +765,7 @@ class Transpiler(PythonAstFunctor):
 
     def visit_Assign(self, stmt: ast.Assign) -> None:
         if len(stmt.targets) > 1:
-            raise HidetProgramError(self, stmt, 'Hidet does not support syntax like "a = b = 1".')
+            raise TilusProgramError(self, stmt, 'Hidet does not support syntax like "a = b = 1".')
         target = stmt.targets[0]
         value = stmt.value
 
@@ -841,7 +774,7 @@ class Transpiler(PythonAstFunctor):
             lhs_list = target.elts
             rhs_list = [self.visit(v) for v in value.elts]
             if len(lhs_list) != len(rhs_list):
-                raise HidetProgramError(self, stmt, "The number of left values and right values does not match.")
+                raise TilusProgramError(self, stmt, "The number of left values and right values does not match.")
             for lhs, rhs in zip(lhs_list, rhs_list):
                 assert isinstance(lhs, (ast.Attribute, ast.Subscript, ast.Name))
                 self.process_assign(lhs, rhs)
@@ -850,7 +783,7 @@ class Transpiler(PythonAstFunctor):
             lhs_list = target.elts
             rhs_list = self.visit(value)
             if len(lhs_list) != len(rhs_list):
-                raise HidetProgramError(self, stmt, "The number of left values and right values does not match.")
+                raise TilusProgramError(self, stmt, "The number of left values and right values does not match.")
             for lhs, rhs in zip(lhs_list, rhs_list):
                 assert isinstance(lhs, (ast.Attribute, ast.Subscript, ast.Name))
                 self.process_assign(lhs, rhs)
@@ -869,9 +802,6 @@ class Transpiler(PythonAstFunctor):
         lhs = stmt.target
         rhs = self.visit(stmt.value) if stmt.value else None
         assert isinstance(lhs, (ast.Name, ast.Attribute, ast.Subscript))
-        if isinstance(lhs, (ast.Attribute, ast.Subscript)):
-            msg = 'Hidet do not support annotation for expression like "x.y" or "x[y]"'
-            raise HidetProgramError(self, stmt.annotation, msg)
         self.process_assign(lhs, rhs, type_annotation=stmt.annotation)
 
     def visit_Lambda(self, expr: ast.Lambda) -> LambdaProxy:
@@ -916,21 +846,21 @@ class Transpiler(PythonAstFunctor):
 
             sliced_tensor: Union[GlobalTensor, SharedTensor, RegisterTensor]
             if isinstance(base, GlobalTensor):
-                sliced_tensor = self.builder.slice_global(
+                sliced_tensor = self.slice_global(
                     tensor=base,
                     offsets=offsets,
                     slice_dims=slice_dims,
                     slice_shape=[base.shape[dim] for dim in slice_dims],
                 )
             elif isinstance(base, SharedTensor):
-                sliced_tensor = self.builder.slice_shared(
+                sliced_tensor = self.slice_shared(
                     tensor=base,
                     offsets=offsets,
                     slice_dims=slice_dims,
                     slice_shape=[base.shape[dim] for dim in slice_dims],
                 )
             elif isinstance(base, RegisterTensor):
-                sliced_tensor = self.builder.slice_register(
+                sliced_tensor = self.slice_register(
                     tensor=base,
                     offsets=offsets,
                     slice_dims=slice_dims,
@@ -950,7 +880,7 @@ class Transpiler(PythonAstFunctor):
         elif expr.value is None:
             return expr.value
         else:
-            raise HidetProgramError(self, expr, "Can not recognize Constant {}".format(repr(expr.value)))
+            raise TilusProgramError(self, expr, "Can not recognize Constant {}".format(repr(expr.value)))
 
     def visit_Compare(self, expr: ast.Compare) -> Union[hidet_ir.Expr, RegisterTensor]:
         operands = [self.visit(expr.left)] + [self.visit(v) for v in expr.comparators]
@@ -959,21 +889,21 @@ class Transpiler(PythonAstFunctor):
             operands = [
                 operand
                 if isinstance(operand, RegisterTensor)
-                else self.builder.allocate_register(dtype=infer_type(operand), shape=[], f_init=lambda axes: operand)
+                else self.allocate_register(dtype=infer_type(operand), shape=[], f_init=lambda axes: operand)
                 for operand in operands
             ]
             op_dict = {
-                ast.Eq: self.builder.equal,
-                ast.NotEq: self.builder.not_equal,
-                ast.Gt: self.builder.greater_than,
-                ast.Lt: self.builder.less_than,
-                ast.GtE: self.builder.greater_equal,
-                ast.LtE: self.builder.less_equal,
+                ast.Eq: self.equal,
+                ast.NotEq: self.not_equal,
+                ast.Gt: self.greater_than,
+                ast.Lt: self.less_than,
+                ast.GtE: self.greater_equal,
+                ast.LtE: self.less_equal,
             }
             left = operands.pop(0)
             for op, right in zip(expr.ops, operands):
                 if type(op) not in op_dict:
-                    raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type(op)))
+                    raise TilusProgramError(self, expr, "Currently, we do not support {} operator.".format(type(op)))
                 left = op_dict[type(op)](left, right)
             return left
         else:
@@ -989,7 +919,7 @@ class Transpiler(PythonAstFunctor):
             left = operands.pop(0)
             for op, right in zip(expr.ops, operands):
                 if type(op) not in op_dict:
-                    raise HidetProgramError(self, expr, "Currently, we do not support {} operator.".format(type(op)))
+                    raise TilusProgramError(self, expr, "Currently, we do not support {} operator.".format(type(op)))
                 left = op_dict[type(op)](left, right)
             return left
 
@@ -1010,7 +940,7 @@ class Transpiler(PythonAstFunctor):
             if not isinstance(then_expr, (hidet_ir.Expr, int, bool, float)) or not isinstance(
                 else_expr, (hidet_ir.Expr, int, bool, float)
             ):
-                raise HidetProgramError(self, expr, "Then and else expression must be hidet expression.")
+                raise TilusProgramError(self, expr, "Then and else expression must be hidet expression.")
             return hidet_ir.expr.if_then_else(cond, then_expr, else_expr)
 
     def visit_AugAssign(self, stmt: ast.AugAssign) -> None:
@@ -1021,23 +951,23 @@ class Transpiler(PythonAstFunctor):
 
             if isinstance(var_value, RegisterTensor):
                 if isinstance(value, (int, float, hidet_ir.Expr)):
-                    value = self.builder.allocate_register(
+                    value = self.allocate_register(
                         dtype=var_value.dtype, shape=var_value.shape, f_init=lambda _: var_value.dtype(value)
                     )
                 if isinstance(stmt.op, ast.Add):
-                    self.builder.add(x=var_value, y=value, out=var_value)
+                    self.add(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.Sub):
-                    self.builder.sub(x=var_value, y=value, out=var_value)
+                    self.sub(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.Mult):
-                    self.builder.mul(x=var_value, y=value, out=var_value)
+                    self.mul(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.Div):
-                    self.builder.div(x=var_value, y=value, out=var_value)
+                    self.div(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.FloorDiv):
-                    self.builder.div(x=var_value, y=value, out=var_value)
+                    self.div(x=var_value, y=value, out=var_value)
                 elif isinstance(stmt.op, ast.Mod):
-                    self.builder.mod(x=var_value, y=value, out=var_value)
+                    self.mod(x=var_value, y=value, out=var_value)
                 else:
-                    raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
+                    raise TilusProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
             elif isinstance(var_value, hidet_ir.Var) and isinstance(value, (int, float, hidet_ir.Expr)):
                 op_dict = {
                     ast.Add: operator.add,
@@ -1050,9 +980,9 @@ class Transpiler(PythonAstFunctor):
                     ast.LShift: operator.lshift,
                     ast.BitXor: operator.xor,
                 }
-                self.builder.assign(var=var_value, value=op_dict[type(stmt.op)](var_value, value))
+                self.assign(var=var_value, value=op_dict[type(stmt.op)](var_value, value))
             else:
-                raise HidetProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
+                raise TilusProgramError(self, stmt, "AugAssign only support RegisterTensor or hidet expression.")
         elif isinstance(stmt.target, ast.Subscript):
             # example: a[3, 4] = 5.0
             dst_tensor = self.visit(stmt.target.value)
@@ -1087,10 +1017,10 @@ class Transpiler(PythonAstFunctor):
             if isinstance(stmt.value, RegisterTensor):
                 rhs_tensor = rhs
             else:
-                rhs_tensor = self.builder.allocate_register(
+                rhs_tensor = self.allocate_register(
                     dtype=dst_tensor.dtype, shape=[], f_init=lambda _: dst_tensor.dtype(rhs)
                 )
-            lhs_tensor = self.builder.slice_register(
+            lhs_tensor = self.slice_register(
                 tensor=dst_tensor,
                 offsets=offsets,
                 slice_dims=slice_dims,
@@ -1098,25 +1028,25 @@ class Transpiler(PythonAstFunctor):
             )
 
             if isinstance(stmt.op, ast.Add):
-                result = self.builder.add(x=lhs_tensor, y=rhs_tensor)
+                result = self.add(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.Sub):
-                result = self.builder.sub(x=lhs_tensor, y=rhs_tensor)
+                result = self.sub(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.Mult):
-                result = self.builder.mul(x=lhs_tensor, y=rhs_tensor)
+                result = self.mul(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.Div):
-                result = self.builder.div(x=lhs_tensor, y=rhs_tensor)
+                result = self.div(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.FloorDiv):
-                result = self.builder.div(x=lhs_tensor, y=rhs_tensor)
+                result = self.div(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.Mod):
-                result = self.builder.mod(x=lhs_tensor, y=rhs_tensor)
+                result = self.mod(x=lhs_tensor, y=rhs_tensor)
             elif isinstance(stmt.op, ast.BitXor):
-                result = self.builder.bitwise_xor(x=lhs_tensor, y=rhs_tensor)
+                result = self.bitwise_xor(x=lhs_tensor, y=rhs_tensor)
             else:
-                raise HidetProgramError(self, stmt, "NotImplemented AugAssign for operator: {}".format(type(stmt.op)))
+                raise TilusProgramError(self, stmt, "NotImplemented AugAssign for operator: {}".format(type(stmt.op)))
 
-            self.builder.slice_assign_register(output=dst_tensor, x=result, offsets=offsets, dims=slice_dims)
+            self.slice_assign_register(output=dst_tensor, x=result, offsets=offsets, dims=slice_dims)
         else:
-            raise HidetProgramError(
+            raise TilusProgramError(
                 self, stmt.target, "AugAssign only support variable name or RegisterTensor as target."
             )
 
@@ -1126,11 +1056,11 @@ class Transpiler(PythonAstFunctor):
         if isinstance(stmt.target, (ast.List, ast.Tuple)):
             for target in stmt.target.elts:
                 if not isinstance(target, ast.Name):
-                    raise HidetProgramError(self, stmt, "For loop target must be a name.")
+                    raise TilusProgramError(self, stmt, "For loop target must be a name.")
                 iter_targets.append(target)
         else:
             if not isinstance(stmt.target, ast.Name):
-                raise HidetProgramError(self, stmt, "For loop target must be a name.")
+                raise TilusProgramError(self, stmt, "For loop target must be a name.")
             iter_targets.append(stmt.target)
 
         # construct for body
@@ -1151,11 +1081,11 @@ class Transpiler(PythonAstFunctor):
                     loop_vars.append(Var(f"{name}{i}", type=hidet_ir.data_type("int32")))
                 host_vars[name] = list(loop_vars)
             else:
-                raise HidetProgramError(
+                raise TilusProgramError(
                     self, stmt, f"Expect {num_loop_vars} loop variables, but got {len(iter_targets)}."
                 )
 
-            with self.builder.block(), self.scope() as for_scope:
+            with self.block(), self.scope() as for_scope:
                 for var in loop_vars:
                     assert var.hint is not None
                     for_scope.bind(name=var.hint, var_or_value=var)
@@ -1163,11 +1093,11 @@ class Transpiler(PythonAstFunctor):
                     for_scope.bind(name, value)
                 for s in stmt.body:
                     self.visit(s)
-            body = self.builder.pop_innermost_last()
-            self.builder.append(stmt_iter.generate_loop_statement(loop_vars=loop_vars, body=body))
+            body = self.pop_innermost_last()
+            self.append(stmt_iter.generate_loop_statement(loop_vars=loop_vars, body=body))
         else:
             msg = "For loop iterable must be a one of the following types: \n1.\n  for ... in range(...): \n      ...\n"
-            raise HidetProgramError(self, stmt.iter, msg)
+            raise TilusProgramError(self, stmt.iter, msg)
 
     def visit_If(self, stmt: ast.If) -> None:
         cond = self.visit(stmt.test)
@@ -1183,11 +1113,11 @@ class Transpiler(PythonAstFunctor):
                 for s in stmt.orelse:
                     self.visit(s)
         else:
-            with self.builder.if_then(cond=cond), self.scope():
+            with self.if_then(cond=cond), self.scope():
                 for s in stmt.body:
                     self.visit(s)
             if len(stmt.orelse) > 0:
-                with self.builder.otherwise(), self.scope():
+                with self.otherwise(), self.scope():
                     for s in stmt.orelse:
                         self.visit(s)
 
@@ -1208,12 +1138,12 @@ class Transpiler(PythonAstFunctor):
                 if not isinstance(indices, Sequence):
                     indices = [indices]
                 if len(indices) != len(buf.shape):
-                    raise HidetProgramError(
+                    raise TilusProgramError(
                         self,
                         expr.operand,
                         "Index dimension {} does not match tensor shape {}.".format(len(indices), buf.shape),
                     )
-                return self.builder.tensor_item_ptr(buf, space="generic")
+                return self.tensor_item_ptr(buf, space="generic")
             elif isinstance(buf, RegisterTensor):
                 raise ValueError("Can not addressing the element of a RegisterTensor.")
 
@@ -1224,12 +1154,12 @@ class Transpiler(PythonAstFunctor):
                 return value
             elif isinstance(expr.op, ast.USub):
                 # -v
-                return self.builder.neg(value)
+                return self.neg(value)
             elif isinstance(expr.op, ast.Not):
                 # not v
-                return self.builder.logical_not(value)
+                return self.logical_not(value)
             else:
-                raise HidetProgramError(self, expr, "Can not recognize unary operator for RegisterTensor.")
+                raise TilusProgramError(self, expr, "Can not recognize unary operator for RegisterTensor.")
         elif isinstance(value, hidet_ir.Node):
             if isinstance(expr.op, ast.Not):
                 # not v
@@ -1255,7 +1185,7 @@ class Transpiler(PythonAstFunctor):
                 assert isinstance(value, hidet_ir.Expr)
                 return -value
             else:
-                raise HidetProgramError(self, expr, "Can not recognize unary operator.")
+                raise TilusProgramError(self, expr, "Can not recognize unary operator.")
         else:
             op_dict: dict[Any, Callable] = {
                 ast.UAdd: operator.pos,
@@ -1266,17 +1196,17 @@ class Transpiler(PythonAstFunctor):
 
     def visit_While(self, stmt: ast.While) -> None:
         cond = self.visit(stmt.test)
-        with self.builder.while_loop(cond=as_expr(cond)), self.scope():
+        with self.while_loop(cond=as_expr(cond)), self.scope():
             for s in stmt.body:
                 self.visit(s)
 
     def visit_Break(self, stmt: ast.Break) -> None:
-        self.builder.brk()
+        self.brk()
 
     def visit_Return(self, stmt: ast.Return) -> None:
         if stmt.value is not None:
             raise TilusProgramError(self, stmt, "Return statement in Tilus Script does not support returning a value.")
-        self.builder.ret()
+        self.ret()
 
     def visit_Slice(self, expr: ast.Slice) -> slice:
         return slice(
@@ -1302,7 +1232,7 @@ class Transpiler(PythonAstFunctor):
 
         with_context: TilusContext = with_item_visited
 
-        with self.builder.block(), self.scope():
+        with self.block(), self.scope():
             # bind the value to the context variable
             if with_item.optional_vars is not None:
                 if not isinstance(with_item.optional_vars, ast.Name):
@@ -1317,18 +1247,18 @@ class Transpiler(PythonAstFunctor):
                 if isinstance(bind_value, hidet_ir.Expr):
                     from hidet.ir.tools import infer_type
 
-                    bind_var = self.builder.declare(type=infer_type(bind_value), init=bind_value, hint=bind_name)
-                    self.current_scope.bind(bind_name, var_or_value=bind_var)
+                    bind_var = self.declare(type=infer_type(bind_value), init=bind_value, hint=bind_name)
+                    self.bind(bind_name, var_or_value=bind_var)
                 else:
-                    self.current_scope.bind(with_item.optional_vars.id, bind_value)
+                    self.bind(with_item.optional_vars.id, bind_value)
 
             for body_stmt in stmt.body:
                 self.visit(body_stmt)
 
-        with_body = self.builder.pop_innermost_last()
+        with_body = self.pop_innermost_last()
         processed_body = with_context.post_process(with_body)
         assert isinstance(processed_body, Stmt)
-        self.builder.append(processed_body)
+        self.append(processed_body)
 
     def process_generator(self, elt: ast.expr, generators: list[ast.comprehension]) -> list:
         if len(generators) == 0:
@@ -1336,7 +1266,7 @@ class Transpiler(PythonAstFunctor):
         else:
             generator = generators[0]
             if generator.is_async:
-                raise HidetProgramError(self, generator, "Hidet currently do not support async generator.")
+                raise TilusProgramError(self, None, "Hidet currently do not support async generator.")
             assert isinstance(generator, ast.comprehension)
             iterator = self.visit(generator.iter)
             names: list[str] = []
@@ -1345,12 +1275,12 @@ class Transpiler(PythonAstFunctor):
             elif isinstance(generator.target, ast.Tuple):
                 for target in generator.target.elts:
                     if not isinstance(target, ast.Name):
-                        raise HidetProgramError(
+                        raise TilusProgramError(
                             self, target, "Hidet currently only support binding a single name or a tuple of names"
                         )
                     names.append(target.id)
             else:
-                raise HidetProgramError(
+                raise TilusProgramError(
                     self,
                     generator.target,
                     "Hidet do not support generator target with type {}.".format(type(generator.target)),
@@ -1358,14 +1288,14 @@ class Transpiler(PythonAstFunctor):
             result = []
             for it in iterator:
                 if len(names) == 1:
-                    self.current_scope.bind(names[0], it)
+                    self.bind(names[0], it)
                 else:
                     if len(names) != len(it):
-                        raise HidetProgramError(
-                            self, generator, "Can not unpack {} values to {} names.".format(len(it), len(names))
+                        raise TilusProgramError(
+                            self, None, "Can not unpack {} values to {} names.".format(len(it), len(names))
                         )
                     for name, value in zip(names, it):
-                        self.current_scope.bind(name, value)
+                        self.bind(name, value)
                 if not all(self.visit(cond) for cond in generator.ifs):
                     continue
                 result.extend(self.process_generator(elt, generators[1:]))
@@ -1387,4 +1317,4 @@ class Transpiler(PythonAstFunctor):
         return self.process_generator(expr.elt, expr.generators)
 
     def visit_Pass(self, stmt: ast.Pass) -> None:
-        self.builder.append(SeqStmt(tuple()))
+        self.append(SeqStmt(tuple()))

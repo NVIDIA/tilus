@@ -18,7 +18,7 @@ tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
-class BlackwellMatmul(tilus.Script):
+class BlackwellMatmulV2(tilus.Script):
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -128,7 +128,7 @@ class BlackwellMatmul(tilus.Script):
 
 
 def main(bench=True):
-    matmul = BlackwellMatmul()
+    matmul = BlackwellMatmulV2()
 
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     rows = []

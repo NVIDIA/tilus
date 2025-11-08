@@ -330,6 +330,21 @@ class JitInstance:
 
         self._transpile_programs()
 
+    def __str__(self):
+        data = {
+            "Script": self.script_cls.__qualname__,
+            "Cache Dir": str(self.cache_dir),
+            "Build Options": str(self.build_options),
+            "Num Schedules": len(self.schedules),
+            "Valid Programs": len(self.transpiled_programs),
+        }
+        return str(tabulate.tabulate(data.items(), tablefmt="simple", colalign=("right", "left")))
+
+    def programs(self) -> Sequence[Program]:
+        if len(self.valid_programs) == 0:
+            self._build_programs()
+        return self.valid_programs
+
     @staticmethod
     def _instance_name(script_cls: Type[Script], call_params: CallParameters, jit_key: JitKey) -> str:
         script_name = to_snake_case(script_cls.__name__)
@@ -509,7 +524,7 @@ class JitInstance:
         relative_path = relative_to_with_walk_up(link_path.parent, target=target_path)
         os.symlink(relative_path, link_path)
 
-    def build_programs(self):
+    def _build_programs(self):
         # build the programs in parallel
         transpiled_programs = self.transpiled_programs
         transpiled_schedules = self.transpiled_schedules
@@ -605,9 +620,9 @@ class JitInstance:
 
             raise RuntimeError("\n".join(lines))
 
-    def pick_best_program(self, args: Sequence[Any]) -> CompiledProgram:
+    def _pick_best_program(self, args: Sequence[Any]) -> CompiledProgram:
         if len(self.valid_programs) == 0:
-            self.build_programs()
+            self._build_programs()
 
         _, tuning_key = extract_keys(args, self.call_params.const_params, self.call_params.tuning_params)
 
@@ -734,7 +749,7 @@ class InstantiatedScript:
                 jit_instance = JitInstance(self.script_cls, self.params, self.build_options, self.schedules, jit_key)
                 self.jit_instances[jit_key] = jit_instance
 
-            compiled_program = jit_instance.pick_best_program(args)
+            compiled_program = jit_instance._pick_best_program(args)
             compiled_func = compiled_program.get_launch_func()
             self.dispatch_table[(jit_key, tuning_key)] = compiled_func
 
@@ -748,37 +763,27 @@ class InstantiatedScript:
 
         return ret
 
-    def program(self) -> Program:
-        programs = self.jit_instance_for().transpiled_programs
-        if len(programs) != 1:
-            raise RuntimeError("The script has multiple schedules.")
-        return programs[0]
-
     def jit_instance_for(self, *args: Any, **kwargs: Any) -> JitInstance:
-        bound_args = self.params.signature.bind_partial(*args, **kwargs)
-        bound_args.apply_defaults()
+        if kwargs or self.with_default:
+            # we allow the user to pass the keyword arguments to the script instance, or use the default values
+            bound_args = self.params.signature.bind(*args, **kwargs)
+            bound_args.apply_defaults()
+            args = bound_args.args
+        else:
+            if len(args) != len(self.params.param_names):
+                raise ValueError(
+                    "The number of arguments should be {}, but got {}.".format(len(self.params.param_names), len(args))
+                )
 
-        const_params = []
-        for i in self.params.const_params:
-            name = self.params.param_names[i]
-            if name not in bound_args.arguments:
-                raise ValueError("The constant parameter '{}' is missing.".format(name))
-            const_params.append(bound_args.arguments[name])
+        # extract the JIT key and the tuning key
+        keys = extract_keys(args, self.const_params, self.tuning_params)
 
-        tuning_params = []
-        for i in self.params.tuning_params:
-            name = self.params.param_names[i]
-            if name not in bound_args.arguments:
-                raise ValueError("The tuning parameter '{}' is missing.".format(name))
-            tuning_params.append(bound_args.arguments[name])
-
-        jit_key, tuning_key = construct_keys(const_params, tuning_params)
-        if jit_key not in self.jit_instances:
-            self.jit_instances[jit_key] = JitInstance(
-                self.script_cls, self.params, self.build_options, self.schedules, jit_key
-            )
-
-        return self.jit_instances[jit_key]
+        jit_key, tuning_key = keys
+        jit_instance: Optional[JitInstance] = self.jit_instances.get(jit_key, None)
+        if jit_instance is None:
+            jit_instance = JitInstance(self.script_cls, self.params, self.build_options, self.schedules, jit_key)
+            self.jit_instances[jit_key] = jit_instance
+        return jit_instance
 
 
 class InstantiatedScriptCache:

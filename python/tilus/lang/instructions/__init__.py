@@ -12,9 +12,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from tilus.ir.builders import StmtBuilder
+from tilus.ir.inst import InstructionError
+
+from .base import InstructionGroup, builder_context
 from .clc import ClusterLaunchControlInstructionGroup
 from .cluster import BlockClusterInstructionGroup
 from .mbarrier import BarrierInstructionGroup
-from .root import InstructionGroup, RootInstructionGroup
+from .root import RootInstructionGroup
 from .tcgen05 import Tcgen05InstructionGroup
 from .tma import TmaInstructionGroup
+
+
+class InstructionInterface(RootInstructionGroup):
+    tcgen05 = Tcgen05InstructionGroup()
+    tma = TmaInstructionGroup()
+    mbarrier = BarrierInstructionGroup()
+    clc = ClusterLaunchControlInstructionGroup()
+    cluster = BlockClusterInstructionGroup()

@@ -103,8 +103,10 @@ from tilus.extensions.hidet.ir.dtypes import (
 )
 from hidet.ir.type import DataType
 from tilus.ir.layout import RegisterLayout, SharedLayout
+from tilus.ir.tensor import RegisterTensor, SharedTensor, GlobalTensor
 from tilus.lang.instantiated_script import InstantiatedScript
 from tilus.lang.script import Script, autotune
+from tilus.lang.constructs.state import State
 from tilus.tensor import empty, from_torch, full, ones, rand, randint, randn, view_torch, zeros
 
 from . import kernels, logging, option, utils, testing

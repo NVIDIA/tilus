@@ -12,5 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .constructs.state import State
-from .script import Attributes, Script
+from tilus.lang.instructions import InstructionInterface
+
+
+class State(InstructionInterface):
+    pass

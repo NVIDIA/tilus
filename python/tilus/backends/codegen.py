@@ -134,15 +134,24 @@ class FunctionCodegen(IRFunctor):
         return emitter_classes[matched_target]
 
     def check_emitter_existence(self) -> None:
-        failed_instructions: Set[str] = set()
+        failed_instructions: Set[Type[Instruction]] = set()
         for inst in collect_instructions(self.function):
             if self.resolve_inst_emitter(inst.__class__) is None:
-                failed_instructions.add(inst.__class__.__name__)
+                failed_instructions.add(inst.__class__)
 
         if failed_instructions:
-            raise CodeGenerationFailed(
-                "Failed to find emitter for the following instructions: \n{}".format("\n".join(failed_instructions))
-            )
+            rows = [f"Failed to find emitter for the following instructions (target: {get_current_target()}):"]
+            required_targets: list[str] = []
+            for inst in failed_instructions:
+                for registry_inst_cls, emitter_classes in BaseInstEmitter.REGISTRY.items():
+                    if issubclass(inst, registry_inst_cls):
+                        required_targets.extend([str(target) for target in emitter_classes.keys()])
+                        break
+                if not required_targets:
+                    rows.append(f"  - {inst.__name__} (no registered emitters)")
+                else:
+                    rows.append(f"  - {inst.__name__} (registered targets: {', '.join(required_targets)})")
+            raise CodeGenerationFailed("\n".join(rows))
 
     def launch_kernel(self, kernel_func: HidetFunction) -> None:
         """Generate the host code to launch the kernel function."""
