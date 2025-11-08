@@ -16,17 +16,17 @@ from typing import Optional
 
 from tilus.ir.builders import StmtBuilder
 
+_current_builder: Optional[StmtBuilder] = None
+
 
 class InstructionGroup:
-    def __init__(self):
-        self._optional_builder: Optional[StmtBuilder] = None
-
-    def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
-        self._optional_builder = builder
+    @staticmethod
+    def _set_builder(builder: Optional[StmtBuilder]) -> None:
+        global _current_builder
+        _current_builder = builder
 
     @property
     def _builder(self) -> StmtBuilder:
-        if self._optional_builder is None:
-            raise RuntimeError("Did you forget to call `super().__init__()` for the Tilus Script?")
-
-        return self._optional_builder
+        global _current_builder
+        assert _current_builder is not None
+        return _current_builder

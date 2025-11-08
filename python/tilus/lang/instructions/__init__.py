@@ -15,6 +15,7 @@
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.inst import InstructionError
 
+from .base import InstructionGroup
 from .clc import ClusterLaunchControlInstructionGroup
 from .cluster import BlockClusterInstructionGroup
 from .mbarrier import BarrierInstructionGroup
@@ -24,19 +25,8 @@ from .tma import TmaInstructionGroup
 
 
 class InstructionInterface(RootInstructionGroup):
-    def __init__(self):
-        super().__init__()
-
-        # instruction groups
-        self.tcgen05 = Tcgen05InstructionGroup()
-        self.tma = TmaInstructionGroup()
-        self.mbarrier = BarrierInstructionGroup()
-        self.clc = ClusterLaunchControlInstructionGroup()
-        self.cluster = BlockClusterInstructionGroup()
-
-    @property
-    def _builder(self) -> StmtBuilder:
-        if self._optional_builder is None:
-            raise InstructionError("Did you forget to call `super().__init__()` for the Tilus Script?")
-
-        return self._optional_builder
+    tcgen05 = Tcgen05InstructionGroup()
+    tma = TmaInstructionGroup()
+    mbarrier = BarrierInstructionGroup()
+    clc = ClusterLaunchControlInstructionGroup()
+    cluster = BlockClusterInstructionGroup()

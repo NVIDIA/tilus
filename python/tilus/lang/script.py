@@ -103,6 +103,8 @@ class Script(InstructionInterface):
         return instantiated_script
 
     def __init__(self) -> None:
+        super().__init__()
+
         # attributes
         self._attrs: Attributes = Attributes()
 
