@@ -152,7 +152,7 @@ class ScalarSet:
     def universal_set() -> ScalarSet:
         return ScalarSet(lower_bound=None, upper_bound=None, divisibility=1)
 
-    def __eq__(self, other: ScalarSet) -> bool:
+    def __eq__(self, other: ScalarSet) -> bool:  # type: ignore[override]
         if self.is_empty() and other.is_empty():
             return True
         return (

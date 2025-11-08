@@ -77,10 +77,10 @@ class Vector(Generic[T]):
     def __le__(self, other: Any) -> Vector[bool]:
         return self.binary(self, other, lambda a, b: a <= b)
 
-    def __eq__(self, other: Any) -> Vector[bool]:
+    def __eq__(self, other: Any) -> Vector[bool]:  # type: ignore[override]
         return self.binary(self, other, lambda a, b: a == b)
 
-    def __ne__(self, other: Any) -> Vector[bool]:
+    def __ne__(self, other: Any) -> Vector[bool]:  # type: ignore[override]
         return self.binary(self, other, lambda a, b: a != b)
 
     def __and__(self, other: Any) -> Vector[bool]:

@@ -51,7 +51,7 @@ class AttentionWithKVCache(tilus.Script):
         page_block_size: int,
         num_heads_kv: int,
         max_num_blocks_per_seq: int32,
-    ):
+    ) -> None:
         self.static_assert(
             page_block_size % self.block_kv == 0,
             "page_block_size must be multiple of block_kv",
@@ -214,12 +214,12 @@ def attention_with_kvcache_tilus(
     v_cache: torch.Tensor,  # fp16[num_blocks, page_block_size, num_heads_kv, head_size]
     cache_seqlens: torch.Tensor,  # int32[batch_size]
     block_table: torch.Tensor,  # int32[batch_size, max_num_blocks_per_seq]
-):
+) -> torch.Tensor:
     o = torch.empty_like(q)
     batch_size, seqlen_q, num_heads, head_size = q.size()
     num_blocks, page_block_size, num_heads_kv, _ = k_cache.size()
     max_num_blocks_per_seq = block_table.size(1)
-    AttentionWithKVCache(head_size)(
+    AttentionWithKVCache(head_size)(  # type: ignore[call-arg]
         q,
         k_cache,
         v_cache,
@@ -243,7 +243,7 @@ def attention_with_kvcache_reference(
     v_cache: torch.Tensor,  # fp16[num_blocks, page_block_size, num_heads_kv, head_size]
     cache_seqlens: torch.Tensor,  # int32[batch_size]
     block_table: torch.Tensor,  # int32[batch_size, max_num_blocks_per_seq]
-):
+) -> torch.Tensor:
     original_dtype = q.dtype
 
     q, k_cache, v_cache = q.float(), k_cache.float(), v_cache.float()
@@ -314,7 +314,7 @@ def attention_with_kvcache_flash_attention(
     v_cache: torch.Tensor,  # [num_blocks, page_block_size, num_heads_kv, head_size]
     cache_seqlens: torch.Tensor,  # [1]
     block_table: torch.Tensor,  # int32[batch_size, max_num_blocks_per_seq]
-):
+) -> torch.Tensor:
     from flash_attn.flash_attn_interface import flash_attn_with_kvcache
 
     return flash_attn_with_kvcache(

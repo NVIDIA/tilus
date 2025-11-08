@@ -162,7 +162,7 @@ def fused_recurrent_gated_delta_rule_update_fwd_triton(
         cu_seqlens: tensor([0, 1], device='cuda:1', dtype=torch.int32)
         use_qk_l2norm_in_kernel: True
     """
-    B, T, H, K, V = *k.shape, v.shape[-1]  # B=1, T=1, H=4, K=V=128
+    B, T, H, K, V = *k.shape, v.shape[-1]  # type: ignore[misc]  # B=1, T=1, H=4, K=V=128
     HV = v.shape[2]  # HV=8
     N = B if cu_seqlens is None else len(cu_seqlens) - 1  # N=1
     BK, BV = triton.next_power_of_2(K), min(triton.next_power_of_2(V), 8)  # BK=128, BV=8

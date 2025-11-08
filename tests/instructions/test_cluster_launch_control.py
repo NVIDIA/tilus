@@ -27,7 +27,7 @@ class ClusterLaunchControlExample(tilus.Script):
         self.num_stages = num_stages
         self.block_n = warps * 32
 
-    def __call__(self, n: int32, p_out: ~int32):
+    def __call__(self, n: int32, p_out: ~int32) -> None:
         """
         workers:
         - tile scheduler (warp 0, cluster id 0)

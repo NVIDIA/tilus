@@ -28,7 +28,7 @@ class Tcgen05LoadStoreExample(tilus.Script):
 
         assert block_m in (64, 128)
 
-    def __call__(self, m_size: int, n_size: int, x_ptr: void_p, y_ptr: void_p):
+    def __call__(self, m_size: int, n_size: int, x_ptr: void_p, y_ptr: void_p) -> None:
         self.attrs.blocks = cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)
         self.attrs.warps = 4
 

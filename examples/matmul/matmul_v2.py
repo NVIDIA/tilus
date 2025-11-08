@@ -42,6 +42,7 @@ automatically select the best configuration based on the performance of the kern
 
 import tilus
 from tilus import float16, float32, int32
+from tilus.utils import cdiv
 
 # %%
 # Annotate Schedule Space
@@ -78,8 +79,8 @@ class MatmulV2(tilus.Script):
         c_ptr: ~float16,
     ):
         self.attrs.blocks = [
-            self.utils.ceil_div(m_size, self.block_m),
-            self.utils.ceil_div(n_size, self.block_n),
+            cdiv(m_size, self.block_m),
+            cdiv(n_size, self.block_n),
         ]
         self.attrs.warps = self.num_warps
 

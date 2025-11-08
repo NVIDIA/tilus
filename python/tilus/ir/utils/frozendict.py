@@ -50,7 +50,7 @@ class frozendict(dict, Generic[K, V]):
     def _raise_immutable_error(self):
         raise TypeError("frozendict is immutable and does not support modification")
 
-    def __hash__(self):
+    def __hash__(self):  # type: ignore[override]
         return hash(tuple(sorted(self.items())))
 
     def __getstate__(self):

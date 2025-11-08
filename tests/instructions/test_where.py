@@ -29,7 +29,7 @@ class TestWhereKernel(tilus.Script):
         self.block_n = layout.shape[1]
         self.num_warps = layout.spatial_size // 32
 
-    def __call__(self, m: int32, n: int32, cond_ptr: ~boolean, x_ptr: ~int32, y_ptr: ~int32, out_ptr: ~int32):
+    def __call__(self, m: int32, n: int32, cond_ptr: ~boolean, x_ptr: ~int32, y_ptr: ~int32, out_ptr: ~int32) -> None:
         self.attrs.warps = self.num_warps
         self.attrs.blocks = cdiv(m, self.block_m), cdiv(n, self.block_n)
 
@@ -56,7 +56,7 @@ def test_where(
     m: int,
     n: int,
     layout: RegisterLayout,
-):
+) -> None:
     cond = torch.randint(0, 2, (m, n), dtype=torch.bool).cuda()
     x = torch.arange(m * n, dtype=torch.int32).reshape((m, n)).cuda()
     y = torch.arange(m * n, dtype=torch.int32).reshape((m, n)).cuda() + m * n

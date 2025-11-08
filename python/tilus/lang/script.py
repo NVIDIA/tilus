@@ -34,6 +34,7 @@ from tilus.lang.instructions import (
     Tcgen05InstructionGroup,
     TmaInstructionGroup,
 )
+from tilus.lang.modules.cuda import cuda
 
 
 class Attributes:
@@ -116,6 +117,9 @@ class Script(RootInstructionGroup):
 
         self._optional_builder: Optional[StmtBuilder] = None
         self._attrs: Attributes = Attributes()
+
+        # modules
+        self.cuda = cuda
 
         # instruction groups
         self.tcgen05 = Tcgen05InstructionGroup()

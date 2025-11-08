@@ -272,7 +272,7 @@ def flash_attention_reference(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-):
+) -> torch.Tensor:
     bs, seqlen, num_heads, head_size = q.size()
     _, _, num_heads_kv, _ = k.size()
     assert q.size(0) == k.size(0) == v.size(0), "Batch size must match for q, k, and v."

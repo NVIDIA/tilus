@@ -1159,7 +1159,7 @@ class Transpiler(PythonAstFunctor):
                     for_scope.bind(name, value)
                 for s in stmt.body:
                     self.visit(s)
-                body = self.builder.pop_innermost_last()
+            body = self.builder.pop_innermost_last()
             self.builder.append(stmt_iter.generate_loop_statement(loop_vars=loop_vars, body=body))
         else:
             msg = "For loop iterable must be a one of the following types: \n1.\n  for ... in range(...): \n      ...\n"

@@ -1214,22 +1214,6 @@ class RootInstructionGroup(InstructionGroup):
             raise InstructionError("The input tensor must be a boolean tensor.")
         return self._reduce(x, dim=dim, keepdim=keepdim, op="all", out=out)
 
-    def store_global_generic(
-        self,
-        x: RegisterTensor,
-        /,
-        *,
-        ptr: Var,
-        f_offset: Callable[..., Expr | int],
-        f_mask: Optional[Callable[..., Expr | int | bool]] = None,
-    ) -> None:
-        self._builder.store_global_generic(
-            x=x,
-            ptr=ptr,
-            f_offset=lambda args: f_offset(*args),
-            f_mask=(lambda args: f_mask(*args)) if f_mask is not None else None,
-        )
-
     def add(self, lhs: RegisterTensor, rhs: RegisterTensor, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         """Add two register tensors element-wise.
 
@@ -1407,7 +1391,7 @@ class RootInstructionGroup(InstructionGroup):
         ...
 
     @typing.overload
-    def annotate_layout(self, tensor: SharedTensor, layout: SharedLayout) -> None:
+    def annotate_layout(self, tensor: SharedTensor, layout: SharedLayout) -> None:  # type: ignore[overload-cannot-match]
         """Annotate the layout of a shared tensor.
 
         This instruction annotates the layout of a shared tensor with a specified layout. The `layout` parameter
