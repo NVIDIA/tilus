@@ -73,11 +73,16 @@ line-length = 120
 
 [tool.ruff.lint]
 extend-select = [
-#    "D", # enforce docstring conventions
+    "D", # enforce docstring conventions
     "I", # isort rules that unify the import order
 ]
 ignore = [
     "E741",  # ambiguous variable name
+    "D105",  # missing docstring in magic method
+    "D103",  # missing docstring in public function
+    "D102",  # missing docstring in public method
+    "D101",  # missing docstring in public class
+    "D100",  # missing docstring in public module
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -85,6 +90,7 @@ convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"examples/**/*.py" = ["D400"]
 
 [tool.mypy]
 check_untyped_defs = true
