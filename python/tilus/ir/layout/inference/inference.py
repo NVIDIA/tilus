@@ -242,7 +242,7 @@ def infer_layout(func: Function) -> Function:
             key:
               no_layout_inferred: instructions with layout inferred should be processed first
               rule_order: rules with lower order should be processed first
-              inst_order: instructions appear later in the function should be processed later
+              inst_order: instructions appear later in the function should be processed later.
             """
             instruction, inference_rule = pair
             return (

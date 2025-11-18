@@ -189,9 +189,7 @@ class CopyAysncInstEmitter(BaseInstEmitter):
 
     @staticmethod
     def get_cp_dtype(cp_size: int) -> DataType:
-        """
-        Given the cp_size (in bytes), returns a data type with such size.
-        """
+        """Given the cp_size (in bytes), returns a data type with such size."""
         return {16: uint32x4, 8: uint32x2, 4: uint32}[cp_size]
 
 

@@ -115,9 +115,7 @@ def register_rule(inst_type: InstClassT) -> Callable[[RuleClassT], RuleClassT]:
 
 
 def get_inference_rules(inst: Type[Instruction] | Instruction) -> list[Type[LayoutInferenceRule]]:
-    """
-    Get the layout inference rule for the given instruction class.
-    """
+    """Get the layout inference rule for the given instruction class."""
     if isinstance(inst, Instruction):
         inst_cls = type(inst)
     elif isinstance(inst, type) and issubclass(inst, Instruction):
@@ -136,9 +134,7 @@ def get_inference_rules(inst: Type[Instruction] | Instruction) -> list[Type[Layo
 
 
 def get_validation_rule(inst: Type[Instruction] | Instruction) -> Type[LayoutValidationRule]:
-    """
-    Get the layout validation rule for the given instruction class.
-    """
+    """Get the layout validation rule for the given instruction class."""
     if isinstance(inst, Instruction):
         inst_cls = type(inst)
     elif isinstance(inst, type) and issubclass(inst, Instruction):

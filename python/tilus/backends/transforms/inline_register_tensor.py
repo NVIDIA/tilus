@@ -53,7 +53,7 @@ class RegisterTensorCollector(IRVisitor):
     """
     Collect all register tensors:
     1. it is 1-d tensor
-    2. it is only used in BufferStoreStmt (as lhs) or TensorElement (as base) statements
+    2. it is only used in BufferStoreStmt (as lhs) or TensorElement (as base) statements.
     """
 
     def __init__(self):
@@ -94,9 +94,7 @@ class RegisterTensorCollector(IRVisitor):
 
 
 class RegisterTensorFilter(IRVisitor):
-    """
-    Filter out the register tensors that are assigned multiple times
-    """
+    """Filter out the register tensors that are assigned multiple times."""
 
     def __init__(self, register_tensors: list[Var]):
         super().__init__()

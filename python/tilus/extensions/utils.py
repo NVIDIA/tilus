@@ -54,9 +54,7 @@ def update(obj_full_qualname: str) -> Callable[[T], T]:
         raise AttributeError(f"Module {module_name} does not have an object named {obj_name}, cannot update.")
 
     def decorator(new_obj):
-        """
-        Decorator to update the object with the given full qualified name.
-        """
+        """Decorator to update the object with the given full qualified name."""
         setattr(module, obj_name, new_obj)
         return new_obj
 

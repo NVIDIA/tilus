@@ -594,9 +594,7 @@ class SharedTensor(Tensor):
         return self.optional_layout is not None
 
     def with_layout(self, layout: SharedLayout) -> SharedTensor:
-        """
-        Create a new SharedTensor with the given layout.
-        """
+        """Create a new SharedTensor with the given layout."""
         if not isinstance(layout, SharedLayout):
             raise ValueError(f"Layout must be a SharedLayout, but got {type(layout)}.")
         if not same_list(self.shape, layout.shape):

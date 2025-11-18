@@ -31,7 +31,7 @@ class ClusterLaunchControlExample(tilus.Script):
         """
         workers:
         - tile scheduler (warp 0, cluster id 0)
-        - main workers (all warps in the block cluster)
+        - main workers (all warps in the block cluster).
 
         pipelines:
         - cluster launch control pipeline

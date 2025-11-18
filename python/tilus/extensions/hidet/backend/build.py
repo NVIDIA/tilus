@@ -55,9 +55,7 @@ class CompilationFailed(Exception):
 
 
 class SourceCompiler:
-    """
-    The base class of source compiler.
-    """
+    """The base class of source compiler."""
 
     def compile(
         self,

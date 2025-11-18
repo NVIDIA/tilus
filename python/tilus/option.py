@@ -49,9 +49,7 @@ def _get_default_cache_dir() -> str:
 
 
 def _register_options():
-    """
-    Register all options for the tilus package.
-    """
+    """Register all options for the tilus package."""
     _register_hidet_option(
         "tilus.cache_dir",
         type_hint="str",

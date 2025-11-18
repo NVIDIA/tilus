@@ -45,9 +45,7 @@ def _cuda_sleep_kernel():
 
 
 def cuda_sleep(nanoseconds: int) -> None:
-    """
-    A sleep cuda kernel that will sleep for given nanoseconds.
-    """
+    """A sleep cuda kernel that will sleep for given nanoseconds."""
     kernel = _cuda_sleep_kernel()
     kernel(nanoseconds)
 

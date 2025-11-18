@@ -791,9 +791,7 @@ class InstantiatedScriptCache:
 
     @classmethod
     def _is_hashable(cls, obj):
-        """
-        Check if the obj is hashable
-        """
+        """Check if the obj is hashable."""
         try:
             hash(obj)
             return True

@@ -163,16 +163,12 @@ def register_functions():
 
 
 def cast_subbyte_float_from_f32(src: Expr, dst_dtype: DataType) -> Expr:
-    """
-    Cast f32 to a sub-byte float number (represented in the low bits of uint8). Rounding to nearest, ties to even.
-    """
+    """Cast f32 to a sub-byte float number (represented in the low bits of uint8). Rounding to nearest, ties to even."""
     func_name = "cast_f32_to_{}".format(dst_dtype.short_name)
     return call_primitive_func(func_name, [src])
 
 
 def cast_subbyte_float_to_f32(src: Expr, src_dtype: DataType) -> Expr:
-    """
-    Cast a sub-byte float number (represented in the low bits of uint8) to f32.
-    """
+    """Cast a sub-byte float number (represented in the low bits of uint8) to f32."""
     func_name = "cast_{}_to_f32".format(src_dtype.short_name)
     return call_primitive_func(func_name, [src])

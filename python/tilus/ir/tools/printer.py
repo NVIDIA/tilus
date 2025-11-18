@@ -483,33 +483,25 @@ class PrintContext:
         self.exit()
 
     def enter(self):
-        """
-        Enter the print context.
-        """
+        """Enter the print context."""
         self._printer_stack.append(self.printer)
 
     def exit(self):
-        """
-        Exit the print context.
-        """
+        """Exit the print context."""
         if not self._printer_stack or self._printer_stack[-1] is not self.printer:
             raise RuntimeError()
         self._printer_stack.pop()
 
     @staticmethod
     def current() -> IRPrinter:
-        """
-        Get the current print context.
-        """
+        """Get the current print context."""
         if not PrintContext._printer_stack:
             return IRPrinter()
         return PrintContext._printer_stack[-1]
 
 
 def print_context() -> PrintContext:
-    """
-    Create a new print context for printing IR nodes.
-    """
+    """Create a new print context for printing IR nodes."""
     return PrintContext()
 
 

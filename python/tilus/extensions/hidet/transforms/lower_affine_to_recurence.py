@@ -204,9 +204,7 @@ class AffineExpr:
 
 
 class LoopDepthAnalyzer(IRVisitor):
-    """
-    Analyze the loop depth of all for-loops in the function body.
-    """
+    """Analyze the loop depth of all for-loops in the function body."""
 
     def __init__(self):
         super().__init__()
@@ -221,9 +219,7 @@ class LoopDepthAnalyzer(IRVisitor):
 
 
 class AffineExprAnalyzer(IRVisitor):
-    """
-    Analyze affine expression decomposition given the loop variable and loop-invariant variables.
-    """
+    """Analyze affine expression decomposition given the loop variable and loop-invariant variables."""
 
     def __init__(self, loop_var: Var, loop_invariant_vars: list[Var]):
         super().__init__()
@@ -305,9 +301,7 @@ class AffineExprAnalyzer(IRVisitor):
 
 
 class AffineToRecurrenceRewriter(IRRewriter):
-    """
-    Rewrites affine expressions towards a iterative variable into recurrence form.
-    """
+    """Rewrites affine expressions towards a iterative variable into recurrence form."""
 
     def __init__(self, depth: int, loop_depth: dict[Var, int]):
         super().__init__()

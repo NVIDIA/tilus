@@ -12,9 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-This module contains utility functions that only depend on the Python standard library.
-"""
+"""This module contains utility functions that only depend on the Python standard library."""
 
 import itertools
 from pathlib import Path
@@ -30,9 +28,7 @@ def cdiv(a, b):
 
 
 def idiv(a: int, b: int) -> int:
-    """
-    Integer division with checking of proper division.
-    """
+    """Integer division with checking of proper division."""
     assert a % b == 0, "can not properly divide: {} // {}".format(a, b)
     return a // b
 
@@ -161,9 +157,7 @@ def relative_to_with_walk_up(source: Path, target: Path) -> Path:
 
 
 def unique_file_name(pattern: str) -> Optional[str]:
-    """
-    Given a pattern like './results/exp/report_%d.txt' and returns a unique file name like `./results/exp/report_1.txt`
-    """
+    """Given a pattern like './results/exp/report_%d.txt' and returns a unique file name like `./results/exp/report_1.txt`."""
     import os
 
     if pattern.count("%d") == 0:

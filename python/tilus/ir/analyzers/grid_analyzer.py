@@ -66,7 +66,7 @@ class DimensionInfo:
       n = s1 * s2 * ... * sn / si.
     For example, the two-dimension tensor example:
         dimension 0: {[0, 1, 2, 3], [4, 5, 6, 7]}
-        dimension 1: {[0, 4], [1, 5], [2, 6], [3, 7]}
+        dimension 1: {[0, 4], [1, 5], [2, 6], [3, 7]}.
 
     - length: the length of the dimension
     - value: if all elements of each vector are identical to a specific value, we store this value, otherwise None.
@@ -332,11 +332,7 @@ class DimensionInfo:
 
 
 class TensorInfo:
-    """
-    The tensor information for the tensors whose elements are integers.
-
-
-    """
+    """The tensor information for the tensors whose elements are integers."""
 
     def __init__(self, shape: Sequence[int], infos: Sequence[DimensionInfo]):
         self.shape: Sequence[int] = shape
@@ -444,7 +440,7 @@ class GridAnalyzer(IRFunctor):
     Then we have the following equations:
     value(a) = value(8)
     value(b) = merge(value(16), value(a) + value(4))
-    value(c) = merge(value(b), value(a) + value(b))
+    value(c) = merge(value(b), value(a) + value(b)).
 
     This class implements an iterative algorithm to solve the above equations to find a fixed point.
     """

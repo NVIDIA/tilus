@@ -95,9 +95,7 @@ def is_subbyte(tp_or_var: Union[Var, BaseType]) -> bool:
 
 
 class AddressingAnalyzer(IRVisitor):
-    """
-    Analyzer that analyzes the addressing information of all addressable expressions.
-    """
+    """Analyzer that analyzes the addressing information of all addressable expressions."""
 
     def __init__(self):
         super().__init__()
@@ -322,9 +320,7 @@ class LowerSubbyteTypeRewriter(IRRewriter):
         self.bit_offset: Dict[Var, Expr] = {}
 
     def get_byte_and_bit_offset(self, expr: Expr) -> Tuple[Expr, Expr]:
-        """
-        Get the byte and bit-offset of the pointer expression in the buffer.
-        """
+        """Get the byte and bit-offset of the pointer expression in the buffer."""
         expr_type = self.type_infer(expr)
         dtype = get_base_type(expr_type)
         assert is_addressable(expr_type)

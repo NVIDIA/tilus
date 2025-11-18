@@ -240,7 +240,5 @@ class HoistLoopInvariantsPass(FunctionPass):
 
 
 def hoist_loop_invariants_pass() -> FunctionPass:
-    """
-    Hoist the loop invariant XOR expressions out of the loop.
-    """
+    """Hoist the loop invariant XOR expressions out of the loop."""
     return HoistLoopInvariantsPass()

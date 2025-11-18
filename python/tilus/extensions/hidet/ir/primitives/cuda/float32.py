@@ -21,16 +21,12 @@ from hidet.utils import initialize
 
 
 def resolve_ex2_name(ftz: bool) -> str:
-    """
-    Resolve the function name based on whether FTZ (Flush-to-Zero) is enabled.
-    """
+    """Resolve the function name based on whether FTZ (Flush-to-Zero) is enabled."""
     return "cuda_ex2_approx{ftz}_f32".format(ftz="_ftz" if ftz else "")
 
 
 def resolve_mul_name(rnd: str, ftz: bool) -> str:
-    """
-    Resolve the function name for multiplication based on whether FTZ (Flush-to-Zero) is enabled.
-    """
+    """Resolve the function name for multiplication based on whether FTZ (Flush-to-Zero) is enabled."""
     return "cuda_mul_{rnd}{ftz}".format(rnd="_" + rnd, ftz="_ftz" if ftz else "")
 
 

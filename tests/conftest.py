@@ -32,9 +32,7 @@ import tilus.utils
 
 
 def pytest_sessionstart(session):
-    """
-    Called after the Session object has been created and before performing collection and entering the run test loop.
-    """
+    """Called after the Session object has been created and before performing collection and entering the run test loop."""
     # set the cache directory to a subdirectory of the current directory
     tilus.option.cache_dir(Path(tilus.option.get_option("cache_dir")) / ".test_cache")
     # we do not clear the cache here since vscode may run tests in parallel
@@ -44,9 +42,7 @@ def pytest_sessionstart(session):
 
 @pytest.fixture(autouse=True)
 def clear_before_test():
-    """
-    Clear the memory cache before each test.
-    """
+    """Clear the memory cache before each test."""
     import gc
 
     import torch
