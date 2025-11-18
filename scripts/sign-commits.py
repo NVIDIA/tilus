@@ -314,24 +314,6 @@ def print_signature_report(results: Dict[str, List[CommitSignatureStatus]]) -> N
         print("      2. Re-sign the commits: git rebase --gpg-sign <base_commit>")
         print("      3. If key is compromised, revoke and create new key")
 
-    # # Summary and recommendations
-    # print(f"\n{'=' * 60}")
-    # if not issues_found:
-    #     print("🎉 All commits are properly signed with both DCO and GPG signatures.")
-    # else:
-    #     print("📊 Summary of issues:")
-    #     if results["missing_both"]:
-    #         print(f"   • {len(results['missing_both'])} commits missing BOTH signatures")
-    #     if results["missing_signoff"]:
-    #         print(f"   • {len(results['missing_signoff'])} commits missing DCO sign-off")
-    #     if results["missing_gpg"]:
-    #         print(f"   • {len(results['missing_gpg'])} commits missing GPG signatures")
-    #     if results["invalid_gpg"]:
-    #         print(f"   • {len(results['invalid_gpg'])} commits with INVALID GPG signatures")
-
-    #     print("")
-    #     print("   Run 'python scripts/sign-commits.py --fix' to fix.")
-
     print(f"{'=' * 60}")
 
 
@@ -373,11 +355,9 @@ def fix_commit_signatures(base_commit: str) -> bool:
         rebase_target = base_commit
     else:
         # Get commit count for both ranges for comparison
-        original_commits = get_commit_range(base_commit)
         optimized_commits = get_commit_range(optimal_base)
 
-        print(f"🚀 Optimization: Instead of rebasing {len(original_commits)} commits from {base_commit[:8]},")
-        print(f"   rebasing only {len(optimized_commits)} commits from {optimal_base[:8]} (first unsigned commit)")
+        print(f"Rebasing {len(optimized_commits)} commits from {optimal_base[:8]} (first unsigned commit)")
 
         rebase_target = optimal_base
 
