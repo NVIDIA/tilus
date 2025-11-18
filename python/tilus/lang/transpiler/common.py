@@ -32,7 +32,8 @@ class TilusProgramError(Exception):
         self.msg: str = msg
 
     def __str__(self):
-        assert self.obj is not None
+        if self.obj is None:
+            return self.msg
         lineno = self.start_lineno + self.obj.lineno
         column = self.start_column + self.obj.col_offset
         lines = []

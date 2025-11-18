@@ -763,7 +763,7 @@ class InstantiatedScript:
 
         return ret
 
-    def jit_instance_for(self, *args: Any, **kwargs: Any) -> JitInstance:
+    def _jit_instance_for(self, *args: Any, **kwargs: Any) -> JitInstance:
         if kwargs or self.with_default:
             # we allow the user to pass the keyword arguments to the script instance, or use the default values
             bound_args = self.params.signature.bind(*args, **kwargs)

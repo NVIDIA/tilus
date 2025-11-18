@@ -149,7 +149,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
             params[name] = param_var
 
         # return type
-        if inspect_sig.return_annotation is not inspect.Signature.empty:
+        if inspect_sig.return_annotation is not inspect.Signature.empty and inspect_sig.return_annotation is not None:
             raise TilusProgramError(
                 self,
                 None,
@@ -416,11 +416,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                         self.append(stmt)
                         self.bind(name, stmt.var)
                 else:
-                    if isinstance(value, State):
-                        # we allow to bind State without type annotation
-                        self.bind(name, value)
-                    else:
-                        raise TilusProgramError(self, None, "Cannot bind or assign value without type annotation.")
+                    self.bind(name, value)
         else:
             # assignment
             if isinstance(bound_value, (Var, Tensor)):

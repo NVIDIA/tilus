@@ -41,7 +41,7 @@ class DemoLoadShared(tilus.Script):
 )
 def test_verify_load_shared(shared_shape, register_shape, success):
     script = DemoLoadShared(shared_shape=shared_shape, register_shape=register_shape)
-    program = script.program()
+    program = script._jit_instance_for().transpiled_programs[0]
 
     if success:
         verify(program)
