@@ -9,8 +9,6 @@ import torch
 from tilus import boolean, f16, f32, int32
 from tilus.utils import benchmark_func, cdiv
 
-tilus.option.cache_dir("./cache")
-
 pd.options.display.max_columns = None
 pd.options.display.width = 1000
 

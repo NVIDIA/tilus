@@ -10,7 +10,6 @@ from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.tensor import GlobalTensor
 from tilus.utils import benchmark_func, cdiv
 
-tilus.option.cache_dir("./cache")
 pd.options.display.max_columns = None
 pd.options.display.width = 1000
 

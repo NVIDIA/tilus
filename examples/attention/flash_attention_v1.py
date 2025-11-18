@@ -8,7 +8,6 @@ from hidet.ir import DataType
 from tilus import boolean, f32, int32, void_p
 from tilus.utils import benchmark_func, cdiv
 
-tilus.option.cache_dir("./cache")
 pd.options.display.max_columns = None
 pd.options.display.width = 1000
 

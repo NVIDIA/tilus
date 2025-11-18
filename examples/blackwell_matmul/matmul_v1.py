@@ -1,21 +1,11 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-import os
 
 import pandas
 import tilus
 import torch
 from tilus import float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
-
-if not tilus.target.get_current_target().supports(tilus.target.nvgpu_sm100a):
-    # skip this example if the current target does not support nvgpu_sm100a
-    exit(0)
-
-tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
-tilus.option.debug.dump_ir()
-
-# tilus.target.set_current_target(tilus.target.nvgpu_sm100a)
 
 
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
