@@ -61,13 +61,6 @@ class PipelineState(tilus.State):
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmul(tilus.Script):
-    debug_schedule = dict(
-        block_m=128,
-        block_n=128,
-        block_k=16,
-        stages=3,
-    )
-
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -174,22 +167,17 @@ def main(bench=True):
     rows: list = []
 
     for m_size, n_size, k_size in [
-        [128, 128, 16 * 6],
+        # [128, 128, 16 * 6],
         # [40],
-        # [4096, 4096, 4096],
-        # [4096, 4096, 14336],
-        # [8192, 8192, 8192],
-        # [10240, 10240, 10240],
+        [4096, 4096, 4096],
+        [4096, 4096, 14336],
+        [8192, 8192, 8192],
+        [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
         b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
         c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
-
-        print(matmul.jit_instance_for(m_size, n_size, k_size, a, b, c))
-        jit_instance = matmul.jit_instance_for(m_size, n_size, k_size, a, b, c)
-        print(jit_instance.programs()[0])
-        exit(0)
 
         matmul(m_size, n_size, k_size, a, b, c)
         torch.cuda.synchronize()
