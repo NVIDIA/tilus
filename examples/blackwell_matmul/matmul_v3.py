@@ -63,7 +63,7 @@ class BlackwellMatmulV3(tilus.Script):
             count=[1 for _ in range(self.stages)]
         )  # whether the data is ready to be filled
 
-        with self.thread_group(group_index=0, group_size=32):
+        with self.thread_group(thread_begin=0, num_threads=32):
             # tma warp
             stage: int32 = 0
             producer_phases = self.register_tensor(
@@ -97,7 +97,7 @@ class BlackwellMatmulV3(tilus.Script):
                 producer_phases[stage] ^= 1
                 stage = (stage + 1) % self.stages
 
-        with self.thread_group(group_index=1, group_size=32):
+        with self.thread_group(thread_begin=32, num_threads=32):
             # mma warp
             consumer_phases = self.register_tensor(
                 dtype=uint32, shape=[self.stages], init=0

@@ -270,9 +270,9 @@ class IRPrinter(IRFunctor):
         head_doc = (
             NewLine()
             + Text("with thread_group(group_index=")
-            + self.visit(stmt.group_index)
+            + self.visit(stmt.thread_begin)
             + ", group_size="
-            + self.visit(stmt.group_size)
+            + self.visit(stmt.num_threads)
             + "):"
         )
         body_doc = self.visit(stmt.body)

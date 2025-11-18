@@ -19,7 +19,7 @@ from typing import Dict, Optional, Set, Type
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder
 from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var
+from hidet.ir.expr import Expr, Var, logical_and
 from hidet.ir.func import Function as HidetFunction
 from hidet.ir.module import IRModule
 from hidet.ir.primitives import set_kernel_max_dynamic_smem_bytes
@@ -57,6 +57,7 @@ from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.ir.utils.normalize import normalize_dim3
 from tilus.ir.utils.thread_group_stack import ThreadGroupStack
 from tilus.target import get_current_target, match_target
+from tilus.utils import is_power_of_two
 
 
 class InvalidInstruction(Exception):
@@ -214,7 +215,7 @@ class FunctionCodegen(IRFunctor):
 
         # initialize for_thread_group stack
         self._current_thread = threadIdx.x
-        self.thread_group_stack.push(group_index=0, group_size=func.metadata.num_warps * 32)
+        self.thread_group_stack.push(thread_begin=0, num_threads=func.metadata.num_warps * 32)
 
         # initialize all contexts
         self.contexts.initialize()
@@ -269,28 +270,33 @@ class FunctionCodegen(IRFunctor):
 
     def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> None:
         # check the validity of the thread group
-        parent_group_size = self.thread_group_stack.group_size[-1]
-        if parent_group_size % stmt.group_size != 0:
-            raise ValueError("group_size must be a divisor of the parent group_size")
-        num_groups = parent_group_size // stmt.group_size
-        if stmt.group_index < 0 or stmt.group_index >= num_groups:
-            raise ValueError(
-                "group_index must be in [0, num_groups), got group_index={}, num_groups={}".format(
-                    stmt.group_index, num_groups
-                )
-            )
+        parent_num_threads = self.thread_group_stack.num_threads[-1]
+        assert parent_num_threads % stmt.num_threads == 0
+        assert 0 <= stmt.thread_begin and stmt.thread_begin + stmt.num_threads <= parent_num_threads
 
         self.builder.comment(
-            "ThreadGroup(group_index={}, group_size={})".format(stmt.group_index, stmt.group_size),
+            "ThreadGroup(thread_begin={}, thread_end={}, num_threads={})".format(
+                stmt.thread_begin, stmt.thread_begin + stmt.num_threads, stmt.num_threads
+            ),
             style="/*",
         )
-        with self.builder.if_then(cond=self.current_thread // stmt.group_size == stmt.group_index):
-            tid = self.builder.declare_var("tid", tp=int32, init=self.current_thread % stmt.group_size)
+        if (
+            is_power_of_two(stmt.num_threads)
+            and is_power_of_two(parent_num_threads)
+            and stmt.thread_begin % stmt.num_threads == 0
+        ):
+            cond = (self.current_thread // stmt.num_threads) == (stmt.thread_begin // stmt.num_threads)
+            tid_value = self.current_thread % stmt.num_threads
+        else:
+            cond = logical_and(0 <= self.current_thread, self.current_thread < stmt.thread_begin + stmt.num_threads)
+            tid_value = self.current_thread - stmt.thread_begin
+        with self.builder.if_then(cond=cond):
+            tid = self.builder.declare_var("tid", tp=int32, init=tid_value)
             old_thread = self._current_thread
             self._current_thread = tid
             self.thread_group_stack.push(
-                group_index=stmt.group_index,
-                group_size=stmt.group_size,
+                thread_begin=stmt.thread_begin,
+                num_threads=stmt.num_threads,
             )
             self.visit(stmt.body)
             self._current_thread = old_thread

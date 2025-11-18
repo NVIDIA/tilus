@@ -425,7 +425,7 @@ class JitInstance:
                 miniters=1,
                 total=len(scheduling_jobs),
                 ncols=60 + max(60, len(self.instance_name)),
-                delay=1,
+                delay=3,
             )
         ):
             if isinstance(item, Program):
@@ -538,7 +538,7 @@ class JitInstance:
                 total=len(building_jobs),
                 miniters=1,
                 ncols=60 + max(60, len(self.instance_name)),
-                delay=1,
+                delay=3,
             )
         ):
             program_cache_dir = get_cache_dir(transpiled_programs[idx], options=self.build_options)

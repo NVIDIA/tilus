@@ -94,7 +94,7 @@ class PrintValueInstEmitter(BaseInstEmitter):
         cond = inst.cond
 
         if isinstance(tensor, RegisterTensor):
-            if self.thread_groups.group_size[-1] != tensor.layout.spatial_size:
+            if self.thread_groups.num_threads[-1] != tensor.layout.spatial_size:
                 # msg = (
                 #     'Trying to print a register tensor with layout: \n{}\nin a thread group with group size: {}'.format(
                 #         tensor.layout, self.thread_groups.group_size[-1]

@@ -42,7 +42,7 @@ class Tcgen05LoadStoreExample(tilus.Script):
         # store and load
         r_a = self.load_global(g_x, offsets=[m_offset, n_offset], shape=[self.block_m, self.block_n])
 
-        with self.thread_group(group_index=0, group_size=self.block_m):
+        with self.thread_group(thread_begin=0, num_threads=self.block_m):
             self.tcgen05.store(t_a, src=r_a, offsets=[0, 0])
             self.tcgen05.wait_store()
             r_a_loaded = self.tcgen05.load(t_a, offsets=[0, 0], shape=[self.block_m, self.block_n])

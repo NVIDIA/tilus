@@ -66,7 +66,7 @@ class ClusterLaunchControlExample(tilus.Script):
         while True:
             # tile scheduler, as producer of clc pipeline
             if is_first_block_in_cluster:
-                with self.thread_group(group_index=0, group_size=32):
+                with self.thread_group(thread_begin=0, num_threads=32):
                     self.mbarrier.wait(producer_mbarriers[producer_stage], phase=producer_phase)
                     self.clc.try_cancel(
                         cancel_response[producer_stage], mbarrier=consumer_mbarriers[producer_stage], multicast=True

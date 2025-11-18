@@ -75,7 +75,7 @@ class InstructionCollector(IRVisitor):
         self.analysis = Analysis.empty()
 
     def visit_Function(self, func: Function) -> None:
-        self.tg_stack.push(group_index=0, group_size=func.metadata.num_warps * 32)
+        self.tg_stack.push(thread_begin=0, num_threads=func.metadata.num_warps * 32)
         if func.metadata.analysis:
             self.analysis = func.metadata.analysis
         self.visit(func.body)
@@ -83,8 +83,8 @@ class InstructionCollector(IRVisitor):
 
     def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> None:
         self.tg_stack.push(
-            group_index=stmt.group_index,
-            group_size=stmt.group_size,
+            thread_begin=stmt.thread_begin,
+            num_threads=stmt.num_threads,
         )
         self.visit(stmt.body)
         self.tg_stack.pop()
@@ -92,7 +92,7 @@ class InstructionCollector(IRVisitor):
     def visit_Instruction(self, inst: Instruction) -> None:
         self.instructions.append(inst)
         self.inst2ctx[inst] = LayoutInferenceContext(
-            num_threads=self.tg_stack.group_size[-1],
+            num_threads=self.tg_stack.num_threads[-1],
             thread_begin=self.tg_stack.thread_begin[-1],
             thread_end=self.tg_stack.thread_end[-1],
             analysis=self.analysis,
