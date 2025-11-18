@@ -272,7 +272,9 @@ class IRRewriter(IRFunctor):
         return node
 
     def visit_Expr(self, expr: Expr) -> Expr:
-        return expr
+        from hidet.ir.tools import rewrite
+
+        return rewrite(expr, rewrite_map=self.memo)
 
     def visit_BaseType(self, tp: BaseType) -> BaseType:
         return tp
@@ -550,7 +552,6 @@ class IRVisitor(IRFunctor):
         self.visit(tensor.optional_layout)
 
     def visit_GlobalTensor(self, tensor: GlobalTensor) -> None:
-        self.visit(tensor.layout)
         self.visit(tensor.layout)
 
     def visit_TensorMemoryTensor(self, tensor: TMemoryTensor) -> None:

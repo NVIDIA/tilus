@@ -15,84 +15,30 @@
 from __future__ import annotations
 
 import typing
-from typing import Any, Callable, Iterable, Literal, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, Optional, Sequence, TypeAlias, TypeVar
 
 from hidet.ir.expr import Constant, Expr, Var
 from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
 
-from tilus.ir.builders import StmtBuilder
-from tilus.ir.inst import InstructionError
-from tilus.ir.prog import Program
 from tilus.lang.constructs.contexts import ThreadGroupContext
 from tilus.lang.constructs.structs import Dim3
-from tilus.lang.instructions import (
-    BarrierInstructionGroup,
-    BlockClusterInstructionGroup,
-    ClusterLaunchControlInstructionGroup,
-    InstructionGroup,
-    RootInstructionGroup,
-    Tcgen05InstructionGroup,
-    TmaInstructionGroup,
-)
+from tilus.lang.instructions import InstructionInterface
 from tilus.lang.modules.cuda import cuda
+
+if TYPE_CHECKING:
+    from tilus.lang.instantiated_script import InstantiatedScript, JitInstance
+
+Int: TypeAlias = int | Expr
 
 
 class Attributes:
-    """Attributes of the script program."""
-
-    _blocks: Optional[Sequence[Expr | int] | Expr | int] = None
-    _cluster_blocks: Optional[Sequence[Expr | int] | int] = (1, 1, 1)
-    _warps: Optional[int] = None
-
-    @property
-    def blocks(self) -> Sequence[Expr | int] | Expr | int | None:
-        """The number of blocks."""
-        return self._blocks
-
-    @blocks.setter
-    def blocks(self, value: Sequence[Expr | int] | Expr | int) -> None:
-        if not (isinstance(value, Sequence) and len(value) in [1, 2, 3]) and not isinstance(value, (int, Expr)):
-            raise ValueError("Expect 1d/2d/3d number of blocks, got {}".format(value))
-        self._blocks = value
-
-    @property
-    def cluster_blocks(self) -> Sequence[Expr | int] | int:
-        """The number of blocks per cluster."""
-        if self._cluster_blocks is None:
-            raise ValueError("The number of blocks per cluster is not set")
-        return self._cluster_blocks
-
-    @cluster_blocks.setter
-    def cluster_blocks(self, value: Sequence[Expr | int] | int) -> None:
-        """The number of blocks per cluster."""
-        if not isinstance(value, (int, Constant)) and not (
-            isinstance(value, Sequence) and all(isinstance(v, (int, Constant)) for v in value)
-        ):
-            raise ValueError("The number of blocks per cluster must be an integer or a sequence of integers")
-        self._cluster_blocks = value
-
-    @property
-    def warps(self) -> int:
-        """The number of warps."""
-        if self._warps is None:
-            raise ValueError("The number of warps is not set")
-        return self._warps
-
-    @warps.setter
-    def warps(self, value: int) -> None:
-        if value is None:
-            self._warps = None
-        elif not isinstance(value, int):
-            raise ValueError("The number of warps must be an integer")
-        elif value <= 0:
-            raise ValueError("The number of warps must be positive")
-        elif value > 32:
-            raise ValueError("The number of warps must be less than or equal to 32")
-        else:
-            self._warps = value
+    def __init__(self):
+        self.blocks: Optional[Sequence[Int] | Int] = None
+        self.cluster_blocks: Sequence[Int] | Int = (1, 1, 1)
+        self.warps: Optional[int] = None
 
 
-class Script(RootInstructionGroup):
+class Script(InstructionInterface):
     """A script is a user-defined kernel function that can be compiled and executed on the GPU."""
 
     # the compiled program will print the instruction output of the specified block
@@ -101,8 +47,8 @@ class Script(RootInstructionGroup):
     # specify the schedule used for debugging. it will override any autotune space
     debug_schedule: Optional[dict[str, Any]] = None
 
-    def __new__(cls, *args, **kwargs):
-        from tilus.lang.instantiated_script import InstantiatedScript, InstantiatedScriptCache
+    def __new__(cls, *args, **kwargs) -> InstantiatedScript:  # type: ignore[no-untyped-def]
+        from tilus.lang.instantiated_script import InstantiatedScriptCache
 
         instantiated_script: InstantiatedScript = InstantiatedScriptCache.get(
             script_cls=cls,
@@ -113,53 +59,18 @@ class Script(RootInstructionGroup):
         return instantiated_script
 
     def __init__(self) -> None:
-        # builder used to append instructions
+        super().__init__()
 
-        self._optional_builder: Optional[StmtBuilder] = None
+        # attributes
         self._attrs: Attributes = Attributes()
 
         # modules
         self.cuda = cuda
 
-        # instruction groups
-        self.tcgen05 = Tcgen05InstructionGroup()
-        self.tma = TmaInstructionGroup()
-        self.mbarrier = BarrierInstructionGroup()
-        self.clc = ClusterLaunchControlInstructionGroup()
-        self.cluster = BlockClusterInstructionGroup()
-
     def __call__(self, *args, **kwargs):
         raise RuntimeError("This method should never be called.")
 
-    def _set_builder(self, builder: Optional[StmtBuilder]) -> None:
-        super()._set_builder(builder)
-        for value in self.__dict__.values():
-            if isinstance(value, InstructionGroup):
-                value._set_builder(builder)
-
-    @property
-    def _builder(self) -> StmtBuilder:
-        if self._optional_builder is None:
-            raise InstructionError("Did you forget to call `super().__init__()` for the Tilus Script?")
-
-        return self._optional_builder
-
-    def program(self) -> Program:
-        """
-        Get the traced program.
-
-        The user defined script should satisfy:
-        - 1) there is only one schedule .
-        - 2) there is not const and tuning parameters in __call__.
-
-        Returns
-        -------
-        ret: Program
-            The traced program.
-        """
-        raise RuntimeError("This method should never be called. See InstantiatedScript.program instead.")
-
-    def jit_instance_for(self, *args: object, **kwargs: object) -> Any:
+    def jit_instance_for(self, *args: object, **kwargs: object) -> JitInstance:
         """
         Instantiate the script program with the specified arguments and keyword arguments.
 
@@ -335,7 +246,10 @@ class Script(RootInstructionGroup):
             raise AssertionError(msg)
 
 
-def autotune(arg_names: str, arg_values: Sequence[Any]) -> Callable[[Type[Script]], Any]:
+T = TypeVar("T")
+
+
+def autotune(arg_names: str, arg_values: Sequence[Any]) -> Callable[[T], T]:
     """Annotate an autotune subspace for a tilus script.
 
     Parameters
@@ -352,9 +266,9 @@ def autotune(arg_names: str, arg_values: Sequence[Any]) -> Callable[[Type[Script
         The decorator that can be applied to a tilus script class for the marking of autotune parameters.
     """
 
-    def decorator(script_cls):
+    def decorator(script_cls: T) -> T:
         if not hasattr(script_cls, "_autotune_space"):
-            script_cls._autotune_space = {}
+            setattr(script_cls, "_autotune_space", {})
         space = getattr(script_cls, "_autotune_space")
         names = [name.strip() for name in arg_names.split(",")]
 

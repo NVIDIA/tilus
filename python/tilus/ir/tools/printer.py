@@ -14,9 +14,9 @@
 # limitations under the License.
 from typing import Any, Dict, List, Set, Tuple, Union
 
-from hidet.ir import BaseType
 from hidet.ir.expr import Expr, Var
-from hidet.ir.tools import IRPrinter as HidetIRPrinter
+from hidet.ir.tools import IRPrinter as _HidetIRPrinter
+from hidet.ir.type import BaseType, DataType, PointerType, VoidType
 from hidet.utils.doc import Doc, NewLine, Text, doc_join
 
 from tilus.extensions.hidet.utils.doc import doc_comment, doc_join_lines, doc_strip_parentheses
@@ -50,6 +50,16 @@ from tilus.ir.tensor import (
     Tensor,
     TMemoryTensor,
 )
+
+
+class HidetIRPrinter(_HidetIRPrinter):
+    def visit_PointerType(self, t: PointerType) -> Doc:
+        if isinstance(t.base_type, (DataType, VoidType)):
+            return "~" + self.visit(t.base_type)
+        elif isinstance(t.base_type, PointerType):
+            return "~(" + self.visit(t.base_type) + ")"
+        else:
+            raise NotImplementedError(t.base_type)
 
 
 class IRPrinter(IRFunctor):
