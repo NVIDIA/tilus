@@ -89,7 +89,7 @@ class LowerParamOnlyExprRewriter(IRRewriter):
         if body is func.body and all(e is t for e, t in zip(func.metadata.grid_blocks, num_blocks)):
             return func
         else:
-            return func.with_metadata(func.metadata.with_num_blocks(num_blocks)).with_body(body)
+            return func.with_metadata(func.metadata.with_grid_blocks(num_blocks)).with_body(body)
 
     def visit_LetStmt(self, stmt: LetStmt) -> Stmt:
         for bind_var, bind_value in zip(stmt.bind_vars, stmt.bind_values):

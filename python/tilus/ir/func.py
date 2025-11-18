@@ -74,7 +74,7 @@ class Metadata:
     def with_analysis(self, analysis: Optional[Analysis]) -> Metadata:
         return dataclasses.replace(self, analysis=analysis)
 
-    def with_num_blocks(self, grid_blocks: tuple[Expr, Expr, Expr]) -> Metadata:
+    def with_grid_blocks(self, grid_blocks: tuple[Expr, Expr, Expr]) -> Metadata:
         return dataclasses.replace(self, grid_blocks=grid_blocks)
 
     def with_param2divisibility(self, divisibility: Mapping[Var, int]) -> Metadata:
