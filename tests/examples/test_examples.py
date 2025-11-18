@@ -125,8 +125,7 @@ def test_example(folder: str, script: str, required_target: Optional[Target]):
 
 def test_all_examples_are_listed():
     """
-    Ensure that all Python scripts in the examples directory are either
-    explicitly listed in EXAMPLES or IGNORED_SCRIPTS.
+    Ensure that all Python scripts in the examples directory are either explicitly listed in EXAMPLES or IGNORED_SCRIPTS.
 
     This test prevents new examples from being added without being properly
     configured in the test suite.

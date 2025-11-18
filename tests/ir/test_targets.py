@@ -19,7 +19,7 @@ from tilus.target import Target, TargetProperties, gpgpu_any
 
 
 def create_target(arch, major, minor, suffix=None):
-    """Helper to create test targets."""
+    """Create test targets."""
     return Target(
         kind="nvgpu",
         arch=arch,

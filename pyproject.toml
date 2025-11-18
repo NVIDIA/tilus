@@ -78,11 +78,14 @@ extend-select = [
 ]
 ignore = [
     "E741",  # ambiguous variable name
+    "D106",  # missing docstring in nested class
     "D105",  # missing docstring in magic method
+    "D104",  # missing docstring in public package
     "D103",  # missing docstring in public function
     "D102",  # missing docstring in public method
     "D101",  # missing docstring in public class
     "D100",  # missing docstring in public module
+    "D401",  # first line should be in imperative mood
 ]
 
 [tool.ruff.lint.pydocstyle]

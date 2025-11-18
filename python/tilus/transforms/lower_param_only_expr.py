@@ -24,6 +24,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
+Lower parameter-only expressions.
+
 Some expressions in a function should be expressions only over parameters:
 1. The AllocateGlobal instruction requires the size to be only over parameters if they are not constant.
 2. The num_blocks should also be only over parameters if they are not constant.

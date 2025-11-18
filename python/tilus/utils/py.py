@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains utility functions that only depend on the Python standard library."""
+"""The module contains utility functions that only depend on the Python standard library."""
 
 import itertools
 from pathlib import Path
@@ -116,6 +116,7 @@ def to_snake_case(name: str) -> str:
 def relative_to_with_walk_up(source: Path, target: Path) -> Path:
     """
     Compute the relative path from source to target, allowing walking up the directory tree.
+
     Similar to Path.relative_to(..., walk_up=True) in Python 3.12+.
 
     Parameters

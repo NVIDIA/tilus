@@ -74,6 +74,8 @@ class FlashAttention(tilus.Script):
         o_ptr: void_p,
     ):
         """
+        Flash attention kernel.
+
         ```
             load query to register
             cp_async k
