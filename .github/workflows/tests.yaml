@@ -53,7 +53,7 @@ jobs:
             pyproject.toml
           base_sha: 'origin/main'
 
-  tests:
+  test-core:
     needs: check-changes
     if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_tests == 'true'
     continue-on-error: true
@@ -77,8 +77,8 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Run tests
-        run: pytest ./tests
+      - name: Run main tests
+        run: pytest ./tests --ignore=tests/examples/
 
   docs:
     needs: check-changes
@@ -104,7 +104,7 @@ jobs:
           cd docs
           make html
 
-  examples:
+  test-examples:
     needs: check-changes
     if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_examples == 'true'
     runs-on: linux-amd64-gpu-l4-latest-1
@@ -129,27 +129,26 @@ jobs:
           pip install torch==2.8 # since flash-attn only has pre-built wheels for torch<=2.8, todo: update this when flash-attn supports torch>=2.9
           pip install flash-attn --no-build-isolation
 
-      - name: Run examples
-        run: |
-          bash ./scripts/run-examples.sh
+      - name: Run unit tests
+        run: pytest tests/examples/ -v
 
   all-functional-tests:
     name: All Functional Tests
-    needs: [tests, docs, examples]
+    needs: [test-core, docs, test-examples]
     if: always() && github.repository == 'NVIDIA/tilus'
     runs-on: ubuntu-latest
     steps:
       - name: Check job results
         run: |
-          echo "Tests result: ${{ needs.tests.result }}"
+          echo "Core tests result: ${{ needs.test-core.result }}"
           echo "Docs result: ${{ needs.docs.result }}"
-          echo "Examples result: ${{ needs.examples.result }}"
+          echo "Example tests result: ${{ needs.test-examples.result }}"
 
           # Check if any required job failed
-          if [[ "${{ needs.tests.result }}" == "failure" ]] || [[ "${{ needs.docs.result }}" == "failure" ]] || [[ "${{ needs.examples.result }}" == "failure" ]]; then
+          if [[ "${{ needs.test-core.result }}" == "failure" ]] || [[ "${{ needs.docs.result }}" == "failure" ]] || [[ "${{ needs.test-examples.result }}" == "failure" ]]; then
             echo "One or more functional tests failed"
             exit 1
-          elif [[ "${{ needs.tests.result }}" == "cancelled" ]] || [[ "${{ needs.docs.result }}" == "cancelled" ]] || [[ "${{ needs.examples.result }}" == "cancelled" ]]; then
+          elif [[ "${{ needs.test-core.result }}" == "cancelled" ]] || [[ "${{ needs.docs.result }}" == "cancelled" ]] || [[ "${{ needs.test-examples.result }}" == "cancelled" ]]; then
             echo "One or more functional tests were cancelled"
             exit 1
           else

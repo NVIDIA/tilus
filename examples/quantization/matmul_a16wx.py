@@ -26,8 +26,6 @@ from tilus.ir.layout.ops import concat, local, reduce, spatial
 from tilus.utils import benchmark_func, cdiv, dtype_to_torch, gcd
 from torch import nn
 
-tilus.option.cache_dir("./cache")
-
 
 class QuantizedMatmulCommon(Script):
     def __init__(
