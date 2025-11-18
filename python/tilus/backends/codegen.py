@@ -288,7 +288,9 @@ class FunctionCodegen(IRFunctor):
             cond = (self.current_thread // stmt.num_threads) == (stmt.thread_begin // stmt.num_threads)
             tid_value = self.current_thread % stmt.num_threads
         else:
-            cond = logical_and(0 <= self.current_thread, self.current_thread < stmt.thread_begin + stmt.num_threads)
+            cond = logical_and(
+                stmt.thread_begin <= self.current_thread, self.current_thread < stmt.thread_begin + stmt.num_threads
+            )
             tid_value = self.current_thread - stmt.thread_begin
         with self.builder.if_then(cond=cond):
             tid = self.builder.declare_var("tid", tp=int32, init=tid_value)
