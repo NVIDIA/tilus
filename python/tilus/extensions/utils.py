@@ -22,7 +22,6 @@ def update(obj_full_qualname: str) -> Callable[[T], T]:
     """
     Update the object defined with the given full qualified name with the decorated object.
 
-
     ```python
     from tilus.extensions.utils import update
 

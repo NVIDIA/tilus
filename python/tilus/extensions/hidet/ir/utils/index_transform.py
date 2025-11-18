@@ -56,7 +56,7 @@ def index_deserialize(
     scalar_index: Expr | int, shape: Sequence[Union[Expr, int]], ranks: Optional[Sequence[int]] = None
 ) -> List[Expr]:
     """
-    reverse of index_serialize
+    Reverse of index_serialize
     """
     if len(shape) == 0:
         return []

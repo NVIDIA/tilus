@@ -45,7 +45,8 @@ class Addressing:
     - tensor pointer type (TensorPointerType)
     - tensor (TensorType)
 
-    Examples:
+    Examples
+    --------
     - a = register_tensor(dtype='float16', shape=[10, 10])
     - &a[0, 1]
     - &a[0, 1] + 1

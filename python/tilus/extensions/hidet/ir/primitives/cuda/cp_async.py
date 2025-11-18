@@ -175,7 +175,8 @@ def cp_async(
     """
     Copy data from global memory to shared memory asynchronously.
 
-    See Also:
+    See Also
+    --------
     https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async
 
     Parameters

@@ -143,7 +143,6 @@ class Script(InstructionInterface):
 
         Examples
         --------
-
         We can use this function to create a for loop iterator, similar to the built-in `range` function:
 
         .. code-block:: python

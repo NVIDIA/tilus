@@ -93,7 +93,6 @@ class RootInstructionGroup(InstructionGroup):
         tensor: RegisterTensor
             The allocated register tensor.
         """
-
         f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
         if init is not None:
 

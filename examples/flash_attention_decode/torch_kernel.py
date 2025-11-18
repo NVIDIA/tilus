@@ -22,7 +22,8 @@ def fused_gdn_gating_torch(
         beta: Beta parameter for softplus (default: 1.0)
         threshold: Threshold for numerical stability (default: 20.0)
 
-    Returns:
+    Returns
+    -------
         g: Output tensor, same shape as input a
     """
     # Compute x = a + dt_bias
@@ -173,7 +174,8 @@ def sigmoid_gating_delta_rule_update_torch(
         use_qk_l2norm_in_kernel: Whether to apply L2 normalization to q and k
         cu_seqlens: Cumulative sequence lengths (optional, for variable length)
 
-    Returns:
+    Returns
+    -------
         o: Output tensor from the delta rule update
     """
     # Apply sigmoid to b to get beta

@@ -84,6 +84,7 @@ _register_options()
 def get_option(name: str) -> Any:
     """
     Get the value of an option.
+
     Parameters
     ----------
     name: str

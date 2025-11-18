@@ -73,7 +73,8 @@ def should_skip_example(required_target: Optional[Target]) -> tuple[bool, str]:
     Args:
         required_target: The target required to run the example, or None if any target is supported.
 
-    Returns:
+    Returns
+    -------
         A tuple of (should_skip, reason), where should_skip is True if the example should be skipped.
     """
     if required_target is None:

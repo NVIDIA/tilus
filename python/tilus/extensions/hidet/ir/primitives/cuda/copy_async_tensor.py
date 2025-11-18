@@ -162,6 +162,7 @@ def cp_async_tensor_global_to_shared(
         See the documentation of PTX of tma tensor copy.
     cache_policy: Expr, optional
         The cache policy to be used.
+
     Returns
     -------
     ret: Expr
@@ -191,6 +192,7 @@ def cp_async_tensor_shared_to_global(
         The coordinates of the tile to be copied.
     cache_policy: Expr, optional
         The cache policy to be used.
+
     Returns
     -------
     ret: Expr

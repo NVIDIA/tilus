@@ -72,14 +72,14 @@ class BarrierInstructionGroup(InstructionGroup):
          - expected arrivals does not change
          - tx-count = 0
 
-         Parameters
+        Parameters
         ----------
          count: Expr | int, optional
              The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
              to a positive int32. When not provided, it defaults to the number of threads in the current thread group.
 
-         Returns
-         -------
+        Returns
+        -------
          ret: Expr
              The shared memory address in shared space that points to the allocated barrier. The shared memory address has
              uint32 data type.

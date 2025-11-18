@@ -86,8 +86,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
         self._optional_script: Optional[Script] = None
 
     def visit(self, node):
-        """dispatch method for visiting an AST node."""
-
+        """Dispatch method for visiting an AST node."""
         method = "visit_" + node.__class__.__name__
         if hasattr(self, method):
             visitor = getattr(self, method)
