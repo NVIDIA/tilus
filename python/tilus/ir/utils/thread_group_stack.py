@@ -14,42 +14,37 @@
 # limitations under the License.
 class ThreadGroupStack:
     def __init__(self):
-        self.group_index: list[int] = []
-        self.group_size: list[int] = []
-
+        self.num_threads: list[int] = []
         self.thread_begin: list[int] = []
         self.thread_end: list[int] = []
 
     def stack_depth(self):
-        return len(self.group_index)
+        return len(self.num_threads)
 
-    def push(self, group_index: int, group_size: int) -> None:
+    def push(self, thread_begin: int, num_threads: int) -> None:
         depth = self.stack_depth()
         if depth > 0:
-            parent_group_size = self.group_size[-1]
-            if parent_group_size % group_size != 0:
+            parent_num_threads = self.num_threads[-1]
+            if parent_num_threads % num_threads != 0:
                 raise ValueError("group_size must be a divisor of the parent group_size")
-            num_groups = parent_group_size // group_size
-            if group_index < 0 or group_index >= num_groups:
+            if thread_begin < 0 or thread_begin + num_threads > parent_num_threads:
                 raise ValueError(
-                    "group_index must be in [0, num_groups), got group_index={}, num_groups={}".format(
-                        group_index, num_groups
+                    "thread_begin must be in [0, parent_num_threads - num_threads), got thread_begin={}, num_threads={}, parent_num_threads={}".format(
+                        thread_begin, num_threads, parent_num_threads
                     )
                 )
-        self.group_index.append(group_index)
-        self.group_size.append(group_size)
+        self.num_threads.append(num_threads)
 
         if depth > 0:
-            parent_group_size = self.group_size[-1]
+            parent_num_threads = self.num_threads[-1]
             parent_thread_begin = self.thread_begin[-1]
-            self.thread_begin.append(parent_thread_begin + group_index * group_size)
-            self.thread_end.append(parent_thread_begin + (group_index + 1) * group_size)
+            self.thread_begin.append(parent_thread_begin + thread_begin)
+            self.thread_end.append(parent_thread_begin + thread_begin + num_threads)
         else:
             self.thread_begin.append(0)
-            self.thread_end.append(group_size)
+            self.thread_end.append(num_threads)
 
     def pop(self):
-        self.group_index.pop()
-        self.group_size.pop()
+        self.num_threads.pop()
         self.thread_begin.pop()
         self.thread_end.pop()

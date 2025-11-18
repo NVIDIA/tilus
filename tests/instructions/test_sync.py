@@ -22,12 +22,12 @@ class SyncExample(tilus.Script):
         self.attrs.blocks = 1
         self.attrs.warps = 4
 
-        with self.thread_group(group_index=0, group_size=64):
-            with self.thread_group(group_index=0, group_size=32):
+        with self.thread_group(thread_begin=0, num_threads=64):
+            with self.thread_group(thread_begin=0, num_threads=32):
                 self.printf("Hello from group 0\n")
             self.sync()
 
-            with self.thread_group(group_index=1, group_size=32):
+            with self.thread_group(thread_begin=32, num_threads=32):
                 self.printf("Hello from group 1\n")
         self.sync()
 

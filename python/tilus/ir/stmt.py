@@ -53,13 +53,13 @@ class ForStmt(Stmt):
 
 @dataclass(frozen=True, eq=False)
 class ThreadGroupStmt(Stmt):
-    group_index: int
-    group_size: int
+    thread_begin: int
+    num_threads: int
     body: Stmt
 
     @staticmethod
-    def create(group_index: int, body: Stmt, group_size: int) -> ThreadGroupStmt:
-        return ThreadGroupStmt(group_index, group_size, body)
+    def create(thread_begin: int, num_threads: int, body: Stmt) -> ThreadGroupStmt:
+        return ThreadGroupStmt(thread_begin, num_threads, body)
 
 
 @dataclass(frozen=True, eq=False)

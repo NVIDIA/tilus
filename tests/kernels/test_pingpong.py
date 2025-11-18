@@ -28,7 +28,7 @@ class PingPongExample(tilus.Script):
         b_phase: uint32 = 1
         num_rounds = 10
 
-        with self.thread_group(group_index=0, group_size=128):
+        with self.thread_group(thread_begin=0, num_threads=128):
             for round in self.range(num_rounds):
                 self.printf("[A][round=%d] waiting, phase=%d\n", round, a_phase)
                 self.mbarrier.wait(a_ready, phase=a_phase)
@@ -37,7 +37,7 @@ class PingPongExample(tilus.Script):
                 self.printf("[A][round=%d] finished\n", round)
                 self.mbarrier.arrive(b_ready)
 
-        with self.thread_group(group_index=1, group_size=128):
+        with self.thread_group(thread_begin=128, num_threads=128):
             for round in self.range(num_rounds):
                 self.printf("[B][round=%d] waiting, phase=%d\n", round, b_phase)
                 self.mbarrier.wait(b_ready, phase=b_phase)

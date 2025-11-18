@@ -60,7 +60,7 @@ class PipelineState(tilus.State):
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
-class BlackwellMatmul(tilus.Script):
+class BlackwellMatmulV4(tilus.Script):
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -103,7 +103,7 @@ class BlackwellMatmul(tilus.Script):
             consumer_arrive_count=1,
         )
 
-        with self.thread_group(group_index=0, group_size=32):
+        with self.thread_group(thread_begin=0, num_threads=32):
             # producer
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
                 # self.printf("[%d][%d] producer acquring offset_k=%d\n", self.blockIdx.x, state.producer_stage, offset_k)
@@ -130,7 +130,7 @@ class BlackwellMatmul(tilus.Script):
                 state.producer_acquire()
                 state.producer_advance()
 
-        with self.thread_group(group_index=1, group_size=32):
+        with self.thread_group(thread_begin=32, num_threads=32):
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
                 # self.printf("[%d][%d] consumer acquring offset_k=%d\n", self.blockIdx.x, state.consumer_stage, offset_k)
                 state.consumer_acquire()
@@ -161,7 +161,7 @@ class BlackwellMatmul(tilus.Script):
 
 
 def main(bench=True):
-    matmul = BlackwellMatmul()
+    matmul = BlackwellMatmulV4()
 
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     rows: list = []

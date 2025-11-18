@@ -33,7 +33,7 @@ class ThreadGroupExample(tilus.Script):
         s_x = self.shared_tensor(dtype=float16, shape=[self.block])
         offset = self.blockIdx.x * self.block
 
-        with self.thread_group(0, group_size=64):
+        with self.thread_group(0, num_threads=64):
             self.store_shared(s_x, self.load_global(g_x, offsets=[offset], shape=[self.block]))
             self.sync()
         self.sync()
@@ -43,7 +43,7 @@ class ThreadGroupExample(tilus.Script):
         self.store_shared(dst=s_x, src=r_x)
         self.sync()
 
-        with self.thread_group(1, group_size=64):
+        with self.thread_group(64, num_threads=64):
             self.store_global(dst=g_y, src=self.load_shared(s_x), offsets=[offset])
 
         self.sync()

@@ -65,35 +65,56 @@ def get_merge_base(branch: str = "main") -> str:
 
 
 def check_working_tree_clean() -> bool:
-    """Check if the working tree is clean (no unstaged changes)."""
+    """Check if the working tree is clean (no unstaged changes to tracked files).
+
+    Untracked files are allowed, but modifications to tracked files are not.
+    """
     exit_code, output, stderr = run_git_command(["status", "--porcelain"])
     if exit_code != 0:
         print(f"Error checking git status: {stderr}")
         return False
 
-    return len(output.strip()) == 0
+    # Parse status output - only check for modifications to tracked files
+    # Untracked files start with "??" and are allowed
+    for line in output.strip().split("\n"):
+        if not line:
+            continue
+        status = line[:2]
+        # Allow untracked files (??) but reject any modifications to tracked files
+        if status != "??":
+            return False
+
+    return True
 
 
 def prompt_for_clean_working_tree() -> None:
-    """Check for unstaged changes and prompt user to clean them."""
+    """Check for unstaged changes to tracked files and prompt user to clean them.
+
+    Untracked files are allowed and will not block the rebase.
+    """
     if check_working_tree_clean():
         return  # Working tree is clean, proceed
 
-    print("\n⚠️  Working tree not clean")
-    print("The following files have unstaged changes:")
+    print("\n⚠️  Working tree has unstaged changes to tracked files")
+    print("The following tracked files have unstaged changes:")
 
-    # Show the status
-    exit_code, output, stderr = run_git_command(["status", "--porcelain"], capture_output=False)
+    # Show only modified tracked files (not untracked files)
+    exit_code, output, stderr = run_git_command(["status", "--porcelain"])
+    if exit_code == 0:
+        for line in output.strip().split("\n"):
+            if line and not line.startswith("??"):
+                print(f"   {line}")
 
-    print("\n❌ Cannot proceed with rebase while there are unstaged changes.")
+    print("\n❌ Cannot proceed with rebase while there are unstaged changes to tracked files.")
+    print("   (Untracked files are OK and will not be affected)")
     print("\n🔧 TO FIX THIS, choose one of the following:")
     print("   1. Commit your changes:")
-    print("      git add .")
+    print("      git add <files>")
     print('      git commit -m "Your commit message"')
     print("   2. Stash your changes:")
     print("      git stash")
     print("   3. Discard your changes (CAREFUL!):")
-    print("      git checkout -- .")
+    print("      git checkout -- <files>")
     print("\n💡 Then run the script again.")
 
     sys.exit(1)

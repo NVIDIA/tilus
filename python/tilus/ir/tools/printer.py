@@ -269,10 +269,10 @@ class IRPrinter(IRFunctor):
     def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> Doc:
         head_doc = (
             NewLine()
-            + Text("with thread_group(group_index=")
-            + self.visit(stmt.group_index)
-            + ", group_size="
-            + self.visit(stmt.group_size)
+            + Text("with thread_group(thread_begin=")
+            + self.visit(stmt.thread_begin)
+            + ", num_threads="
+            + self.visit(stmt.num_threads)
             + "):"
         )
         body_doc = self.visit(stmt.body)

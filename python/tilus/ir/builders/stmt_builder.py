@@ -271,16 +271,16 @@ class WhileContext(StmtContext):
 
 
 class ThreadGroupContext(StmtContext):
-    def __init__(self, vb: StmtBuilderCore, group_index: int, group_size: int):
+    def __init__(self, vb: StmtBuilderCore, thread_begin: int, num_threads: int):
         super().__init__(vb)
-        self.group_index: int = group_index
-        self.group_size: int = group_size
+        self.thread_begin: int = thread_begin
+        self.num_threads: int = num_threads
 
     def __enter__(self) -> None:
         self.enter()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.append(ThreadGroupStmt(group_index=self.group_index, group_size=self.group_size, body=self.pop()))
+        self.append(ThreadGroupStmt(thread_begin=self.thread_begin, num_threads=self.num_threads, body=self.pop()))
 
 
 class BlockContext(StmtContext):
@@ -317,8 +317,8 @@ class StmtBuilderCore:
         iter_vars = [Var(name, type=int32) for name in iter_name_hints]
         return ForContext(self, iter_vars, expr_extents, unrolls=[None] * len(extents))
 
-    def thread_group(self, group_index: int, group_size: int) -> ThreadGroupContext:
-        return ThreadGroupContext(self, group_index=group_index, group_size=group_size)
+    def thread_group(self, thread_begin: int, num_threads: int) -> ThreadGroupContext:
+        return ThreadGroupContext(self, thread_begin=thread_begin, num_threads=num_threads)
 
     def while_loop(self, cond: Union[Expr, bool]) -> WhileContext:
         return WhileContext(self, as_expr(cond))

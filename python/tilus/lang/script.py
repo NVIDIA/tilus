@@ -176,7 +176,7 @@ class Script(InstructionInterface):
         return typing.cast(Iterable[Var], range(start, end, step, unroll=unroll))
 
     @staticmethod
-    def thread_group(group_index: int, group_size: int) -> ThreadGroupContext:
+    def thread_group(thread_begin: int, num_threads: int) -> ThreadGroupContext:
         """Create a thread group context.
 
         This method creates a thread group context that is used to narrow down the threads that execute the instructions
@@ -191,8 +191,9 @@ class Script(InstructionInterface):
                 def __call__(self, ...):
                     # instructions executed by all threads in the thread block
                     ...
-                    with self.thread_group(group_index, group_size=group_size):
-                        # instructions executed by threads in the specified thread group
+                    with self.thread_group(thread_begin, num_threads=num_threads):
+                        # instructions executed by threads in the specified thread group starting from `thread_begin`
+                        # and including `num_threads` threads
                         ...
                         with self.thread_group(...):
                             # we can continue to partition the current thread group into sub thread groups
@@ -206,23 +207,24 @@ class Script(InstructionInterface):
 
         At the root level of the kernel, there is one thread group that includes all threads in the thread block.
         We can partition the threads in the current thread group into multiple sub thread groups by specifying the
-        number of threads in each sub thread group using the `group_size` parameter.
+        first thread using `thread_begin` and the number of threads in each sub thread group using the `num_threads`
+        parameter.
 
         All instructions within the context will be executed by all threads in the specified thread group.
 
         Parameters
         ----------
-        group_index: int
-            The index of the thread group to be created. It must be in the range [0, num_groups).
-        group_size: int
-            The number of threads in each thread group.
+        thread_begin: int
+            The index of the first thread in the thread group.
+        num_threads: int
+            The number of threads in the thread group.
 
         Returns
         -------
         ret: ThreadGroupContext
             The thread group context created.
         """
-        return ThreadGroupContext(group_index=group_index, group_size=group_size)
+        return ThreadGroupContext(thread_begin=thread_begin, num_threads=num_threads)
 
     @staticmethod
     def single_thread() -> ThreadGroupContext:
@@ -236,7 +238,7 @@ class Script(InstructionInterface):
         ret: ThreadGroupContext
             The thread group context created.
         """
-        return Script.thread_group(group_index=0, group_size=1)
+        return Script.thread_group(thread_begin=0, num_threads=1)
 
     @staticmethod
     def static_assert(cond: bool | Expr, msg: str) -> None:

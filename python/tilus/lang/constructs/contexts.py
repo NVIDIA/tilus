@@ -37,9 +37,9 @@ class TilusContext:
 
 
 class ThreadGroupContext(TilusContext):
-    def __init__(self, group_index: int, group_size: int):
-        self.group_index: int = group_index
-        self.group_size: int = group_size
+    def __init__(self, thread_begin: int, num_threads: int):
+        self.thread_begin: int = thread_begin
+        self.num_threads: int = num_threads
 
     def bind_value(self) -> None:
         return None
@@ -47,6 +47,6 @@ class ThreadGroupContext(TilusContext):
     def post_process(self, body: Stmt) -> Stmt:
         sb = StmtBuilder()
 
-        with sb.thread_group(group_index=self.group_index, group_size=self.group_size):
+        with sb.thread_group(thread_begin=self.thread_begin, num_threads=self.num_threads):
             sb.append(body)
         return sb.flush_stmts()

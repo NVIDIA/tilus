@@ -20,36 +20,36 @@ The ``thread_group`` Context Manager
 
 .. code-block:: python
 
-    with self.thread_group(group_index, *, num_groups=None, group_size=None):
+    with self.thread_group(thread_begin, num_threads):
         # Instructions executed by threads in the specified thread group
         ...
 
 **Parameters:**
 
-- ``group_index`` (int): The index of the thread group to create. Must be in range [0, num_groups).
-- ``num_groups`` (int, optional): The number of thread groups to partition the current thread group into.
-- ``group_size`` (int, optional): The number of threads in each thread group.
+- ``thread_begin`` (int): The index of the first thread in the thread group (relative to the parent thread group).
+- ``num_threads`` (int): The number of threads in this thread group.
 
 **Constraints:**
 
-- Either ``num_groups`` or ``group_size`` must be specified (or both).
-- If both are specified, they must satisfy: ``num_groups * group_size == parent_group_size``
-- If only one is specified, the other is automatically inferred.
+- ``thread_begin`` must be non-negative and within the parent thread group's range.
+- ``thread_begin + num_threads`` must not exceed the parent thread group's size.
+- ``num_threads`` must divide evenly into the parent thread group's size.
 
 How Thread Partitioning Works
 ------------------------------
 
-Thread groups partition the current thread group based on the relationship:
+Thread groups partition the current thread group by specifying:
 
-.. code-block:: text
+1. **thread_begin**: The starting thread index (relative to the parent group)
+2. **num_threads**: How many consecutive threads to include
 
-    num_groups * group_size = parent_group_size
+This allows you to create non-overlapping thread groups that cover different ranges of threads within the parent group.
 
 **Examples:**
 
-- If you have 128 threads and specify ``group_size=32``, you get ``num_groups=4``
-- If you have 128 threads and specify ``num_groups=8``, you get ``group_size=16``
-- If you specify both ``num_groups=4`` and ``group_size=32``, they must multiply to 128
+- If you have 128 threads and specify ``thread_begin=0, num_threads=32``, threads 0-31 execute
+- If you have 128 threads and specify ``thread_begin=32, num_threads=32``, threads 32-63 execute
+- If you have 128 threads and specify ``thread_begin=64, num_threads=64``, threads 64-127 execute
 
 Basic Usage Examples
 --------------------
@@ -69,20 +69,20 @@ Basic Usage Examples
             # All threads execute this
             data = self.register_tensor(dtype=f32, shape=[16])
 
-            # Only threads in group 0 execute this block (threads 0-31)
-            with self.thread_group(0, num_groups=4):
-                # Instructions for first quarter of threads
+            # Only threads 0-31 execute this block
+            with self.thread_group(thread_begin=0, num_threads=32):
+                # Instructions for first 32 threads
                 result = self.load_global(src, offsets=[0, 0])
 
-            # Only threads in group 1 execute this block (threads 32-63)
-            with self.thread_group(1, num_groups=4):
-                # Instructions for second quarter of threads
+            # Only threads 32-63 execute this block
+            with self.thread_group(thread_begin=32, num_threads=32):
+                # Instructions for second 32 threads
                 result = self.load_global(src, offsets=[16, 0])
 
             # All threads execute this again
             self.sync()
 
-**Example 2: Using Group Size Instead of Number of Groups**
+**Example 2: Using Different Thread Ranges**
 
 .. code-block:: python
 
@@ -94,13 +94,13 @@ Basic Usage Examples
             # Specify 4 warps = 128 threads total
             self.attrs.warps = 4
 
-            # Only threads in group 0 execute this (32 threads: 0-31)
-            with self.thread_group(0, group_size=32):
+            # Only threads 0-31 execute this
+            with self.thread_group(thread_begin=0, num_threads=32):
                 # First group of 32 threads processes first chunk
                 data = self.load_global(src, offsets=[0, 0])
 
-            # Only threads in group 1 execute this (32 threads: 32-63)
-            with self.thread_group(1, group_size=32):
+            # Only threads 32-63 execute this
+            with self.thread_group(thread_begin=32, num_threads=32):
                 # Second group of 32 threads processes second chunk
                 data = self.load_global(src, offsets=[32, 0])
 
@@ -116,16 +116,17 @@ Basic Usage Examples
             # Specify 4 warps = 128 threads total
             self.attrs.warps = 4
 
-            # First level: split into 4 groups of 32 threads each
-            with self.thread_group(0, num_groups=4):
-                # Only first group (threads 0-31) enters here
+            # First level: first 32 threads (threads 0-31)
+            with self.thread_group(thread_begin=0, num_threads=32):
+                # Only threads 0-31 enter here
 
-                # Second level: further split into 2 sub-groups of 16 threads each
-                with self.thread_group(0, num_groups=2):
+                # Second level: further split into threads 0-15
+                with self.thread_group(thread_begin=0, num_threads=16):
                     # Only threads 0-15 execute this
                     fine_grained_work()
 
-                with self.thread_group(1, num_groups=2):
+                # Second level: threads 16-31
+                with self.thread_group(thread_begin=16, num_threads=16):
                     # Only threads 16-31 execute this
                     different_fine_grained_work()
 
@@ -147,11 +148,12 @@ The ``self.sync()`` instruction synchronizes all threads in the **current thread
             # Specify 4 warps = 128 threads total
             self.attrs.warps = 4
 
-            with self.thread_group(0, num_groups=2):
-                # Some work by first half of threads (threads 0-63)
+            # First 64 threads
+            with self.thread_group(thread_begin=0, num_threads=64):
+                # Some work by first 64 threads (threads 0-63)
                 work_part_1()
 
-                # Synchronize only threads in group 0
+                # Synchronize only threads 0-63
                 self.sync()  # Only waits for threads 0-63
 
                 # Continue with synchronized work

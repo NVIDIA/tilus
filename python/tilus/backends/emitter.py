@@ -92,7 +92,7 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def current_num_threads(self) -> int:
-        return self._codegen.thread_group_stack.group_size[-1]
+        return self._codegen.thread_group_stack.num_threads[-1]
 
     @property
     def current_thread_group_begin(self) -> int:
