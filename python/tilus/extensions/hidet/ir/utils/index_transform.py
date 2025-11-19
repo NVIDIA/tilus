@@ -24,6 +24,7 @@ def index_serialize(
 ) -> Expr:
     """
     Serialize the logical indices in a tensor with given shape to a linear index in linear memory space.
+
     The ranks indices the rank of each dimension of the tensor.
     ranks = [0, 1, 2, 3] of shape[3, 4, 5, 6] indicates that the last dimension is the fastest changing dimension.
     ranks = [3, 2, 1, 0] of shape[3, 4, 5, 6] indicates that the first dimension is the fastest changing dimension.

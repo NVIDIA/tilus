@@ -51,6 +51,8 @@ class TensorMapping:
 
 class RegisterTensorCollector(IRVisitor):
     """
+    Collect register tensors that can be inlined.
+
     Collect all register tensors:
     1. it is 1-d tensor
     2. it is only used in BufferStoreStmt (as lhs) or TensorElement (as base) statements.

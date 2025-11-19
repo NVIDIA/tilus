@@ -61,7 +61,9 @@ class BarrierAllocContext(BaseEmitContext):
 
     def allocate_barriers(self, counts: Sequence[Expr | int]) -> list[Var]:
         """
-        Allocate a list of barriers with given counts. Each barrier is a 64-bit data structure stored in shared memory.
+        Allocate a list of barriers with given counts.
+
+        Each barrier is a 64-bit data structure stored in shared memory.
         This function returns the address of the first barrier in the shared space.
         """
         barrier_vars = [Var("barrier_{}".format(c), type=uint32) for c in counts]

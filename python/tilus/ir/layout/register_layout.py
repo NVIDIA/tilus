@@ -470,6 +470,8 @@ def register_layout(
 
 def canonicalize_layout(layout: RegisterLayout) -> RegisterLayout:
     """
+    Cannonicalize the register layout.
+
     Canonicalize the layout by
     1. merging the modes that are contiguous in the three places: shape, spatial_modes, and local_modes
     2. removing the singletons in the modes.

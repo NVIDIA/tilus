@@ -92,6 +92,8 @@ class RuleBasedSimplifier(OriginalRuleBasedSimplifier):
 
     def always_bits(self, e: Expr, bit_value: int) -> Optional[set[int]]:
         """
+        Analyze the expression `e` and return a set of bits that are always `bit_value` (0 or 1) in the expression `e`.
+
         Returns a set of bits that are always `bit_value` (0 or 1) in the expression `e`.
         If the expression can not be analyzed, None is returned.
         """

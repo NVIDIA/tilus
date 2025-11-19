@@ -507,6 +507,8 @@ def print_context() -> PrintContext:
 
 def use_standalone_printer(decorated):
     """
+    Create a standalone print context for the decorated function.
+
     A decorator to use a standalone IRPrinter instance for the decorated function.
     This is useful when you want to print IR nodes without affecting the global print context.
     """

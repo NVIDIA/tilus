@@ -58,6 +58,8 @@ def compute_value(a: DimensionInfo, b: DimensionInfo, op: Callable[[int, int], i
 
 class DimensionInfo:
     """
+    The dimension information for a specific dimension of a tensor.
+
     Given one tensor, there will be multiple dimensions. For a given dimension, we could get many vectors for that
     dimension. For example, given a two-dimension tensor:
     [[0, 1, 2, 3],
@@ -430,6 +432,8 @@ class TensorInfo:
 
 class GridAnalyzer(IRFunctor):
     """
+    Analyze the tensor information of a grid expression.
+
     Given a variable, it may have multiple potential values
     a := 8
     b := 16
@@ -589,6 +593,8 @@ def analyze_grid(
     analysis: Optional[Analysis] = None,
 ) -> TensorInfo:
     """
+    Analyze the tensor information of a grid expression.
+
     Given the mapping from axes -> value, we could construct a tensor with given shape. This function analyze the
     tensor information (TensorInfo) of this tensor.
     """

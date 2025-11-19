@@ -64,8 +64,9 @@ class LoopDepthAnalyzer(IRVisitor):
 
 class LoopInvariantsAnalyzer(IRVisitor):
     """
-    Analyze the loop body to get the invariants and their number of occurrences, given a list of loop invariant
-    variables.
+    Analyze the loop body to get the invariants and their number of occurrences.
+
+    A list of loop invariant variables is provided to help identify the loop invariant expressions.
     """
 
     def __init__(self, loop_invariant_vars: list[Var], hasher: ExprHash):

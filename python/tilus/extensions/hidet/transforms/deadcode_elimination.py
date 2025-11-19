@@ -203,6 +203,7 @@ class DeadcodeEliminationRewriter(IRRewriter):
 class DeadcodeEliminationPass(FunctionPass):
     """
     A pass that eliminates dead code in a function.
+
     It removes variables that are declared but never used, and statements that have no side effects.
     """
 

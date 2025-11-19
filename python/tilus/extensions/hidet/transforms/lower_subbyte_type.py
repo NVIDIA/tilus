@@ -530,6 +530,8 @@ class LowerSubbyteTypeRewriter(IRRewriter):
     @staticmethod
     def atomic_update_uint16(uint16_ptr: Expr, idx: Union[Expr, int], uint16_mask: Expr, uint16_value: Expr) -> Stmt:
         """
+        Perform atomic update on uint16 value given its pointer.
+
         Update the bits in *uint16_ptr value indicated by the uint16_mask to the uint16_value, and keep the remaining
         bits unchanged, using atomic operations.
         """
@@ -553,8 +555,9 @@ class LowerSubbyteTypeRewriter(IRRewriter):
     @staticmethod
     def atomic_update_uint32(uint32_ptr: Expr, idx: Union[Expr, int], uint32_mask: Expr, uint32_value: Expr) -> Stmt:
         """
-        Update the bits in *uint32_ptr value indicated by the uint32_mask to the uint32_value, and keep the remaining
-        bits unchanged, using atomic operations.
+        Perform atomic update on uint32 value given its pointer.
+
+        Update the bits in *uint32_ptr value indicated by the uint32_mask to the uint32_value, and keep the remaining bits unchanged, using atomic operations.
         """
         sb = StmtBuilder()
 

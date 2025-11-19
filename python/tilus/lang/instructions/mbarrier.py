@@ -27,11 +27,16 @@ class BarrierInstructionGroup(InstructionGroup):
     consumer_initial_phase = 0
 
     @typing.overload
-    def alloc(self, count: Optional[Expr | int] = None) -> Expr:
-        """Allocate a barrier in shared memory and get its address in shared space.
+    def alloc(self, count: Optional[Expr | int] = None) -> Expr: ...
 
-         A barrier is an 64-bit data structure, encoded as uint64, in shared memory.
-         A barrier contains the following information in the 64 bits:
+    @typing.overload
+    def alloc(self, count: Sequence[Expr | int]) -> RegisterTensor: ...
+
+    def alloc(self, count: Sequence[Expr | int] | Optional[Expr | int] = None) -> RegisterTensor | Expr:
+        """Allocate barrier(s) in shared memory and get its address in shared space.
+
+         A barrier is an 64-bit data structure, encoded as uint64, in shared memory, which
+         contains the following information in the 64 bits:
 
          - The current phase of the barrier (i.e., phase): 0 or 1.
          - The count of pending arrivals in the current phase: 1 to 2^20 - 1.
@@ -39,18 +44,18 @@ class BarrierInstructionGroup(InstructionGroup):
          - The count of pending asynchronous memory transactions in the current phase (i.e., `tx-count`):
            -(2^20 - 1) to 2^20 - 1.
 
-         This instruction allocates an uint64 in shared memory to be used as a mbarrier. The parameter `count` specifies the
-         expected arrivals for the barrier.  After initialization, the barrier will have the following initial state:
+         This instruction allocates one or multiple uint64 elements in shared memory to be used as mbarrier(s).
+         The parameter `count` specifies the expected arrivals for the barrier(s).
+         After initialization, the barrier will have the following initial state:
 
          - phase = 0
-         - pending arrivals = counts[i]
-         - expected arrivals = counts[i]
+         - pending arrivals = count[i]
+         - expected arrivals = count[i]
          - tx-count = 0
 
          When `count` is not provided, it defaults to the number of threads in the current thread group.
 
-         Asynchronous memory copy instructions (e.g., `copy_async_tensor` instructions) that
-         take a barrier as an argument will:
+         Some instructions (e.g., tma copy instructions) that take a barrier as an argument might:
 
          - increase the `tx-count` by the number of bytes to be copied before the copy starts.
          - decrease the `tx-count` by the number of bytes copied after the copy completes asynchronously.
@@ -74,44 +79,19 @@ class BarrierInstructionGroup(InstructionGroup):
 
         Parameters
         ----------
-         count: Expr | int, optional
-             The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
-             to a positive int32. When not provided, it defaults to the number of threads in the current thread group.
+        count: Sequence[Expr | int], Expr, int, optional
+            The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
+            to positive int32 integer(s). When not provided, it defaults to the number of threads in the current thread group.
+            When a sequence is provided, multiple barriers will be allocated with each barrier initialized with the corresponding
+            expected arrivals specified in the sequence.
 
         Returns
         -------
-         ret: Expr
-             The shared memory address in shared space that points to the allocated barrier. The shared memory address has
-             uint32 data type.
+        ret: RegisterTensor | Expr
+            The shared memory address in shared space that points to the allocated barrier. The shared memory address has
+            uint32 data type. When multiple barriers are allocated, a register tensor of shape (len(count),) and dtype uint32
+            is returned, containing the shared memory addresses of the allocated barriers.
         """
-        ...
-
-    @typing.overload
-    def alloc(self, count: Sequence[Expr | int]) -> RegisterTensor:
-        """
-        Allocate multiple barriers in shared memory and get their addresses.
-
-        This instruction allocates multiple barriers in shared memory, and returns a register tensor containing the
-        shared memory addresses of the allocated barriers. The register tensor has shape (len(count),) and dtype uint32.
-        Each barrier is initialized with the corresponding expected arrivals specified in the `count` sequence.
-
-        Parameters
-        ----------
-        count: Sequence[Expr | int]
-            A sequence specifying the number of threads that must arrive at each barrier before any of them can proceed.
-
-        Returns
-        -------
-        ret: RegisterTensor
-            A register tensor of shape (len(count),) and dtype uint32, containing the shared memory addresses of the allocated barriers.
-
-        See Alos
-        --------
-        See also the single barrier allocation method for more details on barrier behavior.
-        """
-        ...
-
-    def alloc(self, count: Sequence[Expr | int] | Optional[Expr | int] = None) -> RegisterTensor | Expr:
         counts: list[Expr | None]
         if isinstance(count, Sequence):
             counts = [as_expr(c) if isinstance(c, (Expr, int)) else None for c in count]

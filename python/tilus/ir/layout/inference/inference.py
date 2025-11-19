@@ -239,7 +239,8 @@ def infer_layout(func: Function) -> Function:
         def pair_sort_key(pair: tuple[Instruction, Type[LayoutInferenceRule]]) -> tuple[int, int, int]:
             """
             Sort key for the instruction and rule pair based on the rule's order.
-            key:
+
+            The sorting is done based on three criteria in order:
               no_layout_inferred: instructions with layout inferred should be processed first
               rule_order: rules with lower order should be processed first
               inst_order: instructions appear later in the function should be processed later.
