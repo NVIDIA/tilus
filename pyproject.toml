@@ -76,7 +76,7 @@ extend-select = [
     "D", # enforce docstring conventions
     "I", # isort rules that unify the import order
 ]
-ignore = [   
+ignore = [
     "E741",  # ambiguous variable name
     "D106",  # missing docstring in nested class
     "D105",  # missing docstring in magic method
