@@ -47,7 +47,7 @@ class Tcgen05LoadStoreExample(tilus.Script):
             self.tcgen05.wait_store()
             r_a_loaded = self.tcgen05.load(t_a, offsets=[0, 0], shape=[self.block_m, self.block_n])
             self.tcgen05.wait_load()
-            r_a_loaded += 1
+            r_a_loaded = r_a_loaded + 1
             self.store_global(g_y, src=r_a_loaded, offsets=[m_offset, n_offset])
         self.sync()
         self.tcgen05.dealloc(t_a)

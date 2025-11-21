@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import pytest
 import tilus
 import torch
 from tilus import int32
@@ -31,3 +32,7 @@ def test_tcgen_alloc_free():
     kernel = Tcgen05Example()
     kernel()
     torch.cuda.synchronize()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

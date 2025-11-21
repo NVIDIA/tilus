@@ -30,13 +30,7 @@ class Tcgen05AllocInst(Instruction):
 
     @staticmethod
     def create(dtype: DataType, shape: Sequence[int], cta_group: int) -> Tcgen05AllocInst:
-        assert cta_group in (1, 2)
-        assert len(shape) == 2
-        assert shape[0] == 128
-        assert shape[1] * dtype.nbits % 32 == 0
-        num_columns = shape[1] * dtype.nbits // 32
-        assert num_columns % 32 == 0 and 32 <= num_columns <= 512
-        output = TMemoryTensor.create(dtype=dtype, shape=shape, first_lane=0)
+        output = TMemoryTensor.create(dtype=dtype, shape=shape)
         return Tcgen05AllocInst(output=output, inputs=(), cta_group=cta_group)
 
 

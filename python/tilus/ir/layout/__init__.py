@@ -17,3 +17,4 @@ from .mfunction import MultiFunction, canonicalize_multi_function, multi_functio
 from .ops.utils import LayoutOperationError
 from .register_layout import RegisterLayout, register_layout
 from .shared_layout import SharedLayout
+from .tmem_layout import TMemLayout

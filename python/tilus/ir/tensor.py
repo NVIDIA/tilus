@@ -23,7 +23,7 @@ from hidet.ir.expr import Expr, Var
 from hidet.ir.type import DataType
 from hidet.utils import same_list
 
-from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout
+from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, TMemLayout
 from tilus.utils import nbytes_from_nbits
 
 
@@ -620,16 +620,20 @@ class SharedTensor(Tensor):
 
 @dataclass(frozen=True, eq=False)
 class TMemoryTensor(Tensor):
-    shape: tuple[int, int]
-
-    # the first lane of the tensor in tensor memory (0 to 127, inclusive)
-    first_lane: int
+    shape: tuple[int, ...]
+    optional_layout: Optional[TMemLayout]
 
     @staticmethod
-    def create(dtype: DataType, shape: Sequence[int], first_lane: int) -> TMemoryTensor:
-        if len(shape) != 2:
+    def create(dtype: DataType, shape: Sequence[int], optional_layout: Optional[TMemLayout] = None) -> TMemoryTensor:
+        if len(shape) < 2:
             raise ValueError("TensorMemoryTensor only supports 2D shape.")
-        return TMemoryTensor(dtype=dtype, shape=(shape[0], shape[1]), first_lane=first_lane)
+        if shape[-2] not in (32, 64, 128):
+            raise ValueError("The number of rows (shape[-2]) must be 32, 64, or 128, got {}".format(shape[-2]))
+        if optional_layout is not None and tuple(shape) != tuple(optional_layout.shape):
+            raise ValueError(
+                f"Shape mismatch: provided shape {shape} does not match layout shape {optional_layout.shape}."
+            )
+        return TMemoryTensor(dtype=dtype, shape=tuple(shape), optional_layout=optional_layout)
 
 
 @dataclass(frozen=True, eq=False)
