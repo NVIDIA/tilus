@@ -63,7 +63,7 @@ class TmemCopyExample(tilus.Script):
         self.mbarrier.wait(barriers[0], phase=0)
 
         # load y from tmem to register
-        r_y = self.tcgen05.load(t_x, offsets=[0, 0], shape=[self.block_m, self.block_n])
+        r_y = self.tcgen05.load(t_x)
         self.tcgen05.wait_load()
         self.sync()
 

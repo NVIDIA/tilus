@@ -20,7 +20,7 @@ from hidet.ir.type import BaseType
 
 from tilus.ir.func import Function
 from tilus.ir.inst import Instruction, InstructionConfig
-from tilus.ir.layout import GlobalLayout, RegisterLayout
+from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, TMemoryLayout
 from tilus.ir.prog import Program
 from tilus.ir.stmt import (
     AssignStmt,
@@ -39,7 +39,7 @@ from tilus.ir.stmt import (
     ThreadGroupStmt,
     WhileStmt,
 )
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, TMemoryTensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, TMemoryTensor
 from tilus.utils import same_list
 
 InstClsVar = TypeVar("InstClsVar", bound=Instruction)
@@ -126,13 +126,15 @@ class IRFunctor:
         elif isinstance(node, GlobalTensor):
             ret = self.visit_GlobalTensor(node)
         elif isinstance(node, TMemoryTensor):
-            ret = self.visit_TensorMemoryTensor(node)
+            ret = self.visit_TMemoryTensor(node)
         elif isinstance(node, RegisterLayout):
             ret = self.visit_RegisterLayout(node)
         elif isinstance(node, SharedLayout):
             ret = self.visit_SharedLayout(node)
         elif isinstance(node, GlobalLayout):
             ret = self.visit_GlobalLayout(node)
+        elif isinstance(node, TMemoryLayout):
+            ret = self.visit_TMemoryLayout(node)
         # python native
         elif isinstance(node, list):
             ret = self.visit_list(node)
@@ -233,7 +235,7 @@ class IRFunctor:
     def visit_GlobalTensor(self, tensor: GlobalTensor) -> Any:
         raise NotImplementedError()
 
-    def visit_TensorMemoryTensor(self, tensor: TMemoryTensor) -> Any:
+    def visit_TMemoryTensor(self, tensor: TMemoryTensor) -> Any:
         raise NotImplementedError()
 
     def visit_RegisterLayout(self, layout: RegisterLayout) -> Any:
@@ -243,6 +245,9 @@ class IRFunctor:
         raise NotImplementedError()
 
     def visit_GlobalLayout(self, node: GlobalLayout) -> Any:
+        raise NotImplementedError()
+
+    def visit_TMemoryLayout(self, layout: TMemoryLayout) -> Any:
         raise NotImplementedError()
 
 
@@ -419,8 +424,12 @@ class IRRewriter(IRFunctor):
         else:
             return GlobalTensor.create(dtype=tensor.dtype, layout=layout)
 
-    def visit_TensorMemoryTensor(self, tensor: TMemoryTensor) -> TMemoryTensor:
-        return tensor
+    def visit_TMemoryTensor(self, tensor: TMemoryTensor) -> TMemoryTensor:
+        optional_layout = self.visit(tensor.optional_layout)
+        if optional_layout is tensor.optional_layout:
+            return tensor
+        else:
+            return TMemoryTensor.create(dtype=tensor.dtype, shape=tensor.shape, optional_layout=optional_layout)
 
     def visit_RegisterLayout(self, layout: RegisterLayout) -> RegisterLayout:
         return layout
@@ -441,6 +450,9 @@ class IRRewriter(IRFunctor):
             return layout
         else:
             return GlobalLayout(shape=shape, size=size, axes=layout.axes, offset=offset)
+
+    def visit_TMemoryLayout(self, layout: TMemoryLayout) -> TMemoryLayout:
+        return layout
 
     # instructions
     def visit_Instruction(self, inst: InstClsVar) -> InstClsVar:
@@ -546,7 +558,7 @@ class IRVisitor(IRFunctor):
     # values
 
     def visit_RegisterTensor(self, tensor: RegisterTensor) -> None:
-        pass
+        self.visit(tensor.optional_layout)
 
     def visit_SharedTensor(self, tensor: SharedTensor) -> None:
         self.visit(tensor.optional_layout)
@@ -554,8 +566,8 @@ class IRVisitor(IRFunctor):
     def visit_GlobalTensor(self, tensor: GlobalTensor) -> None:
         self.visit(tensor.layout)
 
-    def visit_TensorMemoryTensor(self, tensor: TMemoryTensor) -> None:
-        pass
+    def visit_TMemoryTensor(self, tensor: TMemoryTensor) -> None:
+        self.visit(tensor.optional_layout)
 
     def visit_RegisterLayout(self, layout: RegisterLayout) -> None:
         pass
@@ -566,6 +578,9 @@ class IRVisitor(IRFunctor):
     def visit_GlobalLayout(self, layout: GlobalLayout) -> None:
         self.visit(layout.shape)
         self.visit(layout.offset)
+
+    def visit_TMemoryLayout(self, layout: TMemoryLayout) -> None:
+        pass
 
     # instructions
     def visit_Instruction(self, inst: Instruction) -> None:

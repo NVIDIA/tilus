@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
-from hidet.ir.expr import Expr
+from hidet.ir.expr import Constant, Expr
 from hidet.ir.type import DataType
 
 from tilus.ir.inst import Instruction
@@ -30,13 +30,9 @@ class Tcgen05AllocInst(Instruction):
 
     @staticmethod
     def create(dtype: DataType, shape: Sequence[int], cta_group: int) -> Tcgen05AllocInst:
-        assert cta_group in (1, 2)
-        assert len(shape) == 2
-        assert shape[0] == 128
-        assert shape[1] * dtype.nbits % 32 == 0
-        num_columns = shape[1] * dtype.nbits // 32
-        assert num_columns % 32 == 0 and 32 <= num_columns <= 512
-        output = TMemoryTensor.create(dtype=dtype, shape=shape, first_lane=0)
+        assert len(shape) >= 2, "Tcgen05AllocInst only supports tensors with rank >= 2."
+        assert shape[-2] in (32, 64, 128), "The second last dimension must be 32, 64, or 128."
+        output = TMemoryTensor.create(dtype=dtype, shape=shape)
         return Tcgen05AllocInst(output=output, inputs=(), cta_group=cta_group)
 
 
@@ -58,59 +54,57 @@ class Tcgen05RelinquishAllocPermitInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05SliceInst(Instruction):
-    offsets: tuple[int, int]
+    offsets: tuple[Expr, ...]
+    slice_dims: tuple[int, ...]
 
     @staticmethod
-    def create(tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> Tcgen05SliceInst:
-        assert len(offsets) == len(shape) == 2
-        for o, s, ts in zip(offsets, shape, tmem.shape):
-            assert 0 <= o < ts
-            assert 0 < s <= ts - o
-        output = TMemoryTensor.create(dtype=tmem.dtype, shape=shape, first_lane=tmem.first_lane + offsets[0])
-        return Tcgen05SliceInst(output=output, inputs=(tmem,), offsets=(offsets[0], offsets[1]))
+    def create(
+        tmem: TMemoryTensor,
+        offsets: Sequence[Expr],
+        slice_dims: Sequence[int],
+        slice_shape: Sequence[int],
+    ) -> Tcgen05SliceInst:
+        assert len(tmem.shape) == len(offsets)
+        assert len(slice_shape) == len(slice_dims)
+        assert len(slice_dims) >= 2 and all(len(tmem.shape) - 1 - i in slice_dims for i in range(2)), (
+            "The last two dimensions must be included in the slice."
+        )
+        assert isinstance(offsets[-2], Constant), "The row-offset must be a constant."
+        output = TMemoryTensor.create(dtype=tmem.dtype, shape=slice_shape)
+        return Tcgen05SliceInst(output=output, inputs=(tmem,), offsets=tuple(offsets), slice_dims=tuple(slice_dims))
 
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05ViewInst(Instruction):
     @staticmethod
     def create(tmem: TMemoryTensor, dtype: DataType, shape: Sequence[int]) -> Tcgen05ViewInst:
-        if len(shape) != 2:
-            raise ValueError("Only 2D shape is supported.")
-        if shape[0] != tmem.shape[0]:
-            raise ValueError("The first dimension must be the same as the original tensor.")
-        if dtype.nbits * shape[1] != tmem.dtype.nbits * tmem.shape[1]:
-            raise ValueError("The total number of bits must be the same as the original tensor.")
-
-        output = TMemoryTensor.create(dtype=dtype, shape=shape, first_lane=tmem.first_lane)
+        if len(tmem.shape) != len(shape):
+            raise ValueError("The rank of the new shape must match the original shape.")
+        if any(s1 != s2 for s1, s2 in zip(tmem.shape[:-1], shape[:-1])):
+            raise ValueError("All dimensions except the last one must match in the view operation.")
+        if tmem.shape[-1] * tmem.dtype.nbits != shape[-1] * dtype.nbits:
+            raise ValueError(
+                "The total number of bits in the last dimension must remain the same in the view operation."
+            )
+        output = TMemoryTensor.create(dtype=dtype, shape=shape)
         return Tcgen05ViewInst(output=output, inputs=(tmem,))
 
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05LoadInst(Instruction):
-    offsets: tuple[int, int]
-
     @staticmethod
-    def create(tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> Tcgen05LoadInst:
-        assert len(offsets) == len(shape) == 2
-        for o, s, ts in zip(offsets, shape, tmem.shape):
-            assert 0 <= o < ts
-            assert 0 < s <= ts - o
-        output = RegisterTensor.create(dtype=tmem.dtype, shape=shape)
-        return Tcgen05LoadInst(output=output, inputs=(tmem,), offsets=(offsets[0], offsets[1]))
+    def create(tmem: TMemoryTensor) -> Tcgen05LoadInst:
+        # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.load)
+        output = RegisterTensor.create(dtype=tmem.dtype, shape=tmem.shape)
+        return Tcgen05LoadInst(output=output, inputs=(tmem,))
 
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05StoreInst(Instruction):
-    offsets: tuple[int, int]
-
     @staticmethod
-    def create(tmem: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int]) -> Tcgen05StoreInst:
-        assert len(offsets) == 2
-        for o, s, ts in zip(offsets, src.shape, tmem.shape):
-            assert 0 <= o < ts
-            assert 0 < s <= ts - o
-
-        return Tcgen05StoreInst(output=None, inputs=(tmem, src), offsets=(offsets[0], offsets[1]))
+    def create(tmem: TMemoryTensor, src: RegisterTensor) -> Tcgen05StoreInst:
+        # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.store)
+        return Tcgen05StoreInst(output=None, inputs=(tmem, src))
 
 
 @dataclass(frozen=True, eq=False)
@@ -127,6 +121,7 @@ class Tcgen05WaitInst(Instruction):
 class Tcgen05CopyInst(Instruction):
     @staticmethod
     def create(src: SharedTensor, dst: TMemoryTensor) -> Tcgen05CopyInst:
+        # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.copy)
         return Tcgen05CopyInst(output=None, inputs=(dst, src))
 
 
@@ -148,6 +143,7 @@ class Tcgen05MmaSSInst(Instruction):
         b: SharedTensor,
         d: TMemoryTensor,
     ) -> Tcgen05MmaSSInst:
+        # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.mma)
         return Tcgen05MmaSSInst(output=None, inputs=(a, b, d))
 
 
@@ -159,4 +155,5 @@ class Tcgen05MmaTSInst(Instruction):
         b: SharedTensor,
         d: TMemoryTensor,
     ) -> Tcgen05MmaTSInst:
+        # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.mma)
         return Tcgen05MmaTSInst(output=None, inputs=(a, b, d))

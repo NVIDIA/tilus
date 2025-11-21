@@ -19,8 +19,8 @@ from hidet.utils.py import bold
 
 from tilus.ir.func import Analysis
 from tilus.ir.inst import Instruction
-from tilus.ir.layout import RegisterLayout, SharedLayout
-from tilus.ir.tensor import RegisterTensor, SharedTensor
+from tilus.ir.layout import RegisterLayout, SharedLayout, TMemoryLayout
+from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor
 
 
 class LayoutInferenceError(Exception):
@@ -58,7 +58,7 @@ class LayoutInferenceRule:
     @staticmethod
     def inference(
         ctx: LayoutInferenceContext, inst: Instruction
-    ) -> dict[RegisterTensor | SharedTensor, RegisterLayout | SharedLayout]:
+    ) -> dict[RegisterTensor | SharedTensor | TMemoryTensor, RegisterLayout | SharedLayout | TMemoryLayout]:
         """
         Perform layout inference for the register and shared tensors in the given instruction.
 
@@ -95,11 +95,10 @@ _inference_rules: dict[Type[Instruction], list[Type[LayoutInferenceRule]]] = def
 # each instruction type must have one validation rule registered
 _validation_rules: dict[Type[Instruction], Type[LayoutValidationRule]] = {}
 
-InstClassT = TypeVar("InstClassT", bound=Type[Instruction])
 RuleClassT = TypeVar("RuleClassT", bound=Type[LayoutInferenceRule | LayoutValidationRule])
 
 
-def register_rule(inst_type: InstClassT) -> Callable[[RuleClassT], RuleClassT]:
+def register_rule(inst_type: Type[Instruction]) -> Callable[[RuleClassT], RuleClassT]:
     def decorator(rule_class: RuleClassT) -> RuleClassT:
         if issubclass(rule_class, LayoutValidationRule):
             if inst_type in _validation_rules:

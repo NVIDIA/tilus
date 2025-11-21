@@ -14,13 +14,14 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Sequence
 
 from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import Expr, cast
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+    COLUMN_STRIDE,
+    LANE_STRIDE,
     Tcgen05LoadStoreNumKind,
     Tcgen05LoadStorePackKind,
     Tcgen05LoadStoreShapeKind,
@@ -41,12 +42,6 @@ from tilus.ir.tensor import RegisterTensor, TMemoryTensor
 from tilus.target import nvgpu_sm100
 from tilus.utils import gcd
 
-#    tmem addr: 0xAAAABBBB where AAAA is the lane index and BBBB is the column index
-#   lane index: 0x0000 to 0x007F
-# column index: 0x0000 to 0x01FF
-LANE_STRIDE = 0x00010000
-COLUMN_STRIDE = 0x00000001
-
 
 @dataclass
 class LoadStoreWarpInst:
@@ -58,24 +53,6 @@ class LoadStoreWarpInst:
 
 
 class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
-    def slice_tmem_tensor(
-        self, tmem_tensor: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]
-    ) -> tuple[TMemoryTensor, Expr]:
-        if any(not isinstance(ofs, int) for ofs in offsets):
-            raise ValueError("All offsets must be integer constants")
-        if len(offsets) != 2:
-            raise ValueError("The length of offsets must be 2")
-        if len(shape) != 2:
-            raise ValueError("The length of shape must be 2")
-        tmem_addr = self.get_or_allocate_var(tmem_tensor)
-        sliced_tmem_tensor = TMemoryTensor.create(
-            dtype=tmem_tensor.dtype, shape=shape, first_lane=tmem_tensor.first_lane + offsets[0]
-        )
-        sliced_tmem_addr = (
-            tmem_addr + offsets[0] * LANE_STRIDE + offsets[1] * COLUMN_STRIDE * tmem_tensor.dtype.nbits // 32
-        )
-        return sliced_tmem_tensor, sliced_tmem_addr
-
     def emit_tcgen05_inst(self, inst: LoadStoreWarpInst) -> None:
         raise NotImplementedError("Subclasses must implement this method")
 
@@ -87,11 +64,11 @@ class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
     ) -> None:
         if self.current_num_threads % 32 != 0:
             raise ValueError("The number of threads in the current thread group must be divisible by 32")
-        if self.current_thread_group_begin % 128 != tmem_tensor.first_lane:
+        if self.current_thread_group_begin % 128 != tmem_tensor.layout.lane_offset:
             raise ValueError(
                 "Lane mismatch: the first lane of the tmem tensor must be the same as the thread group begin"
             )
-        if self.current_num_threads != tmem_tensor.shape[0]:
+        if self.current_num_threads != tmem_tensor.shape[-2]:
             raise ValueError(
                 "The number of threads in the current thread group must be the same as the number of lanes in the tmem tensor"
             )
@@ -174,8 +151,7 @@ class TMemoryLoadEmitter(TMemoryLoadStoreBaseEmitter):
     def emit(self, inst: Tcgen05LoadInst) -> None:
         regs_tensor = inst.register_output
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
-        sliced_tmem_tensor, sliced_tmem_addr = self.slice_tmem_tensor(tmem_tensor, inst.offsets, regs_tensor.shape)
-        self.emit_tcgen05_instructions(regs_tensor, sliced_tmem_tensor, sliced_tmem_addr)
+        self.emit_tcgen05_instructions(regs_tensor, tmem_tensor, self.tensor2var[tmem_tensor])
 
     def emit_tcgen05_inst(self, inst: LoadStoreWarpInst) -> None:
         self.append(
@@ -195,11 +171,10 @@ class TMemoryStoreEmitter(TMemoryLoadStoreBaseEmitter):
         regs_tensor = inst.inputs[1].as_register_tensor()
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
 
-        sliced_tmem_tensor, sliced_tmem_addr = self.slice_tmem_tensor(tmem_tensor, inst.offsets, regs_tensor.shape)
         self.emit_tcgen05_instructions(
             regs_tensor,
-            sliced_tmem_tensor,
-            sliced_tmem_addr,
+            tmem_tensor,
+            self.tensor2var[tmem_tensor],
         )
 
     def emit_tcgen05_inst(self, inst: LoadStoreWarpInst) -> None:

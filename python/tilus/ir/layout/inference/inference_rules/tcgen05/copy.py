@@ -20,6 +20,7 @@ from tilus.ir.layout.cuda.tcgen05.smem import (
 )
 from tilus.ir.layout.inference.rule import (
     LayoutInferenceContext,
+    LayoutInferenceError,
     LayoutInferenceRule,
     register_rule,
 )
@@ -35,11 +36,8 @@ class Tcgen05CopyRule(LayoutInferenceRule):
         if src.has_layout():
             return {}
 
-        # by default, we use the non-swizzled canonical layout
-        assert len(src.shape) == 2
-        # canonical_layout = generate_canonical_layout(
-        #     (src.shape[0], src.shape[1]), src.dtype, "K", Tcgen05SwizzleMode.NO_SWIZZLE
-        # )
+        if len(src.shape) != 2:
+            raise LayoutInferenceError(f"Only 2D SharedTensor is supported in copy, got shape {src.shape}")
         canonical_layout = generate_canonical_layout(
             (src.shape[0], src.shape[1]), src.dtype, "K", Tcgen05SwizzleMode.NO_SWIZZLE
         )

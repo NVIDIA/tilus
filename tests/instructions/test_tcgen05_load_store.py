@@ -34,7 +34,8 @@ class Tcgen05LoadStoreExample(tilus.Script):
 
         g_x = self.global_view(x_ptr, dtype=self.dtype, shape=[m_size, n_size])
         g_y = self.global_view(y_ptr, dtype=self.dtype, shape=[m_size, n_size])
-        t_a = self.tcgen05.alloc(dtype=self.dtype, shape=[128, self.block_n])
+        t_a_storage = self.tcgen05.alloc(dtype=self.dtype, shape=[128, self.block_n])
+        t_a = self.tcgen05.slice(t_a_storage, offsets=[0, 0], dims=[0, 1], shape=[self.block_m, self.block_n])
 
         m_offset: int32 = self.blockIdx.x * self.block_m
         n_offset: int32 = self.blockIdx.y * self.block_n
@@ -43,14 +44,14 @@ class Tcgen05LoadStoreExample(tilus.Script):
         r_a = self.load_global(g_x, offsets=[m_offset, n_offset], shape=[self.block_m, self.block_n])
 
         with self.thread_group(thread_begin=0, num_threads=self.block_m):
-            self.tcgen05.store(t_a, src=r_a, offsets=[0, 0])
+            self.tcgen05.store(t_a, src=r_a)
             self.tcgen05.wait_store()
-            r_a_loaded = self.tcgen05.load(t_a, offsets=[0, 0], shape=[self.block_m, self.block_n])
+            r_a_loaded = self.tcgen05.load(t_a)
             self.tcgen05.wait_load()
-            r_a_loaded += 1
+            r_a_loaded = r_a_loaded + 1
             self.store_global(g_y, src=r_a_loaded, offsets=[m_offset, n_offset])
         self.sync()
-        self.tcgen05.dealloc(t_a)
+        self.tcgen05.dealloc(t_a_storage)
 
 
 @tilus.testing.requires.nvgpu_sm100a

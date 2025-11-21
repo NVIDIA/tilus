@@ -23,6 +23,12 @@ from hidet.utils import initialize
 
 from tilus.extensions.hidet.ir.primitives.utils import register_primitive_function_decorator
 
+#    tmem addr: 0xAAAABBBB where AAAA is the lane index and BBBB is the column index
+#   lane index: 0x0000 to 0x007F
+# column index: 0x0000 to 0x01FF
+LANE_STRIDE = 0x00010000
+COLUMN_STRIDE = 0x00000001
+
 
 class Tcgen05CtaGroupKind(Enum):
     CTA_1 = ".cta_group::1"

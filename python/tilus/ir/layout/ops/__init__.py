@@ -44,3 +44,7 @@ from .shared_ops import (
     shared_permute,
     shared_row_major,
 )
+from .tmemory_ops import (
+    tmemory_row_major,
+    tmemory_slice,
+)
