@@ -5,11 +5,11 @@ import pandas
 import tilus
 import torch
 from tilus import float16, float32, int32, uint32
-from tilus.ir.tensor import RegisterTensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor
 from tilus.utils import benchmark_func, cdiv
 
 
-class PipelineState(tilus.State):
+class Pipeline(tilus.Class):
     def __init__(
         self, num_stages: int, producer_arrive_count: int, consumer_arrive_count: int
     ):
@@ -50,6 +50,113 @@ class PipelineState(tilus.State):
         return self.full_barriers[self.consumer_stage]
 
 
+class BlockInfo(tilus.Class):
+    def __init__(
+        self,
+        m_size: int32,
+        n_size: int,
+        k_size: int,
+        block_m: int,
+        block_n: int,
+        block_k: int,
+        offset_m: int32,
+        offset_n: int32,
+    ):
+        self.m_size: int32 = m_size
+        self.n_size: int = n_size
+        self.k_size: int = k_size
+        self.block_m: int = block_m
+        self.block_n: int = block_n
+        self.block_k: int = block_k
+        self.offset_m: int32 = offset_m
+        self.offset_n: int32 = offset_n
+
+
+class LoadPipeline(Pipeline):
+    def __init__(
+        self,
+        num_stages: int,
+        info: BlockInfo,
+    ):
+        super().__init__(
+            num_stages=num_stages, producer_arrive_count=2, consumer_arrive_count=1
+        )
+        self.info: BlockInfo = info
+        self.s_a = self.shared_tensor(
+            dtype=float16, shape=[num_stages, info.block_m, info.block_k]
+        )
+        self.s_b = self.shared_tensor(
+            dtype=float16, shape=[num_stages, info.block_n, info.block_k]
+        )
+
+
+class LoadWorker(tilus.Class):
+    def __init__(
+        self, pipe: LoadPipeline, g_a: GlobalTensor, g_b: GlobalTensor, info: BlockInfo
+    ):
+        self.pipe: LoadPipeline = pipe
+        self.g_a: GlobalTensor = g_a
+        self.g_b: GlobalTensor = g_b
+        self.info: BlockInfo = info
+
+    def async_run(self):
+        pipe, g_a, g_b, info = self.pipe, self.g_a, self.g_b, self.info
+        s_a, s_b = pipe.s_a, pipe.s_b
+        num_stages: int = pipe.num_stages
+        with self.thread_group(thread_begin=0, num_threads=32):
+            for offset_k in self.range(0, info.k_size, info.block_k, unroll=num_stages):
+                self.pipe.producer_acquire()
+                with self.single_thread():
+                    self.tma.global_to_shared(
+                        src=g_a,
+                        dst=s_a[pipe.producer_stage],
+                        offsets=[info.offset_m, offset_k],
+                        mbarrier=pipe.producer_release_barrier(),
+                    )
+                    self.tma.global_to_shared(
+                        src=g_b,
+                        dst=s_b[pipe.producer_stage],
+                        offsets=[info.offset_n, offset_k],
+                        mbarrier=pipe.producer_release_barrier(),
+                    )
+                pipe.producer_advance()
+
+            # remaining mma stages to wait for completion
+            for _ in self.range(min(num_stages, cdiv(info.k_size, info.block_k))):
+                pipe.producer_acquire()
+                pipe.producer_advance()
+
+
+class MmaWorker(tilus.Class):
+    def __init__(self, pipe: LoadPipeline, info: BlockInfo):
+        self.pipe: LoadPipeline = pipe
+        self.info: BlockInfo = info
+        self.t_acc = self.tcgen05.alloc(
+            dtype=float32, shape=[info.block_m, info.block_n], init=0.0
+        )
+
+    def async_run(self):
+        pipe = self.pipe
+        s_a, s_b = pipe.s_a, pipe.s_b
+        num_stages: int = pipe.num_stages
+        with self.thread_group(thread_begin=32, num_threads=32):
+            for offset_k in self.range(
+                0, self.info.k_size, self.info.block_k, unroll=num_stages
+            ):
+                pipe.consumer_acquire()
+                with self.single_thread():
+                    self.tcgen05.mma(
+                        s_a[pipe.consumer_stage],
+                        s_b[pipe.consumer_stage].transpose(),
+                        self.t_acc,
+                    )
+                    self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier())
+                pipe.consumer_advance()
+
+    def dealloc(self):
+        self.tcgen05.dealloc(self.t_acc)
+
+
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
@@ -78,71 +185,33 @@ class BlackwellMatmulV4(tilus.Script):
 
         g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
-        s_a = self.shared_tensor(
-            dtype=float16, shape=[self.stages, self.block_m, self.block_k]
-        )
-        s_b = self.shared_tensor(
-            dtype=float16, shape=[self.stages, self.block_n, self.block_k]
-        )
 
-        # allocate a tensor in tensor memory (tmem)
-        t_acc = self.tcgen05.alloc(
-            dtype=float32, shape=[self.block_m, self.block_n], init=0.0
-        )
-
-        state = PipelineState(
-            num_stages=self.stages,
-            producer_arrive_count=2,
-            consumer_arrive_count=1,
+        info = BlockInfo(
+            m_size=m_size,
+            n_size=n_size,
+            k_size=k_size,
+            block_m=self.block_m,
+            block_n=self.block_n,
+            block_k=self.block_k,
+            offset_m=self.block_m * self.blockIdx.x,
+            offset_n=self.block_n * self.blockIdx.y,
         )
 
-        with self.thread_group(thread_begin=0, num_threads=32):
-            # producer
-            for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
-                # self.printf("[%d][%d] producer acquring offset_k=%d\n", self.blockIdx.x, state.producer_stage, offset_k)
-                state.producer_acquire()
-                # self.printf("[%d][%d] producer acquired offset_k=%d\n", self.blockIdx.x, state.producer_stage, offset_k)
-                with self.single_thread():
-                    self.tma.global_to_shared(
-                        src=g_a,
-                        dst=s_a[state.producer_stage],
-                        offsets=[offset_m, offset_k],
-                        mbarrier=state.producer_release_barrier(),
-                    )
-                    self.tma.global_to_shared(
-                        src=g_b,
-                        dst=s_b[state.producer_stage],
-                        offsets=[offset_n, offset_k],
-                        mbarrier=state.producer_release_barrier(),
-                    )
-                # self.printf("[%d][%d] producer produced offset_k=%d\n", self.blockIdx.x, state.producer_stage, offset_k)
-                state.producer_advance()
+        pipe = LoadPipeline(num_stages=self.stages, info=info)
+        load_worker = LoadWorker(pipe, g_a, g_b, info)
+        mma_worker = MmaWorker(pipe, info)
 
-            # remaining mma stages to wait for completion
-            for _ in self.range(min(self.stages, cdiv(k_size, self.block_k))):
-                state.producer_acquire()
-                state.producer_advance()
+        # producer
+        load_worker.async_run()
 
-        with self.thread_group(thread_begin=32, num_threads=32):
-            for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
-                # self.printf("[%d][%d] consumer acquring offset_k=%d\n", self.blockIdx.x, state.consumer_stage, offset_k)
-                state.consumer_acquire()
-                # self.printf("[%d][%d] consumer acquired offset_k=%d\n", self.blockIdx.x, state.consumer_stage, offset_k)
-                with self.single_thread():
-                    self.tcgen05.mma(
-                        s_a[state.consumer_stage],
-                        s_b[state.consumer_stage].transpose(),
-                        t_acc,
-                    )
-                    self.tcgen05.commit(mbarrier=state.consumer_release_barrier())
-                # self.printf("[%d][%d] consumer consumed offset_k=%d\n", self.blockIdx.x, state.consumer_stage, offset_k)
-                state.consumer_advance()
+        # consumer
+        mma_worker.async_run()
 
         self.sync()
 
         # load the result from tensor memory to register
         r_acc = self.tcgen05.load(
-            t_acc, offsets=[0, 0], shape=[self.block_m, self.block_n]
+            mma_worker.t_acc, offsets=[0, 0], shape=[self.block_m, self.block_n]
         )
 
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
@@ -150,7 +219,7 @@ class BlackwellMatmulV4(tilus.Script):
 
         # all allocated tensor memory must be deallocated
         self.sync()
-        self.tcgen05.dealloc(t_acc)
+        mma_worker.dealloc()
 
 
 def main(bench=True):

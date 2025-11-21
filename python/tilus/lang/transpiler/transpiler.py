@@ -37,9 +37,9 @@ from tilus.ir.stmt import DeclareStmt, SeqStmt, Stmt
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.ir.utils import frozendict
 from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
-from tilus.lang.constructs import State
 from tilus.lang.constructs.contexts import TilusContext
 from tilus.lang.constructs.loops import TilusLoopIterable
+from tilus.lang.constructs.state import Class, InstructionInterface
 from tilus.lang.instructions import builder_context
 from tilus.lang.methods import (
     GlobalTensorWithMethods,
@@ -85,6 +85,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
         ScopedProgramBuilder.__init__(self)
         self._optional_script: Optional[Script] = None
 
+        self.class_stack: list[Type[InstructionInterface]] = []
+
     def visit(self, node):
         """Dispatch method for visiting an AST node."""
         method = "visit_" + node.__class__.__name__
@@ -115,15 +117,10 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
         self,
         script: Script,
         name2consts: dict[str, int | float | str],
-    ) -> dict[str, Script | State | Var | int | float | str | bool]:
-        inspect_sig: inspect.Signature = inspect.signature(script.__class__.__call__)
-        params: dict[str, Script | State | Var | int | float | str | bool] = {}
+    ) -> dict[str, Script | Class | Var | int | float | str | bool]:
+        inspect_sig: inspect.Signature = inspect.signature(script.__call__)
+        params: dict[str, Script | Class | Var | int | float | str | bool] = {}
         for idx, (name, param) in enumerate(inspect_sig.parameters.items()):
-            # self parameter
-            if idx == 0:
-                params[name] = script
-                continue
-
             # constant parameter
             if name in name2consts:
                 params[name] = name2consts[name]
@@ -180,14 +177,14 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
         from variable names to their divisibility during one JIT compilation.
         """
         # declare or bind the parameters of the __call__ method
-        params: dict[str, Script | State | Var | int | float | str | bool] = self.create_script_call_args(
+        params: dict[str, Script | Class | Var | int | float | str | bool] = self.create_script_call_args(
             script, name2consts
         )
         kernel_params: tuple[Var, ...] = tuple(param for param in params.values() if isinstance(param, Var))
 
         # transpile the __call__ method body
         with builder_context(self):
-            self.transpile_call(script.__class__.__call__, params.values(), {})
+            self.transpile_call(script.__call__, params.values(), {})
         body: Stmt = self.flush_stmts()
 
         # check and create metadata
@@ -227,35 +224,50 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
         env.update(dict(zip(func_freevar_names, func_freevar_cells)))
         return env
 
-    def transpile_call(self, func, args, kwargs):
-        sig: inspect.Signature = inspect.signature(func)
+    def transpile_call(self, method, args, kwargs):
+        sig: inspect.Signature = inspect.signature(method)
         bound_args: inspect.BoundArguments = sig.bind(*args, **kwargs)
 
         ret = None
+
+        # append the func's class to the class stack, which is needed to support super() calls
+        # the func must be a method of a subclass of tilus.Class
+        if isinstance(method, types.MethodType) and isinstance(method.__self__, InstructionInterface):
+            cls: Type[InstructionInterface] = method.__self__.__class__
+            self.class_stack.append(cls)
+        else:
+            raise TilusProgramError(
+                self,
+                None,
+                "transpile_call only supports methods of tilus.Class or tilus.Script subclasses, got {}.".format(
+                    method
+                ),
+            )
 
         # we need to dump the current scopes and push it to a stack
         self.dump_and_push_scopes()
 
         with self.scope():  # external scope
             # bind the external environment in a new scope
-            external_env = self.get_external_env(func)
+            external_env = self.get_external_env(method)
             for name, value in external_env.items():
                 self.bind(name, value)
 
             with self.scope():  # parameter scope
+                # bind the self parameter
+                self.bind("self", method.__self__)
+
                 # bind the parameters to the arguments in a new scope
                 for idx, param_name in enumerate(sig.parameters):
                     param: inspect.Parameter = sig.parameters[param_name]
                     arg = bound_args.arguments[param_name]
                     annotation = param.annotation
 
-                    if idx == 0:
-                        # the self parameter, it does not have type annotation, treat it as host_var
-                        self.bind(param_name, arg)
-                    elif annotation is inspect.Parameter.empty:
+                    if annotation is inspect.Parameter.empty:
                         # for all other parameters, it must have type annotation to be executed in transpile-mode
                         raise TilusProgramError(self, None, 'Parameter "{}" has no type annotation.'.format(param_name))
-                    elif isinstance(annotation, str):
+
+                    if isinstance(annotation, str):
                         # this usually happens when "from __future__ import annotations" is used
                         # in such case, the annotation is stored as a string
                         # we currently do not support this feature
@@ -269,7 +281,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                                 "Please considering not using it in module that defines tilus script."
                             ),
                         )
-                    elif annotation in (RegisterTensor, SharedTensor, GlobalTensor):
+
+                    if annotation in (RegisterTensor, SharedTensor, GlobalTensor):
                         # tensor parameters are passed by reference
                         if not isinstance(arg, annotation):
                             raise TilusProgramError(
@@ -302,15 +315,15 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                                 'Parameter "{}" expects a constant but got {}.'.format(param_name, type(arg).__name__),
                             )
                         self.bind(param_name, annotation(arg))
-                    elif inspect.isclass(annotation) and issubclass(annotation, State):
-                        # State are passed by reference
-                        state_cls: Type[State] = annotation
-                        if not isinstance(arg, state_cls):
+                    elif inspect.isclass(annotation) and issubclass(annotation, Class):
+                        # Class are passed by reference
+                        class_cls: Type[Class] = annotation
+                        if not isinstance(arg, class_cls):
                             raise TilusProgramError(
                                 self,
                                 None,
                                 'Parameter "{}" expects a {} but got {}.'.format(
-                                    param_name, state_cls.__name__, type(arg).__name__
+                                    param_name, class_cls.__name__, type(arg).__name__
                                 ),
                             )
                         self.bind(param_name, arg)
@@ -325,10 +338,12 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
 
                 # process the body, we transpile-run the function body in the new scope in the current scope stack,
                 # instead of creating a new Function. It implements the inlined kernel procedure feature.
-                lines, start_line = inspect.getsourcelines(func)
-                file: Optional[str] = inspect.getsourcefile(func)
+                lines, start_line = inspect.getsourcelines(method)
+                file: Optional[str] = inspect.getsourcefile(method)
                 if file is None:
-                    raise RuntimeError('Can not get the source file of the given function "{}".'.format(func.__name__))
+                    raise RuntimeError(
+                        'Can not get the source file of the given function "{}".'.format(method.__name__)
+                    )
 
                 source = "".join(lines)
                 source, col_offset = eliminate_indent(source)
@@ -355,6 +370,9 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
 
         # after the function call, pop and restore the caller's scopes
         self.pop_and_restore_scopes()
+
+        # pop the class stack
+        self.class_stack.pop()
 
         return ret
 
@@ -395,6 +413,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                 var = self.declare(type=hidet_ir.infer_type(value), init=value, hint=name)
                 self.bind(name, var)
             elif isinstance(value, tilus_ir.Tensor):
+                self.bind(name, value)
+            elif isinstance(value, Class):
                 self.bind(name, value)
             else:
                 if value is None:
@@ -480,8 +500,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
 
         if isinstance(lhs_base, Attributes):
             setattr(lhs_base, lhs.attr, rhs)
-        elif isinstance(lhs_base, State):
-            # State.xxx = ...
+        elif isinstance(lhs_base, Class):
+            # Class.xxx = ...
             if hasattr(lhs_base, lhs.attr):
                 # we have defined the attribute, assign it
                 self.assign_value_to_var(getattr(lhs_base, lhs.attr), rhs)
@@ -547,123 +567,127 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                 raise TilusProgramError(self, expr, "Mixing of keyword arguments and **kwargs is not supported.")
             kwargs = {kwarg.arg: self.visit(kwarg.value) for kwarg in expr.keywords if kwarg.arg is not None}
 
-        try:
-            """
-            There are different kinds of function calls in Tilus Script:
-            1. inlined kernel procedure, it is a method of the user-defined Script subclass, or a user-defined State subclass.
-            2. (global, shared or register) tensor method, such as `tensor.to(dtype)`, etc.
-            3. python builtin function, such as `max`, `min`, for scalar expressions.
-            4. subclass of tilus.State
-            5. other function/method calls
+        """
+        There are different kinds of function calls in Tilus Script:
+        1. inlined kernel procedure, it is a method of the user-defined Script subclass, or a user-defined Class subclass.
+        2. (global, shared or register) tensor method, such as `tensor.to(dtype)`, etc.
+        3. python builtin function, such as `max`, `min`, for scalar expressions.
+        4. subclass of tilus.Class
+        5. call super() in method of tilus.Class/tilus.Script
+        6. other function/method calls
 
-            We treat 1 to 3 specially, and call the function directly in 4.
-            """
-
-            if isinstance(func, types.MethodType):
-                f_self = func.__self__
-                f_func = func.__func__
-                if isinstance(f_self, Script) and getattr(Script, f_func.__name__, None) is not f_func:
-                    # case 1 (Script method)
-                    ret = self.transpile_call(f_func, [f_self, *args], kwargs)
-                elif isinstance(f_self, State) and getattr(State, f_func.__name__, None) is not f_func:
-                    # case 1 (State method)
-                    ret = self.transpile_call(f_func, [f_self, *args], kwargs)
-                elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor)):
-                    # case 2
-                    method_name = func.__name__
-                    tensor_with_methods: RegisterTensorWithMethods | SharedTensorWithMethods | GlobalTensorWithMethods
-                    if isinstance(f_self, RegisterTensor):
-                        tensor_with_methods = RegisterTensorWithMethods(f_self, self)
-                    elif isinstance(f_self, SharedTensor):
-                        tensor_with_methods = SharedTensorWithMethods(f_self, self)
-                    elif isinstance(f_self, GlobalTensor):
-                        tensor_with_methods = GlobalTensorWithMethods(f_self, self)
-                    else:
-                        raise NotImplementedError(
-                            "Currently, only RegisterTensor methods are supported in Tilus Script."
-                        )
-                    if not hasattr(tensor_with_methods, method_name):
-                        raise TilusProgramError(
-                            self, expr, 'Method "{}" is not found in {}.'.format(method_name, type(f_self).__name__)
-                        )
-                    try:
-                        ret = getattr(tensor_with_methods, method_name)(*args, **kwargs)
-                    except TensorMethodError as e:
-                        raise TilusProgramError(self, expr, str(e))
+        We treat 1 to 3 specially, and call the function directly in 4.
+        """
+        if isinstance(func, types.MethodType):
+            method = func
+            f_self = method.__self__
+            f_func = method.__func__
+            if isinstance(f_self, Script) and getattr(Script, f_func.__name__, None) is not f_func:
+                # case 1 (Script method)
+                ret = self.transpile_call(method, args, kwargs)
+            elif isinstance(f_self, Class) and getattr(Class, f_func.__name__, None) is not f_func:
+                # case 1 (Class method)
+                ret = self.transpile_call(method, args, kwargs)
+            elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor)):
+                # case 2
+                method_name = method.__name__
+                tensor_with_methods: RegisterTensorWithMethods | SharedTensorWithMethods | GlobalTensorWithMethods
+                if isinstance(f_self, RegisterTensor):
+                    tensor_with_methods = RegisterTensorWithMethods(f_self, self)
+                elif isinstance(f_self, SharedTensor):
+                    tensor_with_methods = SharedTensorWithMethods(f_self, self)
+                elif isinstance(f_self, GlobalTensor):
+                    tensor_with_methods = GlobalTensorWithMethods(f_self, self)
                 else:
-                    # case 4
-                    try:
-                        ret = func(*args, **kwargs)
-                    except TypeError as e:
-                        raise TilusProgramError(self, expr, str(e)) from e
-            elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):
-                # case 3
-                from hidet import ir
-                from hidet.ir import primitives
+                    raise NotImplementedError("Currently, only RegisterTensor methods are supported in Tilus Script.")
+                if not hasattr(tensor_with_methods, method_name):
+                    raise TilusProgramError(
+                        self, expr, 'Method "{}" is not found in {}.'.format(method_name, type(f_self).__name__)
+                    )
+                try:
+                    ret = getattr(tensor_with_methods, method_name)(*args, **kwargs)
+                except TensorMethodError as e:
+                    raise TilusProgramError(self, expr, str(e))
+            else:
+                # case 4
+                try:
+                    ret = method(*args, **kwargs)
+                except TypeError as e:
+                    raise TilusProgramError(self, expr, str(e)) from e
+        elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):
+            # case 3
+            from hidet import ir
+            from hidet.ir import primitives
 
-                if all(not isinstance(arg, ir.Node) for arg in args):
-                    # pure python function call
+            if all(not isinstance(arg, ir.Node) for arg in args):
+                # pure python function call
+                ret = func(*args, **kwargs)
+            else:
+                if any(not isinstance(arg, (ir.Expr, int, float, bool)) for arg in args):
+                    # if any argument is not a valid expression
                     ret = func(*args, **kwargs)
                 else:
-                    if any(not isinstance(arg, (ir.Expr, int, float, bool)) for arg in args):
-                        # if any argument is not a valid expression
-                        ret = func(*args, **kwargs)
-                    else:
-                        # overload hidet primitive, such as max, min
-                        func_map = {
-                            builtins.max: (2, primitives.max),
-                            builtins.min: (2, primitives.min),
-                            math.exp: (1, primitives.exp),
-                            math.log: (1, primitives.log),
-                            math.sqrt: (1, primitives.sqrt),
-                            math.sin: (1, primitives.sin),
-                            math.cos: (1, primitives.cos),
-                            math.tan: (1, primitives.tan),
-                            math.asin: (1, primitives.asin),
-                            math.acos: (1, primitives.acos),
-                            math.atan: (1, primitives.atan),
-                            math.sinh: (1, primitives.sinh),
-                            math.cosh: (1, primitives.cosh),
-                            math.tanh: (1, primitives.tanh),
-                            math.asinh: (1, primitives.asinh),
-                            math.acosh: (1, primitives.acosh),
-                            math.atanh: (1, primitives.atanh),
-                            math.ceil: (1, primitives.ceil),
-                            math.floor: (1, primitives.floor),
-                            math.trunc: (1, primitives.trunc),
-                            math.isnan: (1, primitives.isnan),
-                            math.isinf: (1, primitives.isinf),
-                        }
-                        if len(kwargs) > 0:
-                            msg = "Hidet do not support calling builtin function with keyword argument."
+                    # overload hidet primitive, such as max, min
+                    func_map = {
+                        builtins.max: (2, primitives.max),
+                        builtins.min: (2, primitives.min),
+                        math.exp: (1, primitives.exp),
+                        math.log: (1, primitives.log),
+                        math.sqrt: (1, primitives.sqrt),
+                        math.sin: (1, primitives.sin),
+                        math.cos: (1, primitives.cos),
+                        math.tan: (1, primitives.tan),
+                        math.asin: (1, primitives.asin),
+                        math.acos: (1, primitives.acos),
+                        math.atan: (1, primitives.atan),
+                        math.sinh: (1, primitives.sinh),
+                        math.cosh: (1, primitives.cosh),
+                        math.tanh: (1, primitives.tanh),
+                        math.asinh: (1, primitives.asinh),
+                        math.acosh: (1, primitives.acosh),
+                        math.atanh: (1, primitives.atanh),
+                        math.ceil: (1, primitives.ceil),
+                        math.floor: (1, primitives.floor),
+                        math.trunc: (1, primitives.trunc),
+                        math.isnan: (1, primitives.isnan),
+                        math.isinf: (1, primitives.isinf),
+                    }
+                    if len(kwargs) > 0:
+                        msg = "Hidet do not support calling builtin function with keyword argument."
+                        raise TilusProgramError(self, expr, msg)
+                    if func in func_map:
+                        arity, hidet_func = func_map[func]  # type: ignore[index]
+                        if len(args) != arity:
+                            msg = f'Hidet builtin function "{func.__name__}" takes {arity} arguments.'
                             raise TilusProgramError(self, expr, msg)
-                        if func in func_map:
-                            arity, hidet_func = func_map[func]  # type: ignore[index]
-                            if len(args) != arity:
-                                msg = f'Hidet builtin function "{func.__name__}" takes {arity} arguments.'
-                                raise TilusProgramError(self, expr, msg)
-                            ret = hidet_func(*args)  # type: ignore[operator]
-                        else:
-                            raise TilusProgramError(
-                                self,
-                                expr,
-                                'Currently, do not support calling python builtin function "{}".'.format(
-                                    func.__qualname__
-                                ),
-                            )
-            elif inspect.isclass(func) and issubclass(func, State):
-                # case 4
-                state_cls: Type[State] = func
-                state_obj = object.__new__(state_cls)
-                self.transpile_call(state_cls.__init__, [state_obj, *args], kwargs)
-                ret = state_obj
-            else:
-                # case 5
-                ret = func(*args, **kwargs)
+                        ret = hidet_func(*args)  # type: ignore[operator]
+                    else:
+                        raise TilusProgramError(
+                            self,
+                            expr,
+                            'Currently, do not support calling python builtin function "{}".'.format(func.__qualname__),
+                        )
+        elif inspect.isclass(func) and issubclass(func, Class):
+            # case 4
+            class_cls: Type[Class] = func
+            obj = object.__new__(class_cls)
+            self.transpile_call(obj.__init__, args, kwargs)
+            ret = obj
+        elif func is super:
+            # case 5
+            if len(args) + len(kwargs) > 0:
+                raise NotImplementedError("super() call with arguments is not implemented yet in Tilus Script.")
+            if len(self.class_stack) == 0:
+                raise TilusProgramError(self, expr, "super() call must be in a method of tilus.Class or tilus.Script.")
+            self_obj = self.lookup("self")
+            if not isinstance(self_obj, InstructionInterface):
+                raise TilusProgramError(self, expr, "self is not an instance of tilus.Class or tilus.Script.")
+            return super(self.class_stack[-1], self_obj)
+        else:
+            # case 6
+            ret = func(*args, **kwargs)
 
-            return ret
-        except InstructionError as e:
-            raise TilusProgramError(self, expr, str(e)) from e
+        return ret
 
     def visit_Attribute(self, expr: ast.Attribute) -> Any:
         base = self.visit(expr.value)

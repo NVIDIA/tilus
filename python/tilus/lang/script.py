@@ -14,13 +14,11 @@
 # limitations under the License.
 from __future__ import annotations
 
-import typing
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, Optional, Sequence, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, TypeAlias, TypeVar
 
-from hidet.ir.expr import Constant, Expr, Var
+from hidet.ir.expr import Expr
 from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
 
-from tilus.lang.constructs.contexts import ThreadGroupContext
 from tilus.lang.constructs.structs import Dim3
 from tilus.lang.instructions import InstructionInterface
 from tilus.lang.modules.cuda import cuda
@@ -108,143 +106,6 @@ class Script(InstructionInterface):
         return Dim3(gridDim.x, gridDim.y, gridDim.z)
 
     # the following functions should only be called in the __call__ function to construct the script program
-
-    @staticmethod
-    def range(
-        start: Expr | int,
-        end: Optional[Expr | int] = None,
-        step: Optional[Expr | int] = None,
-        /,
-        *,
-        unroll: Optional[Literal["all"] | int] = None,
-    ) -> Iterable[Var]:
-        """Create an iterator used in a for loop.
-
-        This function creates an iterator that can be used in a for loop. It is similar to the built-in `range` function,
-        but provides additional control like unrolling the loop.
-
-
-        Parameters
-        ----------
-        start: Expr | int
-            The starting value of the iterator.
-        end: Expr | int, optional
-            The end value of the iterator. If not provided, it is assumed to be 0 and `start` is used as the end value.
-        step: Expr | int, optional
-            The step value of the iterator. If not provided, it defaults to 1.
-        unroll: Literal["all"] | int, optional
-            The unrolling factor for the loop. If set to "all", the loop will be fully unrolled. If set to an integer,
-            the loop will be unrolled by that factor. If not provided, no unrolling hint will be applied.
-
-        Returns
-        -------
-        ret: Iterable[Var]
-            The iterator that can be used in a for loop. It yields `Var` objects representing the loop indices.
-
-        Examples
-        --------
-        We can use this function to create a for loop iterator, similar to the built-in `range` function:
-
-        .. code-block:: python
-
-            # the following two loops are equivalent
-            for i in range(10):
-                ...
-            for i in self.range(10):
-                ...
-
-            # we can also specify the start, end, and step values
-            for i in range(1, 10, 2):
-                ...
-            for i in self.range(1, 10, 2):
-                ...
-
-            # we can also specify the unrolling factor
-            # unroll the loop completely
-            for i in self.range(1, 10, 2, unroll="all"):
-                ...
-
-            # or unroll the loop by a factor of 4
-            for i in self.range(1, 10, 2, unroll=4):
-                ...
-
-        """
-        from tilus.lang.constructs.loops import range
-
-        # the cast is to make the type checker happy
-        return typing.cast(Iterable[Var], range(start, end, step, unroll=unroll))
-
-    @staticmethod
-    def thread_group(thread_begin: int, num_threads: int) -> ThreadGroupContext:
-        """Create a thread group context.
-
-        This method creates a thread group context that is used to narrow down the threads that execute the instructions
-        within the context.
-
-        Syntax:
-
-        .. code-block:: python
-
-            class MyScript(tilus.Script):
-
-                def __call__(self, ...):
-                    # instructions executed by all threads in the thread block
-                    ...
-                    with self.thread_group(thread_begin, num_threads=num_threads):
-                        # instructions executed by threads in the specified thread group starting from `thread_begin`
-                        # and including `num_threads` threads
-                        ...
-                        with self.thread_group(...):
-                            # we can continue to partition the current thread group into sub thread groups
-                            ...
-                        ...
-                        self.sync()  # synchronize all threads in the current thread group
-                        ...
-
-                    # instructions executed by all threads in the thread block
-                    ...
-
-        At the root level of the kernel, there is one thread group that includes all threads in the thread block.
-        We can partition the threads in the current thread group into multiple sub thread groups by specifying the
-        first thread using `thread_begin` and the number of threads in each sub thread group using the `num_threads`
-        parameter.
-
-        All instructions within the context will be executed by all threads in the specified thread group.
-
-        Parameters
-        ----------
-        thread_begin: int
-            The index of the first thread in the thread group.
-        num_threads: int
-            The number of threads in the thread group.
-
-        Returns
-        -------
-        ret: ThreadGroupContext
-            The thread group context created.
-        """
-        return ThreadGroupContext(thread_begin=thread_begin, num_threads=num_threads)
-
-    @staticmethod
-    def single_thread() -> ThreadGroupContext:
-        """Create a thread group context with only one thread.
-
-        This method is equivalent `thread_group(<any-thread>, group_size=1)` that creates a thread group
-        context with only one thread. All instructions within the context will be executed by only one thread.
-
-        Returns
-        -------
-        ret: ThreadGroupContext
-            The thread group context created.
-        """
-        return Script.thread_group(thread_begin=0, num_threads=1)
-
-    @staticmethod
-    def static_assert(cond: bool | Expr, msg: str) -> None:
-        if not isinstance(cond, Constant) and not isinstance(cond, bool):
-            raise ValueError("Static assert condition must be a constant")
-        if not cond:
-            raise AssertionError(msg)
 
 
 T = TypeVar("T")

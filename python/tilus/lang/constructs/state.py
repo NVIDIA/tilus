@@ -15,5 +15,5 @@
 from tilus.lang.instructions import InstructionInterface
 
 
-class State(InstructionInterface):
+class Class(InstructionInterface):
     pass
