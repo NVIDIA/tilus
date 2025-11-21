@@ -171,7 +171,7 @@ class Tcgen05MmaKind(Enum):
 
 
 class Tcgen05SwizzleMode(Enum):
-    """TCGen05 swizzle modes corresponding to cute Swizzle parameters"""
+    """TCGen05 swizzle modes corresponding to cute Swizzle parameters."""
 
     NO_SWIZZLE = 0  # No swizzling or Interleaved
     B32_SWIZZLE = 6  # 32B Swizzling: Swizzle<1, 4, 3>
@@ -562,9 +562,7 @@ def tcgen05_encode_mma_inst_descriptor(
     shifted_m: int,  # 5 bits
     maximim_shift_in_ws: int,  # 2 bits
 ) -> int:
-    """
-    See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instruction-descriptor
-    """
+    """See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instruction-descriptor."""
     desc: int = 0
     desc |= sparsity_selector & 0b11
     desc |= (sparsity & 0b1) << 2

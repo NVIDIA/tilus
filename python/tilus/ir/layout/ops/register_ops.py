@@ -879,7 +879,7 @@ def left_divide(layout: RegisterLayout, lhs_divisor: RegisterLayout) -> Register
 
 
 def auto_local_spatial(num_threads: int, shape: Sequence[int]) -> RegisterLayout:
-    """Create a local(...).spatial(...) layout
+    """Create a local(...).spatial(...) layout.
 
     This function automatically determines a composition of the local and spatial layouts, based on the number of threads
     and the shape of the composed layout.

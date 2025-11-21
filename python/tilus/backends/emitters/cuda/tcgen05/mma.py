@@ -44,9 +44,7 @@ from tilus.utils import gcd
 
 @dataclass
 class Tcgen05MmaInstDesc:
-    """
-    See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instuction-desc-kind-tf32-f16-f8f6f4
-    """
+    """See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instuction-desc-kind-tf32-f16-f8f6f4."""
 
     sparsity_selector: int
     sparsity: int
@@ -187,9 +185,7 @@ class Tcgen05MmaSSInstMeta:
 class TMemoryMmaSSEmitter(BaseInstEmitter):
     @staticmethod
     def get_mma_kind(a_dtype: DataType, b_dtype: DataType, d_dtype: DataType) -> Tcgen05MmaKind:
-        """
-        See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instruction-descriptor
-        """
+        """See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instruction-descriptor."""
         if a_dtype == b_dtype == tfloat32 and d_dtype == float32:
             return Tcgen05MmaKind.TF32
         elif all(dtype in (float16, bfloat16) for dtype in (a_dtype, b_dtype)) and d_dtype in (float16, float32):
@@ -207,9 +203,7 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
 
     @staticmethod
     def get_inst_mnk(mma_kind: Tcgen05MmaKind, m_size: int, n_size: int, k_size: int) -> tuple[int, int, int]:
-        """
-        See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-kind-shapes
-        """
+        """See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-kind-shapes."""
         if mma_kind == Tcgen05MmaKind.F16:
             if m_size not in (64, 128):
                 raise CodeGenerationFailed(f"The given m_size is not supported for F16 MMA kind: {m_size}")
@@ -233,9 +227,7 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
 
     @staticmethod
     def check_majorness(a_major_kind: str, b_major_kind: str, type_size: int, swizzle_mode: Tcgen05SwizzleMode) -> None:
-        """
-        See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-matrices-valid-type-size-majorness-swizzle
-        """
+        """See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-matrices-valid-type-size-majorness-swizzle."""
         if a_major_kind == "K" and b_major_kind == "K":
             if type_size not in (4, 6, 8, 16, 32):
                 raise CodeGenerationFailed(

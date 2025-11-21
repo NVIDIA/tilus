@@ -16,9 +16,7 @@ from typing import Sequence
 
 
 class LayoutOperationError(Exception):
-    """
-    Exception raised when a layout operation fails.
-    """
+    """Exception raised when a layout operation fails."""
 
     pass
 

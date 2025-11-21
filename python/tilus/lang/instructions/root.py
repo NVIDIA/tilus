@@ -93,7 +93,6 @@ class RootInstructionGroup(InstructionGroup):
         tensor: RegisterTensor
             The allocated register tensor.
         """
-
         f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
         if init is not None:
 
@@ -1356,41 +1355,28 @@ class RootInstructionGroup(InstructionGroup):
         self._builder.syncthreads()
 
     @typing.overload
-    def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None:
-        """Annotate the layout of a register tensor.
+    def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None: ...
 
-        This instruction annotates the layout of a register tensor with a specified layout. The `layout` parameter
-        is an instance of `RegisterLayout` that defines how the tensor's data is organized among the threads in the
+    @typing.overload
+    def annotate_layout(self, tensor: SharedTensor, layout: SharedLayout) -> None:  # type: ignore[overload-cannot-match]
+        pass
+
+    def annotate_layout(self, tensor: RegisterTensor | SharedTensor, layout: RegisterLayout | SharedLayout) -> None:
+        """Annotate the layout of a register or shared tensor.
+
+        This instruction annotates the layout of a register or shared tensor with a specified layout. The `layout` parameter
+        is an instance of `RegisterLayout` or `SharedLayout` that defines how the tensor's data is organized among the threads in the
         thread block.
 
         This layout will be used to guide the layout inference process.
 
         Parameters
         ----------
-        tensor: RegisterTensor
+        tensor: RegisterTensor | SharedTensor
             The tensor to annotate.
-        layout: RegisterLayout
-            The layout to annotate the tensor with.
+        layout: RegisterLayout | SharedLayout
+            The layout to annotate the tensor with. The type of layout must match the type of tensor.
         """
-        ...
-
-    @typing.overload
-    def annotate_layout(self, tensor: SharedTensor, layout: SharedLayout) -> None:  # type: ignore[overload-cannot-match]
-        """Annotate the layout of a shared tensor.
-
-        This instruction annotates the layout of a shared tensor with a specified layout. The `layout` parameter
-        is an instance of `SharedLayout` that defines how the tensor's data is organized in shared memory.
-
-        Parameters
-        ----------
-        tensor: SharedTensor
-            The tensor to annotate.
-        layout: SharedLayout
-            The layout to annotate the tensor with.
-        """
-        pass
-
-    def annotate_layout(self, tensor: RegisterTensor | SharedTensor, layout: RegisterLayout | SharedLayout) -> None:
         self._builder.annotate_layout(tensor, layout)
 
     def print_tensor(self, msg: str, tensor: Tensor, fmt: Optional[str] = None) -> None:

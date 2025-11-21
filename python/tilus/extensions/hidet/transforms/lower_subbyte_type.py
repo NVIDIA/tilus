@@ -45,7 +45,8 @@ class Addressing:
     - tensor pointer type (TensorPointerType)
     - tensor (TensorType)
 
-    Examples:
+    Examples
+    --------
     - a = register_tensor(dtype='float16', shape=[10, 10])
     - &a[0, 1]
     - &a[0, 1] + 1
@@ -94,9 +95,7 @@ def is_subbyte(tp_or_var: Union[Var, BaseType]) -> bool:
 
 
 class AddressingAnalyzer(IRVisitor):
-    """
-    Analyzer that analyzes the addressing information of all addressable expressions.
-    """
+    """Analyzer that analyzes the addressing information of all addressable expressions."""
 
     def __init__(self):
         super().__init__()
@@ -321,9 +320,7 @@ class LowerSubbyteTypeRewriter(IRRewriter):
         self.bit_offset: Dict[Var, Expr] = {}
 
     def get_byte_and_bit_offset(self, expr: Expr) -> Tuple[Expr, Expr]:
-        """
-        Get the byte and bit-offset of the pointer expression in the buffer.
-        """
+        """Get the byte and bit-offset of the pointer expression in the buffer."""
         expr_type = self.type_infer(expr)
         dtype = get_base_type(expr_type)
         assert is_addressable(expr_type)
@@ -533,6 +530,8 @@ class LowerSubbyteTypeRewriter(IRRewriter):
     @staticmethod
     def atomic_update_uint16(uint16_ptr: Expr, idx: Union[Expr, int], uint16_mask: Expr, uint16_value: Expr) -> Stmt:
         """
+        Perform atomic update on uint16 value given its pointer.
+
         Update the bits in *uint16_ptr value indicated by the uint16_mask to the uint16_value, and keep the remaining
         bits unchanged, using atomic operations.
         """
@@ -556,8 +555,9 @@ class LowerSubbyteTypeRewriter(IRRewriter):
     @staticmethod
     def atomic_update_uint32(uint32_ptr: Expr, idx: Union[Expr, int], uint32_mask: Expr, uint32_value: Expr) -> Stmt:
         """
-        Update the bits in *uint32_ptr value indicated by the uint32_mask to the uint32_value, and keep the remaining
-        bits unchanged, using atomic operations.
+        Perform atomic update on uint32 value given its pointer.
+
+        Update the bits in *uint32_ptr value indicated by the uint32_mask to the uint32_value, and keep the remaining bits unchanged, using atomic operations.
         """
         sb = StmtBuilder()
 

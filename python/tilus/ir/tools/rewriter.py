@@ -19,9 +19,7 @@ from tilus.ir.node import IRNode
 
 
 class SimpleRewriter(IRRewriter):
-    """
-    A simple rewriter that applies a function to each instruction in the program.
-    """
+    """A simple rewriter that applies a function to each instruction in the program."""
 
     def __init__(self, rewrite_map: Mapping[IRNode, Any]):
         super().__init__()

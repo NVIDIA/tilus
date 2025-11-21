@@ -95,9 +95,7 @@ class ReduceInstEmitter(BaseInstEmitter):
 
     @staticmethod
     def check_whether_spatial_bit_reduced(spatial_bit: int, layout: RegisterLayout, dim: int) -> bool:
-        """
-        Check whether the spatial bit is reduced given the layout and reduction dimension.
-        """
+        """Check whether the spatial bit is reduced given the layout and reduction dimension."""
         # find first mode that its accumulation is larger or equal to 2^lane_bit, which is the mode that contains the
         # lane_bit
         accumulation = 1
@@ -112,9 +110,7 @@ class ReduceInstEmitter(BaseInstEmitter):
 
     @staticmethod
     def check_whether_spatial_bit_replicated(spatial_bit: int, layout: RegisterLayout) -> bool:
-        """
-        Check whether the spatial bit is replicated given the layout and reduction dimension.
-        """
+        """Check whether the spatial bit is replicated given the layout and reduction dimension."""
         # find first mode that its accumulation is larger or equal to 2^lane_bit, which is the mode that contains the
         # lane_bit
         accumulation = 1

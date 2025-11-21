@@ -62,6 +62,8 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
         self, smem_addr: Expr, canonical: CanonicalSharedLayout, shape_kind: Tcgen05CopyShapeKind
     ) -> list[Tcgen05CopyInstMeta]:
         """
+        Split the canonical shared layout into multiple sub-tensors that can be copied by tcgen05.copy instructions.
+
         A shared memory tensor might be very large that we need to split it into multiple sub-tensors and
         each sub-tensor is copied by a tcgen05.copy instruction. The smem_addr in returned SharedMatrixDescriptor
         is the offset of the sub-tensor relative to the shared memory tensor in bytes.

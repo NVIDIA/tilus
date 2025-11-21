@@ -95,9 +95,7 @@ def vectorized_evaluate(expr: Expr, var2value: dict[Var, np.ndarray]) -> np.ndar
 
 
 def meshgrid(shape: Sequence[int]) -> list[np.ndarray]:
-    """
-    Create a meshgrid for the given shape.
-    """
+    """Create a meshgrid for the given shape."""
     grid = np.meshgrid(*[np.arange(s) for s in shape], indexing="ij")
     return [g.astype(np.int32) for g in grid]  # Convert to int32 for consistency with hidet types
 

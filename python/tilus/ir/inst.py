@@ -95,6 +95,4 @@ class InstructionConfig(IRNode):
 
 
 class InstructionError(Exception):
-    """
-    Exception raised when the parameters of an instruction are invalid.
-    """
+    """Exception raised when the parameters of an instruction are invalid."""

@@ -22,9 +22,7 @@ from tilus.ir.tensor import RegisterTensor
 
 @register_rule(DotInst)
 class MmaDotRule(LayoutInferenceRule):
-    """
-    Layout inference rule for MMA dot instructions.
-    """
+    """Layout inference rule for MMA dot instructions."""
 
     @staticmethod
     def generate_default_layouts(

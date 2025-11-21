@@ -144,7 +144,8 @@ def check_commit_signature(commit_hash: str) -> bool:
 def check_gpg_signature(commit_hash: str) -> Tuple[bool, str, str]:
     """Check if a commit has a valid GPG signature.
 
-    Returns:
+    Returns
+    -------
         Tuple of (has_signature, status, details)
         status: "valid", "invalid", "missing", "error"
     """
@@ -192,7 +193,8 @@ def get_commit_info(commit_hash: str) -> str:
 def check_commits(base_commit: str) -> Dict[str, List[CommitSignatureStatus]]:
     """Check all commits between base and HEAD for signatures.
 
-    Returns:
+    Returns
+    -------
         Dict with keys: "all_good", "missing_signoff", "missing_gpg", "invalid_gpg", "missing_both"
     """
     commits = get_commit_range(base_commit)

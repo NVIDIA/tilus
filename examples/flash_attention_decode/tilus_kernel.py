@@ -256,7 +256,8 @@ def fused_gdn_gating_tilus(
         beta: Beta parameter for softplus (default: 1.0)
         threshold: Threshold for numerical stability (default: 20.0)
 
-    Returns:
+    Returns
+    -------
         g: Output tensor, shape [batch, num_heads]
     """
     batch, num_heads = a.shape
@@ -468,7 +469,8 @@ def sigmoid_gating_delta_rule_update_tilus(
         use_qk_l2norm_in_kernel: Whether to apply L2 normalization to q and k
         cu_seqlens: Cumulative sequence lengths (optional, for variable length)
 
-    Returns:
+    Returns
+    -------
         o: Output tensor from the delta rule update
     """
     _ = cu_seqlens  # Not used in current implementation

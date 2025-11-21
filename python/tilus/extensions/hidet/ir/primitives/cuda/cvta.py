@@ -105,7 +105,8 @@ def cvta_generic_to_shared(generic_addr: Expr) -> Expr:
     the generic memory space, and each is models as a window in generic space. The cvta (convert address)
     instructions are used to convert the address between these memory spaces.
 
-    See Also:
+    See Also
+    --------
     1. https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#generic-addressing
     2. https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cvta
 

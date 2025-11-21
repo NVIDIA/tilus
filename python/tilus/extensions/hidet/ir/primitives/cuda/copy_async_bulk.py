@@ -191,6 +191,7 @@ def cp_async_bulk_global_to_shared(
         - None: the default policy.
         - 'evict_first': mark the cached data caused by this copy as `evict_first` in L2 cache. Used for data that will
           not be reused.
+
     Returns
     -------
     ret: Expr
@@ -225,6 +226,7 @@ def cp_async_bulk_global_to_cluster_shared(
         - None: the default policy.
         - 'evict_first': mark the cached data caused by this copy as `evict_first` in L2 cache. Used for data that will
           not be reused.
+
     Returns
     -------
     ret: Expr

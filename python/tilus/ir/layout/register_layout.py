@@ -112,9 +112,7 @@ class RegisterLayout(IRNode):
         return prod(self.shape)
 
     def spatial_mfunction(self) -> MultiFunction:
-        """
-        Get the multi-function that maps the global indices to the spatial indices (serialized).
-        """
+        """Get the multi-function that maps the global indices to the spatial indices (serialized)."""
         return multi_function(
             shape=self.shape,
             mode_shape=self.mode_shape,
@@ -472,9 +470,11 @@ def register_layout(
 
 def canonicalize_layout(layout: RegisterLayout) -> RegisterLayout:
     """
+    Cannonicalize the register layout.
+
     Canonicalize the layout by
     1. merging the modes that are contiguous in the three places: shape, spatial_modes, and local_modes
-    2. removing the singletons in the modes
+    2. removing the singletons in the modes.
 
     Any layout with the same mapping will be canonicalized to the same layout.
 

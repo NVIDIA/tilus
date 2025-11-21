@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-This module provides a pass that lowers LoadSharedInst to LoadMatrixInst when possible.
+The module provides a pass that lowers LoadSharedInst to LoadMatrixInst when possible.
 
 We check whether the following conditions to determine whether we can lower a LoadSharedInst to a LoadMatrixInst
     0) the register tensor must have a dtype that can be loaded by a ldmatrix instruction

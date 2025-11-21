@@ -21,9 +21,7 @@ from tilus.ir.layout.ops import divide
 
 @register_rule(DotInst)
 class MmaDotRule(LayoutValidationRule):
-    """
-    Layout inference rule for MMA dot instructions.
-    """
+    """Layout inference rule for MMA dot instructions."""
 
     @staticmethod
     def validate(inst: DotInst) -> bool:

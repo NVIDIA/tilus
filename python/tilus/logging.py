@@ -21,6 +21,7 @@ LOGGER_NAME = "tilus"
 def init_logging(level: str = "INFO") -> None:
     """
     Initial logging setup for this application only.
+
     This should be called once during startup.
     """
     logger = logging.getLogger(LOGGER_NAME)

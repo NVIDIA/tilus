@@ -12,16 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-Test target support logic with suffix semantics.
-"""
+"""Test target support logic with suffix semantics."""
 
 import pytest
 from tilus.target import Target, TargetProperties, gpgpu_any
 
 
 def create_target(arch, major, minor, suffix=None):
-    """Helper to create test targets"""
+    """Create test targets."""
     return Target(
         kind="nvgpu",
         arch=arch,
@@ -34,7 +32,7 @@ def create_target(arch, major, minor, suffix=None):
 # Create test targets as fixtures for reuse
 @pytest.fixture(scope="module")
 def test_targets():
-    """Create all test targets"""
+    """Create all test targets."""
     return {
         "sm80": create_target("sm80", 8, 0, None),  # Base sm80
         "sm90": create_target("sm90", 9, 0, None),  # Base sm90
@@ -53,7 +51,7 @@ def test_targets():
 
 
 class TestTargetSupports:
-    """Test cases for Target.supports() method with suffix semantics"""
+    """Test cases for Target.supports() method with suffix semantics."""
 
     @pytest.mark.parametrize(
         "self_target,target_to_check,expected",
@@ -72,12 +70,12 @@ class TestTargetSupports:
         ],
     )
     def test_basic_capability_support(self, test_targets, self_target, target_to_check, expected):
-        """Test basic compute capability comparisons"""
+        """Test basic compute capability comparisons."""
         result = test_targets[self_target].supports(test_targets[target_to_check])
         assert result == expected
 
     def test_gpgpu_any_support(self, test_targets):
-        """Test that any target supports gpgpu_any"""
+        """Test that any target supports gpgpu_any."""
         assert test_targets["sm90"].supports(gpgpu_any)
         assert test_targets["sm80"].supports(gpgpu_any)
         assert test_targets["sm110a"].supports(gpgpu_any)
@@ -103,7 +101,7 @@ class TestTargetSupports:
         ],
     )
     def test_base_target_suffix_support(self, test_targets, self_target, target_to_check, expected):
-        """Test base targets supporting/not supporting suffixed targets"""
+        """Test base targets supporting/not supporting suffixed targets."""
         result = test_targets[self_target].supports(test_targets[target_to_check])
         assert result == expected
 
@@ -130,7 +128,7 @@ class TestTargetSupports:
         ],
     )
     def test_architecture_specific_support(self, test_targets, self_target, target_to_check, expected):
-        """Test architecture-specific target support rules"""
+        """Test architecture-specific target support rules."""
         result = test_targets[self_target].supports(test_targets[target_to_check])
         assert result == expected
 
@@ -153,7 +151,7 @@ class TestTargetSupports:
         ],
     )
     def test_family_specific_support(self, test_targets, self_target, target_to_check, expected):
-        """Test family-specific target support rules"""
+        """Test family-specific target support rules."""
         result = test_targets[self_target].supports(test_targets[target_to_check])
         assert result == expected
 
@@ -170,16 +168,16 @@ class TestTargetSupports:
         ],
     )
     def test_cross_major_version_support(self, test_targets, self_target, target_to_check, expected):
-        """Test support rules across different major versions"""
+        """Test support rules across different major versions."""
         result = test_targets[self_target].supports(test_targets[target_to_check])
         assert result == expected
 
 
 class TestTargetProperties:
-    """Test Target and TargetProperties classes"""
+    """Test Target and TargetProperties classes."""
 
     def test_target_creation(self):
-        """Test basic target creation"""
+        """Test basic target creation."""
         target = create_target("sm90a", 9, 0, "a")
         assert target.kind == "nvgpu"
         assert target.arch == "sm90a"
@@ -188,12 +186,12 @@ class TestTargetProperties:
         assert target.properties.shared_memory_per_block == 100 * 1024
 
     def test_target_string_representation(self):
-        """Test target string representation"""
+        """Test target string representation."""
         target = create_target("sm90a", 9, 0, "a")
         assert str(target) == "nvgpu/sm90a"
 
     def test_target_kind_checks(self):
-        """Test target kind checking methods"""
+        """Test target kind checking methods."""
         nvgpu_target = create_target("sm90", 9, 0, None)
         amdgpu_target = Target(
             kind="amdgpu",
@@ -216,21 +214,21 @@ class TestTargetProperties:
         ],
     )
     def test_compute_capability_format(self, major, minor, suffix, expected_capability):
-        """Test that compute capability is stored in correct format"""
+        """Test that compute capability is stored in correct format."""
         target = create_target(f"sm{major}{minor}", major, minor, suffix)
         assert target.properties.compute_capability == expected_capability
 
 
 class TestTargetCompatibility:
-    """Test target compatibility edge cases"""
+    """Test target compatibility edge cases."""
 
     def test_same_target_supports_itself(self, test_targets):
-        """Test that any target supports itself"""
+        """Test that any target supports itself."""
         for target_name, target in test_targets.items():
             assert target.supports(target), f"{target_name} should support itself"
 
     def test_different_kinds_not_supported(self):
-        """Test that targets of different kinds don't support each other"""
+        """Test that targets of different kinds don't support each other."""
         nvgpu_target = create_target("sm90", 9, 0, None)
         amdgpu_target = Target(
             kind="amdgpu",

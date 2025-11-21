@@ -18,7 +18,7 @@ from hidet.ir.stmt import BlackBoxStmt, Stmt
 
 
 def comment(comment_string: str, style: Optional[str] = None) -> Stmt:
-    """
+    r"""
     Generate a comment statement.
 
     usage:

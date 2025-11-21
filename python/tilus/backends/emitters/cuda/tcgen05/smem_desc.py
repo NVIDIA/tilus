@@ -28,6 +28,8 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
 @dataclass
 class SharedMatrixDescriptor:
     """
+    The shared memory descriptor for tcgen05.copy instruction.
+
     Each tcgen05.copy instruction copies a sub-tensor with the following layout:
     +----------------+--------------------------+--------------------------------------+-------------------------------------+
     | Major-ness     | Swizzling mode           | Canonical Layout without swizzling   | Swizzling on the previous column    |
@@ -54,7 +56,7 @@ class SharedMatrixDescriptor:
     - T = 128 / sizeof-elements-in-bits T represents scale factor which normalizes matrix element types to 128-bits.
     - m represents the number of repeating patterns across rows.
     - k represents the number of repeating patterns across columns.
-    (The table is is from: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-canonical-layouts.)
+    (The table is is from: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-canonical-layouts.).
 
     """
 

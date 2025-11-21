@@ -73,7 +73,8 @@ def should_skip_example(required_target: Optional[Target]) -> tuple[bool, str]:
     Args:
         required_target: The target required to run the example, or None if any target is supported.
 
-    Returns:
+    Returns
+    -------
         A tuple of (should_skip, reason), where should_skip is True if the example should be skipped.
     """
     if required_target is None:
@@ -124,8 +125,7 @@ def test_example(folder: str, script: str, required_target: Optional[Target]):
 
 def test_all_examples_are_listed():
     """
-    Ensure that all Python scripts in the examples directory are either
-    explicitly listed in EXAMPLES or IGNORED_SCRIPTS.
+    Ensure that all Python scripts in the examples directory are either explicitly listed in EXAMPLES or IGNORED_SCRIPTS.
 
     This test prevents new examples from being added without being properly
     configured in the test suite.

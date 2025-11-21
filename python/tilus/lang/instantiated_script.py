@@ -791,9 +791,7 @@ class InstantiatedScriptCache:
 
     @classmethod
     def _is_hashable(cls, obj):
-        """
-        Check if the obj is hashable
-        """
+        """Check if the obj is hashable."""
         try:
             hash(obj)
             return True
@@ -802,10 +800,7 @@ class InstantiatedScriptCache:
 
     @classmethod
     def _normalize_key(cls, obj):
-        """
-        Convert the obj to a key that can be hashed by python's hash function, and it contains all the information
-        needed to identify the object.
-        """
+        """Convert the obj to a hashable key."""
         if isinstance(obj, (str, int, float, bytes)):
             return obj
         elif inspect.isclass(obj):

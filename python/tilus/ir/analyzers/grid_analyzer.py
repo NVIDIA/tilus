@@ -58,6 +58,8 @@ def compute_value(a: DimensionInfo, b: DimensionInfo, op: Callable[[int, int], i
 
 class DimensionInfo:
     """
+    The dimension information for a specific dimension of a tensor.
+
     Given one tensor, there will be multiple dimensions. For a given dimension, we could get many vectors for that
     dimension. For example, given a two-dimension tensor:
     [[0, 1, 2, 3],
@@ -66,7 +68,7 @@ class DimensionInfo:
       n = s1 * s2 * ... * sn / si.
     For example, the two-dimension tensor example:
         dimension 0: {[0, 1, 2, 3], [4, 5, 6, 7]}
-        dimension 1: {[0, 4], [1, 5], [2, 6], [3, 7]}
+        dimension 1: {[0, 4], [1, 5], [2, 6], [3, 7]}.
 
     - length: the length of the dimension
     - value: if all elements of each vector are identical to a specific value, we store this value, otherwise None.
@@ -332,11 +334,7 @@ class DimensionInfo:
 
 
 class TensorInfo:
-    """
-    The tensor information for the tensors whose elements are integers.
-
-
-    """
+    """The tensor information for the tensors whose elements are integers."""
 
     def __init__(self, shape: Sequence[int], infos: Sequence[DimensionInfo]):
         self.shape: Sequence[int] = shape
@@ -434,6 +432,8 @@ class TensorInfo:
 
 class GridAnalyzer(IRFunctor):
     """
+    Analyze the tensor information of a grid expression.
+
     Given a variable, it may have multiple potential values
     a := 8
     b := 16
@@ -444,7 +444,7 @@ class GridAnalyzer(IRFunctor):
     Then we have the following equations:
     value(a) = value(8)
     value(b) = merge(value(16), value(a) + value(4))
-    value(c) = merge(value(b), value(a) + value(b))
+    value(c) = merge(value(b), value(a) + value(b)).
 
     This class implements an iterative algorithm to solve the above equations to find a fixed point.
     """
@@ -593,6 +593,8 @@ def analyze_grid(
     analysis: Optional[Analysis] = None,
 ) -> TensorInfo:
     """
+    Analyze the tensor information of a grid expression.
+
     Given the mapping from axes -> value, we could construct a tensor with given shape. This function analyze the
     tensor information (TensorInfo) of this tensor.
     """

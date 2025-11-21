@@ -37,6 +37,8 @@ def register_swizzle_primitive():
 
 def swizzle(x: Expr, mbase: Expr | int, bbits: Expr | int, sshift: Expr | int) -> Expr:
     """
+    Perform a swizzle operation on the input value.
+
     Using the swizzle from cute:
 
     0bxxxxxxxxxxxxxxxYYYxxxxxxxZZZxxxx

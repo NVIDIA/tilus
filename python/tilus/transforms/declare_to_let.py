@@ -24,10 +24,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Convert DeclareStmt with initialized value to LetStmt if the declared variable satisfy the following conditions:
+Convert DeclareStmt with initialized value to LetStmt when possible.
+
+The declared variable should satisfy the following conditions to be converted:
     1. has never been modified with AssignStmt statement, and
     2. has never been addressed with Address expression, and
-    3. has never been referenced with Reference expression, and
+    3. has never been referenced with Reference expression, and.
 
 This pass is adopted from the pass with the same name from Hidet.
 """

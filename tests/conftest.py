@@ -33,6 +33,8 @@ import tilus.utils
 
 def pytest_sessionstart(session):
     """
+    Initialize tilus options before any tests are run.
+
     Called after the Session object has been created and before performing collection and entering the run test loop.
     """
     # set the cache directory to a subdirectory of the current directory
@@ -44,9 +46,7 @@ def pytest_sessionstart(session):
 
 @pytest.fixture(autouse=True)
 def clear_before_test():
-    """
-    Clear the memory cache before each test.
-    """
+    """Clear the memory cache before each test."""
     import gc
 
     import torch

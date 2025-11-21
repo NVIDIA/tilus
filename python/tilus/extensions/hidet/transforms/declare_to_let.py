@@ -24,11 +24,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
+Declare to Let statement conversion pass.
+
 Convert DeclareStmt with initialized value to LetStmt if the declared variable satisfy the following conditions:
     1. has never been modified with AssignStmt statement, and
     2. has never been addressed with Address expression, and
     3. has never been referenced with Reference expression, and
-    4. has never appeared in outputs of AsmStmt statement
+    4. has never appeared in outputs of AsmStmt statement.
 
 """
 

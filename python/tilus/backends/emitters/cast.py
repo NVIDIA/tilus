@@ -219,6 +219,8 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
 
     def extract_bits_to_uint32(self, src_uint8: Expr, i: int, size: int, nbits: int, pos: str) -> Var:
         """
+        Extract bits from src_uint8 to uint32 variable p.
+
         Extract the bits of src[2 * i] and src[2 * i + 1] to uint32 variable. The src_uint8 stored size elements of a
         type with nbits number of bits (nbits <= 8).
 

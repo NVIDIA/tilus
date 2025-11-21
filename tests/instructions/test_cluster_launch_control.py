@@ -29,9 +29,11 @@ class ClusterLaunchControlExample(tilus.Script):
 
     def __call__(self, n: int32, p_out: ~int32) -> None:
         """
+        Kernel that demonstrates the use of cluster launch control (CLC) for dynamic work distribution.
+
         workers:
         - tile scheduler (warp 0, cluster id 0)
-        - main workers (all warps in the block cluster)
+        - main workers (all warps in the block cluster).
 
         pipelines:
         - cluster launch control pipeline

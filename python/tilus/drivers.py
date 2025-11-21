@@ -36,9 +36,7 @@ from tilus.runtime import CompiledProgram, compiled_program_exists, load_compile
 
 @dataclass(frozen=True)
 class BuildOptions:
-    """
-    Options for building a program.
-    """
+    """Options for building a program."""
 
     debug_block: Optional[tuple[int, int, int]] = None
 
