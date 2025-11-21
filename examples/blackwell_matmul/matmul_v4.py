@@ -49,8 +49,19 @@ class Pipeline(tilus.Class):
     def consumer_release_barrier(self) -> RegisterTensor:
         return self.full_barriers[self.consumer_stage]
 
+
 class BlockInfo(tilus.Class):
-    def __init__(self, m_size: int32, n_size: int, k_size: int, block_m: int, block_n: int, block_k: int, offset_m: int32, offset_n: int32):
+    def __init__(
+        self,
+        m_size: int32,
+        n_size: int,
+        k_size: int,
+        block_m: int,
+        block_n: int,
+        block_k: int,
+        offset_m: int32,
+        offset_n: int32,
+    ):
         self.m_size: int32 = m_size
         self.n_size: int = n_size
         self.k_size: int = k_size
@@ -59,6 +70,7 @@ class BlockInfo(tilus.Class):
         self.block_k: int = block_k
         self.offset_m: int32 = offset_m
         self.offset_n: int32 = offset_n
+
 
 class LoadPipeline(Pipeline):
     def __init__(
@@ -70,12 +82,18 @@ class LoadPipeline(Pipeline):
             num_stages=num_stages, producer_arrive_count=2, consumer_arrive_count=1
         )
         self.info: BlockInfo = info
-        self.s_a = self.shared_tensor(dtype=float16, shape=[num_stages, info.block_m, info.block_k])
-        self.s_b = self.shared_tensor(dtype=float16, shape=[num_stages, info.block_n, info.block_k])
+        self.s_a = self.shared_tensor(
+            dtype=float16, shape=[num_stages, info.block_m, info.block_k]
+        )
+        self.s_b = self.shared_tensor(
+            dtype=float16, shape=[num_stages, info.block_n, info.block_k]
+        )
 
 
 class LoadWorker(tilus.Class):
-    def __init__(self, pipe: LoadPipeline, g_a: GlobalTensor, g_b: GlobalTensor, info: BlockInfo):
+    def __init__(
+        self, pipe: LoadPipeline, g_a: GlobalTensor, g_b: GlobalTensor, info: BlockInfo
+    ):
         self.pipe: LoadPipeline = pipe
         self.g_a: GlobalTensor = g_a
         self.g_b: GlobalTensor = g_b
@@ -113,15 +131,18 @@ class MmaWorker(tilus.Class):
     def __init__(self, pipe: LoadPipeline, info: BlockInfo):
         self.pipe: LoadPipeline = pipe
         self.info: BlockInfo = info
-        self.t_acc = self.tcgen05.alloc(dtype=float32, shape=[info.block_m, info.block_n], init=0.0)
-
+        self.t_acc = self.tcgen05.alloc(
+            dtype=float32, shape=[info.block_m, info.block_n], init=0.0
+        )
 
     def async_run(self):
         pipe = self.pipe
         s_a, s_b = pipe.s_a, pipe.s_b
         num_stages: int = pipe.num_stages
         with self.thread_group(thread_begin=32, num_threads=32):
-            for offset_k in self.range(0, self.info.k_size, self.info.block_k, unroll=num_stages):
+            for offset_k in self.range(
+                0, self.info.k_size, self.info.block_k, unroll=num_stages
+            ):
                 pipe.consumer_acquire()
                 with self.single_thread():
                     self.tcgen05.mma(
