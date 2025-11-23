@@ -85,7 +85,7 @@ class LayerNorm(tilus.Script):
 
 
 def main():
-    headers = ["m_size", "n_size", "dtype", "torch", "tilus"]
+    headers = ["m_size", "n_size", "dtype", "torch (ms)", "tilus (ms)"]
     rows = []
     for i in [1, 2, 4, 8]:
         m_size = n_size = 1024 * i
