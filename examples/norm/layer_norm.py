@@ -16,7 +16,7 @@ class LayerNorm(tilus.Script):
     This implements the per-row LayerNorm used in many transformer blocks. It
     computes: y = (x - mean) / sqrt(var + eps) * gamma + beta
 
-    Only the forward is provided; gamma and beta are optional (can be None).
+    Only the forward is provided.
     """
 
     def __init__(self, block_m: int, block_n: int, warps: int):
