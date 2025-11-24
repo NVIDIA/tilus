@@ -73,6 +73,13 @@ class Instruction(IRNode):
         return x
 
     @property
+    def tmemory_input(self) -> TMemoryTensor:
+        assert len(self.inputs) == 1
+        x = self.inputs[0]
+        assert isinstance(x, TMemoryTensor)
+        return x
+
+    @property
     def register_or_shared_input(self) -> RegisterTensor | SharedTensor:
         assert len(self.inputs) == 1
         x = self.inputs[0]

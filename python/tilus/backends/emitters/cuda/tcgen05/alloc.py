@@ -30,25 +30,27 @@ from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05AllocInst,
     Tcgen05DeallocInst,
     Tcgen05RelinquishAllocPermitInst,
-    Tcgen05SliceInst,
     Tcgen05ViewInst,
 )
 from tilus.ir.tensor import TMemoryTensor
 from tilus.target import nvgpu_sm100
-
-#    tmem addr: 0xAAAABBBB where AAAA is the lane index and BBBB is the column index
-#   lane index: 0x0000 to 0x007F
-# column index: 0x0000 to 0x01FF
-LANE_STRIDE = 0x00010000
-COLUMN_STRIDE = 0x00000001
+from tilus.utils import prod, same_list
 
 
 class Tcgen05AllocDeallocEmitter(BaseInstEmitter):
     def get_num_columns(self, tmem_tensor: TMemoryTensor) -> int:
-        assert tmem_tensor.shape[0] == 128
-        assert tmem_tensor.shape[1] * tmem_tensor.dtype.nbits % 32 == 0
-        num_columns = tmem_tensor.shape[1] * tmem_tensor.dtype.nbits // 32
-        assert num_columns % 32 == 0 and 32 <= num_columns <= 512, num_columns
+        shape = tmem_tensor.shape
+        if shape[-2] != 128:
+            raise NotImplementedError(f"The emitter currently only supports shape[-2] == 128, but got {shape[-2]}")
+        if shape[-1] * tmem_tensor.dtype.nbits % 32 != 0:
+            raise ValueError(
+                f"shape[-1] * dtype.nbits must be divisible by 32, but got {shape[-1]} * {tmem_tensor.dtype.nbits} = {shape[-1] * tmem_tensor.dtype.nbits}"
+            )
+        num_columns = prod(shape[:-2]) * shape[-1] * tmem_tensor.dtype.nbits // 32
+        if not (num_columns % 32 == 0 and 32 <= num_columns <= 512):
+            raise ValueError(
+                f"The number of 32-bit columns must be a multiple of 32 and in range [32, 512], but got {num_columns}"
+            )
         return num_columns
 
 
@@ -122,20 +124,6 @@ class Tcgen05RelinquishAllocPermitEmitter(BaseInstEmitter):
         self.append(tcgen05_relinquish_alloc_permit(Tcgen05CtaGroupKind.from_int(inst.cta_group)))
 
 
-@register_emitter(Tcgen05SliceInst, target=nvgpu_sm100)
-class TMemorySliceEmitter(BaseInstEmitter):
-    def emit(self, inst: Tcgen05SliceInst) -> None:
-        tmem_tensor = inst.inputs[0].as_tmemory_tensor()
-        output_tmem_tensor = inst.tmemory_output
-        tmem_addr = self.get_or_allocate_var(tmem_tensor)
-
-        sliced_addr = self.get_or_allocate_var(output_tmem_tensor, name="tmem_slice")
-        self.assign(
-            sliced_addr,
-            tmem_addr + inst.offsets[0] * LANE_STRIDE + inst.offsets[1] * COLUMN_STRIDE * tmem_tensor.dtype.nbits // 32,
-        )
-
-
 @register_emitter(Tcgen05ViewInst, target=nvgpu_sm100)
 class TMemoryViewEmitter(BaseInstEmitter):
     def emit(self, inst: Tcgen05ViewInst) -> None:
@@ -143,10 +131,15 @@ class TMemoryViewEmitter(BaseInstEmitter):
         output_tmem_tensor = inst.tmemory_output
 
         if (
-            tmem_tensor.dtype.nbits * tmem_tensor.shape[1]
-            != output_tmem_tensor.dtype.nbits * output_tmem_tensor.shape[1]
+            tmem_tensor.dtype.nbits * tmem_tensor.shape[-1]
+            != output_tmem_tensor.dtype.nbits * output_tmem_tensor.shape[-1]
         ):
             raise ValueError("The total number of bits must be the same as the original tensor.")
+
+        if not same_list(tmem_tensor.layout.column_strides[:-2], output_tmem_tensor.layout.column_strides[:-2]):
+            raise ValueError(
+                "The column strides of the leading dimensions (all dimensions except the last two ones) must be the same as the original tensor."
+            )
 
         tmem_addr = self.get_or_allocate_var(tmem_tensor)
         view_addr = self.get_or_allocate_var(output_tmem_tensor, name="tmem_view")

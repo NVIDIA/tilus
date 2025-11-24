@@ -29,6 +29,14 @@ from tilus.ir.tensor import RegisterTensor, TMemoryTensor
 class Tcgen05LdstRule(LayoutInferenceRule):
     @staticmethod
     def get_register_layout(tmem_tensor: TMemoryTensor) -> RegisterLayout:
+        if len(tmem_tensor.shape) != 2:
+            raise LayoutInferenceError(
+                f"Only 2D TMemoryTensor is supported in load/store, got shape {tmem_tensor.shape}"
+            )
+
+        if tmem_tensor.layout.column_strides[-1] != 1:
+            raise NotImplementedError("The last dimension must have a stride of 1 for now.")
+
         dtype = tmem_tensor.dtype
         total_rows = tmem_tensor.shape[0]
         total_columns_bits = tmem_tensor.shape[1] * dtype.nbits
@@ -76,17 +84,14 @@ class Tcgen05LdstRule(LayoutInferenceRule):
         else:
             raise NotImplementedError(inst)
 
-        if regs_tensor.has_layout():
+        if not tmem_tensor.has_layout() or regs_tensor.has_layout():
+            # this rule only infer from tmem to regs layout.
+            # when tmem has no layout or regs already has layout, do nothing.
             return {}
 
-        # slice the tmem tensor with offsets and shape
-        sliced_tmem_tensor = TMemoryTensor.create(
-            dtype=tmem_tensor.dtype, shape=regs_tensor.shape, first_lane=tmem_tensor.first_lane + inst.offsets[0]
-        )
-
         # check that the lane matches the threads
-        lane_begin = sliced_tmem_tensor.first_lane
-        lane_end = lane_begin + sliced_tmem_tensor.shape[0]
+        lane_begin = tmem_tensor.layout.lane_offset
+        lane_end = lane_begin + tmem_tensor.shape[-2]
         thread_begin = ctx.thread_begin
         thread_end = ctx.thread_end
 
@@ -100,7 +105,7 @@ class Tcgen05LdstRule(LayoutInferenceRule):
             )
 
         # infer the layout
-        layout = Tcgen05LdstRule.get_register_layout(sliced_tmem_tensor)
+        layout = Tcgen05LdstRule.get_register_layout(tmem_tensor=tmem_tensor)
 
         assert layout.shape == regs_tensor.shape, (
             f"Layout shape {layout.shape} does not match tensor shape {regs_tensor.shape} in {inst}"

@@ -31,6 +31,7 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorGlobalToSharedInst,
     CopyAsyncTensorSharedToGlobalInst,
 )
+from tilus.ir.instructions.cuda.tcgen05 import Tcgen05DeallocInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.tensor import Tensor
 
@@ -41,6 +42,7 @@ from tilus.ir.tensor import Tensor
 @register_rule(CopyAsyncBulkGlobalToClusterSharedInst)
 @register_rule(CopyAsyncBulkGlobalToSharedInst)
 @register_rule(CopyAsyncBulkSharedToGlobalInst)
+@register_rule(Tcgen05DeallocInst)
 @register_rule(PrintTensorInst)
 @register_rule(FormatPrintInst)
 @register_rule(FreeSharedInst)

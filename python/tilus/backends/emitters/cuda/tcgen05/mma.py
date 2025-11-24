@@ -22,10 +22,11 @@ from hidet.ir.type import DataType
 
 from tilus.backends.codegen import CodeGenerationFailed
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE, LANE_STRIDE
 from tilus.backends.emitters.cuda.tcgen05.smem_desc import SharedMatrixDescriptor
 from tilus.extensions.hidet.ir.dtypes import float4_e2m1, float6_e2m3, float6_e3m2, float8_e4m3, float8_e5m2
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+    COLUMN_STRIDE,
+    LANE_STRIDE,
     Tcgen05CtaGroupKind,
     Tcgen05MmaKind,
     Tcgen05SwizzleMode,
@@ -250,9 +251,14 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
         b_shape = b_tensor.shape
         d_shape = d_tensor.shape
 
-        # check the shapes
-        assert len(a_shape) == len(b_shape) == len(d_shape) == 2
-        assert a_shape[0] == d_shape[0] and a_shape[1] == b_shape[0] and b_shape[1] == d_shape[1]
+        # check the shapes - validation at lang layer ensures 2D, but we also check here for safety
+        if len(a_shape) != 2 or len(b_shape) != 2 or len(d_shape) != 2:
+            raise ValueError(f"MMA requires 2D tensors, but got shapes: a={a_shape}, b={b_shape}, d={d_shape}")
+        if not (a_shape[0] == d_shape[0] and a_shape[1] == b_shape[0] and b_shape[1] == d_shape[1]):
+            raise ValueError(
+                f"Incompatible shapes for MMA: a={a_shape}, b={b_shape}, d={d_shape}. "
+                f"Expected a[0]==d[0], a[1]==b[0], b[1]==d[1]"
+            )
         m_size, n_size, k_size = a_shape[0], b_shape[1], a_shape[1]
         if m_size != 128:
             raise NotImplementedError("Only support m_size = 128 for now.")

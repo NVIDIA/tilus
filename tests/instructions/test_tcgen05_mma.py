@@ -54,7 +54,7 @@ class Tcgen05MmaExample(tilus.Script):
             shape=[self.mma_m, cdiv(self.mma_n, self.column_granularity) * self.column_granularity],
             init=0.0,
         )
-        t_d = self.tcgen05.slice(t_d_storage, offsets=[0, 0], shape=[self.mma_m, self.mma_n])
+        t_d = self.tcgen05.slice(t_d_storage, offsets=[0, 0], dims=[0, 1], shape=[self.mma_m, self.mma_n])
 
         mbarriers = self.mbarrier.alloc(count=[2, 1])  # 2 since there are two tma copies
         tma_mbarrier = mbarriers[0]
@@ -83,7 +83,7 @@ class Tcgen05MmaExample(tilus.Script):
         self.mbarrier.wait(mma_mbarrier, phase=0)
 
         # store d from t_d to global
-        r_d_accumulator = self.tcgen05.load(t_d, offsets=[0, 0], shape=[self.mma_m, self.mma_n])
+        r_d_accumulator = self.tcgen05.load(t_d)
         r_d_output = self.cast(r_d_accumulator, dtype=self.output_dtype)
         self.store_global(g_d, r_d_output, offsets=[0, 0])
 

@@ -1256,14 +1256,18 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05RelinquishAllocPermitInst.create(cta_group)
         self.append(inst)
 
-    def tcgen05_slice(self, tmem: TMemoryTensor, offsets: Sequence[int], slice_shape: Sequence[int]) -> TMemoryTensor:
+    def tcgen05_slice(
+        self, tmem: TMemoryTensor, offsets: Sequence[Expr | int], slice_dims: Sequence[int], slice_shape: Sequence[int]
+    ) -> TMemoryTensor:
         if any(not isinstance(ofs, int) for ofs in offsets):
             raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
         if len(offsets) != 2:
             raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
         if len(slice_shape) != 2:
             raise InstructionError(f"The length of slice_shape must be 2, but got {len(slice_shape)}")
-        inst = Tcgen05SliceInst.create(tmem=tmem, offsets=offsets, shape=slice_shape)
+        inst = Tcgen05SliceInst.create(
+            tmem=tmem, offsets=[as_expr(ofs) for ofs in offsets], slice_dims=slice_dims, slice_shape=slice_shape
+        )
         self.append(inst)
         return inst.tmemory_output
 
@@ -1274,21 +1278,13 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.tmemory_output
 
-    def tcgen05_load(self, tmem: TMemoryTensor, offsets: Sequence[int], shape: Sequence[int]) -> RegisterTensor:
-        if any(not isinstance(ofs, int) for ofs in offsets):
-            raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
-        if len(offsets) != 2:
-            raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
-        inst = Tcgen05LoadInst.create(tmem=tmem, offsets=offsets, shape=shape)
+    def tcgen05_load(self, tmem: TMemoryTensor) -> RegisterTensor:
+        inst = Tcgen05LoadInst.create(tmem=tmem)
         self.append(inst)
         return inst.register_output
 
-    def tcgen05_store(self, tmem: TMemoryTensor, src: RegisterTensor, offsets: Sequence[int]) -> None:
-        if any(not isinstance(ofs, int) for ofs in offsets):
-            raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
-        if len(offsets) != 2:
-            raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
-        inst = Tcgen05StoreInst.create(tmem=tmem, src=src, offsets=offsets)
+    def tcgen05_store(self, tmem: TMemoryTensor, src: RegisterTensor) -> None:
+        inst = Tcgen05StoreInst.create(tmem=tmem, src=src)
         self.append(inst)
 
     def tcgen05_wait_load(self) -> None:

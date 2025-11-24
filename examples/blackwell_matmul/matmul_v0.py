@@ -70,9 +70,7 @@ class BlackwellMatmulV0(tilus.Script):
             phase ^= 1
 
         # load the result from tensor memory to register
-        r_acc = self.tcgen05.load(
-            t_acc, offsets=[0, 0], shape=[self.block_m, self.block_n]
-        )
+        r_acc = self.tcgen05.load(t_acc)
 
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
         self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])

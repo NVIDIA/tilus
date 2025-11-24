@@ -45,11 +45,10 @@ from typing import Type
 
 from hidet.utils import same_list
 
-from tilus import RegisterLayout, SharedLayout
-from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.func import Analysis, Function
 from tilus.ir.functors import IRVisitor
 from tilus.ir.inst import Instruction
+from tilus.ir.layout import RegisterLayout, SharedLayout, TMemoryLayout
 from tilus.ir.layout.inference.order import rule2order
 from tilus.ir.layout.inference.rule import (
     LayoutInferenceContext,
@@ -59,6 +58,7 @@ from tilus.ir.layout.inference.rule import (
     get_validation_rule,
 )
 from tilus.ir.stmt import ThreadGroupStmt
+from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor
 from tilus.ir.tools import IRPrinter, collect, rewrite
 from tilus.ir.utils.thread_group_stack import ThreadGroupStack
 from tilus.logging import get_logger
@@ -115,7 +115,8 @@ def has_missing_layouts(inst: Instruction) -> bool:
     """
     operands = inst.inputs + ((inst.output,) if inst.output else ())
     return any(
-        isinstance(tensor, (RegisterTensor, SharedTensor)) and tensor.optional_layout is None for tensor in operands
+        isinstance(tensor, (RegisterTensor, SharedTensor, TMemoryTensor)) and tensor.optional_layout is None
+        for tensor in operands
     )
 
 
@@ -265,7 +266,7 @@ def infer_layout(func: Function) -> Function:
             if all(
                 tensor.optional_layout is not None
                 for tensor in inst.inputs + (inst.output,)
-                if isinstance(tensor, (RegisterTensor, SharedTensor))
+                if isinstance(tensor, (RegisterTensor, SharedTensor, TMemoryTensor))
             ):
                 continue
 
@@ -273,7 +274,9 @@ def infer_layout(func: Function) -> Function:
             mapping = rule.inference(ctx, inst)
             if mapping:
                 # step 4.1: if any rule successfully infers a layout for any tensor, we update the program
-                rewrite_map: dict[SharedTensor | RegisterTensor, SharedTensor | RegisterTensor] = {}
+                rewrite_map: dict[
+                    SharedTensor | RegisterTensor | TMemoryTensor, SharedTensor | RegisterTensor | TMemoryTensor
+                ] = {}
                 for tensor, layout in mapping.items():
                     assert same_list(tensor.shape, layout.shape), (
                         f"Layout shape does not match tensor shape: {tensor.shape} vs {layout.shape} for rule {rule.__name__} "
@@ -281,6 +284,8 @@ def infer_layout(func: Function) -> Function:
                     if isinstance(tensor, RegisterTensor) and isinstance(layout, RegisterLayout):
                         rewrite_map[tensor] = tensor.with_layout(layout)
                     elif isinstance(tensor, SharedTensor) and isinstance(layout, SharedLayout):
+                        rewrite_map[tensor] = tensor.with_layout(layout)
+                    elif isinstance(tensor, TMemoryTensor) and isinstance(layout, TMemoryLayout):
                         rewrite_map[tensor] = tensor.with_layout(layout)
                     else:
                         raise TypeError(f"Invalid layout type {type(layout)} for tensor {tensor}. ")

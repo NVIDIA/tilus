@@ -431,7 +431,7 @@ class IRPrinter(IRFunctor):
             self.global_count += 1
         return Text(self.tensor2name[tensor])
 
-    def visit_TensorMemoryTensor(self, tensor: TMemoryTensor) -> Doc:
+    def visit_TMemoryTensor(self, tensor: TMemoryTensor) -> Doc:
         if tensor not in self.tensor2name:
             self.tensor2name[tensor] = "%t" + str(self.tmem_count)
             self.tmem_count += 1
@@ -468,6 +468,15 @@ class IRPrinter(IRFunctor):
         ]
         doc = Text("GlobalLayout(") + doc_join(items, ", ") + ")"
         return self.add_key_comment("global_layout", doc)
+
+    def visit_TMemoryLayout(self, layout):
+        items = [
+            "shape=[" + self(layout.shape) + "]",
+            "lane_offset=" + self(layout.lane_offset),
+            "column_strides=[" + self(layout.column_strides) + "]",
+        ]
+        doc = Text("TMemoryLayout(") + doc_join(items, ", ") + ")"
+        return self.add_key_comment("tmem_layout", doc)
 
 
 class PrintContext:

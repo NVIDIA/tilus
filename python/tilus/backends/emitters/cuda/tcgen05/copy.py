@@ -22,9 +22,10 @@ from hidet.ir.dtypes import uint64
 from hidet.ir.expr import Expr
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.backends.emitters.cuda.tcgen05.allocation import COLUMN_STRIDE, LANE_STRIDE
 from tilus.backends.emitters.cuda.tcgen05.smem_desc import SharedMatrixDescriptor
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+    COLUMN_STRIDE,
+    LANE_STRIDE,
     Tcgen05CopyMulticastKind,
     Tcgen05CopyShapeKind,
     Tcgen05CtaGroupKind,
@@ -200,10 +201,12 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
         self.check_warp_group()
 
         if len(shared_tensor.shape) != 2:
-            raise ValueError("The shared tensor must be a 2D tensor")
+            raise ValueError("The shared tensor must be a 2D tensor, got shape {}".format(shared_tensor.shape))
+        if len(tmem_tensor.shape) != 2:
+            raise ValueError("The tensor memory tensor must be a 2D tensor, got shape {}".format(tmem_tensor.shape))
         if shared_tensor.shape[0] != 128:
             raise NotImplementedError("The number of rows in the shared tensor must be 128")
-        if tmem_tensor.first_lane != 0:
+        if tmem_tensor.layout.lane_offset != 0:
             raise NotImplementedError("The first lane of the tmem tensor must be 0")
 
         tmem_base_addr = self.tensor2var[tmem_tensor]
