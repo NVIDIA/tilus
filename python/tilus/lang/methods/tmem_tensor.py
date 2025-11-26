@@ -24,18 +24,3 @@ class TMemoryTensorWithMethods(TMemoryTensor):
         super().__init__(tensor.dtype, tensor.shape, tensor.optional_layout)
         self.tensor: TMemoryTensor = tensor
         self.builder: StmtBuilder = builder
-
-    def item_ptr(self) -> Var:
-        return self.builder.tensor_item_ptr(self.tensor, space="generic")
-
-    def item(self) -> Var:
-        return self.builder.tensor_item_value(self.tensor)
-
-    def permute(self, dims: tuple[int, ...]) -> SharedTensor:
-        if set(dims) != set(range(len(self.tensor.shape))):
-            raise TensorMethodError(f"Dims must be a permutation of {range(len(self.tensor.shape))}, got {dims}")
-        return self.builder.permute_shared(self.tensor, dims)
-
-    def transpose(self) -> SharedTensor:
-        return self.builder.permute_shared(self.tensor, dims=[1, 0])
-
