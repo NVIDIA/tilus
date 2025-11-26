@@ -220,7 +220,18 @@ class EpilogueWorker(tilus.Class):
         self.mma_pipe: MmaPipeline = mma_pipe
 
     def async_run(self):
-        pass
+        mma_pipe = self.mma_pipe
+        with self.thread_group(thread_begin=128, num_threads=128):
+            while True:
+                mma_pipe.consumer_acquire()
+                with self.single_thread():
+                    r_acc = self.tcgen05.load(
+                        mma_pipe.t_acc[mma_pipe.consumer_stage], offsets=[0, 0], shape=mma_pipe.t_acc.shape[1:]
+                    )
+                    # Here we can do epilogue operations such as store to global memory, activation, etc.
+                    # For simplicity, we skip these operations in this example.
+                mma_pipe.consumer_advance()
+
 
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
