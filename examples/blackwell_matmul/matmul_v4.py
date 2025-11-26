@@ -121,11 +121,6 @@ class LoadWorker(tilus.Class):
                     )
                 pipe.producer_advance()
 
-            # remaining mma stages to wait for completion
-            for _ in self.range(min(num_stages, cdiv(info.k_size, info.block_k))):
-                pipe.producer_acquire()
-                pipe.producer_advance()
-
 
 class MmaWorker(tilus.Class):
     def __init__(self, pipe: LoadPipeline, info: BlockInfo):
@@ -152,6 +147,12 @@ class MmaWorker(tilus.Class):
                     )
                     self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier())
                 pipe.consumer_advance()
+    
+    def flush(self):
+        # wait all previous mma ops to finish
+        mbarrier = self.mbarrier.alloc(1)
+        self.tcgen05.commit(mbarrier)
+        self.mbarrier.wait(mbarrier, phase=0)
 
     def dealloc(self):
         self.tcgen05.dealloc(self.t_acc)
@@ -206,6 +207,7 @@ class BlackwellMatmulV4(tilus.Script):
 
         # consumer
         mma_worker.async_run()
+        mma_worker.flush()
 
         self.sync()
 

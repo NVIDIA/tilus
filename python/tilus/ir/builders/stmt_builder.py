@@ -1257,7 +1257,7 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     def tcgen05_slice(
-        self, tmem: TMemoryTensor, offsets: Sequence[Expr | int], slice_dims: Sequence[int], slice_shape: Sequence[int]
+        self, tensor: TMemoryTensor, offsets: Sequence[Expr | int], slice_dims: Sequence[int], slice_shape: Sequence[int]
     ) -> TMemoryTensor:
         if any(not isinstance(ofs, int) for ofs in offsets):
             raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
@@ -1266,7 +1266,7 @@ class StmtBuilder(StmtBuilderCore):
         if len(slice_shape) != 2:
             raise InstructionError(f"The length of slice_shape must be 2, but got {len(slice_shape)}")
         inst = Tcgen05SliceInst.create(
-            tmem=tmem, offsets=[as_expr(ofs) for ofs in offsets], slice_dims=slice_dims, slice_shape=slice_shape
+            tmem=tensor, offsets=[as_expr(ofs) for ofs in offsets], slice_dims=slice_dims, slice_shape=slice_shape
         )
         self.append(inst)
         return inst.tmemory_output
