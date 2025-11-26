@@ -1263,12 +1263,14 @@ class StmtBuilder(StmtBuilderCore):
         slice_dims: Sequence[int],
         slice_shape: Sequence[int],
     ) -> TMemoryTensor:
-        if any(not isinstance(ofs, int) for ofs in offsets):
-            raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
-        if len(offsets) != 2:
-            raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
-        if len(slice_shape) != 2:
-            raise InstructionError(f"The length of slice_shape must be 2, but got {len(slice_shape)}")
+        if len(offsets) != len(tensor.shape):
+            raise InstructionError(
+                f"The length of offsets must match the tensor shape, but got {len(offsets)} vs. {len(tensor.shape)}"
+            )
+        if len(slice_shape) != len(slice_dims):
+            raise InstructionError(
+                f"The length of slice_shape must match the length of slice_dims, but got {len(slice_shape)} vs. {len(slice_dims)}"
+            )
         inst = Tcgen05SliceInst.create(
             tmem=tensor, offsets=[as_expr(ofs) for ofs in offsets], slice_dims=slice_dims, slice_shape=slice_shape
         )
