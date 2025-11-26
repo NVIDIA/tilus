@@ -193,6 +193,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
             raise RuntimeError("The script.attrs.blocks is not set.")
         if script.attrs.warps is None:
             raise RuntimeError("The script.attrs.warps is not set.")
+        if not (1 <= script.attrs.warps <= 32):
+            raise RuntimeError("The script.attrs.warps must be in [1, 32], got {}.".format(script.attrs.warps))
         param2divisibility: dict[Var, int] = {}
         for name in name2divisibility:
             param = params[name]

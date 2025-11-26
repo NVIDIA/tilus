@@ -261,7 +261,7 @@ class BlackwellMatmulV4(tilus.Script):
         c_ptr: ~float16,
     ):
         self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
-        self.attrs.warps = 32 * 8
+        self.attrs.warps = 8
 
         params = Params(
             m_size=m_size,
@@ -336,4 +336,3 @@ def main(bench=True):
 
 if __name__ == "__main__":
     main(bench=True)
-    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
