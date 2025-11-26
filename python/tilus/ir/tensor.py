@@ -655,6 +655,7 @@ class TMemoryTensor(Tensor):
     def __getitem__(self, indices: tuple[Expr | int, ...] | Expr | int) -> TMemoryTensor:
         raise RuntimeError("tmemory_tensor[...] could only be used in Tilus Script.")
 
+
 @dataclass(frozen=True, eq=False)
 class GlobalTensor(Tensor):
     """A tensor that resides in the global memory.

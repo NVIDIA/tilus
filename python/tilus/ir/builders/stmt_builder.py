@@ -1257,7 +1257,11 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     def tcgen05_slice(
-        self, tensor: TMemoryTensor, offsets: Sequence[Expr | int], slice_dims: Sequence[int], slice_shape: Sequence[int]
+        self,
+        tensor: TMemoryTensor,
+        offsets: Sequence[Expr | int],
+        slice_dims: Sequence[int],
+        slice_shape: Sequence[int],
     ) -> TMemoryTensor:
         if any(not isinstance(ofs, int) for ofs in offsets):
             raise InstructionError(f"All offsets must be integer constants, but got {offsets}")

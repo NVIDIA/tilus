@@ -5,8 +5,8 @@ import pandas
 import tilus
 import torch
 from hidet.ir.expr import Expr
-from tilus import float16, float32, int32, uint32, boolean, Dim3
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, TMemoryTensor
+from tilus import Dim3, float16, float32, int32
+from tilus.ir.tensor import GlobalTensor, TMemoryTensor
 from tilus.utils import benchmark_func, cdiv
 
 """
@@ -21,41 +21,6 @@ Workers:
 - MmaWorker (warp 2): consumer of LoadPipeline, producer of MmaPipeline, consumer of BlockPipeline
 - EpilogueWorker (warp 4-7): consumer of MmaPipeline, consumer of BlockPipeline
 """
-
-# class Scheduler(tilus.Class):
-#     def __init__(
-#         self,
-#         m_size: int32,
-#         n_size: int,
-#         k_size: int,
-#         block_m: int,
-#         block_n: int,
-#         block_k: int,
-#         initial_block: Dim3
-#     ):
-#         self.m_size: int32 = m_size
-#         self.n_size: int = n_size
-#         self.k_size: int = k_size
-#         self.block_m: int = block_m
-#         self.block_n: int = block_n
-#         self.block_k: int = block_k
-#         self.offset_m: int32 = initial_block.x * self.block_m
-#         self.offset_n: int32 = initial_block.y * self.block_n
-
-#         self.response = self.shared_tensor(dtype=int32, shape=[4])
-#         self.barrier = self.mbarrier.alloc(1)
-#         self.phase: uint32 = 0
-    
-#     def fetch_block(self) -> boolean:
-#         self.clc.try_cancel(response=self.response, mbarrier=self.barrier, multicast=False)
-#         self.mbarrier.wait(barrier=self.barrier, phase=self.phase)
-#         is_valid, blockIdx = self.clc.query_response(response=self.response)
-
-#         if is_valid:
-#             self.offset_m = blockIdx.x * self.block_m
-#             self.offset_n = blockIdx.y * self.block_n
-#             self.phase = self.phase ^ uint32(1)
-#         return is_valid
 
 
 class Params(tilus.Class):
@@ -85,43 +50,52 @@ class Params(tilus.Class):
 class BlockPipeline(tilus.Pipeline):
     def __init__(self):
         super().__init__(
-            num_stages=1, 
-            producer_arrive_count=1, # producer: block_scheduler
-            consumer_arrive_count=32 * 7  # consumer: block_scheduler, load_worker, mma_worker, epilogue_worker
+            num_stages=1,
+            producer_arrive_count=1,  # producer: block_scheduler
+            consumer_arrive_count=32
+            * 7,  # consumer: block_scheduler, load_worker, mma_worker, epilogue_worker
         )
         self.s_blocks = self.shared_tensor(dtype=int32, shape=[1, 4])
 
-    def fetch_next(self) -> tuple[Expr, Dim3]:
-        """ Utility function can be used by consumers. Need to be executed within consumer's thread group. """
+    def consumer_fetch_next(self) -> tuple[Expr, Dim3]:
+        """Utility function can be used by consumers. Need to be executed within consumer's thread group."""
         self.consumer_acquire()
         is_valid, blockIdx = self.clc.query_response(self.s_blocks[self.consumer_stage])
         self.mbarrier.arrive(barrier=self.consumer_release_barrier())
         self.consumer_advance()
         return is_valid, blockIdx
 
+
 class LoadPipeline(tilus.Pipeline):
     def __init__(self, num_stages: int, params: Params):
-        super().__init__(num_stages=num_stages, producer_arrive_count=2, consumer_arrive_count=1)
-        self.s_a = self.shared_tensor(dtype=float16, shape=[num_stages, params.block_m, params.block_k])
-        self.s_b = self.shared_tensor(dtype=float16, shape=[num_stages, params.block_n, params.block_k])
-    
+        super().__init__(
+            num_stages=num_stages, producer_arrive_count=2, consumer_arrive_count=1
+        )
+        self.s_a = self.shared_tensor(
+            dtype=float16, shape=[num_stages, params.block_m, params.block_k]
+        )
+        self.s_b = self.shared_tensor(
+            dtype=float16, shape=[num_stages, params.block_n, params.block_k]
+        )
 
 
 class MmaPipeline(tilus.Pipeline):
     def __init__(self, params: Params):
-        super().__init__(
-            num_stages=2, 
-            producer_arrive_count=1, 
-            consumer_arrive_count=1
+        super().__init__(num_stages=2, producer_arrive_count=1, consumer_arrive_count=1)
+        self.t_acc: TMemoryTensor = self.tcgen05.alloc(
+            float32, shape=[2, params.block_m, params.block_n], init=0.0
         )
-        self.t_acc: TMemoryTensor = self.tcgen05.alloc(float32, shape=[2, params.block_m, params.block_n], init=0.0)
+
+    def finalize(self):
+        self.sync()
+        self.tcgen05.dealloc(self.t_acc)
 
 
 class BlockScheduler(tilus.Class):
     def __init__(self, block_pipe: BlockPipeline):
         super().__init__()
         self.block_pipe: BlockPipeline = block_pipe
-    
+
     def async_run(self):
         with self.thread_group(thread_begin=0, num_threads=32):
             pipe = self.block_pipe
@@ -137,7 +111,7 @@ class BlockScheduler(tilus.Class):
                 self.block_pipe.producer_advance()
 
                 # wait for the response
-                is_valid, blockIdx = self.block_pipe.fetch_next()
+                is_valid, blockIdx = self.block_pipe.consumer_fetch_next()
                 if not is_valid:
                     break
 
@@ -158,7 +132,9 @@ class LoadWorker(tilus.Class):
         offset_n: int32 = self.blockIdx.y * params.block_n
         with self.thread_group(thread_begin=32, num_threads=32):
             while True:
-                for offset_k in self.range(0, params.k_size, params.block_k, unroll=num_stages):
+                for offset_k in self.range(
+                    0, params.k_size, params.block_k, unroll=num_stages
+                ):
                     load_pipe.producer_acquire()
                     with self.single_thread():
                         self.tma.global_to_shared(
@@ -174,8 +150,8 @@ class LoadWorker(tilus.Class):
                             mbarrier=load_pipe.producer_release_barrier(),
                         )
                     load_pipe.producer_advance()
-                
-                is_valid, blockIdx = block_pipe.fetch_next()
+
+                is_valid, blockIdx = block_pipe.consumer_fetch_next()
                 if is_valid:
                     offset_m = blockIdx.x * params.block_m
                     offset_n = blockIdx.y * params.block_n
@@ -184,24 +160,37 @@ class LoadWorker(tilus.Class):
 
 
 class MmaWorker(tilus.Class):
-    def __init__(self, params: Params, load_pipe: LoadPipeline, mma_pipe: MmaPipeline, block_pipe: BlockPipeline):
+    def __init__(
+        self,
+        params: Params,
+        load_pipe: LoadPipeline,
+        mma_pipe: MmaPipeline,
+        block_pipe: BlockPipeline,
+    ):
         self.params: Params = params
         self.load_pipe: LoadPipeline = load_pipe
         self.mma_pipe: MmaPipeline = mma_pipe
         self.block_pipe: BlockPipeline = block_pipe
 
     def async_run(self):
-        params, load_pipe, mma_pipe, block_pipe = self.params, self.load_pipe, self.mma_pipe, self.block_pipe
+        params, load_pipe, mma_pipe, block_pipe = (
+            self.params,
+            self.load_pipe,
+            self.mma_pipe,
+            self.block_pipe,
+        )
         with self.thread_group(thread_begin=32, num_threads=32):
             while True:
                 mma_pipe.producer_acquire()
-                for _ in self.range(0, params.k_size, params.block_k, unroll=load_pipe.num_stages):
+                for _ in self.range(
+                    0, params.k_size, params.block_k, unroll=load_pipe.num_stages
+                ):
                     load_pipe.consumer_acquire()
                     with self.single_thread():
                         self.tcgen05.mma(
                             load_pipe.s_a[load_pipe.consumer_stage],
                             load_pipe.s_b[load_pipe.consumer_stage].transpose(),
-                            mma_pipe.t_acc[mma_pipe.producer_stage]
+                            mma_pipe.t_acc[mma_pipe.producer_stage],
                         )
                         self.tcgen05.commit(mbarrier=load_pipe.consumer_release_barrier())
                     load_pipe.consumer_advance()
@@ -209,28 +198,46 @@ class MmaWorker(tilus.Class):
                 mma_pipe.producer_advance()
 
                 # check if there is a new block to process
-                is_valid, blockIdx = block_pipe.fetch_next()
+                is_valid, blockIdx = block_pipe.consumer_fetch_next()
                 if not is_valid:
                     break
 
 
 class EpilogueWorker(tilus.Class):
-    def __init__(self, mma_pipe: MmaPipeline):
+    def __init__(self, params: Params, mma_pipe: MmaPipeline, block_pipe: BlockPipeline):
         super().__init__()
+        self.params: Params = params
         self.mma_pipe: MmaPipeline = mma_pipe
+        self.block_pipe: BlockPipeline = block_pipe
 
     def async_run(self):
-        mma_pipe = self.mma_pipe
+        params, mma_pipe, block_pipe = self.params, self.mma_pipe, self.block_pipe
+        s_acc = self.shared_tensor(dtype=float16, shape=[params.block_m, params.block_n])
         with self.thread_group(thread_begin=128, num_threads=128):
+            offset_m: int32 = self.blockIdx.x * params.block_m
+            offset_n: int32 = self.blockIdx.y * params.block_n
             while True:
                 mma_pipe.consumer_acquire()
-                with self.single_thread():
-                    r_acc = self.tcgen05.load(
-                        mma_pipe.t_acc[mma_pipe.consumer_stage], offsets=[0, 0], shape=mma_pipe.t_acc.shape[1:]
-                    )
-                    # Here we can do epilogue operations such as store to global memory, activation, etc.
-                    # For simplicity, we skip these operations in this example.
+                r_acc = self.tcgen05.load(mma_pipe.t_acc[mma_pipe.consumer_stage]).to(
+                    float16
+                )
+                self.tcgen05.wait_load()
+                self.store_shared(s_acc, r_acc)
+                self.tma.shared_to_global(
+                    src=s_acc,
+                    dst=params.g_c,
+                    offsets=[offset_m, offset_n],
+                )
+                self.tma.commit_group()
+                self.tma.wait_group(n=0)
                 mma_pipe.consumer_advance()
+
+                is_valid, blockIdx = block_pipe.consumer_fetch_next()
+                if is_valid:
+                    offset_m = blockIdx.x * params.block_m
+                    offset_n = blockIdx.y * params.block_n
+                else:
+                    break
 
 
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
@@ -254,47 +261,36 @@ class BlackwellMatmulV4(tilus.Script):
         c_ptr: ~float16,
     ):
         self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
-        self.attrs.warps = 4
+        self.attrs.warps = 32 * 8
 
-        offset_m: int32 = self.block_m * self.blockIdx.x
-        offset_n: int32 = self.block_n * self.blockIdx.y
-
-        g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
-        g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
-
-        scheduler = Scheduler(
+        params = Params(
             m_size=m_size,
             n_size=n_size,
             k_size=k_size,
             block_m=self.block_m,
             block_n=self.block_n,
             block_k=self.block_k,
-            initial_block=self.blockIdx
+            g_a=self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size]),
+            g_b=self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size]),
+            g_c=self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size]),
         )
-        load_pipe = LoadPipeline(scheduler, num_stages=self.stages)
-        mma_pipe = MmaPipeline(scheduler, num_stages=2)
-        load_worker = LoadWorker(scheduler, load_pipe, g_a, g_b)
-        mma_worker = MmaWorker(scheduler, load_pipe, mma_pipe)
 
-        # producer
+        block_pipe = BlockPipeline()
+        load_pipe = LoadPipeline(self.stages, params)
+        mma_pipe = MmaPipeline(params)
+
+        block_scheduler = BlockScheduler(block_pipe=block_pipe)
+        load_worker = LoadWorker(params, load_pipe=load_pipe, block_pipe=block_pipe)
+        mma_worker = MmaWorker(params, load_pipe, mma_pipe, block_pipe)
+        epilogue_worker = EpilogueWorker(params, mma_pipe, block_pipe)
+
+        block_scheduler.async_run()
         load_worker.async_run()
-
-        # consumer
         mma_worker.async_run()
+        epilogue_worker.async_run()
 
         self.sync()
-
-        # load the result from tensor memory to register
-        r_acc = self.tcgen05.load(
-            mma_worker.t_acc, offsets=[0, 0], shape=[self.block_m, self.block_n]
-        )
-
-        g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
-        self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
-
-        # all allocated tensor memory must be deallocated
-        self.sync()
-        mma_worker.dealloc()
+        mma_pipe.finalize()
 
 
 def main(bench=True):
