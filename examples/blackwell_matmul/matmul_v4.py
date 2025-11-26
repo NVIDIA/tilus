@@ -147,7 +147,7 @@ class MmaWorker(tilus.Class):
                     )
                     self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier())
                 pipe.consumer_advance()
-    
+
     def flush(self):
         # wait all previous mma ops to finish
         mbarrier = self.mbarrier.alloc(1)

@@ -12,11 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import Var
 
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.tensor import TMemoryTensor
-from tilus.lang.methods.exception import TensorMethodError
 
 
 class TMemoryTensorWithMethods(TMemoryTensor):

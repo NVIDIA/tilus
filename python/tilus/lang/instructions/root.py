@@ -17,21 +17,20 @@ from typing import Callable, Iterable, Literal, Optional, Sequence, Union
 
 from hidet.ir.dtypes import boolean
 from hidet.ir.expr import Constant, Expr, Var, as_expr
+from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
 from hidet.ir.tools import infer_type
 from hidet.ir.type import DataType
-from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
 
 from tilus.ir.inst import InstructionError
-from tilus.lang.constructs.structs import Dim3
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.constructs.contexts import ThreadGroupContext
+from tilus.lang.constructs.structs import Dim3
 
 from .base import InstructionGroup
 
 
 class RootInstructionGroup(InstructionGroup):
-
     @property
     def blockIdx(self) -> Dim3:
         """Get the block index of the current thread block."""

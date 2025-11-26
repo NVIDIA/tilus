@@ -34,7 +34,7 @@ from tilus.extensions.hidet.ir.tools.type_infer import infer_type
 from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import InstructionError
 from tilus.ir.stmt import DeclareStmt, SeqStmt, Stmt
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, TMemoryTensor, Tensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, TMemoryTensor
 from tilus.ir.utils import frozendict
 from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
 from tilus.lang.constructs.contexts import TilusContext
@@ -45,8 +45,8 @@ from tilus.lang.methods import (
     GlobalTensorWithMethods,
     RegisterTensorWithMethods,
     SharedTensorWithMethods,
-    TMemoryTensorWithMethods,
     TensorMethodError,
+    TMemoryTensorWithMethods,
 )
 from tilus.lang.script import Attributes, Script
 
@@ -592,7 +592,12 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
             elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor, TMemoryTensor)):
                 # case 2
                 method_name = method.__name__
-                tensor_with_methods: RegisterTensorWithMethods | SharedTensorWithMethods | GlobalTensorWithMethods | TMemoryTensorWithMethods
+                tensor_with_methods: (
+                    RegisterTensorWithMethods
+                    | SharedTensorWithMethods
+                    | GlobalTensorWithMethods
+                    | TMemoryTensorWithMethods
+                )
                 if isinstance(f_self, RegisterTensor):
                     tensor_with_methods = RegisterTensorWithMethods(f_self, self)
                 elif isinstance(f_self, SharedTensor):
