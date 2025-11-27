@@ -503,6 +503,10 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
 
         if isinstance(lhs_base, Attributes):
             setattr(lhs_base, lhs.attr, rhs)
+            if lhs.attr == "warps":  # setting the number of warps
+                num_warps = int(rhs)
+                print("Setting the number of warps to {}.".format(num_warps))
+                self.tg_stack.push(0, num_warps * 32)
         elif isinstance(lhs_base, Class):
             # Class.xxx = ...
             if hasattr(lhs_base, lhs.attr):
@@ -1264,35 +1268,32 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                 "The context manager in Tilus Script must be a tilus.lang.constructs.contexts.TilusContext object.",
             )
 
-        with_context: TilusContext = with_item_visited
+        context: TilusContext = with_item_visited
 
         with self.block(), self.scope():
             # bind the value to the context variable
-            if with_item.optional_vars is not None:
-                if not isinstance(with_item.optional_vars, ast.Name):
-                    raise TilusProgramError(
-                        self, with_item.optional_vars, "Tilus only support binding to a single name."
-                    )
-                bind_value = with_context.bind_value()
-                if bind_value is None:
-                    raise TilusProgramError(self, with_item.optional_vars, "The context does not have a bind value.")
-                bind_name = with_item.optional_vars.id
+            with context as bind_value:
+                if with_item.optional_vars is not None:
+                    if not isinstance(with_item.optional_vars, ast.Name):
+                        raise TilusProgramError(
+                            self, with_item.optional_vars, "Tilus only support binding to a single name."
+                        )
+                    if bind_value is None:
+                        raise TilusProgramError(
+                            self, with_item.optional_vars, "The context does not have a bind value."
+                        )
+                    bind_name = with_item.optional_vars.id
 
-                if isinstance(bind_value, hidet_ir.Expr):
-                    from hidet.ir.tools import infer_type
+                    if isinstance(bind_value, hidet_ir.Expr):
+                        from hidet.ir.tools import infer_type
 
-                    bind_var = self.declare(type=infer_type(bind_value), init=bind_value, hint=bind_name)
-                    self.bind(bind_name, var_or_value=bind_var)
-                else:
-                    self.bind(with_item.optional_vars.id, bind_value)
+                        bind_var = self.declare(type=infer_type(bind_value), init=bind_value, hint=bind_name)
+                        self.bind(bind_name, var_or_value=bind_var)
+                    else:
+                        self.bind(with_item.optional_vars.id, bind_value)
 
-            for body_stmt in stmt.body:
-                self.visit(body_stmt)
-
-        with_body = self.pop_innermost_last()
-        processed_body = with_context.post_process(with_body)
-        assert isinstance(processed_body, Stmt)
-        self.append(processed_body)
+                for body_stmt in stmt.body:
+                    self.visit(body_stmt)
 
     def process_generator(self, elt: ast.expr, generators: list[ast.comprehension]) -> list:
         if len(generators) == 0:

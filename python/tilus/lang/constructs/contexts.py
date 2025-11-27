@@ -15,38 +15,26 @@
 from typing import Any, Optional
 
 from tilus.ir.builders import StmtBuilder
-from tilus.ir.stmt import Stmt
 
 
 class TilusContext:
-    def __enter__(self) -> Any:
-        raise RuntimeError(
-            "This function should never be called since the context enter/exit is handled by TilusTranspiler."
-        )
+    def __enter__(self) -> Optional[Any]:
+        pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        raise RuntimeError(
-            "This function should never be called since the context enter/exit is handled by TilusTranspiler."
-        )
-
-    def bind_value(self) -> Optional[Any]:
-        raise NotImplementedError()
-
-    def post_process(self, body: Stmt) -> Stmt:
-        raise NotImplementedError()
+        pass
 
 
 class ThreadGroupContext(TilusContext):
-    def __init__(self, thread_begin: int, num_threads: int):
+    def __init__(self, builder: StmtBuilder, thread_begin: int, num_threads: int):
+        self.builder: StmtBuilder = builder
         self.thread_begin: int = thread_begin
         self.num_threads: int = num_threads
 
-    def bind_value(self) -> None:
-        return None
+        self.ctx = self.builder.thread_group(thread_begin=thread_begin, num_threads=num_threads)
 
-    def post_process(self, body: Stmt) -> Stmt:
-        sb = StmtBuilder()
+    def __enter__(self) -> None:
+        return self.ctx.__enter__()
 
-        with sb.thread_group(thread_begin=self.thread_begin, num_threads=self.num_threads):
-            sb.append(body)
-        return sb.flush_stmts()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.ctx.__exit__(exc_type, exc_val, exc_tb)

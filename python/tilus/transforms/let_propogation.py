@@ -72,7 +72,10 @@ class LetPropogationRewriter(IRRewriter):
         if same_list(bind_vars, stmt.bind_vars) and same_list(bind_values, stmt.bind_values) and body is stmt.body:
             return stmt
         else:
-            return LetStmt(tuple(bind_vars), tuple(bind_values), body)
+            if len(bind_vars) == len(bind_values) == 0:
+                return body
+            else:
+                return LetStmt(tuple(bind_vars), tuple(bind_values), body)
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> Stmt:
         if stmt.var in self.params:

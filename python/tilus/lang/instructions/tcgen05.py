@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import contextlib
 from typing import Optional, Sequence
 
 from hidet.ir.expr import Expr
@@ -44,11 +45,37 @@ class Tcgen05InstructionGroup(InstructionGroup):
             )
         ret = self._builder.tcgen05_alloc(dtype, shape, cta_group)
         if init is not None:
-            self._builder.tcgen05_store(
-                ret,
-                src=self._builder.allocate_register(dtype=dtype, shape=shape, f_init=lambda _: dtype(init)),
-            )
-            self._builder.tcgen05_wait_store()
+            # check the thread group is valid to perform initialization
+            tg_stack = self._builder.tg_stack
+            thread_begin, thread_end = tg_stack.thread_begin[-1], tg_stack.thread_end[-1]
+            if thread_begin % 128 != 0 or (thread_end - thread_begin) < 128:
+                raise InstructionError(
+                    "The thread group used to allocate with initialization must start at a multiple of 128 "
+                    "and have at least 128 threads."
+                )
+            if thread_end - thread_begin == 128:
+                ctx = contextlib.nullcontext()
+            else:
+                ctx = self._builder.thread_group(thread_begin=0, num_threads=128)
+            with ctx:
+                if len(shape) == 2:
+                    self._builder.tcgen05_store(
+                        ret,
+                        src=self._builder.allocate_register(dtype=dtype, shape=shape, f_init=lambda _: dtype(init)),
+                    )
+                else:
+                    with self._builder.for_grid(extents=shape[:-2]) as indices:
+                        sub_shape = shape[-2:]
+                        self._builder.tcgen05_store(
+                            tmem=self._builder.tcgen05_slice(
+                                ret, offsets=indices + [0, 0], slice_dims=[-2, -1], slice_shape=sub_shape
+                            ),
+                            src=self._builder.allocate_register(
+                                dtype=dtype, shape=sub_shape, f_init=lambda _: dtype(init)
+                            ),
+                        )
+                self._builder.tcgen05_wait_store()
+            self._builder.syncthreads()
         return ret
 
     def dealloc(self, tensor: TMemoryTensor) -> None:

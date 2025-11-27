@@ -130,6 +130,7 @@ from tilus.ir.stmt import (
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor, TMemoryTensor
+from tilus.ir.utils.thread_group_stack import ThreadGroupStack
 
 
 class StmtContext:
@@ -277,9 +278,11 @@ class ThreadGroupContext(StmtContext):
         self.num_threads: int = num_threads
 
     def __enter__(self) -> None:
+        self.vb.tg_stack.push(self.thread_begin, self.num_threads)
         self.enter()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.vb.tg_stack.pop()
         self.append(ThreadGroupStmt(thread_begin=self.thread_begin, num_threads=self.num_threads, body=self.pop()))
 
 
@@ -298,6 +301,7 @@ class StmtBuilderCore:
     def __init__(self) -> None:
         # context stack
         self._stack: List[List[Stmt]] = [[]]
+        self.tg_stack: ThreadGroupStack = ThreadGroupStack()
 
     def is_empty(self):
         return len(self._stack) == 1 and len(self._stack[0]) == 0
@@ -1271,6 +1275,7 @@ class StmtBuilder(StmtBuilderCore):
             raise InstructionError(
                 f"The length of slice_shape must match the length of slice_dims, but got {len(slice_shape)} vs. {len(slice_dims)}"
             )
+        slice_dims = [dim + len(tensor.shape) if dim < 0 else dim for dim in slice_dims]
         inst = Tcgen05SliceInst.create(
             tmem=tensor, offsets=[as_expr(ofs) for ofs in offsets], slice_dims=slice_dims, slice_shape=slice_shape
         )
