@@ -238,7 +238,7 @@ class OtherwiseContext(StmtContext):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         else_body = self.pop()
-        if_stmt = self.innermost_stack[-1]
+        if_stmt = self.innermost_stack.pop()
         assert isinstance(if_stmt, IfStmt), "with vb.otherwise() must be used after with vb.if_then() or vb.else_if()"
         if_chain: List[IfStmt] = [if_stmt]
         while if_chain[-1].else_body is not None:
