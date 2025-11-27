@@ -243,7 +243,14 @@ class EpilogueWorker(tilus.Class):
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
-class BlackwellMatmulV4(tilus.Script):
+class BlackwellMatmulV5(tilus.Script):
+    debug_schedule = dict(
+        block_m=128,
+        block_n=128,
+        block_k=32,
+        stages=3,
+    )
+
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -294,7 +301,7 @@ class BlackwellMatmulV4(tilus.Script):
 
 
 def main(bench=True):
-    matmul = BlackwellMatmulV4()
+    matmul = BlackwellMatmulV5()
 
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     rows: list = []

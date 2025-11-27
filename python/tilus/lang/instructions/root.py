@@ -186,7 +186,7 @@ class RootInstructionGroup(InstructionGroup):
         ret: ThreadGroupContext
             The thread group context created.
         """
-        return ThreadGroupContext(thread_begin=thread_begin, num_threads=num_threads)
+        return ThreadGroupContext(self._builder, thread_begin=thread_begin, num_threads=num_threads)
 
     def single_thread(self) -> ThreadGroupContext:
         """Create a thread group context with only one thread.
