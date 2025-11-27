@@ -26,7 +26,7 @@ class SyncContext(BaseEmitContext):
         # used for synchronization among a subset of threads in the thread block
         self.thread_group_barrier: dict[tuple[int, int], Expr] = {}
 
-    def sync(self):
+    def sync(self) -> Expr:
         thread_begin = self.codegen.thread_group_stack.thread_begin[-1]
         thread_end = self.codegen.thread_group_stack.thread_end[-1]
         key = (thread_begin, thread_end)
@@ -36,4 +36,4 @@ class SyncContext(BaseEmitContext):
                 counts=[thread_end - thread_begin]
             )[0]
         barrier_addr = self.thread_group_barrier[key]
-        self.kernel_append(mbarrier_sync_shared(barrier_addr))
+        return mbarrier_sync_shared(barrier_addr)

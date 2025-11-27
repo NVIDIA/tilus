@@ -41,6 +41,27 @@ class RootInstructionGroup(InstructionGroup):
         """Get the grid dimension of the kernel."""
         return Dim3(gridDim.x, gridDim.y, gridDim.z)
 
+    @property
+    def current_thread_begin(self) -> int:
+        """Get the beginning thread index of the current thread group."""
+        if len(self._builder.tg_stack.thread_begin) == 0:
+            raise RuntimeError("No thread group context found.")
+        return self._builder.tg_stack.thread_begin[-1]
+
+    @property
+    def current_thread_end(self) -> int:
+        """Get the ending thread index of the current thread group."""
+        if len(self._builder.tg_stack.thread_end) == 0:
+            raise RuntimeError("No thread group context found.")
+        return self._builder.tg_stack.thread_end[-1]
+
+    @property
+    def current_num_threads(self) -> int:
+        """Get the number of threads in the current thread group."""
+        if len(self._builder.tg_stack.thread_begin) == 0 or len(self._builder.tg_stack.thread_end) == 0:
+            raise RuntimeError("No thread group context found.")
+        return self._builder.tg_stack.thread_end[-1] - self._builder.tg_stack.thread_begin[-1]
+
     def assume(self, cond: Expr | bool) -> None:
         """Compiler hint to assume a condition is true.
 

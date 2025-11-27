@@ -47,7 +47,7 @@ class BaseInstEmitter(StmtBuilder):
         if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
             self.append(syncthreads())
         else:
-            self.contexts.sync_ctx.sync()
+            self.append(self.contexts.sync_ctx.sync())
 
     def sync_reduce(self, value: Expr, op: str) -> Expr:
         if get_current_target().is_nvgpu():
