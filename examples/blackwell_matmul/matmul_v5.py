@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import pandas
 import tilus
 import torch
@@ -22,6 +23,8 @@ Workers:
 - EpilogueWorker (warp 4-7): consumer of MmaPipeline, consumer of BlockPipeline
 """
 
+tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
+tilus.option.debug.dump_ir()
 
 class Params(tilus.Class):
     def __init__(
