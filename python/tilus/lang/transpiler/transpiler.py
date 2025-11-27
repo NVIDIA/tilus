@@ -505,7 +505,6 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
             setattr(lhs_base, lhs.attr, rhs)
             if lhs.attr == "warps":  # setting the number of warps
                 num_warps = int(rhs)
-                print("Setting the number of warps to {}.".format(num_warps))
                 self.tg_stack.push(0, num_warps * 32)
         elif isinstance(lhs_base, Class):
             # Class.xxx = ...
