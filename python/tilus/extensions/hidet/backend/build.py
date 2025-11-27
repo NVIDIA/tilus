@@ -43,6 +43,13 @@ from tilus.extensions.hidet import libinfo
 from tilus.target import Target
 
 
+def get_hidet_runtime_dir() -> str:
+    path = library_paths["hidet_runtime"]
+    if path is None:
+        raise RuntimeError("Can not find hidet runtime library.")
+    return os.path.dirname(path)
+
+
 class CompilationFailed(Exception):
     def __init__(self, source_path: str, msg: str):
         super().__init__(source_path, msg)
@@ -125,7 +132,7 @@ class NVCC(SourceCompiler):
         super().__init__()
         self.nvcc_path: str = self._resolve_nvcc_path()  # e.g., /usr/local/cuda/bin/nvcc
         self.include_dirs: List[str] = get_include_dirs()
-        self.library_dirs: List[str] = [os.path.dirname(library_paths["hidet_runtime"])]
+        self.library_dirs: List[str] = [get_hidet_runtime_dir()]
 
     @staticmethod
     @functools.lru_cache(maxsize=None)
@@ -208,6 +215,8 @@ class NVCC(SourceCompiler):
             "--diag-suppress 179",
             # supress warning no 39 like: "warning #39-D: division by zero"
             "--diag-suppress 39",
+            # supress warning no 550 like: "warning #550-D: variable "xxx" was set but never used"
+            "--diag-suppress 550",
             # generate shared library (lib.so).
             "--shared" if out_lib_path.endswith(".so") else "--compile",
             # the linking objects.

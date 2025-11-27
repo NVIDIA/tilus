@@ -230,6 +230,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
     def transpile_call(self, method, args, kwargs):
         sig: inspect.Signature = inspect.signature(method)
         bound_args: inspect.BoundArguments = sig.bind(*args, **kwargs)
+        bound_args.apply_defaults()
 
         ret = None
 
@@ -424,7 +425,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                     raise TilusProgramError(self, None, "Cannot bind or assign None value.")
                 if type_annotation is not None:
                     resolved_annotation = self.visit(type_annotation)
-                    if resolved_annotation in (int, str, float):
+                    if resolved_annotation in (int, str, float, bool):
                         value = resolved_annotation(value)  # type: ignore
                         self.bind(name, value)
                     else:
@@ -516,7 +517,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                 self.process_name_assign(name=name, rhs=rhs, type_annotation=type_annotation)
                 setattr(lhs_base, lhs.attr, self.lookup(name))
         else:
-            raise TilusProgramError(self, lhs, "Invalid assignment: {}".format(type(lhs_base)))
+            setattr(lhs_base, lhs.attr, rhs)
+            # raise TilusProgramError(self, lhs, "Invalid assignment: {}".format(type(lhs_base)))
 
     def process_assign(
         self, lhs: Union[ast.Attribute, ast.Subscript, ast.Name], rhs: Any, type_annotation: Optional[ast.expr] = None

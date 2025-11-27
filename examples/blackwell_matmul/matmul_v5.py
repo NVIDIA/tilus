@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
 import pandas
 import tilus
 import torch
@@ -25,6 +26,7 @@ Workers:
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 tilus.option.debug.dump_ir()
+
 
 class Params(tilus.Class):
     def __init__(
@@ -55,8 +57,7 @@ class BlockPipeline(tilus.Pipeline):
         super().__init__(
             num_stages=1,
             producer_arrive_count=1,  # producer: block_scheduler
-            consumer_arrive_count=32
-            * 7,  # consumer: block_scheduler, load_worker, mma_worker, epilogue_worker
+            consumer_arrive_count=32 * 7,  # all threads in all workers
         )
         self.s_blocks = self.shared_tensor(dtype=int32, shape=[1, 4])
 
@@ -72,7 +73,9 @@ class BlockPipeline(tilus.Pipeline):
 class LoadPipeline(tilus.Pipeline):
     def __init__(self, num_stages: int, params: Params):
         super().__init__(
-            num_stages=num_stages, producer_arrive_count=2, consumer_arrive_count=1
+            num_stages=num_stages,
+            producer_arrive_count=2,  # two tma loads
+            consumer_arrive_count=1,  # one commit in MmaWorker
         )
         self.s_a = self.shared_tensor(
             dtype=float16, shape=[num_stages, params.block_m, params.block_k]
@@ -84,7 +87,11 @@ class LoadPipeline(tilus.Pipeline):
 
 class MmaPipeline(tilus.Pipeline):
     def __init__(self, params: Params):
-        super().__init__(num_stages=2, producer_arrive_count=1, consumer_arrive_count=1)
+        super().__init__(
+            num_stages=2,
+            producer_arrive_count=1,  # one commit in MmaWorker
+            consumer_arrive_count=128,  # epilogue has 128 threads
+        )
         self.t_acc: TMemoryTensor = self.tcgen05.alloc(
             float32, shape=[2, params.block_m, params.block_n], init=0.0
         )
@@ -182,7 +189,7 @@ class MmaWorker(tilus.Class):
             self.mma_pipe,
             self.block_pipe,
         )
-        with self.thread_group(thread_begin=32, num_threads=32):
+        with self.thread_group(thread_begin=64, num_threads=32):
             while True:
                 mma_pipe.producer_acquire()
                 for _ in self.range(
@@ -221,11 +228,16 @@ class EpilogueWorker(tilus.Class):
             offset_n: int32 = self.blockIdx.y * params.block_n
             while True:
                 mma_pipe.consumer_acquire()
-                r_acc = self.tcgen05.load(mma_pipe.t_acc[mma_pipe.consumer_stage]).to(
-                    float16
-                )
+                t_acc = mma_pipe.t_acc[mma_pipe.consumer_stage]
+
+                # tmem to smem
+                r_acc = self.tcgen05.load(t_acc).to(float16)
                 self.tcgen05.wait_load()
+                self.sync()
                 self.store_shared(s_acc, r_acc)
+                self.sync()
+
+                # smem to gmem
                 self.tma.shared_to_global(
                     src=s_acc,
                     dst=params.g_c,
@@ -233,6 +245,19 @@ class EpilogueWorker(tilus.Class):
                 )
                 self.tma.commit_group()
                 self.tma.wait_group(n=0)
+                self.sync()
+
+                # reset tmem to 0.0 for next accumulation
+                self.tcgen05.store(
+                    t_acc,
+                    src=self.register_tensor(
+                        dtype=float32, shape=[params.block_m, params.block_n], init=0.0
+                    ),
+                )
+                self.tcgen05.wait_store()
+                self.sync()
+
+                self.mbarrier.arrive(mma_pipe.consumer_release_barrier())
                 mma_pipe.consumer_advance()
 
                 is_valid, blockIdx = block_pipe.consumer_fetch_next()
@@ -311,27 +336,51 @@ def main(bench=True):
 
     for m_size, n_size, k_size in [
         [128, 128, 32],
-        # [4096, 4096, 4096],
+        [128, 128, 32 * 100],
+        [256, 256, 256],
+        [4096, 4096, 4096],
         # [4096, 4096, 14336],
         # [8192, 8192, 8192],
         # [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
-        a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
-        b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-        c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+        # a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
+        # b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
+        # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
+        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
+        a = torch.randint(0, 2, (m_size, k_size), dtype=torch.float16, device="cuda")
+        b = torch.randint(0, 2, (n_size, k_size), dtype=torch.float16, device="cuda")
 
-        matmul(m_size, n_size, k_size, a, b, c)
-        torch.cuda.synchronize()
+        for i in range(1):
+            c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+            matmul(m_size, n_size, k_size, a, b, c)
+            torch.cuda.synchronize()
 
-        c_ref = a @ b.T
+            c_ref = a @ b.T
 
-        torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
+            # set torch print options
+            if not torch.isclose(c, c_ref, rtol=1e-2, atol=1e-2).all():
+                print("Mismatch found on iteration {}".format(i))
+                torch.set_printoptions(
+                    profile="default", precision=2, linewidth=256, sci_mode=False
+                )
+                print("a")
+                print(a)
+                print("b")
+                print(b)
+                print("expected")
+                print(c_ref)
+                print("actual")
+                print(c)
+
+            torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
 
         # benchmark
         if bench:
+            c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+            c_ref = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
             for name, func in [
-                ("torch", lambda: a @ b.T),
+                ("torch", lambda: torch.matmul(a, b.T, out=c_ref)),
                 ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c)),
             ]:
                 latency = benchmark_func(func, warmup=5, repeat=20)
@@ -344,4 +393,5 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    main(bench=True)
+    tilus.utils.clear_cache()
+    main(bench=False)
