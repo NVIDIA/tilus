@@ -237,20 +237,18 @@ def main(bench=True):
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
         b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-        c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+        c_actual = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+        c_expected = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
-        matmul(m_size, n_size, k_size, a, b, c)
-        torch.cuda.synchronize()
-
-        c_ref = a @ b.T
-
-        torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
+        matmul(m_size, n_size, k_size, a, b, c_actual)
+        torch.matmul(a, b.T, out=c_expected)
+        torch.testing.assert_close(c_actual, c_expected, atol=1e-2, rtol=1e-2)
 
         # benchmark
         if bench:
             for name, func in [
-                ("torch", lambda: a @ b.T),
-                ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c)),
+                ("torch", lambda: torch.matmul(a, b.T, out=c_expected)),
+                ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c_actual)),
             ]:
                 latency = benchmark_func(func, warmup=5, repeat=20)
                 tflops = 2 * m_size * n_size * k_size / latency * 1e-9
