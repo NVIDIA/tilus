@@ -149,7 +149,8 @@ class MmaWorker(tilus.Class):
                     self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier())
                 pipe.consumer_advance()
 
-            self.tcgen05.commit(mbarrier=self.flush_barrier)
+            with self.single_thread():
+                self.tcgen05.commit(mbarrier=self.flush_barrier)
             self.mbarrier.wait(self.flush_barrier, phase=0)
 
     def dealloc(self):

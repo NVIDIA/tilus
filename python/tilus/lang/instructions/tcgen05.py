@@ -118,9 +118,13 @@ class Tcgen05InstructionGroup(InstructionGroup):
         self._builder.tcgen05_copy(src, dst)
 
     def commit(self, mbarrier: Expr | RegisterTensor, cta_mask: Optional[int] = None) -> None:
+        if self._builder.tg_stack.current_num_threads != 1:
+            raise InstructionError("tcgen05.commit must be called by a single thread")
         self._builder.tcgen05_commit(mbarrier, cta_mask)
 
     def mma(self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor) -> None:
+        if self._builder.tg_stack.current_num_threads != 1:
+            raise InstructionError("tcgen05.mma must be called by a single thread")
         if isinstance(a, SharedTensor):
             if len(a.shape) != 2:
                 raise InstructionError("mma requires 2D shared tensors, got shape {}".format(a.shape))
