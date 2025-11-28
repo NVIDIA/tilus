@@ -20,81 +20,81 @@ from tilus.ir.tensor import RegisterTensor
 class Pipeline(tilus.Class):
     def __init__(self, num_stages: int, producer_arrive_count: int, consumer_arrive_count: int, debug: bool = False):
         self.num_stages: int = num_stages
-        self.full_barriers = self.mbarrier.alloc([consumer_arrive_count for _ in range(num_stages)])
-        self.empty_barriers = self.mbarrier.alloc([producer_arrive_count for _ in range(num_stages)])
+        self._full_barriers = self.mbarrier.alloc([consumer_arrive_count for _ in range(num_stages)])
+        self._empty_barriers = self.mbarrier.alloc([producer_arrive_count for _ in range(num_stages)])
         self.producer_stage: int32 = 0
         self.consumer_stage: int32 = 0
-        self.producer_phase: uint32 = self.mbarrier.producer_initial_phase
-        self.consumer_phase: uint32 = self.mbarrier.consumer_initial_phase
+        self._producer_phase: uint32 = self.mbarrier.producer_initial_phase
+        self._consumer_phase: uint32 = self.mbarrier.consumer_initial_phase
 
         # used for debugging
-        self.name: str = self.__class__.__name__
-        self.debug: bool = debug
+        self._name: str = self.__class__.__name__
+        self._debug: bool = debug
 
     def producer_acquire(self):
-        if self.debug:
+        if self._debug:
             self.printf(
                 "%20s: Producer[%3d, %3d) acquiring stage %d\n",
-                self.name,
+                self._name,
                 self.current_thread_begin,
                 self.current_thread_end,
                 self.producer_stage,
             )
-        self.mbarrier.wait(barrier=self.full_barriers[self.producer_stage], phase=self.producer_phase)
-        if self.debug:
+        self.mbarrier.wait(barrier=self._full_barriers[self.producer_stage], phase=self._producer_phase)
+        if self._debug:
             self.printf(
                 "%20s: Producer[%3d, %3d) acquired stage %d\n",
-                self.name,
+                self._name,
                 self.current_thread_begin,
                 self.current_thread_end,
                 self.producer_stage,
             )
 
     def producer_advance(self):
-        if self.debug:
+        if self._debug:
             self.printf(
                 "%20s: Producer[%3d, %3d) advancing stage %d\n",
-                self.name,
+                self._name,
                 self.current_thread_begin,
                 self.current_thread_end,
                 self.producer_stage,
             )
         self.producer_stage = (self.producer_stage + 1) % self.num_stages
-        self.producer_phase = self.producer_phase ^ (self.producer_stage == 0)
+        self._producer_phase = self._producer_phase ^ (self.producer_stage == 0)
 
     def producer_release_barrier(self) -> RegisterTensor:
-        return self.empty_barriers[self.producer_stage]
+        return self._empty_barriers[self.producer_stage]
 
     def consumer_acquire(self):
-        if self.debug:
+        if self._debug:
             self.printf(
                 "%20s: Consumer[%3d, %3d) acquiring stage %d\n",
-                self.name,
+                self._name,
                 self.current_thread_begin,
                 self.current_thread_end,
                 self.consumer_stage,
             )
-        self.mbarrier.wait(barrier=self.empty_barriers[self.consumer_stage], phase=self.consumer_phase)
-        if self.debug:
+        self.mbarrier.wait(barrier=self._empty_barriers[self.consumer_stage], phase=self._consumer_phase)
+        if self._debug:
             self.printf(
                 "%20s: Consumer[%3d, %3d) acquired stage %d\n",
-                self.name,
+                self._name,
                 self.current_thread_begin,
                 self.current_thread_end,
                 self.consumer_stage,
             )
 
     def consumer_advance(self):
-        if self.debug:
+        if self._debug:
             self.printf(
                 "%20s: Consumer[%3d, %3d) advancing stage %d\n",
-                self.name,
+                self._name,
                 self.current_thread_begin,
                 self.current_thread_end,
                 self.consumer_stage,
             )
         self.consumer_stage = (self.consumer_stage + 1) % self.num_stages
-        self.consumer_phase = self.consumer_phase ^ (self.consumer_stage == 0)
+        self._consumer_phase = self._consumer_phase ^ (self.consumer_stage == 0)
 
     def consumer_release_barrier(self) -> RegisterTensor:
-        return self.full_barriers[self.consumer_stage]
+        return self._full_barriers[self.consumer_stage]

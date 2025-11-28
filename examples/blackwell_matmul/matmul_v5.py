@@ -7,7 +7,7 @@ import pandas
 import tilus
 import torch
 from hidet.ir.expr import Expr
-from tilus import Dim3, float16, float32, int32
+from tilus import Dim3, float16, float32, int32, uint32
 from tilus.ir.tensor import GlobalTensor, TMemoryTensor
 from tilus.utils import benchmark_func, cdiv
 
@@ -114,7 +114,7 @@ class BlockScheduler(tilus.Class):
                 # try to cancel a pending thread block in hardware block scheduler
                 self.block_pipe.producer_acquire()
                 self.clc.try_cancel(
-                    response=pipe.s_blocks[pipe.producer_phase],
+                    response=pipe.s_blocks[pipe.producer_stage],
                     mbarrier=pipe.producer_release_barrier(),
                     multicast=False,
                 )
@@ -204,7 +204,10 @@ class MmaWorker(tilus.Class):
                         )
                         self.tcgen05.commit(mbarrier=load_pipe.consumer_release_barrier())
                     load_pipe.consumer_advance()
-                self.tcgen05.commit(mbarrier=mma_pipe.producer_release_barrier())
+                self.sync()
+                with self.single_thread():
+                    self.tcgen05.commit(mbarrier=mma_pipe.producer_release_barrier())
+                self.sync()
                 mma_pipe.producer_advance()
 
                 # check if there is a new block to process
@@ -231,19 +234,23 @@ class EpilogueWorker(tilus.Class):
                 t_acc = mma_pipe.t_acc[mma_pipe.consumer_stage]
 
                 # tmem to smem
-                r_acc = self.tcgen05.load(t_acc).to(float16)
+                self.sync()
+                r_acc_f32 = self.tcgen05.load(t_acc)
                 self.tcgen05.wait_load()
+                self.sync()
+                r_acc = r_acc_f32.to(float16)
                 self.store_shared(s_acc, r_acc)
                 self.sync()
 
                 # smem to gmem
-                self.tma.shared_to_global(
-                    src=s_acc,
-                    dst=params.g_c,
-                    offsets=[offset_m, offset_n],
-                )
-                self.tma.commit_group()
-                self.tma.wait_group(n=0)
+                with self.single_thread():
+                    self.tma.shared_to_global(
+                        src=s_acc,
+                        dst=params.g_c,
+                        offsets=[offset_m, offset_n],
+                    )
+                    self.tma.commit_group()
+                    self.tma.wait_group(n=0)
                 self.sync()
 
                 # reset tmem to 0.0 for next accumulation
@@ -329,6 +336,7 @@ class BlackwellMatmulV5(tilus.Script):
 
 def main(bench=True):
     matmul = BlackwellMatmulV5()
+    torch.manual_seed(0)
 
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     rows: list = []
@@ -336,8 +344,10 @@ def main(bench=True):
     for m_size, n_size, k_size in [
         # [128, 128, 32],
         [128, 128, 32 * 100],
-        # [128, 128, 256],
-        # [256, 256, 256],
+        [128, 128, 256],
+        [256, 256, 256],
+        # [512, 512, 256],
+        # [10240, 10240, 256],
         # [4096, 4096, 4096],
         # [4096, 4096, 14336],
         # [8192, 8192, 8192],
@@ -346,10 +356,10 @@ def main(bench=True):
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         # a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
         # b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-        a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
-        b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
-        # a = torch.randint(0, 2, (m_size, k_size), dtype=torch.float16, device="cuda")
-        # b = torch.randint(0, 2, (n_size, k_size), dtype=torch.float16, device="cuda")
+        # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
+        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
+        a = torch.randint(0, 2, (m_size, k_size), dtype=torch.float16, device="cuda")
+        b = torch.randint(0, 2, (n_size, k_size), dtype=torch.float16, device="cuda")
 
         for i in range(1):
             c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")

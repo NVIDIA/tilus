@@ -29,12 +29,12 @@ from tilus.target import nvgpu_sm100
 @register_emitter(Tcgen05CommitInst, target=nvgpu_sm100)
 class TMemoryCommitEmitter(BaseInstEmitter):
     def emit(self, inst: Tcgen05CommitInst) -> None:
-        with self.if_then(self.current_thread == 0):
-            self.append(
-                tcgen05_commit(
-                    mbarrier=inst.mbarrier,
-                    cta_mask=inst.cta_mask,
-                    cta_group=Tcgen05CtaGroupKind.CTA_1,
-                    multicast=Tcgen05CommitMulticastKind.NONE,
-                )
+        assert self.current_num_threads == 1, "tcgen05 commit must be called by a single thread"
+        self.append(
+            tcgen05_commit(
+                mbarrier=inst.mbarrier,
+                cta_mask=inst.cta_mask,
+                cta_group=Tcgen05CtaGroupKind.CTA_1,
+                multicast=Tcgen05CommitMulticastKind.NONE,
             )
+        )
