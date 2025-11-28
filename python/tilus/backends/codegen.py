@@ -19,7 +19,7 @@ from typing import Dict, Optional, Set, Type
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder
 from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var, logical_and
+from hidet.ir.expr import Expr, Var, Constant, logical_and
 from hidet.ir.func import Function as HidetFunction
 from hidet.ir.module import IRModule
 from hidet.ir.primitives import set_kernel_max_dynamic_smem_bytes
@@ -159,7 +159,12 @@ class FunctionCodegen(IRFunctor):
         if kernel_func.kind == "cuda_kernel":
             func_var = Var(hint=None, type=FuncType.from_func(kernel_func), name=kernel_func.name)
             dynamic_shared_bytes = kernel_func.get_attr("cuda.dynamic_smem_bytes", int32(0))
-            assert isinstance(dynamic_shared_bytes, Expr | int)
+            assert isinstance(dynamic_shared_bytes, Constant | int), "dynamic shared memory bytes must be a constant integer"
+            if int(dynamic_shared_bytes) > get_current_target().properties.shared_memory_per_block:
+                raise RuntimeError(
+                    f"Requested dynamic shared memory bytes {int(dynamic_shared_bytes)} exceed the device limit "
+                    f"{get_current_target().properties.shared_memory_per_block} for target {get_current_target()}."
+                )
 
             # set max dynamic shared memory bytes if needed
             with self.host_builder.if_then(dynamic_shared_bytes > 48 * 1024):

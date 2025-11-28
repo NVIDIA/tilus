@@ -53,13 +53,13 @@ class Params(tilus.Class):
 
 
 class BlockPipeline(tilus.Pipeline):
-    def __init__(self):
+    def __init__(self, num_stages: int = 1):
         super().__init__(
-            num_stages=1,
+            num_stages=num_stages,
             producer_arrive_count=1,  # producer: block_scheduler
             consumer_arrive_count=32 * 7,  # all threads in all workers
         )
-        self.s_blocks = self.shared_tensor(dtype=int32, shape=[1, 4])
+        self.s_blocks = self.shared_tensor(dtype=int32, shape=[num_stages, 4])
 
     def consumer_fetch_next(self) -> tuple[Expr, Dim3]:
         """Utility function can be used by consumers. Need to be executed within consumer's thread group."""
@@ -86,14 +86,14 @@ class LoadPipeline(tilus.Pipeline):
 
 
 class MmaPipeline(tilus.Pipeline):
-    def __init__(self, params: Params):
+    def __init__(self, num_stages: int, params: Params):
         super().__init__(
-            num_stages=2,
+            num_stages=num_stages,
             producer_arrive_count=1,  # one commit in MmaWorker
             consumer_arrive_count=128,  # epilogue has 128 threads
         )
         self.t_acc: TMemoryTensor = self.tcgen05.alloc(
-            float32, shape=[2, params.block_m, params.block_n], init=0.0
+            float32, shape=[num_stages, params.block_m, params.block_n], init=0.0
         )
 
     def finalize(self):
@@ -272,21 +272,23 @@ class EpilogueWorker(tilus.Class):
 
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
-@tilus.autotune("stages", [2, 3, 4])
+@tilus.autotune("load_stages", [2, 3, 4])
+@tilus.autotune("clc_stages", [1])
 class BlackwellMatmulV5(tilus.Script):
-    debug_schedule = dict(
-        block_m=128,
-        block_n=128,
-        block_k=32,
-        stages=3,
-    )
+    # debug_schedule = dict(
+    #     block_m=128,
+    #     block_n=128,
+    #     block_k=32,
+    #     stages=3,
+    # )
 
-    def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
+    def __init__(self, block_m: int, block_n: int, block_k: int, load_stages: int, clc_stages: int):
         super().__init__()
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
-        self.stages = stages
+        self.load_stages = load_stages
+        self.clc_stages = clc_stages
 
     def __call__(
         self,
@@ -312,9 +314,9 @@ class BlackwellMatmulV5(tilus.Script):
             g_c=self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size]),
         )
 
-        block_pipe = BlockPipeline()
-        load_pipe = LoadPipeline(self.stages, params)
-        mma_pipe = MmaPipeline(params)
+        block_pipe = BlockPipeline(num_stages=self.clc_stages)
+        load_pipe = LoadPipeline(num_stages=self.load_stages, params=params)
+        mma_pipe = MmaPipeline(num_stages=1, params=params)
 
         block_scheduler = BlockScheduler(block_pipe=block_pipe)
         load_worker = LoadWorker(params, load_pipe=load_pipe, block_pipe=block_pipe)
@@ -338,71 +340,26 @@ def main(bench=True):
     rows: list = []
 
     for m_size, n_size, k_size in [
-        # [128, 128, 32],
-        # [128, 128, 32 * 100],
-        # [128, 128, 256],
-        # [256, 256, 256],
-        # [512, 512, 256],
-        # [1024, 1024, 1024],
-        # [2048, 2048, 1024],
-        # [10240, 10240, 256],
         [4096, 4096, 4096],
         [4096, 4096, 14336],
         [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
-        # a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
-        # b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-        # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
-        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
-        a = torch.randint(0, 2, (m_size, k_size), dtype=torch.float16, device="cuda")
-        b = torch.randint(0, 2, (n_size, k_size), dtype=torch.float16, device="cuda")
+        a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
+        b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
+        c_actual = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+        c_expected = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
-        for i in range(1):
-            c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
-            matmul(m_size, n_size, k_size, a, b, c)
-            torch.cuda.synchronize()
-
-            c_ref = a @ b.T
-
-            # set torch print options
-            if not torch.isclose(c, c_ref, rtol=1e-2, atol=1e-2).all():
-                print("Mismatch found on iteration {}".format(i))
-                torch.set_printoptions(
-                    profile="default", precision=2, linewidth=256, sci_mode=False
-                )
-                print("a")
-                print(a)
-                print("b")
-                print(b)
-                print("expected")
-                print(c_ref)
-                print("actual")
-                print(c)
-                print("diff")
-                print(c - c_ref)
-
-                # print the top 10 positions with the largest absolute difference
-                diff = torch.abs(c - c_ref)
-                diff_flat = diff.flatten()
-                topk = torch.topk(diff_flat, k=10)
-                print("Top 10 differences:")
-                for idx in topk.indices:
-                    index_2d = (idx // n_size, idx % n_size)
-                    print(
-                        f"Index {[index_2d[0].item(), index_2d[1].item()]}: expected {c_ref[index_2d].item()}, actual {c[index_2d].item()}, diff {diff[index_2d].item()}"
-                    )   
-
-            torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
+        matmul(m_size, n_size, k_size, a, b, c_actual)
+        torch.matmul(a, b.T, out=c_expected)
+        torch.testing.assert_close(c_actual, c_expected, atol=1e-2, rtol=1e-2)
 
         # benchmark
         if bench:
-            c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
-            c_ref = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
             for name, func in [
-                ("torch", lambda: torch.matmul(a, b.T, out=c_ref)),
-                ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c)),
+                ("torch", lambda: torch.matmul(a, b.T, out=c_expected)),
+                ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c_actual)),
             ]:
                 latency = benchmark_func(func, warmup=5, repeat=20)
                 tflops = 2 * m_size * n_size * k_size / latency * 1e-9
@@ -415,4 +372,4 @@ def main(bench=True):
 
 if __name__ == "__main__":
     # tilus.utils.clear_cache()
-    main(bench=False)
+    main(bench=True)
