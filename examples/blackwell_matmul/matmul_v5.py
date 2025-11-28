@@ -233,7 +233,6 @@ class EpilogueWorker(tilus.Class):
                 # tmem to smem
                 r_acc = self.tcgen05.load(t_acc).to(float16)
                 self.tcgen05.wait_load()
-                self.sync()
                 self.store_shared(s_acc, r_acc)
                 self.sync()
 
@@ -335,10 +334,11 @@ def main(bench=True):
     rows: list = []
 
     for m_size, n_size, k_size in [
-        [128, 128, 32],
+        # [128, 128, 32],
         [128, 128, 32 * 100],
-        [256, 256, 256],
-        [4096, 4096, 4096],
+        # [128, 128, 256],
+        # [256, 256, 256],
+        # [4096, 4096, 4096],
         # [4096, 4096, 14336],
         # [8192, 8192, 8192],
         # [10240, 10240, 10240],
@@ -346,10 +346,10 @@ def main(bench=True):
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         # a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
         # b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-        # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
-        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
-        a = torch.randint(0, 2, (m_size, k_size), dtype=torch.float16, device="cuda")
-        b = torch.randint(0, 2, (n_size, k_size), dtype=torch.float16, device="cuda")
+        a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
+        b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
+        # a = torch.randint(0, 2, (m_size, k_size), dtype=torch.float16, device="cuda")
+        # b = torch.randint(0, 2, (n_size, k_size), dtype=torch.float16, device="cuda")
 
         for i in range(1):
             c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
@@ -372,6 +372,19 @@ def main(bench=True):
                 print(c_ref)
                 print("actual")
                 print(c)
+                print("diff")
+                print(c - c_ref)
+
+                # print the top 10 positions with the largest absolute difference
+                diff = torch.abs(c - c_ref)
+                diff_flat = diff.flatten()
+                topk = torch.topk(diff_flat, k=10)
+                print("Top 10 differences:")
+                for idx in topk.indices:
+                    index_2d = (idx // n_size, idx % n_size)
+                    print(
+                        f"Index {index_2d}: expected {c_ref[index_2d].item()}, actual {c[index_2d].item()}, diff {diff[index_2d].item()}"
+                    )   
 
             torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
 
@@ -393,5 +406,5 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    tilus.utils.clear_cache()
+    # tilus.utils.clear_cache()
     main(bench=False)

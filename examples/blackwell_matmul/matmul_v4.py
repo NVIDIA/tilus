@@ -129,6 +129,7 @@ class MmaWorker(tilus.Class):
         self.t_acc = self.tcgen05.alloc(
             dtype=float32, shape=[info.block_m, info.block_n], init=0.0
         )
+        self.flush_barrier = self.mbarrier.alloc(1)
 
     def async_run(self):
         pipe = self.pipe
@@ -148,11 +149,8 @@ class MmaWorker(tilus.Class):
                     self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier())
                 pipe.consumer_advance()
 
-    def flush(self):
-        # wait all previous mma ops to finish
-        mbarrier = self.mbarrier.alloc(1)
-        self.tcgen05.commit(mbarrier)
-        self.mbarrier.wait(mbarrier, phase=0)
+            self.tcgen05.commit(mbarrier=self.flush_barrier)
+            self.mbarrier.wait(self.flush_barrier, phase=0)
 
     def dealloc(self):
         self.tcgen05.dealloc(self.t_acc)
@@ -207,7 +205,6 @@ class BlackwellMatmulV4(tilus.Script):
 
         # consumer
         mma_worker.async_run()
-        mma_worker.flush()
 
         self.sync()
 
