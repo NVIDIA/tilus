@@ -204,10 +204,8 @@ class MmaWorker(tilus.Class):
                         )
                         self.tcgen05.commit(mbarrier=load_pipe.consumer_release_barrier())
                     load_pipe.consumer_advance()
-                self.sync()
                 with self.single_thread():
                     self.tcgen05.commit(mbarrier=mma_pipe.producer_release_barrier())
-                self.sync()
                 mma_pipe.producer_advance()
 
                 # check if there is a new block to process
@@ -234,15 +232,13 @@ class EpilogueWorker(tilus.Class):
                 t_acc = mma_pipe.t_acc[mma_pipe.consumer_stage]
 
                 # tmem to smem
-                self.sync()
-                r_acc_f32 = self.tcgen05.load(t_acc)
+                r_acc = self.tcgen05.load(t_acc)
                 self.tcgen05.wait_load()
-                self.sync()
-                r_acc = r_acc_f32.to(float16)
-                self.store_shared(s_acc, r_acc)
+                self.store_shared(s_acc, r_acc.to(float16))
                 self.sync()
 
                 # smem to gmem
+                self.tma.fence_proxy_copy_async()
                 with self.single_thread():
                     self.tma.shared_to_global(
                         src=s_acc,
@@ -343,15 +339,17 @@ def main(bench=True):
 
     for m_size, n_size, k_size in [
         # [128, 128, 32],
-        [128, 128, 32 * 100],
-        [128, 128, 256],
-        [256, 256, 256],
+        # [128, 128, 32 * 100],
+        # [128, 128, 256],
+        # [256, 256, 256],
         # [512, 512, 256],
+        # [1024, 1024, 1024],
+        # [2048, 2048, 1024],
         # [10240, 10240, 256],
-        # [4096, 4096, 4096],
-        # [4096, 4096, 14336],
-        # [8192, 8192, 8192],
-        # [10240, 10240, 10240],
+        [4096, 4096, 4096],
+        [4096, 4096, 14336],
+        [8192, 8192, 8192],
+        [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         # a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
@@ -393,7 +391,7 @@ def main(bench=True):
                 for idx in topk.indices:
                     index_2d = (idx // n_size, idx % n_size)
                     print(
-                        f"Index {index_2d}: expected {c_ref[index_2d].item()}, actual {c[index_2d].item()}, diff {diff[index_2d].item()}"
+                        f"Index {[index_2d[0].item(), index_2d[1].item()]}: expected {c_ref[index_2d].item()}, actual {c[index_2d].item()}, diff {diff[index_2d].item()}"
                     )   
 
             torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
