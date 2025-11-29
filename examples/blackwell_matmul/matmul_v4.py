@@ -7,6 +7,7 @@ import torch
 from tilus import float16, float32, int32, uint32
 from tilus.ir.tensor import GlobalTensor, RegisterTensor
 from tilus.utils import benchmark_func, cdiv
+from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 
 
 class Pipeline(tilus.Class):
@@ -260,5 +261,5 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    main(bench=True)
-    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
+    # main(bench=True)
+    ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
