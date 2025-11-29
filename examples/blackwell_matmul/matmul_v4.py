@@ -51,7 +51,7 @@ class Pipeline(tilus.Class):
         return self.full_barriers[self.consumer_stage]
 
 
-class BlockInfo(tilus.Class):
+class Params(tilus.Class):
     def __init__(
         self,
         m_size: int32,
@@ -60,8 +60,9 @@ class BlockInfo(tilus.Class):
         block_m: int,
         block_n: int,
         block_k: int,
-        offset_m: int32,
-        offset_n: int32,
+        g_a: GlobalTensor,
+        g_b: GlobalTensor,
+        g_c: GlobalTensor,
     ):
         self.m_size: int32 = m_size
         self.n_size: int = n_size
@@ -69,66 +70,67 @@ class BlockInfo(tilus.Class):
         self.block_m: int = block_m
         self.block_n: int = block_n
         self.block_k: int = block_k
-        self.offset_m: int32 = offset_m
-        self.offset_n: int32 = offset_n
+        self.g_a: GlobalTensor = g_a
+        self.g_b: GlobalTensor = g_b
+        self.g_c: GlobalTensor = g_c
 
 
 class LoadPipeline(Pipeline):
     def __init__(
         self,
         num_stages: int,
-        info: BlockInfo,
+        params: Params,
     ):
         super().__init__(
             num_stages=num_stages, producer_arrive_count=2, consumer_arrive_count=1
         )
-        self.info: BlockInfo = info
+        self.params: Params = params
         self.s_a = self.shared_tensor(
-            dtype=float16, shape=[num_stages, info.block_m, info.block_k]
+            dtype=float16, shape=[num_stages, params.block_m, params.block_k]
         )
         self.s_b = self.shared_tensor(
-            dtype=float16, shape=[num_stages, info.block_n, info.block_k]
+            dtype=float16, shape=[num_stages, params.block_n, params.block_k]
         )
 
 
 class LoadWorker(tilus.Class):
     def __init__(
-        self, pipe: LoadPipeline, g_a: GlobalTensor, g_b: GlobalTensor, info: BlockInfo
+        self, pipe: LoadPipeline, params: Params
     ):
         self.pipe: LoadPipeline = pipe
-        self.g_a: GlobalTensor = g_a
-        self.g_b: GlobalTensor = g_b
-        self.info: BlockInfo = info
+        self.params: Params = params
 
     def async_run(self):
-        pipe, g_a, g_b, info = self.pipe, self.g_a, self.g_b, self.info
+        pipe, params = self.pipe, self.params
         s_a, s_b = pipe.s_a, pipe.s_b
         num_stages: int = pipe.num_stages
+        offset_m = self.blockIdx.x * params.block_m
+        offset_n = self.blockIdx.y * params.block_n
         with self.thread_group(thread_begin=0, num_threads=32):
-            for offset_k in self.range(0, info.k_size, info.block_k, unroll=num_stages):
+            for offset_k in self.range(0, params.k_size, params.block_k, unroll=num_stages):
                 self.pipe.producer_acquire()
                 with self.single_thread():
                     self.tma.global_to_shared(
-                        src=g_a,
+                        src=params.g_a,
                         dst=s_a[pipe.producer_stage],
-                        offsets=[info.offset_m, offset_k],
+                        offsets=[offset_m, offset_k],
                         mbarrier=pipe.producer_release_barrier(),
                     )
                     self.tma.global_to_shared(
-                        src=g_b,
+                        src=params.g_b,
                         dst=s_b[pipe.producer_stage],
-                        offsets=[info.offset_n, offset_k],
+                        offsets=[offset_n, offset_k],
                         mbarrier=pipe.producer_release_barrier(),
                     )
                 pipe.producer_advance()
 
 
 class MmaWorker(tilus.Class):
-    def __init__(self, pipe: LoadPipeline, info: BlockInfo):
+    def __init__(self, pipe: LoadPipeline, params: Params):
         self.pipe: LoadPipeline = pipe
-        self.info: BlockInfo = info
+        self.params: Params = params
         self.t_acc = self.tcgen05.alloc(
-            dtype=float32, shape=[info.block_m, info.block_n], init=0.0
+            dtype=float32, shape=[params.block_m, params.block_n], init=0.0
         )
         self.flush_barrier = self.mbarrier.alloc(1)
 
@@ -138,7 +140,7 @@ class MmaWorker(tilus.Class):
         num_stages: int = pipe.num_stages
         with self.thread_group(thread_begin=32, num_threads=32):
             for offset_k in self.range(
-                0, self.info.k_size, self.info.block_k, unroll=num_stages
+                0, self.params.k_size, self.params.block_k, unroll=num_stages
             ):
                 pipe.consumer_acquire()
                 with self.single_thread():
@@ -153,9 +155,6 @@ class MmaWorker(tilus.Class):
             with self.single_thread():
                 self.tcgen05.commit(mbarrier=self.flush_barrier)
             self.mbarrier.wait(self.flush_barrier, phase=0)
-
-    def dealloc(self):
-        self.tcgen05.dealloc(self.t_acc)
 
 
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
@@ -181,26 +180,22 @@ class BlackwellMatmulV4(tilus.Script):
         self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
         self.attrs.warps = 4
 
-        offset_m: int32 = self.block_m * self.blockIdx.x
-        offset_n: int32 = self.block_n * self.blockIdx.y
 
-        g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
-        g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
-
-        info = BlockInfo(
+        params = Params(
             m_size=m_size,
             n_size=n_size,
             k_size=k_size,
             block_m=self.block_m,
             block_n=self.block_n,
             block_k=self.block_k,
-            offset_m=self.block_m * self.blockIdx.x,
-            offset_n=self.block_n * self.blockIdx.y,
+            g_a=self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size]),
+            g_b=self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size]),
+            g_c=self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
         )
 
-        pipe = LoadPipeline(num_stages=self.stages, info=info)
-        load_worker = LoadWorker(pipe, g_a, g_b, info)
-        mma_worker = MmaWorker(pipe, info)
+        pipe = LoadPipeline(num_stages=self.stages, params=params)
+        load_worker = LoadWorker(pipe, params)
+        mma_worker = MmaWorker(pipe, params)
 
         # producer
         load_worker.async_run()
@@ -210,15 +205,16 @@ class BlackwellMatmulV4(tilus.Script):
 
         self.sync()
 
-        # load the result from tensor memory to register
+        # store the result back to global memory
+        offset_m: int32 = self.block_m * self.blockIdx.x
+        offset_n: int32 = self.block_n * self.blockIdx.y
         r_acc = self.tcgen05.load(mma_worker.t_acc)
-
-        g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
-        self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
+        self.tcgen05.wait_load()
+        self.store_global(params.g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
 
         # all allocated tensor memory must be deallocated
         self.sync()
-        mma_worker.dealloc()
+        self.tcgen05.dealloc(mma_worker.t_acc)
 
 
 def main(bench=True):
@@ -261,5 +257,5 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    # main(bench=True)
-    ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
+    main(bench=True)
+    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
