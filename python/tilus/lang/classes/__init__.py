@@ -12,8 +12,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .exception import TensorMethodError
-from .global_tensor import GlobalTensorWithMethods
-from .register_tensor import RegisterTensorWithMethods
-from .shared_tensor import SharedTensorWithMethods
-from .tmem_tensor import TMemoryTensorWithMethods
+from .pipeline import Pipeline

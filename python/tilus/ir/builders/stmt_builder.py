@@ -130,6 +130,7 @@ from tilus.ir.stmt import (
     WhileStmt,
 )
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedLayout, SharedTensor, Tensor, TMemoryTensor
+from tilus.ir.utils.thread_group_stack import ThreadGroupStack
 
 
 class StmtContext:
@@ -237,7 +238,7 @@ class OtherwiseContext(StmtContext):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         else_body = self.pop()
-        if_stmt = self.innermost_stack[-1]
+        if_stmt = self.innermost_stack.pop()
         assert isinstance(if_stmt, IfStmt), "with vb.otherwise() must be used after with vb.if_then() or vb.else_if()"
         if_chain: List[IfStmt] = [if_stmt]
         while if_chain[-1].else_body is not None:
@@ -277,9 +278,11 @@ class ThreadGroupContext(StmtContext):
         self.num_threads: int = num_threads
 
     def __enter__(self) -> None:
+        self.vb.tg_stack.push(self.thread_begin, self.num_threads)
         self.enter()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.vb.tg_stack.pop()
         self.append(ThreadGroupStmt(thread_begin=self.thread_begin, num_threads=self.num_threads, body=self.pop()))
 
 
@@ -298,6 +301,7 @@ class StmtBuilderCore:
     def __init__(self) -> None:
         # context stack
         self._stack: List[List[Stmt]] = [[]]
+        self.tg_stack: ThreadGroupStack = ThreadGroupStack()
 
     def is_empty(self):
         return len(self._stack) == 1 and len(self._stack[0]) == 0
@@ -1257,16 +1261,23 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     def tcgen05_slice(
-        self, tmem: TMemoryTensor, offsets: Sequence[Expr | int], slice_dims: Sequence[int], slice_shape: Sequence[int]
+        self,
+        tensor: TMemoryTensor,
+        offsets: Sequence[Expr | int],
+        slice_dims: Sequence[int],
+        slice_shape: Sequence[int],
     ) -> TMemoryTensor:
-        if any(not isinstance(ofs, int) for ofs in offsets):
-            raise InstructionError(f"All offsets must be integer constants, but got {offsets}")
-        if len(offsets) != 2:
-            raise InstructionError(f"The length of offsets must be 2, but got {len(offsets)}")
-        if len(slice_shape) != 2:
-            raise InstructionError(f"The length of slice_shape must be 2, but got {len(slice_shape)}")
+        if len(offsets) != len(tensor.shape):
+            raise InstructionError(
+                f"The length of offsets must match the tensor shape, but got {len(offsets)} vs. {len(tensor.shape)}"
+            )
+        if len(slice_shape) != len(slice_dims):
+            raise InstructionError(
+                f"The length of slice_shape must match the length of slice_dims, but got {len(slice_shape)} vs. {len(slice_dims)}"
+            )
+        slice_dims = [dim + len(tensor.shape) if dim < 0 else dim for dim in slice_dims]
         inst = Tcgen05SliceInst.create(
-            tmem=tmem, offsets=[as_expr(ofs) for ofs in offsets], slice_dims=slice_dims, slice_shape=slice_shape
+            tmem=tensor, offsets=[as_expr(ofs) for ofs in offsets], slice_dims=slice_dims, slice_shape=slice_shape
         )
         self.append(inst)
         return inst.tmemory_output

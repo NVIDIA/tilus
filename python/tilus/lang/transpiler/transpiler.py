@@ -34,7 +34,7 @@ from tilus.extensions.hidet.ir.tools.type_infer import infer_type
 from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import InstructionError
 from tilus.ir.stmt import DeclareStmt, SeqStmt, Stmt
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor, TMemoryTensor
 from tilus.ir.utils import frozendict
 from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
 from tilus.lang.constructs.contexts import TilusContext
@@ -46,6 +46,7 @@ from tilus.lang.methods import (
     RegisterTensorWithMethods,
     SharedTensorWithMethods,
     TensorMethodError,
+    TMemoryTensorWithMethods,
 )
 from tilus.lang.script import Attributes, Script
 
@@ -192,6 +193,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
             raise RuntimeError("The script.attrs.blocks is not set.")
         if script.attrs.warps is None:
             raise RuntimeError("The script.attrs.warps is not set.")
+        if not (1 <= script.attrs.warps <= 32):
+            raise RuntimeError("The script.attrs.warps must be in [1, 32], got {}.".format(script.attrs.warps))
         param2divisibility: dict[Var, int] = {}
         for name in name2divisibility:
             param = params[name]
@@ -227,6 +230,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
     def transpile_call(self, method, args, kwargs):
         sig: inspect.Signature = inspect.signature(method)
         bound_args: inspect.BoundArguments = sig.bind(*args, **kwargs)
+        bound_args.apply_defaults()
 
         ret = None
 
@@ -421,7 +425,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                     raise TilusProgramError(self, None, "Cannot bind or assign None value.")
                 if type_annotation is not None:
                     resolved_annotation = self.visit(type_annotation)
-                    if resolved_annotation in (int, str, float):
+                    if resolved_annotation in (int, str, float, bool):
                         value = resolved_annotation(value)  # type: ignore
                         self.bind(name, value)
                     else:
@@ -500,6 +504,9 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
 
         if isinstance(lhs_base, Attributes):
             setattr(lhs_base, lhs.attr, rhs)
+            if lhs.attr == "warps":  # setting the number of warps
+                num_warps = int(rhs)
+                self.tg_stack.push(0, num_warps * 32)
         elif isinstance(lhs_base, Class):
             # Class.xxx = ...
             if hasattr(lhs_base, lhs.attr):
@@ -510,7 +517,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                 self.process_name_assign(name=name, rhs=rhs, type_annotation=type_annotation)
                 setattr(lhs_base, lhs.attr, self.lookup(name))
         else:
-            raise TilusProgramError(self, lhs, "Invalid assignment: {}".format(type(lhs_base)))
+            setattr(lhs_base, lhs.attr, rhs)
+            # raise TilusProgramError(self, lhs, "Invalid assignment: {}".format(type(lhs_base)))
 
     def process_assign(
         self, lhs: Union[ast.Attribute, ast.Subscript, ast.Name], rhs: Any, type_annotation: Optional[ast.expr] = None
@@ -588,16 +596,23 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
             elif isinstance(f_self, Class) and getattr(Class, f_func.__name__, None) is not f_func:
                 # case 1 (Class method)
                 ret = self.transpile_call(method, args, kwargs)
-            elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor)):
+            elif isinstance(f_self, (GlobalTensor, SharedTensor, RegisterTensor, TMemoryTensor)):
                 # case 2
                 method_name = method.__name__
-                tensor_with_methods: RegisterTensorWithMethods | SharedTensorWithMethods | GlobalTensorWithMethods
+                tensor_with_methods: (
+                    RegisterTensorWithMethods
+                    | SharedTensorWithMethods
+                    | GlobalTensorWithMethods
+                    | TMemoryTensorWithMethods
+                )
                 if isinstance(f_self, RegisterTensor):
                     tensor_with_methods = RegisterTensorWithMethods(f_self, self)
                 elif isinstance(f_self, SharedTensor):
                     tensor_with_methods = SharedTensorWithMethods(f_self, self)
                 elif isinstance(f_self, GlobalTensor):
                     tensor_with_methods = GlobalTensorWithMethods(f_self, self)
+                elif isinstance(f_self, TMemoryTensor):
+                    tensor_with_methods = TMemoryTensorWithMethods(f_self, self)
                 else:
                     raise NotImplementedError("Currently, only RegisterTensor methods are supported in Tilus Script.")
                 if not hasattr(tensor_with_methods, method_name):
@@ -832,7 +847,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
 
         if isinstance(base, Sequence):
             return base[indices]
-        elif isinstance(base, (GlobalTensor, SharedTensor, RegisterTensor)):
+        elif isinstance(base, (GlobalTensor, SharedTensor, RegisterTensor, TMemoryTensor)):
             if not isinstance(indices, Sequence):
                 indices = [indices]
             else:
@@ -863,7 +878,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
             if len(indices) > len(base.shape):
                 raise TilusProgramError(self, expr, "Too many indices for tensor of shape {}.".format(base.shape))
 
-            sliced_tensor: Union[GlobalTensor, SharedTensor, RegisterTensor]
+            sliced_tensor: Union[GlobalTensor, SharedTensor, RegisterTensor, TMemoryTensor]
             if isinstance(base, GlobalTensor):
                 sliced_tensor = self.slice_global(
                     tensor=base,
@@ -885,8 +900,13 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                     slice_dims=slice_dims,
                     slice_shape=[base.shape[dim] for dim in slice_dims],
                 )
-            else:
-                assert False
+            elif isinstance(base, TMemoryTensor):
+                sliced_tensor = self.tcgen05_slice(
+                    tensor=base,
+                    offsets=offsets,
+                    slice_dims=slice_dims,
+                    slice_shape=[base.shape[dim] for dim in slice_dims],
+                )
             return sliced_tensor
         else:
             raise NotImplementedError()
@@ -1249,35 +1269,32 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                 "The context manager in Tilus Script must be a tilus.lang.constructs.contexts.TilusContext object.",
             )
 
-        with_context: TilusContext = with_item_visited
+        context: TilusContext = with_item_visited
 
         with self.block(), self.scope():
             # bind the value to the context variable
-            if with_item.optional_vars is not None:
-                if not isinstance(with_item.optional_vars, ast.Name):
-                    raise TilusProgramError(
-                        self, with_item.optional_vars, "Tilus only support binding to a single name."
-                    )
-                bind_value = with_context.bind_value()
-                if bind_value is None:
-                    raise TilusProgramError(self, with_item.optional_vars, "The context does not have a bind value.")
-                bind_name = with_item.optional_vars.id
+            with context as bind_value:
+                if with_item.optional_vars is not None:
+                    if not isinstance(with_item.optional_vars, ast.Name):
+                        raise TilusProgramError(
+                            self, with_item.optional_vars, "Tilus only support binding to a single name."
+                        )
+                    if bind_value is None:
+                        raise TilusProgramError(
+                            self, with_item.optional_vars, "The context does not have a bind value."
+                        )
+                    bind_name = with_item.optional_vars.id
 
-                if isinstance(bind_value, hidet_ir.Expr):
-                    from hidet.ir.tools import infer_type
+                    if isinstance(bind_value, hidet_ir.Expr):
+                        from hidet.ir.tools import infer_type
 
-                    bind_var = self.declare(type=infer_type(bind_value), init=bind_value, hint=bind_name)
-                    self.bind(bind_name, var_or_value=bind_var)
-                else:
-                    self.bind(with_item.optional_vars.id, bind_value)
+                        bind_var = self.declare(type=infer_type(bind_value), init=bind_value, hint=bind_name)
+                        self.bind(bind_name, var_or_value=bind_var)
+                    else:
+                        self.bind(with_item.optional_vars.id, bind_value)
 
-            for body_stmt in stmt.body:
-                self.visit(body_stmt)
-
-        with_body = self.pop_innermost_last()
-        processed_body = with_context.post_process(with_body)
-        assert isinstance(processed_body, Stmt)
-        self.append(processed_body)
+                for body_stmt in stmt.body:
+                    self.visit(body_stmt)
 
     def process_generator(self, elt: ast.expr, generators: list[ast.comprehension]) -> list:
         if len(generators) == 0:

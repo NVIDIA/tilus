@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from hidet.ir import logical_or
 from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import cast

@@ -645,15 +645,23 @@ class JitInstance:
                         args[i].clone() if isinstance(args[i], torch.Tensor) else args[i]
                         for i in self.call_params.kernel_params
                     ]
-                    for compiled_program in tqdm(
-                        iterable=self.compiled_programs,
+                    for i, compiled_program in tqdm(
+                        iterable=enumerate(self.compiled_programs),
                         desc="[{}] {}{}".format("Tuning", self.instance_name, tuning_key_name),
                         miniters=1,
                         mininterval=0,
                         ncols=60 + max(60, len(self.instance_name) + len(tuning_key_name)),
                     ):
                         compiled_func = compiled_program.get_launch_func()
-                        latency.append(benchmark_func(lambda: compiled_func(*kernel_args), warmup=1, repeat=10))  # type: ignore
+                        try:
+                            latency.append(benchmark_func(lambda: compiled_func(*kernel_args), warmup=1, repeat=10))  # type: ignore
+                        except RuntimeError as e:
+                            raise RuntimeError(
+                                f"Failed to benchmark the kernel {self.instance_name} with schedule: \n"
+                                f"  {str(self.schedules[self.valid_schedules[i]])}\n"
+                                "Error message:\n"
+                                f"  {str(e)}"
+                            ) from e
 
                 best_latency = min(latency)
                 best_program_idx = latency.index(best_latency)

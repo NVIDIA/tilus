@@ -17,9 +17,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, TypeAlias, TypeVar
 
 from hidet.ir.expr import Expr
-from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
 
-from tilus.lang.constructs.structs import Dim3
 from tilus.lang.instructions import InstructionInterface
 from tilus.lang.modules.cuda import cuda
 
@@ -94,16 +92,6 @@ class Script(InstructionInterface):
         See :py:class:`Attributes <tilus.lang.Attributes>` for more details.
         """
         return self._attrs
-
-    @property
-    def blockIdx(self) -> Dim3:
-        """Get the block index of the current thread block."""
-        return Dim3(blockIdx.x, blockIdx.y, blockIdx.z)
-
-    @property
-    def gridDim(self) -> Dim3:
-        """Get the grid dimension of the kernel."""
-        return Dim3(gridDim.x, gridDim.y, gridDim.z)
 
     # the following functions should only be called in the __call__ function to construct the script program
 

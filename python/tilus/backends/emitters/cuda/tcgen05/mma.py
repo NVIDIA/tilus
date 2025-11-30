@@ -243,6 +243,7 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
             raise CodeGenerationFailed(f"The given majorness is not supported: {a_major_kind} and {b_major_kind}.")
 
     def emit(self, inst: Tcgen05MmaSSInst) -> None:
+        assert self.current_num_threads == 1, "tcgen05.mma.ss must be called by a single thread"
         a_tensor: SharedTensor = inst.inputs[0].as_shared_tensor()
         b_tensor: SharedTensor = inst.inputs[1].as_shared_tensor()
         d_tensor: TMemoryTensor = inst.inputs[2].as_tmemory_tensor()
