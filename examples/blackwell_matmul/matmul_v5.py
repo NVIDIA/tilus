@@ -285,13 +285,6 @@ class EpilogueWorker(tilus.Class):
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("load_stages", [2, 3, 4])
 class BlackwellMatmulV5(tilus.Script):
-    # debug_schedule = dict(
-    #     block_m=128,
-    #     block_n=128,
-    #     block_k=32,
-    #     load_stages=3,
-    # )
-
     def __init__(self, block_m: int, block_n: int, block_k: int, load_stages: int):
         super().__init__()
         self.block_m = block_m
