@@ -17,7 +17,7 @@ class ThreadGroupStack:
         self.num_threads: list[int] = []
         self.thread_begin: list[int] = []
         self.thread_end: list[int] = []
-    
+
     @property
     def current_num_threads(self) -> int:
         if self.stack_depth() == 0:

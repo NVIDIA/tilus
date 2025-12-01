@@ -7,10 +7,9 @@ import pandas
 import tilus
 import torch
 from hidet.ir.expr import Expr
-from tilus import Dim3, float16, float32, int32, uint32, boolean
+from tilus import Dim3, float16, float32, int32, uint32
 from tilus.ir.tensor import GlobalTensor, TMemoryTensor
 from tilus.utils import benchmark_func, cdiv
-from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 
 """
 Pipelines:
@@ -58,7 +57,7 @@ class Scheduler(tilus.Class):
         self.barrier = self.mbarrier.alloc(count=1)
         self.phase: uint32 = self.mbarrier.consumer_initial_phase
         self.s_response = self.shared_tensor(dtype=int32, shape=[4])
-    
+
     # def fetch_next(self) -> tuple[Expr, Dim3]:
     #     return boolean.false, self.blockIdx
 
@@ -108,9 +107,7 @@ class MmaPipeline(tilus.Pipeline):
 
 
 class LoadWorker(tilus.Class):
-    def __init__(
-        self, params: Params, load_pipe: LoadPipeline, scheduler: Scheduler
-    ):
+    def __init__(self, params: Params, load_pipe: LoadPipeline, scheduler: Scheduler):
         self.params: Params = params
         self.load_pipe: LoadPipeline = load_pipe
         self.scheduler: Scheduler = scheduler
@@ -205,7 +202,6 @@ class EpilogueWorker(tilus.Class):
 
     def async_run_stg(self):
         params, mma_pipe, block_pipe = self.params, self.mma_pipe, self.scheduler
-        s_acc = self.shared_tensor(dtype=float16, shape=[params.block_m, params.block_n])
         with self.thread_group(thread_begin=128, num_threads=128):
             offset_m: int32 = self.blockIdx.x * params.block_m
             offset_n: int32 = self.blockIdx.y * params.block_n
@@ -216,7 +212,9 @@ class EpilogueWorker(tilus.Class):
                 # tmem to smem
                 r_acc = self.tcgen05.load(t_acc)
                 self.tcgen05.wait_load()
-                self.store_global(params.g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
+                self.store_global(
+                    params.g_c, r_acc.to(float16), offsets=[offset_m, offset_n]
+                )
 
                 # reset tmem to 0.0 for next accumulation
                 self.tcgen05.store(

@@ -30,11 +30,18 @@ def resolve_cp_async_bulk_tensor_global_to_shared(dim: int, cta_group: Optional[
     return func_name
 
 
-def resolve_cp_async_bulk_tensor_global_to_cluster_shared(dim: int, multicast: bool, cta_group: Optional[int], cache_hint: bool, ) -> str:
+def resolve_cp_async_bulk_tensor_global_to_cluster_shared(
+    dim: int,
+    multicast: bool,
+    cta_group: Optional[int],
+    cache_hint: bool,
+) -> str:
     multicast_str = "_multicast" if multicast else ""
     cta_group_str = "" if cta_group == 1 else "_cta_group_{}".format(cta_group)
     cache_hint_item = "" if not cache_hint else "_cache_hint"
-    func_name = "cuda_cp_async_bulk_tensor_{}d_cluster_shared_global{}{}{}".format(dim, multicast_str, cta_group_str, cache_hint_item)
+    func_name = "cuda_cp_async_bulk_tensor_{}d_cluster_shared_global{}{}{}".format(
+        dim, multicast_str, cta_group_str, cache_hint_item
+    )
     return func_name
 
 
@@ -66,7 +73,9 @@ def register_copy_async_tensor():
                     cnt = 0
                     operands = "[%{}]".format(cnt)  # dst
                     cnt += 1
-                    operands += ", [%{}, {{{}}}]".format(cnt, ", ".join(["%{}".format(i + cnt + 1) for i in range(dim)]))  # tensor map and coords
+                    operands += ", [%{}, {{{}}}]".format(
+                        cnt, ", ".join(["%{}".format(i + cnt + 1) for i in range(dim)])
+                    )  # tensor map and coords
                     cnt += 1 + dim
                     operands += ", [%{}]".format(cnt)  # mbarrier
                     cnt += 1
@@ -125,7 +134,7 @@ def register_copy_async_tensor():
                 @no_type_check
                 @register_primitive_function_decorator
                 @script
-                def cp_async_tensor_global_to_shared_device(
+                def cp_async_tensor_global_to_cluster_shared_device(
                     dst: uint32,
                     tensor_map: CUTensorMapPointerType,
                     coords: coords_type,

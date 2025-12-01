@@ -4,10 +4,9 @@
 import pandas
 import tilus
 import torch
-from tilus import float16, float32, int32, uint32
-from tilus.ir.tensor import GlobalTensor, RegisterTensor
+from tilus import float16, float32, int32
+from tilus.ir.tensor import GlobalTensor
 from tilus.utils import benchmark_func, cdiv
-from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 
 
 class Params(tilus.Class):
@@ -53,9 +52,7 @@ class LoadPipeline(tilus.Pipeline):
 
 
 class LoadWorker(tilus.Class):
-    def __init__(
-        self, pipe: LoadPipeline, params: Params
-    ):
+    def __init__(self, pipe: LoadPipeline, params: Params):
         self.pipe: LoadPipeline = pipe
         self.params: Params = params
 
@@ -66,7 +63,9 @@ class LoadWorker(tilus.Class):
         offset_m = self.blockIdx.x * params.block_m
         offset_n = self.blockIdx.y * params.block_n
         with self.thread_group(thread_begin=0, num_threads=32):
-            for offset_k in self.range(0, params.k_size, params.block_k, unroll=num_stages):
+            for offset_k in self.range(
+                0, params.k_size, params.block_k, unroll=num_stages
+            ):
                 self.pipe.producer_acquire()
                 with self.single_thread():
                     self.tma.global_to_shared(
@@ -139,7 +138,6 @@ class BlackwellMatmulV4(tilus.Script):
         self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
         self.attrs.warps = 4
 
-
         params = Params(
             m_size=m_size,
             n_size=n_size,
@@ -149,7 +147,7 @@ class BlackwellMatmulV4(tilus.Script):
             block_k=self.block_k,
             g_a=self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size]),
             g_b=self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size]),
-            g_c=self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
+            g_c=self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size]),
         )
 
         pipe = LoadPipeline(num_stages=self.stages, params=params)
