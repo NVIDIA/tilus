@@ -11,16 +11,20 @@ from tilus.ir.tensor import GlobalTensor, TMemoryTensor
 from tilus.utils import benchmark_func, cdiv
 
 """
+Scheduler:
+- shared by all workers.
+- LoadWorker fetch the next block
+- All workers query the next block
+
 Pipelines:
-- BlockPipeline: thread blocks to work on
 - LoadPipeline: load A and B from global memory to shared memory
 - MmaPipeline: compute MMA from shared memory to tensor memory
 
 Workers:
-- BlockScheduler (warp 0): producer of BlockPipeline
 - LoadWorker (warp 1): producer of LoadPipeline, consumer of BlockPipeline
 - MmaWorker (warp 2): consumer of LoadPipeline, producer of MmaPipeline, consumer of BlockPipeline
 - EpilogueWorker (warp 4-7): consumer of MmaPipeline, consumer of BlockPipeline
+- warp 0 and 3 are idle
 """
 
 
@@ -53,9 +57,6 @@ class Scheduler(tilus.Class):
         self.barrier = self.mbarrier.alloc(count=1)
         self.phase: uint32 = self.mbarrier.consumer_initial_phase
         self.s_response = self.shared_tensor(dtype=int32, shape=[4])
-
-    # def fetch_next(self) -> tuple[Expr, Dim3]:
-    #     return boolean.false, self.blockIdx
 
     def fetch_next(self):
         self.clc.try_cancel(self.s_response, self.barrier, multicast=False)
