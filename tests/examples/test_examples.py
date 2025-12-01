@@ -53,6 +53,7 @@ EXAMPLES = [
     ("blackwell_matmul", "matmul_v2.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v3.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v4.py", nvgpu_sm100a),
+    ("blackwell_matmul", "matmul_v5.py", nvgpu_sm100a),
     # quantization examples (SM 8.0+)
     ("quantization", "matmul_a16wx.py", nvgpu_sm80),
     # flash attention decode examples (SM 8.0+)
