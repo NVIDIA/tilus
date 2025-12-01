@@ -17,6 +17,7 @@ from typing import Callable, Iterable, Literal, Optional, Sequence, Union
 
 from hidet.ir.dtypes import boolean
 from hidet.ir.expr import Constant, Expr, Var, as_expr
+from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
 from hidet.ir.tools import infer_type
 from hidet.ir.type import DataType
 
@@ -24,11 +25,43 @@ from tilus.ir.inst import InstructionError
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 from tilus.lang.constructs.contexts import ThreadGroupContext
+from tilus.lang.constructs.structs import Dim3
 
 from .base import InstructionGroup
 
 
 class RootInstructionGroup(InstructionGroup):
+    @property
+    def blockIdx(self) -> Dim3:
+        """Get the block index of the current thread block."""
+        return Dim3(blockIdx.x, blockIdx.y, blockIdx.z)
+
+    @property
+    def gridDim(self) -> Dim3:
+        """Get the grid dimension of the kernel."""
+        return Dim3(gridDim.x, gridDim.y, gridDim.z)
+
+    @property
+    def current_thread_begin(self) -> int:
+        """Get the beginning thread index of the current thread group."""
+        if len(self._builder.tg_stack.thread_begin) == 0:
+            raise RuntimeError("No thread group context found.")
+        return self._builder.tg_stack.thread_begin[-1]
+
+    @property
+    def current_thread_end(self) -> int:
+        """Get the ending thread index of the current thread group."""
+        if len(self._builder.tg_stack.thread_end) == 0:
+            raise RuntimeError("No thread group context found.")
+        return self._builder.tg_stack.thread_end[-1]
+
+    @property
+    def current_num_threads(self) -> int:
+        """Get the number of threads in the current thread group."""
+        if len(self._builder.tg_stack.thread_begin) == 0 or len(self._builder.tg_stack.thread_end) == 0:
+            raise RuntimeError("No thread group context found.")
+        return self._builder.tg_stack.thread_end[-1] - self._builder.tg_stack.thread_begin[-1]
+
     def assume(self, cond: Expr | bool) -> None:
         """Compiler hint to assume a condition is true.
 
@@ -174,7 +207,7 @@ class RootInstructionGroup(InstructionGroup):
         ret: ThreadGroupContext
             The thread group context created.
         """
-        return ThreadGroupContext(thread_begin=thread_begin, num_threads=num_threads)
+        return ThreadGroupContext(self._builder, thread_begin=thread_begin, num_threads=num_threads)
 
     def single_thread(self) -> ThreadGroupContext:
         """Create a thread group context with only one thread.

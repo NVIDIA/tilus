@@ -32,7 +32,7 @@ class LowerPrintTMemoryTensorRewriter(IRRewriter):
         sb = StmtBuilder()
 
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
-        regs_tensor = sb.tcgen05_load(tmem_tensor, offsets=[0, 0], shape=tmem_tensor.shape)
+        regs_tensor = sb.tcgen05_load(tmem_tensor)
         sb.tcgen05_wait_load()
         sb.print_tensor(inst.msg, regs_tensor)
         return sb.flush_stmts()

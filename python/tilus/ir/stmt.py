@@ -106,6 +106,9 @@ class LetStmt(Stmt):
     bind_values: tuple[Expr, ...]
     body: Stmt
 
+    def __post_init__(self):
+        assert len(self.bind_vars) == len(self.bind_values) > 0
+
     @staticmethod
     def create(bind_vars: Sequence[Var], bind_values: Sequence[Expr], body: Stmt) -> LetStmt:
         return LetStmt(tuple(bind_vars), tuple(bind_values), body)

@@ -12,29 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, Optional
 
 from tilus.ir.builders import StmtBuilder
+from tilus.ir.tensor import TMemoryTensor
 
 
-class TilusContext:
-    def __enter__(self) -> Optional[Any]:
-        pass
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-
-class ThreadGroupContext(TilusContext):
-    def __init__(self, builder: StmtBuilder, thread_begin: int, num_threads: int):
+class TMemoryTensorWithMethods(TMemoryTensor):
+    def __init__(self, tensor: TMemoryTensor, builder: StmtBuilder):
+        super().__init__(tensor.dtype, tensor.shape, tensor.optional_layout)
+        self.tensor: TMemoryTensor = tensor
         self.builder: StmtBuilder = builder
-        self.thread_begin: int = thread_begin
-        self.num_threads: int = num_threads
-
-        self.ctx = self.builder.thread_group(thread_begin=thread_begin, num_threads=num_threads)
-
-    def __enter__(self) -> None:
-        return self.ctx.__enter__()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.ctx.__exit__(exc_type, exc_val, exc_tb)

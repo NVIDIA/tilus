@@ -18,6 +18,24 @@ class ThreadGroupStack:
         self.thread_begin: list[int] = []
         self.thread_end: list[int] = []
 
+    @property
+    def current_num_threads(self) -> int:
+        if self.stack_depth() == 0:
+            raise ValueError("Thread group stack is empty")
+        return self.num_threads[-1]
+
+    @property
+    def current_thread_begin(self) -> int:
+        if self.stack_depth() == 0:
+            raise ValueError("Thread group stack is empty")
+        return self.thread_begin[-1]
+
+    @property
+    def current_thread_end(self) -> int:
+        if self.stack_depth() == 0:
+            raise ValueError("Thread group stack is empty")
+        return self.thread_end[-1]
+
     def stack_depth(self):
         return len(self.num_threads)
 
