@@ -420,7 +420,7 @@ class RegisterTensor(Tensor):
         raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
 
     # i-version of operator
-    def __iadd__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __iadd__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place addition operation.
 
         Parameters
@@ -430,7 +430,7 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor += tensor could only be used in Tilus Script.")
 
-    def __isub__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __isub__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place subtraction operation.
 
         Parameters
@@ -440,7 +440,7 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor -= tensor could only be used in Tilus Script.")
 
-    def __imul__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __imul__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place multiplication operation.
 
         Parameters
@@ -450,7 +450,7 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor *= tensor could only be used in Tilus Script.")
 
-    def __itruediv__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __itruediv__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place division operation.
 
         Parameters
@@ -460,7 +460,7 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor /= tensor could only be used in Tilus Script.")
 
-    def __imod__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __imod__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place modulus operation.
 
         Parameters
@@ -470,7 +470,7 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor %= tensor could only be used in Tilus Script.")
 
-    def __ixor__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __ixor__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place bitwise XOR operation.
 
         Parameters

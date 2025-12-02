@@ -14,7 +14,7 @@
 # limitations under the License.
 from typing import Optional, Sequence, no_type_check
 
-from hidet.ir.dtypes import int32, uint32, uint64
+from hidet.ir.dtypes import int32, uint32, uint64, uint16
 from hidet.ir.expr import Expr
 from hidet.ir.primitives.func import call_primitive_func
 from hidet.utils import initialize
@@ -37,7 +37,7 @@ def resolve_cp_async_bulk_tensor_global_to_cluster_shared(
     cache_hint: bool,
 ) -> str:
     multicast_str = "_multicast" if multicast else ""
-    cta_group_str = "" if cta_group == 1 else "_cta_group_{}".format(cta_group)
+    cta_group_str = "" if cta_group is None else "_cta_group_{}".format(cta_group)
     cache_hint_item = "" if not cache_hint else "_cache_hint"
     func_name = "cuda_cp_async_bulk_tensor_{}d_cluster_shared_global{}{}{}".format(
         dim, multicast_str, cta_group_str, cache_hint_item
@@ -107,7 +107,7 @@ def register_copy_async_tensor():
                     multicast_item = "" if not multicast else ".multicast::cluster"
                     cta_group_item = "" if cta_group is None else ".cta_group::{}".format(cta_group)
                     cache_hint_item = "" if not has_cache_hint else "::L2::cache_hint"
-                    inst = "cp.async.bulk.tensor.{}d.shared::cta.global.tile.mbarrier::complete_tx::bytes{}{}{}".format(
+                    inst = "cp.async.bulk.tensor.{}d.shared::cluster.global.tile.mbarrier::complete_tx::bytes{}{}{}".format(
                         dim, multicast_item, cta_group_item, cache_hint_item
                     )
                     cnt = 0
@@ -127,7 +127,7 @@ def register_copy_async_tensor():
                         cnt += 1
                     template = inst + " " + operands + ";"
                     coords_type = meta.types([int32 for _ in range(dim)])
-                    cta_mask_type = meta.types([uint32] if multicast else [])
+                    cta_mask_type = meta.types([uint16] if multicast else [])
                     cache_hint_type = meta.types([uint64] if has_cache_hint else [])
 
                     @no_type_check
@@ -260,7 +260,7 @@ def cp_async_tensor_global_to_cluster_shared(
         The mbarrier to be used for synchronization. It should be an address with shared memory space with type uint32
         that has been initialized by `mbarrier_init`.
     multicast_mask: Expr
-        The multicast mask to be used.
+        The multicast mask to be used. It should be a uint16 variable specifying the multicast group.
     cta_group: int, optional
         See the documentation of PTX of tma tensor copy.
     cache_policy: Expr, optional

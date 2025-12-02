@@ -212,7 +212,7 @@ class RootInstructionGroup(InstructionGroup):
     def single_thread(self) -> ThreadGroupContext:
         """Create a thread group context with only one thread.
 
-        This method is equivalent `thread_group(<any-thread>, group_size=1)` that creates a thread group
+        This method is equivalent `thread_group(<any-thread>, num_threads=1)` that creates a thread group
         context with only one thread. All instructions within the context will be executed by only one thread.
 
         Returns
@@ -221,6 +221,19 @@ class RootInstructionGroup(InstructionGroup):
             The thread group context created.
         """
         return self.thread_group(thread_begin=0, num_threads=1)
+    
+    def single_warp(self) -> ThreadGroupContext:
+        """Create a thread group context with a single warp (32 threads).
+
+        This method is equivalent to `thread_group(<first-thread-in-a-warp>, num_threads=32)` that creates a thread group
+        context with 32 threads. All instructions within the context will be executed by only one warp.
+
+        Returns
+        -------
+        ret: ThreadGroupContext
+            The thread group context created.
+        """
+        return self.thread_group(thread_begin=0, num_threads=32)
 
     @staticmethod
     def static_assert(cond: bool | Expr, msg: str) -> None:
@@ -844,6 +857,9 @@ class RootInstructionGroup(InstructionGroup):
             The register tensor with the specified dimension(s) unsqueezed.
         """
         return self._builder.unsqueeze(x, dim=dim, out=out)
+    
+    def flatten(self):
+        self._builder
 
     def transpose(
         self,
