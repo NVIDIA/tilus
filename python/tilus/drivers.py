@@ -140,6 +140,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     from tilus.extensions.hidet.transforms.add_explicit_cast import (
         add_explicit_cast_pass as tilus_add_explicit_cast_pass,
     )
+    from tilus.extensions.hidet.transforms.bind_predefined_variables import bind_predefined_variables_pass
     from tilus.extensions.hidet.transforms.check_launch_configuration import check_launch_configuration_pass
     from tilus.extensions.hidet.transforms.deadcode_elimination import deadcode_elimination_pass
     from tilus.extensions.hidet.transforms.declare_to_let import declare_to_let_pass
@@ -151,6 +152,7 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     transforms = [
         unify_global_objects_pass(),
         inline_register_tensor_pass(),
+        bind_predefined_variables_pass(),
         resolve_primitive_func_pass(),
         tilus_add_explicit_cast_pass(),
         lower_subbyte_type_pass(),

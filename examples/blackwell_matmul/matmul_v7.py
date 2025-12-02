@@ -285,7 +285,7 @@ class EpilogueWorker(tilus.Class):
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("load_stages", [2, 3, 4])
-class BlackwellMatmulV5(tilus.Script):
+class BlackwellMatmulV7(tilus.Script):
     def __init__(self, block_m: int, block_n: int, block_k: int, load_stages: int):
         super().__init__()
         self.block_m = block_m
@@ -334,7 +334,7 @@ class BlackwellMatmulV5(tilus.Script):
 
 
 def main(bench=True):
-    matmul = BlackwellMatmulV5()
+    matmul = BlackwellMatmulV7()
     torch.manual_seed(0)
 
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]

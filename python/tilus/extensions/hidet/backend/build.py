@@ -215,8 +215,6 @@ class NVCC(SourceCompiler):
             "--diag-suppress 179",
             # supress warning no 39 like: "warning #39-D: division by zero"
             "--diag-suppress 39",
-            # supress warning no 550 like: "warning #550-D: variable "xxx" was set but never used"
-            "--diag-suppress 550",
             # generate shared library (lib.so).
             "--shared" if out_lib_path.endswith(".so") else "--compile",
             # the linking objects.

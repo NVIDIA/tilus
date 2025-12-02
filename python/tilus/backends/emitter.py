@@ -19,7 +19,6 @@ from typing import Callable, Dict, Optional, Sequence, Type
 from hidet.ir.builders import FunctionBuilder
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var, tensor_pointer_var, tensor_var
-from hidet.ir.primitives.cuda import syncthreads
 from hidet.ir.primitives.cuda.vars import blockIdx, dim3
 from hidet.ir.stmt import DeclareScope
 from hidet.ir.stmt import Stmt as HidetStmt
@@ -43,11 +42,18 @@ class BaseInstEmitter(StmtBuilder):
         assert isinstance(codegen, FunctionCodegen)
         self._codegen: FunctionCodegen = codegen
 
+    def assert_is_single_thread(self, inst: Instruction, msg: str) -> None:
+        if self.current_num_threads != 1:
+            raise ValueError(f"Instruction {inst} requires a single thread: {msg}.")
+
+    def assert_is_a_warp(self, inst: Instruction, msg: str) -> None:
+        if self.current_num_threads != 32:
+            raise ValueError(f"Instruction {inst} requires a warp (32 threads): {msg}.")
+
     def sync(self):
-        if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
-            self.append(syncthreads())
-        else:
-            self.append(self.contexts.sync_ctx.sync())
+        optional_sync_call = self.contexts.sync_ctx.sync()
+        if optional_sync_call is not None:
+            self.append(optional_sync_call)
 
     def sync_reduce(self, value: Expr, op: str) -> Expr:
         if get_current_target().is_nvgpu():

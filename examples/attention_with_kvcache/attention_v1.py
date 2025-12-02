@@ -313,16 +313,22 @@ def attention_with_kvcache_flash_attention(
     cache_seqlens: torch.Tensor,  # [1]
     block_table: torch.Tensor,  # int32[batch_size, max_num_blocks_per_seq]
 ) -> torch.Tensor:
-    from flash_attn.flash_attn_interface import flash_attn_with_kvcache
+    try:
+        from flash_attn.flash_attn_interface import flash_attn_with_kvcache
 
-    return flash_attn_with_kvcache(
-        q,
-        k_cache,
-        v_cache,
-        cache_seqlens=cache_seqlens,
-        block_table=block_table,
-        causal=True,
-    )
+        return flash_attn_with_kvcache(
+            q,
+            k_cache,
+            v_cache,
+            cache_seqlens=cache_seqlens,
+            block_table=block_table,
+            causal=True,
+        )
+    except ImportError:
+        # use reference implementation if flash attention is not available
+        return attention_with_kvcache_reference(
+            q, k_cache, v_cache, cache_seqlens, block_table
+        )
 
 
 def main():

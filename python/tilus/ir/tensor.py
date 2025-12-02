@@ -640,7 +640,7 @@ class SharedTensor(Tensor):
     def item_ptr(self) -> Var:
         raise RuntimeError("shared_tensor.item_ptr(...) could only be used in Tilus Script.")
 
-    def permute(self, dims: tuple[int, ...]) -> SharedTensor:
+    def permute(self, dims: Sequence[int]) -> SharedTensor:
         raise RuntimeError("shared_tensor.permute(...) could only be used in Tilus Script.")
 
     def transpose(self) -> SharedTensor:

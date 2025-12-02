@@ -15,7 +15,7 @@
 # ruff: noqa: I001
 from .global_layout import GlobalLayout, global_column_major, global_compose, global_row_major, global_strides
 from .register_layout import RegisterLayout, register_layout
-from .shared_layout import SharedLayout
+from .shared_layout import SharedLayout, shared_layout
 from .tmem_layout import TMemoryLayout
 from .mfunction import MultiFunction, canonicalize_multi_function, multi_function
 from .ops.utils import LayoutOperationError

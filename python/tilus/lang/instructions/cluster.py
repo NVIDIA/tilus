@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.dtypes import int32
 from hidet.ir.expr import Var
 
 from tilus.lang.constructs.structs import Dim3
@@ -26,25 +25,28 @@ class BlockClusterInstructionGroup(InstructionGroup):
 
         self._builder.evaluate(pred=None, expr=cluster_sync())
 
-    def block_id(self) -> Dim3:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_id_in_cluster
+    @property
+    def blockIdx(self) -> Dim3:
+        from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterBlockIdx
 
         return Dim3(
-            self._builder.declare(type=int32, init=block_id_in_cluster("x"), hint="block_id_in_cluster_x"),
-            self._builder.declare(type=int32, init=block_id_in_cluster("y"), hint="block_id_in_cluster_y"),
-            self._builder.declare(type=int32, init=block_id_in_cluster("z"), hint="block_id_in_cluster_z"),
+            clusterBlockIdx.x,
+            clusterBlockIdx.y,
+            clusterBlockIdx.z,
         )
 
-    def shape(self) -> Dim3:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import cluster_shape
+    @property
+    def clusterDim(self) -> Dim3:
+        from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterDim
 
         return Dim3(
-            self._builder.declare(type=int32, init=cluster_shape("x"), hint="cluster_dim_x"),
-            self._builder.declare(type=int32, init=cluster_shape("y"), hint="cluster_dim_y"),
-            self._builder.declare(type=int32, init=cluster_shape("z"), hint="cluster_dim_z"),
+            clusterDim.x,
+            clusterDim.y,
+            clusterDim.z,
         )
 
-    def block_rank(self) -> Var:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster
+    @property
+    def blockRank(self) -> Var:
+        from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterBlockRank
 
-        return self._builder.declare(type=int32, init=block_rank_in_cluster(), hint="block_rank_in_cluster")
+        return clusterBlockRank
