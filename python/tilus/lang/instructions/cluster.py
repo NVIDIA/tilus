@@ -26,7 +26,8 @@ class BlockClusterInstructionGroup(InstructionGroup):
 
         self._builder.evaluate(pred=None, expr=cluster_sync())
 
-    def block_id(self) -> Dim3:
+    @property
+    def blockIdx(self) -> Dim3:
         from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_id_in_cluster
 
         return Dim3(
@@ -44,7 +45,8 @@ class BlockClusterInstructionGroup(InstructionGroup):
             self._builder.declare(type=int32, init=cluster_shape("z"), hint="cluster_dim_z"),
         )
 
-    def block_rank(self) -> Var:
+    @property
+    def blockRank(self) -> Var:
         from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster
 
         return self._builder.declare(type=int32, init=block_rank_in_cluster(), hint="block_rank_in_cluster")

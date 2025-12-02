@@ -581,6 +581,14 @@ class FreeSharedInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
+class ReshapeSharedInst(Instruction):
+    @staticmethod
+    def create(tensor: SharedTensor, shape: Sequence[int]) -> ReshapeSharedInst:
+        output = SharedTensor.create(dtype=tensor.dtype, shape=shape)
+        return ReshapeSharedInst(output=output, inputs=(tensor,))
+
+
+@dataclass(frozen=True, eq=False)
 class PermuteSharedInst(Instruction):
     dims: tuple[int, ...]
 

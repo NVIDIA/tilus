@@ -43,6 +43,14 @@ class BaseInstEmitter(StmtBuilder):
         assert isinstance(codegen, FunctionCodegen)
         self._codegen: FunctionCodegen = codegen
 
+    def assert_is_single_thread(self, inst: Instruction, msg: str) -> None:
+        if self.current_num_threads != 1:
+            raise ValueError(f"Instruction {inst} requires a single thread: {msg}.")
+
+    def assert_is_a_warp(self, inst: Instruction, msg: str) -> None:
+        if self.current_num_threads != 32:
+            raise ValueError(f"Instruction {inst} requires a warp (32 threads): {msg}.")
+
     def sync(self):
         if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
             self.append(syncthreads())

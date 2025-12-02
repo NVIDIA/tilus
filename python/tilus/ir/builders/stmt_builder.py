@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Callable, List, Optional, Sequence, Type, Union
 
 from hidet.ir import primitives
-from hidet.ir.dtypes import boolean, int32, uint32
+from hidet.ir.dtypes import boolean, int32, uint16, uint32
 from hidet.ir.expr import BitwiseXor, Equal, Expr, LessEqual, LessThan, LogicalNot, NotEqual, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
@@ -89,6 +89,7 @@ from tilus.ir.instructions.generic import (
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
+    ReshapeSharedInst,
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
@@ -685,14 +686,23 @@ class StmtBuilder(StmtBuilderCore):
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         mbarrier: Expr | RegisterTensor,
+        multicast_mask: Optional[Expr | int] = None,
         cache_policy: Optional[Expr] = None,
     ) -> None:
         if dims is None:
             dims = list(range(len(src.shape)))
         if isinstance(mbarrier, RegisterTensor):
             mbarrier = self.tensor_item_value(mbarrier)
+        if isinstance(multicast_mask, int):
+            multicast_mask = uint16(multicast_mask)
         inst = CopyAsyncTensorGlobalToSharedInst.create(
-            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, cache_policy=cache_policy
+            src=src,
+            dst=dst,
+            offsets=offsets,
+            dims=dims,
+            mbarrier=mbarrier,
+            multicast_mask=multicast_mask,
+            cache_policy=cache_policy,
         )
         self.append(inst)
 
@@ -1017,6 +1027,11 @@ class StmtBuilder(StmtBuilderCore):
     def free_shared(self, shared_value: SharedTensor) -> None:
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
+    
+    def reshape_shared(self, tensor: SharedTensor, shape: Sequence[int]) -> SharedTensor:
+        inst = ReshapeSharedInst.create(tensor, shape)
+        self.append(inst)
+        return inst.shared_output
 
     def permute_shared(self, tensor: SharedTensor, dims: Sequence[int]) -> SharedTensor:
         inst = PermuteSharedInst.create(tensor, dims)

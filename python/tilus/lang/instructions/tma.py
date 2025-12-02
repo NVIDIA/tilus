@@ -30,6 +30,7 @@ class TmaInstructionGroup(InstructionGroup):
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         mbarrier: Expr | RegisterTensor,
+        multicast_mask: Optional[Expr | int] = None,
         cache_policy: Optional[Expr] = None,
     ) -> None:
         """
@@ -51,6 +52,11 @@ class TmaInstructionGroup(InstructionGroup):
         This instruction will signal an arrival to the barrier and increase the expect-tx by the number of bytes pending in the copy operation.
         Upon finishing the underlying TMA operation, the TMA engine will signal to reduce the expect-rx by the same number of bytes.
 
+        The `multicast_mask` parameter specifies the multicast mask to be used. When not given, this instruction only
+        copy the data from global memory to the shared memory of the current thread block. If given, it should be a
+        uint16 variable specifying the multicast mask to be used.  When the i-th bit of the mask is set, the data will
+        also be copied to the shared memory of the i-th thread block in the current thread block cluster.
+
         The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
 
         Parameters
@@ -68,11 +74,19 @@ class TmaInstructionGroup(InstructionGroup):
         mbarrier: Expr | RegisterTensor
             The memory barrier to be used for synchronizing the copy operation. It should be an uint32 expression specifying the address
             of the barrier in shared space. It can also be a register tensor with a single element of uint32 type containing the address of the barrier.
+        multicast_mask: Optional[Expr]
+            The multicast mask to be used. It should be a uint16 variable specifying the multicast thread blocks. When not given, no multicast is performed.
         cache_policy: Optional[Expr]
             The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
         """
         self._builder.copy_async_tensor_global_to_shared(
-            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, cache_policy=cache_policy
+            src=src,
+            dst=dst,
+            offsets=offsets,
+            dims=dims,
+            mbarrier=mbarrier,
+            multicast_mask=multicast_mask,
+            cache_policy=cache_policy,
         )
 
     def shared_to_global(

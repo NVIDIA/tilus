@@ -91,7 +91,14 @@ class VectorizedEvaluator(IRFunctor):
 
 def vectorized_evaluate(expr: Expr, var2value: dict[Var, np.ndarray]) -> np.ndarray:
     evaluator = VectorizedEvaluator(var2value)
-    return evaluator.visit(expr)
+    try:
+        return evaluator.visit(expr)
+    except ValueError as e:
+        rows = ["Failed to evaluate expression {}".format(expr)]
+        for var, value in var2value.items():
+            rows.append(f"{var}:")
+            rows.append(f"{value}")
+        raise ValueError("\n".join(rows)) from e
 
 
 def meshgrid(shape: Sequence[int]) -> list[np.ndarray]:

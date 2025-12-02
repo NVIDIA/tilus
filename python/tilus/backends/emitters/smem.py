@@ -18,7 +18,7 @@ from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from hidet.ir.type import tensor_pointer_type
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst, PermuteSharedInst, SliceSharedInst
+from tilus.ir.instructions import AllocateSharedInst, FreeSharedInst, PermuteSharedInst, SliceSharedInst, ReshapeSharedInst
 from tilus.ir.tensor import SharedTensor
 
 
@@ -71,6 +71,21 @@ class SliceSharedInstEmitter(BaseInstEmitter):
 @register_emitter(PermuteSharedInst)
 class PermuteSharedInstEmitter(BaseInstEmitter):
     def emit(self, inst: PermuteSharedInst) -> None:
+        shared_input: SharedTensor = inst.shared_input
+        shared_output: SharedTensor = inst.shared_output
+
+        output_var = self.get_or_allocate_var(shared_output)
+
+        self.assign(output_var, self.tensor2var[shared_input])
+        self.shared_tensor_shared_space_addr[shared_output] = self.declare_var(
+            "shared_addr",
+            tp=int32,
+            init=self.shared_tensor_shared_space_addr[shared_input],
+        )
+        
+@register_emitter(ReshapeSharedInst)
+class ReshapeSharedInstEmitter(BaseInstEmitter):
+    def emit(self, inst: ReshapeSharedInst) -> None:
         shared_input: SharedTensor = inst.shared_input
         shared_output: SharedTensor = inst.shared_output
 

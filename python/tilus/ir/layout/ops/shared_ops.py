@@ -18,6 +18,9 @@ from typing import List, Sequence
 
 import tabulate
 from hidet.utils import gcd, prod
+from hidet.ir.dtypes import int32
+from hidet.ir.expr import Expr, Var
+from hidet.ir.utils.index_transform import index_serialize, index_deserialize
 
 from tilus.ir.layout.ops.utils import LayoutOperationError, get_mode_groups
 from tilus.ir.layout.shared_layout import SharedLayout, Swizzle, shared_layout
