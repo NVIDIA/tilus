@@ -78,8 +78,9 @@ class Tcgen05MmaExample(tilus.Script):
         self.mbarrier.wait(tma_mbarrier, phase=0)
 
         # perform mma
-        self.tcgen05.mma(a=s_a, b=s_b.transpose(), d=t_d)
-        self.tcgen05.commit(mma_mbarrier)
+        with self.single_thread():
+            self.tcgen05.mma(a=s_a, b=s_b.transpose(), d=t_d)
+            self.tcgen05.commit(mma_mbarrier)
         self.mbarrier.wait(mma_mbarrier, phase=0)
 
         # store d from t_d to global

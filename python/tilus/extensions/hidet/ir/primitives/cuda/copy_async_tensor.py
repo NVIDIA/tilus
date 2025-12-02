@@ -58,6 +58,46 @@ def register_copy_async_tensor():
     from tilus.extensions.hidet.lang import script
 
     for dim in [1, 2, 3, 4, 5]:
+        for cta_group in [None, 1, 2]:
+            for has_cache_hint in [False, True]:
+                func_name = resolve_cp_async_bulk_tensor_global_to_shared(
+                    dim=dim, cta_group=cta_group, cache_hint=has_cache_hint
+                )
+                cta_group_item = "" if cta_group is None else ".cta_group::{}".format(cta_group)
+                cache_hint_item = "" if not has_cache_hint else "::L2::cache_hint"
+                inst = "cp.async.bulk.tensor.{}d.shared::cta.global.tile.mbarrier::complete_tx::bytes{}{}".format(
+                    dim, cta_group_item, cache_hint_item
+                )
+                if has_cache_hint:
+                    operands = "[%0], [%1, {{{}}}], [%2], %3".format(
+                        ", ".join(["%{}".format(i + 4) for i in range(dim)])
+                    )
+                else:
+                    operands = "[%0], [%1, {{{}}}], [%2]".format(", ".join(["%{}".format(i + 3) for i in range(dim)]))
+                template = inst + " " + operands + ";"
+                coords_type = meta.types([int32 for _ in range(dim)])
+                cache_hint_type = meta.types([uint64] if has_cache_hint else [])
+
+                @no_type_check
+                @register_primitive_function_decorator
+                @script
+                def cp_async_tensor_global_to_shared_device(
+                    dst: uint32,
+                    tensor_map: CUTensorMapPointerType,
+                    coords: coords_type,
+                    mbarrier: uint32,
+                    cache_hint: cache_hint_type,
+                ):
+                    attrs.func_name = func_name
+                    attrs.func_kind = "cuda_internal"
+                    asm(
+                        template=template,
+                        inputs=[dst, tensor_map, mbarrier, *cache_hint, *coords],
+                        is_volatile=True,
+                        memory_fence=True,
+                    )
+
+    for dim in [1, 2, 3, 4, 5]:
         for multicast in [False, True]:
             for cta_group in [None, 1, 2]:
                 for has_cache_hint in [False, True]:
@@ -93,7 +133,7 @@ def register_copy_async_tensor():
                     @no_type_check
                     @register_primitive_function_decorator
                     @script
-                    def cp_async_tensor_global_to_shared_device(
+                    def cp_async_tensor_global_to_cluster_shared_device(
                         dst: uint32,
                         tensor_map: CUTensorMapPointerType,
                         coords: coords_type,
@@ -109,46 +149,6 @@ def register_copy_async_tensor():
                             is_volatile=True,
                             memory_fence=True,
                         )
-
-    for dim in [1, 2, 3, 4, 5]:
-        for cta_group in [None, 1, 2]:
-            for has_cache_hint in [False, True]:
-                func_name = resolve_cp_async_bulk_tensor_global_to_shared(
-                    dim=dim, cta_group=cta_group, cache_hint=has_cache_hint
-                )
-                cta_group_item = "" if cta_group is None else ".cta_group::{}".format(cta_group)
-                cache_hint_item = "" if not has_cache_hint else "::L2::cache_hint"
-                inst = "cp.async.bulk.tensor.{}d.shared::cta.global.tile.mbarrier::complete_tx::bytes{}{}".format(
-                    dim, cta_group_item, cache_hint_item
-                )
-                if has_cache_hint:
-                    operands = "[%0], [%1, {{{}}}], [%2], %3".format(
-                        ", ".join(["%{}".format(i + 4) for i in range(dim)])
-                    )
-                else:
-                    operands = "[%0], [%1, {{{}}}], [%2]".format(", ".join(["%{}".format(i + 3) for i in range(dim)]))
-                template = inst + " " + operands + ";"
-                coords_type = meta.types([int32 for _ in range(dim)])
-                cache_hint_type = meta.types([uint64] if has_cache_hint else [])
-
-                @no_type_check
-                @register_primitive_function_decorator
-                @script
-                def cp_async_tensor_global_to_cluster_shared_device(
-                    dst: uint32,
-                    tensor_map: CUTensorMapPointerType,
-                    coords: coords_type,
-                    mbarrier: uint32,
-                    cache_hint: cache_hint_type,
-                ):
-                    attrs.func_name = func_name
-                    attrs.func_kind = "cuda_internal"
-                    asm(
-                        template=template,
-                        inputs=[dst, tensor_map, mbarrier, *cache_hint, *coords],
-                        is_volatile=True,
-                        memory_fence=True,
-                    )
 
     for dim in [1, 2, 3, 4, 5]:
         for has_cache_hint in [False, True]:
@@ -236,6 +236,53 @@ def cp_async_tensor_global_to_shared(
     optional_cache_policy: list[Expr] = [cache_policy] if cache_policy is not None else []
     return call_primitive_func(func_name, args=[dst, src_tensor_map, *coords, mbarrier, *optional_cache_policy])
 
+def cp_async_tensor_global_to_cluster_shared(
+    dst: Expr,
+    src_tensor_map: Expr,
+    coords: Sequence[Expr],
+    mbarrier: Expr,
+    multicast_mask: Expr,
+    cta_group: Optional[int] = None,
+    cache_policy: Optional[Expr] = None,
+):
+    """Perform a bulk copy from global memory to cluster shared memory asynchronously.
+
+    Parameters
+    ----------
+    dst: Expr
+        The destination address in shared memory. It should be an address with shared memory space with type uint32.
+    src_tensor_map: Expr
+        The tensor map that describes how the data is laid out in the global memory. It should be a pointer to
+        an object with CUtensorMapType type.
+    coords: Sequence[Expr]
+        The coordinates of the tile to be copied.
+    mbarrier: Expr
+        The mbarrier to be used for synchronization. It should be an address with shared memory space with type uint32
+        that has been initialized by `mbarrier_init`.
+    multicast_mask: Expr
+        The multicast mask to be used.
+    cta_group: int, optional
+        See the documentation of PTX of tma tensor copy.
+    cache_policy: Expr, optional
+        The cache policy to be used.
+
+    Returns
+    -------
+    ret: Expr
+        A function call expression.
+    """
+    assert cache_policy is None, "cache_policy is not supported yet"
+    func_name = resolve_cp_async_bulk_tensor_global_to_cluster_shared(
+        dim=len(coords),
+        multicast=True,
+        cta_group=cta_group,
+        cache_hint=cache_policy is not None,
+    )
+    optional_cache_policy: list[Expr] = [cache_policy] if cache_policy is not None else []
+    return call_primitive_func(
+        func_name,
+        args=[dst, src_tensor_map, *coords, mbarrier, multicast_mask, *optional_cache_policy],
+    )
 
 def cp_async_tensor_shared_to_global(
     dst_tensor_map: Expr, src: Expr, coords: Sequence[Expr], cache_policy: Optional[Expr] = None
