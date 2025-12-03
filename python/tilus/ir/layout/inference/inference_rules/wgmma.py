@@ -18,9 +18,9 @@ from tilus.ir.instructions.cuda.wgmma import WgmmaMmaSSInst, WgmmaMmaRSInst
 from tilus.ir.layout.ops.register_ops import spatial, local, column_spatial, column_local
 
 
-def generate_wgmma_register_layout(num_column, dtype) -> RegisterLayout: # Same for A and D
-    T = 32 // dtype.nbits
-    return column_spatial(4).column_local(2, num_column // 8).spatial(8, 4).local(T)
+def generate_wgmma_register_layout(num_column, dtype) -> RegisterLayout:
+    T = 64 // dtype.nbits
+    return column_spatial(4, 1).column_local(2, num_column // T // 4).spatial(8, 4).local(T)
 
 @register_rule(WgmmaMmaSSInst)
 class WgmmaMmaSSRule(LayoutInferenceRule):

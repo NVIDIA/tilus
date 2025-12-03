@@ -12,11 +12,12 @@ from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir(True)
+torch.set_printoptions(precision=4, sci_mode=False)
 
 # @tilus.autotune("block_m, block_n", [(128, 128), (128, 256), (128, 64)])
 @tilus.autotune("block_m, block_n", [(64, 128),])
 @tilus.autotune("block_k", [16,])
-class MatmulTMA(tilus.Script):
+class MatmulWGMMA(tilus.Script):
     def __init__(
         self,
         block_m,
@@ -66,8 +67,6 @@ class MatmulTMA(tilus.Script):
             # synchronize threads in the block to ensure data is available in shared memory
             self.sync()
 
-            # a = self.load_shared(sa)
-            # b = self.load_shared(sb)
             self.wgmma.fence()
             self.wgmma.mma(sa, sb.transpose(), acc)
             self.wgmma.commit_group()
@@ -87,11 +86,12 @@ def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     workloads = [
         [4096, 4096, 4096],
+        # [128, 16, 32],
     ]
 
     rows = []
     for m, n, k in workloads:
-        matmul = MatmulTMA()
+        matmul = MatmulWGMMA()
 
         a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
         b = (torch.rand(n, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
@@ -99,13 +99,13 @@ def main():
         c_expect = a @ b.T
         matmul(m, n, k, a, b, c_actual)
         torch.cuda.synchronize()
-
+        
         # check correctness
         torch.testing.assert_close(c_expect, c_actual)
 
         # benchmark
         for name, func in [
-            ("torch", lambda: torch.matmul(a, b, out=c_expect)),
+            ("torch", lambda: torch.matmul(a, b.T, out=c_expect)),
             ("tilus", lambda: matmul(m, n, k, a, b, c_actual)),
         ]:
             latency = benchmark_func(func, warmup=5, repeat=20)

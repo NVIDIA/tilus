@@ -52,6 +52,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     # register layout rules
     [SliceRegisterRule, SliceAssignRule, AllocBarrierRule],
     [MmaDotRule],
+    [WgmmaMmaSSRule], #, WgmmaMmaRSRule],
     [Tcgen05LoadRule, Tcgen05StoreRule],
     [Tcgen05CopyRule],
     [BinaryRule, UnaryRule],
@@ -66,7 +67,6 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     # shared memory rules
     [LoadSharedInferSwizzledSharedRule, StoreSharedSwizzleRule],
     [SharedSliceRule, PermuteSharedRule],
-    [WgmmaMmaSSRule], #, WgmmaMmaRSRule],
     [CopyAsyncRule],
     [LoadSharedInferRegisterRule],
     [LoadSharedInferRowMajorSharedRule],
