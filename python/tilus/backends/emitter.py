@@ -42,7 +42,7 @@ class BaseInstEmitter(StmtBuilder):
 
         assert isinstance(codegen, FunctionCodegen)
         self._codegen: FunctionCodegen = codegen
-    
+
     def assert_is_single_thread(self, inst: Instruction, msg: str) -> None:
         if self.current_num_threads != 1:
             raise ValueError(f"Instruction {inst} requires a single thread: {msg}.")

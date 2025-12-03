@@ -12,15 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pytest
+import os
+
 import tilus
 import torch
 from tilus import float16, int32
 from tilus.testing import requires
-from tilus.utils import cdiv, idiv
+from tilus.utils import cdiv
 
-import os
-tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), './cache'))
+tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "./cache"))
+
 
 class CopyAsyncTensorMulticastExample(tilus.Script):
     def __init__(self):
@@ -49,16 +50,17 @@ class CopyAsyncTensorMulticastExample(tilus.Script):
         self.printf("[%d] start working\n", self.cluster.block_rank())
 
         with self.single_warp():
+            cta_rank = self.cluster.block_rank()
             self.tma.global_to_shared(
                 src=g_x,
-                dst=s_x[self.cluster.block_rank()],
+                dst=s_x[cta_rank],
                 offsets=[m_offset, n_offset],
                 multicast_mask=0b11,
                 mbarrier=load_barrier,
             )
-        
+
         self.printf("[%d] after tma.global_to_shared\n", self.cluster.block_rank())
-        
+
         self.mbarrier.wait(load_barrier, phase=0)
 
         self.printf("[%d] after mbarrier.wait\n", self.cluster.block_rank())
@@ -105,4 +107,3 @@ def test_copy_async_tensor_cluster():
 if __name__ == "__main__":
     # pytest.main([__file__])
     test_copy_async_tensor_cluster()
-

@@ -30,13 +30,14 @@ from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import (
     cp_async_tensor_commit_group,
-    cp_async_tensor_global_to_shared,
     cp_async_tensor_global_to_cluster_shared,
+    cp_async_tensor_global_to_shared,
     cp_async_tensor_shared_to_global,
     cp_async_tensor_wait_group,
 )
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
-    mbarrier_arrive_and_expect_tx_shared, mbarrier_arrive_and_expect_tx_remote_shared
+    mbarrier_arrive_and_expect_tx_remote_shared,
+    mbarrier_arrive_and_expect_tx_shared,
 )
 from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import (
     CUtensorMapType,
@@ -339,20 +340,21 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
                     mbarrier_addr=inst.mbarrier,
                     transaction_bytes=transaction_bytes,
                     cta_id=self.current_thread,
-                    pred=(multicast_mask >> self.current_thread) & uint16(1)
+                    pred=(multicast_mask >> self.current_thread) & uint16(1),
                 )
             )
-            self.append(
-                cp_async_tensor_global_to_cluster_shared(
-                    dst=shared_addr,
-                    src_tensor_map=src_tensor_map,
-                    coords=coords,
-                    mbarrier=inst.mbarrier,
-                    multicast_mask=multicast_mask,
-                    cta_group=None,
-                    cache_policy=inst.cache_policy,
+            with self.if_then(self.current_thread == 0):
+                self.append(
+                    cp_async_tensor_global_to_cluster_shared(
+                        dst=shared_addr,
+                        src_tensor_map=src_tensor_map,
+                        coords=coords,
+                        mbarrier=inst.mbarrier,
+                        multicast_mask=multicast_mask,
+                        cta_group=None,
+                        cache_policy=inst.cache_policy,
+                    )
                 )
-            )
 
 
 @register_emitter(CopyAsyncTensorSharedToGlobalInst, target=nvgpu_sm90)

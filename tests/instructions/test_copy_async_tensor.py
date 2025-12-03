@@ -69,6 +69,65 @@ class CopyAsyncTensorExample(tilus.Script):
             self.tma.wait_group(0)
 
 
+class CopyAsyncTensorMulticastExample(tilus.Script):
+    def __init__(self):
+        super().__init__()
+        self.cluster_m = 64
+        self.block_m = 32
+        self.block_n = 64
+
+    def __call__(self, m_size: int32, n_size: int, x_ptr: ~float16, y_ptr: ~float16):
+        self.attrs.blocks = cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)
+        self.attrs.cluster_blocks = (2, 1)
+        self.attrs.warps = 4
+
+        m_offset = self.blockIdx.x * self.block_m
+        n_offset = self.blockIdx.y * self.block_n
+
+        g_x = self.global_view(x_ptr, dtype=float16, shape=[m_size, n_size])
+        g_y = self.global_view(y_ptr, dtype=float16, shape=[m_size, n_size])
+
+        s_x = self.shared_tensor(dtype=float16, shape=[2, self.block_m, self.block_n])
+        s_y = self.shared_tensor(dtype=float16, shape=[2, self.block_m, self.block_n])
+
+        load_barrier = self.mbarrier.alloc(count=2)
+        self.sync()
+
+        with self.single_warp():
+            cta_rank = self.cluster.block_rank()
+            self.tma.global_to_shared(
+                src=g_x,
+                dst=s_x[cta_rank],
+                offsets=[m_offset, n_offset],
+                multicast_mask=0b11,
+                mbarrier=load_barrier,
+            )
+
+        self.mbarrier.wait(load_barrier, phase=0)
+
+        x = self.load_shared(s_x)
+        x += 1
+        self.store_shared(s_y, x)
+
+        self.tma.fence_proxy_copy_async()
+        self.sync()
+
+        if self.cluster.block_rank() == 0:
+            with self.single_thread():
+                self.tma.shared_to_global(
+                    src=s_y[0],
+                    dst=g_y,
+                    offsets=[m_offset, n_offset],
+                )
+                self.tma.shared_to_global(
+                    src=s_y[1],
+                    dst=g_y,
+                    offsets=[m_offset + self.block_m, n_offset],
+                )
+                self.tma.commit_group()
+                self.tma.wait_group(0)
+
+
 @requires.nvgpu_sm90
 def test_copy_async_tensor_cta():
     m = 123
@@ -76,6 +135,22 @@ def test_copy_async_tensor_cta():
     x = torch.randn(m, n, dtype=torch.float16, device="cuda")
     y = torch.zeros(m, n, dtype=torch.float16, device="cuda")
     kernel = CopyAsyncTensorExample()
+    kernel(m, n, x, y)
+
+    torch.cuda.synchronize()
+
+    torch.testing.assert_close(y, x + 1)
+
+
+@requires.nvgpu_sm90
+def test_copy_async_tensor_cluster():
+    # m = 128
+    # n = 64 * 8
+    m = 64
+    n = 64
+    x = torch.randn(m, n, dtype=torch.float16, device="cuda")
+    y = torch.zeros(m, n, dtype=torch.float16, device="cuda")
+    kernel = CopyAsyncTensorMulticastExample()
     kernel(m, n, x, y)
 
     torch.cuda.synchronize()

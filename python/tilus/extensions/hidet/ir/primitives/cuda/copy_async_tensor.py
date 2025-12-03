@@ -14,7 +14,7 @@
 # limitations under the License.
 from typing import Optional, Sequence, no_type_check
 
-from hidet.ir.dtypes import int32, uint32, uint64, uint16
+from hidet.ir.dtypes import int32, uint16, uint32, uint64
 from hidet.ir.expr import Expr
 from hidet.ir.primitives.func import call_primitive_func
 from hidet.utils import initialize
@@ -236,6 +236,7 @@ def cp_async_tensor_global_to_shared(
     optional_cache_policy: list[Expr] = [cache_policy] if cache_policy is not None else []
     return call_primitive_func(func_name, args=[dst, src_tensor_map, *coords, mbarrier, *optional_cache_policy])
 
+
 def cp_async_tensor_global_to_cluster_shared(
     dst: Expr,
     src_tensor_map: Expr,
@@ -283,6 +284,7 @@ def cp_async_tensor_global_to_cluster_shared(
         func_name,
         args=[dst, src_tensor_map, *coords, mbarrier, multicast_mask, *optional_cache_policy],
     )
+
 
 def cp_async_tensor_shared_to_global(
     dst_tensor_map: Expr, src: Expr, coords: Sequence[Expr], cache_policy: Optional[Expr] = None

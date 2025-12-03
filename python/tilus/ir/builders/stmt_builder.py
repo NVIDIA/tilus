@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Callable, List, Optional, Sequence, Type, Union
 
 from hidet.ir import primitives
-from hidet.ir.dtypes import boolean, int32, uint32, uint16
+from hidet.ir.dtypes import boolean, int32, uint16, uint32
 from hidet.ir.expr import BitwiseXor, Equal, Expr, LessEqual, LessThan, LogicalNot, NotEqual, Var, as_expr
 from hidet.ir.tools import infer_type
 from hidet.ir.type import BaseType, DataType
@@ -685,7 +685,13 @@ class StmtBuilder(StmtBuilderCore):
         if isinstance(multicast_mask, int):
             multicast_mask = uint16(multicast_mask)
         inst = CopyAsyncTensorGlobalToSharedInst.create(
-            src=src, dst=dst, offsets=offsets, dims=dims, mbarrier=mbarrier, multicast_mask=multicast_mask, cache_policy=cache_policy
+            src=src,
+            dst=dst,
+            offsets=offsets,
+            dims=dims,
+            mbarrier=mbarrier,
+            multicast_mask=multicast_mask,
+            cache_policy=cache_policy,
         )
         self.append(inst)
 

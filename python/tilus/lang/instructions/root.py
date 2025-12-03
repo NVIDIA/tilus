@@ -221,7 +221,7 @@ class RootInstructionGroup(InstructionGroup):
             The thread group context created.
         """
         return self.thread_group(thread_begin=0, num_threads=1)
-    
+
     def single_warp(self) -> ThreadGroupContext:
         """Create a thread group context with a single warp (32 threads).
 
@@ -857,7 +857,7 @@ class RootInstructionGroup(InstructionGroup):
             The register tensor with the specified dimension(s) unsqueezed.
         """
         return self._builder.unsqueeze(x, dim=dim, out=out)
-    
+
     def flatten(self):
         self._builder
 
