@@ -13,8 +13,9 @@ from tilus.utils import benchmark_func, cdiv
 tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir(True)
 
-@tilus.autotune("block_m, block_n", [(128, 128), (128, 256), (128, 64)])
-@tilus.autotune("block_k", [16, 32, 16])
+# @tilus.autotune("block_m, block_n", [(128, 128), (128, 256), (128, 64)])
+@tilus.autotune("block_m, block_n", [(64, 128),])
+@tilus.autotune("block_k", [16,])
 class MatmulTMA(tilus.Script):
     def __init__(
         self,
