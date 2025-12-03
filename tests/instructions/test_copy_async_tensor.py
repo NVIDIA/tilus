@@ -94,7 +94,7 @@ class CopyAsyncTensorMulticastExample(tilus.Script):
         self.sync()
 
         with self.single_warp():
-            cta_rank = self.cluster.block_rank()
+            cta_rank = self.cluster.blockRank()
             self.tma.global_to_shared(
                 src=g_x,
                 dst=s_x[cta_rank],
@@ -112,7 +112,7 @@ class CopyAsyncTensorMulticastExample(tilus.Script):
         self.tma.fence_proxy_copy_async()
         self.sync()
 
-        if self.cluster.block_rank() == 0:
+        if self.cluster.blockRank() == 0:
             with self.single_thread():
                 self.tma.shared_to_global(
                     src=s_y[0],

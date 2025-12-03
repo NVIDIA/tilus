@@ -81,7 +81,7 @@ class LoadPipeline(Pipeline):
         params: Params,
     ):
         super().__init__(
-            num_stages=num_stages, producer_arrive_count=2, consumer_arrive_count=1
+            num_stages=num_stages, producer_arrive_count=4, consumer_arrive_count=1
         )
         self.params: Params = params
         self.s_a = self.shared_tensor(
@@ -98,28 +98,48 @@ class LoadWorker(tilus.Class):
         self.params: Params = params
 
     def async_run(self):
+        """   
+             |  B0  |  B1  |  B2  |  B3  |  
+        ---- +-------------+-------------+
+         A0  |             |             |
+        ---- |     cta0    |     cta2    |
+         A1  |             |             |
+        ---- +-------------+-------------+
+         A2  |             |             |
+        ---- |     cta1    |     cta3    |
+         A3  |             |             |
+        ---- +-------------+-------------+
+        
+        cta0: load A0 and B0
+        cta1: load A2 and B1
+        cta2: load A1 and B2
+        cta3: load A3 and B3
+        """
         pipe, params = self.pipe, self.params
-        s_a, s_b = pipe.s_a, pipe.s_b
-        num_stages: int = pipe.num_stages
-        offset_m = self.blockIdx.x * params.block_m
-        offset_n = self.blockIdx.y * params.block_n
+        num_stages, block_m, block_n, block_k = pipe.num_stages, params.block_m, params.block_n, params.block_k
+        s_a = self.reshape_shared(pipe.s_a, [num_stages, 2, block_m // 2, block_k])
+        s_b = self.reshape_shared(pipe.s_b, [num_stages, 2, block_n // 2, block_k])
+        offset_m = self.blockIdx.x * params.block_m + self.cluster.blockIdx.y * (params.block_m // 2)
+        offset_n = self.blockIdx.y * params.block_n + self.cluster.blockIdx.x * (params.block_n // 2)
         with self.thread_group(thread_begin=0, num_threads=32):
             for offset_k in self.range(
                 0, params.k_size, params.block_k, unroll=num_stages
             ):
                 self.pipe.producer_acquire()
-                with self.single_thread():
+                with self.single_warp():
                     self.tma.global_to_shared(
                         src=params.g_a,
-                        dst=s_a[pipe.producer_stage],
+                        dst=s_a[pipe.producer_stage, self.cluster.blockIdx.y],
                         offsets=[offset_m, offset_k],
                         mbarrier=pipe.producer_release_barrier(),
+                        multicast_mask=0b0101 if self.cluster.blockIdx.x == 0 else 0b1010,
                     )
                     self.tma.global_to_shared(
                         src=params.g_b,
-                        dst=s_b[pipe.producer_stage],
+                        dst=s_b[pipe.producer_stage, self.cluster.blockIdx.x],
                         offsets=[offset_n, offset_k],
                         mbarrier=pipe.producer_release_barrier(),
+                        multicast_mask=0b0011 if self.cluster.blockIdx.y == 0 else 0b1100,
                     )
                 pipe.producer_advance()
 
@@ -159,7 +179,7 @@ class MmaWorker(tilus.Class):
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
-class BlackwellMatmulV4(tilus.Script):
+class BlackwellMatmulV5(tilus.Script):
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -176,7 +196,8 @@ class BlackwellMatmulV4(tilus.Script):
         b_ptr: ~float16,
         c_ptr: ~float16,
     ):
-        self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
+        self.attrs.blocks = [cdiv(m_size, self.block_m * 2) * 2, cdiv(n_size, self.block_n * 2) * 2]
+        self.attrs.cluster_blocks = (2, 2)
         self.attrs.warps = 4
 
         params = Params(
@@ -216,7 +237,7 @@ class BlackwellMatmulV4(tilus.Script):
 
 
 def main(bench=True):
-    matmul = BlackwellMatmulV4()
+    matmul = BlackwellMatmulV5()
 
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     rows: list = []

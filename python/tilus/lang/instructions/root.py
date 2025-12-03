@@ -562,6 +562,27 @@ class RootInstructionGroup(InstructionGroup):
             The shared tensor to free.
         """
         self._builder.free_shared(tensor)
+    
+    def reshape_shared(
+        self,
+        tensor: SharedTensor,
+        shape: Sequence[int]
+    ) -> SharedTensor:
+        """Reshape a shared tensor.
+
+        Parameters
+        ----------
+        tensor: SharedTensor
+            The shared tensor to reshape.
+        shape: Sequence[int]
+            The new shape of the shared tensor.
+
+        Returns
+        -------
+        ret: SharedTensor
+            The reshaped shared tensor.
+        """
+        return self._builder.reshape_shared(tensor=tensor, shape=shape)
 
     def copy_async(
         self,

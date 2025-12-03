@@ -48,7 +48,7 @@ class ClusterLaunchControlExample(tilus.Script):
             dtype=uint8, shape=[156 * 1024]
         )  # 156KB shared memory used to make each SM only have one block
 
-        is_first_block_in_cluster: boolean = self.cluster.block_rank() == 0
+        is_first_block_in_cluster: boolean = self.cluster.blockRank() == 0
 
         cancel_response = self.shared_tensor(dtype=int32, shape=[self.num_stages, 4])
         producer_mbarriers = self.mbarrier.alloc(count=[self.warps * 32 for _ in range(self.num_stages)])
@@ -88,7 +88,7 @@ class ClusterLaunchControlExample(tilus.Script):
             consumer_stage = (1 + consumer_stage) % self.num_stages
             consumer_phase = consumer_phase ^ (consumer_stage == 0)
             if is_valid:
-                offset_n = (blockIdx.x + self.cluster.block_id().x) * self.block_n
+                offset_n = (blockIdx.x + self.cluster.blockIdx().x) * self.block_n
             else:
                 break
 

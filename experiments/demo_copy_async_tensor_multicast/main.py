@@ -47,10 +47,10 @@ class CopyAsyncTensorMulticastExample(tilus.Script):
         load_barrier = self.mbarrier.alloc(count=2)
         self.sync()
 
-        self.printf("[%d] start working\n", self.cluster.block_rank())
+        self.printf("[%d] start working\n", self.cluster.blockRank())
 
         with self.single_warp():
-            cta_rank = self.cluster.block_rank()
+            cta_rank = self.cluster.blockRank()
             self.tma.global_to_shared(
                 src=g_x,
                 dst=s_x[cta_rank],
@@ -59,11 +59,11 @@ class CopyAsyncTensorMulticastExample(tilus.Script):
                 mbarrier=load_barrier,
             )
 
-        self.printf("[%d] after tma.global_to_shared\n", self.cluster.block_rank())
+        self.printf("[%d] after tma.global_to_shared\n", self.cluster.blockRank())
 
         self.mbarrier.wait(load_barrier, phase=0)
 
-        self.printf("[%d] after mbarrier.wait\n", self.cluster.block_rank())
+        self.printf("[%d] after mbarrier.wait\n", self.cluster.blockRank())
 
         x = self.load_shared(s_x)
         x += 1
@@ -72,7 +72,7 @@ class CopyAsyncTensorMulticastExample(tilus.Script):
         self.tma.fence_proxy_copy_async()
         self.sync()
 
-        if self.cluster.block_rank() == 0:
+        if self.cluster.blockRank() == 0:
             with self.single_thread():
                 self.tma.shared_to_global(
                     src=s_y[0],
