@@ -1324,6 +1324,27 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d)
         self.append(inst)
 
+    # wgmma
+    def wgmma_fence(self) -> None:
+        inst = WgmmaFenceInst.create()
+        self.append(inst)
+
+    def wgmma_commit_group(self) -> None:
+        inst = WgmmaCommitGroupInst.create()
+        self.append(inst)
+
+    def wgmma_wait_group(self, n: Expr | int) -> None:
+        inst = WgmmaWaitGroupInst.create(n=n)
+        self.append(inst)
+
+    def wgmma_mma_ss(self, a: SharedTensor, b: SharedTensor, d: RegisterTensor) -> None:
+        inst = WgmmaMmaSSInst.create(a=a, b=b, d=d)
+        self.append(inst)
+
+    def wgmma_mma_rs(self, a: RegisterTensor, b: SharedTensor, d: RegisterTensor) -> None:
+        inst = WgmmaMmaRSInst.create(a=a, b=b, d=d)
+        self.append(inst)
+
     # annotations
     def annotate_layout(self, tensor: RegisterTensor | SharedTensor, layout: RegisterLayout | SharedLayout) -> None:
         inst = AnnotateLayoutInst.create(tensor=tensor, layout=layout)
