@@ -69,6 +69,13 @@ from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05ViewInst,
     Tcgen05WaitInst,
 )
+from tilus.ir.instructions.cuda.wgmma import (
+    WgmmaFenceInst,
+    WgmmaCommitGroupInst,
+    WgmmaWaitGroupInst,
+    WgmmaMmaSSInst,
+    WgmmaMmaRSInst,
+)
 from tilus.ir.instructions.generic import (
     AddInst,
     AllocateGlobalInst,
@@ -1333,7 +1340,9 @@ class StmtBuilder(StmtBuilderCore):
         inst = WgmmaCommitGroupInst.create()
         self.append(inst)
 
-    def wgmma_wait_group(self, n: Expr | int) -> None:
+    def wgmma_wait_group(self, n: Union[Expr, int]) -> None:
+        if isinstance(n, int):
+            n = as_expr(n)
         inst = WgmmaWaitGroupInst.create(n=n)
         self.append(inst)
 

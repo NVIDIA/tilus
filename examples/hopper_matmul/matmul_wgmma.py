@@ -68,7 +68,7 @@ class MatmulTMA(tilus.Script):
             # a = self.load_shared(sa)
             # b = self.load_shared(sb)
             self.wgmma.fence()
-            self.wgmma.mma(sa, sb, acc)
+            self.wgmma.mma(sa, sb.transpose(), acc)
             self.wgmma.commit_group()
             self.wgmma.wait_group(1)
             self.sync()

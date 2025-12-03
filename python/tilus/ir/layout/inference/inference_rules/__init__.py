@@ -31,4 +31,5 @@ from . import (
     transform_shared,
     transpose,
     where,
+    wgmma,
 )

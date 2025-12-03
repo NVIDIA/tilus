@@ -40,6 +40,7 @@ from .inference_rules.tcgen05.copy import Tcgen05CopyRule
 from .inference_rules.tcgen05.ldst import Tcgen05LoadRule, Tcgen05StoreRule
 from .inference_rules.tcgen05.mma import Tcgen05MmaSSRule, Tcgen05MmaTSRule
 from .inference_rules.tcgen05.slice import Tcgen05SliceRule
+from .inference_rules.wgmma import WgmmaMmaSSRule #, WgmmaMmaRSRule
 from .inference_rules.transform import SqueezeRule, UnsqueezeRule
 from .inference_rules.transform_shared import PermuteSharedRule, SharedSliceRule
 from .inference_rules.transpose import TransposeRule
@@ -65,6 +66,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     # shared memory rules
     [LoadSharedInferSwizzledSharedRule, StoreSharedSwizzleRule],
     [SharedSliceRule, PermuteSharedRule],
+    [WgmmaMmaSSRule], #, WgmmaMmaRSRule],
     [CopyAsyncRule],
     [LoadSharedInferRegisterRule],
     [LoadSharedInferRowMajorSharedRule],

@@ -1,5 +1,5 @@
 import contextlib
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 from hidet.ir.expr import Expr
 from hidet.ir.type import DataType
