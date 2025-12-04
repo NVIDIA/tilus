@@ -12,11 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import contextlib
-from typing import Optional, Sequence, Union
+from typing import Union
 
 from hidet.ir.expr import Expr
-from hidet.ir.type import DataType
 
 from tilus.ir.inst import InstructionError
 from tilus.ir.tensor import RegisterTensor, SharedTensor

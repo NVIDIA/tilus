@@ -70,11 +70,11 @@ from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05WaitInst,
 )
 from tilus.ir.instructions.cuda.wgmma import (
-    WgmmaFenceInst,
     WgmmaCommitGroupInst,
-    WgmmaWaitGroupInst,
-    WgmmaMmaSSInst,
+    WgmmaFenceInst,
     WgmmaMmaRSInst,
+    WgmmaMmaSSInst,
+    WgmmaWaitGroupInst,
 )
 from tilus.ir.instructions.generic import (
     AddInst,

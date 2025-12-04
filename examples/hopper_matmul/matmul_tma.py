@@ -9,9 +9,9 @@ import torch
 from tilus import float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
-
 tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir(True)
+
 
 @tilus.autotune("block_m, block_n", [(128, 128), (128, 256), (128, 64)])
 @tilus.autotune("block_k", [16, 32, 16])
@@ -58,8 +58,12 @@ class MatmulTMA(tilus.Script):
         for offset_k in range(0, k_size, block_k):
             # issue asynchronous copy instructions to load tiles of A and B
             with self.single_thread():
-                self.tma.global_to_shared(src=ga, dst=sa, offsets=[offset_m, offset_k], mbarrier=tma_barrier)
-                self.tma.global_to_shared(src=gb, dst=sb, offsets=[offset_n, offset_k], mbarrier=tma_barrier)
+                self.tma.global_to_shared(
+                    src=ga, dst=sa, offsets=[offset_m, offset_k], mbarrier=tma_barrier
+                )
+                self.tma.global_to_shared(
+                    src=gb, dst=sb, offsets=[offset_n, offset_k], mbarrier=tma_barrier
+                )
                 self.mbarrier.wait(tma_barrier, phase=phase)
 
             # synchronize threads in the block to ensure data is available in shared memory

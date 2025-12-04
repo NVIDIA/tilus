@@ -14,25 +14,25 @@
 # limitations under the License.
 from __future__ import annotations
 
-from enum import Enum
 from dataclasses import dataclass
 
-from hidet.ir.dtypes import uint32, DataType
-from hidet.ir.expr import Expr, cast, if_then_else, Var
-from hidet.ir.primitives.cuda.wgmma import wgmma_fence, wgmma_commit_group, wgmma_wait_group, wgmma_async, WgmmaConfig
-
+from hidet.ir.expr import Expr, Var
+from hidet.ir.primitives.cuda.wgmma import WgmmaConfig, wgmma_async, wgmma_commit_group, wgmma_fence, wgmma_wait_group
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.ir.layout import LayoutOperationError, RegisterLayout
+from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05SwizzleMode
+from tilus.extensions.hidet.ir.primitives.cuda.wgmma import wgmma_encode_smem_descriptor
+from tilus.ir.instructions.cuda.wgmma import (
+    WgmmaCommitGroupInst,
+    WgmmaFenceInst,
+    WgmmaMmaSSInst,
+    WgmmaWaitGroupInst,
+)
+from tilus.ir.layout.cuda.tcgen05.smem import canonicalize_shared_layout
+from tilus.ir.layout.utils.cute import CuteLayout
 from tilus.ir.tensor import RegisterTensor, SharedTensor
 from tilus.target import nvgpu_sm90a
-from tilus.ir.layout.utils.cute import CuteLayout
 
-from tilus.ir.instructions.cuda.wgmma import WgmmaMmaSSInst, WgmmaMmaRSInst, WgmmaFenceInst, WgmmaCommitGroupInst, WgmmaWaitGroupInst
-from tilus.ir.layout.cuda.tcgen05.smem import canonicalize_shared_layout
-
-from tilus.extensions.hidet.ir.primitives.cuda.wgmma import wgmma_encode_smem_descriptor
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05SwizzleMode
 
 def encode_swizzle_mode(swizzle_mode: Tcgen05SwizzleMode) -> int:
     swizzle_mode_map = {
@@ -72,25 +72,26 @@ class SharedMatrixDescriptor:
         )
 
 
-
 @register_emitter(WgmmaFenceInst, target=nvgpu_sm90a)
 class WgmmaFenceEmitter(BaseInstEmitter):
     def emit(self, inst: WgmmaFenceInst) -> None:
         self.append(wgmma_fence())
+
 
 @register_emitter(WgmmaCommitGroupInst, target=nvgpu_sm90a)
 class WgmmaCommitGroupEmitter(BaseInstEmitter):
     def emit(self, inst: WgmmaCommitGroupInst) -> None:
         self.append(wgmma_commit_group())
 
+
 @register_emitter(WgmmaWaitGroupInst, target=nvgpu_sm90a)
 class WgmmaWaitGroupEmitter(BaseInstEmitter):
     def emit(self, inst: WgmmaWaitGroupInst) -> None:
         self.append(wgmma_wait_group(inst.n))
 
+
 @register_emitter(WgmmaMmaSSInst, target=nvgpu_sm90a)
 class WgmmaMmaSSEmitter(BaseInstEmitter):
-
     def emit(self, inst: WgmmaMmaSSInst) -> None:
         a, b, d = inst.inputs
         a_tensor: SharedTensor = a.as_shared_tensor()
@@ -113,8 +114,10 @@ class WgmmaMmaSSEmitter(BaseInstEmitter):
 
         inst_m, inst_n, inst_k = inst.get_inst_mnk(m, n, k, a_dtype, b_dtype, d_dtype)
         print(f"inst_m: {inst_m}, inst_n: {inst_n}, inst_k: {inst_k}")
-        wgmma_config = WgmmaConfig.get(inst_m, inst_n, inst_k, a_dtype.short_name, b_dtype.short_name, d_dtype.short_name)
-        
+        wgmma_config = WgmmaConfig.get(
+            inst_m, inst_n, inst_k, a_dtype.short_name, b_dtype.short_name, d_dtype.short_name
+        )
+
         repeat_m = m // inst_m
         repeat_n = n // inst_n
         repeat_k = k // inst_k
@@ -157,10 +160,13 @@ class WgmmaMmaSSEmitter(BaseInstEmitter):
                         swizzle_mode=encode_swizzle_mode(b_canonical.swizzle_mode),
                     )
                     d_offset = (i * repeat_n + j) * d_local_stride
-                    self.append(wgmma_async(wgmma_config, 
-                        a_desc.encoded(),
-                        d_register_addr + d_offset, 
-                        b_desc.encoded(), 
-                        trans_a=0, 
-                        trans_b=0,
-                    ))
+                    self.append(
+                        wgmma_async(
+                            wgmma_config,
+                            a_desc.encoded(),
+                            d_register_addr + d_offset,
+                            b_desc.encoded(),
+                            trans_a=0,
+                            trans_b=0,
+                        )
+                    )

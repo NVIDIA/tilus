@@ -12,20 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from enum import Enum
-from typing import Optional, Sequence, no_type_check
+from typing import no_type_check
 
-from hidet.ir.dtypes import int32, uint8, uint32, uint64
-from hidet.ir.expr import Expr, as_expr
+from hidet.ir.dtypes import uint8, uint32, uint64
+from hidet.ir.expr import Expr
 from hidet.ir.primitives.func import call_primitive_func
-from hidet.ir.stmt import asm
 from hidet.utils import initialize
 
 from tilus.extensions.hidet.ir.primitives.utils import register_primitive_function_decorator
 
+
 @initialize()
 def register_wgmma_instructions():
-    from hidet.lang import attrs, meta
+    from hidet.lang import attrs
 
     from tilus.extensions.hidet.lang import script
 

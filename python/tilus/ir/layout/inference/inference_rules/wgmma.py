@@ -12,8 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus.ir.instructions.cuda.tcgen05 import Tcgen05MmaSSInst, Tcgen05MmaTSInst
-from tilus.ir.layout import SharedLayout
+from tilus.ir.instructions.cuda.wgmma import WgmmaMmaSSInst
+from tilus.ir.layout import RegisterLayout, SharedLayout
 from tilus.ir.layout.cuda.tcgen05.smem import (
     Tcgen05SwizzleMode,
     generate_canonical_layout,
@@ -24,20 +24,23 @@ from tilus.ir.layout.inference.rule import (
     LayoutInferenceRule,
     register_rule,
 )
-from tilus.ir.tensor import SharedTensor, RegisterTensor
-from tilus.ir.layout import RegisterLayout
-
-from tilus.ir.instructions.cuda.wgmma import WgmmaMmaSSInst, WgmmaMmaRSInst
-
-from tilus.ir.layout.ops.register_ops import spatial, local, column_spatial, column_local
+from tilus.ir.layout.ops.register_ops import local
+from tilus.ir.tensor import RegisterTensor, SharedTensor
 
 
-def generate_wgmma_register_layout(m, n, inst_m, inst_n, inst_k) -> RegisterLayout:
+def generate_wgmma_register_layout(m: int, n: int, inst_m: int, inst_n: int, inst_k: int) -> RegisterLayout:
     # See also: https://docs.nvidia.com/cuda/parallel-thread-execution/#asynchronous-warpgroup-level-matrix-register-fragment
     T = inst_k // 8
     repeat_m = m // inst_m
     repeat_n = n // inst_n
-    return local(repeat_m, repeat_n).column_spatial(inst_m // 16, 1).column_local(2, inst_n // T // 4).spatial(8, 4).local(T)
+    return (
+        local(repeat_m, repeat_n)
+        .column_spatial(inst_m // 16, 1)
+        .column_local(2, inst_n // T // 4)
+        .spatial(8, 4)
+        .local(T)
+    )
+
 
 @register_rule(WgmmaMmaSSInst)
 class WgmmaMmaSSRule(LayoutInferenceRule):
@@ -95,7 +98,9 @@ class WgmmaMmaSSRule(LayoutInferenceRule):
                 else:
                     break
         if not d_tensor.has_layout():
-            inst_m, inst_n, inst_k = WgmmaMmaSSInst.get_inst_mnk(m, n, k, a_tensor.dtype, b_tensor.dtype, d_tensor.dtype)
+            inst_m, inst_n, inst_k = WgmmaMmaSSInst.get_inst_mnk(
+                m, n, k, a_tensor.dtype, b_tensor.dtype, d_tensor.dtype
+            )
             d_layout = generate_wgmma_register_layout(m, n, inst_m, inst_n, inst_k)
             ret[d_tensor] = d_layout
         return ret
