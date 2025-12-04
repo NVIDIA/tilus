@@ -59,6 +59,7 @@ from .generic import (
     PrintTensorInst,
     ReduceInst,
     RepeatInst,
+    ReshapeSharedInst,
     RepeatInterleaveInst,
     ShuffleDownInst,
     ShuffleUpInst,

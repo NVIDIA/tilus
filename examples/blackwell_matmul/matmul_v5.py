@@ -8,6 +8,8 @@ from tilus import float16, float32, int32, uint32
 from tilus.ir.tensor import GlobalTensor, RegisterTensor
 from tilus.utils import benchmark_func, cdiv
 
+tilus.option.cache_dir('./cache')
+tilus.option.debug.dump_ir()
 
 class Pipeline(tilus.Class):
     def __init__(

@@ -19,6 +19,7 @@ from typing import List, Sequence
 import tabulate
 from hidet.ir.dtypes import int32
 from hidet.ir.expr import Expr, Var
+from hidet.ir.utils.index_transform import index_serialize, index_deserialize
 from hidet.utils import prod
 
 from tilus.extensions.hidet.ir.utils.index_transform import vector_mul
@@ -133,6 +134,69 @@ def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
     axes = tuple(layout.axes[d] for d in dims)
     return SharedLayout(shape=shape, size=layout.size, axes=axes, offset=layout.offset)
 
+def shared_reshape(layout: SharedLayout, new_shape: Sequence[int]) -> SharedLayout:
+    """Reshape the shared layout to a new shape.
+
+    Parameters
+    ----------
+    layout: SharedLayout
+        The layout to reshape.
+
+    new_shape: Sequence[int]
+        The new shape of the layout. The product of the dimensions in the new shape must be equal to the product of the
+        dimensions in the original shape.
+
+    Returns
+    -------
+    ret: SharedLayout
+        The reshaped layout.
+    """
+    if prod(new_shape) != prod(layout.shape):
+        raise LayoutOperationError(f"Cannot reshape shared layout with shape {layout.shape} to new shape {new_shape} due to size mismatch.")
+
+    # partition the original shape and new shape into chunks with the same size
+    # for example:
+    # [4, 8, 5, 6, 20] => [[4, 8, 5], [6], [20]]
+    # [20, 8, 6, 4, 5] => [[20, 8], [6], [4, 5]]
+    original_chunks: List[List[int]] = []
+    new_chunks: List[List[int]] = []
+    o_start = 0
+    n_start = 0
+    while o_start < len(layout.shape) or n_start < len(new_shape):
+        o_size = 1
+        n_size = 1
+        o_end = o_start
+        n_end = n_start
+        while (o_end - o_start == 0) or (n_end - n_start == 0) or (o_size != n_size):
+            if o_size < n_size:
+                o_size *= layout.shape[o_end]
+                o_end += 1
+            else:
+                n_size *= new_shape[n_end]
+                n_end += 1
+        original_chunks.append(list(layout.shape[o_start:o_end]))
+        new_chunks.append(list(new_shape[n_start:n_end]))
+        o_start = o_end
+        n_start = n_end
+    assert o_start == len(layout.shape) and n_start == len(new_shape)
+
+    def f_offset(axes: Sequence[Var]) -> Expr:
+        # first get the linear index for each chunk
+        chunk_indices: List[Expr] = []
+        cur = 0
+        for chunk in new_chunks:
+            chunk_indices.append(index_serialize(axes[cur:cur + len(chunk)], chunk))
+            cur += len(chunk)
+        
+        # then deserialize the linear index to original layout axes
+        original_axes: list[Expr] = []
+        for chunk_index, original_chunk in zip(chunk_indices, original_chunks):
+            original_axes.extend(index_deserialize(chunk_index, original_chunk))
+        
+        # finally compute the offset using original layout
+        return layout(*original_axes)
+
+    return SharedLayout.create(shape=new_shape, size=layout.size, f_offset=f_offset)
 
 def visualize_layout(layout: SharedLayout, tablefmt: str = "simple_grid") -> str:
     """

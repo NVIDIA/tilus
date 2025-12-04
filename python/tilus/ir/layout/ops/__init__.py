@@ -43,6 +43,7 @@ from .shared_ops import (
     shared_compose,
     shared_permute,
     shared_row_major,
+    shared_reshape
 )
 from .tmemory_ops import (
     tmemory_row_major,
