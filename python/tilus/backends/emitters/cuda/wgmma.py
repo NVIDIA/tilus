@@ -113,7 +113,6 @@ class WgmmaMmaSSEmitter(BaseInstEmitter):
         d_dtype = d_tensor.dtype
 
         inst_m, inst_n, inst_k = inst.get_inst_mnk(m, n, k, a_dtype, b_dtype, d_dtype)
-        print(f"inst_m: {inst_m}, inst_n: {inst_n}, inst_k: {inst_k}")
         wgmma_config = WgmmaConfig.get(
             inst_m, inst_n, inst_k, a_dtype.short_name, b_dtype.short_name, d_dtype.short_name
         )
@@ -121,7 +120,6 @@ class WgmmaMmaSSEmitter(BaseInstEmitter):
         repeat_m = m // inst_m
         repeat_n = n // inst_n
         repeat_k = k // inst_k
-        print(f"repeat_m: {repeat_m}, repeat_n: {repeat_n}, repeat_k: {repeat_k}")
 
         a_canonical = canonicalize_shared_layout(a_tensor.layout, dtype=a_dtype)
         b_canonical = canonicalize_shared_layout(b_tensor.layout.transpose(), dtype=b_dtype)
