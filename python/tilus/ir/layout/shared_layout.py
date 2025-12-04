@@ -101,7 +101,7 @@ class SharedLayout(IRNode):
         mode_indices: list[Expr] = []
         for index, modes in zip(indices, group_modes):
             mode_indices.extend(index_deserialize(index, shape=[self.mode_shape[m] for m in modes]))
-        total_index = sum(index * stride for index, stride in zip(mode_indices, self.mode_strides))
+        total_index: Expr = as_expr(sum(index * stride for index, stride in zip(mode_indices, self.mode_strides)))
         
         # apply swizzle if exists
         if self.swizzle is not None:
@@ -136,17 +136,31 @@ class SharedLayout(IRNode):
             raise ValueError("mode_shape and mode_strides must have the same length.")
         return SharedLayout(shape=tuple(shape), mode_shape=tuple(mode_shape), mode_strides=tuple(mode_strides), swizzle=swizzle)
 
+    @property
+    def size(self) -> int:
+        """Get the total size of the shared layout.
+
+        It is the minimum number of elements required to store the tensor in shared memory.
+
+        Returns
+        -------
+        ret: int
+            The total size of the shared layout.
+        """
+        indices = [extent - 1 for extent in self.mode_shape]
+        max_index = sum(a * b for a, b in zip(indices, self.mode_strides))
+        return max_index + 1
+
     def slice(self, offsets: Sequence[Expr], slice_dims: Sequence[int], slice_shape: Sequence[int]) -> SharedLayout:
         raise RuntimeError("No slice anymore.")
 
     def simplify(self) -> SharedLayout:
         raise RuntimeError("No need to simplify anymore.")
 
-    def swizzle(self, dim: int, regards_dim: int, log_step: int) -> SharedLayout:
+    def with_swizzle(self, dim: int, regards_dim: int, log_step: int) -> SharedLayout:
         raise RuntimeError("Update swizzle.")
         # ndims = len(self.shape)
         # assert 0 <= dim < ndims and 0 <= regards_dim < ndims and dim != regards_dim
-
         # def get_xor_index(indices: Sequence[Expr]) -> Expr:
         #     indices = list(indices)  # copy
         #     step = 2**log_step
@@ -155,20 +169,27 @@ class SharedLayout(IRNode):
         #     if regards_extent > self.shape[dim]:
         #         regards_index = regards_index % self.shape[dim]
         #     return regards_index
-
         # def f_offset(axes: Sequence[Var]) -> Expr:
         #     swizzled_indices: List[Expr] = [axis for axis in axes]
         #     swizzled_indices[dim] = swizzled_indices[dim] ^ get_xor_index(axes)
         #     return self(*swizzled_indices)
-
         # return SharedLayout.create(shape=self.shape, size=self.size, f_offset=f_offset)
 
     def prepend_dim(self, extent: int) -> SharedLayout:
-        def f_offset(axes: Sequence[Var]) -> Expr:
-            tile_offset = axes[0] * self.size
-            return tile_offset + self(*axes[1:])
+        shape = (extent,) + self.shape
+        if extent > 1:
+            mode_shape = (extent,) + self.mode_shape
+            mode_strides = (self.size,) + self.mode_strides
+        else:
+            mode_shape = self.mode_shape
+            mode_strides = self.mode_strides
 
-        return SharedLayout.create(shape=(extent,) + self.shape, size=extent * self.size, f_offset=f_offset)
+        return SharedLayout.create(
+            shape=shape,
+            mode_shape=mode_shape,
+            mode_strides=mode_strides,
+            swizzle=self.swizzle,
+        )
 
     def transpose(self) -> SharedLayout:
         assert len(self.shape) == 2
@@ -180,20 +201,10 @@ class SharedLayout(IRNode):
         return shared_permute(self, dims)
 
     def unsqueeze(self, dims: Sequence[int]) -> SharedLayout:
-        shape = []
-        cur_dim = 0
-        for i in range(len(self.shape) + len(dims)):
-            if i in dims:
-                shape.append(1)
-            else:
-                shape.append(self.shape[cur_dim])
-                cur_dim += 1
+        from tilus.ir.layout.ops.shared_ops import shared_unsqueeze
 
-        def f_offset(axes: Sequence[Var]) -> Expr:
-            base_axes = [axis for i, axis in enumerate(axes) if i not in dims]
-            return self(*base_axes)
+        return shared_unsqueeze(self, dims)
 
-        return SharedLayout.create(shape=shape, size=self.size, f_offset=f_offset)
 
     def visualize(self, tablefmt: str = "simple_grid") -> str:
         from tilus.ir.layout.ops.shared_ops import visualize_layout

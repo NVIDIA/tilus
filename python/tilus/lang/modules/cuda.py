@@ -309,7 +309,7 @@ class cuda:
             6 7 4 5 2 3 0 1
             7 6 5 4 3 2 1 0
             """
-            core = shared_row_major(rows, columns).swizzle(dim=1, regards_dim=0, log_step=0)
+            core = shared_row_major(rows, columns).with_swizzle(dim=1, regards_dim=0, log_step=0)
         elif columns % 4 == 0:
             """
             0 1 2 3
@@ -321,7 +321,7 @@ class cuda:
             3 2 1 0
             7 6 5 4
             """
-            core = shared_row_major(rows, 4).swizzle(dim=1, regards_dim=0, log_step=1)
+            core = shared_row_major(rows, 4).with_swizzle(dim=1, regards_dim=0, log_step=1)
         elif columns % 2 == 0:
             """
             0 1
@@ -333,7 +333,7 @@ class cuda:
             5 4
             7 6
             """
-            core = shared_row_major(rows, 2).swizzle(dim=1, regards_dim=0, log_step=2)
+            core = shared_row_major(rows, 2).with_swizzle(dim=1, regards_dim=0, log_step=2)
         else:
             """
             0
