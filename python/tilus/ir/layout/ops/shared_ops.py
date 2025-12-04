@@ -133,6 +133,22 @@ def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
     axes = tuple(layout.axes[d] for d in dims)
     return SharedLayout(shape=shape, size=layout.size, axes=axes, offset=layout.offset)
 
+def shared_unsqueeze(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
+    shape = []
+    cur_dim = 0
+    for i in range(len(self.shape) + len(dims)):
+        if i in dims:
+            shape.append(1)
+        else:
+            shape.append(self.shape[cur_dim])
+            cur_dim += 1
+
+    def f_offset(axes: Sequence[Var]) -> Expr:
+        base_axes = [axis for i, axis in enumerate(axes) if i not in dims]
+        return self(*base_axes)
+
+    return SharedLayout.create(shape=shape, size=self.size, f_offset=f_offset)
+
 
 def visualize_layout(layout: SharedLayout, tablefmt: str = "simple_grid") -> str:
     """
