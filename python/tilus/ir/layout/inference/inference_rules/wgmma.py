@@ -18,9 +18,11 @@ from tilus.ir.instructions.cuda.wgmma import WgmmaMmaSSInst, WgmmaMmaRSInst
 from tilus.ir.layout.ops.register_ops import spatial, local, column_spatial, column_local
 
 
-def generate_wgmma_register_layout(num_column, dtype) -> RegisterLayout:
+def generate_wgmma_register_layout(num_row, num_column, inst_m, inst_n, dtype) -> RegisterLayout:
     T = 64 // dtype.nbits
-    return column_spatial(4, 1).column_local(2, num_column // T // 4).spatial(8, 4).local(T)
+    repeat_m = num_row // inst_m
+    repeat_n = num_column // inst_n
+    return local(repeat_m, repeat_n).column_spatial(inst_m // 16, 1).column_local(2, inst_n // T // 4).spatial(8, 4).local(T)
 
 @register_rule(WgmmaMmaSSInst)
 class WgmmaMmaSSRule(LayoutInferenceRule):
@@ -78,6 +80,7 @@ class WgmmaMmaSSRule(LayoutInferenceRule):
                 else:
                     break
         if not d_tensor.has_layout():
-            d_layout = generate_wgmma_register_layout(n, d_tensor.dtype)
+            inst_m, inst_n, inst_k = WgmmaMmaSSInst.get_inst_mnk(m, n, k, a_tensor.dtype, b_tensor.dtype, d_tensor.dtype)
+            d_layout = generate_wgmma_register_layout(m, n, inst_m, inst_n, d_tensor.dtype)
             ret[d_tensor] = d_layout
         return ret

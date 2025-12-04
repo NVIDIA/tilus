@@ -12,11 +12,11 @@ from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir(True)
-torch.set_printoptions(precision=4, sci_mode=False)
+torch.set_printoptions(precision=3, sci_mode=False, linewidth=160)
 
 # @tilus.autotune("block_m, block_n", [(128, 128), (128, 256), (128, 64)])
-@tilus.autotune("block_m, block_n", [(64, 128),])
-@tilus.autotune("block_k", [16,])
+@tilus.autotune("block_m, block_n", [(128, 16),])
+@tilus.autotune("block_k", [16])
 class MatmulWGMMA(tilus.Script):
     def __init__(
         self,
@@ -70,8 +70,9 @@ class MatmulWGMMA(tilus.Script):
             self.wgmma.fence()
             self.wgmma.mma(sa, sb.transpose(), acc)
             self.wgmma.commit_group()
-            self.wgmma.wait_group(1)
+            self.wgmma.wait_group(0)
             self.sync()
+            self.wgmma.fence()
             phase ^= 1
 
         self.free_shared(sa)
@@ -85,8 +86,8 @@ class MatmulWGMMA(tilus.Script):
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     workloads = [
-        [4096, 4096, 4096],
-        # [128, 16, 32],
+        # [4096, 4096, 4096],
+        [128, 16, 16],
     ]
 
     rows = []
@@ -99,6 +100,12 @@ def main():
         c_expect = a @ b.T
         matmul(m, n, k, a, b, c_actual)
         torch.cuda.synchronize()
+
+        v = 8
+        print(c_actual[:v, :v])
+        print(c_expect[:v, :v])
+        print(c_actual[64:][:v, :v])
+        print(c_expect[64:][:v, :v])
         
         # check correctness
         torch.testing.assert_close(c_expect, c_actual)
