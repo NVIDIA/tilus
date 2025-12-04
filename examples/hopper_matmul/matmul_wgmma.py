@@ -14,7 +14,6 @@ tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir(True)
 torch.set_printoptions(precision=3, sci_mode=False, linewidth=160)
 
-# @tilus.autotune("block_m, block_n", [(128, 128), (128, 256), (128, 64)])
 @tilus.autotune("block_m, block_n", [(64, 128), (128, 128), (128, 256), (256, 128), (256, 256)])
 @tilus.autotune("block_k", [16, 32, 64])
 class MatmulWGMMA(tilus.Script):
@@ -100,12 +99,6 @@ def main():
         matmul(m, n, k, a, b, c_actual)
         torch.cuda.synchronize()
 
-        # v = 8
-        # print(c_actual[:v, :v])
-        # print(c_expect[:v, :v])
-        # print(c_actual[64:][:v, :v])
-        # print(c_expect[64:][:v, :v])
-        
         # check correctness
         torch.testing.assert_close(c_expect, c_actual)
 

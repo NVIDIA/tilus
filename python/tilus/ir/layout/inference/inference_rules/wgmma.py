@@ -1,3 +1,17 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from tilus.ir.instructions.cuda.tcgen05 import Tcgen05MmaSSInst, Tcgen05MmaTSInst
 from tilus.ir.layout import SharedLayout
 from tilus.ir.layout.cuda.tcgen05.smem import (
@@ -18,10 +32,11 @@ from tilus.ir.instructions.cuda.wgmma import WgmmaMmaSSInst, WgmmaMmaRSInst
 from tilus.ir.layout.ops.register_ops import spatial, local, column_spatial, column_local
 
 
-def generate_wgmma_register_layout(num_row, num_column, inst_m, inst_n, dtype) -> RegisterLayout:
-    T = 64 // dtype.nbits
-    repeat_m = num_row // inst_m
-    repeat_n = num_column // inst_n
+def generate_wgmma_register_layout(m, n, inst_m, inst_n, inst_k) -> RegisterLayout:
+    # See also: https://docs.nvidia.com/cuda/parallel-thread-execution/#asynchronous-warpgroup-level-matrix-register-fragment
+    T = inst_k // 8
+    repeat_m = m // inst_m
+    repeat_n = n // inst_n
     return local(repeat_m, repeat_n).column_spatial(inst_m // 16, 1).column_local(2, inst_n // T // 4).spatial(8, 4).local(T)
 
 @register_rule(WgmmaMmaSSInst)
@@ -81,6 +96,6 @@ class WgmmaMmaSSRule(LayoutInferenceRule):
                     break
         if not d_tensor.has_layout():
             inst_m, inst_n, inst_k = WgmmaMmaSSInst.get_inst_mnk(m, n, k, a_tensor.dtype, b_tensor.dtype, d_tensor.dtype)
-            d_layout = generate_wgmma_register_layout(m, n, inst_m, inst_n, d_tensor.dtype)
+            d_layout = generate_wgmma_register_layout(m, n, inst_m, inst_n, inst_k)
             ret[d_tensor] = d_layout
         return ret
