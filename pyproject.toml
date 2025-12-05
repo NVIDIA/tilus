@@ -107,6 +107,8 @@ disallow_incomplete_defs = true
 allow_redefinition = true
 strict_optional = false
 explicit_package_bases = true
+mypy_path = "python"
+namespace_packages = true
 
 [[tool.mypy.overrides]]
 module = ["tilus.*"]

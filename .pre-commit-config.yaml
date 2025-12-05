@@ -17,6 +17,15 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+    -   id: mypy
+        name: MyPy type checking
+        entry: mypy
+        language: system
+        types_or: [python, pyi]
+        args: [--show-error-codes, --show-error-context]
+        files: ^(python|examples|tests)/
+        exclude: ^python/tilus/extensions/hidet/
+        require_serial: true
 -   repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version
     rev: v0.12.3
@@ -30,17 +39,3 @@ repos:
     -   id: ruff-format
         name: Ruff formatter
         types_or: [python, pyi]
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
-    hooks:
-    -   id: mypy
-        name: MyPy type checking
-        # Uses [tool.mypy] configuration from pyproject.toml
-        additional_dependencies: [
-            types-tabulate,
-            types-tqdm,
-        ]
-        # Check files in the python package, examples, and tests folders
-        files: ^(python|examples|tests)/
-        # Exclude hidet extensions (they have special mypy overrides in pyproject.toml)
-        exclude: ^python/tilus/extensions/hidet/
