@@ -86,6 +86,7 @@ class LoadSharedInferRegisterRule(LayoutInferenceRule):
             return {}
 
         axes = shared.layout.axes
+        axes = shared.layout.axes
         offset = shared.layout.offset
 
         info = analyze_grid(
