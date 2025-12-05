@@ -66,6 +66,7 @@ Documentation = "https://nvidia.github.io/tilus"
 "" = "python"
 
 [tool.setuptools.package-data]
+"tilus" = ["py.typed"]
 "tilus.extensions.hidet" = ["include/**/*.h"]
 
 [tool.ruff]
