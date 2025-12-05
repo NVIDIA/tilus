@@ -30,5 +30,6 @@ from . import (
     transform,
     transform_shared,
     transpose,
+    wgmma,
     where,
 )

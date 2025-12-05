@@ -43,6 +43,7 @@ from .inference_rules.tcgen05.slice import Tcgen05SliceRule
 from .inference_rules.transform import SqueezeRule, UnsqueezeRule
 from .inference_rules.transform_shared import PermuteSharedRule, SharedSliceRule
 from .inference_rules.transpose import TransposeRule
+from .inference_rules.wgmma import WgmmaMmaSSRule
 from .inference_rules.where import WhereRule
 
 inference_order: list[list[Type[LayoutInferenceRule]]] = [
@@ -51,6 +52,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     # register layout rules
     [SliceRegisterRule, SliceAssignRule, AllocBarrierRule],
     [MmaDotRule],
+    [WgmmaMmaSSRule],
     [Tcgen05LoadRule, Tcgen05StoreRule],
     [Tcgen05CopyRule],
     [BinaryRule, UnaryRule],

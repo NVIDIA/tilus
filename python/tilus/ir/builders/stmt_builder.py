@@ -69,6 +69,13 @@ from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05ViewInst,
     Tcgen05WaitInst,
 )
+from tilus.ir.instructions.cuda.wgmma import (
+    WgmmaCommitGroupInst,
+    WgmmaFenceInst,
+    WgmmaMmaRSInst,
+    WgmmaMmaSSInst,
+    WgmmaWaitGroupInst,
+)
 from tilus.ir.instructions.generic import (
     AddInst,
     AllocateGlobalInst,
@@ -1322,6 +1329,29 @@ class StmtBuilder(StmtBuilderCore):
 
     def tcgen05_mma_ts(self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor) -> None:
         inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d)
+        self.append(inst)
+
+    # wgmma
+    def wgmma_fence(self) -> None:
+        inst = WgmmaFenceInst.create()
+        self.append(inst)
+
+    def wgmma_commit_group(self) -> None:
+        inst = WgmmaCommitGroupInst.create()
+        self.append(inst)
+
+    def wgmma_wait_group(self, n: Union[Expr, int]) -> None:
+        if isinstance(n, int):
+            n = as_expr(n)
+        inst = WgmmaWaitGroupInst.create(n=n)
+        self.append(inst)
+
+    def wgmma_mma_ss(self, a: SharedTensor, b: SharedTensor, d: RegisterTensor) -> None:
+        inst = WgmmaMmaSSInst.create(a=a, b=b, d=d)
+        self.append(inst)
+
+    def wgmma_mma_rs(self, a: RegisterTensor, b: SharedTensor, d: RegisterTensor) -> None:
+        inst = WgmmaMmaRSInst.create(a=a, b=b, d=d)
         self.append(inst)
 
     # annotations

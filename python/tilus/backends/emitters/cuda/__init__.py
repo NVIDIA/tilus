@@ -24,4 +24,5 @@ from . import (
     semaphore,
     simt_dot,
     tcgen05,
+    wgmma,
 )

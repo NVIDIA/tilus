@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Optional
 
 import pytest
-from tilus.target import Target, get_current_target, nvgpu_sm80, nvgpu_sm100a
+from tilus.target import Target, get_current_target, nvgpu_sm80, nvgpu_sm90, nvgpu_sm100a
 
 # Get the project root directory
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -54,6 +54,9 @@ EXAMPLES = [
     ("blackwell_matmul", "matmul_v3.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v4.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v5.py", nvgpu_sm100a),
+    # hopper matmul example (SM 9.0)
+    ("hopper_matmul", "matmul_v0.py", nvgpu_sm90),
+    ("hopper_matmul", "matmul_v1.py", nvgpu_sm90),
     # quantization examples (SM 8.0+)
     ("quantization", "matmul_a16wx.py", nvgpu_sm80),
     # flash attention decode examples (SM 8.0+)
