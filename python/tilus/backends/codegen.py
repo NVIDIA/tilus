@@ -143,15 +143,15 @@ class FunctionCodegen(IRFunctor):
         if failed_instructions:
             rows = [f"Failed to find emitter for the following instructions (target: {get_current_target()}):"]
             required_targets: list[str] = []
-            for inst in failed_instructions:
+            for inst_cls in failed_instructions:
                 for registry_inst_cls, emitter_classes in BaseInstEmitter.REGISTRY.items():
-                    if issubclass(inst, registry_inst_cls):
+                    if issubclass(inst_cls, registry_inst_cls):
                         required_targets.extend([str(target) for target in emitter_classes.keys()])
                         break
                 if not required_targets:
-                    rows.append(f"  - {inst.__name__} (no registered emitters)")
+                    rows.append(f"  - {inst_cls.__name__} (no registered emitters)")
                 else:
-                    rows.append(f"  - {inst.__name__} (registered targets: {', '.join(required_targets)})")
+                    rows.append(f"  - {inst_cls.__name__} (registered targets: {', '.join(required_targets)})")
             raise CodeGenerationFailed("\n".join(rows))
 
     def launch_kernel(self, kernel_func: HidetFunction) -> None:

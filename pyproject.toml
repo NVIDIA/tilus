@@ -109,6 +109,9 @@ strict_optional = false
 explicit_package_bases = true
 mypy_path = "python"
 namespace_packages = true
+disable_error_code = [
+    "import-untyped",  # we used some untyped third-party libraries
+]
 
 [[tool.mypy.overrides]]
 module = ["tilus.*"]
@@ -123,9 +126,13 @@ disable_error_code = [
     "override",
 ]
 
-[[tool.mypy.overrides]]
-module = ["examples.*", "tests.*"]
-disable_error_code = ["override", "valid-type", "call-arg", "no-untyped-def", "has-type", "no-redef"]
+[[tool.mypy.overrides]] # disable type checking in these modules that might define tilus scripts
+module = [
+    "examples.*",
+    "tests.*",
+    "tilus.lang.classes.pipeline"
+]
+disable_error_code = ["override", "valid-type", "call-arg", "no-untyped-def", "has-type", "no-redef", "assignment", "import-not-found"]
 
 [[tool.mypy.overrides]]
 module = ["hidet.*"]

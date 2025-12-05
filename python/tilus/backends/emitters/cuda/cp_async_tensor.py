@@ -202,12 +202,9 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         range_indices: list[np.ndarray] = []
         for dim, extent in enumerate(shared_tensor.shape):
             range_indices.append(np.arange(extent, dtype=np.int32))
-        grid = np.meshgrid(*range_indices, indexing="ij")
         layout: SharedLayout = shared_tensor.layout
 
-        offset_grid: np.ndarray = vectorized_evaluate(
-            expr=layout.offset, var2value={axis: grid[i] for i, axis in enumerate(layout.axes)}
-        )
+        offset_grid: np.ndarray = layout.as_numpy_grid()
         for swizzle in [
             TensorMapSwizzle.NONE,
             TensorMapSwizzle.B32,

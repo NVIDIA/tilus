@@ -17,11 +17,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
-from hidet.ir.expr import Expr, as_expr
+import numpy as np
+from hidet.ir.expr import Expr, Var, as_expr
 from hidet.ir.utils.index_transform import index_deserialize
 from hidet.utils import prod
 
+from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.node import IRNode
+from tilus.ir.utils.veceval import vectorized_evaluate
 
 
 @dataclass(frozen=True, eq=True)
@@ -148,6 +151,18 @@ class SharedLayout(IRNode):
             shape=tuple(shape), mode_shape=tuple(mode_shape), mode_strides=tuple(mode_strides), swizzle=swizzle
         )
 
+    def as_numpy_grid(self) -> np.ndarray:
+        grid_axes = np.meshgrid(*[np.arange(extent) for extent in self.shape])
+        axes = index_vars(num_vars=len(self.shape))
+        offset = self(*axes)
+        atom_grid = vectorized_evaluate(expr=offset, var2value={axis: grid_axes[i] for i, axis in enumerate(axes)})
+        return atom_grid
+
+    def as_axes_mapping(self) -> tuple[list[Var], Expr]:
+        axes = index_vars(num_vars=len(self.shape))
+        offset = self(*axes)
+        return axes, offset
+
     def count_size(self) -> int:
         """Count the total size of the shared layout.
 
@@ -182,7 +197,7 @@ class SharedLayout(IRNode):
         shape = (extent,) + self.shape
         if extent > 1:
             mode_shape = (extent,) + self.mode_shape
-            mode_strides = (self.size,) + self.mode_strides
+            mode_strides = (self.count_size(),) + self.mode_strides
         else:
             mode_shape = self.mode_shape
             mode_strides = self.mode_strides

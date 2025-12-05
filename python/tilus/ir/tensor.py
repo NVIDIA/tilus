@@ -371,7 +371,23 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor == tensor could only be used in Tilus Script.")
 
-    def __xor__(self, other):
+    def __ne__(self, value):
+        """
+        Not equal to comparison.
+
+        Parameters
+        ----------
+        value: RegisterTensor | int | float | Expr
+            The tensor or scalar to compare with this tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the comparison.
+        """
+        raise RuntimeError("tensor != tensor could only be used in Tilus Script.")
+
+    def __xor__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """Bitwise XOR operation.
 
         Parameters
@@ -419,8 +435,23 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor - tensor could only be used in Tilus Script.")
 
+    def __rtruediv__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
+        """Perform right-side division with another tensor or a scalar.
+
+        Parameters
+        ----------
+        other: RegisterTensor | int | float | Expr
+            The tensor or scalar to divide this tensor by.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A new tensor that is the result of the division.
+        """
+        raise RuntimeError("tensor / tensor could only be used in Tilus Script.")
+
     # i-version of operator
-    def __iadd__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __iadd__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place addition operation.
 
         Parameters
@@ -430,7 +461,7 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor += tensor could only be used in Tilus Script.")
 
-    def __isub__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __isub__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place subtraction operation.
 
         Parameters
@@ -440,7 +471,7 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor -= tensor could only be used in Tilus Script.")
 
-    def __imul__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __imul__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place multiplication operation.
 
         Parameters
@@ -450,7 +481,7 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor *= tensor could only be used in Tilus Script.")
 
-    def __itruediv__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __itruediv__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place division operation.
 
         Parameters
@@ -460,7 +491,7 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor /= tensor could only be used in Tilus Script.")
 
-    def __imod__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __imod__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place modulus operation.
 
         Parameters
@@ -470,7 +501,7 @@ class RegisterTensor(Tensor):
         """
         raise RuntimeError("tensor %= tensor could only be used in Tilus Script.")
 
-    def __ixor__(self, other: RegisterTensor | int | float | Expr) -> None:
+    def __ixor__(self, other: RegisterTensor | int | float | Expr) -> RegisterTensor:
         """In-place bitwise XOR operation.
 
         Parameters
@@ -509,7 +540,7 @@ class RegisterTensor(Tensor):
     def to(self, dtype: DataType) -> RegisterTensor:
         raise RuntimeError("tensor.to(...) could only be used in Tilus Script.")
 
-    def tolist(self) -> Expr | list:
+    def tolist(self) -> list:
         raise RuntimeError("tensor.tolist() could only be used in Tilus Script.")
 
 
@@ -584,7 +615,7 @@ class SharedTensor(Tensor):
         ret: int
             The size of the SharedTensor, which is the number of elements it contains.
         """
-        return self.layout.size
+        return self.layout.count_size()
 
     @property
     def nbytes(self) -> int:

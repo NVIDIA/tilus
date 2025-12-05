@@ -85,9 +85,7 @@ class LoadSharedInferRegisterRule(LayoutInferenceRule):
         if not (shared.has_layout() and not register.has_layout()):
             return {}
 
-        axes = shared.layout.axes
-        axes = shared.layout.axes
-        offset = shared.layout.offset
+        axes, offset = shared.layout.as_axes_mapping()
 
         info = analyze_grid(
             shape=shared.shape,

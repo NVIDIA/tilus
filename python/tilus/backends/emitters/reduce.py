@@ -284,8 +284,8 @@ class ReduceInstEmitter(BaseInstEmitter):
         smem_ctx = self.contexts.smem_alloc_ctx
         smem_buf = self.declare_var(
             "smem_buf",
-            tensor_pointer_type(dtype=dst.dtype, shape=[shared_layout.size]),
-            init=cast(smem_ctx.request_shared_workspace(dst.dtype.nbytes * shared_layout.size), ~dst.dtype),
+            tensor_pointer_type(dtype=dst.dtype, shape=[shared_layout.count_size()]),
+            init=cast(smem_ctx.request_shared_workspace(dst.dtype.nbytes * shared_layout.count_size()), ~dst.dtype),
         )
 
         reduced_mode_shape = [

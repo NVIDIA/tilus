@@ -47,7 +47,8 @@ class CopyAysncInstEmitter(BaseInstEmitter):
 
         # get shared, global, and mask info
         inst_mask = inst.mask if inst.mask is not None else boolean.true
-        shared_info: TensorInfo = analyze_grid(shape=shape, axes=layout.axes, analysis=analysis, expr=layout.offset)
+        axes, offset = layout.as_axes_mapping()
+        shared_info: TensorInfo = analyze_grid(shape=shape, axes=axes, analysis=analysis, expr=offset)
         mask_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, analysis=analysis, expr=inst_mask)
         global_info: TensorInfo = analyze_grid(shape=shape, axes=inst.axes, analysis=analysis, expr=inst.offset)
 

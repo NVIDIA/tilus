@@ -34,12 +34,12 @@ class RootInstructionGroup(InstructionGroup):
     @property
     def blockIdx(self) -> Dim3:
         """Get the block index of the current thread block."""
-        return Dim3(blockIdx.x, blockIdx.y, blockIdx.z)
+        return Dim3(blockIdx.x, blockIdx.y, blockIdx.z)  # type: ignore[attr-defined]
 
     @property
     def gridDim(self) -> Dim3:
         """Get the grid dimension of the kernel."""
-        return Dim3(gridDim.x, gridDim.y, gridDim.z)
+        return Dim3(gridDim.x, gridDim.y, gridDim.z)  # type: ignore[attr-defined]
 
     @property
     def current_thread_begin(self) -> int:
@@ -1627,7 +1627,7 @@ class RootInstructionGroup(InstructionGroup):
         """
         self._builder.print_tensor(msg=msg, tensor=tensor, fmt=fmt)
 
-    def printf(self, fstring: str, *args: Expr | int | float) -> None:
+    def printf(self, fstring: str, *args: Expr | int | float | str) -> None:
         """Print a formatted string.
 
         This instruction prints a formatted string to the standard output. The `fstring` parameter is a format string

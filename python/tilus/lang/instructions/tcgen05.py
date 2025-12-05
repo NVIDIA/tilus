@@ -53,6 +53,7 @@ class Tcgen05InstructionGroup(InstructionGroup):
                     "The thread group used to allocate with initialization must start at a multiple of 128 "
                     "and have at least 128 threads."
                 )
+            ctx: contextlib.AbstractContextManager
             if thread_end - thread_begin == 128:
                 ctx = contextlib.nullcontext()
             else:

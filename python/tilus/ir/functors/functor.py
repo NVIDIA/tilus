@@ -435,11 +435,7 @@ class IRRewriter(IRFunctor):
         return layout
 
     def visit_SharedLayout(self, layout: SharedLayout) -> SharedLayout:
-        offset = self.visit(layout.offset)
-        if offset is layout.offset:
-            return layout
-        else:
-            return SharedLayout(shape=layout.shape, size=layout.size, axes=layout.axes, offset=offset)
+        return layout
 
     def visit_GlobalLayout(self, layout: GlobalLayout) -> GlobalLayout:
         shape = self.visit(layout.shape)
@@ -573,7 +569,7 @@ class IRVisitor(IRFunctor):
         pass
 
     def visit_SharedLayout(self, layout: SharedLayout) -> None:
-        self.visit(layout.offset)
+        pass
 
     def visit_GlobalLayout(self, layout: GlobalLayout) -> None:
         self.visit(layout.shape)

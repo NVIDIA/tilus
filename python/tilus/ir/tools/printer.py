@@ -114,7 +114,7 @@ class IRPrinter(IRFunctor):
             doc = Text("shared, ")
             doc += self.printer(tensor.dtype) + "[" + self.visit(tensor.shape) + "]"
             if tensor.optional_layout is not None:
-                doc += ", size={}".format(tensor.layout.size)
+                doc += ", size={}".format(tensor.size)
                 doc += ", {}".format(self.visit(tensor.layout))
             return doc
         elif isinstance(tensor, GlobalTensor):

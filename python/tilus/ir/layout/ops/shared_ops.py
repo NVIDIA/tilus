@@ -19,10 +19,8 @@ from typing import List, Sequence
 import tabulate
 from hidet.utils import gcd, prod
 
-from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.layout.ops.utils import LayoutOperationError, get_mode_groups
 from tilus.ir.layout.shared_layout import SharedLayout, Swizzle, shared_layout
-from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
 
 
 def strides_from_ranks(shape: Sequence[int], ranks: Sequence[int]) -> list[int]:
@@ -380,14 +378,11 @@ def visualize_layout(layout: SharedLayout, tablefmt: str = "simple_grid") -> str
 
     if len(layout.shape) != 2:
         raise LayoutOperationError(f"Shared layout with shape {layout.shape} is not supported for visualization.")
-    grid = meshgrid(layout.shape)
-    axes = index_vars(num_vars=len(layout.shape))
-    offset = layout(*axes)
-    offset_grid = vectorized_evaluate(offset, var2value={axis: grid[i] for i, axis in enumerate(axes)})
+    grid = layout.as_numpy_grid()
     table = []
     for i in range(layout.shape[0]):
         row = []
         for j in range(layout.shape[1]):
-            row.append(f"{offset_grid[i, j]}")
+            row.append(f"{grid[i, j]}")
         table.append(row)
     return head + "\n" + tabulate.tabulate(table, tablefmt=tablefmt)
