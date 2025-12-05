@@ -22,6 +22,7 @@ from hidet.ir.primitives.cuda.wgmma import WgmmaConfig, wgmma_async, wgmma_commi
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05SwizzleMode
 from tilus.extensions.hidet.ir.primitives.cuda.wgmma import wgmma_encode_smem_descriptor
+from tilus.ir.inst import Instruction
 from tilus.ir.instructions.cuda.wgmma import (
     WgmmaCommitGroupInst,
     WgmmaFenceInst,
@@ -72,27 +73,42 @@ class SharedMatrixDescriptor:
         )
 
 
+class WgmmaBaseEmitter(BaseInstEmitter):
+    def check_warp_group(self) -> None:
+        begin = self.current_thread_group_begin
+        end = self.current_thread_group_end
+        if begin % 128 != 0 or end - begin != 128:
+            raise ValueError("The number of threads in the current thread group must be 128")
+
+    def emit(self, inst: Instruction) -> None:
+        self.check_warp_group()
+        self.emit_wgmma(inst)
+
+    def emit_wgmma(self, inst: Instruction) -> None:
+        raise NotImplementedError("Subclasses must implement this method")
+
+
 @register_emitter(WgmmaFenceInst, target=nvgpu_sm90a)
-class WgmmaFenceEmitter(BaseInstEmitter):
-    def emit(self, inst: WgmmaFenceInst) -> None:
+class WgmmaFenceEmitter(WgmmaBaseEmitter):
+    def emit_wgmma(self, inst: WgmmaFenceInst) -> None:
         self.append(wgmma_fence())
 
 
 @register_emitter(WgmmaCommitGroupInst, target=nvgpu_sm90a)
-class WgmmaCommitGroupEmitter(BaseInstEmitter):
-    def emit(self, inst: WgmmaCommitGroupInst) -> None:
+class WgmmaCommitGroupEmitter(WgmmaBaseEmitter):
+    def emit_wgmma(self, inst: WgmmaCommitGroupInst) -> None:
         self.append(wgmma_commit_group())
 
 
 @register_emitter(WgmmaWaitGroupInst, target=nvgpu_sm90a)
-class WgmmaWaitGroupEmitter(BaseInstEmitter):
-    def emit(self, inst: WgmmaWaitGroupInst) -> None:
+class WgmmaWaitGroupEmitter(WgmmaBaseEmitter):
+    def emit_wgmma(self, inst: WgmmaWaitGroupInst) -> None:
         self.append(wgmma_wait_group(inst.n))
 
 
 @register_emitter(WgmmaMmaSSInst, target=nvgpu_sm90a)
-class WgmmaMmaSSEmitter(BaseInstEmitter):
-    def emit(self, inst: WgmmaMmaSSInst) -> None:
+class WgmmaMmaSSEmitter(WgmmaBaseEmitter):
+    def emit_wgmma(self, inst: WgmmaMmaSSInst) -> None:
         a, b, d = inst.inputs
         a_tensor: SharedTensor = a.as_shared_tensor()
         b_tensor: SharedTensor = b.as_shared_tensor()
