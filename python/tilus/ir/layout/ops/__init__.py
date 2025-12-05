@@ -38,12 +38,7 @@ from .register_ops import (
     squeeze,
     unsqueeze,
 )
-from .shared_ops import (
-    shared_column_major,
-    shared_compose,
-    shared_permute,
-    shared_row_major,
-)
+from .shared_ops import shared_column_major, shared_compose, shared_permute, shared_row_major, shared_row_major_swizzle
 from .tmemory_ops import (
     tmemory_row_major,
     tmemory_slice,

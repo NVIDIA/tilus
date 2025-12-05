@@ -17,42 +17,35 @@ from __future__ import annotations
 from typing import List, Sequence
 
 import tabulate
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var
-from hidet.utils import prod
+from hidet.utils import gcd, prod
 
-from tilus.extensions.hidet.ir.utils.index_transform import vector_mul
-from tilus.ir.layout.ops.utils import LayoutOperationError
-from tilus.ir.layout.shared_layout import SharedLayout
+from tilus.extensions.hidet.ir.expr import index_vars
+from tilus.ir.layout.ops.utils import LayoutOperationError, get_mode_groups
+from tilus.ir.layout.shared_layout import SharedLayout, Swizzle, shared_layout
 from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
 
 
-def _generic_repeat(shape: List[int], ranks: List[int]) -> SharedLayout:
+def strides_from_ranks(shape: Sequence[int], ranks: Sequence[int]) -> list[int]:
+    """
+    Compute the strides from the ranks of each dimension.
+
+    Parameters
+    ----------
+    shape: Sequence[int]
+        The shape of the tensor.
+    ranks: Sequence[int]
+        The ranks of each dimension. The length of ranks must be equal to the length of shape
+        and all elements in ranks must be unique and in the range [0, len(shape)).
+
+    Returns
+    -------
+    ret: list[int]
+        The strides of each dimension.
+    """
     assert len(shape) == len(ranks)
     assert len(ranks) == len(set(ranks)) and all(0 <= d < len(shape) for d in ranks)
-    strides: List[int] = [prod([s for j, s in enumerate(shape) if ranks[j] > ranks[i]]) for i in range(len(shape))]
-
-    def f_offset(axes: Sequence[Var]) -> Expr:
-        return sum([axes[i] * strides[i] for i in range(len(shape))], start=int32.zero)
-
-    return SharedLayout.create(shape=shape, size=prod(shape), f_offset=f_offset)
-
-
-def _shared_compose(lhs: SharedLayout, rhs: SharedLayout) -> SharedLayout:
-    assert len(lhs.shape) == len(rhs.shape)
-    ndims = len(lhs.shape)
-
-    def f_offset(axes: Sequence[Var]) -> Expr:
-        lhs_axes = [axes[i] // rhs.shape[i] for i in range(ndims)]
-        rhs_axes = [axes[i] % rhs.shape[i] for i in range(ndims)]
-        lhs_offset = lhs(*lhs_axes)
-        rhs_offset = rhs(*rhs_axes)
-        return lhs_offset * rhs.size + rhs_offset
-
-    shape = vector_mul(lhs.shape, rhs.shape)
-    size = lhs.size * rhs.size
-
-    return SharedLayout.create(shape=shape, size=size, f_offset=f_offset)
+    strides: list[int] = [prod([s for j, s in enumerate(shape) if ranks[j] > ranks[i]]) for i in range(len(shape))]
+    return strides
 
 
 def shared_row_major(*shape: int) -> SharedLayout:
@@ -68,7 +61,9 @@ def shared_row_major(*shape: int) -> SharedLayout:
     ret: SharedLayout
         A shared layout with the specified shape in row-major order.
     """
-    return _generic_repeat(shape=list(shape), ranks=list(range(len(shape))))
+    mode_shape = shape
+    mode_strides = strides_from_ranks(shape=mode_shape, ranks=list(range(len(mode_shape))))
+    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=None)
 
 
 def shared_column_major(*shape: int) -> SharedLayout:
@@ -84,10 +79,12 @@ def shared_column_major(*shape: int) -> SharedLayout:
     ret: SharedLayout
         A shared layout with the specified shape in column-major order.
     """
-    return _generic_repeat(shape=list(shape), ranks=list(reversed(range(len(shape)))))
+    mode_shape = shape
+    mode_strides = strides_from_ranks(shape=mode_shape, ranks=list(reversed(range(len(mode_shape)))))
+    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=None)
 
 
-def shared_compose(lhs: SharedLayout, rhs: SharedLayout, *others: SharedLayout) -> SharedLayout:
+def shared_compose(lhs: SharedLayout, rhs: SharedLayout) -> SharedLayout:
     """Compose multiple shared layouts together.
 
     Parameters
@@ -96,18 +93,34 @@ def shared_compose(lhs: SharedLayout, rhs: SharedLayout, *others: SharedLayout) 
         The first shared layout to compose.
     rhs: SharedLayout
         The second shared layout to compose.
-    others: Sequence[SharedLayout]
-        The additional shared layouts to compose with the first two. It can be empty.
 
     Returns
     -------
     ret: SharedLayout
         The composed shared layout.
     """
-    if len(others) == 0:
-        return _shared_compose(lhs, rhs)
-    else:
-        return shared_compose(_shared_compose(lhs, rhs), *others)
+    assert len(lhs.shape) == len(rhs.shape)
+    ndims = len(lhs.shape)
+
+    # shape
+    shape = tuple(lhs.shape[i] * rhs.shape[i] for i in range(ndims))
+
+    # mode shape
+    lhs_mode_groups = get_mode_groups(lhs.shape, lhs.mode_shape)
+    rhs_mode_groups = get_mode_groups(rhs.shape, rhs.mode_shape)
+    mode_shape: list[int] = []
+    for lhs_group, rhs_group in zip(lhs_mode_groups, rhs_mode_groups):
+        mode_shape.extend([lhs.mode_shape[i] for i in lhs_group])
+        mode_shape.extend([rhs.mode_shape[i] for i in rhs_group])
+
+    # mode strides
+    mode_strides: list[int] = []
+    rhs_size = rhs.count_size()
+    for lhs_group, rhs_group in zip(lhs_mode_groups, rhs_mode_groups):
+        mode_strides.extend([stride * rhs_size for stride in (lhs.mode_strides[i] for i in lhs_group)])
+        mode_strides.extend([rhs.mode_strides[i] for i in rhs_group])
+
+    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=None)
 
 
 def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
@@ -127,27 +140,209 @@ def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
     ret: SharedLayout
         The permuted layout.
     """
-    if set(dims) != set(range(len(layout.shape))):
-        raise LayoutOperationError("Dims must be a permutation of {}, got {}".format(range(len(layout.shape)), dims))
+    assert len(dims) == len(layout.shape) and set(dims) == set(range(len(layout.shape)))
+
+    # shape
     shape = tuple(layout.shape[d] for d in dims)
-    axes = tuple(layout.axes[d] for d in dims)
-    return SharedLayout(shape=shape, size=layout.size, axes=axes, offset=layout.offset)
+
+    # mode shape and mode strides
+    layout_mode_groups = get_mode_groups(layout.shape, layout.mode_shape)
+    mode_shape: list[int] = []
+    mode_strides: list[int] = []
+    for d in dims:
+        mode_shape.extend([layout.mode_shape[i] for i in layout_mode_groups[d]])
+        mode_strides.extend([layout.mode_strides[i] for i in layout_mode_groups[d]])
+
+    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=layout.swizzle)
+
 
 def shared_unsqueeze(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
-    shape = []
-    cur_dim = 0
-    for i in range(len(self.shape) + len(dims)):
-        if i in dims:
-            shape.append(1)
-        else:
-            shape.append(self.shape[cur_dim])
-            cur_dim += 1
+    """Unsqueeze the shared layout by adding new dimensions of size 1.
 
-    def f_offset(axes: Sequence[Var]) -> Expr:
-        base_axes = [axis for i, axis in enumerate(axes) if i not in dims]
-        return self(*base_axes)
+    Parameters
+    ----------
+    layout: SharedLayout
+        The layout to unsqueeze.
+    dims: Sequence[int]
+        The dimensions to unsqueeze. Each dimension should be in the range [0, len(layout.shape)].
 
-    return SharedLayout.create(shape=shape, size=self.size, f_offset=f_offset)
+    Returns
+    -------
+    ret: SharedLayout
+        The unsqueezed layout.
+    """
+    assert all(0 <= d <= len(layout.shape) for d in dims) and len(dims) == len(set(dims))
+    shape: List[int] = list(layout.shape)
+    for d in sorted(dims):
+        shape.insert(d, 1)
+    return shared_layout(
+        shape=shape,
+        mode_shape=layout.mode_shape,
+        mode_strides=layout.mode_strides,
+        swizzle=layout.swizzle,
+    )
+
+
+def shared_row_major_swizzle(shape: Sequence[int], dtype_nbytes: int) -> SharedLayout:
+    """
+    Generate a shared layout that could be used to generate ldmatrix instruction when using LoadSharedInst.
+
+    Both m and n must be a multiple of 8.
+
+    We will divide each row into bank groups, and bank group has 16 bytes (16 x uint8, 8 x fp16, or 4 x fp32, etc.).
+    They correspond to 4 banks in shared memory. For example, if we have m = n = 8 and dtype=fp16, we can represent
+    bank groups as
+
+    0   # bank group 0, banks from 0 to 3
+    1   # bank group 1, banks from 4 to 7
+    2   # ...
+    3
+    4
+    5
+    6
+    7   # bank groups 7, banks from 28 to 31
+
+    Given m, and n, we need to find a proper way to organize the m x (n / 8) bank groups in shared memory, so that
+    1) each row has different bank groups
+    2) each column has different bank groups
+
+    When we have m = 8 and n = 64, we have 8 x 8 bank groups. If we store the elements in row-major order, we will
+    have the bank groups as
+
+    0  1  2  3  4  5  6  7
+    0  1  2  3  4  5  6  7
+    0  1  2  3  4  5  6  7
+    0  1  2  3  4  5  6  7
+    0  1  2  3  4  5  6  7
+    0  1  2  3  4  5  6  7
+    0  1  2  3  4  5  6  7
+    0  1  2  3  4  5  6  7
+
+    If we use ldmatrix to load the above 8 x 64 shared memory, we will need 8 ldmatrix.v1 instructions. Each instruction
+    loads one column (8 x 8 elements, or 8 x 1 bank groups). Since each instruction will access the same bank group,
+    severe bank conflicts will occur. Thus, we need to change the layout of shared memory to avoid bank conflicts.
+
+    Let layout(i, j) be the shared memory address of logical elements (each element has 16 bytes) when we use
+    a specific `layout`. For example, the row-major layout row-major(i, j) = i * n + j * 8 (we assume the dtype has 2
+    bytes). If we use the swizzled layout swizzled(i, j) = row-major(i, j ^ i) = i * n + (j ^ i) * 8, we can have the
+    following bank groups in shared memory.
+
+    0  1  2  3  4  5  6  7
+    1  0  3  2  5  4  7  6
+    2  3  0  1  6  7  4  5
+    3  2  1  0  7  6  5  4
+    4  5  6  7  0  1  2  3
+    5  4  7  6  1  0  3  2
+    6  7  4  5  2  3  0  1
+    7  6  5  4  3  2  1  0
+
+    (reader may need some time to figure out the above layout...)
+
+    This layout has two benefits:
+    1) Each row has different bank groups. In above example, we have 32 banks per row.
+    2) Each column has different bank groups. In above example, we have 32 banks per column.
+
+    The benefit 1 makes sure that when we load data from global memory to shared memory, we can store efficiently.
+    The benefit 2 makes sure that when we load data from shared memory to register memory, we can load efficiently.
+
+    We can always generate the swizzled layout for arbitrary m and n as long as they are multiple of 8. See the
+    implementation for more details.
+
+    Parameters
+    ----------
+    shape: Sequence[int]
+        The shape of the shared memory. The shape must have at least two dimensions.
+
+    dtype_nbytes: int
+        The element data type size in bytes.
+
+    Returns
+    -------
+    shared_layout: SharedLayout
+        The shared layout that could be used to generate ldmatrix instruction when using LoadSharedInst.
+    """
+    if len(shape) < 2:
+        raise ValueError("The shape of swizzled shared layout must have at least two dimensions.")
+    head, m, n = tuple(shape[:-2]), shape[-2], shape[-1]
+
+    if m % 8 != 0 or n * dtype_nbytes % 16 != 0:
+        raise ValueError("m must be a multiple of 8, and n * dtype_nbytes must be a multiple of 16.")
+
+    n_vector_size: int = gcd(n, 128 // dtype_nbytes)
+    n_num_vectors: int = n // n_vector_size
+
+    mode_shape = head + (m, n_num_vectors, n_vector_size)
+
+    # use the order of head, columns_vectors, rows, columns_vec_size to compute the strides
+    ranks = list(range(len(head))) + [len(head) + 1, len(head), len(head) + 2]
+    mode_strides = strides_from_ranks(shape=mode_shape, ranks=ranks)
+
+    log2 = {
+        1: 0,
+        2: 1,
+        4: 2,
+        8: 3,
+        16: 4,
+    }
+
+    if n_vector_size * dtype_nbytes == 128:
+        """
+        (each number represents a 16-byte group of elements)
+        0  1  2  3  4  5  6  7
+        1  0  3  2  5  4  7  6
+        2  3  0  1  6  7  4  5
+        3  2  1  0  7  6  5  4
+        4  5  6  7  0  1  2  3
+        5  4  7  6  1  0  3  2
+        6  7  4  5  2  3  0  1
+        7  6  5  4  3  2  1  0
+        """
+        swizzle = Swizzle(base=log2[16 // dtype_nbytes], bits=3, shift=3)
+    elif n_vector_size * dtype_nbytes == 64:
+        """
+        0  1  2  3
+        4  5  6  7
+        1  0  3  2
+        5  4  7  6
+        2  3  0  1
+        6  7  4  5
+        3  2  1  0
+        7  6  5  4
+        """
+        swizzle = Swizzle(base=log2[16 // dtype_nbytes], bits=2, shift=3)
+    elif n_vector_size * dtype_nbytes == 32:
+        """
+        0  1
+        2  3
+        4  5
+        6  7
+        1  0
+        3  2
+        5  4
+        7  6
+        """
+        swizzle = Swizzle(base=log2[16 // dtype_nbytes], bits=1, shift=3)
+    elif n_vector_size * dtype_nbytes == 16:
+        """
+        0
+        1
+        2
+        3
+        4
+        5
+        6
+        7
+        """
+        swizzle = None
+    else:
+        assert False
+
+    return shared_layout(
+        shape=shape,
+        mode_shape=mode_shape,
+        mode_strides=mode_strides,
+        swizzle=swizzle,
+    )
 
 
 def visualize_layout(layout: SharedLayout, tablefmt: str = "simple_grid") -> str:
@@ -186,7 +381,9 @@ def visualize_layout(layout: SharedLayout, tablefmt: str = "simple_grid") -> str
     if len(layout.shape) != 2:
         raise LayoutOperationError(f"Shared layout with shape {layout.shape} is not supported for visualization.")
     grid = meshgrid(layout.shape)
-    offset_grid = vectorized_evaluate(layout.offset, var2value={axis: grid[i] for i, axis in enumerate(layout.axes)})
+    axes = index_vars(num_vars=len(layout.shape))
+    offset = layout(*axes)
+    offset_grid = vectorized_evaluate(offset, var2value={axis: grid[i] for i, axis in enumerate(axes)})
     table = []
     for i in range(layout.shape[0]):
         row = []

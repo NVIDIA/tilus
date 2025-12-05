@@ -278,6 +278,12 @@ def infer_layout(func: Function) -> Function:
                     SharedTensor | RegisterTensor | TMemoryTensor, SharedTensor | RegisterTensor | TMemoryTensor
                 ] = {}
                 for tensor, layout in mapping.items():
+                    assert isinstance(tensor, (RegisterTensor, SharedTensor, TMemoryTensor)), (
+                        f"Invalid tensor type {type(tensor)} for rule {rule.__name__} "
+                    )
+                    assert isinstance(layout, (RegisterLayout, SharedLayout, TMemoryLayout)), (
+                        f"Invalid layout type {type(layout)} for rule {rule.__name__} "
+                    )
                     assert same_list(tensor.shape, layout.shape), (
                         f"Layout shape does not match tensor shape: {tensor.shape} vs {layout.shape} for rule {rule.__name__} "
                     )

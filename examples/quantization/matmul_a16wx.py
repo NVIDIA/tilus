@@ -197,8 +197,8 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         self.block_k = self.atomic_mma.k * wrk
         self.num_warps = wsm * wsn
 
-        k_tiles = wrk // tk
-        n_tiles = wsn * wrn // tn
+        self.k_tiles = wrk // tk
+        self.n_tiles = wsn * wrn // tn
 
         # we make sure that each weight_tile will be loaded by one warp
         assert wrk * self.atomic_mma.k % weight_tile[0] == 0
@@ -217,16 +217,16 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         )
         self.layout_rs = reduce(self.mma.lb, dims=[0], keepdims=True)
 
-        self.layout_sa = self.cuda.swizzled_shared_layout(
-            self.a_dtype, shape=[num_stages, self.block_m, self.block_k]
-        )
-        self.layout_sb = self.cuda.shared_layout(
-            shape=[self.num_stages, k_tiles, n_tiles, self.tile_bytes]
-        )
-        self.layout_sc = self.cuda.swizzled_shared_layout(
-            self.a_dtype, shape=[self.block_m, self.block_n]
-        )
-        self.layout_ss = self.cuda.shared_layout(shape=[self.num_stages, 1, self.block_n])
+        # self.layout_sa = self.cuda.swizzled_shared_layout(
+        #     self.a_dtype, shape=[num_stages, self.block_m, self.block_k]
+        # )
+        # self.layout_sb = self.cuda.shared_layout(
+        #     shape=[self.num_stages, k_tiles, n_tiles, self.tile_bytes]
+        # )
+        # self.layout_sc = self.cuda.swizzled_shared_layout(
+        #     self.a_dtype, shape=[self.block_m, self.block_n]
+        # )
+        # self.layout_ss = self.cuda.shared_layout(shape=[self.num_stages, 1, self.block_n])
 
     def __call__(
         self,
@@ -275,7 +275,10 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         sa = self.shared_tensor(
             dtype=self.a_dtype, shape=[self.num_stages, block_m, block_k]
         )
-        sb = self.shared_tensor(dtype=uint8, shape=self.layout_sb.shape)
+        sb = self.shared_tensor(
+            dtype=uint8,
+            shape=[self.num_stages, self.k_tiles, self.n_tiles, self.tile_bytes],
+        )
         ss = self.shared_tensor(dtype=self.a_dtype, shape=[self.num_stages, 1, block_n])
         acc = self.register_tensor(
             dtype=float32,
@@ -395,10 +398,10 @@ class QuantizedMatmul(QuantizedMatmulCommon):
             )
 
         # annotate layouts
-        self.annotate_layout(sc, layout=self.layout_sc)
-        self.annotate_layout(sa, layout=self.layout_sa)
-        self.annotate_layout(sb, layout=self.layout_sb)
-        self.annotate_layout(ss, layout=self.layout_ss)
+        # self.annotate_layout(sc, layout=self.layout_sc)
+        # self.annotate_layout(sa, layout=self.layout_sa)
+        # self.annotate_layout(sb, layout=self.layout_sb)
+        # self.annotate_layout(ss, layout=self.layout_ss)
         self.annotate_layout(acc, layout=self.mma.lc)
 
 

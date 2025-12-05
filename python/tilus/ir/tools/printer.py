@@ -448,12 +448,11 @@ class IRPrinter(IRFunctor):
         return self.add_key_comment("layout", doc)
 
     def visit_SharedLayout(self, node: SharedLayout) -> Doc:
-        for i, axis in enumerate(node.axes):
-            self.set_var_name(axis, "u" + str(i))
         items = [
             "shape=[" + self(node.shape) + "]",
-            "axes=[" + self(node.axes) + "]",
-            "offset=" + self(node.offset),
+            "mode_shape=[" + self(node.mode_shape) + "]",
+            "mode_strides=[" + self(node.mode_strides) + "]",
+            "swizzle=" + (str(node.swizzle) if node.swizzle is not None else "None"),
         ]
         doc = Text("SharedLayout(") + doc_join(items, ", ") + ")"
         return self.add_key_comment("shared_layout", doc)
