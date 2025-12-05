@@ -33,21 +33,11 @@ class WgmmaInstructionGroup(InstructionGroup):
         self._builder.wgmma_wait_group(n)
 
     def mma(self, a: SharedTensor | RegisterTensor, b: SharedTensor, d: RegisterTensor) -> None:
+        if any(len(tensor.shape) != 2 for tensor in (a, b, d)):
+            raise InstructionError("mma requires 2D tensors, got shapes {}".format([tensor.shape for tensor in (a, b, d)]))
         if isinstance(a, SharedTensor):
-            if len(a.shape) != 2:
-                raise InstructionError("mma requires 2D shared tensors, got shape {}".format(a.shape))
-            if len(b.shape) != 2:
-                raise InstructionError("mma requires 2D shared tensors, got shape {}".format(b.shape))
-            if len(d.shape) != 2:
-                raise InstructionError("mma requires 2D register tensors, got shape {}".format(d.shape))
             self._builder.wgmma_mma_ss(a, b, d)
         elif isinstance(a, RegisterTensor):
-            if len(a.shape) != 2:
-                raise InstructionError("mma requires 2D register tensors, got shape {}".format(a.shape))
-            if len(b.shape) != 2:
-                raise InstructionError("mma requires 2D shared tensors, got shape {}".format(b.shape))
-            if len(d.shape) != 2:
-                raise InstructionError("mma requires 2D register tensors, got shape {}".format(d.shape))
             self._builder.wgmma_mma_rs(a, b, d)
         else:
             raise InstructionError("Invalid type of a: {}, expected SharedTensor or RegisterTensor".format(type(a)))

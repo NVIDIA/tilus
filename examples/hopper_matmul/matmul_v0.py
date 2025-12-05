@@ -9,12 +9,12 @@ import torch
 from tilus import float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
-tilus.option.cache_dir("./cache")
-tilus.option.debug.dump_ir(True)
 
 
-@tilus.autotune("block_m, block_n", [(128, 128), (128, 256), (128, 64)])
-@tilus.autotune("block_k", [16, 32, 16])
+@tilus.autotune(
+    "block_m, block_n", [(64, 128), (128, 128), (128, 256), (256, 128), (256, 256)]
+)
+@tilus.autotune("block_k", [16, 32, 64])
 class MatmulTMA(tilus.Script):
     def __init__(
         self,
@@ -69,9 +69,9 @@ class MatmulTMA(tilus.Script):
             # synchronize threads in the block to ensure data is available in shared memory
             self.sync()
 
-            # a = self.load_shared(sa)
-            # b = self.load_shared(sb)
-            self.dot(sa, sb.transpose(), acc, out=acc)
+            a = self.load_shared(sa)
+            b = self.load_shared(sb)
+            self.dot(a, b.transpose(), acc, out=acc)
             self.sync()
             phase ^= 1
 
@@ -105,7 +105,7 @@ def main():
 
         # benchmark
         for name, func in [
-            ("torch", lambda: torch.matmul(a, b, out=c_expect)),
+            ("torch", lambda: torch.matmul(a, b.T, out=c_expect)),
             ("tilus", lambda: matmul(m, n, k, a, b, c_actual)),
         ]:
             latency = benchmark_func(func, warmup=5, repeat=20)
