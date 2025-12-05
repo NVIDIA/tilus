@@ -10,7 +10,6 @@ from tilus import float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
 
-
 @tilus.autotune(
     "block_m, block_n", [(64, 128), (128, 128), (128, 256), (256, 128), (256, 256)]
 )

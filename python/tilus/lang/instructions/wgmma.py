@@ -34,7 +34,9 @@ class WgmmaInstructionGroup(InstructionGroup):
 
     def mma(self, a: SharedTensor | RegisterTensor, b: SharedTensor, d: RegisterTensor) -> None:
         if any(len(tensor.shape) != 2 for tensor in (a, b, d)):
-            raise InstructionError("mma requires 2D tensors, got shapes {}".format([tensor.shape for tensor in (a, b, d)]))
+            raise InstructionError(
+                "mma requires 2D tensors, got shapes {}".format([tensor.shape for tensor in (a, b, d)])
+            )
         if isinstance(a, SharedTensor):
             self._builder.wgmma_mma_ss(a, b, d)
         elif isinstance(a, RegisterTensor):
