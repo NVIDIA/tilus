@@ -10,18 +10,21 @@ from tilus import float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
 
+@tilus.autotune("num_stages", [2, 3, 4])
 @tilus.autotune(
     "block_m, block_n", [(64, 128), (128, 128), (128, 256), (256, 128), (256, 256)]
 )
 @tilus.autotune("block_k", [16, 32, 64])
-class MatmulWGMMA(tilus.Script):
+class MatmulWGMMAV2(tilus.Script):
     def __init__(
         self,
+        num_stages,
         block_m,
         block_n,
         block_k,
     ):
         super().__init__()
+        self.num_stages = num_stages
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
@@ -47,33 +50,61 @@ class MatmulWGMMA(tilus.Script):
 
         ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         gb = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
-        sa = self.shared_tensor(dtype=float16, shape=[block_m, block_k])
-        sb = self.shared_tensor(dtype=float16, shape=[block_n, block_k])
+        sa = self.shared_tensor(dtype=float16, shape=[self.num_stages, block_m, block_k])
+        sb = self.shared_tensor(dtype=float16, shape=[self.num_stages, block_n, block_k])
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
-        tma_barrier = self.mbarrier.alloc(count=[2])
-        phase: uint32 = 0
+        tma_barriers = self.mbarrier.alloc(count=[2 for _ in range(self.num_stages)])
+        phase = self.register_tensor(dtype=uint32, shape=[self.num_stages], init=0)
 
-        for offset_k in range(0, k_size, block_k):
-            # issue asynchronous copy instructions to load tiles of A and B
+        num_iters: int32 = cdiv(k_size, block_k)
+        max_num_stages: int32 = min(num_iters, self.num_stages)
+
+        for stage in range(max_num_stages):
+            offset_k = stage * self.block_k
             with self.single_thread():
                 self.tma.global_to_shared(
-                    src=ga, dst=sa, offsets=[offset_m, offset_k], mbarrier=tma_barrier
+                    src=ga,
+                    dst=sa[stage],
+                    offsets=[offset_m, offset_k],
+                    mbarrier=tma_barriers[stage],
                 )
                 self.tma.global_to_shared(
-                    src=gb, dst=sb, offsets=[offset_n, offset_k], mbarrier=tma_barrier
+                    src=gb,
+                    dst=sb[stage],
+                    offsets=[offset_n, offset_k],
+                    mbarrier=tma_barriers[stage],
                 )
-                self.mbarrier.wait(tma_barrier, phase=phase)
 
-            # synchronize threads in the block to ensure data is available in shared memory
+        for iter in range(num_iters):
+            stage = iter % self.num_stages
+            self.mbarrier.wait(tma_barriers[stage], phase=phase[stage])
             self.sync()
 
             self.wgmma.fence()
-            self.wgmma.mma(sa, sb.transpose(), acc)
+            self.wgmma.mma(sa[stage], sb[stage].transpose(), acc)
             self.wgmma.commit_group()
             self.wgmma.wait_group(0)
+            phase[stage] ^= 1
+
+            preload_iter = iter + self.num_stages
+            if preload_iter < num_iters:
+                preload_stage = preload_iter % self.num_stages
+                offset_k = preload_iter * self.block_k
+                with self.single_thread():
+                    self.tma.global_to_shared(
+                        src=ga,
+                        dst=sa[preload_stage],
+                        offsets=[offset_m, offset_k],
+                        mbarrier=tma_barriers[preload_stage],
+                    )
+                    self.tma.global_to_shared(
+                        src=gb,
+                        dst=sb[preload_stage],
+                        offsets=[offset_n, offset_k],
+                        mbarrier=tma_barriers[preload_stage],
+                    )
             self.sync()
-            phase ^= 1
 
         self.free_shared(sa)
         self.free_shared(sb)
@@ -92,7 +123,7 @@ def main():
 
     rows = []
     for m, n, k in workloads:
-        matmul = MatmulWGMMA()
+        matmul = MatmulWGMMAV2()
 
         a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
         b = (torch.rand(n, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
