@@ -15,7 +15,7 @@ from tilus.utils import benchmark_func, cdiv
     "block_m, block_n", [(64, 128), (128, 128), (128, 256), (256, 128), (256, 256)]
 )
 @tilus.autotune("block_k", [16, 32, 64])
-class MatmulWGMMA(tilus.Script):
+class MatmulWGMMAV2(tilus.Script):
     def __init__(
         self,
         num_stages,
@@ -111,7 +111,7 @@ def main():
 
     rows = []
     for m, n, k in workloads:
-        matmul = MatmulWGMMA()
+        matmul = MatmulWGMMAV2()
 
         a = (torch.rand(m, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
         b = (torch.rand(n, k, dtype=torch.float16).cuda() - 0.5) / math.sqrt(k)
