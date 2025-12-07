@@ -73,7 +73,7 @@ class MatmulWGMMAV2(tilus.Script):
         for iter in range(num_iters):
             stage = iter % self.num_stages
             self.mbarrier.wait(tma_barriers[stage], phase=phase[stage])
-            # self.sync()
+            self.sync()
 
             self.wgmma.fence()
             self.wgmma.mma(sa[stage], sb[stage].transpose(), acc)
