@@ -57,6 +57,7 @@ EXAMPLES = [
     # hopper matmul example (SM 9.0)
     ("hopper_matmul", "matmul_v0.py", nvgpu_sm90),
     ("hopper_matmul", "matmul_v1.py", nvgpu_sm90),
+    ("hopper_matmul", "matmul_v2.py", nvgpu_sm90),
     # quantization examples (SM 8.0+)
     ("quantization", "matmul_a16wx.py", nvgpu_sm80),
     # flash attention decode examples (SM 8.0+)
