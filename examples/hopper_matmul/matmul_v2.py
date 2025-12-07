@@ -56,7 +56,7 @@ class MatmulWGMMAV2(tilus.Script):
 
         tma_barriers = self.mbarrier.alloc(count=[2 for _ in range(self.num_stages)])
         phase = self.register_tensor(dtype=uint32, shape=[self.num_stages], init=0)
-        
+
         num_iters: int32 = cdiv(k_size, block_k)
         max_num_stages: int32 = min(num_iters, self.num_stages)
 
@@ -64,10 +64,16 @@ class MatmulWGMMAV2(tilus.Script):
             offset_k = stage * self.block_k
             with self.single_thread():
                 self.tma.global_to_shared(
-                    src=ga, dst=sa[stage], offsets=[offset_m, offset_k], mbarrier=tma_barriers[stage]
+                    src=ga,
+                    dst=sa[stage],
+                    offsets=[offset_m, offset_k],
+                    mbarrier=tma_barriers[stage],
                 )
                 self.tma.global_to_shared(
-                    src=gb, dst=sb[stage], offsets=[offset_n, offset_k], mbarrier=tma_barriers[stage]
+                    src=gb,
+                    dst=sb[stage],
+                    offsets=[offset_n, offset_k],
+                    mbarrier=tma_barriers[stage],
                 )
 
         for iter in range(num_iters):
@@ -87,10 +93,16 @@ class MatmulWGMMAV2(tilus.Script):
                 offset_k = preload_iter * self.block_k
                 with self.single_thread():
                     self.tma.global_to_shared(
-                        src=ga, dst=sa[preload_stage], offsets=[offset_m, offset_k], mbarrier=tma_barriers[preload_stage]
+                        src=ga,
+                        dst=sa[preload_stage],
+                        offsets=[offset_m, offset_k],
+                        mbarrier=tma_barriers[preload_stage],
                     )
                     self.tma.global_to_shared(
-                        src=gb, dst=sb[preload_stage], offsets=[offset_n, offset_k], mbarrier=tma_barriers[preload_stage]
+                        src=gb,
+                        dst=sb[preload_stage],
+                        offsets=[offset_n, offset_k],
+                        mbarrier=tma_barriers[preload_stage],
                     )
             self.sync()
 
