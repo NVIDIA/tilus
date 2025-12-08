@@ -86,7 +86,7 @@ class SharedLayout(IRNode):
     shape: tuple[int, ...]
     mode_shape: tuple[int, ...]
     mode_strides: tuple[int, ...]
-    swizzle: Optional[Swizzle]
+    optional_swizzle: Optional[Swizzle]
 
     def __call__(self, *indices: Expr) -> Expr:
         """Compute the offset on given indices.
@@ -113,10 +113,16 @@ class SharedLayout(IRNode):
         total_index: Expr = as_expr(sum(index * stride for index, stride in zip(mode_indices, self.mode_strides)))
 
         # apply swizzle if exists
-        if self.swizzle is not None:
-            total_index = self.swizzle(total_index)
+        if self.optional_swizzle is not None:
+            total_index = self.optional_swizzle(total_index)
 
         return total_index
+
+    @property
+    def swizzle(self) -> Swizzle:
+        if self.optional_swizzle is None:
+            raise ValueError("No swizzle is applied on this layout.")
+        return self.optional_swizzle
 
     @staticmethod
     def create(
@@ -148,7 +154,7 @@ class SharedLayout(IRNode):
         if prod(mode_shape) != prod(shape):
             raise ValueError("The product of mode_shape must equal to the product of shape.")
         return SharedLayout(
-            shape=tuple(shape), mode_shape=tuple(mode_shape), mode_strides=tuple(mode_strides), swizzle=swizzle
+            shape=tuple(shape), mode_shape=tuple(mode_shape), mode_strides=tuple(mode_strides), optional_swizzle=swizzle
         )
 
     def as_numpy_grid(self) -> np.ndarray:
@@ -183,7 +189,7 @@ class SharedLayout(IRNode):
         return shared_slice(self, retain_dims)
 
     def apply_swizzle(self, swizzle: Swizzle) -> SharedLayout:
-        if self.swizzle is not None:
+        if self.optional_swizzle is not None:
             raise RuntimeError("Chained swizzle is not supported.")
         return SharedLayout.create(
             shape=self.shape,
@@ -205,7 +211,7 @@ class SharedLayout(IRNode):
             shape=shape,
             mode_shape=mode_shape,
             mode_strides=mode_strides,
-            swizzle=self.swizzle,
+            swizzle=self.optional_swizzle,
         )
 
     def transpose(self) -> SharedLayout:
