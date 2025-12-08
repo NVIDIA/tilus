@@ -152,7 +152,7 @@ class SharedLayout(IRNode):
         )
 
     def as_numpy_grid(self) -> np.ndarray:
-        grid_axes = np.meshgrid(*[np.arange(extent) for extent in self.shape])
+        grid_axes = np.meshgrid(*[np.arange(extent) for extent in self.shape], indexing="ij")
         axes = index_vars(num_vars=len(self.shape))
         offset = self(*axes)
         atom_grid = vectorized_evaluate(expr=offset, var2value={axis: grid_axes[i] for i, axis in enumerate(axes)})
@@ -181,9 +181,6 @@ class SharedLayout(IRNode):
         from tilus.ir.layout.ops.shared_ops import shared_slice
 
         return shared_slice(self, retain_dims)
-
-    def simplify(self) -> SharedLayout:
-        raise RuntimeError("No need to simplify anymore.")
 
     def apply_swizzle(self, swizzle: Swizzle) -> SharedLayout:
         if self.swizzle is not None:

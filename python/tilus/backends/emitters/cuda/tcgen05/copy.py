@@ -188,17 +188,12 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
 
         raise ValueError("No valid instructions generated")
 
-    def check_warp_group(self) -> None:
-        begin = self.current_thread_group_begin
-        end = self.current_thread_group_end
-        if begin % 128 != 0 or end - begin != 128:
-            raise ValueError("The number of threads in the current thread group must be 128")
-
     def emit(self, inst: Tcgen05CopyInst) -> None:
         shared_tensor = inst.inputs[1].as_shared_tensor()
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
 
-        self.check_warp_group()
+        if self.current_num_threads != 1:
+            raise ValueError("Tcgen05CopyInst can only be emitted in thread group with a single thread")
 
         if len(shared_tensor.shape) != 2:
             raise ValueError("The shared tensor must be a 2D tensor, got shape {}".format(shared_tensor.shape))
