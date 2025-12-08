@@ -132,9 +132,12 @@ class SwizzledCuteLayout:
                 return tuple(reverse_int_tuple(item) for item in reversed(t))
             else:
                 return t
+        
+        assert isinstance(self.layout.shape, Sequence)
+        assert isinstance(self.layout.strides, Sequence)
 
-        rev_shape = reverse_int_tuple(self.layout.shape)
-        rev_strides = reverse_int_tuple(self.layout.strides)
+        rev_shape = [reverse_int_tuple(item) for item in self.layout.shape]
+        rev_strides = [reverse_int_tuple(item) for item in self.layout.strides]
 
         # then, we flatten them into 1D lists
         def flatten_int_tuple(t: IntTuple) -> list[Int]:

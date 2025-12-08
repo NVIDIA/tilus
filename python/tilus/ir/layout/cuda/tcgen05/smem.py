@@ -181,6 +181,7 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
     ret: Optional[CanonicalSharedLayout]
         The canonical form if found, None otherwise
     """
+    # todo: simplify the implementation of this function since we used a similar layout system as cute now
     if len(shared_layout.shape) != 2:
         return None
 
