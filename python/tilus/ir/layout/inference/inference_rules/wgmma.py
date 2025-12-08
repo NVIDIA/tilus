@@ -45,7 +45,9 @@ def generate_wgmma_register_layout(m: int, n: int, inst_m: int, inst_n: int, ins
 @register_rule(WgmmaMmaSSInst)
 class WgmmaMmaSSRule(LayoutInferenceRule):
     @staticmethod
-    def inference(ctx: LayoutInferenceContext, inst: WgmmaMmaSSInst) -> dict[SharedTensor, SharedLayout]:
+    def inference(
+        ctx: LayoutInferenceContext, inst: WgmmaMmaSSInst
+    ) -> dict[SharedTensor | RegisterTensor, SharedLayout | RegisterLayout]:
         a_tensor: SharedTensor = inst.inputs[0].as_shared_tensor()
         b_tensor: SharedTensor = inst.inputs[1].as_shared_tensor()
         d_tensor: RegisterTensor = inst.inputs[2].as_register_tensor()
@@ -64,7 +66,7 @@ class WgmmaMmaSSRule(LayoutInferenceRule):
             )
         m, n, k = d_shape[0], d_shape[1], a_shape[1]
 
-        ret = {}
+        ret: dict[SharedTensor | RegisterTensor, SharedLayout | RegisterLayout] = {}
         if not a_tensor.has_layout():
             for swizzle_mode in [
                 Tcgen05SwizzleMode.B128_SWIZZLE,
@@ -76,7 +78,7 @@ class WgmmaMmaSSRule(LayoutInferenceRule):
                     a_layout_canonical = generate_canonical_layout(
                         shape=(m, k), dtype=a_tensor.dtype, major_kind="K", swizzle_mode=swizzle_mode
                     )
-                    ret[a_tensor] = a_layout_canonical.as_shared_layout().simplify()
+                    ret[a_tensor] = a_layout_canonical.as_shared_layout()
                 except ValueError:
                     continue
                 else:
@@ -92,7 +94,7 @@ class WgmmaMmaSSRule(LayoutInferenceRule):
                     b_layout_canonical = generate_canonical_layout(
                         shape=(n, k), dtype=b_tensor.dtype, major_kind="K", swizzle_mode=swizzle_mode
                     )
-                    ret[b_tensor] = b_layout_canonical.as_shared_layout().permute(dims=[1, 0]).simplify()
+                    ret[b_tensor] = b_layout_canonical.as_shared_layout().permute(dims=[1, 0])
                 except ValueError:
                     continue
                 else:
