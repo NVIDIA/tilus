@@ -28,13 +28,19 @@ class SharedSliceRule(LayoutInferenceRule):
         if a.optional_layout is not None and b.optional_layout is not None:
             return {}
         elif a.optional_layout is not None:
-            return {b: a.layout.slice(offsets=inst.offsets, slice_dims=inst.dims, slice_shape=b.shape).simplify()}
+            if inst.dims is None:
+                dims = list(range(len(a.shape)))
+            else:
+                dims = inst.dims
+            return {
+                b: a.layout.slice(retain_dims=dims)
+            }
         elif b.optional_layout is not None:
             b_layout = b.layout.unsqueeze(dims=range(len(a.shape) - len(b.shape)))
             outer_shape = []
             for i in range(len(a.shape)):
                 outer_shape.append(a.shape[i] // b_layout.shape[i])
-            return {a: shared_compose(shared_row_major(*outer_shape), b_layout).simplify()}
+            return {a: shared_compose(shared_row_major(*outer_shape), b_layout)}
         else:
             return {}
 

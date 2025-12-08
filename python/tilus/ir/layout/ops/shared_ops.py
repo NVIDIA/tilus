@@ -153,6 +153,38 @@ def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
 
     return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=layout.swizzle)
 
+def shared_slice(layout: SharedLayout, retain_dims: Sequence[int]) -> SharedLayout:
+    """Slice the shared layout by removing specified dimensions.
+
+    Parameters
+    ----------
+    layout: SharedLayout
+        The layout to slice.
+    dims: Sequence[int]
+        The dimensions to slice. Each dimension should be in the range [0, len(layout.shape)). The dimensions will
+        be kept in the output layout.
+
+    Returns
+    -------
+    ret: SharedLayout
+        The sliced layout.
+    """
+    assert all(0 <= d < len(layout.shape) for d in retain_dims) and len(retain_dims) == len(set(retain_dims))
+    shape: List[int] = []
+    mode_shape: List[int] = []
+    mode_strides: List[int] = []
+    layout_mode_groups = get_mode_groups(layout.shape, layout.mode_shape)
+    for i in retain_dims:
+        shape.append(layout.shape[i])
+        mode_shape.extend([layout.mode_shape[j] for j in layout_mode_groups[i]])
+        mode_strides.extend([layout.mode_strides[j] for j in layout_mode_groups[i]])
+
+    return shared_layout(
+        shape=shape,
+        mode_shape=mode_shape,
+        mode_strides=mode_strides,
+        swizzle=layout.swizzle,
+    )
 
 def shared_unsqueeze(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
     """Unsqueeze the shared layout by adding new dimensions of size 1.

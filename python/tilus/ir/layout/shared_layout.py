@@ -177,8 +177,10 @@ class SharedLayout(IRNode):
         max_index = sum(a * b for a, b in zip(indices, self.mode_strides))
         return max_index + 1
 
-    def slice(self, offsets: Sequence[Expr], slice_dims: Sequence[int], slice_shape: Sequence[int]) -> SharedLayout:
-        raise RuntimeError("No slice anymore.")
+    def slice(self, retain_dims: Sequence[int]) -> SharedLayout:
+        from tilus.ir.layout.ops.shared_ops import shared_slice
+
+        return shared_slice(self, retain_dims)
 
     def simplify(self) -> SharedLayout:
         raise RuntimeError("No need to simplify anymore.")
