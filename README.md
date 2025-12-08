@@ -11,6 +11,10 @@ It also includes automatic tuning, caching, and a Pythonic interface for ease of
 
 Tilus is pronounced as tie-lus, /ˈtaɪləs/.
 
+## Status
+
+Tilus supports Ampere architecture, and we are actively working on the support of Hopper/Blackwell GPUs (see the [roadmap](https://github.com/NVIDIA/tilus/issues/49)). 
+
 ## Getting Started
 
 ### Installation
