@@ -22,7 +22,7 @@ from tilus import (
     int32,
     uint8,
 )
-from tilus.ir.layout.ops import concat, local, reduce, spatial, shared_row_major_swizzle
+from tilus.ir.layout.ops import concat, local, reduce, shared_row_major_swizzle, spatial
 from tilus.utils import benchmark_func, cdiv, dtype_to_torch, gcd
 from torch import nn
 
@@ -218,7 +218,8 @@ class QuantizedMatmul(QuantizedMatmulCommon):
         self.layout_rs = reduce(self.mma.lb, dims=[0], keepdims=True)
 
         self.layout_sa = shared_row_major_swizzle(
-            dtype_nbytes=self.a_dtype.nbytes, shape=[num_stages, self.block_m, self.block_k]
+            dtype_nbytes=self.a_dtype.nbytes,
+            shape=[num_stages, self.block_m, self.block_k],
         )
         self.layout_sb = self.cuda.shared_layout(
             shape=[self.num_stages, self.k_tiles, self.n_tiles, self.tile_bytes]

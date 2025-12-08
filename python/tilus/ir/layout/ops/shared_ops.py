@@ -153,6 +153,7 @@ def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
 
     return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=layout.swizzle)
 
+
 def shared_slice(layout: SharedLayout, retain_dims: Sequence[int]) -> SharedLayout:
     """Slice the shared layout by removing specified dimensions.
 
@@ -185,6 +186,7 @@ def shared_slice(layout: SharedLayout, retain_dims: Sequence[int]) -> SharedLayo
         mode_strides=mode_strides,
         swizzle=layout.swizzle,
     )
+
 
 def shared_unsqueeze(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
     """Unsqueeze the shared layout by adding new dimensions of size 1.

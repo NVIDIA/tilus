@@ -399,4 +399,3 @@ def test_canonicalize_shared_layout(canonical):
 
 if __name__ == "__main__":
     pytest.main([__file__])
-

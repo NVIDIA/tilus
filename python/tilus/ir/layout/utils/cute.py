@@ -132,7 +132,7 @@ class SwizzledCuteLayout:
                 return tuple(reverse_int_tuple(item) for item in reversed(t))
             else:
                 return t
-        
+
         assert isinstance(self.layout.shape, Sequence)
         assert isinstance(self.layout.strides, Sequence)
 
