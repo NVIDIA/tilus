@@ -207,9 +207,8 @@ def mbarrier_arrive_shared(mbarrier_addr: Expr, count: Expr | int) -> Expr:
     --------
     mbarrier.arrive : PTX ISA documentation section 9.7.13.15.13
     """
-    if isinstance(count, int):
-        count = u32(count)
-    return call_primitive_func("cuda_mbarrier_arrive_shared", args=[mbarrier_addr, count])
+    count_expr = count if isinstance(count, Expr) else u32(count)
+    return call_primitive_func("cuda_mbarrier_arrive_shared", args=[mbarrier_addr, count_expr])
 
 
 def mbarrier_arrive_remote_shared(

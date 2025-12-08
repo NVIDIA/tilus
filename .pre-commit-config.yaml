@@ -24,7 +24,6 @@ repos:
         types_or: [python, pyi]
         args: [--show-error-codes, --show-error-context]
         files: ^(python|examples|tests)/
-        exclude: ^python/tilus/extensions/hidet/
         require_serial: true
 -   repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version
