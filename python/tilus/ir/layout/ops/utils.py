@@ -25,6 +25,12 @@ def get_mode_groups(shape: Sequence[int], mode_shape: Sequence[int]) -> list[lis
     """
     Get the groups of modes based on the shape and mode_shape.
 
+    Example:
+    >>> shape = [64, 32]
+    >>> mode_shape = [8, 8, 16, 2]
+    >>> get_mode_groups(shape, mode_shape)
+    [[0, 1], [2, 3]]
+
     Parameters
     ----------
     shape: Sequence[int]

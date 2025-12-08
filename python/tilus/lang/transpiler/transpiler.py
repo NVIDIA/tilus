@@ -203,7 +203,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
         metadata = Metadata(
             grid_blocks=normalize_grid_blocks(script.attrs.blocks),
             cluster_blocks=normalize_cluster_blocks(script.attrs.cluster_blocks),
-            block_indices=(blockIdx.x, blockIdx.y, blockIdx.z),
+            block_indices=(blockIdx.x, blockIdx.y, blockIdx.z),  # type: ignore[attr-defined]
             num_warps=script.attrs.warps,
             param2divisibility=frozendict(param2divisibility),
             analysis=None,
@@ -686,7 +686,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
             # case 4
             class_cls: Type[Class] = func
             obj = object.__new__(class_cls)
-            self.transpile_call(obj.__init__, args, kwargs)
+            self.transpile_call(obj.__init__, args, kwargs)  # type: ignore
             ret = obj
         elif func is super:
             # case 5

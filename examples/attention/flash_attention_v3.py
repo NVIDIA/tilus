@@ -293,7 +293,7 @@ class FlashAttention(tilus.Script):
                 shape=[num_q_blocks, batch_size, self.num_heads, self.block_q],
                 requires_clean=False,
             )
-            semaphore = ~semaphores[self.blockIdx.x, bs, head]
+            semaphore = semaphores[self.blockIdx.x, bs, head].item_ptr()
 
             sm = self.shared_tensor(dtype=f32, shape=[self.block_q])
             sl = self.shared_tensor(dtype=f32, shape=[self.block_q])

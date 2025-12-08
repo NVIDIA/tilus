@@ -18,14 +18,13 @@ from typing import Optional, Sequence
 
 import cuda.bindings.runtime as cudart
 from hidet.ir.dtypes import DataType, bfloat16, float16, float32, int8, int32
-from hidet.ir.expr import as_expr
 
 from tilus import RegisterLayout
 from tilus.backends.emitters.cuda.mma_dot import AtomicMmaConfig
 from tilus.ir.layout import SharedLayout
-from tilus.ir.layout.ops import auto_local_spatial, reduce, shared_compose, shared_row_major, spatial
+from tilus.ir.layout.ops import auto_local_spatial, reduce, shared_row_major, spatial
 from tilus.ir.utils import vector
-from tilus.utils import gcd, idiv, prod
+from tilus.utils import gcd, prod
 
 
 @dataclass(frozen=True, eq=False)
@@ -205,186 +204,6 @@ class cuda:
             The row-major shared layout with the given shape.
         """
         return shared_row_major(*shape)
-
-    @staticmethod
-    def swizzled_shared_layout(dtype: DataType, *, shape: Sequence[int]) -> SharedLayout:
-        """
-        Generate a shared layout that could be used to generate ldmatrix instruction when using LoadSharedInst.
-
-        Both m and n must be a multiple of 8.
-
-        We will divide each row into bank groups, and bank group has 16 bytes (16 x uint8, 8 x fp16, or 4 x fp32, etc.).
-        They correspond to 4 banks in shared memory. For example, if we have m = n = 8, we can represent bank groups as
-
-        0   # bank group 0, banks from 0 to 3
-        1   # bank group 1, banks from 4 to 7
-        2   # ...
-        3
-        4
-        5
-        6
-        7   # bank groups 7, banks from 28 to 31
-
-        Given m, and n, we need to find a proper way to organize the m x (n / 8) bank groups in shared memory, so that
-        1) each row has different bank groups
-        2) each column has different bank groups
-
-        When we have m = 8 and n = 64, we have 8 x 8 bank groups. If we store the elements in row-major order, we will
-        have the bank groups as
-
-        0  1  2  3  4  5  6  7
-        0  1  2  3  4  5  6  7
-        0  1  2  3  4  5  6  7
-        0  1  2  3  4  5  6  7
-        0  1  2  3  4  5  6  7
-        0  1  2  3  4  5  6  7
-        0  1  2  3  4  5  6  7
-        0  1  2  3  4  5  6  7
-
-        If we use ldmatrix to load the above 8 x 64 shared memory, we will need 8 ldmatrix.v1 instructions. Each instruction
-        loads one column (8 x 8 elements, or 8 x 1 bank groups). Since each instruction will access the same bank group,
-        severe bank conflicts will occur. Thus, we need to change the layout of shared memory to avoid bank conflicts.
-
-        Let layout(i, j) be the shared memory address of logical elements (each element has 16 bytes) when we use
-        a specific `layout`. For example, the row-major layout row-major(i, j) = i * n + j * 8 (we assume the dtype has 2
-        bytes). If we use the swizzled layout swizzled(i, j) = row-major(i, j ^ i) = i * n + (j ^ i) * 8, we can have the
-        following bank groups in shared memory.
-
-        0  1  2  3  4  5  6  7
-        1  0  3  2  5  4  7  6
-        2  3  0  1  6  7  4  5
-        3  2  1  0  7  6  5  4
-        4  5  6  7  0  1  2  3
-        5  4  7  6  1  0  3  2
-        6  7  4  5  2  3  0  1
-        7  6  5  4  3  2  1  0
-
-        (reader may need some time to figure out the above layout...)
-
-        This layout has two benefits:
-        1) Each row has different bank groups. In above example, we have 32 banks per row.
-        2) Each column has different bank groups. In above example, we have 32 banks per column.
-
-        The benefit 1 makes sure that when we load data from global memory to shared memory, we can store efficiently.
-        The benefit 2 makes sure that when we load data from shared memory to register memory, we can load efficiently.
-
-        We can always generate the swizzled layout for arbitrary m and n as long as they are multiple of 8. See the
-        implementation for more details.
-
-        Parameters
-        ----------
-        dtype: DataType
-            The element data type for both the shared memory and the register memory.
-
-        shape: Sequence[int]
-            The shape of the shared memory. The shape must have at least two dimensions.
-
-        Returns
-        -------
-        shared_layout: SharedLayout
-            The shared layout that could be used to generate ldmatrix instruction when using LoadSharedInst.
-        """
-        return cuda._swizzled_shared_layout_new(dtype, shape=tuple(shape))
-
-    @staticmethod
-    @functools.lru_cache
-    def _swizzled_shared_layout(dtype: DataType, shape: tuple[int, ...]) -> SharedLayout:
-        if len(shape) < 2:
-            raise ValueError("The shape of swizzled shared layout must have at least two dimensions.")
-        m, n = shape[-2:]
-        group_elements = idiv(16, dtype.nbytes)
-        if m % 8 != 0 or n % group_elements != 0:
-            raise ValueError("m must be a multiple of 8, and n must be a multiple of dtype.nbytes * 8.")
-        rows = m
-        columns = n // group_elements
-
-        if columns % 8 == 0:
-            """
-            0 1 2 3 4 5 6 7
-            1 0 3 2 5 4 7 6
-            2 3 0 1 6 7 4 5
-            3 2 1 0 7 6 5 4
-            4 5 6 7 0 1 2 3
-            5 4 7 6 1 0 3 2
-            6 7 4 5 2 3 0 1
-            7 6 5 4 3 2 1 0
-            """
-            core = shared_row_major(rows, columns).swizzle(dim=1, regards_dim=0, log_step=0)
-        elif columns % 4 == 0:
-            """
-            0 1 2 3
-            4 5 6 7
-            1 0 3 2
-            5 4 7 6
-            2 3 0 1
-            6 7 4 5
-            3 2 1 0
-            7 6 5 4
-            """
-            core = shared_row_major(rows, 4).swizzle(dim=1, regards_dim=0, log_step=1)
-        elif columns % 2 == 0:
-            """
-            0 1
-            2 3
-            4 5
-            6 7
-            1 0
-            3 2
-            5 4
-            7 6
-            """
-            core = shared_row_major(rows, 2).swizzle(dim=1, regards_dim=0, log_step=2)
-        else:
-            """
-            0
-            1
-            2
-            3
-            4
-            5
-            6
-            7
-            """
-            core = shared_row_major(rows, 1)
-        layout = shared_compose(core, shared_row_major(1, group_elements))
-        if m > layout.shape[0] or n > layout.shape[1]:
-            layout = shared_compose(shared_row_major(m // layout.shape[0], n // layout.shape[1]), layout)
-        if len(shape) > 2:
-            for extent in reversed(shape[:-2]):
-                layout = layout.prepend_dim(extent=extent)
-        return layout
-
-    @staticmethod
-    @functools.lru_cache
-    def _swizzled_shared_layout_new(dtype: DataType, shape: tuple[int, ...]) -> SharedLayout:
-        if len(shape) < 2:
-            raise ValueError("The shape of swizzled shared layout must have at least two dimensions.")
-        m, n = shape[-2:]
-        group_elements = idiv(16, dtype.nbytes)
-        if m % 8 != 0 or n % group_elements != 0:
-            raise ValueError("m must be a multiple of 8, and n must be a multiple of dtype.nbytes * 8.")
-
-        def f_offset(axes):
-            strides: list[int] = [prod(shape[i + 1 :]) for i in range(len(shape))]
-
-            columns: int = n // group_elements
-            columns_vec_size: int = gcd(columns, 8)
-
-            i, j = axes[-2:]
-            if columns_vec_size == 8:
-                i, j = i, j ^ ((i % 8) * group_elements)
-            elif columns_vec_size == 4:
-                i, j = i, j ^ (i // 2 % 4 * group_elements)
-            elif columns_vec_size == 2:
-                i, j = i, j ^ (i // 4 % 2 * group_elements)
-            else:
-                i, j = i, j
-            swizzled_axes = axes[:-2] + [i, j]
-            offset = as_expr(sum(axis * stride for axis, stride in zip(swizzled_axes, strides)))
-            return offset
-
-        layout = SharedLayout.create(shape=shape, size=prod(shape), f_offset=f_offset).simplify()
-        return layout
 
     @staticmethod
     def default_register_layout(

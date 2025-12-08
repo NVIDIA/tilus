@@ -15,40 +15,78 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Sequence
+from typing import Optional, Sequence
 
+import numpy as np
 from hidet.ir.expr import Expr, Var, as_expr
+from hidet.ir.utils.index_transform import index_deserialize
+from hidet.utils import prod
 
 from tilus.extensions.hidet.ir.expr import index_vars
 from tilus.ir.node import IRNode
+from tilus.ir.utils.veceval import vectorized_evaluate
+
+
+@dataclass(frozen=True, eq=True)
+class Swizzle:
+    """
+    A swizzle function.
+
+    0xxxxYYYxxZZZxxxx
+    z_mask = ((1 << self.bbits) - 1) << self.mbase
+    y_mask = ((1 << self.bbits) - 1) << (self.mbase + self.sshift)
+    return offset ^ ((offset & y_mask) >> self.sshift)
+    """
+
+    base: int
+    bits: int
+    shift: int
+
+    def __call__(self, index: Expr) -> Expr:
+        # we use a primitive function to here
+        # todo: use general computation after refactor to cute-like shared layout
+        from tilus.extensions.hidet.ir.primitives.swizzle import swizzle
+
+        if self.bits == 0:
+            return index
+        return swizzle(index, self.base, self.bits, self.shift)
+
+    def __str__(self):
+        return f"Swizzle(base={self.base}, bits={self.bits}, shift={self.shift})"
 
 
 @dataclass(frozen=True, eq=False)
 class SharedLayout(IRNode):
     """The layout for shared tensor.
 
+    We use three components to describe a shared tensor layout: the shape, the mode shape, and the mode strides.
+
+    The mode shape and mode strides are used to describe how to split each dimension into multiple sub-dimensions (modes),
+    and the strides of each mode.
+
+    For example, consider a shape of (64, 32), we can split the first dimension into two sub-dimensions (modes) of size 8 and 8,
+    and the second dimension into two sub-dimensions (modes) of size 16 and 2. The mode shape would be (8, 8, 16, 2). We can
+    have strides for each mode, for example, (256, 2, 16, 1). Then given the indices (i, j), we can compute the indices in the
+    sub-dimensions (i1, i2, j1, j2) where i1 = i // 8, i2 = i % 8, j1 = j // 2, j2 = j % 2. The offset can be computed as:
+    offset = i1 * 256 + i2 * 2 + j1 * 16 + j2 * 1. To get the final offset in the shared tensor, we can use the formula:
+    (i, j) => ((i // 8) * 256) + ((i % 8) * 2) + ((j // 2) * 16) + ((j % 2) * 1).
+
     Attributes
     ----------
     shape: tuple[int, ...]
         The shape of the shared tensor. Each dimension is a constant integer.
-    size: int
-        The storage size of the shared tensor, in number of elements. If the layout is a `compact` layout, size
-        should be equal to the product of the shape dimensions. Otherwise, it can be either larger (in case of padding)
-        or smaller (in case of sharing data for different elements) than the product of the shape dimensions. The
-        size must be a constant integer.
-    axes: tuple[Var, ...]
-        The axes of the shared tensor. Each axis is a variable that represents the index of the corresponding dimension.
-        It should have the same length as the shape.
-    offset: Expr
-        The offset expression of the shared tensor based on the axes. It is an expression that computes the offset
-        of the shared tensor based on the axes. Only the axes and variables that are invariant in the lifetime of the
-        given corresponding shared tensor with this layout can be used in the expression.
+    mode_shape: tuple[int, ...]
+        We can split each dimension into multiple sub-dimensions (modes).
+    mode_strides: tuple[int, ...]
+        The strides of each mode.
+    swizzle: Optional[Swizzle]
+        The swizzle function to apply on the final offset. If None, no swizzling is applied.
     """
 
     shape: tuple[int, ...]
-    size: int
-    axes: tuple[Var, ...]
-    offset: Expr
+    mode_shape: tuple[int, ...]
+    mode_strides: tuple[int, ...]
+    optional_swizzle: Optional[Swizzle]
 
     def __call__(self, *indices: Expr) -> Expr:
         """Compute the offset on given indices.
@@ -65,89 +103,122 @@ class SharedLayout(IRNode):
         ret: Expr
             The computed offset of the shared tensor element at the given indices.
         """
-        assert len(indices) == len(self.axes)
-        from hidet.ir.tools import rewrite
+        from tilus.ir.layout.ops.utils import get_mode_groups
 
-        return rewrite(self.offset, rewrite_map={axis: index for axis, index in zip(self.axes, indices)})
+        # get the stride-based index
+        group_modes = get_mode_groups(self.shape, self.mode_shape)
+        mode_indices: list[Expr] = []
+        for index, modes in zip(indices, group_modes):
+            mode_indices.extend(index_deserialize(index, shape=[self.mode_shape[m] for m in modes]))
+        total_index: Expr = as_expr(sum(index * stride for index, stride in zip(mode_indices, self.mode_strides)))
+
+        # apply swizzle if exists
+        if self.optional_swizzle is not None:
+            total_index = self.optional_swizzle(total_index)
+
+        return total_index
+
+    @property
+    def swizzle(self) -> Swizzle:
+        if self.optional_swizzle is None:
+            raise ValueError("No swizzle is applied on this layout.")
+        return self.optional_swizzle
 
     @staticmethod
-    def create(shape: Sequence[int], size: int, f_offset: Callable[[Sequence[Var]], Expr | int]) -> SharedLayout:
-        """Create a shared layout.
-
-        This method creates a shared layout with the given shape, size, and a function to compute the offset based on
-        the axes. The shape must be a sequence of constant integers, and the size must be a constant integer that is
-        larger than the maximum possible offset computed by the `f_offset` function.
+    def create(
+        shape: Sequence[int],
+        mode_shape: Sequence[int],
+        mode_strides: Sequence[int],
+        optional_swizzle: Optional[Swizzle],
+    ) -> SharedLayout:
+        """
+        Create a SharedLayout from shape, mode_shape, and mode_strides.
 
         Parameters
         ----------
         shape: Sequence[int]
-            The shape of the shared tensor. Each dimension is a constant integer.
-        size: int
-            The storage size of the shared tensor, in number of elements.
-        f_offset: Callable[[Sequence[Var]], Expr]
-            The function that computes the offset of the shared tensor based on the axes. It takes a sequence of
-            axes (variables) and returns an expression that computes the offset. The function must ensure that the
-            size is larger than the maximum possible offset computed by this function.
+            The shape of the shared tensor.
+        mode_shape: Sequence[int]
+            The mode shape of the shared tensor.
+        mode_strides: Sequence[int]
+            The mode strides of the shared tensor.
+        swizzle: Optional[Swizzle]
+            The swizzle function to apply on the final offset. If None, no swizzling is applied.
 
         Returns
         -------
         ret: SharedLayout
-            A shared layout with the specified shape, size, axes, and offset.
+            The created SharedLayout.
         """
-        axes: List[Var] = index_vars(num_vars=len(shape))
-        return SharedLayout(shape=tuple(shape), size=size, axes=tuple(axes), offset=as_expr(f_offset(axes)))
-
-    def slice(self, offsets: Sequence[Expr], slice_dims: Sequence[int], slice_shape: Sequence[int]) -> SharedLayout:
-        assert len(set(slice_dims)) == len(slice_dims), "slice_dims must be unique"
-        assert len(slice_shape) == len(slice_dims), "slice_dims and slice_shape must have the same length"
-        assert len(slice_dims) <= len(self.shape), "slice_dims must be less than or equal to the number of dimensions"
-
-        def f_offset(axes: Sequence[Var]) -> Expr:
-            indices: List[Expr] = list(offsets)
-            for dim, axis in zip(slice_dims, axes):
-                indices[dim] = indices[dim] + axis
-            return self(*indices) - self(*offsets)
-
-        return SharedLayout.create(shape=slice_shape, size=self.size, f_offset=f_offset)
-
-    def simplify(self) -> SharedLayout:
-        from tilus.extensions.hidet.ir.tools import simplify_expr
-        from tilus.extensions.hidet.transforms.rule_based_simplifier import BoundInfo, RuleBasedSimplifier
-
-        var2bound: Dict[Var, BoundInfo] = {
-            axis: BoundInfo(min_value=0, max_value=extent - 1) for axis, extent in zip(self.axes, self.shape)
-        }
-        simplifier = RuleBasedSimplifier(var2bound=var2bound)
+        if any(s < 1 for s in shape):
+            raise ValueError("All dimensions in shape must be positive integers.")
+        if len(mode_shape) != len(mode_strides):
+            raise ValueError("mode_shape and mode_strides must have the same length.")
+        if prod(mode_shape) != prod(shape):
+            raise ValueError("The product of mode_shape must equal to the product of shape.")
         return SharedLayout(
-            shape=self.shape, size=self.size, axes=self.axes, offset=simplify_expr(simplifier(self.offset))
+            shape=tuple(shape),
+            mode_shape=tuple(mode_shape),
+            mode_strides=tuple(mode_strides),
+            optional_swizzle=optional_swizzle,
         )
 
-    def swizzle(self, dim: int, regards_dim: int, log_step: int) -> SharedLayout:
-        ndims = len(self.shape)
-        assert 0 <= dim < ndims and 0 <= regards_dim < ndims and dim != regards_dim
+    def as_numpy_grid(self) -> np.ndarray:
+        grid_axes = np.meshgrid(*[np.arange(extent) for extent in self.shape], indexing="ij")
+        axes = index_vars(num_vars=len(self.shape))
+        offset = self(*axes)
+        atom_grid = vectorized_evaluate(expr=offset, var2value={axis: grid_axes[i] for i, axis in enumerate(axes)})
+        return atom_grid
 
-        def get_xor_index(indices: Sequence[Expr]) -> Expr:
-            indices = list(indices)  # copy
-            step = 2**log_step
-            regards_index = indices[regards_dim] // step
-            regards_extent = self.shape[regards_dim] // step
-            if regards_extent > self.shape[dim]:
-                regards_index = regards_index % self.shape[dim]
-            return regards_index
+    def as_axes_mapping(self) -> tuple[list[Var], Expr]:
+        axes = index_vars(num_vars=len(self.shape))
+        offset = self(*axes)
+        return axes, offset
 
-        def f_offset(axes: Sequence[Var]) -> Expr:
-            swizzled_indices: List[Expr] = [axis for axis in axes]
-            swizzled_indices[dim] = swizzled_indices[dim] ^ get_xor_index(axes)
-            return self(*swizzled_indices)
+    def count_size(self) -> int:
+        """Count the total size of the shared layout.
 
-        return SharedLayout.create(shape=self.shape, size=self.size, f_offset=f_offset)
+        It is the minimum number of elements required to store the tensor in shared memory.
+
+        Returns
+        -------
+        ret: int
+            The total size of the shared layout.
+        """
+        indices = [extent - 1 for extent in self.mode_shape]
+        max_index = sum(a * b for a, b in zip(indices, self.mode_strides))
+        return max_index + 1
+
+    def slice(self, retain_dims: Sequence[int]) -> SharedLayout:
+        from tilus.ir.layout.ops.shared_ops import shared_slice
+
+        return shared_slice(self, retain_dims)
+
+    def apply_swizzle(self, swizzle: Swizzle) -> SharedLayout:
+        if self.optional_swizzle is not None:
+            raise RuntimeError("Chained swizzle is not supported.")
+        return SharedLayout.create(
+            shape=self.shape,
+            mode_shape=self.mode_shape,
+            mode_strides=self.mode_strides,
+            optional_swizzle=swizzle,
+        )
 
     def prepend_dim(self, extent: int) -> SharedLayout:
-        def f_offset(axes: Sequence[Var]) -> Expr:
-            tile_offset = axes[0] * self.size
-            return tile_offset + self(*axes[1:])
+        shape = (extent,) + self.shape
+        if extent > 1:
+            mode_shape = (extent,) + self.mode_shape
+            mode_strides = (self.count_size(),) + self.mode_strides
+        else:
+            mode_shape = self.mode_shape
+            mode_strides = self.mode_strides
 
-        return SharedLayout.create(shape=(extent,) + self.shape, size=extent * self.size, f_offset=f_offset)
+        return SharedLayout.create(
+            shape=shape,
+            mode_shape=mode_shape,
+            mode_strides=mode_strides,
+            optional_swizzle=self.optional_swizzle,
+        )
 
     def transpose(self) -> SharedLayout:
         assert len(self.shape) == 2
@@ -159,22 +230,55 @@ class SharedLayout(IRNode):
         return shared_permute(self, dims)
 
     def unsqueeze(self, dims: Sequence[int]) -> SharedLayout:
-        shape = []
-        cur_dim = 0
-        for i in range(len(self.shape) + len(dims)):
-            if i in dims:
-                shape.append(1)
-            else:
-                shape.append(self.shape[cur_dim])
-                cur_dim += 1
+        from tilus.ir.layout.ops.shared_ops import shared_unsqueeze
 
-        def f_offset(axes: Sequence[Var]) -> Expr:
-            base_axes = [axis for i, axis in enumerate(axes) if i not in dims]
-            return self(*base_axes)
-
-        return SharedLayout.create(shape=shape, size=self.size, f_offset=f_offset)
+        return shared_unsqueeze(self, dims)
 
     def visualize(self, tablefmt: str = "simple_grid") -> str:
         from tilus.ir.layout.ops.shared_ops import visualize_layout
 
         return visualize_layout(self, tablefmt=tablefmt)
+
+
+def shared_layout(
+    shape: Sequence[int],
+    mode_shape: Sequence[int],
+    mode_strides: Sequence[int],
+    optional_swizzle: Optional[Swizzle] = None,
+) -> SharedLayout:
+    """Create a SharedLayout from shape, mode_shape, and mode_strides.
+
+    Parameters
+    ----------
+    shape: Sequence[int]
+        The shape of the shared tensor.
+    mode_shape: Sequence[int]
+        The mode shape of the shared tensor.
+    mode_strides: Sequence[int]
+        The mode strides of the shared tensor.
+    swizzle: Optional[Swizzle]
+        The swizzle function to apply on the final offset. If None, no swizzling is applied.
+
+    Returns
+    -------
+    ret: SharedLayout
+        The created SharedLayout.
+    """
+    # canonicalize mode shape: clean up mode_shape and mode_strides by removing size 1 modes
+    if any(s <= 1 for s in mode_shape):
+        updated_mode_shape = []
+        updated_mode_strides = []
+        for ms, stride in zip(mode_shape, mode_strides):
+            if ms > 1:
+                updated_mode_shape.append(ms)
+                updated_mode_strides.append(stride)
+        mode_shape = updated_mode_shape
+        mode_strides = updated_mode_strides
+
+    # canonicalize swizzle: if swizzle has 0 bits, set it to None (both mean no swizzle)
+    if optional_swizzle is not None and optional_swizzle.bits == 0:
+        optional_swizzle = None
+
+    return SharedLayout.create(
+        shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, optional_swizzle=optional_swizzle
+    )

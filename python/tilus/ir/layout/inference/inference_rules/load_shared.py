@@ -19,6 +19,7 @@ from tilus.ir.instructions import LoadMatrixInst, LoadSharedGenericInst, LoadSha
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig
 from tilus.ir.layout import LayoutOperationError, ops
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
+from tilus.ir.layout.ops import shared_row_major_swizzle
 from tilus.utils import gcd
 
 
@@ -45,9 +46,8 @@ class LoadSharedInferSwizzledSharedRule(LayoutInferenceRule):
                 continue
 
             # use swizzle layout since we are using ldmatrix instruction
-            from tilus.lang.modules.cuda import cuda
 
-            return {a: cuda.swizzled_shared_layout(dtype=a.dtype, shape=a.shape)}
+            return {a: shared_row_major_swizzle(dtype_nbytes=a.dtype.nbytes, shape=a.shape)}
 
         return {}
 
@@ -85,8 +85,7 @@ class LoadSharedInferRegisterRule(LayoutInferenceRule):
         if not (shared.has_layout() and not register.has_layout()):
             return {}
 
-        axes = shared.layout.axes
-        offset = shared.layout.offset
+        axes, offset = shared.layout.as_axes_mapping()
 
         info = analyze_grid(
             shape=shared.shape,

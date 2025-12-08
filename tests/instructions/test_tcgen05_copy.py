@@ -58,8 +58,9 @@ class TmemCopyExample(tilus.Script):
         self.sync()
 
         # copy x from shared to tmem
-        self.tcgen05.copy(src=s_x, dst=t_x)
-        self.tcgen05.commit(mbarrier=barriers[0])
+        with self.single_thread():
+            self.tcgen05.copy(src=s_x, dst=t_x)
+            self.tcgen05.commit(mbarrier=barriers[0])
         self.mbarrier.wait(barriers[0], phase=0)
 
         # load y from tmem to register

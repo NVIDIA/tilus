@@ -180,7 +180,7 @@ class WgmmaMmaSSEmitter(WgmmaBaseEmitter):
                             a_desc.encoded(),
                             d_register_addr + d_offset,
                             b_desc.encoded(),
-                            trans_a=0,
-                            trans_b=0,
+                            trans_a=0,  # type: ignore
+                            trans_b=0,  # type: ignore
                         )
                     )

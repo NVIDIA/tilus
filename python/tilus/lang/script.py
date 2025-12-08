@@ -43,7 +43,7 @@ class Script(InstructionInterface):
     # specify the schedule used for debugging. it will override any autotune space
     debug_schedule: Optional[dict[str, Any]] = None
 
-    def __new__(cls, *args, **kwargs) -> InstantiatedScript:  # type: ignore[no-untyped-def]
+    def __new__(cls, *args, **kwargs) -> InstantiatedScript:  # type: ignore[no-untyped-def, misc]
         from tilus.lang.instantiated_script import InstantiatedScriptCache
 
         instantiated_script: InstantiatedScript = InstantiatedScriptCache.get(
