@@ -165,21 +165,15 @@ class ForContext(StmtContext):
         iter_vars: List[Var],
         extents: List[Expr],
         unrolls: List[Optional[int]],
-        unwrap: bool = False,
     ):
         super().__init__(vb)
         self.iter_vars: List[Var] = iter_vars
         self.extents: List[Expr] = extents
         self.unrolls: List[Optional[int]] = unrolls
-        self.unwrap: bool = unwrap
 
-    def __enter__(self):
+    def __enter__(self) -> List[Var]:
         self.enter()
-        if self.unwrap:
-            assert len(self.iter_vars) == 1
-            return self.iter_vars[0]
-        else:
-            return self.iter_vars
+        return self.iter_vars
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
@@ -191,6 +185,13 @@ class ForContext(StmtContext):
             body = ForStmt(iter_var, extent, body, unroll)
 
         self.append(body)
+
+
+class ForRangeContext(ForContext):
+    def __enter__(self):
+        iter_vars = super().__enter__()
+        assert len(iter_vars) == 1
+        return iter_vars[0]
 
 
 class IfContext(StmtContext):
@@ -315,11 +316,13 @@ class StmtBuilderCore:
 
     def for_range(
         self, extent: Union[Expr, int], iter_name_hint: str = "i", unroll_factor: Optional[int] = None
-    ) -> ForContext:
+    ) -> ForRangeContext:
         iter_var = Var(iter_name_hint, type=int32)
-        return ForContext(self, [iter_var], [as_expr(extent)], [unroll_factor], unwrap=True)
+        return ForRangeContext(self, [iter_var], [as_expr(extent)], [unroll_factor])
 
-    def for_grid(self, extents: List[Union[Expr, int]], iter_name_hints: Optional[List[str]] = None) -> ForContext:
+    def for_grid(
+        self, extents: Sequence[Union[Expr, int]], iter_name_hints: Optional[Sequence[str]] = None
+    ) -> ForContext:
         expr_extents = [as_expr(extent) for extent in extents]
         if iter_name_hints is None:
             names = "ijkpqrstuvw"
@@ -1231,6 +1234,7 @@ class StmtBuilder(StmtBuilderCore):
             phase = self.tensor_item_value(phase)
         elif isinstance(phase, int):
             phase = uint32(phase)
+        assert isinstance(phase, Expr)
         inst = WaitBarrierInst.create(barrier=barrier, phase=phase)
         self.append(inst)
 
@@ -1245,6 +1249,7 @@ class StmtBuilder(StmtBuilderCore):
             mbarrier = self.tensor_item_value(mbarrier)
         if isinstance(multicast, bool):
             multicast = boolean(multicast)
+        assert isinstance(multicast, Expr)
         inst = ClusterLaunchControlTryCancelInst.create(response=response, mbarrier=mbarrier, multicast=multicast)
         self.append(inst)
 

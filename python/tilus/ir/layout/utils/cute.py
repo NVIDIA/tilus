@@ -21,6 +21,7 @@ from hidet.ir.expr import Expr
 from hidet.utils import prod
 from tilus.extensions.hidet.ir.primitives.swizzle import swizzle
 from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
+from tilus.ir.layout.shared_layout import SharedLayout, Swizzle, shared_layout
 
 Int = Union[Expr, int]
 IntTuple = Int | Sequence[Union[Int, "IntTuple"]]
@@ -79,8 +80,7 @@ class CuteLayout:
         return f"{self.shape}:{self.strides}"
 
     def __call__(self, *coords: IntTuple) -> Int:
-        coords = specialize(coords, self.shape)
-        ret = tuple_sum(tuple_multiply(coords, self.strides))
+        ret = tuple_sum(tuple_multiply(specialize(coords, self.shape), self.strides))
         return ret
 
     @property
@@ -110,6 +110,9 @@ class CuteSwizzle:
             # return offset ^ ((offset & y_mask) >> self.sshift)
             return swizzle(int32(offset), self.mbase, self.bbits, self.sshift)
 
+    def as_swizzle(self) -> Swizzle:
+        return Swizzle(base=self.mbase, bits=self.bbits, shift=self.sshift)
+
 
 class SwizzledCuteLayout:
     def __init__(self, layout: CuteLayout, swizzle: CuteSwizzle):
@@ -121,6 +124,43 @@ class SwizzledCuteLayout:
 
     def __call__(self, *coords: IntTuple) -> Int:
         return self.swizzle(self.layout(*coords))
+
+    def as_shared_layout(self, tensor_shape: Sequence[int]) -> SharedLayout:
+        # since cute layout use column-major order when splitting modes, we need to reverse the shape and strides
+        def reverse_int_tuple(t: IntTuple) -> IntTuple:
+            if isinstance(t, Sequence):
+                return tuple(reverse_int_tuple(item) for item in reversed(t))
+            else:
+                return t
+
+        assert isinstance(self.layout.shape, Sequence)
+        assert isinstance(self.layout.strides, Sequence)
+
+        rev_shape = [reverse_int_tuple(item) for item in self.layout.shape]
+        rev_strides = [reverse_int_tuple(item) for item in self.layout.strides]
+
+        # then, we flatten them into 1D lists
+        def flatten_int_tuple(t: IntTuple) -> list[Int]:
+            if isinstance(t, Sequence):
+                result = []
+                for item in t:
+                    result.extend(flatten_int_tuple(item))
+                return result
+            else:
+                return [t]
+
+        flat_shape = flatten_int_tuple(rev_shape)
+        flat_strides = flatten_int_tuple(rev_strides)
+
+        mode_shape = [int(s) for s in flat_shape]
+        mode_strides = [int(s) for s in flat_strides]
+
+        return shared_layout(
+            shape=tensor_shape,
+            mode_shape=mode_shape,
+            mode_strides=mode_strides,
+            optional_swizzle=self.swizzle.as_swizzle(),
+        )
 
 
 def cute_layout(shape: IntTuple, strides: IntTuple) -> CuteLayout:

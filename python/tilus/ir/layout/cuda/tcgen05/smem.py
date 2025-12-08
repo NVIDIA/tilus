@@ -18,13 +18,10 @@ from dataclasses import dataclass
 from typing import Literal, Optional, Sequence, cast
 
 import numpy as np
-from hidet.ir.expr import Expr, Var
 from hidet.ir.type import DataType
-from hidet.utils.py import prod
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05SwizzleMode
 from tilus.ir.layout.shared_layout import SharedLayout
 from tilus.ir.layout.utils.cute import CuteLayout, CuteSwizzle, IntTuple, SwizzledCuteLayout, cute_layout, tuple_product
-from tilus.ir.utils.veceval import meshgrid, vectorized_evaluate
 from tilus.utils import floor_log2
 
 # class Tcgen05SwizzleMode(Enum):
@@ -163,11 +160,7 @@ def _generate_atom_grid(major_kind: Literal["MN", "K"], swizzle_mode: Tcgen05Swi
         major_kind=major_kind, swizzle_mode=swizzle_mode, SBO=0, LBO=0, m=1, k=1, T=t
     )
     atom_layout = get_shared_layout_from_canonical(canonical_layout)
-    grid_axes = meshgrid(atom_layout.shape)
-    atom_grid = vectorized_evaluate(
-        expr=atom_layout.offset, var2value={axis: grid_axes[i] for i, axis in enumerate(atom_layout.axes)}
-    )
-    return atom_grid
+    return atom_layout.as_numpy_grid()
 
 
 def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> Optional[CanonicalSharedLayout]:
@@ -188,6 +181,7 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
     ret: Optional[CanonicalSharedLayout]
         The canonical form if found, None otherwise
     """
+    # todo: simplify the implementation of this function since we used a similar layout system as cute now
     if len(shared_layout.shape) != 2:
         return None
 
@@ -197,10 +191,7 @@ def canonicalize_shared_layout(shared_layout: SharedLayout, dtype: DataType) -> 
     T = 128 // dtype.nbits
 
     # Create meshgrid for the entire layout
-    grid_axes = meshgrid(shared_layout.shape)
-    entire_grid = vectorized_evaluate(
-        expr=shared_layout.offset, var2value={axis: grid_axes[i] for i, axis in enumerate(shared_layout.axes)}
-    )
+    entire_grid = shared_layout.as_numpy_grid()
     entire_shape = shared_layout.shape
 
     # Try each swizzle mode and majorness using direct pattern analysis
@@ -303,17 +294,14 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
     else:
         raise ValueError(f"Unsupported major_kind: {canonical_layout.major_kind}")
 
-    def f_offset(axes: Sequence[Var]) -> Expr | int:
-        nbytes = 16 // canonical_layout.T
-        swizzle = CuteSwizzle(bbits=bbits, mbase=mbase - floor_log2(nbytes), sshift=sshift)
-        return swizzle(layout(*axes))
+    nbytes = 16 // canonical_layout.T
+    swizzle = CuteSwizzle(bbits=bbits, mbase=mbase - floor_log2(nbytes), sshift=sshift)
+    swizzled_cute_layout = SwizzledCuteLayout(layout, swizzle)
 
-    if not isinstance(layout.shape, Sequence):
-        smem_shape = [int(layout.shape)]
-    else:
-        smem_shape = [int(tuple_product(item)) for item in layout.shape]
+    assert isinstance(layout.shape, Sequence)
+    shape = [int(tuple_product(item)) for item in layout.shape]
 
-    return SharedLayout.create(shape=smem_shape, size=prod(smem_shape), f_offset=f_offset)
+    return swizzled_cute_layout.as_shared_layout(shape)
 
 
 def generate_canonical_layout(

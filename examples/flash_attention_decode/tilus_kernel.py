@@ -152,7 +152,7 @@ class FusedRecurrentGatedDeltaRuleUpdateFwdKernel(tilus.Script):
                 dims=[2, 3],
             )
         else:
-            state_idx = -1
+            state_idx = -1  # type: ignore
             r_h = self.register_tensor(dtype=float32, shape=[K, self.BV], init=0.0)
 
         # H' = alpha * H : [K, BV] = [] * [K, BV]
@@ -388,7 +388,7 @@ class FusedSigmoidGatingDeltaRuleUpdateKernel(tilus.Script):
                 dims=[2, 3],
             )
         else:
-            state_idx = -1
+            state_idx = -1  # type: ignore
             r_h = self.register_tensor(dtype=float32, shape=[K, self.BV], init=0.0)
 
         # Apply gating to hidden state: H' = alpha * H
