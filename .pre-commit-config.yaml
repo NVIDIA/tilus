@@ -19,7 +19,7 @@ repos:
         pass_filenames: false
     -   id: mypy
         name: MyPy type checking
-        entry: mypy
+        entry: bash -c 'mypy --version >&2; mypy "$@"' --
         language: system
         types_or: [python, pyi]
         args: [--show-error-codes, --show-error-context]
