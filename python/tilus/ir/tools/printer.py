@@ -452,7 +452,7 @@ class IRPrinter(IRFunctor):
             "shape=[" + self(node.shape) + "]",
             "mode_shape=[" + self(node.mode_shape) + "]",
             "mode_strides=[" + self(node.mode_strides) + "]",
-            "swizzle=" + (str(node.swizzle) if node.swizzle is not None else "None"),
+            "swizzle=" + (str(node.swizzle) if node.optional_swizzle is not None else "None"),
         ]
         doc = Text("SharedLayout(") + doc_join(items, ", ") + ")"
         return self.add_key_comment("shared_layout", doc)

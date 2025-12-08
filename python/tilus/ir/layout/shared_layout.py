@@ -126,7 +126,10 @@ class SharedLayout(IRNode):
 
     @staticmethod
     def create(
-        shape: Sequence[int], mode_shape: Sequence[int], mode_strides: Sequence[int], swizzle: Optional[Swizzle]
+        shape: Sequence[int],
+        mode_shape: Sequence[int],
+        mode_strides: Sequence[int],
+        optional_swizzle: Optional[Swizzle],
     ) -> SharedLayout:
         """
         Create a SharedLayout from shape, mode_shape, and mode_strides.
@@ -154,7 +157,10 @@ class SharedLayout(IRNode):
         if prod(mode_shape) != prod(shape):
             raise ValueError("The product of mode_shape must equal to the product of shape.")
         return SharedLayout(
-            shape=tuple(shape), mode_shape=tuple(mode_shape), mode_strides=tuple(mode_strides), optional_swizzle=swizzle
+            shape=tuple(shape),
+            mode_shape=tuple(mode_shape),
+            mode_strides=tuple(mode_strides),
+            optional_swizzle=optional_swizzle,
         )
 
     def as_numpy_grid(self) -> np.ndarray:
@@ -195,7 +201,7 @@ class SharedLayout(IRNode):
             shape=self.shape,
             mode_shape=self.mode_shape,
             mode_strides=self.mode_strides,
-            swizzle=swizzle,
+            optional_swizzle=swizzle,
         )
 
     def prepend_dim(self, extent: int) -> SharedLayout:
@@ -211,7 +217,7 @@ class SharedLayout(IRNode):
             shape=shape,
             mode_shape=mode_shape,
             mode_strides=mode_strides,
-            swizzle=self.optional_swizzle,
+            optional_swizzle=self.optional_swizzle,
         )
 
     def transpose(self) -> SharedLayout:
@@ -238,7 +244,7 @@ def shared_layout(
     shape: Sequence[int],
     mode_shape: Sequence[int],
     mode_strides: Sequence[int],
-    swizzle: Optional[Swizzle] = None,
+    optional_swizzle: Optional[Swizzle] = None,
 ) -> SharedLayout:
     """Create a SharedLayout from shape, mode_shape, and mode_strides.
 
@@ -270,7 +276,9 @@ def shared_layout(
         mode_strides = updated_mode_strides
 
     # canonicalize swizzle: if swizzle has 0 bits, set it to None (both mean no swizzle)
-    if swizzle is not None and swizzle.bits == 0:
-        swizzle = None
+    if optional_swizzle is not None and optional_swizzle.bits == 0:
+        optional_swizzle = None
 
-    return SharedLayout.create(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=swizzle)
+    return SharedLayout.create(
+        shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, optional_swizzle=optional_swizzle
+    )

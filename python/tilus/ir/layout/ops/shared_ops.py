@@ -61,7 +61,7 @@ def shared_row_major(*shape: int) -> SharedLayout:
     """
     mode_shape = shape
     mode_strides = strides_from_ranks(shape=mode_shape, ranks=list(range(len(mode_shape))))
-    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=None)
+    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, optional_swizzle=None)
 
 
 def shared_column_major(*shape: int) -> SharedLayout:
@@ -79,7 +79,7 @@ def shared_column_major(*shape: int) -> SharedLayout:
     """
     mode_shape = shape
     mode_strides = strides_from_ranks(shape=mode_shape, ranks=list(reversed(range(len(mode_shape)))))
-    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=None)
+    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, optional_swizzle=None)
 
 
 def shared_compose(lhs: SharedLayout, rhs: SharedLayout) -> SharedLayout:
@@ -118,7 +118,7 @@ def shared_compose(lhs: SharedLayout, rhs: SharedLayout) -> SharedLayout:
         mode_strides.extend([stride * rhs_size for stride in (lhs.mode_strides[i] for i in lhs_group)])
         mode_strides.extend([rhs.mode_strides[i] for i in rhs_group])
 
-    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=None)
+    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, optional_swizzle=None)
 
 
 def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
@@ -151,7 +151,9 @@ def shared_permute(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
         mode_shape.extend([layout.mode_shape[i] for i in layout_mode_groups[d]])
         mode_strides.extend([layout.mode_strides[i] for i in layout_mode_groups[d]])
 
-    return shared_layout(shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=layout.swizzle)
+    return shared_layout(
+        shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, optional_swizzle=layout.optional_swizzle
+    )
 
 
 def shared_slice(layout: SharedLayout, retain_dims: Sequence[int]) -> SharedLayout:
@@ -184,7 +186,7 @@ def shared_slice(layout: SharedLayout, retain_dims: Sequence[int]) -> SharedLayo
         shape=shape,
         mode_shape=mode_shape,
         mode_strides=mode_strides,
-        swizzle=layout.swizzle,
+        optional_swizzle=layout.optional_swizzle,
     )
 
 
@@ -211,7 +213,7 @@ def shared_unsqueeze(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
         shape=shape,
         mode_shape=layout.mode_shape,
         mode_strides=layout.mode_strides,
-        swizzle=layout.swizzle,
+        optional_swizzle=layout.optional_swizzle,
     )
 
 
@@ -373,7 +375,7 @@ def shared_row_major_swizzle(shape: Sequence[int], dtype_nbytes: int) -> SharedL
         shape=shape,
         mode_shape=mode_shape,
         mode_strides=mode_strides,
-        swizzle=swizzle,
+        optional_swizzle=swizzle,
     )
 
 

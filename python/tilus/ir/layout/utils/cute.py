@@ -156,7 +156,10 @@ class SwizzledCuteLayout:
         mode_strides = [int(s) for s in flat_strides]
 
         return shared_layout(
-            shape=tensor_shape, mode_shape=mode_shape, mode_strides=mode_strides, swizzle=self.swizzle.as_swizzle()
+            shape=tensor_shape,
+            mode_shape=mode_shape,
+            mode_strides=mode_strides,
+            optional_swizzle=self.swizzle.as_swizzle(),
         )
 
 

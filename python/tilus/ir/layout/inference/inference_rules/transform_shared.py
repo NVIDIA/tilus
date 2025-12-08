@@ -38,7 +38,10 @@ class SharedSliceRule(LayoutInferenceRule):
             outer_shape = []
             for i in range(len(a.shape)):
                 outer_shape.append(a.shape[i] // b_layout.shape[i])
-            return {a: shared_compose(shared_row_major(*outer_shape), b_layout).apply_swizzle(b.layout.swizzle)}
+            layout = shared_compose(shared_row_major(*outer_shape), b_layout)
+            if b.layout.optional_swizzle is not None:
+                layout = layout.apply_swizzle(b.layout.swizzle)
+            return {a: layout}
         else:
             return {}
 
