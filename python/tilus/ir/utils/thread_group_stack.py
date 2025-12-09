@@ -43,8 +43,6 @@ class ThreadGroupStack:
         depth = self.stack_depth()
         if depth > 0:
             parent_num_threads = self.num_threads[-1]
-            if parent_num_threads % num_threads != 0:
-                raise ValueError("group_size must be a divisor of the parent group_size")
             if thread_begin < 0 or thread_begin + num_threads > parent_num_threads:
                 raise ValueError(
                     "thread_begin must be in [0, parent_num_threads - num_threads), got thread_begin={}, num_threads={}, parent_num_threads={}".format(

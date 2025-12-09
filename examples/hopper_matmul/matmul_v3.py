@@ -13,11 +13,9 @@ tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir(True)
 torch.set_printoptions(precision=3, sci_mode=False, linewidth=160)
 
-@tilus.autotune("num_stages", [1])
-@tilus.autotune(
-    "block_m, block_n", [(64, 8)]
-)
-@tilus.autotune("block_k", [16])
+@tilus.autotune("num_stages", [2, 3, 4])
+@tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256], [256, 128], [256, 256]])
+@tilus.autotune("block_k", [16, 32, 64])
 class MatmulWGMMAV3(tilus.Script):
     def __init__(
         self,
@@ -45,7 +43,7 @@ class MatmulWGMMAV3(tilus.Script):
             cdiv(m_size, self.block_m),
             cdiv(n_size, self.block_n),
         ]
-        self.attrs.warps = 8
+        self.attrs.warps = 5
 
         block_m, block_n, block_k = self.block_m, self.block_n, self.block_k
         offset_m: int32 = block_m * self.blockIdx.x
@@ -60,7 +58,7 @@ class MatmulWGMMAV3(tilus.Script):
         consumer_barriers = self.mbarrier.alloc(count=[2 for _ in range(self.num_stages)])
         producer_barriers = self.mbarrier.alloc(count=[128 for _ in range(self.num_stages)])
 
-        with self.thread_group(thread_begin=0, num_threads=128):
+        with self.thread_group(thread_begin=128, num_threads=32):
             stage: int32 = 0
             producer_phases = self.register_tensor(dtype=uint32, shape=[self.num_stages], init=1)
             for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
@@ -88,7 +86,7 @@ class MatmulWGMMAV3(tilus.Script):
                 producer_phases[stage] ^= 1
                 stage = (stage + 1) % self.num_stages
 
-        with self.thread_group(thread_begin=128, num_threads=128):
+        with self.thread_group(thread_begin=0, num_threads=128):
             consumer_phases = self.register_tensor(dtype=uint32, shape=[self.num_stages], init=0)
             stage: int32 = 0
             for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
@@ -102,22 +100,20 @@ class MatmulWGMMAV3(tilus.Script):
                 self.mbarrier.arrive(producer_barriers[stage])
                 stage = (stage + 1) % self.num_stages
 
-
         self.sync()
-
         self.free_shared(sa)
         self.free_shared(sb)
 
-        casted_acc = self.cast(acc, dtype=float16)
-        gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
-        self.store_global(gc, casted_acc, offsets=[offset_m, offset_n])
+        with self.thread_group(thread_begin=0, num_threads=128):
+            casted_acc = self.cast(acc, dtype=float16)
+            gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
+            self.store_global(gc, casted_acc, offsets=[offset_m, offset_n])
 
 
 def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     workloads = [
-        # [4096, 4096, 4096],
-        [64, 8, 16]
+        [4096, 4096, 4096],
     ]
 
     rows = []
@@ -130,10 +126,6 @@ def main():
         c_expect = a @ b.T
         matmul(m, n, k, a, b, c_actual)
         torch.cuda.synchronize()
-
-        v = 16
-        print(c_actual[:v, :v])
-        print(c_expect[:v, :v])
 
         # check correctness
         torch.testing.assert_close(c_expect, c_actual)
