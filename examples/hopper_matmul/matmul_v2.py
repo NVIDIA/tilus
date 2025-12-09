@@ -9,6 +9,9 @@ import torch
 from tilus import float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
+tilus.option.cache_dir("./cache")
+tilus.option.debug.dump_ir(True)
+torch.set_printoptions(precision=3, sci_mode=False, linewidth=160)
 
 @tilus.autotune("num_stages", [2, 3, 4])
 @tilus.autotune(
@@ -118,7 +121,9 @@ def main():
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     workloads = [
         [4096, 4096, 4096],
-        # [128, 48, 16],
+        [4096, 4096, 14336],
+        [8192, 8192, 8192],
+        [10240, 10240, 10240],
     ]
 
     rows = []
