@@ -53,6 +53,15 @@ class Swizzle:
 
     def __str__(self):
         return f"Swizzle(base={self.base}, bits={self.bits}, shift={self.shift})"
+    
+    def __eq__(self, value):
+        if value is None:
+            return False
+        assert isinstance(value, Swizzle)
+        return self.base == value.base and self.bits == value.bits and self.shift == value.shift
+    
+    def __hash__(self):
+        return hash((self.base, self.bits, self.shift))
 
 
 @dataclass(frozen=True, eq=False)
@@ -117,6 +126,19 @@ class SharedLayout(IRNode):
             total_index = self.optional_swizzle(total_index)
 
         return total_index
+    
+    def __eq__(self, other):
+        if not isinstance(other, SharedLayout):
+            return False
+        return (
+            self.shape == other.shape
+            and self.mode_shape == other.mode_shape
+            and self.mode_strides == other.mode_strides
+            and self.optional_swizzle == other.optional_swizzle
+        )
+    
+    def __hash__(self):
+        return hash((self.shape, self.mode_shape, self.mode_strides, self.optional_swizzle))
 
     @property
     def swizzle(self) -> Swizzle:
@@ -239,6 +261,61 @@ class SharedLayout(IRNode):
 
         return visualize_layout(self, tablefmt=tablefmt)
 
+def canonicalize_shared_layout(
+    layout: SharedLayout
+) -> SharedLayout:
+    """Canonicalize a SharedLayout.
+
+    This function merges consecutive modes that belong to the same dimension if they have compatible strides.
+    It also standardizes the swizzle representation by setting it to None if it swizzle 0 bits. After canonicalization,
+    two SharedLayouts that are functionally equivalent will have the same representation.
+    
+    Parameters
+    ----------
+    layout: SharedLayout
+        The SharedLayout to be canonicalized.
+    Returns
+    -------
+    ret: SharedLayout
+        The canonicalized SharedLayout.
+    """
+    from tilus.ir.layout.ops.utils import get_mode_groups
+
+    # merge consecutive modes that belong to the same dimension
+    mode_groups: list[list[int]] = get_mode_groups(layout.shape, layout.mode_shape)
+    grouped_mode_shape: list[list[int]] = []
+    grouped_mode_strides: list[list[int]] = []
+    for modes in mode_groups:
+        grouped_mode_shape.append([])
+        grouped_mode_strides.append([])
+        i = 0
+        while i < len(modes):
+            j = i
+            while j + 1 < len(modes) and layout.mode_strides[modes[i]] == layout.mode_strides[modes[j + 1]] * layout.mode_shape[modes[j + 1]]:
+                j += 1
+            grouped_mode_shape[-1].append(prod(layout.mode_shape[modes[k]] for k in range(i, j + 1)))
+            grouped_mode_strides[-1].append(layout.mode_strides[modes[j]])
+            i = j + 1
+    mode_shape: tuple[int, ...] = tuple(shape for group in grouped_mode_shape for shape in group)
+    mode_strides: tuple[int, ...] = tuple(strides for group in grouped_mode_strides for strides in group)
+
+    # canonicalize swizzle: if swizzle has 0 bits, set it to None (both mean no swizzle)
+    if layout.optional_swizzle is not None and layout.optional_swizzle.bits == 0:
+        optional_swizzle = None
+    else:
+        optional_swizzle = layout.optional_swizzle
+        
+
+    if (
+        mode_shape == layout.mode_shape
+        and mode_strides == layout.mode_strides
+        and optional_swizzle is layout.optional_swizzle
+    ):
+        return layout
+    else:
+        return SharedLayout.create(
+            shape=layout.shape, mode_shape=mode_shape, mode_strides=mode_strides, optional_swizzle=optional_swizzle
+        )
 
 def shared_layout(
     shape: Sequence[int],
@@ -247,6 +324,8 @@ def shared_layout(
     optional_swizzle: Optional[Swizzle] = None,
 ) -> SharedLayout:
     """Create a SharedLayout from shape, mode_shape, and mode_strides.
+
+    The created SharedLayout is canonicalized.
 
     Parameters
     ----------
@@ -264,21 +343,12 @@ def shared_layout(
     ret: SharedLayout
         The created SharedLayout.
     """
-    # canonicalize mode shape: clean up mode_shape and mode_strides by removing size 1 modes
-    if any(s <= 1 for s in mode_shape):
-        updated_mode_shape = []
-        updated_mode_strides = []
-        for ms, stride in zip(mode_shape, mode_strides):
-            if ms > 1:
-                updated_mode_shape.append(ms)
-                updated_mode_strides.append(stride)
-        mode_shape = updated_mode_shape
-        mode_strides = updated_mode_strides
-
-    # canonicalize swizzle: if swizzle has 0 bits, set it to None (both mean no swizzle)
-    if optional_swizzle is not None and optional_swizzle.bits == 0:
-        optional_swizzle = None
-
-    return SharedLayout.create(
-        shape=shape, mode_shape=mode_shape, mode_strides=mode_strides, optional_swizzle=optional_swizzle
+    layout = SharedLayout.create(
+        shape=shape,
+        mode_shape=mode_shape,
+        mode_strides=mode_strides,
+        optional_swizzle=optional_swizzle,
     )
+    layout = canonicalize_shared_layout(layout)
+    return layout
+

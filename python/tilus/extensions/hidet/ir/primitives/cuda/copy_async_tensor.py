@@ -245,7 +245,7 @@ def cp_async_tensor_global_to_cluster_shared(
     multicast_mask: Expr,
     cta_group: Optional[int] = None,
     cache_policy: Optional[Expr] = None,
-):
+) -> Expr:
     """Perform a bulk copy from global memory to cluster shared memory asynchronously.
 
     Parameters

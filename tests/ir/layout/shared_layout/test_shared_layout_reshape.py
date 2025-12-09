@@ -13,35 +13,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from hidet.utils import prod
 from hidet.ir.dtypes import int32
-from hidet.ir.utils.index_transform import index_serialize, index_deserialize
-from tilus.ir.layout.ops import shared_row_major, shared_reshape
+from hidet.ir.utils.index_transform import index_deserialize
+from hidet.utils import prod
+from tilus.ir.layout.ops import shared_reshape, shared_row_major, shared_column_major, shared_layout
 
 
 @pytest.mark.parametrize(
-    "src_shape,dst_shape",
-    [
-        ([16, 16], [32, 8]),
-        ([8, 32], [16, 16]),
-        ([4, 4, 4], [8, 2, 4]),
-        ([2, 8, 4], [4, 4, 4]),
-        ([2, 3, 4, 5], [24, 1, 5])
+    "layout, new_shape, expected", [
+        (
+            shared_row_major(12),
+            [3, 4],
+            shared_row_major(3, 4)
+        ),
+        (
+            shared_layout([12], [3, 4], [1, 3]),
+            [3, 4],
+            shared_column_major(3, 4)
+        ),
+        (
+            shared_layout([12], [3, 4], [1, 3]),
+            [4, 3],
+            None
+        )
     ]
 )
-def test_shared_layout_reshape(src_shape, dst_shape):
-    layout = shared_row_major(*src_shape)
-    count = prod(src_shape)
-    reshaped_layout = shared_reshape(layout, dst_shape)
-
-    assert prod(src_shape) == prod(dst_shape)
-
-    for i in range(count):
-        src_indices = index_deserialize(int32(i), src_shape)
-        dst_indices = index_deserialize(int32(i), dst_shape)
-        src_offset = layout(*src_indices)
-        dst_offset = reshaped_layout(*dst_indices)
-        assert src_offset == dst_offset, f"src_shape: {src_shape}, dst_shape: {dst_shape}, src_indices: {src_indices}, dst_indices: {dst_indices}, src_offset: {src_offset}, dst_offset: {dst_offset}"
+def test_shared_layout_reshape(layout, new_shape, expected):
+    if expected is None:
+        # expect a runtime error
+        with pytest.raises(RuntimeError):
+            shared_reshape(layout, new_shape)
+    else:
+        actual = shared_reshape(layout, new_shape)
+        assert actual == expected
 
 if __name__ == "__main__":
     pytest.main([__file__])

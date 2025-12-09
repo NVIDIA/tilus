@@ -8,8 +8,9 @@ from tilus import float16, float32, int32, uint32
 from tilus.ir.tensor import GlobalTensor, RegisterTensor
 from tilus.utils import benchmark_func, cdiv
 
-tilus.option.cache_dir('./cache')
+tilus.option.cache_dir("./cache")
 tilus.option.debug.dump_ir()
+
 
 class Pipeline(tilus.Class):
     def __init__(
@@ -100,8 +101,8 @@ class LoadWorker(tilus.Class):
         self.params: Params = params
 
     def async_run(self):
-        """   
-             |  B0  |  B1  |  B2  |  B3  |  
+        """
+             |  B0  |  B1  |  B2  |  B3  |
         ---- +-------------+-------------+
          A0  |             |             |
         ---- |     cta0    |     cta2    |
@@ -111,18 +112,27 @@ class LoadWorker(tilus.Class):
         ---- |     cta1    |     cta3    |
          A3  |             |             |
         ---- +-------------+-------------+
-        
+
         cta0: load A0 and B0
         cta1: load A2 and B1
         cta2: load A1 and B2
         cta3: load A3 and B3
         """
         pipe, params = self.pipe, self.params
-        num_stages, block_m, block_n, block_k = pipe.num_stages, params.block_m, params.block_n, params.block_k
+        num_stages, block_m, block_n, block_k = (
+            pipe.num_stages,
+            params.block_m,
+            params.block_n,
+            params.block_k,
+        )
         s_a = self.reshape_shared(pipe.s_a, [num_stages, 2, block_m // 2, block_k])
         s_b = self.reshape_shared(pipe.s_b, [num_stages, 2, block_n // 2, block_k])
-        offset_m = self.blockIdx.x * params.block_m + self.cluster.blockIdx.y * (params.block_m // 2)
-        offset_n = self.blockIdx.y * params.block_n + self.cluster.blockIdx.x * (params.block_n // 2)
+        offset_m = self.blockIdx.x * params.block_m + self.cluster.blockIdx.y * (
+            params.block_m // 2
+        )
+        offset_n = self.blockIdx.y * params.block_n + self.cluster.blockIdx.x * (
+            params.block_n // 2
+        )
         with self.thread_group(thread_begin=0, num_threads=32):
             for offset_k in self.range(
                 0, params.k_size, params.block_k, unroll=num_stages
@@ -198,7 +208,10 @@ class BlackwellMatmulV5(tilus.Script):
         b_ptr: ~float16,
         c_ptr: ~float16,
     ):
-        self.attrs.blocks = [cdiv(m_size, self.block_m * 2) * 2, cdiv(n_size, self.block_n * 2) * 2]
+        self.attrs.blocks = [
+            cdiv(m_size, self.block_m * 2) * 2,
+            cdiv(n_size, self.block_n * 2) * 2,
+        ]
         self.attrs.cluster_blocks = (2, 2)
         self.attrs.warps = 4
 

@@ -8,5 +8,6 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "python.analysis.supportDocstringTemplate": true
+    "python.analysis.supportDocstringTemplate": true,
+    "autoDocstring.docstringFormat": "numpy"
 }

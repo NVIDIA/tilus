@@ -89,7 +89,6 @@ from tilus.ir.instructions.generic import (
     ExitInst,
     FormatPrintInst,
     FreeSharedInst,
-    ReshapeSharedInst,
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
@@ -102,6 +101,7 @@ from tilus.ir.instructions.generic import (
     ReduceInst,
     RepeatInst,
     RepeatInterleaveInst,
+    ReshapeSharedInst,
     SliceAssignInst,
     SliceGlobalInst,
     SliceRegisterInst,
@@ -1027,7 +1027,7 @@ class StmtBuilder(StmtBuilderCore):
     def free_shared(self, shared_value: SharedTensor) -> None:
         inst = FreeSharedInst.create(shared_value)
         self.append(inst)
-    
+
     def reshape_shared(self, tensor: SharedTensor, shape: Sequence[int]) -> SharedTensor:
         inst = ReshapeSharedInst.create(tensor, shape)
         self.append(inst)

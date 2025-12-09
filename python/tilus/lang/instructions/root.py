@@ -562,12 +562,8 @@ class RootInstructionGroup(InstructionGroup):
             The shared tensor to free.
         """
         self._builder.free_shared(tensor)
-    
-    def reshape_shared(
-        self,
-        tensor: SharedTensor,
-        shape: Sequence[int]
-    ) -> SharedTensor:
+
+    def reshape_shared(self, tensor: SharedTensor, shape: Sequence[int]) -> SharedTensor:
         """Reshape a shared tensor.
 
         Parameters

@@ -88,7 +88,7 @@ class ClusterLaunchControlExample(tilus.Script):
             consumer_stage = (1 + consumer_stage) % self.num_stages
             consumer_phase = consumer_phase ^ (consumer_stage == 0)
             if is_valid:
-                offset_n = (blockIdx.x + self.cluster.blockIdx().x) * self.block_n
+                offset_n = (blockIdx.x + self.cluster.blockIdx.x) * self.block_n
             else:
                 break
 

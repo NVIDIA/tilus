@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from tilus.ir.layout.register_layout import register_layout
+from tilus.ir.layout.shared_layout import shared_layout
 from .global_ops import (
     global_column_major,
     global_compose,
@@ -42,9 +44,9 @@ from .shared_ops import (
     shared_column_major,
     shared_compose,
     shared_permute,
+    shared_reshape,
     shared_row_major,
     shared_row_major_swizzle,
-    shared_reshape
 )
 from .tmemory_ops import (
     tmemory_row_major,

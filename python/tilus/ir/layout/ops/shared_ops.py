@@ -18,9 +18,6 @@ from typing import List, Sequence
 
 import tabulate
 from hidet.utils import gcd, prod
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var
-from hidet.ir.utils.index_transform import index_serialize, index_deserialize
 
 from tilus.ir.layout.ops.utils import LayoutOperationError, get_mode_groups
 from tilus.ir.layout.shared_layout import SharedLayout, Swizzle, shared_layout
@@ -184,6 +181,8 @@ def shared_slice(layout: SharedLayout, retain_dims: Sequence[int]) -> SharedLayo
         shape.append(layout.shape[i])
         mode_shape.extend([layout.mode_shape[j] for j in layout_mode_groups[i]])
         mode_strides.extend([layout.mode_strides[j] for j in layout_mode_groups[i]])
+    
+    # todo: check the swizzle is within the contiguous area not being sliced
 
     return shared_layout(
         shape=shape,
@@ -191,6 +190,61 @@ def shared_slice(layout: SharedLayout, retain_dims: Sequence[int]) -> SharedLayo
         mode_strides=mode_strides,
         optional_swizzle=layout.optional_swizzle,
     )
+
+def shared_reshape(layout: SharedLayout, new_shape: Sequence[int]) -> SharedLayout:
+    """Reshape the shared layout to a new shape.
+
+    It's not guranteed that the reshape operation can be performed on arbitrary combination of (shared layout, new shape).
+    If the result shape can be represented by the shared layout system, it's guaranteed that the reshape will succeed.
+    Otherwise, a runtime error will be raised.
+
+    Parameters
+    ----------
+    layout: SharedLayout
+        The layout to reshape.
+    new_shape: Sequence[int]
+        The new shape of the layout. The total number of elements must be the same as the original layout.
+
+    Returns
+    -------
+    ret: SharedLayout
+        The reshaped layout.
+    """
+    assert prod(layout.shape) == prod(new_shape)
+
+    # we need to split some sub-dimensions so that each dimension of the new shape contains a contigous group
+    # of sub-dimensions. For example, mode_shape=[16], mode_strides=[1] can be reshaped to [4, 4]. Then we need
+    # to split this dimension to mode_shape[4, 4], mode_strides[4, 1].
+    # It's not guranteed that the reshape operation will always succeed. For example, if we have layout:
+    #   shape = [12]
+    #   mode_shape = [4, 3]
+    #   mode_strides = [1, 4]
+    # if we want to reshape this layout to shape [3, 4], the result layout can not be represented with the shared memory 
+    # layout system of tilus. It's something like (i, j) -> (i * 4 + j) -> ((i * 4 + j) // 3, (i * 4 + j) % 3) 
+    #   -> (i * 4 + j) // 3  + (i * 4 + j) % 3 * 4
+    # the formula can not be represented by the form i * s_i + j * s_j.
+    mode_shape = list(layout.mode_shape)
+    mode_strides = list(layout.mode_strides)
+
+    new_mode_shape: list[int] = []
+    new_mode_strides: list[int] = []
+    for j in range(len(new_shape)):
+        extent = new_shape[j]
+        while extent > 1:
+            factor = gcd(extent, mode_shape[0])
+            if factor == 1:
+                raise RuntimeError(f"Can not reshape layout {layout} with new shape {new_shape}")
+            new_mode_shape.append(factor)
+            new_mode_strides.append(mode_shape[0] // factor * mode_strides[0])
+
+            mode_shape[0] //= factor
+            extent //= factor
+
+            if mode_shape[0] == 1:
+                mode_shape.pop(0)
+                mode_strides.pop(0)
+    
+    return shared_layout(shape=new_shape, mode_shape=new_mode_shape, mode_strides=new_mode_strides, optional_swizzle=layout.optional_swizzle)
 
 
 def shared_unsqueeze(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:
