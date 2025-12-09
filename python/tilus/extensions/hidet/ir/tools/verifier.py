@@ -143,8 +143,8 @@ class IRVerifier(IRVisitor):
         # define global primitive variables
         with self.new_scope():
             if func.kind in ["cuda_kernel", "cuda_internal"]:
-                from hidet.ir.primitives.cuda.cluster import this_cluster
                 from hidet.ir.primitives.cuda.vars import blockDim, blockIdx, gridDim, threadIdx
+                from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterBlockIdx, clusterBlockRank, clusterDim, clusterIdx, clusterSize
 
                 for var in [
                     threadIdx.x,
@@ -159,7 +159,17 @@ class IRVerifier(IRVisitor):
                     gridDim.x,
                     gridDim.y,
                     gridDim.z,
-                    this_cluster.block_rank,
+                    clusterBlockIdx.x,
+                    clusterBlockIdx.y,
+                    clusterBlockIdx.z,
+                    clusterBlockRank,
+                    clusterDim.x,
+                    clusterDim.y,
+                    clusterDim.z,
+                    clusterIdx.x,
+                    clusterIdx.y,
+                    clusterIdx.z,
+                    clusterSize,
                 ]:
                     self.builtin_names.add(var.name)
             elif func.kind == "public":

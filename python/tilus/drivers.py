@@ -147,10 +147,12 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     from tilus.extensions.hidet.transforms.lower_affine_to_recurence import lower_affine_to_recurrence_pass
     from tilus.extensions.hidet.transforms.lower_subbyte_type import lower_subbyte_type_pass
     from tilus.extensions.hidet.transforms.rule_based_simplifier import rule_based_simplify_pass
+    from tilus.extensions.hidet.transforms.bind_predefined_variables import bind_predefined_variables_pass
 
     transforms = [
         unify_global_objects_pass(),
         inline_register_tensor_pass(),
+        bind_predefined_variables_pass(),
         resolve_primitive_func_pass(),
         tilus_add_explicit_cast_pass(),
         lower_subbyte_type_pass(),

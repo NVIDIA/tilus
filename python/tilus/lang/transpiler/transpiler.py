@@ -707,10 +707,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
     def visit_Attribute(self, expr: ast.Attribute) -> Any:
         base = self.visit(expr.value)
         attr = expr.attr
-        if hasattr(base, attr):
-            ret = getattr(base, attr)
-        else:
-            raise TilusProgramError(self, expr, 'Can not access attribute "{}" of object {}.'.format(attr, base))
+        ret = getattr(base, attr)
         return ret
 
     def visit_Name(self, expr: ast.Name) -> Any:
