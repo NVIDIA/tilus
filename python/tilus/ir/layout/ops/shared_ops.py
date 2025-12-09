@@ -181,7 +181,7 @@ def shared_slice(layout: SharedLayout, retain_dims: Sequence[int]) -> SharedLayo
         shape.append(layout.shape[i])
         mode_shape.extend([layout.mode_shape[j] for j in layout_mode_groups[i]])
         mode_strides.extend([layout.mode_strides[j] for j in layout_mode_groups[i]])
-    
+
     # todo: check the swizzle is within the contiguous area not being sliced
 
     return shared_layout(
@@ -190,6 +190,7 @@ def shared_slice(layout: SharedLayout, retain_dims: Sequence[int]) -> SharedLayo
         mode_strides=mode_strides,
         optional_swizzle=layout.optional_swizzle,
     )
+
 
 def shared_reshape(layout: SharedLayout, new_shape: Sequence[int]) -> SharedLayout:
     """Reshape the shared layout to a new shape.
@@ -219,8 +220,8 @@ def shared_reshape(layout: SharedLayout, new_shape: Sequence[int]) -> SharedLayo
     #   shape = [12]
     #   mode_shape = [4, 3]
     #   mode_strides = [1, 4]
-    # if we want to reshape this layout to shape [3, 4], the result layout can not be represented with the shared memory 
-    # layout system of tilus. It's something like (i, j) -> (i * 4 + j) -> ((i * 4 + j) // 3, (i * 4 + j) % 3) 
+    # if we want to reshape this layout to shape [3, 4], the result layout can not be represented with the shared memory
+    # layout system of tilus. It's something like (i, j) -> (i * 4 + j) -> ((i * 4 + j) // 3, (i * 4 + j) % 3)
     #   -> (i * 4 + j) // 3  + (i * 4 + j) % 3 * 4
     # the formula can not be represented by the form i * s_i + j * s_j.
     mode_shape = list(layout.mode_shape)
@@ -243,8 +244,13 @@ def shared_reshape(layout: SharedLayout, new_shape: Sequence[int]) -> SharedLayo
             if mode_shape[0] == 1:
                 mode_shape.pop(0)
                 mode_strides.pop(0)
-    
-    return shared_layout(shape=new_shape, mode_shape=new_mode_shape, mode_strides=new_mode_strides, optional_swizzle=layout.optional_swizzle)
+
+    return shared_layout(
+        shape=new_shape,
+        mode_shape=new_mode_shape,
+        mode_strides=new_mode_strides,
+        optional_swizzle=layout.optional_swizzle,
+    )
 
 
 def shared_unsqueeze(layout: SharedLayout, dims: Sequence[int]) -> SharedLayout:

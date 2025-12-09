@@ -13,30 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from hidet.ir.dtypes import int32
-from hidet.ir.utils.index_transform import index_deserialize
-from hidet.utils import prod
-from tilus.ir.layout.ops import shared_reshape, shared_row_major, shared_column_major, shared_layout
+from tilus.ir.layout.ops import shared_column_major, shared_layout, shared_reshape, shared_row_major
 
 
 @pytest.mark.parametrize(
-    "layout, new_shape, expected", [
-        (
-            shared_row_major(12),
-            [3, 4],
-            shared_row_major(3, 4)
-        ),
-        (
-            shared_layout([12], [3, 4], [1, 3]),
-            [3, 4],
-            shared_column_major(3, 4)
-        ),
-        (
-            shared_layout([12], [3, 4], [1, 3]),
-            [4, 3],
-            None
-        )
-    ]
+    "layout, new_shape, expected",
+    [
+        (shared_row_major(12), [3, 4], shared_row_major(3, 4)),
+        (shared_layout([12], [3, 4], [1, 3]), [3, 4], shared_column_major(3, 4)),
+        (shared_layout([12], [3, 4], [1, 3]), [4, 3], None),
+    ],
 )
 def test_shared_layout_reshape(layout, new_shape, expected):
     if expected is None:
@@ -46,6 +32,7 @@ def test_shared_layout_reshape(layout, new_shape, expected):
     else:
         actual = shared_reshape(layout, new_shape)
         assert actual == expected
+
 
 if __name__ == "__main__":
     pytest.main([__file__])
