@@ -278,7 +278,6 @@ class FunctionCodegen(IRFunctor):
     def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> None:
         # check the validity of the thread group
         parent_num_threads = self.thread_group_stack.num_threads[-1]
-        assert parent_num_threads % stmt.num_threads == 0
         assert 0 <= stmt.thread_begin and stmt.thread_begin + stmt.num_threads <= parent_num_threads
 
         self.builder.comment(
