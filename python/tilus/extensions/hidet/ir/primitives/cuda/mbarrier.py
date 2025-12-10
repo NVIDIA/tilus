@@ -52,7 +52,7 @@ def register_mbarrier_primitives():
     def cuda_mbarrier_arrive_remote_shared(mbarrier_addr: u32, count: u32, cta_id: u32, pred: u32):
         attrs.func_kind = "cuda_internal"
         asm(
-            template="{ .reg.pred p; .reg.b32 remAddr32; setp.eq.u32 p, %3, 1; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.arrive.release.cluster.shared::cluster.b64 _, [remAddr32], %1; }",
+            template="{ .reg.pred p; .reg.b32 remAddr32; setp.ne.u32 p, %3, 0; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.arrive.release.cluster.shared::cluster.b64 _, [remAddr32], %1; }",
             inputs=[mbarrier_addr, count, cta_id, pred],
             is_volatile=True,
         )
@@ -72,7 +72,7 @@ def register_mbarrier_primitives():
     def cuda_mbarrier_expect_tx_remote_shared(mbarrier_addr: u32, transaction_bytes: u32, cta_id: u32, pred: u32):
         attrs.func_kind = "cuda_internal"
         asm(
-            template="{ .reg.pred p; .reg.b32 remAddr32; setp.eq.u32 p, %3, 1; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.expect_tx.relaxed.cluster.shared::cluster.b64 [remAddr32], %1; }",
+            template="{ .reg.pred p; .reg.b32 remAddr32; setp.ne.u32 p, %3, 0; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.expect_tx.relaxed.cluster.shared::cluster.b64 [remAddr32], %1; }",
             inputs=[mbarrier_addr, transaction_bytes, cta_id, pred],
             is_volatile=True,
         )
@@ -94,7 +94,7 @@ def register_mbarrier_primitives():
     ):
         attrs.func_kind = "cuda_internal"
         asm(
-            template="{ .reg.pred p; .reg.b32 remAddr32; setp.eq.u32 p, %3, 1; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.arrive.expect_tx.release.cluster.shared::cluster.b64 _, [remAddr32], %1; }",
+            template="{ .reg.pred p; .reg.b32 remAddr32; setp.ne.u32 p, %3, 0; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.arrive.expect_tx.release.cluster.shared::cluster.b64 _, [remAddr32], %1; }",
             inputs=[mbarrier_addr, transaction_bytes, cta_id, pred],
             is_volatile=True,
         )

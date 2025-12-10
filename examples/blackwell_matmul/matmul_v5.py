@@ -192,6 +192,12 @@ class MmaWorker(tilus.Class):
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmulV5(tilus.Script):
+    debug_schedule = dict(
+        block_m=128,
+        block_n=64,
+        block_k=16,
+        stages=2,
+    )
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -230,6 +236,9 @@ class BlackwellMatmulV5(tilus.Script):
         pipe = LoadPipeline(num_stages=self.stages, params=params)
         load_worker = LoadWorker(pipe, params)
         mma_worker = MmaWorker(pipe, params)
+
+        # make sure all 
+        self.cluster.sync()
 
         # producer
         load_worker.async_run()
@@ -272,7 +281,11 @@ def main(bench=True):
         c_expected = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
         matmul(m_size, n_size, k_size, a, b, c_actual)
+        torch.cuda.synchronize()
+
         torch.matmul(a, b.T, out=c_expected)
+        torch.cuda.synchronize()
+
         torch.testing.assert_close(c_actual, c_expected, atol=1e-2, rtol=1e-2)
 
         # benchmark

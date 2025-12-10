@@ -41,8 +41,6 @@ class AllocBarrierInstEmitter(BaseInstEmitter):
         for i in range(len(barriers)):
             self.buffer_store(out_var, indices=[i], value=barriers[i])
 
-        self.sync()
-
 
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
 class ArriveBarrierInstEmitter(BaseInstEmitter):
