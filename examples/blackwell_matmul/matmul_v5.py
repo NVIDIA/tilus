@@ -138,21 +138,20 @@ class LoadWorker(tilus.Class):
                 0, params.k_size, params.block_k, unroll=num_stages
             ):
                 self.pipe.producer_acquire()
-                with self.single_warp():
-                    self.tma.global_to_shared(
-                        src=params.g_a,
-                        dst=s_a[pipe.producer_stage, self.cluster.blockIdx.y],
-                        offsets=[offset_m, offset_k],
-                        mbarrier=pipe.producer_release_barrier(),
-                        multicast_mask=0b0101 if self.cluster.blockIdx.x == 0 else 0b1010,
-                    )
-                    self.tma.global_to_shared(
-                        src=params.g_b,
-                        dst=s_b[pipe.producer_stage, self.cluster.blockIdx.x],
-                        offsets=[offset_n, offset_k],
-                        mbarrier=pipe.producer_release_barrier(),
-                        multicast_mask=0b0011 if self.cluster.blockIdx.y == 0 else 0b1100,
-                    )
+                self.tma.global_to_shared(
+                    src=params.g_a,
+                    dst=s_a[pipe.producer_stage, self.cluster.blockIdx.y],
+                    offsets=[offset_m, offset_k],
+                    mbarrier=pipe.producer_release_barrier(),
+                    multicast_mask=0b0101 if self.cluster.blockIdx.x == 0 else 0b1010,
+                )
+                self.tma.global_to_shared(
+                    src=params.g_b,
+                    dst=s_b[pipe.producer_stage, self.cluster.blockIdx.x],
+                    offsets=[offset_n, offset_k],
+                    mbarrier=pipe.producer_release_barrier(),
+                    multicast_mask=0b0011 if self.cluster.blockIdx.y == 0 else 0b1100,
+                )
                 pipe.producer_advance()
 
 
@@ -196,7 +195,7 @@ class BlackwellMatmulV5(tilus.Script):
         block_m=128,
         block_n=64,
         block_k=16,
-        stages=2,
+        stages=1,
     )
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
@@ -269,10 +268,12 @@ def main(bench=True):
     for m_size, n_size, k_size in [
         # [128, 128, 16 * 6],
         # [40],
-        [4096, 4096, 4096],
-        [4096, 4096, 14336],
-        [8192, 8192, 8192],
-        [10240, 10240, 10240],
+        # [256 * 10, 128, 256],
+        [256, 128, 1024],
+        # [4096, 4096, 4096],
+        # [4096, 4096, 14336],
+        # [8192, 8192, 8192],
+        # [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
