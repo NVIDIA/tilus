@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.dtypes import int32
 from hidet.ir.expr import Var
 
 from tilus.lang.constructs.structs import Dim3
@@ -45,7 +44,6 @@ class BlockClusterInstructionGroup(InstructionGroup):
             clusterDim.y,
             clusterDim.z,
         )
-
 
     @property
     def blockRank(self) -> Var:

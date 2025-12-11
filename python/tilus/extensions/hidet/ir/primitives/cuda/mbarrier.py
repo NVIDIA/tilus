@@ -28,8 +28,12 @@ def register_mbarrier_primitives():
     @script
     def cuda_mbarrier_init_shared(mbarrier_addr: u32, arrive_count: u32):
         attrs.func_kind = "cuda_internal"
-        asm("mbarrier.init.shared::cta.b64 [%0], %1;", inputs=[mbarrier_addr, arrive_count], is_volatile=True, memory_fence=True)
-            
+        asm(
+            "mbarrier.init.shared::cta.b64 [%0], %1;",
+            inputs=[mbarrier_addr, arrive_count],
+            is_volatile=True,
+            memory_fence=True,
+        )
 
     @no_type_check
     @script
@@ -121,7 +125,7 @@ def register_mbarrier_primitives():
             "}",
             inputs=[mbarrier_addr, ticks],
             is_volatile=True,
-            memory_fence=True
+            memory_fence=True,
         )
 
     for func in [

@@ -23,24 +23,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-Bind the pre-defined variables (that are block-invariant) to their values at the beginning of the function.
-"""
-from typing import List, Sequence
+"""Bind the pre-defined variables (that are block-invariant) to their values at the beginning of the function."""
 
-from hidet.ir import BufferStoreStmt, TensorPointerType
-from hidet.ir.expr import Call, Expr, Var, cast
+from hidet.ir.expr import Expr, Var
 from hidet.ir.func import Function
 from hidet.ir.functors import IRRewriter
-from hidet.ir.stmt import AssignStmt, LaunchKernelStmt, LetStmt, Stmt
-from hidet.ir.tools import TypeInfer
-from hidet.ir.type import BaseType, DataType, FuncType, PointerType
+from hidet.ir.stmt import LetStmt
 from hidet.transforms.base import FunctionPass
-from hidet.utils import same_list
-from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterBlockIdx, clusterBlockRank, clusterSize, clusterDim, clusterIdx
-from tilus.extensions.hidet.ir.primitives.cuda.cluster import cluster_grid_dim, cluster_blocks, cluster_shape, cluster_id_in_grid, block_id_in_cluster, block_rank_in_cluster
 
-from tilus.extensions.hidet.ir.type import get_base_type, type_equal
+from tilus.extensions.hidet.ir.primitives.cuda.cluster import (
+    block_id_in_cluster,
+    block_rank_in_cluster,
+    cluster_blocks,
+    cluster_id_in_grid,
+    cluster_shape,
+)
+from tilus.extensions.hidet.ir.primitives.cuda.vars import (
+    clusterBlockIdx,
+    clusterBlockRank,
+    clusterDim,
+    clusterIdx,
+    clusterSize,
+)
 
 
 class BindPredefinedVariablesRewriter(IRRewriter):
@@ -84,6 +88,7 @@ class BindPredefinedVariablesRewriter(IRRewriter):
         else:
             # no predefined variable is used
             return func
+
 
 class BindPredefinedVariablesPass(FunctionPass):
     def process_func(self, func: Function) -> Function:

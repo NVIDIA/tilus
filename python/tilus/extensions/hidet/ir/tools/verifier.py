@@ -144,7 +144,14 @@ class IRVerifier(IRVisitor):
         with self.new_scope():
             if func.kind in ["cuda_kernel", "cuda_internal"]:
                 from hidet.ir.primitives.cuda.vars import blockDim, blockIdx, gridDim, threadIdx
-                from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterBlockIdx, clusterBlockRank, clusterDim, clusterIdx, clusterSize
+
+                from tilus.extensions.hidet.ir.primitives.cuda.vars import (
+                    clusterBlockIdx,
+                    clusterBlockRank,
+                    clusterDim,
+                    clusterIdx,
+                    clusterSize,
+                )
 
                 for var in [
                     threadIdx.x,

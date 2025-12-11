@@ -20,7 +20,7 @@ from typing import Optional, Sequence
 
 import numpy as np
 from hidet.ir import logical_or
-from hidet.ir.dtypes import uint16, uint32, uint64
+from hidet.ir.dtypes import uint32, uint64
 from hidet.ir.expr import Expr, Var, as_expr, cast
 from hidet.ir.tools import simplify
 from hidet.ir.type import DataType, PointerType, TensorType, sizeof
@@ -35,8 +35,8 @@ from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import (
     cp_async_tensor_shared_to_global,
     cp_async_tensor_wait_group,
 )
+from tilus.extensions.hidet.ir.primitives.cuda.integer_intrinsics import popc
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
-    mbarrier_arrive_and_expect_tx_remote_shared,
     mbarrier_arrive_and_expect_tx_shared,
 )
 from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import (
@@ -48,7 +48,6 @@ from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import (
     TensorMapSwizzle,
     encode_tensor_map,
 )
-from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterSize
 from tilus.extensions.hidet.ir.tools import rewrite
 from tilus.ir import GlobalLayout
 from tilus.ir.instructions.cuda.cp_async_tensor import (
@@ -314,9 +313,9 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         coords = list(reversed(inst.offsets))
         transaction_bytes = prod(shared_tensor.shape) * dtype.nbytes
         optional_multicast_mask = inst.multicast_mask
+        self.assert_is_single_thread(inst, "TMA global to shared copy without multicast requires a single thread.")
 
         if optional_multicast_mask is None:
-            self.assert_is_single_thread(inst, "TMA global to shared copy without multicast requires a single thread.")
             self.append(
                 mbarrier_arrive_and_expect_tx_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=transaction_bytes)
             )
@@ -331,29 +330,23 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
                 )
             )
         else:
-            self.assert_is_a_warp(inst, "TMA global to shared copy with multicast requires a warp of threads.")
             multicast_mask: Expr = optional_multicast_mask
-            with self.if_then(self.current_thread < clusterSize):
-                self.append(
-                    mbarrier_arrive_and_expect_tx_remote_shared(
-                        mbarrier_addr=inst.mbarrier,
-                        transaction_bytes=transaction_bytes,
-                        cta_id=self.current_thread,
-                        pred=(multicast_mask >> self.current_thread) & uint16(1),
-                    )
+            self.append(
+                mbarrier_arrive_and_expect_tx_shared(
+                    mbarrier_addr=inst.mbarrier, transaction_bytes=popc(multicast_mask) * transaction_bytes
                 )
-            with self.if_then(self.current_thread == 0):
-                self.append(
-                    cp_async_tensor_global_to_cluster_shared(
-                        dst=shared_addr,
-                        src_tensor_map=src_tensor_map,
-                        coords=coords,
-                        mbarrier=inst.mbarrier,
-                        multicast_mask=multicast_mask,
-                        cta_group=None,
-                        cache_policy=inst.cache_policy,
-                    )
+            )
+            self.append(
+                cp_async_tensor_global_to_cluster_shared(
+                    dst=shared_addr,
+                    src_tensor_map=src_tensor_map,
+                    coords=coords,
+                    mbarrier=inst.mbarrier,
+                    multicast_mask=multicast_mask,
+                    cta_group=None,
+                    cache_policy=inst.cache_policy,
                 )
+            )
 
 
 @register_emitter(CopyAsyncTensorSharedToGlobalInst, target=nvgpu_sm90)

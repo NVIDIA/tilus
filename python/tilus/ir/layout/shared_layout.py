@@ -296,7 +296,7 @@ def canonicalize_shared_layout(layout: SharedLayout) -> SharedLayout:
             mode_strides=mode_strides,
             optional_swizzle=layout.optional_swizzle,
         )
-    
+
     def merge_consecutive_modes(layout: SharedLayout) -> SharedLayout:
         # merge consecutive modes that belong to the same dimension
         mode_groups: list[list[int]] = get_mode_groups(layout.shape, layout.mode_shape)
@@ -310,13 +310,14 @@ def canonicalize_shared_layout(layout: SharedLayout) -> SharedLayout:
                 j = i
                 while (
                     j + 1 < len(modes)
-                    and layout.mode_strides[modes[i]] == layout.mode_strides[modes[j + 1]] * layout.mode_shape[modes[j + 1]]
+                    and layout.mode_strides[modes[i]]
+                    == layout.mode_strides[modes[j + 1]] * layout.mode_shape[modes[j + 1]]
                 ):
                     j += 1
                 grouped_mode_shape[-1].append(prod(layout.mode_shape[modes[k]] for k in range(i, j + 1)))
                 grouped_mode_strides[-1].append(layout.mode_strides[modes[j]])
                 i = j + 1
-        
+
         mode_shape: tuple[int, ...] = tuple(shape for group in grouped_mode_shape for shape in group)
         mode_strides: tuple[int, ...] = tuple(strides for group in grouped_mode_strides for strides in group)
 
@@ -329,7 +330,7 @@ def canonicalize_shared_layout(layout: SharedLayout) -> SharedLayout:
                 mode_strides=mode_strides,
                 optional_swizzle=layout.optional_swizzle,
             )
-        
+
     def canonicalize_swizzle(layout: SharedLayout) -> SharedLayout:
         # canonicalize swizzle: if swizzle has 0 bits, set it to None (both mean no swizzle)
         if layout.optional_swizzle is not None and layout.optional_swizzle.bits == 0:
@@ -341,7 +342,7 @@ def canonicalize_shared_layout(layout: SharedLayout) -> SharedLayout:
             )
         else:
             return layout
-    
+
     layout = remove_singleton_modes(layout)
     layout = merge_consecutive_modes(layout)
     layout = canonicalize_swizzle(layout)

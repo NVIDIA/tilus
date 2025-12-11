@@ -15,30 +15,43 @@
 from typing import no_type_check
 
 from hidet.ir.expr import Expr
+from hidet.ir.func import Function
 from hidet.ir.primitives.func import call_primitive_func, register_primitive_function
-from hidet.ir.stmt import asm
-from hidet.lang import attrs, script
 from hidet.utils import initialize
 
 
 @initialize()
-def register_mbarrier_primitives():
+def register_functions():
+    from hidet.lang import asm, attrs, script  # pylint: disable=import-outside-toplevel
+    from hidet.lang.types import int32
+
     @no_type_check
     @script
-    def cuda_fence_mbarrier_init_cluster():
+    def cuda_popc(a: int32) -> int32:
         attrs.func_kind = "cuda_internal"
-        asm("fence.mbarrier_init.release.cluster;", is_volatile=True, memory_fence=True)
 
-    for func in [cuda_fence_mbarrier_init_cluster]:
-        register_primitive_function(func.name, func)
+        ret: int32 = 0
+        asm("popc.b32 %0, %1;", outputs=[ret], inputs=[a])
+        return ret
+
+    funcs = [cuda_popc]
+    for func in funcs:
+        assert isinstance(func, Function)
+        register_primitive_function(name=func.name, func_or_type=func)
 
 
-def fence_mbarrier_init_cluster() -> Expr:
-    """Issue a fence to initialize mbarrier in cluster scope.
+def popc(a: Expr) -> Expr:
+    """
+    Count the number of set bits (population count) in a 32-bit integer.
+
+    Parameters
+    ----------
+    a: Expr
+        The 32-bit integer input.
 
     Returns
     -------
-    Expr
-        An expression representing the fence operation.
+    ret: Expr
+        The population count of the input integer.
     """
-    return call_primitive_func("cuda_fence_mbarrier_init_cluster", args=[])
+    return call_primitive_func("cuda_popc", args=[a])
