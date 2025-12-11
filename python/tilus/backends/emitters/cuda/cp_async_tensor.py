@@ -48,6 +48,7 @@ from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import (
     TensorMapSwizzle,
     encode_tensor_map,
 )
+from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterSize
 from tilus.extensions.hidet.ir.tools import rewrite
 from tilus.ir import GlobalLayout
 from tilus.ir.instructions.cuda.cp_async_tensor import (
@@ -332,14 +333,15 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         else:
             self.assert_is_a_warp(inst, "TMA global to shared copy with multicast requires a warp of threads.")
             multicast_mask: Expr = optional_multicast_mask
-            self.append(
-                mbarrier_arrive_and_expect_tx_remote_shared(
-                    mbarrier_addr=inst.mbarrier,
-                    transaction_bytes=transaction_bytes,
-                    cta_id=self.current_thread,
-                    pred=(multicast_mask >> self.current_thread) & uint16(1),
+            with self.if_then(self.current_thread < clusterSize):
+                self.append(
+                    mbarrier_arrive_and_expect_tx_remote_shared(
+                        mbarrier_addr=inst.mbarrier,
+                        transaction_bytes=transaction_bytes,
+                        cta_id=self.current_thread,
+                        pred=(multicast_mask >> self.current_thread) & uint16(1),
+                    )
                 )
-            )
             with self.if_then(self.current_thread == 0):
                 self.append(
                     cp_async_tensor_global_to_cluster_shared(

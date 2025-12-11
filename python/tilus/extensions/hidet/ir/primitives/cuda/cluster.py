@@ -40,7 +40,7 @@ def register_cluster_instructions():
         """Relaxed cluster barrier arrival (non-blocking)."""
         attrs.func_name = "cuda_cluster_arrive_relaxed"
         attrs.func_kind = "cuda_internal"
-        asm(template="barrier.cluster.arrive.relaxed.aligned;", outputs=[], inputs=[])
+        asm(template="barrier.cluster.arrive.relaxed.aligned;", outputs=[], inputs=[], is_volatile=True)
 
     @no_type_check
     @script
@@ -48,7 +48,7 @@ def register_cluster_instructions():
         """Cluster barrier arrival."""
         attrs.func_name = "cuda_cluster_arrive"
         attrs.func_kind = "cuda_internal"
-        asm(template="barrier.cluster.arrive.aligned;", outputs=[], inputs=[])
+        asm(template="barrier.cluster.arrive.aligned;", outputs=[], inputs=[], is_volatile=True)
 
     @no_type_check
     @script
@@ -56,7 +56,7 @@ def register_cluster_instructions():
         """Wait for cluster barrier completion."""
         attrs.func_name = "cuda_cluster_wait"
         attrs.func_kind = "cuda_internal"
-        asm(template="barrier.cluster.wait.aligned;", outputs=[], inputs=[])
+        asm(template="barrier.cluster.wait.aligned;", outputs=[], inputs=[], is_volatile=True)
 
     @no_type_check
     @script
@@ -64,8 +64,8 @@ def register_cluster_instructions():
         """Synchronize all blocks in cluster (arrive + wait)."""
         attrs.func_name = "cuda_cluster_sync"
         attrs.func_kind = "cuda_internal"
-        asm(template="barrier.cluster.arrive.aligned;", outputs=[], inputs=[])
-        asm(template="barrier.cluster.wait.aligned;", outputs=[], inputs=[])
+        asm(template="barrier.cluster.arrive.aligned;", outputs=[], inputs=[], is_volatile=True)
+        asm(template="barrier.cluster.wait.aligned;", outputs=[], inputs=[], is_volatile=True)
 
     @no_type_check
     @script

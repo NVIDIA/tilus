@@ -7,9 +7,11 @@ import torch
 from tilus import float16, float32, int32, uint32
 from tilus.ir.tensor import GlobalTensor, RegisterTensor
 from tilus.utils import benchmark_func, cdiv
+from tilus.extensions.hidet.utils.ncu_utils import ncu_run
+from hidet.ir.primitives.cuda.vars import threadIdx
 
 tilus.option.cache_dir("./cache")
-tilus.option.debug.dump_ir()
+# tilus.option.debug.dump_ir()
 
 
 class Pipeline(tilus.Class):
@@ -127,16 +129,16 @@ class LoadWorker(tilus.Class):
         )
         s_a = self.reshape_shared(pipe.s_a, [num_stages, 2, block_m // 2, block_k])
         s_b = self.reshape_shared(pipe.s_b, [num_stages, 2, block_n // 2, block_k])
-        offset_m = self.blockIdx.x * params.block_m + self.cluster.blockIdx.y * (
-            params.block_m // 2
-        )
-        offset_n = self.blockIdx.y * params.block_n + self.cluster.blockIdx.x * (
-            params.block_n // 2
-        )
+        offset_m = self.blockIdx.x * params.block_m + self.cluster.blockIdx.y * (block_m // 2)
+        offset_n = self.blockIdx.y * params.block_n + self.cluster.blockIdx.x * (block_n // 2)
+        # self.printf("[%d, %d][Loader]\n", self.blockIdx.x, self.blockIdx.y)
         with self.thread_group(thread_begin=0, num_threads=32):
             for offset_k in self.range(
                 0, params.k_size, params.block_k, unroll=num_stages
             ):
+                # if self.blockIdx.x == 0 and self.blockIdx.y == 0 and offset_k // params.block_k % 2 == 0:
+                #     self.printf("[%d, %d][Loader] offset_k: %d\n", self.blockIdx.x, self.blockIdx.y, offset_k)
+                # self.sync()
                 self.pipe.producer_acquire()
                 self.tma.global_to_shared(
                     src=params.g_a,
@@ -172,6 +174,7 @@ class MmaWorker(tilus.Class):
             for offset_k in self.range(
                 0, self.params.k_size, self.params.block_k, unroll=num_stages
             ):
+                # self.printf("[%d, %d][MMA] offset_k: %d\n", self.blockIdx.x, self.blockIdx.y, offset_k)
                 pipe.consumer_acquire()
                 with self.single_thread():
                     self.tcgen05.mma(
@@ -195,7 +198,7 @@ class BlackwellMatmulV5(tilus.Script):
         block_m=128,
         block_n=64,
         block_k=16,
-        stages=1,
+        stages=2,
     )
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
@@ -231,12 +234,14 @@ class BlackwellMatmulV5(tilus.Script):
             g_b=self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size]),
             g_c=self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size]),
         )
+        self.cluster.sync()
 
         pipe = LoadPipeline(num_stages=self.stages, params=params)
         load_worker = LoadWorker(pipe, params)
         mma_worker = MmaWorker(pipe, params)
 
         # make sure all 
+        self.sync()
         self.cluster.sync()
 
         # producer
@@ -305,5 +310,6 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
+    # main(bench=False)
     main(bench=True)
     # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
