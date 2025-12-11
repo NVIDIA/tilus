@@ -52,10 +52,9 @@ class BaseInstEmitter(StmtBuilder):
             raise ValueError(f"Instruction {inst} requires a warp (32 threads): {msg}.")
 
     def sync(self):
-        if self._codegen.thread_group_stack.stack_depth() == 1:  # all threads in the cta
-            self.append(syncthreads())
-        else:
-            self.append(self.contexts.sync_ctx.sync())
+        optional_sync_call = self.contexts.sync_ctx.sync()
+        if optional_sync_call is not None:
+            self.append(optional_sync_call)
 
     def sync_reduce(self, value: Expr, op: str) -> Expr:
         if get_current_target().is_nvgpu():
