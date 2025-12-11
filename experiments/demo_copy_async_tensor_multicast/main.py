@@ -41,8 +41,7 @@ class CopyAsyncTensor2dMulticastExample(tilus.Script):
         s_a = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[self.block_n, self.block_k])
 
-        load_barrier = self.mbarrier.alloc(count=4)
-        self.cluster_sync()
+        load_barrier = self.mbarrier.alloc(count=2)
 
         m_offset = self.blockIdx.x * self.block_m
         n_offset = self.blockIdx.y * self.block_n
@@ -54,11 +53,16 @@ class CopyAsyncTensor2dMulticastExample(tilus.Script):
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n], init=0.0)
 
         self.sync()
+        self.printf("[%d, %d][%d, %d] %d\n", self.blockIdx.x, self.blockIdx.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, self.cluster.blockRank)
+        self.cluster_sync()
+        self.printf("[%d, %d][%d, %d] %d finish sync\n", self.blockIdx.x, self.blockIdx.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, self.cluster.blockRank)
+        self.cluster_sync()
+
 
         phase: int32 = 0
 
         for k_offset in self.range(0, k_size, self.block_k):
-            with self.single_warp():
+            with self.single_thread():
                 """
                     |  B0  |  B1  |  B2  |  B3  |
                 ----+-------------+-------------+
@@ -134,18 +138,24 @@ class CopyAsyncTensor2dPingpongMulticastExample(tilus.Script):
         m_offset = self.blockIdx.x * self.block_m
         n_offset = self.blockIdx.y * self.block_n
 
-        s_a_reshaped = self.reshape_shared(s_a, [2, self.block_m // 2, self.block_k])
-        s_b_reshaped = self.reshape_shared(s_b, [2, self.block_n // 2, self.block_k])
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n], init=0.0)
 
         self.cluster_sync()
         worker_phase: int32 = 0
         loader_phase: int32 = 1
 
+        # self.sync()
+        # self.printf("[%d, %d][%d, %d] %d\n", self.blockIdx.x, self.blockIdx.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, self.cluster.blockRank)
+        # self.cluster_sync()
+        # self.printf("[%d, %d][%d, %d] %d finish sync\n", self.blockIdx.x, self.blockIdx.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, self.cluster.blockRank)
+        # self.cluster_sync()
+
         # self.printf("[%d, %d][%d, %d] %d\n", self.blockIdx.x, self.blockIdx.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, self.cluster.blockRank)
         # self.cluster_sync()
 
         with self.thread_group(0, num_threads=32):
+            s_a_reshaped = self.reshape_shared(s_a, [2, self.block_m // 2, self.block_k])
+            s_b_reshaped = self.reshape_shared(s_b, [2, self.block_n // 2, self.block_k])
             # loader
             for k_offset in self.range(0, k_size, self.block_k):
                 """
@@ -173,18 +183,30 @@ class CopyAsyncTensor2dPingpongMulticastExample(tilus.Script):
                 with self.single_thread():
                     self.tma.global_to_shared(
                         src=g_a,
-                        dst=s_a_reshaped[self.cluster.blockIdx.y],
-                        offsets=[m_offset + self.cluster.blockIdx.y * (self.block_m // 2), k_offset],
-                        multicast_mask=0b0101 if self.cluster.blockIdx.x == 0 else 0b1010,
+                        dst=s_a,
+                        offsets=[m_offset, k_offset],
                         mbarrier=tma_barrier,
                     )
                     self.tma.global_to_shared(
                         src=g_b,
-                        dst=s_b_reshaped[self.cluster.blockIdx.x],
-                        offsets=[n_offset + self.cluster.blockIdx.x * (self.block_n // 2), k_offset],
-                        multicast_mask=0b0011 if self.cluster.blockIdx.y == 0 else 0b1100,
+                        dst=s_b,
+                        offsets=[n_offset, k_offset],
                         mbarrier=tma_barrier,
                     )
+                    # self.tma.global_to_shared(
+                    #     src=g_a,
+                    #     dst=s_a_reshaped[self.cluster.blockIdx.y],
+                    #     offsets=[m_offset + self.cluster.blockIdx.y * (self.block_m // 2), k_offset],
+                    #     multicast_mask=0b0101 if self.cluster.blockIdx.x == 0 else 0b1010,
+                    #     mbarrier=tma_barrier,
+                    # )
+                    # self.tma.global_to_shared(
+                    #     src=g_b,
+                    #     dst=s_b_reshaped[self.cluster.blockIdx.x],
+                    #     offsets=[n_offset + self.cluster.blockIdx.x * (self.block_n // 2), k_offset],
+                    #     multicast_mask=0b0011 if self.cluster.blockIdx.y == 0 else 0b1100,
+                    #     mbarrier=tma_barrier,
+                    # )
                 loader_phase ^= 1
                 # self.cluster_sync()
             self.mbarrier.wait(mma_barrier, phase=loader_phase)
@@ -238,9 +260,9 @@ def test_copy_async_tensor_2d_cluster():
 
 @requires.nvgpu_sm90
 def test_copy_async_tensor_2d_pingpong_cluster():
-    m = 128 * 4
-    n = 64 * 2
-    k = 16 * 200
+    m = 128 * 32
+    n = 64 * 32
+    k = 16 * 44
     a = torch.randint(0, 2, size=(m, k), dtype=torch.float16, device="cuda")
     b = torch.randint(0, 2, size=(n, k), dtype=torch.float16, device="cuda")
     c = torch.zeros((m, n), dtype=torch.float16, device="cuda")
