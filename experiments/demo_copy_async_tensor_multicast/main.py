@@ -18,7 +18,7 @@ import tilus
 import torch
 from tilus import float16, float32, int32
 from tilus.testing import requires
-from tilus.utils import cdiv
+from tilus.utils import cdiv, benchmark_func
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "./cache"))
 
@@ -278,7 +278,9 @@ def test_copy_async_tensor_2d_pingpong_cluster():
     expected = a @ b.T
     torch.cuda.synchronize()
     torch.testing.assert_close(c, expected)
+
     # print("max error:", (c - expected).abs().max().item())
+    # print(benchmark_func(lambda: kernel(m, n, k, a, b, c), warmup=10, repeat=100))
 
 
 if __name__ == "__main__":

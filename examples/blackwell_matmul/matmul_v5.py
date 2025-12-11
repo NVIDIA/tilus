@@ -137,9 +137,9 @@ class LoadWorker(tilus.Class):
                 # if self.blockIdx.x == 0 and self.blockIdx.y == 0 and offset_k // params.block_k % 2 == 0:
                 #     self.printf("[%d, %d][Loader] offset_k: %d\n", self.blockIdx.x, self.blockIdx.y, offset_k)
                 # self.sync()
-                self.printf("[%d, %d][%d, %d][Loader] waiting offset_k: %d\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, offset_k // params.block_k)
+                # self.printf("[%d, %d][%d, %d][Loader] waiting offset_k: %d\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, offset_k // params.block_k)
                 self.pipe.producer_acquire()
-                self.printf("[%d, %d][%d, %d][Loader] acquired offset_k: %d\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, offset_k // params.block_k)
+                # self.printf("[%d, %d][%d, %d][Loader] acquired offset_k: %d\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, offset_k // params.block_k)
                 with self.single_thread():
                     self.tma.global_to_shared(
                         src=params.g_a,
@@ -157,7 +157,7 @@ class LoadWorker(tilus.Class):
                     )
                 self.sync()
                 pipe.producer_advance()
-            self.printf("[%d, %d][%d, %d][Loader] finished loading\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y)
+            # self.printf("[%d, %d][%d, %d][Loader] finished loading\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y)
 
 
 class MmaWorker(tilus.Class):
@@ -177,9 +177,9 @@ class MmaWorker(tilus.Class):
             for offset_k in self.range(
                 0, self.params.k_size, self.params.block_k, unroll=num_stages
             ):
-                self.printf("[%d, %d][%d, %d][   MMA] waiting offset_k: %d\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, offset_k // self.params.block_k)
+                # self.printf("[%d, %d][%d, %d][   MMA] waiting offset_k: %d\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, offset_k // self.params.block_k)
                 pipe.consumer_acquire()
-                self.printf("[%d, %d][%d, %d][   MMA] acquired offset_k: %d\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, offset_k // self.params.block_k)
+                # self.printf("[%d, %d][%d, %d][   MMA] acquired offset_k: %d\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y, offset_k // self.params.block_k)
                 with self.single_thread():
                     self.tcgen05.mma(
                         s_a[pipe.consumer_stage],
@@ -188,11 +188,12 @@ class MmaWorker(tilus.Class):
                     )
                     self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier())
                 pipe.consumer_advance()
+                self.sync()
 
             with self.single_thread():
                 self.tcgen05.commit(mbarrier=self.flush_barrier)
             self.mbarrier.wait(self.flush_barrier, phase=0)
-            self.printf("[%d, %d][%d, %d][   MMA] finished computing\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y)
+            # self.printf("[%d, %d][%d, %d][   MMA] finished computing\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y)
 
 
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
@@ -257,7 +258,7 @@ class BlackwellMatmulV5(tilus.Script):
         mma_worker.async_run()
 
         self.sync()
-        self.printf("[%d, %d][%d, %d][Matmul] finished all loading and computing\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y)
+        # self.printf("[%d, %d][%d, %d][Matmul] finished all loading and computing\n", self.blockIdx.x // self.cluster.clusterDim.x, self.blockIdx.y // self.cluster.clusterDim.y, self.cluster.blockIdx.x, self.cluster.blockIdx.y)
 
         # store the result back to global memory
         offset_m: int32 = self.block_m * self.blockIdx.x
@@ -302,6 +303,8 @@ def main(bench=True):
 
         torch.testing.assert_close(c_actual, c_expected, atol=1e-2, rtol=1e-2)
 
+        print(f"{m_size}-{n_size}-{k_size} Result correct!")
+
         # benchmark
         if bench:
             for name, func in [
@@ -318,6 +321,6 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    # main(bench=False)
-    main(bench=True)
+    main(bench=False)
+    # main(bench=True)
     # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
