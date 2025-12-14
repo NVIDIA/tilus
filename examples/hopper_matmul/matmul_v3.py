@@ -9,9 +9,6 @@ import torch
 from tilus import float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
-tilus.option.cache_dir("./cache")
-tilus.option.debug.dump_ir(True)
-torch.set_printoptions(precision=3, sci_mode=False, linewidth=160)
 
 @tilus.autotune("num_stages", [2, 3, 4, 5, 6, 7])
 @tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256], [256, 128], [256, 256]])
