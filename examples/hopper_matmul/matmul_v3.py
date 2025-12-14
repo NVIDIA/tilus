@@ -11,10 +11,11 @@ from tilus.utils import benchmark_func, cdiv
 
 
 @tilus.autotune("num_stages", [2, 3, 4, 5, 6, 7])
-@tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256], [256, 128], [256, 256]])
+@tilus.autotune(
+    "block_m, block_n", [[128, 64], [128, 128], [128, 256], [256, 128], [256, 256]]
+)
 @tilus.autotune("block_k", [16, 32, 64])
 class MatmulWGMMAV3(tilus.Script):
-
     def __init__(
         self,
         num_stages,
@@ -54,11 +55,15 @@ class MatmulWGMMAV3(tilus.Script):
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
         consumer_barriers = self.mbarrier.alloc(count=[2 for _ in range(self.num_stages)])
-        producer_barriers = self.mbarrier.alloc(count=[128 for _ in range(self.num_stages)])
+        producer_barriers = self.mbarrier.alloc(
+            count=[128 for _ in range(self.num_stages)]
+        )
 
         with self.thread_group(thread_begin=128, num_threads=32):
             stage: int32 = 0
-            producer_phases = self.register_tensor(dtype=uint32, shape=[self.num_stages], init=1)
+            producer_phases = self.register_tensor(
+                dtype=uint32, shape=[self.num_stages], init=1
+            )
             for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
                 self.mbarrier.wait(producer_barriers[stage], phase=producer_phases[stage])
                 producer_phases[stage] ^= 1
@@ -76,7 +81,7 @@ class MatmulWGMMAV3(tilus.Script):
                         mbarrier=consumer_barriers[stage],
                     )
                 stage = (stage + 1) % self.num_stages
-            
+
             for _ in self.range(min(self.num_stages, cdiv(k_size, self.block_k))):
                 self.mbarrier.wait(
                     producer_barriers[stage], phase=producer_phases[stage]
@@ -85,9 +90,11 @@ class MatmulWGMMAV3(tilus.Script):
                 stage = (stage + 1) % self.num_stages
 
         with self.thread_group(thread_begin=0, num_threads=128):
-            consumer_phases = self.register_tensor(dtype=uint32, shape=[self.num_stages], init=0)
+            consumer_phases = self.register_tensor(
+                dtype=uint32, shape=[self.num_stages], init=0
+            )
             stage: int32 = 0
-            for offset_k in self.range(0, k_size, block_k , unroll=self.num_stages):
+            for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
                 self.mbarrier.wait(consumer_barriers[stage], phase=consumer_phases[stage])
                 consumer_phases[stage] ^= 1
                 self.wgmma.fence()
