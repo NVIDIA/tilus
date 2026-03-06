@@ -50,7 +50,7 @@ class BlackwellMatmulV3(tilus.Script):
 
         # allocate barriers and the initial phases
         consumer_barriers = self.mbarrier.alloc(
-            count=[2 for _ in range(self.stages)]
+            count=[1 for _ in range(self.stages)]
         )  # whether the data is ready for consumption
         producer_barriers = self.mbarrier.alloc(
             count=[1 for _ in range(self.stages)]
@@ -68,6 +68,10 @@ class BlackwellMatmulV3(tilus.Script):
                 )  # wait until the stage is ready to be filled
                 producer_phases[stage] ^= 1
                 with self.single_thread():
+                    self.mbarrier.arrive_and_expect_tx(
+                        consumer_barriers[stage],
+                        tx_count=s_a[stage].nbytes + s_b[stage].nbytes,
+                    )
                     self.tma.global_to_shared(
                         src=g_a,
                         dst=s_a[stage],

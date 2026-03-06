@@ -37,11 +37,21 @@ class AllocBarrierInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class ArriveBarrierInst(Instruction):
     barrier: Expr
-    per_thread_count: Expr
+    count: Expr
 
     @staticmethod
-    def create(barrier: Expr, per_thread_count: Expr) -> ArriveBarrierInst:
-        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier, per_thread_count=per_thread_count)
+    def create(barrier: Expr, count: Expr) -> ArriveBarrierInst:
+        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier, count=count)
+
+
+@dataclass(frozen=True, eq=False)
+class ArriveExpectTxBarrierInst(Instruction):
+    barrier: Expr
+    tx_count: Expr
+
+    @staticmethod
+    def create(barrier: Expr, tx_count: Expr) -> ArriveExpectTxBarrierInst:
+        return ArriveExpectTxBarrierInst(output=None, inputs=(), barrier=barrier, tx_count=tx_count)
 
 
 @dataclass(frozen=True, eq=False)

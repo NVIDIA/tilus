@@ -24,7 +24,7 @@ from hidet.ir.type import DataType
 from hidet.utils import same_list
 
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, TMemoryLayout
-from tilus.utils import nbytes_from_nbits
+from tilus.utils import nbytes_from_nbits, prod
 
 
 @dataclass(frozen=True, eq=False)
@@ -605,17 +605,14 @@ class SharedTensor(Tensor):
 
     @property
     def size(self) -> int:
-        """Get the size of the SharedTensor.
-
-        This property returns the storage size of the tensor as an expression, in the unit of number of elements.
-        If the SharedTensor is not compact, it may not be equal to the product of the shape dimensions.
+        """Get the number of elements in the shared tensor.
 
         Returns
         -------
         ret: int
             The size of the SharedTensor, which is the number of elements it contains.
         """
-        return self.layout.count_size()
+        return prod(self.shape)
 
     @property
     def nbytes(self) -> int:

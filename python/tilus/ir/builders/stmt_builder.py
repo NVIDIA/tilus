@@ -50,6 +50,7 @@ from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
+    ArriveExpectTxBarrierInst,
     FenceProxyCopyAsync,
     WaitBarrierInst,
 )
@@ -1234,12 +1235,20 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
-    def arrive_barrier(self, barrier: Expr | RegisterTensor, per_thread_count: Expr | int) -> None:
+    def arrive_barrier(self, barrier: Expr | RegisterTensor, count: Expr | int) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
-        if isinstance(per_thread_count, int):
-            per_thread_count = as_expr(per_thread_count)
-        inst = ArriveBarrierInst.create(barrier=barrier, per_thread_count=per_thread_count)
+        if isinstance(count, int):
+            count = as_expr(count)
+        inst = ArriveBarrierInst.create(barrier=barrier, count=count)
+        self.append(inst)
+
+    def arrive_expect_tx_barrier(self, barrier: Expr | RegisterTensor, tx_count: Expr | int) -> None:
+        if isinstance(barrier, RegisterTensor):
+            barrier = self.tensor_item_value(barrier)
+        if isinstance(tx_count, int):
+            tx_count = as_expr(tx_count)
+        inst = ArriveExpectTxBarrierInst.create(barrier=barrier, tx_count=tx_count)
         self.append(inst)
 
     def wait_barrier(self, barrier: Expr | RegisterTensor, phase: Expr | int | RegisterTensor) -> None:
