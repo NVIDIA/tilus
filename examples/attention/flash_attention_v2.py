@@ -393,7 +393,7 @@ def flash_attention_flash_attn(
     k: torch.Tensor,
     v: torch.Tensor,
 ) -> torch.Tensor:
-    from flash_attn import flash_attn_func
+    from flash_attn.cute.interface import flash_attn_func
 
     return flash_attn_func(q, k, v, causal=True)
 
@@ -443,12 +443,6 @@ def main(bench=True):
         v = torch.rand(
             batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16
         ).cuda()
-        # q = torch.ones(batch_size, seqlen, num_heads, head_size, dtype=torch.float16).cuda()
-        # k = torch.ones(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
-        # v = torch.ones(batch_size, seqlen, num_heads_kv, head_size, dtype=torch.float16).cuda()
-        # for i in range(seqlen):
-        #     for j in range(head_size):
-        #         v[0, i, 0, j] = i
         for name, runner in [
             ("flash-attn", flash_attention_flash_attn),
             ("tilus", flash_attention),

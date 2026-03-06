@@ -490,7 +490,7 @@ def flash_attention_flash_attn(
     v: torch.Tensor,
 ):
     try:
-        from flash_attn import flash_attn_func
+        from flash_attn.cute.interface import flash_attn_func
 
         return flash_attn_func(q, k, v, causal=True)
     except ImportError:

@@ -188,12 +188,15 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
 
         raise ValueError("No valid instructions generated")
 
+    def check_single_thread(self) -> None:
+        if self.current_num_threads != 1:
+            raise ValueError("The number of threads must be 1 to emit tcgen05.copy instruction")
+
     def emit(self, inst: Tcgen05CopyInst) -> None:
         shared_tensor = inst.inputs[1].as_shared_tensor()
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
 
-        if self.current_num_threads != 1:
-            raise ValueError("Tcgen05CopyInst can only be emitted in thread group with a single thread")
+        self.check_single_thread()
 
         if len(shared_tensor.shape) != 2:
             raise ValueError("The shared tensor must be a 2D tensor, got shape {}".format(shared_tensor.shape))

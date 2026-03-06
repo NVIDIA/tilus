@@ -12,25 +12,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import (
-    allocate_shared,
-    assign,
-    cp_async,
-    elementwise_binary,
-    elementwise_unary,
-    empty_rule,
-    ldst_global,
-    load_shared,
-    mbarrier,
-    mma_dot,
-    reduce,
-    reshape_shared,
-    slice_register,
-    store_shared,
-    tcgen05,
-    transform,
-    transform_shared,
-    transpose,
-    wgmma,
-    where,
+import pytest
+from tilus.ir.layout.shared_layout import SharedLayout, canonicalize_shared_layout
+
+
+@pytest.mark.parametrize(
+    "layout, expected",
+    [
+        (
+            SharedLayout.create(
+                shape=[32, 16], mode_shape=[4, 8, 2, 2, 4], mode_strides=[64, 8, 256, 4, 1], optional_swizzle=None
+            ),
+            SharedLayout.create(shape=[32, 16], mode_shape=[32, 2, 8], mode_strides=[8, 256, 1], optional_swizzle=None),
+        ),
+    ],
 )
+def test_canonicalize_shared_layout(layout, expected):
+    canonicalized = canonicalize_shared_layout(layout)
+    assert canonicalized == expected
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

@@ -28,7 +28,12 @@ def register_mbarrier_primitives():
     @script
     def cuda_mbarrier_init_shared(mbarrier_addr: u32, arrive_count: u32):
         attrs.func_kind = "cuda_internal"
-        asm("mbarrier.init.shared::cta.b64 [%0], %1;", inputs=[mbarrier_addr, arrive_count], is_volatile=True)
+        asm(
+            "mbarrier.init.shared::cta.b64 [%0], %1;",
+            inputs=[mbarrier_addr, arrive_count],
+            is_volatile=True,
+            memory_fence=True,
+        )
 
     @no_type_check
     @script
@@ -39,6 +44,7 @@ def register_mbarrier_primitives():
             template="{ .reg.pred P1; LAB_WAIT: mbarrier.try_wait.parity.shared::cta.b64 P1, [%0], %1, %2; @!P1 bra.uni LAB_WAIT; }",
             inputs=[mbarrier_addr, phase, ticks],
             is_volatile=True,
+            memory_fence=True,
         )
 
     @no_type_check
@@ -52,9 +58,10 @@ def register_mbarrier_primitives():
     def cuda_mbarrier_arrive_remote_shared(mbarrier_addr: u32, count: u32, cta_id: u32, pred: u32):
         attrs.func_kind = "cuda_internal"
         asm(
-            template="{ .reg.pred p; .reg.b32 remAddr32; setp.eq.u32 p, %3, 1; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.arrive.release.cluster.shared::cluster.b64 _, [remAddr32], %1; }",
+            template="{ .reg.pred p; .reg.b32 remAddr32; setp.ne.u32 p, %3, 0; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.arrive.release.cluster.shared::cluster.b64 _, [remAddr32], %1; }",
             inputs=[mbarrier_addr, count, cta_id, pred],
             is_volatile=True,
+            memory_fence=True,
         )
 
     @no_type_check
@@ -65,6 +72,7 @@ def register_mbarrier_primitives():
             template="mbarrier.expect_tx.shared::cta.b64 [%0], %1;",
             inputs=[mbarrier_addr, transaction_bytes],
             is_volatile=True,
+            memory_fence=True,
         )
 
     @no_type_check
@@ -72,9 +80,10 @@ def register_mbarrier_primitives():
     def cuda_mbarrier_expect_tx_remote_shared(mbarrier_addr: u32, transaction_bytes: u32, cta_id: u32, pred: u32):
         attrs.func_kind = "cuda_internal"
         asm(
-            template="{ .reg.pred p; .reg.b32 remAddr32; setp.eq.u32 p, %3, 1; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.expect_tx.relaxed.cluster.shared::cluster.b64 [remAddr32], %1; }",
+            template="{ .reg.pred p; .reg.b32 remAddr32; setp.ne.u32 p, %3, 0; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.expect_tx.relaxed.cluster.shared::cluster.b64 [remAddr32], %1; }",
             inputs=[mbarrier_addr, transaction_bytes, cta_id, pred],
             is_volatile=True,
+            memory_fence=True,
         )
 
     @no_type_check
@@ -85,6 +94,7 @@ def register_mbarrier_primitives():
             template="mbarrier.arrive.expect_tx.release.cta.shared::cta.b64 _, [%0], %1;",
             inputs=[mbarrier_addr, transaction_bytes],
             is_volatile=True,
+            memory_fence=True,
         )
 
     @no_type_check
@@ -94,9 +104,10 @@ def register_mbarrier_primitives():
     ):
         attrs.func_kind = "cuda_internal"
         asm(
-            template="{ .reg.pred p; .reg.b32 remAddr32; setp.eq.u32 p, %3, 1; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.arrive.expect_tx.release.cluster.shared::cluster.b64 _, [remAddr32], %1; }",
+            template="{ .reg.pred p; .reg.b32 remAddr32; setp.ne.u32 p, %3, 0; @p mapa.shared::cluster.u32 remAddr32, %0, %2; @p mbarrier.arrive.expect_tx.release.cluster.shared::cluster.b64 _, [remAddr32], %1; }",
             inputs=[mbarrier_addr, transaction_bytes, cta_id, pred],
             is_volatile=True,
+            memory_fence=True,
         )
 
     @no_type_check
@@ -114,6 +125,7 @@ def register_mbarrier_primitives():
             "}",
             inputs=[mbarrier_addr, ticks],
             is_volatile=True,
+            memory_fence=True,
         )
 
     for func in [

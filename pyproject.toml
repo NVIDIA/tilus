@@ -124,6 +124,10 @@ disable_error_code = [
     #     def emit(self, inst: PrintInst):  # type: ignore[override]
     #         ...
     "override",
+    # we might use dynamic type narrowing, but mypy cannot infer it
+    # thus we disable the checking for valid-type and arg-type.
+    # we rely on pyright in vscode to catch these errors.
+    "arg-type",
 ]
 
 [[tool.mypy.overrides]] # disable type checking in these modules that might define tilus scripts

@@ -28,6 +28,7 @@ class CopyAsyncTensorGlobalToSharedInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: tuple[int, ...]
     mbarrier: Expr
+    multicast_mask: Optional[Expr]
     cache_policy: Optional[Expr]
 
     @staticmethod
@@ -37,6 +38,7 @@ class CopyAsyncTensorGlobalToSharedInst(Instruction):
         offsets: Sequence[Expr | int],
         dims: Sequence[int],
         mbarrier: Expr,
+        multicast_mask: Optional[Expr] = None,
         cache_policy: Optional[Expr] = None,
     ) -> CopyAsyncTensorGlobalToSharedInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
@@ -44,8 +46,9 @@ class CopyAsyncTensorGlobalToSharedInst(Instruction):
             output=None,
             inputs=(dst, src),
             offsets=offsets_,
-            mbarrier=mbarrier,
             dims=tuple(dims) if dims else None,
+            mbarrier=mbarrier,
+            multicast_mask=multicast_mask,
             cache_policy=cache_policy,
         )
 
