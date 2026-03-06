@@ -123,10 +123,6 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install example dependencies
-        run: |
-          pip install wheel
-          pip install flash-attn-4 --pre
 
       - name: Run unit tests
         run: pytest tests/examples/ -v
