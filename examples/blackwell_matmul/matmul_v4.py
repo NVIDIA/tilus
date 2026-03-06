@@ -81,7 +81,7 @@ class LoadPipeline(Pipeline):
         params: Params,
     ):
         super().__init__(
-            num_stages=num_stages, producer_arrive_count=2, consumer_arrive_count=1
+            num_stages=num_stages, producer_arrive_count=1, consumer_arrive_count=1
         )
         self.params: Params = params
         self.s_a = self.shared_tensor(
@@ -109,6 +109,11 @@ class LoadWorker(tilus.Class):
             ):
                 self.pipe.producer_acquire()
                 with self.single_thread():
+                    self.mbarrier.arrive_and_expect_tx(
+                        pipe.producer_release_barrier(),
+                        transaction_bytes=s_a[pipe.producer_stage].nbytes
+                        + s_b[pipe.producer_stage].nbytes,
+                    )
                     self.tma.global_to_shared(
                         src=params.g_a,
                         dst=s_a[pipe.producer_stage],

@@ -48,7 +48,7 @@ class BarrierAllocContext(BaseEmitContext):
             return
 
         tensor = SharedTensor(dtype=uint64, shape=(num_barriers,), optional_layout=ops.shared_row_major(num_barriers))
-        virtual_smem_addr = self.contexts.smem_alloc_ctx.allocate_shared_tensor(tensor, nbytes=tensor.nbytes)
+        virtual_smem_addr = self.contexts.smem_alloc_ctx.allocate_shared_tensor(tensor, nbytes=tensor.storage_nbytes)
         sb = StmtBuilder()
         sb.declare(
             v=self.barrier_addr,

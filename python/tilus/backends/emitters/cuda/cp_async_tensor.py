@@ -35,10 +35,6 @@ from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import (
     cp_async_tensor_shared_to_global,
     cp_async_tensor_wait_group,
 )
-from tilus.extensions.hidet.ir.primitives.cuda.integer_intrinsics import popc
-from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
-    mbarrier_arrive_and_expect_tx_shared,
-)
 from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import (
     CUtensorMapType,
     TensorMapDataType,
@@ -60,7 +56,6 @@ from tilus.ir.tensor import GlobalTensor, SharedTensor
 from tilus.ir.utils.lineardec import LinearDecompositionError, decompose_linear
 from tilus.ir.utils.veceval import vectorized_evaluate
 from tilus.target import nvgpu_sm90
-from tilus.utils import prod
 
 
 @dataclass(frozen=True, eq=False)
@@ -311,14 +306,10 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
         src_tensor_map = ~self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
         coords = list(reversed(inst.offsets))
-        transaction_bytes = prod(shared_tensor.shape) * dtype.nbytes
         optional_multicast_mask = inst.multicast_mask
         self.assert_is_single_thread(inst, "TMA global to shared copy without multicast requires a single thread.")
 
         if optional_multicast_mask is None:
-            self.append(
-                mbarrier_arrive_and_expect_tx_shared(mbarrier_addr=inst.mbarrier, transaction_bytes=transaction_bytes)
-            )
             self.append(
                 cp_async_tensor_global_to_shared(
                     dst=shared_addr,
@@ -331,11 +322,6 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
             )
         else:
             multicast_mask: Expr = optional_multicast_mask
-            self.append(
-                mbarrier_arrive_and_expect_tx_shared(
-                    mbarrier_addr=inst.mbarrier, transaction_bytes=popc(multicast_mask) * transaction_bytes
-                )
-            )
             self.append(
                 cp_async_tensor_global_to_cluster_shared(
                     dst=shared_addr,

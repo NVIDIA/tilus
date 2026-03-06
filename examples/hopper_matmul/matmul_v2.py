@@ -54,7 +54,7 @@ class MatmulWGMMAV2(tilus.Script):
         sb = self.shared_tensor(dtype=float16, shape=[self.num_stages, block_n, block_k])
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
-        tma_barriers = self.mbarrier.alloc(count=[2 for _ in range(self.num_stages)])
+        tma_barriers = self.mbarrier.alloc(count=[1 for _ in range(self.num_stages)])
         phase = self.register_tensor(dtype=uint32, shape=[self.num_stages], init=0)
 
         num_iters: int32 = cdiv(k_size, block_k)
@@ -63,6 +63,10 @@ class MatmulWGMMAV2(tilus.Script):
         for stage in range(max_num_stages):
             offset_k = stage * self.block_k
             with self.single_thread():
+                self.mbarrier.arrive_and_expect_tx(
+                    tma_barriers[stage],
+                    transaction_bytes=sa[stage].nbytes + sb[stage].nbytes,
+                )
                 self.tma.global_to_shared(
                     src=ga,
                     dst=sa[stage],
@@ -92,6 +96,11 @@ class MatmulWGMMAV2(tilus.Script):
                 preload_stage = preload_iter % self.num_stages
                 offset_k = preload_iter * self.block_k
                 with self.single_thread():
+                    self.mbarrier.arrive_and_expect_tx(
+                        tma_barriers[preload_stage],
+                        transaction_bytes=sa[preload_stage].nbytes
+                        + sb[preload_stage].nbytes,
+                    )
                     self.tma.global_to_shared(
                         src=ga,
                         dst=sa[preload_stage],

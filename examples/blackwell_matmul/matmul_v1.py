@@ -43,7 +43,7 @@ class BlackwellMatmulV1(tilus.Script):
         )
 
         # allocate barriers
-        tma_barrier, mma_barrier = self.mbarrier.alloc(count=[2, 1]).tolist()
+        tma_barrier, mma_barrier = self.mbarrier.alloc(count=[1, 1]).tolist()
 
         # use a phase to record the current phase of the barrier
         phase: uint32 = 0
@@ -52,6 +52,9 @@ class BlackwellMatmulV1(tilus.Script):
 
         for offset_k in range(0, k_size, self.block_k):
             with self.single_thread():  # we use a single thread to issue the TMA copy
+                self.mbarrier.arrive_and_expect_tx(
+                    tma_barrier, transaction_bytes=s_a.nbytes + s_b.nbytes
+                )
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a,

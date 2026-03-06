@@ -103,39 +103,39 @@ class BarrierInstructionGroup(InstructionGroup):
         else:
             return self._builder.tensor_item_value(tensor)
 
-    def arrive(self, barrier: Expr | RegisterTensor, per_thread_count: Expr | int = 1) -> None:
+    def arrive(self, barrier: Expr | RegisterTensor, count: Expr | int = 1) -> None:
         """Arrive at a barrier.
 
-        This instruction decreases the pending arrivals of given barrier by `per thread count` * `num threads in thread group`.
-        Each thread in the current thread group is assumed to arrive with `per thread count`.
+        Each thread in the current thread group decreases the pending arrivals of the given barrier by `count`.
 
         Parameters
         ----------
         barrier: Expr | RegisterTensor
             The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
             with single element representing the address of the barrier.
-        per_thread_count: Expr | int
-            The number of arrivals contributed by each thread in the current thread group. It must be evaluated to a positive int32.
+        count: Expr | int
+            The number of arrivals contributed by each thread in the current thread group.  It must be evaluated to a positive int32.
             By default, it is 1.
         """
-        self._builder.arrive_barrier(barrier, per_thread_count=per_thread_count)
+        self._builder.arrive_barrier(barrier, count=count)
 
-    def multicast_arrive(self, barrier: Expr | RegisterTensor, per_barrier_count: Expr | int = 1) -> None:
-        """Arrive the barriers in all thread blocks in the cluster.
+    def arrive_and_expect_tx(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int) -> None:
+        """Arrive at a barrier with expected asynchronous memory transactions.
 
-        This instruction decreases the pending arrivals of given barrier by `per barrier count`. It also decreases the mbarriers
-        at other blocks in the cluster by `per barrier count`.
+        Each thread in the current thread group decreases the pending arrivals of the given barrier by 1, and increases
+        the barrier's pending transaction byte count (tx-count) by `transaction_bytes`.
 
         Parameters
         ----------
         barrier: Expr | RegisterTensor
             The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
             with single element representing the address of the barrier.
-        per_barrier_count: Expr | int
-            The number of arrivals contributed by each barrier in the cluster. It must be evaluated to a positive int32.
-            By default, it is 1.
+        transaction_bytes: Expr | int
+            The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to this
+            barrier. The barrier's tx-count will be increased by this value on arrival and decreased as the async
+            transactions complete. It must be evaluated to a non-negative int32.
         """
-        pass
+        self._builder.arrive_expect_tx_barrier(barrier, transaction_bytes=transaction_bytes)
 
     def wait(self, barrier: Expr | RegisterTensor, phase: Expr | RegisterTensor | int) -> None:
         """Wait at a barrier.

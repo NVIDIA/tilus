@@ -54,7 +54,7 @@ class MatmulWGMMAV3(tilus.Script):
         sb = self.shared_tensor(dtype=float16, shape=[self.num_stages, block_n, block_k])
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
-        consumer_barriers = self.mbarrier.alloc(count=[2 for _ in range(self.num_stages)])
+        consumer_barriers = self.mbarrier.alloc(count=[1 for _ in range(self.num_stages)])
         producer_barriers = self.mbarrier.alloc(
             count=[128 for _ in range(self.num_stages)]
         )
@@ -68,6 +68,10 @@ class MatmulWGMMAV3(tilus.Script):
                 self.mbarrier.wait(producer_barriers[stage], phase=producer_phases[stage])
                 producer_phases[stage] ^= 1
                 with self.single_thread():
+                    self.mbarrier.arrive_and_expect_tx(
+                        consumer_barriers[stage],
+                        transaction_bytes=sa[stage].nbytes + sb[stage].nbytes,
+                    )
                     self.tma.global_to_shared(
                         src=ga,
                         dst=sa[stage],

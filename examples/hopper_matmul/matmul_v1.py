@@ -51,12 +51,15 @@ class MatmulWGMMA(tilus.Script):
         sb = self.shared_tensor(dtype=float16, shape=[block_n, block_k])
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
-        tma_barrier = self.mbarrier.alloc(count=[2])
+        tma_barrier = self.mbarrier.alloc(count=[1])
         phase: uint32 = 0
 
         for offset_k in range(0, k_size, block_k):
             # issue asynchronous copy instructions to load tiles of A and B
             with self.single_thread():
+                self.mbarrier.arrive_and_expect_tx(
+                    tma_barrier, transaction_bytes=sa.nbytes + sb.nbytes
+                )
                 self.tma.global_to_shared(
                     src=ga, dst=sa, offsets=[offset_m, offset_k], mbarrier=tma_barrier
                 )

@@ -49,7 +49,7 @@ class BlackwellMatmulV2(tilus.Script):
         )
 
         # allocate barriers
-        tma_barriers = self.mbarrier.alloc(count=[2 for _ in range(self.stages)])
+        tma_barriers = self.mbarrier.alloc(count=[1 for _ in range(self.stages)])
         mma_barrier = self.mbarrier.alloc(count=1)
         tma_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=0)
         mma_phase: uint32 = 0
@@ -57,6 +57,9 @@ class BlackwellMatmulV2(tilus.Script):
         for i in range(self.stages - 1):
             offset_k = i * self.block_k
             with self.single_thread():
+                self.mbarrier.arrive_and_expect_tx(
+                    tma_barriers[i], transaction_bytes=s_a[i].nbytes + s_b[i].nbytes
+                )
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a[i],
@@ -79,6 +82,11 @@ class BlackwellMatmulV2(tilus.Script):
             with self.single_thread():  # we use a single thread to issue the TMA copy
                 # preload
                 preload_offset_k = offset_k + (self.stages - 1) * self.block_k
+                self.mbarrier.arrive_and_expect_tx(
+                    tma_barriers[preload_stage],
+                    transaction_bytes=s_a[preload_stage].nbytes
+                    + s_b[preload_stage].nbytes,
+                )
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a[preload_stage],

@@ -17,12 +17,14 @@ from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
+    mbarrier_arrive_and_expect_tx_shared,
     mbarrier_arrive_shared,
     mbarrier_wait_shared,
 )
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
+    ArriveExpectTxBarrierInst,
     FenceProxyCopyAsync,
     WaitBarrierInst,
 )
@@ -45,7 +47,15 @@ class AllocBarrierInstEmitter(BaseInstEmitter):
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
 class ArriveBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveBarrierInst) -> None:
-        self.append(mbarrier_arrive_shared(inst.barrier, count=inst.per_thread_count))
+        self.append(mbarrier_arrive_shared(inst.barrier, count=inst.count))
+
+
+@register_emitter(ArriveExpectTxBarrierInst, target=nvgpu_sm90)
+class ArriveExpectTxBarrierInstEmitter(BaseInstEmitter):
+    def emit(self, inst: ArriveExpectTxBarrierInst) -> None:
+        self.append(
+            mbarrier_arrive_and_expect_tx_shared(mbarrier_addr=inst.barrier, transaction_bytes=inst.transaction_bytes)
+        )
 
 
 @register_emitter(WaitBarrierInst, target=nvgpu_sm90)
