@@ -50,10 +50,12 @@ class ArriveBarrierInstEmitter(BaseInstEmitter):
         self.append(mbarrier_arrive_shared(inst.barrier, count=inst.count))
 
 
-@register_emitter(ArriveExpectTxBarrierInst, target=nvgpu_sm80)
+@register_emitter(ArriveExpectTxBarrierInst, target=nvgpu_sm90)
 class ArriveExpectTxBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveExpectTxBarrierInst) -> None:
-        self.append(mbarrier_arrive_and_expect_tx_shared(mbarrier_addr=inst.barrier, transaction_bytes=inst.tx_count))
+        self.append(
+            mbarrier_arrive_and_expect_tx_shared(mbarrier_addr=inst.barrier, transaction_bytes=inst.transaction_bytes)
+        )
 
 
 @register_emitter(WaitBarrierInst, target=nvgpu_sm90)

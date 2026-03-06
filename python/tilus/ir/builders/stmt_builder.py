@@ -1243,12 +1243,12 @@ class StmtBuilder(StmtBuilderCore):
         inst = ArriveBarrierInst.create(barrier=barrier, count=count)
         self.append(inst)
 
-    def arrive_expect_tx_barrier(self, barrier: Expr | RegisterTensor, tx_count: Expr | int) -> None:
+    def arrive_expect_tx_barrier(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
-        if isinstance(tx_count, int):
-            tx_count = as_expr(tx_count)
-        inst = ArriveExpectTxBarrierInst.create(barrier=barrier, tx_count=tx_count)
+        if isinstance(transaction_bytes, int):
+            transaction_bytes = as_expr(transaction_bytes)
+        inst = ArriveExpectTxBarrierInst.create(barrier=barrier, transaction_bytes=transaction_bytes)
         self.append(inst)
 
     def wait_barrier(self, barrier: Expr | RegisterTensor, phase: Expr | int | RegisterTensor) -> None:

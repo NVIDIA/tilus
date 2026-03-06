@@ -111,7 +111,7 @@ class LoadWorker(tilus.Class):
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
                         pipe.producer_release_barrier(),
-                        tx_count=s_a[pipe.producer_stage].nbytes
+                        transaction_bytes=s_a[pipe.producer_stage].nbytes
                         + s_b[pipe.producer_stage].nbytes,
                     )
                     self.tma.global_to_shared(

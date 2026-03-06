@@ -70,7 +70,7 @@ class BlackwellMatmulV3(tilus.Script):
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
                         consumer_barriers[stage],
-                        tx_count=s_a[stage].nbytes + s_b[stage].nbytes,
+                        transaction_bytes=s_a[stage].nbytes + s_b[stage].nbytes,
                     )
                     self.tma.global_to_shared(
                         src=g_a,

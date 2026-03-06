@@ -64,7 +64,8 @@ class MatmulWGMMAV2(tilus.Script):
             offset_k = stage * self.block_k
             with self.single_thread():
                 self.mbarrier.arrive_and_expect_tx(
-                    tma_barriers[stage], tx_count=sa[stage].nbytes + sb[stage].nbytes
+                    tma_barriers[stage],
+                    transaction_bytes=sa[stage].nbytes + sb[stage].nbytes,
                 )
                 self.tma.global_to_shared(
                     src=ga,
@@ -97,7 +98,8 @@ class MatmulWGMMAV2(tilus.Script):
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
                         tma_barriers[preload_stage],
-                        tx_count=sa[preload_stage].nbytes + sb[preload_stage].nbytes,
+                        transaction_bytes=sa[preload_stage].nbytes
+                        + sb[preload_stage].nbytes,
                     )
                     self.tma.global_to_shared(
                         src=ga,

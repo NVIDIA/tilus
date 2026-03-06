@@ -53,7 +53,7 @@ class BlackwellMatmulV1(tilus.Script):
         for offset_k in range(0, k_size, self.block_k):
             with self.single_thread():  # we use a single thread to issue the TMA copy
                 self.mbarrier.arrive_and_expect_tx(
-                    tma_barrier, tx_count=s_a.nbytes + s_b.nbytes
+                    tma_barrier, transaction_bytes=s_a.nbytes + s_b.nbytes
                 )
                 self.tma.global_to_shared(
                     src=g_a,

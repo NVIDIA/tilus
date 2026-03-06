@@ -119,22 +119,23 @@ class BarrierInstructionGroup(InstructionGroup):
         """
         self._builder.arrive_barrier(barrier, count=count)
 
-    def arrive_and_expect_tx(self, barrier: Expr | RegisterTensor, tx_count: Expr | int) -> None:
+    def arrive_and_expect_tx(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int) -> None:
         """Arrive at a barrier with expected asynchronous memory transactions.
 
-        Each thread in the current thread group decreases the pending arrivals of the given barrier by 1, and increases the `expect-count` of the barrier by `tx_count`.
+        Each thread in the current thread group decreases the pending arrivals of the given barrier by 1, and increases
+        the barrier's pending transaction byte count (tx-count) by `transaction_bytes`.
 
         Parameters
         ----------
         barrier: Expr | RegisterTensor
-            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor with single element representing the address of the barrier.
-        tx_count: Expr | int
-            The number of asynchronous memory transactions expected to be issued by the threads in the current thread group after arriving at the barrier.
-            It must be evaluated to a non-negative int32. The `expect-count` of the barrier will be increased by this number when the threads arrive at the barrier,
-            and will be decreased by this number when the asynchronous memory transactions complete. Each thread will contribute to the same `tx_count` value,
-            and the total `expect-count` increase will be `tx_count` * number of threads in the thread group.
+            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
+            with single element representing the address of the barrier.
+        transaction_bytes: Expr | int
+            The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to this
+            barrier. The barrier's tx-count will be increased by this value on arrival and decreased as the async
+            transactions complete. It must be evaluated to a non-negative int32.
         """
-        self._builder.arrive_expect_tx_barrier(barrier, tx_count=tx_count)
+        self._builder.arrive_expect_tx_barrier(barrier, transaction_bytes=transaction_bytes)
 
     def wait(self, barrier: Expr | RegisterTensor, phase: Expr | RegisterTensor | int) -> None:
         """Wait at a barrier.

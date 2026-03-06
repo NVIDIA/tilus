@@ -58,7 +58,7 @@ class MatmulTMA(tilus.Script):
             # issue asynchronous copy instructions to load tiles of A and B
             with self.single_thread():
                 self.mbarrier.arrive_and_expect_tx(
-                    tma_barrier, tx_count=sa.nbytes + sb.nbytes
+                    tma_barrier, transaction_bytes=sa.nbytes + sb.nbytes
                 )
                 self.tma.global_to_shared(
                     src=ga, dst=sa, offsets=[offset_m, offset_k], mbarrier=tma_barrier

@@ -35,7 +35,7 @@ class AllocateSharedInstEmitter(BaseInstEmitter):
 
         ctx = self.contexts.smem_alloc_ctx
 
-        allocator_addr = ctx.allocate_shared_tensor(tensor, nbytes=tensor.nbytes)
+        allocator_addr = ctx.allocate_shared_tensor(tensor, nbytes=tensor.storage_nbytes)
         self.tensor2var[tensor] = self.declare_var(
             name="shared",
             tp=tensor_pointer_type(dtype=tensor.dtype, shape=[tensor.size]),

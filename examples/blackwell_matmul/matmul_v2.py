@@ -58,7 +58,7 @@ class BlackwellMatmulV2(tilus.Script):
             offset_k = i * self.block_k
             with self.single_thread():
                 self.mbarrier.arrive_and_expect_tx(
-                    tma_barriers[i], tx_count=s_a[i].nbytes + s_b[i].nbytes
+                    tma_barriers[i], transaction_bytes=s_a[i].nbytes + s_b[i].nbytes
                 )
                 self.tma.global_to_shared(
                     src=g_a,
@@ -84,7 +84,8 @@ class BlackwellMatmulV2(tilus.Script):
                 preload_offset_k = offset_k + (self.stages - 1) * self.block_k
                 self.mbarrier.arrive_and_expect_tx(
                     tma_barriers[preload_stage],
-                    tx_count=s_a[preload_stage].nbytes + s_b[preload_stage].nbytes,
+                    transaction_bytes=s_a[preload_stage].nbytes
+                    + s_b[preload_stage].nbytes,
                 )
                 self.tma.global_to_shared(
                     src=g_a,

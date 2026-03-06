@@ -618,6 +618,17 @@ class SharedTensor(Tensor):
     def nbytes(self) -> int:
         return nbytes_from_nbits(self.size * self.dtype.nbits)
 
+    @property
+    def storage_nbytes(self) -> int:
+        """Get the storage size of the SharedTensor in bytes.
+
+        For non-compact or swizzled layouts, this may be larger than `nbytes`.
+        Falls back to `nbytes` when no layout is defined.
+        """
+        if self.optional_layout is not None:
+            return nbytes_from_nbits(self.optional_layout.count_size() * self.dtype.nbits)
+        return self.nbytes
+
     def has_layout(self) -> bool:
         return self.optional_layout is not None
 

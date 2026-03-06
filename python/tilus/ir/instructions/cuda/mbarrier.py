@@ -47,11 +47,11 @@ class ArriveBarrierInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class ArriveExpectTxBarrierInst(Instruction):
     barrier: Expr
-    tx_count: Expr
+    transaction_bytes: Expr
 
     @staticmethod
-    def create(barrier: Expr, tx_count: Expr) -> ArriveExpectTxBarrierInst:
-        return ArriveExpectTxBarrierInst(output=None, inputs=(), barrier=barrier, tx_count=tx_count)
+    def create(barrier: Expr, transaction_bytes: Expr) -> ArriveExpectTxBarrierInst:
+        return ArriveExpectTxBarrierInst(output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes)
 
 
 @dataclass(frozen=True, eq=False)

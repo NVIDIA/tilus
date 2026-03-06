@@ -63,7 +63,7 @@ class Tcgen05MmaExample(tilus.Script):
 
         # load a and b from global to shared
         with self.single_thread():
-            self.mbarrier.arrive_and_expect_tx(tma_mbarrier, tx_count=s_a.nbytes + s_b.nbytes)
+            self.mbarrier.arrive_and_expect_tx(tma_mbarrier, transaction_bytes=s_a.nbytes + s_b.nbytes)
             self.tma.global_to_shared(
                 src=g_a,
                 dst=s_a,

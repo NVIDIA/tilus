@@ -43,7 +43,7 @@ class CopyAsyncTensorExample(tilus.Script):
         self.sync()
 
         with self.single_thread():
-            self.mbarrier.arrive_and_expect_tx(load_barrier, tx_count=s_x.nbytes)
+            self.mbarrier.arrive_and_expect_tx(load_barrier, transaction_bytes=s_x.nbytes)
             self.tma.global_to_shared(
                 src=g_x,
                 dst=s_x,

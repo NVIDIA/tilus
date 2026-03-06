@@ -70,7 +70,7 @@ class MatmulWGMMAV3(tilus.Script):
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
                         consumer_barriers[stage],
-                        tx_count=sa[stage].nbytes + sb[stage].nbytes,
+                        transaction_bytes=sa[stage].nbytes + sb[stage].nbytes,
                     )
                     self.tma.global_to_shared(
                         src=ga,
