@@ -20,7 +20,7 @@ from typing import Optional, Sequence
 from hidet.ir.expr import Constant, Expr
 from hidet.ir.type import DataType
 
-from tilus.ir.inst import Instruction
+from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor
 
 
@@ -137,23 +137,33 @@ class Tcgen05CommitInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaSSInst(Instruction):
+    cta_group: int
+
     @staticmethod
     def create(
         a: SharedTensor,
         b: SharedTensor,
         d: TMemoryTensor,
+        cta_group: int,
     ) -> Tcgen05MmaSSInst:
+        if cta_group not in (1, 2):
+            raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
         # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.mma)
-        return Tcgen05MmaSSInst(output=None, inputs=(a, b, d))
+        return Tcgen05MmaSSInst(output=None, inputs=(a, b, d), cta_group=cta_group)
 
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaTSInst(Instruction):
+    cta_group: int
+
     @staticmethod
     def create(
         a: TMemoryTensor,
         b: SharedTensor,
         d: TMemoryTensor,
+        cta_group: int,
     ) -> Tcgen05MmaTSInst:
+        if cta_group not in (1, 2):
+            raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
         # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.mma)
-        return Tcgen05MmaTSInst(output=None, inputs=(a, b, d))
+        return Tcgen05MmaTSInst(output=None, inputs=(a, b, d), cta_group=cta_group)

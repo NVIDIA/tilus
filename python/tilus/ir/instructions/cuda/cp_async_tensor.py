@@ -28,6 +28,7 @@ class CopyAsyncTensorGlobalToSharedInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: tuple[int, ...]
     mbarrier: Expr
+    cta_group: int
     multicast_mask: Optional[Expr]
     cache_policy: Optional[Expr]
 
@@ -38,16 +39,19 @@ class CopyAsyncTensorGlobalToSharedInst(Instruction):
         offsets: Sequence[Expr | int],
         dims: Sequence[int],
         mbarrier: Expr,
+        cta_group: int,
         multicast_mask: Optional[Expr] = None,
         cache_policy: Optional[Expr] = None,
     ) -> CopyAsyncTensorGlobalToSharedInst:
         offsets_ = tuple(as_expr(offset) for offset in offsets)
+        assert cta_group in (1, 2), "cta_group must be 1 or 2"
         return CopyAsyncTensorGlobalToSharedInst(
             output=None,
             inputs=(dst, src),
             offsets=offsets_,
-            dims=tuple(dims) if dims else None,
+            dims=tuple(dims),
             mbarrier=mbarrier,
+            cta_group=cta_group,
             multicast_mask=multicast_mask,
             cache_policy=cache_policy,
         )

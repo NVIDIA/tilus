@@ -30,6 +30,7 @@ from .inference_rules.load_shared import (
     LoadSharedInferRowMajorSharedRule,
     LoadSharedInferSwizzledSharedRule,
 )
+from .inference_rules.mapa import MapSharedAddrRule
 from .inference_rules.mbarrier import AllocBarrierRule
 from .inference_rules.mma_dot import MmaDotRule
 from .inference_rules.reduce import ReduceRule
@@ -63,7 +64,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [WhereRule],
     [AssignRule],
     [StoreGlobalRule],
-    [ClusterLaunchControlTryCancelInstRule, ClusterLaunchControlQueryResponseInstRule],
+    [ClusterLaunchControlTryCancelInstRule, ClusterLaunchControlQueryResponseInstRule, MapSharedAddrRule],
     [EmptyRule],
     # shared memory rules
     [LoadSharedInferSwizzledSharedRule, StoreSharedSwizzleRule],

@@ -47,6 +47,7 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorWaitGroupInst,
 )
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
+from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
@@ -687,6 +688,7 @@ class StmtBuilder(StmtBuilderCore):
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         mbarrier: Expr | RegisterTensor,
+        cta_group: int,
         multicast_mask: Optional[Expr | int] = None,
         cache_policy: Optional[Expr] = None,
     ) -> None:
@@ -702,6 +704,7 @@ class StmtBuilder(StmtBuilderCore):
             offsets=offsets,
             dims=dims,
             mbarrier=mbarrier,
+            cta_group=cta_group,
             multicast_mask=multicast_mask,
             cache_policy=cache_policy,
         )
@@ -1282,6 +1285,11 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
+    def map_shared_addr(self, addr: RegisterTensor, target_rank: Expr) -> RegisterTensor:
+        inst = MapSharedAddrInst.create(addr=addr, target_rank=target_rank)
+        self.append(inst)
+        return inst.register_output
+
     # tmem tensor (tcgen05)
     def tcgen05_alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int) -> TMemoryTensor:
         inst = Tcgen05AllocInst.create(dtype=dtype, shape=shape, cta_group=cta_group)
@@ -1352,12 +1360,12 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05CommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
         self.append(inst)
 
-    def tcgen05_mma_ss(self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor) -> None:
-        inst = Tcgen05MmaSSInst.create(a=a, b=b, d=d)
+    def tcgen05_mma_ss(self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor, cta_group: int) -> None:
+        inst = Tcgen05MmaSSInst.create(a=a, b=b, d=d, cta_group=cta_group)
         self.append(inst)
 
-    def tcgen05_mma_ts(self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor) -> None:
-        inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d)
+    def tcgen05_mma_ts(self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor, cta_group: int) -> None:
+        inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d, cta_group=cta_group)
         self.append(inst)
 
     # wgmma
