@@ -20,7 +20,6 @@ from hidet.ir.type import DataType
 
 from tilus.ir.inst import InstructionError
 from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor
-from tilus.utils import is_power_of_two, prod
 
 from .root import InstructionGroup
 
@@ -37,12 +36,6 @@ class Tcgen05InstructionGroup(InstructionGroup):
             raise InstructionError("shape[-2] must be 32, 64, or 128, got {}".format(shape[-2]))
         if 128 % dtype.nbits != 0:
             raise InstructionError("dtype must be 1, 2, 4, 8, 16, 32, 64, or 128 bit, got {}".format(dtype))
-        num_columns = prod(shape[:-2]) * shape[-1] * dtype.nbits // 32
-        if not is_power_of_two(num_columns) or num_columns < 32 or num_columns > 512:
-            raise InstructionError(
-                f"The number of 32-bit columns requested: {num_columns}, "
-                "it must be a power of two and in the range [32, 512]."
-            )
         ret = self._builder.tcgen05_alloc(dtype, shape, cta_group)
         if init is not None:
             # check the thread group is valid to perform initialization
@@ -118,10 +111,10 @@ class Tcgen05InstructionGroup(InstructionGroup):
             raise InstructionError("copy requires a 2D tensor memory tensor, got shape {}".format(dst.shape))
         self._builder.tcgen05_copy(src, dst)
 
-    def commit(self, mbarrier: Expr | RegisterTensor, cta_mask: Optional[int] = None) -> None:
+    def commit(self, mbarrier: Expr | RegisterTensor, cta_group: int = 1, multicast_mask: Optional[int] = None) -> None:
         if self._builder.tg_stack.current_num_threads != 1:
             raise InstructionError("tcgen05.commit must be called by a single thread")
-        self._builder.tcgen05_commit(mbarrier, cta_mask)
+        self._builder.tcgen05_commit(mbarrier, cta_group, multicast_mask)
 
     def mma(self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor, cta_group: int = 1) -> None:
         """

@@ -16,7 +16,6 @@
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
-    Tcgen05CommitMulticastKind,
     Tcgen05CtaGroupKind,
     tcgen05_commit,
 )
@@ -33,8 +32,7 @@ class TMemoryCommitEmitter(BaseInstEmitter):
         self.append(
             tcgen05_commit(
                 mbarrier=inst.mbarrier,
-                cta_mask=inst.cta_mask,
-                cta_group=Tcgen05CtaGroupKind.CTA_1,
-                multicast=Tcgen05CommitMulticastKind.NONE,
+                cta_mask=inst.multicast_mask,
+                cta_group=Tcgen05CtaGroupKind.from_int(inst.cta_group),
             )
         )

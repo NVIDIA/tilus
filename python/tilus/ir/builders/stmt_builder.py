@@ -1354,10 +1354,12 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05CopyInst.create(src=src, dst=dst)
         self.append(inst)
 
-    def tcgen05_commit(self, mbarrier: Expr | RegisterTensor, cta_mask: Optional[int] = None) -> None:
+    def tcgen05_commit(
+        self, mbarrier: Expr | RegisterTensor, cta_group: int, multicast_mask: Optional[int] = None
+    ) -> None:
         if isinstance(mbarrier, RegisterTensor):
             mbarrier = self.tensor_item_value(mbarrier)
-        inst = Tcgen05CommitInst.create(mbarrier=mbarrier, cta_mask=cta_mask)
+        inst = Tcgen05CommitInst.create(mbarrier=mbarrier, cta_group=cta_group, multicast_mask=multicast_mask)
         self.append(inst)
 
     def tcgen05_mma_ss(self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor, cta_group: int) -> None:

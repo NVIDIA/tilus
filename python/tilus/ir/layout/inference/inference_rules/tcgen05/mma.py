@@ -43,11 +43,19 @@ class Tcgen05MmaSSRule(LayoutInferenceRule):
             raise LayoutInferenceError(
                 f"A, B, and D must have 2 dimensions, but got {len(a_shape)}, {len(b_shape)}, and {len(d_shape)}."
             )
-        if a_shape[1] != b_shape[0] or a_shape[0] != d_shape[0] or b_shape[1] != d_shape[1]:
-            raise LayoutInferenceError(
-                f"A, B, and D must have compatible shapes, but got {a_tensor.shape}, {b_tensor.shape}, and {d_tensor.shape}."
-            )
-        m, n, k = d_shape[0], d_shape[1], a_shape[1]
+
+        if inst.cta_group == 1:
+            if a_shape[1] != b_shape[0] or a_shape[0] != d_shape[0] or b_shape[1] != d_shape[1]:
+                raise LayoutInferenceError(
+                    f"A, B, and D must have compatible shapes, but got {a_tensor.shape}, {b_tensor.shape}, and {d_tensor.shape}."
+                )
+        elif inst.cta_group == 2:
+            if a_shape[1] != b_shape[0] or a_shape[0] != d_shape[0] or b_shape[1] * 2 != d_shape[1]:
+                raise LayoutInferenceError(
+                    f"For cta_group=2, A, B, and D must have compatible shapes with B's shape[1] being half of D's shape[1], but got {a_tensor.shape}, {b_tensor.shape}, and {d_tensor.shape}."
+                )
+        else:
+            raise LayoutInferenceError(f"cta_group must be 1 or 2, but got {inst.cta_group}.")
 
         ret = {}
         if not a_tensor.has_layout():
@@ -58,6 +66,7 @@ class Tcgen05MmaSSRule(LayoutInferenceRule):
                 Tcgen05SwizzleMode.NO_SWIZZLE,
             ]:
                 try:
+                    m, k = a_tensor.shape
                     a_layout_canonical = generate_canonical_layout(
                         shape=(m, k), dtype=a_tensor.dtype, major_kind="K", swizzle_mode=swizzle_mode
                     )
@@ -74,6 +83,7 @@ class Tcgen05MmaSSRule(LayoutInferenceRule):
                 Tcgen05SwizzleMode.NO_SWIZZLE,
             ]:
                 try:
+                    k, n = b_tensor.shape
                     b_layout_canonical = generate_canonical_layout(
                         shape=(n, k), dtype=b_tensor.dtype, major_kind="K", swizzle_mode=swizzle_mode
                     )
@@ -102,11 +112,18 @@ class Tcgen05MmaTSRule(LayoutInferenceRule):
             raise LayoutInferenceError(
                 f"A, B, and D must have 2 dimensions, but got {len(a_shape)}, {len(b_shape)}, and {len(d_shape)}."
             )
-        if a_shape[1] != b_shape[0] or a_shape[0] != d_shape[0] or b_shape[1] != d_shape[1]:
-            raise LayoutInferenceError(
-                f"A, B, and D must have compatible shapes, but got {a_tensor.shape}, {b_tensor.shape}, and {d_tensor.shape}."
-            )
-        n, k = d_shape[1], a_shape[1]
+        if inst.cta_group == 1:
+            if a_shape[1] != b_shape[0] or a_shape[0] != d_shape[0] or b_shape[1] != d_shape[1]:
+                raise LayoutInferenceError(
+                    f"A, B, and D must have compatible shapes, but got {a_tensor.shape}, {b_tensor.shape}, and {d_tensor.shape}."
+                )
+        elif inst.cta_group == 2:
+            if a_shape[1] != b_shape[0] or a_shape[0] != d_shape[0] or b_shape[1] * 2 != d_shape[1]:
+                raise LayoutInferenceError(
+                    f"For cta_group=2, A, B, and D must have compatible shapes with B's shape[1] being half of D's shape[1], but got {a_tensor.shape}, {b_tensor.shape}, and {d_tensor.shape}."
+                )
+        else:
+            raise LayoutInferenceError(f"cta_group must be 1 or 2, but got {inst.cta_group}.")
 
         ret = {}
         if not b_tensor.has_layout():
@@ -117,6 +134,7 @@ class Tcgen05MmaTSRule(LayoutInferenceRule):
                 Tcgen05SwizzleMode.NO_SWIZZLE,
             ]:
                 try:
+                    k, n = b_tensor.shape
                     b_layout = (
                         generate_canonical_layout(
                             shape=(n, k), dtype=b_tensor.dtype, major_kind="K", swizzle_mode=swizzle_mode

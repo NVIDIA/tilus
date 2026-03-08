@@ -128,11 +128,15 @@ class Tcgen05CopyInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class Tcgen05CommitInst(Instruction):
     mbarrier: Expr
-    cta_mask: Optional[int]
+    cta_group: int
+    multicast_mask: Optional[int]
 
     @staticmethod
-    def create(mbarrier: Expr, cta_mask: Optional[int] = None) -> Tcgen05CommitInst:
-        return Tcgen05CommitInst(output=None, inputs=(), mbarrier=mbarrier, cta_mask=cta_mask)
+    def create(mbarrier: Expr, cta_group: int, multicast_mask: Optional[int] = None) -> Tcgen05CommitInst:
+        assert cta_group in (1, 2), "cta_group must be 1 or 2, got {}".format(cta_group)
+        return Tcgen05CommitInst(
+            output=None, inputs=(), mbarrier=mbarrier, cta_group=cta_group, multicast_mask=multicast_mask
+        )
 
 
 @dataclass(frozen=True, eq=False)

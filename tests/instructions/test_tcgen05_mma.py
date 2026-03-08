@@ -93,6 +93,115 @@ class Tcgen05MmaExample(tilus.Script):
         self.tcgen05.dealloc(t_d_storage)
 
 
+class Tcgen05Mma2CTAExample(tilus.Script):
+    """
+    The example demonstrates the use of the tcgen05 MMA instruction with 2 CTAs working collaboratively on a single MMA operation.
+
+    cta_group=2:  D = A @ B + D
+
+    Each CTA provides its own slice of A, B, and D.
+    CTA0 = CTA with last bit of cluster rank = 0
+    CTA1 = CTA with last bit of cluster rank = 1
+
+    Input A (M, K)      Input B (K, N)          Output D (M, N)
+    ┌──────────────┐    ┌───────┬───────┐      ┌───────────────┐
+    │              │    │       │       │      │               │
+    │  a0 (M/2, K) │    │  b0   │  b1   │      │  d0 (M/2, N)  │
+    │  [CTA0]      │    │(K,N/2)│(K,N/2)│      │  [CTA0]       │
+    │              │    │[CTA0] │[CTA1] │      │               │
+    ├──────────────┤    │       │       │      ├───────────────┤
+    │              │    │       │       │      │               │
+    │  a1 (M/2, K) │    │       │       │      │  d1 (M/2, N)  │
+    │  [CTA1]      │    │       │       │      │  [CTA1]       │
+    │              │    │       │       │      │               │
+    └──────────────┘    └───────┴───────┘      └───────────────┘
+    """
+
+    def __init__(
+        self,
+        operand_dtype: DataType,
+        accumulator_dtype: DataType,
+        output_dtype: DataType,
+        mma_m: int,
+        mma_n: int,
+        mma_k: int,
+    ):
+        super().__init__()
+        self.operand_dtype = operand_dtype
+        self.accumulator_dtype = accumulator_dtype
+        self.output_dtype = output_dtype
+        self.mma_m = mma_m
+        self.mma_n = mma_n
+        self.mma_k = mma_k
+
+    def __call__(self, a_ptr: void_p, b_ptr: void_p, d_ptr: void_p) -> None:
+        self.attrs.blocks = (2, 1, 1)
+        self.attrs.cluster_blocks = (2, 1, 1)
+        self.attrs.warps = 4
+
+        g_a = self.global_view(a_ptr, dtype=self.operand_dtype, shape=[self.mma_m, self.mma_k])
+        g_b = self.global_view(b_ptr, dtype=self.operand_dtype, shape=[self.mma_n, self.mma_k])
+        g_d = self.global_view(d_ptr, dtype=self.output_dtype, shape=[self.mma_m, self.mma_n])
+
+        s_a = self.shared_tensor(dtype=self.operand_dtype, shape=[self.mma_m // 2, self.mma_k])
+        s_b = self.shared_tensor(dtype=self.operand_dtype, shape=[self.mma_n // 2, self.mma_k])
+        t_d = self.tcgen05.alloc(
+            dtype=self.accumulator_dtype, shape=[self.mma_m // 2, self.mma_n], init=0.0, cta_group=2
+        )
+
+        mbarriers = self.mbarrier.alloc(count=[1, 1])
+        tma_mbarrier = mbarriers[0]
+        mma_mbarrier = mbarriers[1]
+        self.cluster.sync()
+
+        cta_rank = self.cluster.blockRank
+
+        if cta_rank == 0:
+            with self.single_thread():
+                self.mbarrier.arrive_and_expect_tx(tma_mbarrier, transaction_bytes=(s_a.nbytes + s_b.nbytes) * 2)
+        else:
+            tma_mbarrier = self.cluster.map_shared_addr(tma_mbarrier, target_rank=cta_rank - 1)
+
+        # load a and b from global to shared
+        m_offset = self.mma_m // 2 * cta_rank
+        n_offset = self.mma_n // 2 * cta_rank
+        with self.single_thread():
+            self.tma.global_to_shared(
+                src=g_a,
+                dst=s_a,
+                offsets=[m_offset, 0],
+                mbarrier=tma_mbarrier,
+                cta_group=2,
+            )
+            self.tma.global_to_shared(
+                src=g_b,
+                dst=s_b,
+                offsets=[n_offset, 0],
+                mbarrier=tma_mbarrier,
+                cta_group=2,
+            )
+
+        # perform mma
+        if cta_rank == 0:
+            self.mbarrier.wait(tma_mbarrier, phase=0)
+            # self.printf("[CTA%d] finished loading A and B to shared memory.\n", cta_rank)
+            with self.single_thread():
+                self.tcgen05.mma(a=s_a, b=s_b.transpose(), d=t_d, cta_group=2)
+                self.tcgen05.commit(mma_mbarrier, cta_group=2, multicast_mask=0b11)
+            # self.printf("[CTA%d] finished tcgen05 mma and commit.\n", cta_rank)
+        # self.printf("[CTA%d] wait for mma to finish.\n", cta_rank)
+        self.mbarrier.wait(mma_mbarrier, phase=0)
+        # self.printf("[CTA%d] detected mma finish.\n", cta_rank)
+
+        # store d from t_d to global
+        r_d_accumulator = self.tcgen05.load(t_d)
+        r_d_output = self.cast(r_d_accumulator, dtype=self.output_dtype)
+        self.store_global(g_d, r_d_output, offsets=[m_offset, 0])
+
+        # free tensor memory
+        self.tcgen05.dealloc(t_d)
+
+
 @tilus.testing.requires.nvgpu_sm100a
 @pytest.mark.parametrize(
     "operand_dtype, accumulator_dtype, output_dtype, mma_m, mma_n, mma_k",
@@ -113,6 +222,34 @@ def test_tcgen05_mma(operand_dtype, accumulator_dtype, output_dtype, mma_m, mma_
     d = torch.empty(mma_m, mma_n, dtype=dtype_to_torch(output_dtype), device="cuda")
 
     kernel = Tcgen05MmaExample(operand_dtype, accumulator_dtype, output_dtype, mma_m, mma_n, mma_k)
+    kernel(a, b, d)
+    torch.cuda.synchronize()
+
+    expected = torch.matmul(a.to(torch.float32), b.T.to(torch.float32)).to(dtype_to_torch(output_dtype))
+    actual = d
+    torch.testing.assert_close(actual, expected, rtol=1e-2, atol=1e-2)
+
+
+@tilus.testing.requires.nvgpu_sm100a
+@pytest.mark.parametrize(
+    "operand_dtype, accumulator_dtype, output_dtype, mma_m, mma_n, mma_k",
+    [
+        (float16, float32, float16, 256, 16, 16),
+        (float16, float32, float16, 256, 32, 16),
+        (float16, float32, float16, 256, 48, 16),
+        (float16, float32, float16, 256, 64, 16),
+        (float8_e4m3, float32, float16, 256, 16, 32),
+        (float8_e4m3, float32, float16, 256, 32, 32),
+        (float8_e4m3, float32, float16, 256, 48, 32),
+        (float8_e4m3, float32, float16, 256, 64, 32),
+    ],
+)
+def test_tcgen05_mma_2cta(operand_dtype, accumulator_dtype, output_dtype, mma_m, mma_n, mma_k):
+    a = torch.randn(mma_m, mma_k, dtype=torch.float16, device="cuda").to(dtype_to_torch(operand_dtype))
+    b = torch.randn(mma_n, mma_k, dtype=torch.float16, device="cuda").to(dtype_to_torch(operand_dtype))
+    d = torch.empty(mma_m, mma_n, dtype=dtype_to_torch(output_dtype), device="cuda")
+
+    kernel = Tcgen05Mma2CTAExample(operand_dtype, accumulator_dtype, output_dtype, mma_m, mma_n, mma_k)
     kernel(a, b, d)
     torch.cuda.synchronize()
 
