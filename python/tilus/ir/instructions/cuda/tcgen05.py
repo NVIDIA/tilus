@@ -20,7 +20,7 @@ from typing import Optional, Sequence
 from hidet.ir.expr import Constant, Expr
 from hidet.ir.type import DataType
 
-from tilus.ir.inst import Instruction
+from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor
 
 
@@ -128,32 +128,46 @@ class Tcgen05CopyInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class Tcgen05CommitInst(Instruction):
     mbarrier: Expr
-    cta_mask: Optional[int]
+    cta_group: int
+    multicast_mask: Optional[int]
 
     @staticmethod
-    def create(mbarrier: Expr, cta_mask: Optional[int] = None) -> Tcgen05CommitInst:
-        return Tcgen05CommitInst(output=None, inputs=(), mbarrier=mbarrier, cta_mask=cta_mask)
+    def create(mbarrier: Expr, cta_group: int, multicast_mask: Optional[int] = None) -> Tcgen05CommitInst:
+        assert cta_group in (1, 2), "cta_group must be 1 or 2, got {}".format(cta_group)
+        return Tcgen05CommitInst(
+            output=None, inputs=(), mbarrier=mbarrier, cta_group=cta_group, multicast_mask=multicast_mask
+        )
 
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaSSInst(Instruction):
+    cta_group: int
+
     @staticmethod
     def create(
         a: SharedTensor,
         b: SharedTensor,
         d: TMemoryTensor,
+        cta_group: int,
     ) -> Tcgen05MmaSSInst:
+        if cta_group not in (1, 2):
+            raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
         # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.mma)
-        return Tcgen05MmaSSInst(output=None, inputs=(a, b, d))
+        return Tcgen05MmaSSInst(output=None, inputs=(a, b, d), cta_group=cta_group)
 
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaTSInst(Instruction):
+    cta_group: int
+
     @staticmethod
     def create(
         a: TMemoryTensor,
         b: SharedTensor,
         d: TMemoryTensor,
+        cta_group: int,
     ) -> Tcgen05MmaTSInst:
+        if cta_group not in (1, 2):
+            raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
         # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.mma)
-        return Tcgen05MmaTSInst(output=None, inputs=(a, b, d))
+        return Tcgen05MmaTSInst(output=None, inputs=(a, b, d), cta_group=cta_group)

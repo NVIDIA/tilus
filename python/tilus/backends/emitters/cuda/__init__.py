@@ -19,6 +19,7 @@ from . import (
     cp_async_bulk,
     cp_async_tensor,
     ldmatrix,
+    mapa,
     mbarrier,
     mma_dot,
     semaphore,

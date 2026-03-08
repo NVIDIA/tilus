@@ -30,6 +30,7 @@ class TmaInstructionGroup(InstructionGroup):
         offsets: Sequence[Expr | int],
         dims: Optional[Sequence[int]] = None,
         mbarrier: Expr | RegisterTensor,
+        cta_group: int = 1,
         multicast_mask: Optional[Expr | int] = None,
         cache_policy: Optional[Expr] = None,
     ) -> None:
@@ -52,10 +53,21 @@ class TmaInstructionGroup(InstructionGroup):
         This instruction will signal an arrival to the barrier and increase the expect-tx by the number of bytes pending in the copy operation.
         Upon finishing the underlying TMA operation, the TMA engine will signal to reduce the expect-rx by the same number of bytes.
 
-        The `multicast_mask` parameter specifies the multicast mask to be used. When not given, this instruction only
-        copy the data from global memory to the shared memory of the current thread block. If given, it should be a
-        uint16 variable specifying the multicast mask to be used.  When the i-th bit of the mask is set, the data will
-        also be copied to the shared memory of the i-th thread block in the current thread block cluster.
+        The `cta_group` and `multicast_mask` parameters specify whether the loaded data will be multicast to other thread blocks in the same cluster,
+        and how the mbarrier signaling is handled.
+        - When `cta_group == 1` and `multicast_mask == None`, both `dst` and `mbarrier` must be in the current thread block.
+        - When `cta_group == 1` and `multicast_mask != None`, the loaded data will be stored in the thread blocks specified by `multicast_mask`.
+          The same offset of the shared memory as `dst` will be used in those thread blocks.  The `mbarrier` must be in the current thread block.
+        - When `cta_group == 2` and `multicast_mask == None`, The `dst` must be in the current thread block, while the `mbarrier` can be in
+          the current or the peer thread block in the cluster.
+        - When `cta_group == 2` and `multicast_mask != None`, the loaded data will be stored in the thread blocks specified by `multicast_mask`.
+          The same offset of the shared memory as `dst` will be used in those thread blocks. The `mbarrier` can be in the current or the peer
+          thread block. When it is in the current thread block, the mbarrier with the same shared memory offset in thread blocks specified in `multicast_mask`
+          will be signaled. When the `mbarrier` is in the peer thread block, the mbarrier with the same shared memory offset in the peer thread blocks for
+          the thread blocks in `multicast_mask` will be signaled.
+
+        If `multicast_mask` is given, it should be a uint16 variable specifying the multicast mask to be used, where the i-th bit specifying the
+        thread block with rank i.
 
         The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
 
@@ -85,6 +97,7 @@ class TmaInstructionGroup(InstructionGroup):
             offsets=offsets,
             dims=dims,
             mbarrier=mbarrier,
+            cta_group=cta_group,
             multicast_mask=multicast_mask,
             cache_policy=cache_policy,
         )

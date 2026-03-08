@@ -48,6 +48,7 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorSharedToGlobalInst,
 )
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixInst
+from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst, Tcgen05LoadInst, Tcgen05MmaSSInst, Tcgen05StoreInst
 from tilus.ir.instructions.cuda.wgmma import WgmmaMmaRSInst, WgmmaMmaSSInst
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
@@ -73,6 +74,7 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(StoreGlobalGenericInst)  # todo: should have its own rule
 @register_rule(StoreSharedGenericInst)  # todo: should have its own rule
 @register_rule(AllocBarrierInst)  # todo: should have its own rule
+@register_rule(MapSharedAddrInst)
 @register_rule(ClusterLaunchControlTryCancelInst)
 @register_rule(ClusterLaunchControlQueryResponseInst)
 @register_rule(StoreSharedInst)

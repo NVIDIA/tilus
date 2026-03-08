@@ -46,9 +46,17 @@ class Tcgen05AllocDeallocEmitter(BaseInstEmitter):
                 f"shape[-1] * dtype.nbits must be divisible by 32, but got {shape[-1]} * {tmem_tensor.dtype.nbits} = {shape[-1] * tmem_tensor.dtype.nbits}"
             )
         num_columns = prod(shape[:-2]) * shape[-1] * tmem_tensor.dtype.nbits // 32
-        if not (num_columns % 32 == 0 and 32 <= num_columns <= 512):
+
+        # the number of columns must be a power-of-two and in the range [32, 512]
+        # normalize it to be at least 32 and be a power of two
+        if num_columns < 32:
+            num_columns = 32
+        elif not (num_columns & (num_columns - 1) == 0):  # not a power of two
+            # round up to the next power of two
+            num_columns = 1 << (num_columns - 1).bit_length()
+        if num_columns > 512:
             raise ValueError(
-                f"The number of 32-bit columns must be a multiple of 32 and in range [32, 512], but got {num_columns}"
+                f"The number of 32-bit columns requested: {num_columns}, it must be in the range [32, 512]."
             )
         return num_columns
 

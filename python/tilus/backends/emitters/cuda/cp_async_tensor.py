@@ -316,7 +316,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
                     src_tensor_map=src_tensor_map,
                     coords=coords,
                     mbarrier=inst.mbarrier,
-                    cta_group=None,
+                    cta_group=inst.cta_group,
                     cache_policy=inst.cache_policy,
                 )
             )
@@ -329,7 +329,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
                     coords=coords,
                     mbarrier=inst.mbarrier,
                     multicast_mask=multicast_mask,
-                    cta_group=None,
+                    cta_group=inst.cta_group,
                     cache_policy=inst.cache_policy,
                 )
             )

@@ -15,7 +15,7 @@
 from enum import Enum
 from typing import Optional, Sequence, no_type_check
 
-from hidet.ir.dtypes import int32, uint8, uint32, uint64
+from hidet.ir.dtypes import int32, uint8, uint16, uint32, uint64
 from hidet.ir.expr import Expr, as_expr
 from hidet.ir.primitives.func import call_primitive_func
 from hidet.ir.stmt import asm
@@ -260,10 +260,8 @@ def resolve_tcgen05_copy(
     return ret
 
 
-def resolve_tcgen05_commit(
-    cta_group: Tcgen05CtaGroupKind, multicast: Tcgen05CommitMulticastKind, has_mask: bool
-) -> str:
-    ret = "cuda_tcgen05_commit_cta_group" + cta_group.value + multicast.value + ("_mask" if has_mask else "")
+def resolve_tcgen05_commit(cta_group: Tcgen05CtaGroupKind, multicast: Tcgen05CommitMulticastKind) -> str:
+    ret = "cuda_tcgen05_commit_cta_group" + cta_group.value + multicast.value
     ret = ret.replace(".", "_").replace("::", "_")
     return ret
 
@@ -418,17 +416,17 @@ def register_tcgen05_instructions():
             Tcgen05CommitMulticastKind.NONE,
             Tcgen05CommitMulticastKind.CLUSTER,
         ]:
-            for has_mask in [False, True]:
-                template = f"tcgen05.commit{cta_group.value}.mbarrier::arrive::one.shared::cluster{multicast.value}.b64 [%0]{', %1' if has_mask else ''};"
-                cta_mask_type = meta.types(arg_types=[uint32]) if has_mask else meta.types(arg_types=[])
+            has_mask = multicast == Tcgen05CommitMulticastKind.CLUSTER
+            template = f"tcgen05.commit{cta_group.value}.mbarrier::arrive::one.shared::cluster{multicast.value}.b64 [%0]{', %1' if has_mask else ''};"
+            cta_mask_type = meta.types(arg_types=[uint16]) if has_mask else meta.types(arg_types=[])
 
-                @register_primitive_function_decorator
-                @no_type_check
-                @script
-                def tcgen05_commit_(mbarrier: int32, cta_mask: cta_mask_type):
-                    attrs.func_name = resolve_tcgen05_commit(cta_group, multicast, has_mask)
-                    attrs.func_kind = "cuda_internal"
-                    asm(template, inputs=[mbarrier, *cta_mask], is_volatile=True)
+            @register_primitive_function_decorator
+            @no_type_check
+            @script
+            def tcgen05_commit_(mbarrier: int32, cta_mask: cta_mask_type):
+                attrs.func_name = resolve_tcgen05_commit(cta_group, multicast)
+                attrs.func_kind = "cuda_internal"
+                asm(template, inputs=[mbarrier, *cta_mask], is_volatile=True)
 
     # encode_smem_descriptor
     @register_primitive_function_decorator
@@ -601,13 +599,14 @@ def tcgen05_commit(
     mbarrier: Expr,
     cta_mask: Optional[int],
     cta_group: Tcgen05CtaGroupKind,
-    multicast: Tcgen05CommitMulticastKind,
 ) -> Expr:
-    func_name = resolve_tcgen05_commit(cta_group, multicast, cta_mask is not None)
     if cta_mask is None:
         args = [mbarrier]
+        multicast = Tcgen05CommitMulticastKind.NONE
     else:
-        args = [mbarrier, uint32(cta_mask)]
+        args = [mbarrier, uint16(cta_mask)]
+        multicast = Tcgen05CommitMulticastKind.CLUSTER
+    func_name = resolve_tcgen05_commit(cta_group, multicast)
     return call_primitive_func(func_name, args)
 
 

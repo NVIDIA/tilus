@@ -12,27 +12,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
-    Tcgen05CtaGroupKind,
-    tcgen05_commit,
-)
-from tilus.ir.instructions.cuda.tcgen05 import (
-    Tcgen05CommitInst,
-)
-from tilus.target import nvgpu_sm100
+from tilus.extensions.hidet.ir.primitives.cuda.mapa import mapa_shared
+from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 
 
-@register_emitter(Tcgen05CommitInst, target=nvgpu_sm100)
-class TMemoryCommitEmitter(BaseInstEmitter):
-    def emit(self, inst: Tcgen05CommitInst) -> None:
-        assert self.current_num_threads == 1, "tcgen05 commit must be called by a single thread"
-        self.append(
-            tcgen05_commit(
-                mbarrier=inst.mbarrier,
-                cta_mask=inst.multicast_mask,
-                cta_group=Tcgen05CtaGroupKind.from_int(inst.cta_group),
-            )
-        )
+@register_emitter(MapSharedAddrInst)
+class MapSharedAddrEmitter(BaseInstEmitter):
+    def emit(self, inst: MapSharedAddrInst) -> None:
+        addr_tensor = inst.register_input
+        out_tensor = inst.register_output
+        addr_var = self.get_or_allocate_var(addr_tensor)
+        out_var = self.get_or_allocate_var(out_tensor)
+        with self.for_range(addr_tensor.local_size) as i:
+            self.buffer_store(buf=out_var, indices=[i], value=mapa_shared(addr_var[i], inst.target_rank))

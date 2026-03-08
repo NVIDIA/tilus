@@ -203,26 +203,64 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
             )
 
     @staticmethod
-    def get_inst_mnk(mma_kind: Tcgen05MmaKind, m_size: int, n_size: int, k_size: int) -> tuple[int, int, int]:
+    def get_inst_mnk(
+        mma_kind: Tcgen05MmaKind, cta_group: int, m_size: int, n_size: int, k_size: int
+    ) -> tuple[int, int, int]:
         """See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-kind-shapes."""
         if mma_kind == Tcgen05MmaKind.F16:
-            if m_size not in (64, 128):
-                raise CodeGenerationFailed(f"The given m_size is not supported for F16 MMA kind: {m_size}")
-            if n_size % 8 != 0:
-                raise CodeGenerationFailed(f"The given n_size is not supported for F16 MMA kind: {n_size}")
-            inst_m = m_size
-            inst_n = gcd(n_size, 256)
-            inst_k = 16
-            return inst_m, inst_n, inst_k
+            if cta_group == 1:
+                if m_size not in (128,):
+                    raise CodeGenerationFailed(f"The given m_size is not supported for F16 MMA kind: {m_size}")
+                if n_size % 8 != 0:
+                    raise CodeGenerationFailed(f"The given n_size is not supported for F16 MMA kind: {n_size}")
+                inst_m = m_size
+                inst_n = gcd(n_size, 256)
+                inst_k = 16
+                return inst_m, inst_n, inst_k
+            else:
+                if m_size != 256:
+                    raise CodeGenerationFailed(
+                        f"The given m_size is not supported for F16 MMA kind with cta_group=2: {m_size}"
+                    )
+                if n_size % 16 != 0 or n_size < 16 or n_size > 256:
+                    raise CodeGenerationFailed(
+                        f"The given n_size is not supported for F16 MMA kind with cta_group=2: {n_size}"
+                    )
+                if k_size % 16 != 0:
+                    raise CodeGenerationFailed(
+                        f"The given k_size is not supported for F16 MMA kind with cta_group=2: {k_size}"
+                    )
+                inst_m = m_size
+                inst_n = n_size
+                inst_k = 16
+                return inst_m, inst_n, inst_k
         elif mma_kind == Tcgen05MmaKind.F8F6F4:
-            if m_size not in (64, 128):
-                raise CodeGenerationFailed(f"The given m_size is not supported for F8F6F4 MMA kind: {m_size}")
-            if n_size % 8 != 0 or n_size < 8 or n_size > 256:
-                raise CodeGenerationFailed(f"The given n_size is not supported for F8F6F4 MMA kind: {n_size}")
-            inst_m = m_size
-            inst_n = gcd(n_size, 256)
-            inst_k = 32
-            return inst_m, inst_n, inst_k
+            if cta_group == 1:
+                if m_size not in (128,):
+                    raise CodeGenerationFailed(f"The given m_size is not supported for F8F6F4 MMA kind: {m_size}")
+                if n_size % 8 != 0 or n_size < 8 or n_size > 256:
+                    raise CodeGenerationFailed(f"The given n_size is not supported for F8F6F4 MMA kind: {n_size}")
+                inst_m = m_size
+                inst_n = gcd(n_size, 256)
+                inst_k = 32
+                return inst_m, inst_n, inst_k
+            else:
+                if m_size != 256:
+                    raise CodeGenerationFailed(
+                        f"The given m_size is not supported for F8F6F4 MMA kind with cta_group=2: {m_size}"
+                    )
+                if n_size % 16 != 0 or n_size < 16 or n_size > 256:
+                    raise CodeGenerationFailed(
+                        f"The given n_size is not supported for F8F6F4 MMA kind with cta_group=2: {n_size}"
+                    )
+                if k_size % 32 != 0:
+                    raise CodeGenerationFailed(
+                        f"The given k_size is not supported for F8F6F4 MMA kind with cta_group=2: {k_size}"
+                    )
+                inst_m = m_size
+                inst_n = n_size
+                inst_k = 32
+                return inst_m, inst_n, inst_k
         else:
             raise NotImplementedError(f"The given MMA kind is not supported yet: {mma_kind}")
 
@@ -255,15 +293,22 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
         # check the shapes - validation at lang layer ensures 2D, but we also check here for safety
         if len(a_shape) != 2 or len(b_shape) != 2 or len(d_shape) != 2:
             raise ValueError(f"MMA requires 2D tensors, but got shapes: a={a_shape}, b={b_shape}, d={d_shape}")
-        if not (a_shape[0] == d_shape[0] and a_shape[1] == b_shape[0] and b_shape[1] == d_shape[1]):
-            raise ValueError(
-                f"Incompatible shapes for MMA: a={a_shape}, b={b_shape}, d={d_shape}. "
-                f"Expected a[0]==d[0], a[1]==b[0], b[1]==d[1]"
-            )
-        m_size, n_size, k_size = a_shape[0], b_shape[1], a_shape[1]
-        if m_size != 128:
-            raise NotImplementedError("Only support m_size = 128 for now.")
-
+        if inst.cta_group == 1:
+            if not (a_shape[0] == d_shape[0] and a_shape[1] == b_shape[0] and b_shape[1] == d_shape[1]):
+                raise ValueError(
+                    f"Incompatible shapes for MMA: a={a_shape}, b={b_shape}, d={d_shape}. "
+                    f"Expected a[0]==d[0], a[1]==b[0], b[1]==d[1]"
+                )
+            m_size, n_size, k_size = a_shape[0], b_shape[1], a_shape[1]
+        elif inst.cta_group == 2:
+            if not (a_shape[0] == d_shape[0] and a_shape[1] == b_shape[0] and b_shape[1] * 2 == d_shape[1]):
+                raise ValueError(
+                    f"Incompatible shapes for MMA with cta_group=2: a={a_shape}, b={b_shape}, d={d_shape}. "
+                    f"Expected a[0]==d[0], a[1]==b[0], b[1]*2==d[1]"
+                )
+            m_size, n_size, k_size = a_shape[0] * 2, b_shape[1] * 2, a_shape[1]
+        else:
+            raise ValueError(f"Invalid cta_group value: {inst.cta_group}. Expected 1 or 2.")
         # canonicalize the layouts
         a_canonical = canonicalize_shared_layout(a_tensor.layout, dtype=a_tensor.dtype)  # [m, k]
         b_canonical = canonicalize_shared_layout(b_tensor.layout.transpose(), dtype=b_tensor.dtype)  # [n, k]
@@ -286,11 +331,14 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
 
         # get the ptx inst shape
         mma_kind = self.get_mma_kind(a_tensor.dtype, b_tensor.dtype, d_tensor.dtype)
-        inst_m, inst_n, inst_k = self.get_inst_mnk(mma_kind, m_size, n_size, k_size)
+        inst_m, inst_n, inst_k = self.get_inst_mnk(mma_kind, inst.cta_group, m_size, n_size, k_size)
 
         repeat_m = m_size // inst_m
         repeat_n = n_size // inst_n
         repeat_k = k_size // inst_k
+
+        if inst.cta_group == 2:
+            assert repeat_m == 1 and repeat_n == 1
 
         # construct the i_dest
         i_dest = Tcgen05MmaInstDesc.create(
@@ -345,7 +393,7 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
                         a_desc=a_desc,
                         b_desc=b_desc,
                         d_tmem_addr=d_tmem_addr + d_offset,
-                        cta_group=Tcgen05CtaGroupKind.CTA_1,
+                        cta_group=Tcgen05CtaGroupKind.from_int(inst.cta_group),
                         i_desc=i_dest,
                     )
                     inst_meta.emit(self)
