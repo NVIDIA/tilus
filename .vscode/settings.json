@@ -8,6 +8,10 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
+    "python.testing.autoTestDiscoverOnSaveEnabled": false,
     "python.analysis.supportDocstringTemplate": true,
-    "autoDocstring.docstringFormat": "numpy"
+    "autoDocstring.docstringFormat": "numpy",
+    "files.watcherExclude": {
+        "**/cache/**": true
+    },
 }
