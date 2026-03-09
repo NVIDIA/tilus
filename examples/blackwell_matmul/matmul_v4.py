@@ -234,11 +234,9 @@ def main(bench=True):
     rows: list = []
 
     for m_size, n_size, k_size in [
-        # [128, 128, 16 * 6],
-        # [40],
-        # [4096, 4096, 4096],
-        # [4096, 4096, 14336],
-        # [8192, 8192, 8192],
+        [4096, 4096, 4096],
+        [4096, 4096, 14336],
+        [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
