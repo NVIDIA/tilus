@@ -6,11 +6,11 @@ import pandas
 import tilus
 import torch
 from tilus import float16, float32, int32, uint32
-from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor
 from tilus.utils import benchmark_func, cdiv
 
-tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), 'cache'))
+tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
+
 
 class Pipeline(tilus.Class):
     def __init__(
@@ -88,8 +88,12 @@ class LoadPipeline(Pipeline):
         )
         block_m, block_n, block_k = params.block_m, params.block_n, params.block_k
         self.params: Params = params
-        self.s_a = self.shared_tensor(dtype=float16, shape=[num_stages, block_m // 2, block_k])
-        self.s_b = self.shared_tensor(dtype=float16, shape=[num_stages, block_n // 2, block_k])
+        self.s_a = self.shared_tensor(
+            dtype=float16, shape=[num_stages, block_m // 2, block_k]
+        )
+        self.s_b = self.shared_tensor(
+            dtype=float16, shape=[num_stages, block_n // 2, block_k]
+        )
 
 
 class LoadWorker(tilus.Class):
@@ -142,7 +146,10 @@ class MmaWorker(tilus.Class):
         self.pipe: LoadPipeline = pipe
         self.params: Params = params
         self.t_acc = self.tcgen05.alloc(
-            dtype=float32, shape=[params.block_m // 2, params.block_n], init=0.0, cta_group=2
+            dtype=float32,
+            shape=[params.block_m // 2, params.block_n],
+            init=0.0,
+            cta_group=2,
         )
         self.flush_barrier = self.mbarrier.alloc(1)
 
@@ -161,15 +168,23 @@ class MmaWorker(tilus.Class):
                         s_a[pipe.consumer_stage],
                         s_b[pipe.consumer_stage].transpose(),
                         self.t_acc,
-                        cta_group=2
+                        cta_group=2,
                     )
-                    self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier(), cta_group=2, multicast_mask=0b11)
+                    self.tcgen05.commit(
+                        mbarrier=pipe.consumer_release_barrier(),
+                        cta_group=2,
+                        multicast_mask=0b11,
+                    )
                     pipe.consumer_advance()
-                self.tcgen05.commit(mbarrier=self.flush_barrier, cta_group=2, multicast_mask=0b11)
+                self.tcgen05.commit(
+                    mbarrier=self.flush_barrier, cta_group=2, multicast_mask=0b11
+                )
         self.mbarrier.wait(self.flush_barrier, phase=0)
 
 
-@tilus.autotune("block_m, block_n, e_block_n", [[256, 64, 16], [256, 128, 16], [256, 256, 16]])
+@tilus.autotune(
+    "block_m, block_n, e_block_n", [[256, 64, 16], [256, 128, 16], [256, 256, 16]]
+)
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4, 5, 6])
 class BlackwellMatmulV6(tilus.Script):
@@ -180,7 +195,9 @@ class BlackwellMatmulV6(tilus.Script):
     #     stages=5,
     #     e_block_n=16,
     # )
-    def __init__(self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int):
+    def __init__(
+        self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int
+    ):
         super().__init__()
         self.block_m = block_m
         self.block_n = block_n
@@ -202,7 +219,7 @@ class BlackwellMatmulV6(tilus.Script):
         CTA0 = CTA with last bit of cluster rank = 0
         CTA1 = CTA with last bit of cluster rank = 1
 
-                            Input B (K, N) 
+                            Input B (K, N)
                           ┌───────┬───────┐
                           │  b0   │  b1   │
                           │(K,N/2)│(K,N/2)│
@@ -251,13 +268,23 @@ class BlackwellMatmulV6(tilus.Script):
         s_c = self.shared_tensor(dtype=float16, shape=[self.block_m // 2, self.e_block_n])
 
         for e_offset_n in range(0, self.block_n, self.e_block_n):
-            t_acc = self.tcgen05.slice(mma_worker.t_acc, offsets=[0, e_offset_n], shape=[self.block_m // 2, self.e_block_n], dims=[0, 1])
+            t_acc = self.tcgen05.slice(
+                mma_worker.t_acc,
+                offsets=[0, e_offset_n],
+                shape=[self.block_m // 2, self.e_block_n],
+                dims=[0, 1],
+            )
             r_acc = self.tcgen05.load(t_acc)
             self.tcgen05.wait_load()
             self.store_shared(s_c, r_acc.to(float16))
             self.sync()
             with self.single_thread():
-                self.tma.shared_to_global(s_c, params.g_c, offsets=[offset_m, offset_n + e_offset_n], dims=[0, 1])
+                self.tma.shared_to_global(
+                    s_c,
+                    params.g_c,
+                    offsets=[offset_m, offset_n + e_offset_n],
+                    dims=[0, 1],
+                )
                 self.tma.commit_group()
                 self.tma.wait_group(n=0)
             self.sync()
