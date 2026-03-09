@@ -6,7 +6,8 @@ import pandas
 import tilus
 import torch
 from tilus import float16, float32, int32, uint32
-from tilus.ir.tensor import GlobalTensor, RegisterTensor
+from tilus.extensions.hidet.utils.ncu_utils import ncu_run
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), 'cache'))
@@ -85,13 +86,10 @@ class LoadPipeline(Pipeline):
         super().__init__(
             num_stages=num_stages, producer_arrive_count=1, consumer_arrive_count=1
         )
+        block_m, block_n, block_k = params.block_m, params.block_n, params.block_k
         self.params: Params = params
-        self.s_a = self.shared_tensor(
-            dtype=float16, shape=[num_stages, params.block_m, params.block_k]
-        )
-        self.s_b = self.shared_tensor(
-            dtype=float16, shape=[num_stages, params.block_n, params.block_k]
-        )
+        self.s_a = self.shared_tensor(dtype=float16, shape=[num_stages, block_m // 2, block_k])
+        self.s_b = self.shared_tensor(dtype=float16, shape=[num_stages, block_n // 2, block_k])
 
 
 class LoadWorker(tilus.Class):
@@ -101,32 +99,40 @@ class LoadWorker(tilus.Class):
 
     def async_run(self):
         pipe, params = self.pipe, self.params
-        s_a, s_b = pipe.s_a, pipe.s_b
+        s_a: SharedTensor = pipe.s_a
+        s_b: SharedTensor = pipe.s_b
         num_stages: int = pipe.num_stages
-        offset_m = self.blockIdx.x * params.block_m
-        offset_n = self.blockIdx.y * params.block_n
+        k_size, block_k = params.k_size, params.block_k
+        cta_rank = self.cluster.blockRank
+        offset_m = self.blockIdx.x * (params.block_m // 2)
+        offset_n = self.blockIdx.y * params.block_n + cta_rank * (params.block_n // 2)
+
         with self.thread_group(thread_begin=0, num_threads=32):
-            for offset_k in self.range(
-                0, params.k_size, params.block_k, unroll=num_stages
-            ):
+            for offset_k in self.range(0, k_size, block_k, unroll=num_stages):
                 self.pipe.producer_acquire()
+                mbarrier = pipe.producer_release_barrier()
+                if cta_rank == 0:
+                    with self.single_thread():
+                        # the mbarrier on CTA0 will track the completion of both CTAs' loading
+                        transaction_bytes = (s_a[0].nbytes + s_b[0].nbytes) * 2
+                        self.mbarrier.arrive_and_expect_tx(mbarrier, transaction_bytes)
+                else:
+                    # get the mbarrier address in the CTA0 to signal
+                    mbarrier = self.cluster.map_shared_addr(mbarrier, target_rank=0)
                 with self.single_thread():
-                    self.mbarrier.arrive_and_expect_tx(
-                        pipe.producer_release_barrier(),
-                        transaction_bytes=s_a[pipe.producer_stage].nbytes
-                        + s_b[pipe.producer_stage].nbytes,
-                    )
                     self.tma.global_to_shared(
                         src=params.g_a,
                         dst=s_a[pipe.producer_stage],
                         offsets=[offset_m, offset_k],
-                        mbarrier=pipe.producer_release_barrier(),
+                        mbarrier=mbarrier,
+                        cta_group=2,
                     )
                     self.tma.global_to_shared(
                         src=params.g_b,
                         dst=s_b[pipe.producer_stage],
                         offsets=[offset_n, offset_k],
-                        mbarrier=pipe.producer_release_barrier(),
+                        mbarrier=mbarrier,
+                        cta_group=2,
                     )
                 pipe.producer_advance()
 
@@ -136,7 +142,7 @@ class MmaWorker(tilus.Class):
         self.pipe: LoadPipeline = pipe
         self.params: Params = params
         self.t_acc = self.tcgen05.alloc(
-            dtype=float32, shape=[params.block_m, params.block_n], init=0.0
+            dtype=float32, shape=[params.block_m // 2, params.block_n], init=0.0, cta_group=2
         )
         self.flush_barrier = self.mbarrier.alloc(1)
 
@@ -144,35 +150,43 @@ class MmaWorker(tilus.Class):
         pipe = self.pipe
         s_a, s_b = pipe.s_a, pipe.s_b
         num_stages: int = pipe.num_stages
-        with self.thread_group(thread_begin=32, num_threads=32):
-            for offset_k in self.range(
-                0, self.params.k_size, self.params.block_k, unroll=num_stages
-            ):
-                pipe.consumer_acquire()
-                with self.single_thread():
+        cta_rank = self.cluster.blockRank
+        if cta_rank == 0:
+            with self.thread_group(thread_begin=32, num_threads=1):
+                for offset_k in self.range(
+                    0, self.params.k_size, self.params.block_k, unroll=num_stages
+                ):
+                    pipe.consumer_acquire()
                     self.tcgen05.mma(
                         s_a[pipe.consumer_stage],
                         s_b[pipe.consumer_stage].transpose(),
                         self.t_acc,
+                        cta_group=2
                     )
-                    self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier())
-                pipe.consumer_advance()
-
-            with self.single_thread():
-                self.tcgen05.commit(mbarrier=self.flush_barrier)
-            self.mbarrier.wait(self.flush_barrier, phase=0)
+                    self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier(), cta_group=2, multicast_mask=0b11)
+                    pipe.consumer_advance()
+                self.tcgen05.commit(mbarrier=self.flush_barrier, cta_group=2, multicast_mask=0b11)
+        self.mbarrier.wait(self.flush_barrier, phase=0)
 
 
-@tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
+@tilus.autotune("block_m, block_n, epiloge_block_n", [[256, 64, 64], [256, 128, 128], [256, 256, 128]])
 @tilus.autotune("block_k", [16, 32, 64])
-@tilus.autotune("stages", [2, 3, 4])
-class BlackwellMatmulV5(tilus.Script):
-    def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
+@tilus.autotune("stages", [2, 3, 4, 5, 6])
+class BlackwellMatmulV6(tilus.Script):
+    debug_schedule = dict(
+        block_m=256,
+        block_n=256,
+        block_k=64,
+        stages=5,
+        epilogue_block_n=128,
+    )
+    def __init__(self, block_m: int, block_n: int, block_k: int, stages: int, epilogue_block_n: int):
         super().__init__()
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
         self.stages = stages
+        self.epilogue_block_n = epilogue_block_n
 
     def __call__(
         self,
@@ -183,7 +197,28 @@ class BlackwellMatmulV5(tilus.Script):
         b_ptr: ~float16,
         c_ptr: ~float16,
     ):
-        self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
+        """
+        Each CTA provides its own slice of A, B, and D.
+        CTA0 = CTA with last bit of cluster rank = 0
+        CTA1 = CTA with last bit of cluster rank = 1
+
+                            Input B (K, N) 
+                          ┌───────┬───────┐
+                          │  b0   │  b1   │
+                          │(K,N/2)│(K,N/2)│
+                          │[CTA0] │[CTA1] │
+                          └───────┴───────┘
+        ┌──────────────┐  ┌───────────────┐
+        │  a0 (M/2, K) │  │  d0 (M/2, N)  │
+        │  [CTA0]      │  │  [CTA0]       │
+        ├──────────────┤  ├───────────────┤
+        │  a1 (M/2, K) │  │  d1 (M/2, N)  │
+        │  [CTA1]      │  │  [CTA1]       │
+        └──────────────┘  └───────────────┘
+         Input A (M, K)     Output D (M, N)
+        """
+        self.attrs.blocks = [cdiv(m_size, self.block_m) * 2, cdiv(n_size, self.block_n)]
+        self.attrs.cluster_blocks = [2, 1]
         self.attrs.warps = 4
 
         params = Params(
@@ -211,11 +246,14 @@ class BlackwellMatmulV5(tilus.Script):
         self.sync()
 
         # store the result back to global memory
-        offset_m: int32 = self.block_m * self.blockIdx.x
+        offset_m: int32 = (self.block_m // 2) * self.blockIdx.x
         offset_n: int32 = self.block_n * self.blockIdx.y
-        r_acc = self.tcgen05.load(mma_worker.t_acc)
-        self.tcgen05.wait_load()
-        self.store_global(params.g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
+
+        for epilogue_offset_n in range(0, self.block_n, self.epilogue_block_n):
+            t_acc = self.tcgen05.slice(mma_worker.t_acc, offsets=[0, epilogue_offset_n], shape=[self.block_m // 2, self.epilogue_block_n], dims=[0, 1])
+            r_acc = self.tcgen05.load(t_acc)
+            self.tcgen05.wait_load()
+            self.store_global(params.g_c, r_acc.to(float16), offsets=[offset_m, offset_n + epilogue_offset_n])
 
         # all allocated tensor memory must be deallocated
         self.sync()
@@ -223,7 +261,7 @@ class BlackwellMatmulV5(tilus.Script):
 
 
 def main(bench=True):
-    matmul = BlackwellMatmulV5()
+    matmul = BlackwellMatmulV6()
 
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     rows: list = []
@@ -231,9 +269,9 @@ def main(bench=True):
     for m_size, n_size, k_size in [
         # [128, 128, 16 * 6],
         # [40],
-        [4096, 4096, 4096],
-        [4096, 4096, 14336],
-        [8192, 8192, 8192],
+        # [4096, 4096, 4096],
+        # [4096, 4096, 14336],
+        # [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
@@ -262,5 +300,5 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    main(bench=True)
-    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
+    # main(bench=True)
+    ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
