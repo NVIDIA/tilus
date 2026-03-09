@@ -5,6 +5,7 @@ import pandas
 import tilus
 import torch
 from tilus import float16, float32, int32, uint32
+from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 from tilus.ir.tensor import GlobalTensor, RegisterTensor
 from tilus.utils import benchmark_func, cdiv
 
@@ -165,6 +166,12 @@ class MmaWorker(tilus.Class):
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmulV4(tilus.Script):
+    debug_schedule = dict(
+        block_m=128,
+        block_n=256,
+        block_k=64,
+        stages=4
+    )
     def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
         super().__init__()
         self.block_m = block_m
@@ -229,9 +236,9 @@ def main(bench=True):
     for m_size, n_size, k_size in [
         # [128, 128, 16 * 6],
         # [40],
-        [4096, 4096, 4096],
-        [4096, 4096, 14336],
-        [8192, 8192, 8192],
+        # [4096, 4096, 4096],
+        # [4096, 4096, 14336],
+        # [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
@@ -260,5 +267,5 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    main(bench=True)
-    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
+    # main(bench=True)
+    ncu_run(main, bench=False, kernel_regex="hidet|nvjet")

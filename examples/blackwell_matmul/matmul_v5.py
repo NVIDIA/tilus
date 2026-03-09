@@ -6,6 +6,7 @@ import pandas
 import tilus
 import torch
 from tilus import float16, float32, int32, uint32
+from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 from tilus.ir.tensor import GlobalTensor, RegisterTensor
 from tilus.utils import benchmark_func, cdiv
 
@@ -163,16 +164,24 @@ class MmaWorker(tilus.Class):
             self.mbarrier.wait(self.flush_barrier, phase=0)
 
 
-@tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
+@tilus.autotune("block_m, block_n, e_block_n", [[128, 64, 16], [128, 128, 16], [128, 256, 16]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmulV5(tilus.Script):
-    def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
+    debug_schedule = dict(
+        block_m=128,
+        block_n=256,
+        e_block_n=16,
+        block_k=64,
+        stages=4
+    )
+    def __init__(self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int):
         super().__init__()
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
         self.stages = stages
+        self.e_block_n = e_block_n
 
     def __call__(
         self,
@@ -211,11 +220,20 @@ class BlackwellMatmulV5(tilus.Script):
         self.sync()
 
         # store the result back to global memory
+        s_c = self.shared_tensor(dtype=float16, shape=[self.block_m, self.e_block_n])
         offset_m: int32 = self.block_m * self.blockIdx.x
         offset_n: int32 = self.block_n * self.blockIdx.y
-        r_acc = self.tcgen05.load(mma_worker.t_acc)
-        self.tcgen05.wait_load()
-        self.store_global(params.g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
+        for e_offset_n in range(0, self.block_n, self.e_block_n):
+            t_acc = self.tcgen05.slice(mma_worker.t_acc, offsets=[0, e_offset_n], dims=[0, 1], shape=[self.block_m, self.e_block_n])
+            r_acc = self.tcgen05.load(t_acc)
+            self.tcgen05.wait_load()
+            self.store_shared(s_c, r_acc.to(float16))
+            self.sync()
+            with self.single_thread():
+                self.tma.shared_to_global(s_c, params.g_c, offsets=[offset_m, offset_n + e_offset_n], dims=[0, 1])
+                self.tma.commit_group()
+                self.tma.wait_group(n=0)
+            self.sync()
 
         # all allocated tensor memory must be deallocated
         self.sync()
@@ -231,9 +249,9 @@ def main(bench=True):
     for m_size, n_size, k_size in [
         # [128, 128, 16 * 6],
         # [40],
-        [4096, 4096, 4096],
-        [4096, 4096, 14336],
-        [8192, 8192, 8192],
+        # [4096, 4096, 4096],
+        # [4096, 4096, 14336],
+        # [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
@@ -262,5 +280,5 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    main(bench=True)
-    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
+    # main(bench=True)
+    ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
