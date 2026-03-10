@@ -5,7 +5,7 @@ import os
 import pandas
 import tilus
 import torch
-from tilus import float16, float32, int32, uint32
+from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
@@ -48,7 +48,7 @@ class Pipeline(tilus.Class):
 @tilus.autotune("block_n, e_block_n", [[64, 16], [128, 16], [256, 16]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4, 5, 6])
-class BlackwellMatmulV6(tilus.Script):
+class BlackwellMatmulV7(tilus.Script):
     debug_schedule = dict(
         block_m=256,
         block_n=256,
@@ -67,6 +67,14 @@ class BlackwellMatmulV6(tilus.Script):
         self.tma_stages = stages
         self.mma_stages = 1
         self.clc_stages = 1
+    
+    def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
+        pipe.consumer_acquire()
+        response = s_clc_response[pipe.consumer_stage]
+        is_valid, new_blockIdx = self.clc.query_response(response)
+        self.mbarrier.arrive(pipe.consumer_barrier())  
+        pipe.consumer_advance()
+        return is_valid, new_blockIdx
 
     def __call__(
         self,
@@ -99,7 +107,7 @@ class BlackwellMatmulV6(tilus.Script):
         """
         self.attrs.blocks = [cdiv(m_size, self.block_m) * 2, cdiv(n_size, self.block_n)]
         self.attrs.cluster_blocks = [2, 1]
-        self.attrs.warps = 4
+        self.attrs.warps = 8
 
         block_m = self.block_m
         block_n = self.block_n
@@ -157,11 +165,7 @@ class BlackwellMatmulV6(tilus.Script):
                         )
                     tma_pipe.producer_advance()
 
-                clc_pipe.consumer_acquire()
-                response = s_clc_response[clc_pipe.consumer_stage]
-                is_valid, new_blockIdx = self.clc.query_response(response)
-                self.mbarrier.arrive(clc_pipe.consumer_barrier())  
-                clc_pipe.consumer_advance()
+                is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
                 offset_m_a = new_blockIdx.x * (block_m // 2)
@@ -169,29 +173,26 @@ class BlackwellMatmulV6(tilus.Script):
 
         with self.single_warp(1):   # mma worker (smem -> tmem)
             while True:
-                mma_pipe.producer_acquire()
-                for offset_k in self.range(0, k_size, block_k, unroll=mma_stages):
-                    tma_pipe.consumer_acquire()
-                    self.tcgen05.mma(
-                        s_a[tma_pipe.consumer_stage],
-                        s_b[tma_pipe.consumer_stage].transpose(),
-                        t_acc[mma_pipe.producer_stage],
-                        cta_group=2,
-                    )
-                    self.tcgen05.commit(
-                        mbarrier=tma_pipe.consumer_barrier(),
-                        cta_group=2,
-                        multicast_mask=0b11,
-                    )
-                    tma_pipe.consumer_advance()
-                self.tcgen05.commit(mbarrier=mma_pipe.producer_barrier(), cta_group=2, multicast_mask=0b11)
-                mma_pipe.producer_advance()
+                with self.single_thread():
+                    mma_pipe.producer_acquire()
+                    for offset_k in self.range(0, k_size, block_k, unroll=mma_stages):
+                        tma_pipe.consumer_acquire()
+                        self.tcgen05.mma(
+                            s_a[tma_pipe.consumer_stage],
+                            s_b[tma_pipe.consumer_stage].transpose(),
+                            t_acc[mma_pipe.producer_stage],
+                            cta_group=2,
+                        )
+                        self.tcgen05.commit(
+                            mbarrier=tma_pipe.consumer_barrier(),
+                            cta_group=2,
+                            multicast_mask=0b11,
+                        )
+                        tma_pipe.consumer_advance()
+                    self.tcgen05.commit(mbarrier=mma_pipe.producer_barrier(), cta_group=2, multicast_mask=0b11)
+                    mma_pipe.producer_advance()
 
-                clc_pipe.consumer_acquire()
-                response = s_clc_response[clc_pipe.consumer_stage]
-                is_valid, new_blockIdx = self.clc.query_response(response)
-                self.mbarrier.arrive(clc_pipe.consumer_barrier())
-                clc_pipe.consumer_advance()
+                is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
 
@@ -202,11 +203,7 @@ class BlackwellMatmulV6(tilus.Script):
                     self.clc.try_cancel(s_clc_response[clc_pipe.producer_stage], mbarrier=clc_pipe.producer_barrier(), multicast=True)
                 clc_pipe.producer_advance()
 
-                clc_pipe.consumer_acquire() # scheduler is the producer AND consumer
-                response = s_clc_response[clc_pipe.consumer_stage]
-                is_valid, new_blockIdx = self.clc.query_response(response)
-                self.mbarrier.arrive(clc_pipe.consumer_barrier())
-                clc_pipe.consumer_advance()
+                is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
 
@@ -241,11 +238,7 @@ class BlackwellMatmulV6(tilus.Script):
                 self.mbarrier.arrive(mma_pipe.consumer_barrier())
                 mma_pipe.consumer_advance()
 
-                clc_pipe.consumer_acquire()
-                response = s_clc_response[clc_pipe.consumer_stage]
-                is_valid, new_blockIdx = self.clc.query_response(response)
-                self.mbarrier.arrive(clc_pipe.consumer_barrier())
-                clc_pipe.consumer_advance()
+                is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
                 offset_m_c = new_blockIdx.x * (block_m // 2)
@@ -257,15 +250,15 @@ class BlackwellMatmulV6(tilus.Script):
 
 
 def main(bench=True):
-    matmul = BlackwellMatmulV6()
+    matmul = BlackwellMatmulV7()
 
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     rows: list = []
 
     for m_size, n_size, k_size in [
-        [4096, 4096, 4096],
-        [4096, 4096, 14336],
-        [8192, 8192, 8192],
+        # [4096, 4096, 4096],
+        # [4096, 4096, 14336],
+        # [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")

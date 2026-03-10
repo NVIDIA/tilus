@@ -26,7 +26,8 @@ class Tcgen05SliceRule(LayoutInferenceRule):
         tmem = inst.tmemory_output
         if tmem.optional_layout is not None:
             return {}
-        assert inst.tmemory_input.optional_layout is not None, "The input tensor must have a layout."
+        if inst.tmemory_input.optional_layout is None:
+            return {}
         return {
             tmem: tmemory_slice(
                 tmem_layout=inst.tmemory_input.optional_layout,
