@@ -188,13 +188,14 @@ class MmaWorker(tilus.Class):
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4, 5, 6])
 class BlackwellMatmulV6(tilus.Script):
-    # debug_schedule = dict(
-    #     block_m=256,
-    #     block_n=256,
-    #     block_k=64,
-    #     stages=5,
-    #     e_block_n=16,
-    # )
+    debug_schedule = dict(
+        block_m=256,
+        block_n=256,
+        block_k=64,
+        stages=5,
+        e_block_n=16,
+    )
+
     def __init__(
         self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int
     ):
