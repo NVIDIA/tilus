@@ -5,7 +5,7 @@ import os
 import pandas
 import tilus
 import torch
-from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32
+from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32, Dim3
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
@@ -45,9 +45,9 @@ class Pipeline(tilus.Class):
 
 
 @tilus.autotune("block_m", [256])
-@tilus.autotune("block_n, e_block_n", [[64, 16], [128, 16], [256, 16]])
+@tilus.autotune("block_n, e_block_n", [[64, 16], [128, 16], [256, 16], [256, 32]])
 @tilus.autotune("block_k", [16, 32, 64])
-@tilus.autotune("stages", [2, 3, 4, 5, 6])
+@tilus.autotune("stages", [3, 4, 5, 6])
 class BlackwellMatmulV7(tilus.Script):
     debug_schedule = dict(
         block_m=256,
@@ -69,6 +69,7 @@ class BlackwellMatmulV7(tilus.Script):
         self.clc_stages = 1
     
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
+        # return False, self.blockIdx
         pipe.consumer_acquire()
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
@@ -123,7 +124,7 @@ class BlackwellMatmulV7(tilus.Script):
 
         s_a = self.shared_tensor(dtype=float16, shape=[tma_stages, block_m // 2, block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n // 2, block_k])
-        t_acc = self.tcgen05.alloc(dtype=float32, shape=[mma_stages, block_m // 2, block_n], init=0.0, cta_group=2)
+        t_acc = self.tcgen05.alloc(dtype=float32, shape=[mma_stages, block_m // 2, block_n], cta_group=2)
 
         s_clc_response = self.shared_tensor(dtype=int32, shape=[clc_stages, 4])
 
@@ -132,10 +133,12 @@ class BlackwellMatmulV7(tilus.Script):
         clc_pipe = Pipeline(clc_stages, consumer_arrive_count=224)  # 7 warps
 
         cta_rank = self.cluster.blockRank
-        offset_m_a = self.blockIdx.x * (block_m // 2)
-        offset_n_b = self.blockIdx.y * block_n + cta_rank * (block_n // 2)
+
+        self.cluster_sync()
 
         with self.single_warp(0):   # tma worker (gmem -> smem)
+            offset_m_a = self.blockIdx.x * (block_m // 2)
+            offset_n_b = self.blockIdx.y * block_n + cta_rank * (block_n // 2)
             while True:
                 for offset_k in self.range(0, k_size, block_k, unroll=tma_stages):
                     tma_pipe.producer_acquire()
@@ -168,29 +171,31 @@ class BlackwellMatmulV7(tilus.Script):
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
-                offset_m_a = new_blockIdx.x * (block_m // 2)
+                offset_m_a = (new_blockIdx.x + cta_rank) * (block_m // 2)
                 offset_n_b = new_blockIdx.y * block_n + cta_rank * (block_n // 2)
 
         with self.single_warp(1):   # mma worker (smem -> tmem)
             while True:
                 with self.single_thread():
-                    mma_pipe.producer_acquire()
-                    for offset_k in self.range(0, k_size, block_k, unroll=mma_stages):
-                        tma_pipe.consumer_acquire()
-                        self.tcgen05.mma(
-                            s_a[tma_pipe.consumer_stage],
-                            s_b[tma_pipe.consumer_stage].transpose(),
-                            t_acc[mma_pipe.producer_stage],
-                            cta_group=2,
-                        )
-                        self.tcgen05.commit(
-                            mbarrier=tma_pipe.consumer_barrier(),
-                            cta_group=2,
-                            multicast_mask=0b11,
-                        )
-                        tma_pipe.consumer_advance()
-                    self.tcgen05.commit(mbarrier=mma_pipe.producer_barrier(), cta_group=2, multicast_mask=0b11)
-                    mma_pipe.producer_advance()
+                    if cta_rank == 0:
+                        mma_pipe.producer_acquire()
+                        for offset_k in self.range(0, k_size, block_k, unroll=mma_stages):
+                            tma_pipe.consumer_acquire()
+                            self.tcgen05.mma(
+                                s_a[tma_pipe.consumer_stage],
+                                s_b[tma_pipe.consumer_stage].transpose(),
+                                t_acc[mma_pipe.producer_stage],
+                                enable_input_d=offset_k != 0,
+                                cta_group=2,
+                            )
+                            self.tcgen05.commit(
+                                mbarrier=tma_pipe.consumer_barrier(),
+                                cta_group=2,
+                                multicast_mask=0b11,
+                            )
+                            tma_pipe.consumer_advance()
+                        self.tcgen05.commit(mbarrier=mma_pipe.producer_barrier(), cta_group=2, multicast_mask=0b11)
+                        mma_pipe.producer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
@@ -235,13 +240,22 @@ class BlackwellMatmulV7(tilus.Script):
                         self.tma.commit_group()
                         self.tma.wait_group(n=0)
                     self.sync()
+                    # self.tcgen05.store(
+                    #     t_acc_slice,
+                    #     src=self.register_tensor(
+                    #         dtype=float32, shape=[block_m // 2, e_block_n], init=0.0
+                    #     ),
+                    # )
+                    # self.tcgen05.wait_store()
+                    # self.sync()
+
                 self.mbarrier.arrive(mma_pipe.consumer_barrier())
                 mma_pipe.consumer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
-                offset_m_c = new_blockIdx.x * (block_m // 2)
+                offset_m_c = (new_blockIdx.x + cta_rank) * (block_m // 2)
                 offset_n_c = new_blockIdx.y * block_n
 
         # all allocated tensor memory must be deallocated
@@ -264,11 +278,34 @@ def main(bench=True):
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
         b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
+        # a = torch.randint(0, 2, size=(m_size, k_size), dtype=torch.float16, device="cuda")
+        # b = torch.randint(0, 2, size=(n_size, k_size), dtype=torch.float16, device="cuda")
+        # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
+        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
         c_actual = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
         c_expected = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
+        torch.cuda.synchronize()
         matmul(m_size, n_size, k_size, a, b, c_actual)
+        torch.cuda.synchronize()
+
         torch.matmul(a, b.T, out=c_expected)
+        torch.cuda.synchronize()
+        print(c_expected)
+        print(c_actual)
+
+        # if not torch.allclose(c_actual, c_expected, atol=1e-2, rtol=1e-2):
+        #     block_m = 256
+        #     block_n = 256
+        #     # print the index of the blocks that mismatch
+        #     for bm in range(0, m_size, block_m):
+        #         for bn in range(0, n_size, block_n):
+        #             tile = c_actual[bm:bm+block_m, bn:bn+block_n]
+        #             tile_ref = c_expected[bm:bm+block_m, bn:bn+block_n]
+        #             if not torch.allclose(tile, tile_ref, atol=1e-2, rtol=1e-2):
+        #                 max_diff = (tile - tile_ref).abs().max().item()
+        #                 print(f"  MISMATCH block M[{bm}:{bm+block_m}] N[{bn}:{bn+block_n}] max_diff={max_diff:.2f}")
+
         torch.testing.assert_close(c_actual, c_expected, atol=1e-2, rtol=1e-2)
 
         # benchmark
@@ -287,5 +324,6 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    main(bench=True)
+    # main(bench=True)
+    main(bench=False)
     # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")

@@ -1362,12 +1362,12 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05CommitInst.create(mbarrier=mbarrier, cta_group=cta_group, multicast_mask=multicast_mask)
         self.append(inst)
 
-    def tcgen05_mma_ss(self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor, cta_group: int) -> None:
-        inst = Tcgen05MmaSSInst.create(a=a, b=b, d=d, cta_group=cta_group)
+    def tcgen05_mma_ss(self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr, cta_group: int) -> None:
+        inst = Tcgen05MmaSSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d, cta_group=cta_group)
         self.append(inst)
 
-    def tcgen05_mma_ts(self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor, cta_group: int) -> None:
-        inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d, cta_group=cta_group)
+    def tcgen05_mma_ts(self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr, cta_group: int) -> None:
+        inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d, cta_group=cta_group)
         self.append(inst)
 
     # wgmma

@@ -141,6 +141,7 @@ class Tcgen05CommitInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaSSInst(Instruction):
+    enable_input_d: Expr
     cta_group: int
 
     @staticmethod
@@ -148,16 +149,18 @@ class Tcgen05MmaSSInst(Instruction):
         a: SharedTensor,
         b: SharedTensor,
         d: TMemoryTensor,
+        enable_input_d: Expr,
         cta_group: int,
     ) -> Tcgen05MmaSSInst:
         if cta_group not in (1, 2):
             raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
         # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.mma)
-        return Tcgen05MmaSSInst(output=None, inputs=(a, b, d), cta_group=cta_group)
+        return Tcgen05MmaSSInst(output=None, inputs=(a, b, d), enable_input_d=enable_input_d, cta_group=cta_group)
 
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05MmaTSInst(Instruction):
+    enable_input_d: Expr
     cta_group: int
 
     @staticmethod
@@ -165,9 +168,10 @@ class Tcgen05MmaTSInst(Instruction):
         a: TMemoryTensor,
         b: SharedTensor,
         d: TMemoryTensor,
+        enable_input_d: Expr,
         cta_group: int,
     ) -> Tcgen05MmaTSInst:
         if cta_group not in (1, 2):
             raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
         # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.mma)
-        return Tcgen05MmaTSInst(output=None, inputs=(a, b, d), cta_group=cta_group)
+        return Tcgen05MmaTSInst(output=None, inputs=(a, b, d), enable_input_d=enable_input_d, cta_group=cta_group)

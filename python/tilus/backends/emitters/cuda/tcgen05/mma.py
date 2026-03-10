@@ -160,6 +160,7 @@ class Tcgen05MmaSSInstMeta:
     a_desc: SharedMatrixDescriptor
     b_desc: SharedMatrixDescriptor
     d_tmem_addr: Expr
+    enable_input_d: Expr
     cta_group: Tcgen05CtaGroupKind
     i_desc: Tcgen05MmaInstDesc
 
@@ -175,7 +176,7 @@ class Tcgen05MmaSSInstMeta:
                     a_desc=a_desc,
                     b_desc=b_desc,
                     i_desc=i_desc,
-                    enable_input_d=True,
+                    enable_input_d=self.enable_input_d,
                     cta_group=self.cta_group,
                     mma_kind=self.kind,
                 )
@@ -393,6 +394,7 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
                         a_desc=a_desc,
                         b_desc=b_desc,
                         d_tmem_addr=d_tmem_addr + d_offset,
+                        enable_input_d=inst.enable_input_d,
                         cta_group=Tcgen05CtaGroupKind.from_int(inst.cta_group),
                         i_desc=i_dest,
                     )
