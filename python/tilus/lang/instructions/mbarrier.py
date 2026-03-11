@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import typing
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Literal
 
 from hidet.ir.expr import Expr, as_expr
 
@@ -103,7 +103,7 @@ class BarrierInstructionGroup(InstructionGroup):
         else:
             return self._builder.tensor_item_value(tensor)
 
-    def arrive(self, barrier: Expr | RegisterTensor, count: Expr | int = 1) -> None:
+    def arrive(self, barrier: Expr | RegisterTensor, count: Expr | int = 1, scope: Literal['cta', 'cluster'] = 'cta') -> None:
         """Arrive at a barrier.
 
         Each thread in the current thread group decreases the pending arrivals of the given barrier by `count`.
@@ -116,10 +116,13 @@ class BarrierInstructionGroup(InstructionGroup):
         count: Expr | int
             The number of arrivals contributed by each thread in the current thread group.  It must be evaluated to a positive int32.
             By default, it is 1.
+        scope: Literal['cta', 'cluster']
+            The scope of the barrier. When the barrier is in the local CTA, the scope should be 'cta'. If the mbarrier
+            is in another CTA in the cluster, the scope should be 'cluster'.
         """
-        self._builder.arrive_barrier(barrier, count=count)
+        self._builder.arrive_barrier(barrier, count=count, scope=scope)
 
-    def arrive_and_expect_tx(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int) -> None:
+    def arrive_and_expect_tx(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int, scope: Literal['cta', 'cluster'] = 'cta') -> None:
         """Arrive at a barrier with expected asynchronous memory transactions.
 
         Each thread in the current thread group decreases the pending arrivals of the given barrier by 1, and increases
@@ -134,10 +137,13 @@ class BarrierInstructionGroup(InstructionGroup):
             The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to this
             barrier. The barrier's tx-count will be increased by this value on arrival and decreased as the async
             transactions complete. It must be evaluated to a non-negative int32.
+        scope: Literal['cta', 'cluster']
+            The scope of the barrier. When the barrier is in the local CTA, the scope should be 'cta'. If the mbarrier
+            is in another CTA in the cluster, the scope should be 'cluster'.
         """
-        self._builder.arrive_expect_tx_barrier(barrier, transaction_bytes=transaction_bytes)
+        self._builder.arrive_expect_tx_barrier(barrier, transaction_bytes=transaction_bytes, scope=scope)
 
-    def wait(self, barrier: Expr | RegisterTensor, phase: Expr | RegisterTensor | int) -> None:
+    def wait(self, barrier: Expr | RegisterTensor, phase: Expr | RegisterTensor | int, scope: Literal['cta', 'cluster'] = 'cta') -> None:
         """Wait at a barrier.
 
         This instruction makes the threads in the current thread group wait at the specified barrier until the pending
@@ -158,5 +164,8 @@ class BarrierInstructionGroup(InstructionGroup):
         phase: Expr | RegisterTensor | int
             The phase value to wait for. It must be evaluated to either 0 or 1. It can also be a register tensor with single
             element representing the phase value.
+        scope: Literal['cta', 'cluster']
+            The scope of the wait operation. When there are other CTAs in the cluster arriving the given mbarrier on the current CTA,
+            the scope should be 'cluster'. When all arriving operations happens in the current CTA, the scope should be 'cta'.
         """
-        self._builder.wait_barrier(barrier, phase)
+        self._builder.wait_barrier(barrier, phase, scope=scope)

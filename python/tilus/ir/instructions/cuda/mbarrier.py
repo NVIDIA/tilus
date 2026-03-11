@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Sequence, Literal
 
 from hidet import uint32
 from hidet.ir.expr import Expr
@@ -38,30 +38,33 @@ class AllocBarrierInst(Instruction):
 class ArriveBarrierInst(Instruction):
     barrier: Expr
     count: Expr
+    scope: Literal['cta', 'cluster']
 
     @staticmethod
-    def create(barrier: Expr, count: Expr) -> ArriveBarrierInst:
-        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier, count=count)
+    def create(barrier: Expr, count: Expr, scope: Literal['cta', 'cluster']) -> ArriveBarrierInst:
+        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier, count=count, scope=scope)
 
 
 @dataclass(frozen=True, eq=False)
 class ArriveExpectTxBarrierInst(Instruction):
     barrier: Expr
     transaction_bytes: Expr
+    scope: Literal['cta', 'cluster']
 
     @staticmethod
-    def create(barrier: Expr, transaction_bytes: Expr) -> ArriveExpectTxBarrierInst:
-        return ArriveExpectTxBarrierInst(output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes)
+    def create(barrier: Expr, transaction_bytes: Expr, scope: Literal['cta', 'cluster']) -> ArriveExpectTxBarrierInst:
+        return ArriveExpectTxBarrierInst(output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, scope=scope)
 
 
 @dataclass(frozen=True, eq=False)
 class WaitBarrierInst(Instruction):
     barrier: Expr
     phase: Expr
+    scope: Literal['cta', 'cluster']
 
     @staticmethod
-    def create(barrier: Expr, phase: Expr) -> WaitBarrierInst:
-        return WaitBarrierInst(output=None, inputs=(), barrier=barrier, phase=phase)
+    def create(barrier: Expr, phase: Expr, scope: Literal['cta', 'cluster']) -> WaitBarrierInst:
+        return WaitBarrierInst(output=None, inputs=(), barrier=barrier, phase=phase, scope=scope)
 
 
 @dataclass(frozen=True, eq=False)

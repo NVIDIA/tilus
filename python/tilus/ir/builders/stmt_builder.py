@@ -14,7 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Sequence, Type, Union
+from typing import Callable, List, Optional, Sequence, Type, Union, Literal
 
 from hidet.ir import primitives
 from hidet.ir.dtypes import boolean, int32, uint16, uint32
@@ -1238,23 +1238,23 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
-    def arrive_barrier(self, barrier: Expr | RegisterTensor, count: Expr | int) -> None:
+    def arrive_barrier(self, barrier: Expr | RegisterTensor, count: Expr | int, scope: Literal['cta', 'cluster']) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
         if isinstance(count, int):
             count = as_expr(count)
-        inst = ArriveBarrierInst.create(barrier=barrier, count=count)
+        inst = ArriveBarrierInst.create(barrier=barrier, count=count, scope=scope)
         self.append(inst)
 
-    def arrive_expect_tx_barrier(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int) -> None:
+    def arrive_expect_tx_barrier(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int, scope: Literal['cta', 'cluster']) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
         if isinstance(transaction_bytes, int):
             transaction_bytes = as_expr(transaction_bytes)
-        inst = ArriveExpectTxBarrierInst.create(barrier=barrier, transaction_bytes=transaction_bytes)
+        inst = ArriveExpectTxBarrierInst.create(barrier=barrier, transaction_bytes=transaction_bytes, scope=scope)
         self.append(inst)
 
-    def wait_barrier(self, barrier: Expr | RegisterTensor, phase: Expr | int | RegisterTensor) -> None:
+    def wait_barrier(self, barrier: Expr | RegisterTensor, phase: Expr | int | RegisterTensor, scope: Literal['cta', 'cluster']) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
         if isinstance(phase, RegisterTensor):
@@ -1262,7 +1262,7 @@ class StmtBuilder(StmtBuilderCore):
         elif isinstance(phase, int):
             phase = uint32(phase)
         assert isinstance(phase, Expr)
-        inst = WaitBarrierInst.create(barrier=barrier, phase=phase)
+        inst = WaitBarrierInst.create(barrier=barrier, phase=phase, scope=scope)
         self.append(inst)
 
     def fence_proxy_copy_async(self):

@@ -31,37 +31,14 @@ from tilus.ir.tensor import SharedTensor
 class ClusterLaunchControlTryCancelEmitter(BaseInstEmitter):
     def emit(self, inst: ClusterLaunchControlTryCancelInst) -> None:
         response: SharedTensor = inst.shared_input
-        if not inst.multicast:
-            with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
-                self.append(mbarrier_arrive_and_expect_tx_shared(inst.mbarrier, transaction_bytes=16))
-                self.append(
-                    cluster_launch_control_try_cancel(
-                        mbarrier=inst.mbarrier,
-                        response=self.shared_tensor_shared_space_addr[response],
-                        multicast=inst.multicast,
-                    )
-                )
-        else:
-            if self.current_num_threads < 32:
-                raise ValueError(
-                    "Cluster launch control multicast arrive requires at least 32 threads in the current thread group."
-                )
+        with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
             self.append(
-                mbarrier_arrive_and_expect_tx_remote_shared(
-                    inst.mbarrier,
-                    transaction_bytes=16,
-                    cta_id=self.current_thread,
-                    pred=self.current_thread < self.blocks_per_cluster,
+                cluster_launch_control_try_cancel(
+                    mbarrier=inst.mbarrier,
+                    response=self.shared_tensor_shared_space_addr[response],
+                    multicast=inst.multicast,
                 )
             )
-            with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
-                self.append(
-                    cluster_launch_control_try_cancel(
-                        mbarrier=inst.mbarrier,
-                        response=self.shared_tensor_shared_space_addr[response],
-                        multicast=inst.multicast,
-                    )
-                )
 
 
 @register_emitter(ClusterLaunchControlQueryResponseInst)

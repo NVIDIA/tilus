@@ -23,8 +23,8 @@ class Pipeline(tilus.Class):
         self.producer_phase: uint32 = self.mbarrier.producer_initial_phase
         self.consumer_phase: uint32 = self.mbarrier.consumer_initial_phase
 
-    def producer_acquire(self):
-        self.mbarrier.wait(barrier=self.empty_barriers[self.producer_stage], phase=self.producer_phase)
+    def producer_acquire(self, scope='cta'):
+        self.mbarrier.wait(barrier=self.empty_barriers[self.producer_stage], phase=self.producer_phase, scope=scope)
 
     def producer_barrier(self) -> RegisterTensor:
         return self.full_barriers[self.producer_stage]
@@ -33,8 +33,8 @@ class Pipeline(tilus.Class):
         self.producer_stage = (self.producer_stage + 1) % self.num_stages
         self.producer_phase = self.producer_phase ^ (self.producer_stage == 0)
 
-    def consumer_acquire(self):
-        self.mbarrier.wait(barrier=self.full_barriers[self.consumer_stage], phase=self.consumer_phase)
+    def consumer_acquire(self, scope='cta'):
+        self.mbarrier.wait(barrier=self.full_barriers[self.consumer_stage], phase=self.consumer_phase, scope=scope)
 
     def consumer_barrier(self) -> RegisterTensor:
         return self.empty_barriers[self.consumer_stage]
@@ -70,10 +70,15 @@ class BlackwellMatmulV7(tilus.Script):
     
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
         # return False, self.blockIdx
+        cta_rank = self.cluster.blockRank
         pipe.consumer_acquire()
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
-        self.mbarrier.arrive(pipe.consumer_barrier())  
+        if cta_rank == 0:
+            self.mbarrier.arrive(pipe.consumer_barrier())  
+        else:
+            mbarrier = self.cluster.map_shared_addr(pipe.consumer_barrier(), target_rank=0)
+            self.mbarrier.arrive(mbarrier, scope='cluster')  
         pipe.consumer_advance()
         return is_valid, new_blockIdx
 
@@ -130,7 +135,7 @@ class BlackwellMatmulV7(tilus.Script):
 
         tma_pipe = Pipeline(tma_stages)
         mma_pipe = Pipeline(mma_stages, consumer_arrive_count=128)  # 4 warps (epilogue warps)
-        clc_pipe = Pipeline(clc_stages, consumer_arrive_count=224)  # 7 warps
+        clc_pipe = Pipeline(clc_stages, consumer_arrive_count=224 * 2)  # 7 warps * 2 blocks
 
         cta_rank = self.cluster.blockRank
 
@@ -203,10 +208,14 @@ class BlackwellMatmulV7(tilus.Script):
 
         with self.single_warp(2):   # scheduler
             while True:
-                clc_pipe.producer_acquire()
                 if cta_rank == 0:
-                    self.clc.try_cancel(s_clc_response[clc_pipe.producer_stage], mbarrier=clc_pipe.producer_barrier(), multicast=True)
-                clc_pipe.producer_advance()
+                    clc_pipe.producer_acquire(scope='cluster')
+                    with self.single_thread():
+                        self.mbarrier.arrive_and_expect_tx(clc_pipe.producer_barrier(), transaction_bytes=16)
+                        peer_mbarrier = self.cluster.map_shared_addr(clc_pipe.producer_barrier(), target_rank=1)
+                        self.mbarrier.arrive_and_expect_tx(peer_mbarrier, transaction_bytes=16, scope='cluster')
+                        self.clc.try_cancel(s_clc_response[clc_pipe.producer_stage], mbarrier=clc_pipe.producer_barrier(), multicast=True)
+                    clc_pipe.producer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
