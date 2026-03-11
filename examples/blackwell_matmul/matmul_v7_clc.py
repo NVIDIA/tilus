@@ -95,7 +95,7 @@ class MmaPipeline(tilus.Pipeline):
             consumer_arrive_count=128,  # epilogue has 128 threads
         )
         self.t_acc: TMemoryTensor = self.tcgen05.alloc(
-            float32, shape=[num_stages, params.block_m, params.block_n], init=0.0
+            float32, shape=[num_stages, params.block_m, params.block_n]
         )
 
     def finalize(self):
@@ -173,7 +173,7 @@ class MmaWorker(tilus.Class):
         with self.thread_group(thread_begin=64, num_threads=32):
             while True:
                 mma_pipe.producer_acquire()
-                for _ in self.range(
+                for offset_k in self.range(
                     0, params.k_size, params.block_k, unroll=load_pipe.num_stages
                 ):
                     load_pipe.consumer_acquire()
@@ -182,6 +182,7 @@ class MmaWorker(tilus.Class):
                             load_pipe.s_a[load_pipe.consumer_stage],
                             load_pipe.s_b[load_pipe.consumer_stage].transpose(),
                             mma_pipe.t_acc[mma_pipe.producer_stage],
+                            enable_input_d=offset_k != 0,
                         )
                         self.tcgen05.commit(mbarrier=load_pipe.consumer_release_barrier())
                     load_pipe.consumer_advance()

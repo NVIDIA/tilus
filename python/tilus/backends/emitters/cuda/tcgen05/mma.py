@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from hidet.ir.dtypes import bfloat16, float16, float32, int8, int32, tfloat32, uint8, uint32, uint64
-from hidet.ir.expr import Expr, Var, as_expr
+from hidet.ir.expr import Expr, Var, as_expr, logical_or
 from hidet.ir.type import DataType
 
 from tilus.backends.codegen import CodeGenerationFailed
@@ -394,7 +394,7 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
                         a_desc=a_desc,
                         b_desc=b_desc,
                         d_tmem_addr=d_tmem_addr + d_offset,
-                        enable_input_d=inst.enable_input_d,
+                        enable_input_d=logical_or(inst.enable_input_d, k != 0),
                         cta_group=Tcgen05CtaGroupKind.from_int(inst.cta_group),
                         i_desc=i_dest,
                     )
