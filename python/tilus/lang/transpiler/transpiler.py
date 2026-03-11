@@ -20,7 +20,7 @@ import inspect
 import math
 import operator
 import types
-from typing import Any, Callable, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Type, Union, Literal, get_origin
 
 from hidet import ir as hidet_ir
 from hidet.ir.expr import Constant, Var, as_expr
@@ -309,7 +309,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                             )
                         var = self.declare(type=annotation, init=as_expr(arg))
                         self.bind(param_name, var)
-                    elif annotation in [bool, int, float]:
+                    elif annotation in [bool, int, float, str]:
                         # python built-in constants are passed by value, but we don't need to declare a variable for them
                         # since they are immutable
                         if not isinstance(arg, Constant) and not isinstance(arg, annotation):

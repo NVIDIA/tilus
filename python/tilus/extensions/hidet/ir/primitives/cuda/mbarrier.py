@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=cell-var-from-loop
 from typing import Union, no_type_check
 
 from hidet.ir.dtypes import boolean
@@ -20,6 +21,18 @@ from hidet.ir.primitives.func import call_primitive_func, register_primitive_fun
 from hidet.ir.stmt import asm
 from hidet.lang import attrs, script, u32
 from hidet.utils import initialize
+
+
+def resolve_mbarrier_arrive_name(sem: str, scope: str) -> str:
+    return "cuda_mbarrier_arrive_{}_{}".format(sem, scope)
+
+
+def resolve_mbarrier_arrive_expect_tx_name(sem: str, scope: str) -> str:
+    return "cuda_mbarrier_arrive_expect_tx_{}_{}".format(sem, scope)
+
+
+def resolve_mbarrier_wait_name(sem: str, scope: str) -> str:
+    return "cuda_mbarrier_wait_{}_{}".format(sem, scope)
 
 
 @initialize()
@@ -35,6 +48,63 @@ def register_mbarrier_primitives():
             memory_fence=True,
         )
 
+    # mbarrier.arrive.{sem}.{scope}.shared::cta.b64
+    for sem in ["release", "relaxed"]:
+        for scope in ["cta", "cluster"]:
+            func_name = resolve_mbarrier_arrive_name(sem, scope)
+            inst = "mbarrier.arrive.{}.{}.shared::cta.b64".format(sem, scope)
+
+            @no_type_check
+            @script
+            def cuda_mbarrier_arrive(mbarrier_addr: u32, count: u32):
+                attrs.func_kind = "cuda_internal"
+                attrs.func_name = func_name
+                asm(template=inst + " _, [%0], %1;", inputs=[mbarrier_addr, count], is_volatile=True)
+
+            register_primitive_function(name=func_name, func_or_type=cuda_mbarrier_arrive)
+
+    # mbarrier.arrive.expect_tx.{sem}.{scope}.shared::cta.b64
+    for sem in ["release", "relaxed"]:
+        for scope in ["cta", "cluster"]:
+            func_name = resolve_mbarrier_arrive_expect_tx_name(sem, scope)
+            inst = "mbarrier.arrive.expect_tx.{}.{}.shared::cta.b64".format(sem, scope)
+
+            @no_type_check
+            @script
+            def cuda_mbarrier_arrive_expect_tx(mbarrier_addr: u32, transaction_bytes: u32):
+                attrs.func_kind = "cuda_internal"
+                attrs.func_name = func_name
+                asm(
+                    template=inst + " _, [%0], %1;",
+                    inputs=[mbarrier_addr, transaction_bytes],
+                    is_volatile=True,
+                    memory_fence=True,
+                )
+
+            register_primitive_function(name=func_name, func_or_type=cuda_mbarrier_arrive_expect_tx)
+
+    # mbarrier.try_wait.parity.{sem}.{scope}.shared::cta.b64
+    for sem in ["acquire", "relaxed"]:
+        for scope in ["cta", "cluster"]:
+            func_name = resolve_mbarrier_wait_name(sem, scope)
+            inst = "mbarrier.try_wait.parity.{}.{}.shared::cta.b64".format(sem, scope)
+
+            @no_type_check
+            @script
+            def cuda_mbarrier_wait(mbarrier_addr: u32, phase: u32):
+                attrs.func_kind = "cuda_internal"
+                attrs.func_name = func_name
+                ticks = u32(10_000_000)
+                asm(
+                    template="{ .reg.pred P1; LAB_WAIT: " + inst + " P1, [%0], %1, %2; @!P1 bra.uni LAB_WAIT; }",
+                    inputs=[mbarrier_addr, phase, ticks],
+                    is_volatile=True,
+                    memory_fence=True,
+                )
+
+            register_primitive_function(name=func_name, func_or_type=cuda_mbarrier_wait)
+
+    # Legacy primitives (no sem/scope qualifiers) kept for backward compatibility
     @no_type_check
     @script
     def cuda_mbarrier_wait_shared(mbarrier_addr: u32, phase: u32):
@@ -193,6 +263,81 @@ def mbarrier_wait_shared(mbarrier_addr: Expr, phase: Union[int, Expr]) -> Expr:
     mbarrier.try_wait.parity : PTX ISA documentation section 9.7.13.15.16
     """
     return call_primitive_func("cuda_mbarrier_wait_shared", args=[mbarrier_addr, u32(phase)])
+
+
+def mbarrier_wait(mbarrier_addr: Expr, phase: Union[int, Expr], sem: str, scope: str) -> Expr:
+    """
+    Wait for the specified phase of an mbarrier object to complete with explicit sem/scope.
+
+    Parameters
+    ----------
+    mbarrier_addr : Expr
+        Address of the mbarrier object in shared memory (u32).
+    phase : Union[int, Expr]
+        Phase parity to wait for (0 for even phases, 1 for odd phases).
+    sem : str
+        Memory ordering semantics: 'acquire' or 'relaxed'.
+    scope : str
+        Scope: 'cta' or 'cluster'.
+
+    Returns
+    -------
+    ret : Expr
+        A call expression that performs the wait operation.
+    """
+    func_name = resolve_mbarrier_wait_name(sem, scope)
+    return call_primitive_func(func_name, args=[mbarrier_addr, u32(phase)])
+
+
+def mbarrier_arrive(mbarrier_addr: Expr, count: Union[int, Expr], sem: str, scope: str) -> Expr:
+    """
+    Perform an arrive operation on an mbarrier object with explicit sem/scope.
+
+    Parameters
+    ----------
+    mbarrier_addr : Expr
+        Address of the mbarrier object in shared memory (u32).
+    count : Union[int, Expr]
+        Number of arrivals to signal.
+    sem : str
+        Memory ordering semantics: 'release' or 'relaxed'.
+    scope : str
+        Scope: 'cta' or 'cluster'.
+
+    Returns
+    -------
+    ret : Expr
+        A call expression that performs the arrive operation.
+    """
+    func_name = resolve_mbarrier_arrive_name(sem, scope)
+    count_expr = count if isinstance(count, Expr) else u32(count)
+    return call_primitive_func(func_name, args=[mbarrier_addr, count_expr])
+
+
+def mbarrier_arrive_expect_tx(
+    mbarrier_addr: Expr, transaction_bytes: Union[int, Expr], sem: str, scope: str
+) -> Expr:
+    """
+    Perform combined arrive and expect-tx on an mbarrier object with explicit sem/scope.
+
+    Parameters
+    ----------
+    mbarrier_addr : Expr
+        Address of the mbarrier object in shared memory (u32).
+    transaction_bytes : Union[int, Expr]
+        Number of transaction bytes to expect.
+    sem : str
+        Memory ordering semantics: 'release' or 'relaxed'.
+    scope : str
+        Scope: 'cta' or 'cluster'.
+
+    Returns
+    -------
+    ret : Expr
+        A call expression that performs the combined operation.
+    """
+    func_name = resolve_mbarrier_arrive_expect_tx_name(sem, scope)
+    return call_primitive_func(func_name, args=[mbarrier_addr, u32(transaction_bytes)])
 
 
 def mbarrier_arrive_shared(mbarrier_addr: Expr, count: Expr | int) -> Expr:

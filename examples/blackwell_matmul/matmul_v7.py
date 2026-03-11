@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 import os
+from typing import Literal
 
 import pandas
 import tilus
@@ -23,7 +24,7 @@ class Pipeline(tilus.Class):
         self.producer_phase: uint32 = self.mbarrier.producer_initial_phase
         self.consumer_phase: uint32 = self.mbarrier.consumer_initial_phase
 
-    def producer_acquire(self, scope='cta'):
+    def producer_acquire(self, scope: str = 'cta'):
         self.mbarrier.wait(barrier=self.empty_barriers[self.producer_stage], phase=self.producer_phase, scope=scope)
 
     def producer_barrier(self) -> RegisterTensor:
@@ -33,7 +34,7 @@ class Pipeline(tilus.Class):
         self.producer_stage = (self.producer_stage + 1) % self.num_stages
         self.producer_phase = self.producer_phase ^ (self.producer_stage == 0)
 
-    def consumer_acquire(self, scope='cta'):
+    def consumer_acquire(self, scope: str = 'cta'):
         self.mbarrier.wait(barrier=self.full_barriers[self.consumer_stage], phase=self.consumer_phase, scope=scope)
 
     def consumer_barrier(self) -> RegisterTensor:

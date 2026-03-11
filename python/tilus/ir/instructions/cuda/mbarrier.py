@@ -38,33 +38,47 @@ class AllocBarrierInst(Instruction):
 class ArriveBarrierInst(Instruction):
     barrier: Expr
     count: Expr
+    sem: Literal['release', 'relaxed']
     scope: Literal['cta', 'cluster']
 
     @staticmethod
-    def create(barrier: Expr, count: Expr, scope: Literal['cta', 'cluster']) -> ArriveBarrierInst:
-        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier, count=count, scope=scope)
+    def create(
+        barrier: Expr, count: Expr, sem: Literal['release', 'relaxed'], scope: Literal['cta', 'cluster']
+    ) -> ArriveBarrierInst:
+        return ArriveBarrierInst(output=None, inputs=(), barrier=barrier, count=count, sem=sem, scope=scope)
 
 
 @dataclass(frozen=True, eq=False)
 class ArriveExpectTxBarrierInst(Instruction):
     barrier: Expr
     transaction_bytes: Expr
+    sem: Literal['release', 'relaxed']
     scope: Literal['cta', 'cluster']
 
     @staticmethod
-    def create(barrier: Expr, transaction_bytes: Expr, scope: Literal['cta', 'cluster']) -> ArriveExpectTxBarrierInst:
-        return ArriveExpectTxBarrierInst(output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, scope=scope)
+    def create(
+        barrier: Expr,
+        transaction_bytes: Expr,
+        sem: Literal['release', 'relaxed'],
+        scope: Literal['cta', 'cluster'],
+    ) -> ArriveExpectTxBarrierInst:
+        return ArriveExpectTxBarrierInst(
+            output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, sem=sem, scope=scope
+        )
 
 
 @dataclass(frozen=True, eq=False)
 class WaitBarrierInst(Instruction):
     barrier: Expr
     phase: Expr
+    sem: Literal['acquire', 'relaxed']
     scope: Literal['cta', 'cluster']
 
     @staticmethod
-    def create(barrier: Expr, phase: Expr, scope: Literal['cta', 'cluster']) -> WaitBarrierInst:
-        return WaitBarrierInst(output=None, inputs=(), barrier=barrier, phase=phase, scope=scope)
+    def create(
+        barrier: Expr, phase: Expr, sem: Literal['acquire', 'relaxed'], scope: Literal['cta', 'cluster']
+    ) -> WaitBarrierInst:
+        return WaitBarrierInst(output=None, inputs=(), barrier=barrier, phase=phase, sem=sem, scope=scope)
 
 
 @dataclass(frozen=True, eq=False)
