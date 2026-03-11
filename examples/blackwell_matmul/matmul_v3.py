@@ -50,10 +50,10 @@ class BlackwellMatmulV3(tilus.Script):
 
         # allocate barriers and the initial phases
         consumer_barriers = self.mbarrier.alloc(
-            count=[1 for _ in range(self.stages)]
+            counts=[1 for _ in range(self.stages)]
         )  # whether the data is ready for consumption
         producer_barriers = self.mbarrier.alloc(
-            count=[1 for _ in range(self.stages)]
+            counts=[1 for _ in range(self.stages)]
         )  # whether the data is ready to be filled
 
         with self.thread_group(thread_begin=0, num_threads=32):

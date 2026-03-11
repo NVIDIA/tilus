@@ -49,8 +49,8 @@ class BlackwellMatmulV2(tilus.Script):
         )
 
         # allocate barriers
-        tma_barriers = self.mbarrier.alloc(count=[1 for _ in range(self.stages)])
-        mma_barrier = self.mbarrier.alloc(count=1)
+        tma_barriers = self.mbarrier.alloc(counts=[1 for _ in range(self.stages)])
+        mma_barrier = self.mbarrier.alloc(counts=1)
         tma_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=0)
         mma_phase: uint32 = 0
 

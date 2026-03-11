@@ -1,13 +1,11 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 import os
-from typing import Literal
 
 import pandas
 import tilus
 import torch
-from hidet.ir.primitives.cuda.vars import threadIdx
-from tilus import Dim3, RegisterTensor, SharedTensor, float16, float32, int32, uint32
+from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
@@ -15,18 +13,29 @@ tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 
 class Pipeline(tilus.Class):
     def __init__(
-        self, num_stages: int, producer_arrive_count: int = 1, consumer_arrive_count: int = 1
+        self,
+        num_stages: int,
+        producer_arrive_count: int = 1,
+        consumer_arrive_count: int = 1,
     ):
         self.num_stages: int = num_stages
-        self.empty_barriers = self.mbarrier.alloc([consumer_arrive_count for _ in range(num_stages)])
-        self.full_barriers = self.mbarrier.alloc([producer_arrive_count for _ in range(num_stages)])
+        self.empty_barriers = self.mbarrier.alloc(
+            [consumer_arrive_count for _ in range(num_stages)]
+        )
+        self.full_barriers = self.mbarrier.alloc(
+            [producer_arrive_count for _ in range(num_stages)]
+        )
         self.producer_stage: int32 = 0
         self.consumer_stage: int32 = 0
         self.producer_phase: uint32 = self.mbarrier.producer_initial_phase
         self.consumer_phase: uint32 = self.mbarrier.consumer_initial_phase
 
-    def producer_acquire(self, scope: str = 'cta'):
-        self.mbarrier.wait(barrier=self.empty_barriers[self.producer_stage], phase=self.producer_phase, scope=scope)
+    def producer_acquire(self, scope: str = "cta"):
+        self.mbarrier.wait(
+            barrier=self.empty_barriers[self.producer_stage],
+            phase=self.producer_phase,
+            scope=scope,
+        )
 
     def producer_barrier(self) -> RegisterTensor:
         return self.full_barriers[self.producer_stage]
@@ -35,8 +44,12 @@ class Pipeline(tilus.Class):
         self.producer_stage = (self.producer_stage + 1) % self.num_stages
         self.producer_phase = self.producer_phase ^ (self.producer_stage == 0)
 
-    def consumer_acquire(self, scope: str = 'cta'):
-        self.mbarrier.wait(barrier=self.full_barriers[self.consumer_stage], phase=self.consumer_phase, scope=scope)
+    def consumer_acquire(self, scope: str = "cta"):
+        self.mbarrier.wait(
+            barrier=self.full_barriers[self.consumer_stage],
+            phase=self.consumer_phase,
+            scope=scope,
+        )
 
     def consumer_barrier(self) -> RegisterTensor:
         return self.empty_barriers[self.consumer_stage]
@@ -61,7 +74,13 @@ class BlackwellMatmulV7(tilus.Script):
     #     e_block_n=16,
     # )
     def __init__(
-        self, block_m: int, block_n: int, block_k: int, tma_stages: int, mma_stages: int, e_block_n: int
+        self,
+        block_m: int,
+        block_n: int,
+        block_k: int,
+        tma_stages: int,
+        mma_stages: int,
+        e_block_n: int,
     ):
         super().__init__()
         self.block_m = block_m
@@ -71,13 +90,15 @@ class BlackwellMatmulV7(tilus.Script):
         self.tma_stages = tma_stages
         self.mma_stages = mma_stages
         self.clc_stages = 1
-    
+
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
-        pipe.consumer_acquire(scope='cluster')
+        pipe.consumer_acquire(scope="cluster")
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
-        self.fence.async_view(space='shared')
-        self.mbarrier.arrive_and_expect_tx_remote(pipe.consumer_barrier(), transaction_bytes=0, target_rank=0)
+        self.fence.async_view(space="shared")
+        self.mbarrier.arrive_and_expect_tx_remote(
+            pipe.consumer_barrier(), transaction_bytes=0, target_rank=0
+        )
         pipe.consumer_advance()
         return is_valid, new_blockIdx
 
@@ -128,19 +149,25 @@ class BlackwellMatmulV7(tilus.Script):
 
         s_a = self.shared_tensor(dtype=float16, shape=[tma_stages, block_m // 2, block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n // 2, block_k])
-        t_acc = self.tcgen05.alloc(dtype=float32, shape=[mma_stages, block_m // 2, block_n], cta_group=2)
+        t_acc = self.tcgen05.alloc(
+            dtype=float32, shape=[mma_stages, block_m // 2, block_n], cta_group=2
+        )
 
         s_clc_response = self.shared_tensor(dtype=int32, shape=[clc_stages, 4])
 
         tma_pipe = Pipeline(tma_stages)
-        mma_pipe = Pipeline(mma_stages, consumer_arrive_count=128)  # 4 warps (epilogue warps)
-        clc_pipe = Pipeline(clc_stages, consumer_arrive_count=224 * 2)  # 7 warps * 2 blocks
+        mma_pipe = Pipeline(
+            mma_stages, consumer_arrive_count=128
+        )  # 4 warps (epilogue warps)
+        clc_pipe = Pipeline(
+            clc_stages, consumer_arrive_count=224 * 2
+        )  # 7 warps * 2 blocks
 
         cta_rank = self.cluster.blockRank
 
         self.cluster_sync()
 
-        with self.single_warp(0):   # tma worker (gmem -> smem)
+        with self.single_warp(0):  # tma worker (gmem -> smem)
             offset_m_a = self.blockIdx.x * (block_m // 2)
             offset_n_b = self.blockIdx.y * block_n + cta_rank * (block_n // 2)
             while True:
@@ -151,7 +178,9 @@ class BlackwellMatmulV7(tilus.Script):
                         with self.single_thread():
                             # the mbarrier on CTA0 will track the completion of both CTAs' loading
                             transaction_bytes = (s_a[0].nbytes + s_b[0].nbytes) * 2
-                            self.mbarrier.arrive_and_expect_tx(mbarrier, transaction_bytes)
+                            self.mbarrier.arrive_and_expect_tx(
+                                mbarrier, transaction_bytes
+                            )
                     else:
                         # get the mbarrier address in the CTA0 to signal
                         mbarrier = self.cluster.map_shared_addr(mbarrier, target_rank=0)
@@ -178,7 +207,7 @@ class BlackwellMatmulV7(tilus.Script):
                 offset_m_a = (new_blockIdx.x + cta_rank) * (block_m // 2)
                 offset_n_b = new_blockIdx.y * block_n + cta_rank * (block_n // 2)
 
-        with self.single_warp(1):   # mma worker (smem -> tmem)
+        with self.single_warp(1):  # mma worker (smem -> tmem)
             while True:
                 with self.single_thread():
                     if cta_rank == 0:
@@ -198,27 +227,41 @@ class BlackwellMatmulV7(tilus.Script):
                                 multicast_mask=0b11,
                             )
                             tma_pipe.consumer_advance()
-                        self.tcgen05.commit(mbarrier=mma_pipe.producer_barrier(), cta_group=2, multicast_mask=0b11)
+                        self.tcgen05.commit(
+                            mbarrier=mma_pipe.producer_barrier(),
+                            cta_group=2,
+                            multicast_mask=0b11,
+                        )
                         mma_pipe.producer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
 
-        with self.single_warp(2):   # scheduler
+        with self.single_warp(2):  # scheduler
             while True:
                 if cta_rank == 0:
-                    clc_pipe.producer_acquire(scope='cluster')  # peer cta will arrive this barrier, need 'cluster'scoped acquire
-                    self.mbarrier.arrive_and_expect_tx_multicast(clc_pipe.producer_barrier(), transaction_bytes=16, multicast_mask=0b11)
+                    clc_pipe.producer_acquire(
+                        scope="cluster"
+                    )  # peer cta will arrive this barrier, need 'cluster'scoped acquire
+                    self.mbarrier.arrive_and_expect_tx_multicast(
+                        clc_pipe.producer_barrier(),
+                        transaction_bytes=16,
+                        multicast_mask=0b11,
+                    )
                     with self.single_thread():
-                        self.clc.try_cancel(s_clc_response[clc_pipe.producer_stage], mbarrier=clc_pipe.producer_barrier(), multicast=True)
+                        self.clc.try_cancel(
+                            s_clc_response[clc_pipe.producer_stage],
+                            mbarrier=clc_pipe.producer_barrier(),
+                            multicast=True,
+                        )
                     clc_pipe.producer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
 
-        with self.warp_group(warp_begin=4, num_warps=4):   # epilogue (tmem -> gmem)
+        with self.warp_group(warp_begin=4, num_warps=4):  # epilogue (tmem -> gmem)
             s_c = self.shared_tensor(dtype=float16, shape=[block_m // 2, self.e_block_n])
             offset_m_c = self.blockIdx.x * (block_m // 2)
             offset_n_c = self.blockIdx.y * block_n
@@ -235,7 +278,7 @@ class BlackwellMatmulV7(tilus.Script):
                     r_acc = self.tcgen05.load(t_acc_slice)
                     self.tcgen05.wait_load()
                     self.store_shared(s_c, r_acc.to(float16))
-                    self.fence.async_view(space='shared')
+                    self.fence.async_view(space="shared")
                     self.sync()
                     with self.single_thread():
                         self.tma.shared_to_global(

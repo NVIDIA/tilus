@@ -54,7 +54,7 @@ class MatmulWGMMAV2(tilus.Script):
         sb = self.shared_tensor(dtype=float16, shape=[self.num_stages, block_n, block_k])
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
-        tma_barriers = self.mbarrier.alloc(count=[1 for _ in range(self.num_stages)])
+        tma_barriers = self.mbarrier.alloc(counts=[1 for _ in range(self.num_stages)])
         phase = self.register_tensor(dtype=uint32, shape=[self.num_stages], init=0)
 
         num_iters: int32 = cdiv(k_size, block_k)

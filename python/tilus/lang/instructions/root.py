@@ -221,7 +221,9 @@ class RootInstructionGroup(InstructionGroup):
             The thread group context created.
         """
         if thread >= self.current_num_threads:
-            raise InstructionError("The thread index must be less than the number of threads in the current thread group")
+            raise InstructionError(
+                "The thread index must be less than the number of threads in the current thread group"
+            )
         return self.thread_group(thread_begin=thread, num_threads=1)
 
     def single_warp(self, warp: int = 0) -> ThreadGroupContext:
@@ -236,7 +238,9 @@ class RootInstructionGroup(InstructionGroup):
             The thread group context created.
         """
         if warp * 32 >= self.current_num_threads:
-            raise InstructionError("The warp index must be such that the first thread in the warp is less than the number of threads in the current thread group")
+            raise InstructionError(
+                "The warp index must be such that the first thread in the warp is less than the number of threads in the current thread group"
+            )
         return self.thread_group(thread_begin=warp * 32, num_threads=32)
 
     def warp_group(self, warp_begin: int, num_warps: int) -> ThreadGroupContext:
@@ -251,9 +255,13 @@ class RootInstructionGroup(InstructionGroup):
             The thread group context created.
         """
         if warp_begin * 32 >= self.current_num_threads:
-            raise InstructionError("The warp_begin index must be such that the first thread in the first warp is less than the number of threads in the current thread group")
+            raise InstructionError(
+                "The warp_begin index must be such that the first thread in the first warp is less than the number of threads in the current thread group"
+            )
         if (warp_begin + num_warps) * 32 > self.current_num_threads:
-            raise InstructionError("The number of warps must be such that the last thread in the last warp is less than the number of threads in the current thread group")
+            raise InstructionError(
+                "The number of warps must be such that the last thread in the last warp is less than the number of threads in the current thread group"
+            )
         return self.thread_group(thread_begin=warp_begin * 32, num_threads=num_warps * 32)
 
     @staticmethod

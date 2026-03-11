@@ -56,7 +56,7 @@ class Tcgen05MmaExample(tilus.Script):
         )
         t_d = self.tcgen05.slice(t_d_storage, offsets=[0, 0], dims=[0, 1], shape=[self.mma_m, self.mma_n])
 
-        mbarriers = self.mbarrier.alloc(count=[1, 1])
+        mbarriers = self.mbarrier.alloc(counts=[1, 1])
         tma_mbarrier = mbarriers[0]
         mma_mbarrier = mbarriers[1]
         self.sync()
@@ -149,7 +149,7 @@ class Tcgen05Mma2CTAExample(tilus.Script):
             dtype=self.accumulator_dtype, shape=[self.mma_m // 2, self.mma_n], init=0.0, cta_group=2
         )
 
-        mbarriers = self.mbarrier.alloc(count=[1, 1])
+        mbarriers = self.mbarrier.alloc(counts=[1, 1])
         tma_mbarrier = mbarriers[0]
         mma_mbarrier = mbarriers[1]
         self.cluster.sync()

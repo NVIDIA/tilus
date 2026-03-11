@@ -12,18 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import typing
-from typing import Literal, Optional, Sequence
 
-from hidet.ir.expr import Expr, as_expr
-
-from tilus.ir.tensor import RegisterTensor
 
 from .root import InstructionGroup
 
 
 class FenceInstructionGroup(InstructionGroup):
-    def async_view(self, space: str) -> None:
-        if space not in ('shared', 'global'):
-            raise ValueError(f"Invalid scope for async fence view: {space}. Supported candidates are 'shared' and 'global'.")
+    def async_view(self, space: str = "shared") -> None:
+        if space not in ("shared", "global"):
+            raise ValueError(
+                f"Invalid scope for async fence view: {space}. Supported candidates are 'shared' and 'global'."
+            )
         self._builder.fence_view_async(space=space)

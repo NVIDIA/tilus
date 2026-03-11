@@ -15,6 +15,7 @@ Workers:
 - MmaWorker (warp 1, thread 32, CTA0 only): MMA with cta_group=2
 - Epilogue (all threads): store results via TMA, reset accumulator
 """
+
 import os
 
 import pandas
@@ -111,7 +112,7 @@ class Scheduler(tilus.Class):
     """CLC-based tile scheduler. Uses multicast to broadcast response to all CTAs."""
 
     def __init__(self):
-        self.barrier = self.mbarrier.alloc(count=1)
+        self.barrier = self.mbarrier.alloc(counts=1)
         self.phase: uint32 = self.mbarrier.consumer_initial_phase
         self.s_response = self.shared_tensor(dtype=int32, shape=[4])
 
@@ -205,16 +206,14 @@ class BlackwellMatmulV7(tilus.Script):
             cta_group=2,
         )
         flush_barrier = self.mbarrier.alloc(1)
-        s_c = self.shared_tensor(
-            dtype=float16, shape=[self.block_m // 2, self.e_block_n]
-        )
+        s_c = self.shared_tensor(dtype=float16, shape=[self.block_m // 2, self.e_block_n])
 
         cta_rank = self.cluster.blockRank
 
         # Initial tile offsets from grid launch blockIdx
         offset_m_a: int32 = self.blockIdx.x * (self.block_m // 2)
-        offset_n_b: int32 = (
-            self.blockIdx.y * self.block_n + cta_rank * (self.block_n // 2)
+        offset_n_b: int32 = self.blockIdx.y * self.block_n + cta_rank * (
+            self.block_n // 2
         )
         offset_m_c: int32 = self.blockIdx.x * (self.block_m // 2)
         offset_n_c: int32 = self.blockIdx.y * self.block_n
@@ -225,9 +224,7 @@ class BlackwellMatmulV7(tilus.Script):
         while True:
             # === Load phase (warp 0, both CTAs) ===
             with self.thread_group(thread_begin=0, num_threads=32):
-                for offset_k in self.range(
-                    0, k_size, self.block_k, unroll=self.stages
-                ):
+                for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
                     pipe.producer_acquire()
                     mbarrier = pipe.producer_release_barrier()
                     if cta_rank == 0:
@@ -239,9 +236,7 @@ class BlackwellMatmulV7(tilus.Script):
                                 mbarrier, transaction_bytes
                             )
                     else:
-                        mbarrier = self.cluster.map_shared_addr(
-                            mbarrier, target_rank=0
-                        )
+                        mbarrier = self.cluster.map_shared_addr(mbarrier, target_rank=0)
                     with self.single_thread():
                         self.tma.global_to_shared(
                             src=params.g_a,
@@ -264,9 +259,7 @@ class BlackwellMatmulV7(tilus.Script):
             # === MMA phase (thread 32 on CTA0 only) ===
             if cta_rank == 0:
                 with self.thread_group(thread_begin=32, num_threads=1):
-                    for _ in self.range(
-                        0, k_size, self.block_k, unroll=self.stages
-                    ):
+                    for _ in self.range(0, k_size, self.block_k, unroll=self.stages):
                         pipe.consumer_acquire()
                         self.tcgen05.mma(
                             pipe.s_a[pipe.consumer_stage],
@@ -335,9 +328,8 @@ class BlackwellMatmulV7(tilus.Script):
             # break  # DEBUG: always break to test CLC overhead
             if is_valid:
                 offset_m_a = (new_blockIdx.x + cta_rank) * (self.block_m // 2)
-                offset_n_b = (
-                    new_blockIdx.y * self.block_n
-                    + cta_rank * (self.block_n // 2)
+                offset_n_b = new_blockIdx.y * self.block_n + cta_rank * (
+                    self.block_n // 2
                 )
                 offset_m_c = (new_blockIdx.x + cta_rank) * (self.block_m // 2)
                 offset_n_c = new_blockIdx.y * self.block_n

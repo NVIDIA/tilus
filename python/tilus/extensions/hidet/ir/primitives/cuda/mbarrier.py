@@ -51,7 +51,7 @@ def register_mbarrier_primitives():
     # mbarrier.arrive.{sem}.{scope}.shared::{space}.b64
     for sem in ["release", "relaxed"]:
         for scope in ["cta", "cluster"]:
-            for space in ['cta', 'cluster']:
+            for space in ["cta", "cluster"]:
                 func_name = resolve_mbarrier_arrive_name(sem, scope, space)
                 inst = "mbarrier.arrive.{}.{}.shared::{}.b64".format(sem, scope, space)
 
@@ -67,7 +67,7 @@ def register_mbarrier_primitives():
     # mbarrier.arrive.expect_tx.{sem}.{scope}.shared::{space}.b64
     for sem in ["release", "relaxed"]:
         for scope in ["cta", "cluster"]:
-            for space in ['cta', 'cluster']:
+            for space in ["cta", "cluster"]:
                 func_name = resolve_mbarrier_arrive_expect_tx_name(sem, scope, space)
                 inst = "mbarrier.arrive.expect_tx.{}.{}.shared::{}.b64".format(sem, scope, space)
 

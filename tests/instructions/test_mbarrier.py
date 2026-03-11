@@ -31,7 +31,7 @@ class DemoBarrier(tilus.Script):
         g_x = self.global_view(x_ptr, dtype=int32, shape=[n])
         g_y = self.global_view(y_ptr, dtype=int32, shape=[n])
         s_x = self.shared_tensor(dtype=int32, shape=[self.block_size])
-        barriers = self.mbarrier.alloc(count=[self.attrs.warps * 32])
+        barriers = self.mbarrier.alloc(counts=[self.attrs.warps * 32])
 
         phase: int32 = 0
         for bi in self.range(0, n, self.block_size):

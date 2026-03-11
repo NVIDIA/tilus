@@ -51,7 +51,7 @@ class MatmulWGMMA(tilus.Script):
         sb = self.shared_tensor(dtype=float16, shape=[block_n, block_k])
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
-        tma_barrier = self.mbarrier.alloc(count=[1])
+        tma_barrier = self.mbarrier.alloc(counts=[1])
         phase: uint32 = 0
 
         for offset_k in range(0, k_size, block_k):

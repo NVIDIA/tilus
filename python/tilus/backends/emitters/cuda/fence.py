@@ -13,21 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
-    mbarrier_arrive,
-    mbarrier_arrive_expect_tx,
-    mbarrier_wait,
-)
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
-    ArriveBarrierInst,
-    ArriveExpectTxBarrierInst,
-    WaitBarrierInst,
 )
-from tilus.target import nvgpu_sm80, nvgpu_sm90
+from tilus.target import nvgpu_sm80
 
 
 @register_emitter(AllocBarrierInst, target=nvgpu_sm80)

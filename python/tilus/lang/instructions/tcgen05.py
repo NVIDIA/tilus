@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import contextlib
 from typing import Optional, Sequence
 
 from hidet.ir.expr import Expr
@@ -25,9 +24,7 @@ from .root import InstructionGroup
 
 
 class Tcgen05InstructionGroup(InstructionGroup):
-    def alloc(
-        self, dtype: DataType, shape: Sequence[int], cta_group: int = 1
-    ) -> TMemoryTensor:
+    def alloc(self, dtype: DataType, shape: Sequence[int], cta_group: int = 1) -> TMemoryTensor:
         if cta_group not in [1, 2]:
             raise InstructionError("cta_group must be 1 or 2")
         if len(shape) < 2:
@@ -83,7 +80,14 @@ class Tcgen05InstructionGroup(InstructionGroup):
             raise InstructionError("tcgen05.commit must be called by a single thread")
         self._builder.tcgen05_commit(mbarrier, cta_group, multicast_mask)
 
-    def mma(self, a: SharedTensor | TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr, cta_group: int = 1) -> None:
+    def mma(
+        self,
+        a: SharedTensor | TMemoryTensor,
+        b: SharedTensor,
+        d: TMemoryTensor,
+        enable_input_d: Expr,
+        cta_group: int = 1,
+    ) -> None:
         """
         Perform tensor core matrix multiply-accumulate (MMA) operation.
 
@@ -111,7 +115,7 @@ class Tcgen05InstructionGroup(InstructionGroup):
         - D = [d0]
               [d1]
             where D has shape (M, N), d0 and d1 each has shape (M/2, N)
-        
+
         The parameter `enable_input_d` is a boolean expression that indicates whether the input D should be used as the initial value of the accumulator in the MMA operation.
         When `enable_input_d == False`, what this instruction does becomes `D = A @ B`. Otherwise, the instruction performs `D = A @ B + D`.
 

@@ -18,12 +18,12 @@ from tilus.ir.inst import InstructionError
 from .base import InstructionGroup, builder_context
 from .clc import ClusterLaunchControlInstructionGroup
 from .cluster import BlockClusterInstructionGroup
+from .fence import FenceInstructionGroup
 from .mbarrier import BarrierInstructionGroup
 from .root import RootInstructionGroup
 from .tcgen05 import Tcgen05InstructionGroup
 from .tma import TmaInstructionGroup
 from .wgmma import WgmmaInstructionGroup
-from .fence import FenceInstructionGroup
 
 
 class InstructionInterface(RootInstructionGroup):

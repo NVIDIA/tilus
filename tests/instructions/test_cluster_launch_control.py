@@ -51,8 +51,8 @@ class ClusterLaunchControlExample(tilus.Script):
         is_first_block_in_cluster: boolean = self.cluster.blockRank == 0
 
         cancel_response = self.shared_tensor(dtype=int32, shape=[self.num_stages, 4])
-        producer_mbarriers = self.mbarrier.alloc(count=[self.warps * 32 for _ in range(self.num_stages)])
-        consumer_mbarriers = self.mbarrier.alloc(count=[1 for _ in range(self.num_stages)])
+        producer_mbarriers = self.mbarrier.alloc(counts=[self.warps * 32 for _ in range(self.num_stages)])
+        consumer_mbarriers = self.mbarrier.alloc(counts=[1 for _ in range(self.num_stages)])
         producer_phase: int32 = self.mbarrier.producer_initial_phase
         consumer_phase: int32 = self.mbarrier.consumer_initial_phase
         producer_stage: int32 = 0

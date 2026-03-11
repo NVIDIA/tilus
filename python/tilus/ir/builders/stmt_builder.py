@@ -14,7 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Sequence, Type, Union, Literal
+from typing import Callable, List, Literal, Optional, Sequence, Type, Union
 
 from hidet.ir import primitives
 from hidet.ir.dtypes import boolean, int32, uint16, uint32
@@ -46,6 +46,7 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorSharedToGlobalInst,
     CopyAsyncTensorWaitGroupInst,
 )
+from tilus.ir.instructions.cuda.fence import FenceViewAsync
 from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 from tilus.ir.instructions.cuda.mbarrier import (
@@ -56,7 +57,6 @@ from tilus.ir.instructions.cuda.mbarrier import (
     ArriveExpectTxRemoteBarrierInst,
     WaitBarrierInst,
 )
-from tilus.ir.instructions.cuda.fence import FenceViewAsync
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from tilus.ir.instructions.cuda.tcgen05 import (
@@ -1244,8 +1244,8 @@ class StmtBuilder(StmtBuilderCore):
         self,
         barrier: Expr | RegisterTensor,
         count: Expr | int,
-        sem: Literal['release', 'relaxed'],
-        scope: Literal['cta', 'cluster'],
+        sem: Literal["release", "relaxed"],
+        scope: Literal["cta", "cluster"],
     ) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
@@ -1258,8 +1258,8 @@ class StmtBuilder(StmtBuilderCore):
         self,
         barrier: Expr | RegisterTensor,
         transaction_bytes: Expr | int,
-        sem: Literal['release', 'relaxed'],
-        scope: Literal['cta', 'cluster'],
+        sem: Literal["release", "relaxed"],
+        scope: Literal["cta", "cluster"],
     ) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
@@ -1274,8 +1274,8 @@ class StmtBuilder(StmtBuilderCore):
         self,
         barrier: Expr | RegisterTensor,
         phase: Expr | int | RegisterTensor,
-        sem: Literal['acquire', 'relaxed'],
-        scope: Literal['cta', 'cluster'],
+        sem: Literal["acquire", "relaxed"],
+        scope: Literal["cta", "cluster"],
     ) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
@@ -1292,8 +1292,8 @@ class StmtBuilder(StmtBuilderCore):
         barrier: Expr | RegisterTensor,
         transaction_bytes: Expr | int,
         multicast_mask: int,
-        sem: Literal['release', 'relaxed'],
-        scope: Literal['cta', 'cluster'],
+        sem: Literal["release", "relaxed"],
+        scope: Literal["cta", "cluster"],
     ) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
@@ -1309,8 +1309,8 @@ class StmtBuilder(StmtBuilderCore):
         barrier: Expr | RegisterTensor,
         transaction_bytes: Expr | int,
         target_rank: int,
-        sem: Literal['release', 'relaxed'],
-        scope: Literal['cta', 'cluster'],
+        sem: Literal["release", "relaxed"],
+        scope: Literal["cta", "cluster"],
     ) -> None:
         if isinstance(barrier, RegisterTensor):
             barrier = self.tensor_item_value(barrier)
@@ -1321,7 +1321,7 @@ class StmtBuilder(StmtBuilderCore):
         )
         self.append(inst)
 
-    def fence_view_async(self, space: str):
+    def fence_view_async(self, space: str) -> None:
         inst = FenceViewAsync.create(scope=space)
         self.append(inst)
 
@@ -1418,11 +1418,15 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05CommitInst.create(mbarrier=mbarrier, cta_group=cta_group, multicast_mask=multicast_mask)
         self.append(inst)
 
-    def tcgen05_mma_ss(self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr, cta_group: int) -> None:
+    def tcgen05_mma_ss(
+        self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr, cta_group: int
+    ) -> None:
         inst = Tcgen05MmaSSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d, cta_group=cta_group)
         self.append(inst)
 
-    def tcgen05_mma_ts(self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr, cta_group: int) -> None:
+    def tcgen05_mma_ts(
+        self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr, cta_group: int
+    ) -> None:
         inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d, cta_group=cta_group)
         self.append(inst)
 

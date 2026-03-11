@@ -29,7 +29,6 @@ def register_mbarrier_primitives():
         attrs.func_kind = "cuda_internal"
         asm("fence.mbarrier_init.release.cluster;", is_volatile=True, memory_fence=True)
 
-
     # fence.proxy.async.{space}
     for space, ptx_space in [("shared", "shared::cta"), ("global", "global")]:
         func_name = "cuda_fence_proxy_async_{}".format(space)
@@ -43,7 +42,6 @@ def register_mbarrier_primitives():
             asm(template=inst, inputs=[], is_volatile=True, memory_fence=True)
 
         register_primitive_function(name=func_name, func_or_type=cuda_fence_proxy_async)
-
 
     for func in [cuda_fence_mbarrier_init_cluster]:
         register_primitive_function(func.name, func)

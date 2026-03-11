@@ -20,7 +20,7 @@ import inspect
 import math
 import operator
 import types
-from typing import Any, Callable, Optional, Sequence, Tuple, Type, Union, Literal, get_origin
+from typing import Any, Callable, Optional, Sequence, Tuple, Type, Union
 
 from hidet import ir as hidet_ir
 from hidet.ir.expr import Constant, Var, as_expr

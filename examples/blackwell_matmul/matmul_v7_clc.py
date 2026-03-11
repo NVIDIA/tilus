@@ -54,7 +54,7 @@ class Params(tilus.Class):
 
 class Scheduler(tilus.Class):
     def __init__(self):
-        self.barrier = self.mbarrier.alloc(count=1)
+        self.barrier = self.mbarrier.alloc(counts=1)
         self.phase: uint32 = self.mbarrier.consumer_initial_phase
         self.s_response = self.shared_tensor(dtype=int32, shape=[4])
 
@@ -256,7 +256,7 @@ class EpilogueWorker(tilus.Class):
                 self.sync()
 
                 # smem to gmem
-                self.tma.fence_proxy_copy_async()
+                self.fence.async_view()
                 with self.single_thread():
                     self.tma.shared_to_global(
                         src=s_acc,

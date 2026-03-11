@@ -19,10 +19,6 @@ from tilus.extensions.hidet.ir.primitives.cuda.clc import (
     cluster_launch_control_query_response,
     cluster_launch_control_try_cancel,
 )
-from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
-    mbarrier_arrive_and_expect_tx_remote_shared,
-    mbarrier_arrive_and_expect_tx_shared,
-)
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
 from tilus.ir.tensor import SharedTensor
 

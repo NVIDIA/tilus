@@ -51,7 +51,7 @@ class AllocBarrierInstEmitter(BaseInstEmitter):
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
 class ArriveBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveBarrierInst) -> None:
-        self.append(mbarrier_arrive(inst.barrier, count=inst.count, sem=inst.sem, scope=inst.scope, space='cta'))
+        self.append(mbarrier_arrive(inst.barrier, count=inst.count, sem=inst.sem, scope=inst.scope, space="cta"))
 
 
 @register_emitter(ArriveExpectTxBarrierInst, target=nvgpu_sm90)
@@ -59,7 +59,11 @@ class ArriveExpectTxBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveExpectTxBarrierInst) -> None:
         self.append(
             mbarrier_arrive_expect_tx(
-                mbarrier_addr=inst.barrier, transaction_bytes=inst.transaction_bytes, sem=inst.sem, scope=inst.scope, space='cta'
+                mbarrier_addr=inst.barrier,
+                transaction_bytes=inst.transaction_bytes,
+                sem=inst.sem,
+                scope=inst.scope,
+                space="cta",
             )
         )
 
@@ -69,24 +73,29 @@ class ArriveExpectTxMulticastBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveExpectTxMulticastBarrierInst) -> None:
         if self.current_num_threads < 16:
             raise ValueError("Multicast mbarrier operations require at least 16 threads in the thread group.")
-        
+
         with self.if_then((uint32(1) << self.current_thread) & uint32(inst.multicast)):
             self.append(
                 mbarrier_arrive_expect_tx(
-                    mbarrier_addr=mapa_shared(inst.barrier, cta_rank=self.current_thread), 
-                    transaction_bytes=inst.transaction_bytes, 
-                    sem=inst.sem, 
+                    mbarrier_addr=mapa_shared(inst.barrier, cta_rank=self.current_thread),
+                    transaction_bytes=inst.transaction_bytes,
+                    sem=inst.sem,
                     scope=inst.scope,
-                    space='cluster'
+                    space="cluster",
                 )
             )
+
 
 @register_emitter(ArriveExpectTxRemoteBarrierInst, target=nvgpu_sm90)
 class ArriveExpectTxRemoteBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveExpectTxRemoteBarrierInst) -> None:
         self.append(
             mbarrier_arrive_expect_tx(
-                mbarrier_addr=mapa_shared(inst.barrier, inst.target_rank), transaction_bytes=inst.transaction_bytes, sem=inst.sem, scope=inst.scope, space='cluster'
+                mbarrier_addr=mapa_shared(inst.barrier, inst.target_rank),
+                transaction_bytes=inst.transaction_bytes,
+                sem=inst.sem,
+                scope=inst.scope,
+                space="cluster",
             )
         )
 
@@ -101,4 +110,3 @@ class WaitBarrierInstEmitter(BaseInstEmitter):
 class FenceViewAsyncEmitter(BaseInstEmitter):
     def emit(self, inst: FenceViewAsync) -> None:
         self.append(fence_view_async(scope=inst.space))
-

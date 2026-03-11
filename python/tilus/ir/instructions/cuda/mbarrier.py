@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, Literal
+from typing import Literal, Sequence
 
 from hidet import uint32
 from hidet.ir.expr import Expr
@@ -38,12 +38,12 @@ class AllocBarrierInst(Instruction):
 class ArriveBarrierInst(Instruction):
     barrier: Expr
     count: Expr
-    sem: Literal['release', 'relaxed']
-    scope: Literal['cta', 'cluster']
+    sem: Literal["release", "relaxed"]
+    scope: Literal["cta", "cluster"]
 
     @staticmethod
     def create(
-        barrier: Expr, count: Expr, sem: Literal['release', 'relaxed'], scope: Literal['cta', 'cluster']
+        barrier: Expr, count: Expr, sem: Literal["release", "relaxed"], scope: Literal["cta", "cluster"]
     ) -> ArriveBarrierInst:
         return ArriveBarrierInst(output=None, inputs=(), barrier=barrier, count=count, sem=sem, scope=scope)
 
@@ -52,15 +52,15 @@ class ArriveBarrierInst(Instruction):
 class ArriveExpectTxBarrierInst(Instruction):
     barrier: Expr
     transaction_bytes: Expr
-    sem: Literal['release', 'relaxed']
-    scope: Literal['cta', 'cluster']
+    sem: Literal["release", "relaxed"]
+    scope: Literal["cta", "cluster"]
 
     @staticmethod
     def create(
         barrier: Expr,
         transaction_bytes: Expr,
-        sem: Literal['release', 'relaxed'],
-        scope: Literal['cta', 'cluster'],
+        sem: Literal["release", "relaxed"],
+        scope: Literal["cta", "cluster"],
     ) -> ArriveExpectTxBarrierInst:
         return ArriveExpectTxBarrierInst(
             output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, sem=sem, scope=scope
@@ -71,33 +71,40 @@ class ArriveExpectTxBarrierInst(Instruction):
 class WaitBarrierInst(Instruction):
     barrier: Expr
     phase: Expr
-    sem: Literal['acquire', 'relaxed']
-    scope: Literal['cta', 'cluster']
+    sem: Literal["acquire", "relaxed"]
+    scope: Literal["cta", "cluster"]
 
     @staticmethod
     def create(
-        barrier: Expr, phase: Expr, sem: Literal['acquire', 'relaxed'], scope: Literal['cta', 'cluster']
+        barrier: Expr, phase: Expr, sem: Literal["acquire", "relaxed"], scope: Literal["cta", "cluster"]
     ) -> WaitBarrierInst:
         return WaitBarrierInst(output=None, inputs=(), barrier=barrier, phase=phase, sem=sem, scope=scope)
+
 
 @dataclass(frozen=True, eq=False)
 class ArriveExpectTxMulticastBarrierInst(Instruction):
     barrier: Expr
     transaction_bytes: Expr
     multicast: int
-    sem: Literal['release', 'relaxed']
-    scope: Literal['cta', 'cluster']
+    sem: Literal["release", "relaxed"]
+    scope: Literal["cta", "cluster"]
 
     @staticmethod
     def create(
         barrier: Expr,
         transaction_bytes: Expr,
         multicast: int,
-        sem: Literal['release', 'relaxed'],
-        scope: Literal['cta', 'cluster'],
+        sem: Literal["release", "relaxed"],
+        scope: Literal["cta", "cluster"],
     ) -> ArriveExpectTxMulticastBarrierInst:
         return ArriveExpectTxMulticastBarrierInst(
-            output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, multicast=multicast, sem=sem, scope=scope
+            output=None,
+            inputs=(),
+            barrier=barrier,
+            transaction_bytes=transaction_bytes,
+            multicast=multicast,
+            sem=sem,
+            scope=scope,
         )
 
 
@@ -106,17 +113,23 @@ class ArriveExpectTxRemoteBarrierInst(Instruction):
     barrier: Expr
     transaction_bytes: Expr
     target_rank: int
-    sem: Literal['release', 'relaxed']
-    scope: Literal['cta', 'cluster']
+    sem: Literal["release", "relaxed"]
+    scope: Literal["cta", "cluster"]
 
     @staticmethod
     def create(
         barrier: Expr,
         transaction_bytes: Expr,
         target_rank: int,
-        sem: Literal['release', 'relaxed'],
-        scope: Literal['cta', 'cluster'],
+        sem: Literal["release", "relaxed"],
+        scope: Literal["cta", "cluster"],
     ) -> ArriveExpectTxRemoteBarrierInst:
         return ArriveExpectTxRemoteBarrierInst(
-            output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, target_rank=target_rank, sem=sem, scope=scope
+            output=None,
+            inputs=(),
+            barrier=barrier,
+            transaction_bytes=transaction_bytes,
+            target_rank=target_rank,
+            sem=sem,
+            scope=scope,
         )

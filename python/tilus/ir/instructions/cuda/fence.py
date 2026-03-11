@@ -25,5 +25,7 @@ class FenceViewAsync(Instruction):
 
     @staticmethod
     def create(scope: str) -> FenceViewAsync:
-        assert scope in ('shared', 'global'), f"Invalid scope for async fence view: {scope}. Supported candidates are 'shared' and 'global'."
+        assert scope in ("shared", "global"), (
+            f"Invalid scope for async fence view: {scope}. Supported candidates are 'shared' and 'global'."
+        )
         return FenceViewAsync(output=None, inputs=(), space=scope)
