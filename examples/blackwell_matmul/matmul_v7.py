@@ -312,16 +312,16 @@ def main(bench=True):
     rows: list = []
 
     for m_size, n_size, k_size in [
-        # [4096, 4096, 4096],
-        # [4096, 4096, 14336],
-        # [8192, 8192, 8192],
+        [4096, 4096, 4096],
+        [4096, 4096, 14336],
+        [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randint(0, 2, size=(m_size, k_size), dtype=torch.float16, device="cuda")
         b = torch.randint(0, 2, size=(n_size, k_size), dtype=torch.float16, device="cuda")
-        c_actual = torch.zeros(m_size, n_size, dtype=torch.float16, device="cuda")
-        c_expected = torch.zeros(m_size, n_size, dtype=torch.float16, device="cuda")
+        c_actual = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+        c_expected = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
         matmul(m_size, n_size, k_size, a, b, c_actual)
         torch.cuda.synchronize()
