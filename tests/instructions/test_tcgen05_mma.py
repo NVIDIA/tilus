@@ -17,7 +17,7 @@ import tilus
 import torch
 from hidet.ir.type import DataType
 from tilus import float8_e4m3, float16, float32, void_p
-from tilus.utils import cdiv, dtype_to_torch
+from tilus.utils import dtype_to_torch
 
 
 class Tcgen05MmaExample(tilus.Script):
@@ -49,12 +49,7 @@ class Tcgen05MmaExample(tilus.Script):
 
         s_a = self.shared_tensor(dtype=self.operand_dtype, shape=[self.mma_m, self.mma_k])
         s_b = self.shared_tensor(dtype=self.operand_dtype, shape=[self.mma_n, self.mma_k])
-        t_d_storage = self.tcgen05.alloc(
-            dtype=self.accumulator_dtype,
-            shape=[self.mma_m, cdiv(self.mma_n, self.column_granularity) * self.column_granularity],
-            init=0.0,
-        )
-        t_d = self.tcgen05.slice(t_d_storage, offsets=[0, 0], dims=[0, 1], shape=[self.mma_m, self.mma_n])
+        t_d = self.tcgen05.alloc(dtype=self.accumulator_dtype, shape=[self.mma_m, self.mma_n])
 
         mbarriers = self.mbarrier.alloc(counts=[1, 1])
         tma_mbarrier = mbarriers[0]
@@ -80,7 +75,7 @@ class Tcgen05MmaExample(tilus.Script):
 
         # perform mma
         with self.single_thread():
-            self.tcgen05.mma(a=s_a, b=s_b.transpose(), d=t_d)
+            self.tcgen05.mma(a=s_a, b=s_b.transpose(), d=t_d, enable_input_d=False)
             self.tcgen05.commit(mma_mbarrier)
         self.mbarrier.wait(mma_mbarrier, phase=0)
 
@@ -90,7 +85,7 @@ class Tcgen05MmaExample(tilus.Script):
         self.store_global(g_d, r_d_output, offsets=[0, 0])
 
         # free tensor memory
-        self.tcgen05.dealloc(t_d_storage)
+        self.tcgen05.dealloc(t_d)
 
 
 class Tcgen05Mma2CTAExample(tilus.Script):
@@ -145,9 +140,7 @@ class Tcgen05Mma2CTAExample(tilus.Script):
 
         s_a = self.shared_tensor(dtype=self.operand_dtype, shape=[self.mma_m // 2, self.mma_k])
         s_b = self.shared_tensor(dtype=self.operand_dtype, shape=[self.mma_n // 2, self.mma_k])
-        t_d = self.tcgen05.alloc(
-            dtype=self.accumulator_dtype, shape=[self.mma_m // 2, self.mma_n], init=0.0, cta_group=2
-        )
+        t_d = self.tcgen05.alloc(dtype=self.accumulator_dtype, shape=[self.mma_m // 2, self.mma_n], cta_group=2)
 
         mbarriers = self.mbarrier.alloc(counts=[1, 1])
         tma_mbarrier = mbarriers[0]
@@ -184,14 +177,10 @@ class Tcgen05Mma2CTAExample(tilus.Script):
         # perform mma
         if cta_rank == 0:
             self.mbarrier.wait(tma_mbarrier, phase=0)
-            # self.printf("[CTA%d] finished loading A and B to shared memory.\n", cta_rank)
             with self.single_thread():
-                self.tcgen05.mma(a=s_a, b=s_b.transpose(), d=t_d, cta_group=2)
+                self.tcgen05.mma(a=s_a, b=s_b.transpose(), d=t_d, cta_group=2, enable_input_d=False)
                 self.tcgen05.commit(mma_mbarrier, cta_group=2, multicast_mask=0b11)
-            # self.printf("[CTA%d] finished tcgen05 mma and commit.\n", cta_rank)
-        # self.printf("[CTA%d] wait for mma to finish.\n", cta_rank)
         self.mbarrier.wait(mma_mbarrier, phase=0)
-        # self.printf("[CTA%d] detected mma finish.\n", cta_rank)
 
         # store d from t_d to global
         r_d_accumulator = self.tcgen05.load(t_d)

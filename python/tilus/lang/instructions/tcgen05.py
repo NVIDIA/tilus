@@ -85,7 +85,7 @@ class Tcgen05InstructionGroup(InstructionGroup):
         a: SharedTensor | TMemoryTensor,
         b: SharedTensor,
         d: TMemoryTensor,
-        enable_input_d: Expr,
+        enable_input_d: Expr | bool,
         cta_group: int = 1,
     ) -> None:
         """
@@ -127,7 +127,7 @@ class Tcgen05InstructionGroup(InstructionGroup):
             The second input matrix. Must be a 2D tensor in shared memory.
         d: TMemoryTensor
             The output matrix. Must be a 2D tensor in tensor memory. It also serves as the accumulator input.
-        enable_input_d: Expr
+        enable_input_d: Expr | bool
             A boolean expression indicating whether the input D should be used as the initial value of the accumulator in the MMA operation.
         cta_group: int
             The CTA group that executes the MMA operation. Must be either 1 or 2.

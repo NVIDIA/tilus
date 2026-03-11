@@ -353,7 +353,11 @@ canonical2expected = [
 ]
 
 
-@pytest.mark.parametrize("canonical, expected", canonical2expected)
+@pytest.mark.parametrize(
+    "canonical, expected",
+    canonical2expected,
+    ids=[str(c) for c, _ in canonical2expected],
+)
 def test_shared_layout_from_canonical(canonical, expected):
     layout = get_shared_layout_from_canonical(canonical)
     actual = layout.visualize()
@@ -365,25 +369,23 @@ def test_shared_layout_from_canonical(canonical, expected):
         assert False, canonical
 
 
+_canonicalize_cases = [
+    CanonicalSharedLayout(major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8),
+    CanonicalSharedLayout(
+        major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=256, LBO=128, m=2, k=2, T=8
+    ),
+    CanonicalSharedLayout(
+        major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B64_SWIZZLE, SBO=512, LBO=256, m=2, k=2, T=8
+    ),
+    CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=32, LBO=64, m=2, k=4, T=4),
+    CanonicalSharedLayout(major_kind="K", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=4),
+]
+
+
 @pytest.mark.parametrize(
     "canonical",
-    [
-        CanonicalSharedLayout(
-            major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=8
-        ),
-        CanonicalSharedLayout(
-            major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=256, LBO=128, m=2, k=2, T=8
-        ),
-        CanonicalSharedLayout(
-            major_kind="MN", swizzle_mode=Tcgen05SwizzleMode.B64_SWIZZLE, SBO=512, LBO=256, m=2, k=2, T=8
-        ),
-        CanonicalSharedLayout(
-            major_kind="K", swizzle_mode=Tcgen05SwizzleMode.NO_SWIZZLE, SBO=32, LBO=64, m=2, k=4, T=4
-        ),
-        CanonicalSharedLayout(
-            major_kind="K", swizzle_mode=Tcgen05SwizzleMode.B32_SWIZZLE, SBO=64, LBO=128, m=2, k=2, T=4
-        ),
-    ],
+    _canonicalize_cases,
+    ids=[str(c) for c in _canonicalize_cases],
 )
 def test_canonicalize_shared_layout(canonical):
     t_to_dtype = {

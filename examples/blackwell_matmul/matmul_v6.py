@@ -148,7 +148,6 @@ class MmaWorker(tilus.Class):
         self.t_acc = self.tcgen05.alloc(
             dtype=float32,
             shape=[params.block_m // 2, params.block_n],
-            init=0.0,
             cta_group=2,
         )
         self.flush_barrier = self.mbarrier.alloc(1)
@@ -168,6 +167,7 @@ class MmaWorker(tilus.Class):
                         s_a[pipe.consumer_stage],
                         s_b[pipe.consumer_stage].transpose(),
                         self.t_acc,
+                        enable_input_d=offset_k != 0,
                         cta_group=2,
                     )
                     self.tcgen05.commit(
@@ -278,6 +278,7 @@ class BlackwellMatmulV6(tilus.Script):
             r_acc = self.tcgen05.load(t_acc)
             self.tcgen05.wait_load()
             self.store_shared(s_c, r_acc.to(float16))
+            self.fence.async_view()
             self.sync()
             with self.single_thread():
                 self.tma.shared_to_global(

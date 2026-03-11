@@ -1419,14 +1419,16 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
 
     def tcgen05_mma_ss(
-        self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr, cta_group: int
+        self, a: SharedTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool, cta_group: int
     ) -> None:
+        enable_input_d = as_expr(enable_input_d) if isinstance(enable_input_d, bool) else enable_input_d
         inst = Tcgen05MmaSSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d, cta_group=cta_group)
         self.append(inst)
 
     def tcgen05_mma_ts(
-        self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr, cta_group: int
+        self, a: TMemoryTensor, b: SharedTensor, d: TMemoryTensor, enable_input_d: Expr | bool, cta_group: int
     ) -> None:
+        enable_input_d = as_expr(enable_input_d) if isinstance(enable_input_d, bool) else enable_input_d
         inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d, cta_group=cta_group)
         self.append(inst)
 

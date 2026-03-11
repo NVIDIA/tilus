@@ -38,9 +38,7 @@ class BlackwellMatmulV1(tilus.Script):
         s_b = self.shared_tensor(dtype=float16, shape=[self.block_n, self.block_k])
 
         # allocate a tensor in tensor memory (tmem)
-        t_acc = self.tcgen05.alloc(
-            dtype=float32, shape=[self.block_m, self.block_n], init=0.0
-        )
+        t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
         # allocate barriers
         tma_barrier, mma_barrier = self.mbarrier.alloc(counts=[1, 1]).tolist()
@@ -70,7 +68,9 @@ class BlackwellMatmulV1(tilus.Script):
                 self.mbarrier.wait(tma_barrier, phase=phase)
 
                 # perform tcgen05 mma on two shared tensors
-                self.tcgen05.mma(s_a, s_b.transpose(), t_acc)
+                self.tcgen05.mma(
+                    s_a, s_b.transpose(), t_acc, enable_input_d=offset_k != 0
+                )
 
                 # commit the mma operation the finish of the committed operations will trigger a arrive event on the barrier
                 self.tcgen05.commit(mbarrier=mma_barrier)

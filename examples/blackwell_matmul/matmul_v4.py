@@ -134,7 +134,7 @@ class MmaWorker(tilus.Class):
         self.pipe: LoadPipeline = pipe
         self.params: Params = params
         self.t_acc = self.tcgen05.alloc(
-            dtype=float32, shape=[params.block_m, params.block_n], init=0.0
+            dtype=float32, shape=[params.block_m, params.block_n]
         )
         self.flush_barrier = self.mbarrier.alloc(1)
 
@@ -152,6 +152,7 @@ class MmaWorker(tilus.Class):
                         s_a[pipe.consumer_stage],
                         s_b[pipe.consumer_stage].transpose(),
                         self.t_acc,
+                        enable_input_d=offset_k != 0,
                     )
                     self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier())
                 pipe.consumer_advance()

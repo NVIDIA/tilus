@@ -26,6 +26,7 @@ class ClusterLaunchControlExample(tilus.Script):
         self.warps = warps
         self.num_stages = num_stages
         self.block_n = warps * 32
+        self.multicast_mask = (1 << cluster_blocks) - 1
 
     def __call__(self, n: int32, p_out: ~int32) -> None:
         """
@@ -70,9 +71,13 @@ class ClusterLaunchControlExample(tilus.Script):
             if is_first_block_in_cluster:
                 with self.thread_group(thread_begin=0, num_threads=32):
                     self.mbarrier.wait(producer_mbarriers[producer_stage], phase=producer_phase)
-                    self.clc.try_cancel(
-                        cancel_response[producer_stage], mbarrier=consumer_mbarriers[producer_stage], multicast=True
+                    self.mbarrier.arrive_and_expect_tx_multicast(
+                        consumer_mbarriers[producer_stage], transaction_bytes=16, multicast_mask=self.multicast_mask
                     )
+                    with self.single_thread():
+                        self.clc.try_cancel(
+                            cancel_response[producer_stage], mbarrier=consumer_mbarriers[producer_stage], multicast=True
+                        )
                     producer_stage = (1 + producer_stage) % self.num_stages
                     producer_phase = producer_phase ^ (producer_stage == 0)
 
@@ -84,6 +89,7 @@ class ClusterLaunchControlExample(tilus.Script):
             # consumer of clc pipeline
             self.mbarrier.wait(consumer_mbarriers[consumer_stage], phase=consumer_phase)
             is_valid, blockIdx = self.clc.query_response(cancel_response[consumer_stage])
+            self.fence.async_view()  # ensure the visibility of the stored result before issuing the next clc operation
             self.mbarrier.arrive(producer_mbarriers[consumer_stage])
             consumer_stage = (1 + consumer_stage) % self.num_stages
             consumer_phase = consumer_phase ^ (consumer_stage == 0)
