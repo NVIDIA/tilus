@@ -6,9 +6,9 @@ from typing import Literal
 import pandas
 import tilus
 import torch
-from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32, Dim3
-from tilus.utils import benchmark_func, cdiv
 from hidet.ir.primitives.cuda.vars import threadIdx
+from tilus import Dim3, RegisterTensor, SharedTensor, float16, float32, int32, uint32
+from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 
@@ -71,9 +71,7 @@ class BlackwellMatmulV7(tilus.Script):
         self.clc_stages = 1
     
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
-        # self.printf("[%d, %d][%d] consumer acquring\n", self.blockIdx.x, self.blockIdx.y, threadIdx.x)
         pipe.consumer_acquire(scope='cluster')
-        # self.printf("[%d, %d][%d] consumer acquired\n", self.blockIdx.x, self.blockIdx.y, threadIdx.x)
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
         self.fence.async_view(space='shared')
@@ -235,6 +233,7 @@ class BlackwellMatmulV7(tilus.Script):
                     r_acc = self.tcgen05.load(t_acc_slice)
                     self.tcgen05.wait_load()
                     self.store_shared(s_c, r_acc.to(float16))
+                    self.fence.async_view(space='shared')
                     self.sync()
                     with self.single_thread():
                         self.tma.shared_to_global(
@@ -268,22 +267,14 @@ def main(bench=True):
     rows: list = []
 
     for m_size, n_size, k_size in [
-        # [256, 256, 256],
         # [4096, 4096, 4096],
         # [4096, 4096, 14336],
         # [8192, 8192, 8192],
         [10240, 10240, 10240],
-        # [512, 512, 256],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
-        a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
-        b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-        # a = torch.randint(0, 2, size=(m_size, k_size), dtype=torch.float16, device="cuda")
-        # b = torch.randint(0, 2, size=(n_size, k_size), dtype=torch.float16, device="cuda")
-        # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
-        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
-        # c_actual = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
-        # c_expected = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+        a = torch.randint(0, 2, size=(m_size, k_size), dtype=torch.float16, device="cuda")
+        b = torch.randint(0, 2, size=(n_size, k_size), dtype=torch.float16, device="cuda")
         c_actual = torch.zeros(m_size, n_size, dtype=torch.float16, device="cuda")
         c_expected = torch.zeros(m_size, n_size, dtype=torch.float16, device="cuda")
 
@@ -292,32 +283,6 @@ def main(bench=True):
 
         torch.matmul(a, b.T, out=c_expected)
         torch.cuda.synchronize()
-        print(c_expected)
-        print(c_actual)
-
-        if not torch.allclose(c_actual, c_expected, atol=1e-2, rtol=1e-2):
-            block_m = 256
-            block_n = 256
-            # print the index of the blocks that mismatch
-            for bm in range(0, m_size, block_m):
-                for bn in range(0, n_size, block_n):
-                    tile = c_actual[bm:bm+block_m, bn:bn+block_n]
-                    tile_ref = c_expected[bm:bm+block_m, bn:bn+block_n]
-                    if not torch.allclose(tile, tile_ref, atol=1e-2, rtol=1e-2):
-                        max_diff = (tile - tile_ref).abs().max().item()
-                        print(f"  MISMATCH block M[{bm}:{bm+block_m}] N[{bn}:{bn+block_n}] max_diff={max_diff:.2f}")
-                        # print("  Expected:")
-                        # print(tile_ref)
-                        # print("  Actual:")
-                        # print(tile)
-                        # # top 10 differences with positions
-                        # diff = (tile - tile_ref).abs()
-                        # flat_diff = diff.flatten()
-                        # top_vals, top_idxs = flat_diff.topk(min(10, flat_diff.numel()))
-                        # print("  Top differences:")
-                        # for val, idx in zip(top_vals, top_idxs):
-                        #     r, c_idx = idx.item() // block_n, idx.item() % block_n
-                        #     print(f"    [{bm+r}, {bn+c_idx}] diff={val.item():.4f} actual={tile[r, c_idx].item():.4f} expected={tile_ref[r, c_idx].item():.4f}")
 
         torch.testing.assert_close(c_actual, c_expected, atol=1e-2, rtol=1e-2)
 
@@ -337,6 +302,6 @@ def main(bench=True):
 
 
 if __name__ == "__main__":
-    # main(bench=True)
-    main(bench=False)
+    main(bench=True)
+    # main(bench=False)
     # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
