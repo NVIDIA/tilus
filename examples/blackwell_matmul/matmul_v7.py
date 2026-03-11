@@ -49,25 +49,27 @@ class Pipeline(tilus.Class):
 @tilus.autotune("block_m", [256])
 @tilus.autotune("block_n, e_block_n", [[64, 16], [128, 16], [256, 16], [256, 32]])
 @tilus.autotune("block_k", [16, 32, 64])
-@tilus.autotune("stages", [3, 4, 5, 6])
+@tilus.autotune("tma_stages", [3, 4, 5, 6])
+@tilus.autotune("mma_stages", [1, 2])
 class BlackwellMatmulV7(tilus.Script):
-    debug_schedule = dict(
-        block_m=256,
-        block_n=256,
-        block_k=64,
-        stages=5,
-        e_block_n=16,
-    )
+    # debug_schedule = dict(
+    #     block_m=256,
+    #     block_n=256,
+    #     block_k=64,
+    #     tma_stages=5,
+    #     mma_stages=1,
+    #     e_block_n=16,
+    # )
     def __init__(
-        self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int
+        self, block_m: int, block_n: int, block_k: int, tma_stages: int, mma_stages: int, e_block_n: int
     ):
         super().__init__()
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
         self.e_block_n = e_block_n
-        self.tma_stages = stages
-        self.mma_stages = 1
+        self.tma_stages = tma_stages
+        self.mma_stages = mma_stages
         self.clc_stages = 1
     
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
