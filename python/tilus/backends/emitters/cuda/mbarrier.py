@@ -100,5 +100,5 @@ class WaitBarrierInstEmitter(BaseInstEmitter):
 @register_emitter(FenceViewAsync, target=nvgpu_sm80)
 class FenceViewAsyncEmitter(BaseInstEmitter):
     def emit(self, inst: FenceViewAsync) -> None:
-        self.append(fence_view_async(scope=inst.scope))
+        self.append(fence_view_async(scope=inst.space))
 

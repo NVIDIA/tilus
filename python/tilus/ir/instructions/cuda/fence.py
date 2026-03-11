@@ -21,9 +21,9 @@ from tilus.ir.inst import Instruction
 
 @dataclass(frozen=True, eq=False)
 class FenceViewAsync(Instruction):
-    scope: str
+    space: str
 
     @staticmethod
     def create(scope: str) -> FenceViewAsync:
         assert scope in ('shared', 'global'), f"Invalid scope for async fence view: {scope}. Supported candidates are 'shared' and 'global'."
-        return FenceViewAsync(output=None, inputs=(), scope=scope)
+        return FenceViewAsync(output=None, inputs=(), space=scope)

@@ -52,6 +52,8 @@ from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
     ArriveExpectTxBarrierInst,
+    ArriveExpectTxMulticastBarrierInst,
+    ArriveExpectTxRemoteBarrierInst,
     WaitBarrierInst,
 )
 from tilus.ir.instructions.cuda.fence import FenceViewAsync
@@ -1285,8 +1287,42 @@ class StmtBuilder(StmtBuilderCore):
         inst = WaitBarrierInst.create(barrier=barrier, phase=phase, sem=sem, scope=scope)
         self.append(inst)
 
-    def fence_view_async(self, scope: str):
-        inst = FenceViewAsync.create(scope=scope)
+    def arrive_expect_tx_multicast_barrier(
+        self,
+        barrier: Expr | RegisterTensor,
+        transaction_bytes: Expr | int,
+        multicast_mask: int,
+        sem: Literal['release', 'relaxed'],
+        scope: Literal['cta', 'cluster'],
+    ) -> None:
+        if isinstance(barrier, RegisterTensor):
+            barrier = self.tensor_item_value(barrier)
+        if isinstance(transaction_bytes, int):
+            transaction_bytes = as_expr(transaction_bytes)
+        inst = ArriveExpectTxMulticastBarrierInst.create(
+            barrier=barrier, transaction_bytes=transaction_bytes, multicast=multicast_mask, sem=sem, scope=scope
+        )
+        self.append(inst)
+
+    def arrive_expect_tx_remote_barrier(
+        self,
+        barrier: Expr | RegisterTensor,
+        transaction_bytes: Expr | int,
+        target_rank: int,
+        sem: Literal['release', 'relaxed'],
+        scope: Literal['cta', 'cluster'],
+    ) -> None:
+        if isinstance(barrier, RegisterTensor):
+            barrier = self.tensor_item_value(barrier)
+        if isinstance(transaction_bytes, int):
+            transaction_bytes = as_expr(transaction_bytes)
+        inst = ArriveExpectTxRemoteBarrierInst.create(
+            barrier=barrier, transaction_bytes=transaction_bytes, target_rank=target_rank, sem=sem, scope=scope
+        )
+        self.append(inst)
+
+    def fence_view_async(self, space: str):
+        inst = FenceViewAsync.create(scope=space)
         self.append(inst)
 
     def cluster_launch_control_try_cancel(

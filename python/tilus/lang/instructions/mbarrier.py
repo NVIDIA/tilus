@@ -237,6 +237,13 @@ class BarrierInstructionGroup(InstructionGroup):
         scope: str
             The syncrhonization scope for the arrive operation. Candidates: 'cta', 'cluster'.
         """
+        if sem not in ('relaxed', 'release'):
+            raise ValueError(f"Invalid memory ordering semantics for arrive operation: {sem}. Supported candidates are 'relaxed' and 'release'.")
+        if scope not in ('cta', 'cluster'):
+            raise ValueError(f"Invalid scope for arrive operation: {scope}. Supported candidates are 'cta' and 'cluster'.")
+        self._builder.arrive_expect_tx_multicast_barrier(
+            barrier, transaction_bytes=transaction_bytes, multicast_mask=multicast_mask, sem=sem, scope=scope
+        )
 
     def arrive_and_expect_tx_remote(
         self,
@@ -270,4 +277,10 @@ class BarrierInstructionGroup(InstructionGroup):
         scope: str
             The syncrhonization scope for the arrive operation. Candidates: 'cta', 'cluster'.
         """
-        
+        if sem not in ('relaxed', 'release'):
+            raise ValueError(f"Invalid memory ordering semantics for arrive operation: {sem}. Supported candidates are 'relaxed' and 'release'.")
+        if scope not in ('cta', 'cluster'):
+            raise ValueError(f"Invalid scope for arrive operation: {scope}. Supported candidates are 'cta' and 'cluster'.")
+        self._builder.arrive_expect_tx_remote_barrier(
+            barrier, transaction_bytes=transaction_bytes, target_rank=target_rank, sem=sem, scope=scope
+        )

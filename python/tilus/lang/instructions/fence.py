@@ -23,7 +23,7 @@ from .root import InstructionGroup
 
 
 class FenceInstructionGroup(InstructionGroup):
-    def async_view(self, scope: str) -> None:
-        if scope not in ('shared', 'global'):
-            raise ValueError(f"Invalid scope for async fence view: {scope}. Supported candidates are 'shared' and 'global'.")
-        self._builder.fence_view_async(scope=scope)
+    def async_view(self, space: str) -> None:
+        if space not in ('shared', 'global'):
+            raise ValueError(f"Invalid scope for async fence view: {space}. Supported candidates are 'shared' and 'global'.")
+        self._builder.fence_view_async(space=space)

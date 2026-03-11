@@ -8,6 +8,7 @@ import tilus
 import torch
 from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32, Dim3
 from tilus.utils import benchmark_func, cdiv
+from hidet.ir.primitives.cuda.vars import threadIdx
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 
@@ -70,17 +71,13 @@ class BlackwellMatmulV7(tilus.Script):
         self.clc_stages = 1
     
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
-        # return False, self.blockIdx
-        cta_rank = self.cluster.blockRank
+        # self.printf("[%d, %d][%d] consumer acquring\n", self.blockIdx.x, self.blockIdx.y, threadIdx.x)
         pipe.consumer_acquire(scope='cluster')
+        # self.printf("[%d, %d][%d] consumer acquired\n", self.blockIdx.x, self.blockIdx.y, threadIdx.x)
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
-        self.fence.async_view(scope='shared')
-        if cta_rank == 0:
-            self.mbarrier.arrive(pipe.consumer_barrier())  
-        else:
-            mbarrier = self.cluster.map_shared_addr(pipe.consumer_barrier(), target_rank=0)
-            self.mbarrier.arrive(mbarrier, scope='cluster')  
+        self.fence.async_view(space='shared')
+        self.mbarrier.arrive_and_expect_tx_remote(pipe.consumer_barrier(), transaction_bytes=0, target_rank=0)
         pipe.consumer_advance()
         return is_valid, new_blockIdx
 
@@ -210,10 +207,10 @@ class BlackwellMatmulV7(tilus.Script):
 
         with self.single_warp(2):   # scheduler
             while True:
-                with self.single_thread():
-                    self.mbarrier.arrive_and_expect_tx(clc_pipe.producer_barrier(), transaction_bytes=16)
-                    clc_pipe.producer_acquire()
-                    if cta_rank == 0:
+                if cta_rank == 0:
+                    clc_pipe.producer_acquire(scope='cluster')  # peer cta will arrive this barrier, need 'cluster'scoped acquire
+                    self.mbarrier.arrive_and_expect_tx_multicast(clc_pipe.producer_barrier(), transaction_bytes=16, multicast_mask=0b11)
+                    with self.single_thread():
                         self.clc.try_cancel(s_clc_response[clc_pipe.producer_stage], mbarrier=clc_pipe.producer_barrier(), multicast=True)
                     clc_pipe.producer_advance()
 
@@ -271,6 +268,7 @@ def main(bench=True):
     rows: list = []
 
     for m_size, n_size, k_size in [
+        # [256, 256, 256],
         # [4096, 4096, 4096],
         # [4096, 4096, 14336],
         # [8192, 8192, 8192],
@@ -279,11 +277,11 @@ def main(bench=True):
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
-        # b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
+        b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
         # a = torch.randint(0, 2, size=(m_size, k_size), dtype=torch.float16, device="cuda")
         # b = torch.randint(0, 2, size=(n_size, k_size), dtype=torch.float16, device="cuda")
         # a = torch.ones(m_size, k_size, dtype=torch.float16, device="cuda")
-        b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
+        # b = torch.ones(n_size, k_size, dtype=torch.float16, device="cuda")
         # c_actual = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
         # c_expected = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
         c_actual = torch.zeros(m_size, n_size, dtype=torch.float16, device="cuda")
