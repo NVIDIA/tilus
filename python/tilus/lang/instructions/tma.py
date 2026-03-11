@@ -167,12 +167,3 @@ class TmaInstructionGroup(InstructionGroup):
             The number of groups to allow to be on-the-fly. It should be an integer larger or equal to 0.
         """
         self._builder.copy_async_tensor_wait_group(n)
-
-    def fence_proxy_copy_async(self):
-        """
-        Makes the modifications to shared tensors visible to TMA engine.
-
-        This instruction makes the modifications to shared tensors visible to TMA engine. It should be in the thread group
-        that has made modifications to shared tensors, and before copy the shared tensors to global memory with TMA-related instructions.
-        """
-        self._builder.fence_proxy_copy_async()

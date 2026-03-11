@@ -13,19 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from hidet.ir.primitives.cuda.barrier import fence_view_async_shared
+from hidet.ir.dtypes import uint32
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
+from tilus.extensions.hidet.ir.primitives.cuda.fence import fence_view_async
+from tilus.extensions.hidet.ir.primitives.cuda.mapa import mapa_shared
 from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
-    mbarrier_arrive_and_expect_tx_shared,
-    mbarrier_arrive_shared,
-    mbarrier_wait_shared,
+    mbarrier_arrive,
+    mbarrier_arrive_expect_tx,
+    mbarrier_wait,
 )
+from tilus.ir.instructions.cuda.fence import FenceViewAsync
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
     ArriveExpectTxBarrierInst,
-    FenceProxyCopyAsync,
+    ArriveExpectTxMulticastBarrierInst,
+    ArriveExpectTxRemoteBarrierInst,
     WaitBarrierInst,
 )
 from tilus.target import nvgpu_sm80, nvgpu_sm90
@@ -47,24 +51,62 @@ class AllocBarrierInstEmitter(BaseInstEmitter):
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
 class ArriveBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveBarrierInst) -> None:
-        self.append(mbarrier_arrive_shared(inst.barrier, count=inst.count))
+        self.append(mbarrier_arrive(inst.barrier, count=inst.count, sem=inst.sem, scope=inst.scope, space="cta"))
 
 
 @register_emitter(ArriveExpectTxBarrierInst, target=nvgpu_sm90)
 class ArriveExpectTxBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: ArriveExpectTxBarrierInst) -> None:
         self.append(
-            mbarrier_arrive_and_expect_tx_shared(mbarrier_addr=inst.barrier, transaction_bytes=inst.transaction_bytes)
+            mbarrier_arrive_expect_tx(
+                mbarrier_addr=inst.barrier,
+                transaction_bytes=inst.transaction_bytes,
+                sem=inst.sem,
+                scope=inst.scope,
+                space="cta",
+            )
+        )
+
+
+@register_emitter(ArriveExpectTxMulticastBarrierInst, target=nvgpu_sm90)
+class ArriveExpectTxMulticastBarrierInstEmitter(BaseInstEmitter):
+    def emit(self, inst: ArriveExpectTxMulticastBarrierInst) -> None:
+        if self.current_num_threads < 16:
+            raise ValueError("Multicast mbarrier operations require at least 16 threads in the thread group.")
+
+        with self.if_then((uint32(1) << self.current_thread) & uint32(inst.multicast)):
+            self.append(
+                mbarrier_arrive_expect_tx(
+                    mbarrier_addr=mapa_shared(inst.barrier, cta_rank=self.current_thread),
+                    transaction_bytes=inst.transaction_bytes,
+                    sem=inst.sem,
+                    scope=inst.scope,
+                    space="cluster",
+                )
+            )
+
+
+@register_emitter(ArriveExpectTxRemoteBarrierInst, target=nvgpu_sm90)
+class ArriveExpectTxRemoteBarrierInstEmitter(BaseInstEmitter):
+    def emit(self, inst: ArriveExpectTxRemoteBarrierInst) -> None:
+        self.append(
+            mbarrier_arrive_expect_tx(
+                mbarrier_addr=mapa_shared(inst.barrier, inst.target_rank),
+                transaction_bytes=inst.transaction_bytes,
+                sem=inst.sem,
+                scope=inst.scope,
+                space="cluster",
+            )
         )
 
 
 @register_emitter(WaitBarrierInst, target=nvgpu_sm90)
 class WaitBarrierInstEmitter(BaseInstEmitter):
     def emit(self, inst: WaitBarrierInst) -> None:
-        self.append(mbarrier_wait_shared(inst.barrier, inst.phase))
+        self.append(mbarrier_wait(inst.barrier, inst.phase, sem=inst.sem, scope=inst.scope))
 
 
-@register_emitter(FenceProxyCopyAsync, target=nvgpu_sm90)
-class FenceProxyCopyAsyncEmitter(BaseInstEmitter):
-    def emit(self, inst: FenceProxyCopyAsync) -> None:
-        self.append(fence_view_async_shared())
+@register_emitter(FenceViewAsync, target=nvgpu_sm80)
+class FenceViewAsyncEmitter(BaseInstEmitter):
+    def emit(self, inst: FenceViewAsync) -> None:
+        self.append(fence_view_async(scope=inst.space))

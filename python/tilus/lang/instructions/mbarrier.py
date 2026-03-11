@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import typing
-from typing import Optional, Sequence
+from typing import Sequence
 
 from hidet.ir.expr import Expr, as_expr
 
@@ -26,14 +25,8 @@ class BarrierInstructionGroup(InstructionGroup):
     producer_initial_phase = 1
     consumer_initial_phase = 0
 
-    @typing.overload
-    def alloc(self, count: Optional[Expr | int] = None) -> Expr: ...
-
-    @typing.overload
-    def alloc(self, count: Sequence[Expr | int]) -> RegisterTensor: ...
-
-    def alloc(self, count: Sequence[Expr | int] | Optional[Expr | int] = None) -> RegisterTensor | Expr:
-        """Allocate barrier(s) in shared memory and get its address in shared space.
+    def alloc(self, counts: Sequence[Expr | int] | Expr | int) -> RegisterTensor:
+        """Allocate barriers in shared memory and get its address in shared space.
 
          A barrier is an 64-bit data structure, encoded as uint64, in shared memory, which
          contains the following information in the 64 bits:
@@ -45,15 +38,15 @@ class BarrierInstructionGroup(InstructionGroup):
            -(2^20 - 1) to 2^20 - 1.
 
          This instruction allocates one or multiple uint64 elements in shared memory to be used as mbarrier(s).
-         The parameter `count` specifies the expected arrivals for the barrier(s).
+         The parameter `counts` specifies the expected arrivals for the barrier(s).
          After initialization, the barrier will have the following initial state:
 
          - phase = 0
-         - pending arrivals = count[i]
-         - expected arrivals = count[i]
+         - pending arrivals = counts[i]
+         - expected arrivals = counts[i]
          - tx-count = 0
 
-         When `count` is not provided, it defaults to the number of threads in the current thread group.
+         When `counts` is not provided, it defaults to [NUM_THREADS] where NUM_THREADS is the number of threads in the current thread group.
 
          Some instructions (e.g., tma copy instructions) that take a barrier as an argument might:
 
@@ -79,47 +72,65 @@ class BarrierInstructionGroup(InstructionGroup):
 
         Parameters
         ----------
-        count: Sequence[Expr | int], Expr, int, optional
-            The number of threads that must arrive at the barrier before any of them can proceed. It must be evaluated
-            to positive int32 integer(s). When not provided, it defaults to the number of threads in the current thread group.
-            When a sequence is provided, multiple barriers will be allocated with each barrier initialized with the corresponding
-            expected arrivals specified in the sequence.
+        counts: Sequence[Expr | int] | Expr | int, optional
+            The sequence of expected arrival counts for the allocated barriers. Each count must be evaluated to a positive int32 integer.
+            When not provided, it defaults to [NUM_THREADS] where NUM_THREADS is the number of threads in the current thread group.
+            Multiple barriers will be allocated with each barrier initialized with the corresponding expected arrivals specified in the sequence.
+            When a single Expr or int is provided, it will be treated as a sequence with one element, and one barrier will be allocated and initialized
+            with the given expected arrival count.
 
         Returns
         -------
-        ret: RegisterTensor | Expr
-            The shared memory address in shared space that points to the allocated barrier. The shared memory address has
-            uint32 data type. When multiple barriers are allocated, a register tensor of shape (len(count),) and dtype uint32
-            is returned, containing the shared memory addresses of the allocated barriers.
+        ret: RegisterTensor
+            A register tensor of dtype uint32 containing the address of the allocated barrier(s) in shared memory.
+            The i-th element corresponds to the address of the barrier with expected arrivals specified by counts[i].
         """
-        counts: list[Expr | None]
-        if isinstance(count, Sequence):
-            counts = [as_expr(c) if isinstance(c, (Expr, int)) else None for c in count]
+        if isinstance(counts, (Expr, int)):
+            processed_counts = [as_expr(counts)]
         else:
-            counts = [as_expr(count) if isinstance(count, (Expr, int)) else None]
-        tensor = self._builder.allocate_barrier(counts)
-        if isinstance(count, Sequence):
-            return tensor
-        else:
-            return self._builder.tensor_item_value(tensor)
+            processed_counts = [as_expr(c) if isinstance(c, (Expr, int)) else None for c in counts]
+        return self._builder.allocate_barrier(processed_counts)
 
-    def arrive(self, barrier: Expr | RegisterTensor, count: Expr | int = 1) -> None:
+    def arrive(
+        self,
+        barrier: RegisterTensor,
+        count: Expr | int = 1,
+        sem: str = "release",
+        scope: str = "cta",
+    ) -> None:
         """Arrive at a barrier.
 
         Each thread in the current thread group decreases the pending arrivals of the given barrier by `count`.
 
         Parameters
         ----------
-        barrier: Expr | RegisterTensor
-            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
-            with single element representing the address of the barrier.
+        barrier: RegisterTensor
+            A register tensor with one uint32 element representing the address of the barrier in the local shared memory.
         count: Expr | int
-            The number of arrivals contributed by each thread in the current thread group.  It must be evaluated to a positive int32.
+            The number of arrivals contributed by each thread in the current thread group. It must be evaluated to a positive int32.
             By default, it is 1.
+        sem: str
+            The memory ordering semantics for the arrive operation. Candidates: 'relaxed', 'release'.
+        scope: str
+            The syncrhonization scope for the arrive operation. Candidates: 'cta', 'cluster'.
         """
-        self._builder.arrive_barrier(barrier, count=count)
+        if sem not in ("relaxed", "release"):
+            raise ValueError(
+                f"Invalid memory ordering semantics for arrive operation: {sem}. Supported candidates are 'relaxed' and 'release'."
+            )
+        if scope not in ("cta", "cluster"):
+            raise ValueError(
+                f"Invalid scope for arrive operation: {scope}. Supported candidates are 'cta' and 'cluster'."
+            )
+        self._builder.arrive_barrier(barrier, count=count, sem=sem, scope=scope)
 
-    def arrive_and_expect_tx(self, barrier: Expr | RegisterTensor, transaction_bytes: Expr | int) -> None:
+    def arrive_and_expect_tx(
+        self,
+        barrier: RegisterTensor,
+        transaction_bytes: Expr | int,
+        sem: str = "release",
+        scope: str = "cta",
+    ) -> None:
         """Arrive at a barrier with expected asynchronous memory transactions.
 
         Each thread in the current thread group decreases the pending arrivals of the given barrier by 1, and increases
@@ -127,17 +138,34 @@ class BarrierInstructionGroup(InstructionGroup):
 
         Parameters
         ----------
-        barrier: Expr | RegisterTensor
-            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
-            with single element representing the address of the barrier.
+        barrier: RegisterTensor
+            A register tensor with one uint32 element representing the address of the barrier in the local shared memory.
         transaction_bytes: Expr | int
             The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to this
             barrier. The barrier's tx-count will be increased by this value on arrival and decreased as the async
             transactions complete. It must be evaluated to a non-negative int32.
+        sem: str
+            The memory ordering semantics for the arrive operation. Candidates: 'relaxed', 'release'.
+        scope: str
+            The syncrhonization scope for the arrive operation. Candidates: 'cta', 'cluster'.
         """
-        self._builder.arrive_expect_tx_barrier(barrier, transaction_bytes=transaction_bytes)
+        if sem not in ("relaxed", "release"):
+            raise ValueError(
+                f"Invalid memory ordering semantics for arrive operation: {sem}. Supported candidates are 'relaxed' and 'release'."
+            )
+        if scope not in ("cta", "cluster"):
+            raise ValueError(
+                f"Invalid scope for arrive operation: {scope}. Supported candidates are 'cta' and 'cluster'."
+            )
+        self._builder.arrive_expect_tx_barrier(barrier, transaction_bytes=transaction_bytes, sem=sem, scope=scope)
 
-    def wait(self, barrier: Expr | RegisterTensor, phase: Expr | RegisterTensor | int) -> None:
+    def wait(
+        self,
+        barrier: RegisterTensor,
+        phase: Expr | RegisterTensor | int,
+        sem: str = "acquire",
+        scope: str = "cta",
+    ) -> None:
         """Wait at a barrier.
 
         This instruction makes the threads in the current thread group wait at the specified barrier until the pending
@@ -152,11 +180,115 @@ class BarrierInstructionGroup(InstructionGroup):
 
         Parameters
         ----------
-        barrier: Expr | RegisterTensor
-            The uint32 integer representing the address of the barrier in shared space. It can also be a register tensor
-            with single element representing the address of the barrier.
+        barrier: RegisterTensor
+            The barrier to wait on. It must be a register tensor with one uint32 element representing the address of the barrier in the local shared memory.
         phase: Expr | RegisterTensor | int
             The phase value to wait for. It must be evaluated to either 0 or 1. It can also be a register tensor with single
             element representing the phase value.
+        sem: str
+            The memory ordering semantics for the wait operation. Candidates: 'acquire', 'relaxed'.
+        scope: str
+            The synchronization scope for the wait operation. Candidates: 'cta', 'cluster'.
         """
-        self._builder.wait_barrier(barrier, phase)
+        if sem not in ("acquire", "relaxed"):
+            raise ValueError(
+                f"Invalid memory ordering semantics for wait operation: {sem}. Supported candidates are 'acquire' and 'relaxed'."
+            )
+        if scope not in ("cta", "cluster"):
+            raise ValueError(
+                f"Invalid scope for wait operation: {scope}. Supported candidates are 'cta' and 'cluster'."
+            )
+        self._builder.wait_barrier(barrier, phase, sem=sem, scope=scope)
+
+    def arrive_and_expect_tx_multicast(
+        self,
+        barrier: RegisterTensor,
+        transaction_bytes: Expr | int,
+        multicast_mask: int,
+        sem: str = "release",
+        scope: str = "cluster",
+    ) -> None:
+        """
+        Arrive at a barrier with expected asynchronous memory transactions and multicast the arrival to a subset of blocks in the cluster.
+
+        This instruction arrives the all barriers on each CTA in the current block cluster with the same offset of the given barrier. The arrival count is 1
+        and the expected transaction bytes are specified by `transaction_bytes`.
+
+        The `barrier` parameter specifies the address of the barrier for the current block, and the `multicast_mask` parameter specifies which blocks
+        in the cluster will be involved in this arrival operation. For example, when `multicast_mask` is 0b101, only the barriers on blocks 0 and 2 be signaled by the arrival
+        and expect-tx operation, while other blocks will not be affected.
+
+        This instruction must be executed in a thread group with at least 16 threads. The arrive-and-expect-tx operation will not be performed by each
+        thread. Instead, one thread will be elected to perform the operation for one CTA in the multicast.
+
+        Parameters
+        ----------
+        barrier: RegisterTensor
+            A register tensor with one uint32 element representing the address of the barrier in the local shared memory for the current block.
+        transaction_bytes: Expr | int
+            The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to the barriers. The barriers' tx-count
+            will be increased by this value on arrival and decreased as the async transactions complete. It must be evaluated to a non-negative int32.
+        multicast_mask: int
+            A bitmask specifying which blocks in the cluster will be involved in this arrival operation. The least significant bit corresponds to block 0,
+            the second least significant bit corresponds to block 1, and so on. For example, when `multicast_mask` is 0b101, only the barriers on
+            blocks 0 and 2 be signaled by the arrival and expect-tx operation, while other blocks will not be affected.
+        sem: str
+            The memory ordering semantics for the arrive operation. Candidates: 'relaxed', 'release'.
+        scope: str
+            The syncrhonization scope for the arrive operation. Candidates: 'cta', 'cluster'.
+        """
+        if sem not in ("relaxed", "release"):
+            raise ValueError(
+                f"Invalid memory ordering semantics for arrive operation: {sem}. Supported candidates are 'relaxed' and 'release'."
+            )
+        if scope not in ("cta", "cluster"):
+            raise ValueError(
+                f"Invalid scope for arrive operation: {scope}. Supported candidates are 'cta' and 'cluster'."
+            )
+        self._builder.arrive_expect_tx_multicast_barrier(
+            barrier, transaction_bytes=transaction_bytes, multicast_mask=multicast_mask, sem=sem, scope=scope
+        )
+
+    def arrive_and_expect_tx_remote(
+        self,
+        barrier: RegisterTensor,
+        transaction_bytes: Expr | int,
+        target_rank: int,
+        sem: str = "release",
+        scope: str = "cluster",
+    ) -> None:
+        """
+        Arrive at a barrier on a peer thread block in the same cluster with expected asynchronous memory transactions.
+
+        The arrival count would be 1 and the expected transaction bytes are specified by `transaction_bytes`.
+
+        The `barrier` parameter must be on the local shared memory of the current block. The mbarrier on the target block
+        specified by `target_rank` that has the same offset as the given `barrier` will be signaled by this arrival operation
+        and expect the asynchronous transactions.
+
+        Parameters
+        ----------
+        barrier: RegisterTensor
+            A register tensor with one uint32 element representing the address of the barrier in the local shared memory for the current block.
+        transaction_bytes: Expr | int
+            The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to the barrier. The barrier's tx-count
+            will be increased by this value on arrival and decreased as the async transactions complete. It must be evaluated to a non-negative int32.
+        target_rank: int
+            The rank of the target block in the same cluster for this remote arrive operation. It must be in the range of `[0, clusterSize)` where
+            `clusterSize` is the total number of blocks in the cluster.
+        sem: str
+            The memory ordering semantics for the arrive operation. Candidates: 'relaxed', 'release'.
+        scope: str
+            The syncrhonization scope for the arrive operation. Candidates: 'cta', 'cluster'.
+        """
+        if sem not in ("relaxed", "release"):
+            raise ValueError(
+                f"Invalid memory ordering semantics for arrive operation: {sem}. Supported candidates are 'relaxed' and 'release'."
+            )
+        if scope not in ("cta", "cluster"):
+            raise ValueError(
+                f"Invalid scope for arrive operation: {scope}. Supported candidates are 'cta' and 'cluster'."
+            )
+        self._builder.arrive_expect_tx_remote_barrier(
+            barrier, transaction_bytes=transaction_bytes, target_rank=target_rank, sem=sem, scope=scope
+        )

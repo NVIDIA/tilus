@@ -18,6 +18,7 @@ from tilus.ir.inst import InstructionError
 from .base import InstructionGroup, builder_context
 from .clc import ClusterLaunchControlInstructionGroup
 from .cluster import BlockClusterInstructionGroup
+from .fence import FenceInstructionGroup
 from .mbarrier import BarrierInstructionGroup
 from .root import RootInstructionGroup
 from .tcgen05 import Tcgen05InstructionGroup
@@ -29,6 +30,7 @@ class InstructionInterface(RootInstructionGroup):
     tcgen05 = Tcgen05InstructionGroup()
     tma = TmaInstructionGroup()
     mbarrier = BarrierInstructionGroup()
+    fence = FenceInstructionGroup()
     clc = ClusterLaunchControlInstructionGroup()
     cluster = BlockClusterInstructionGroup()
     wgmma = WgmmaInstructionGroup()

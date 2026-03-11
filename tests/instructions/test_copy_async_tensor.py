@@ -39,7 +39,7 @@ class CopyAsyncTensorExample(tilus.Script):
         s_x = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_n])
         s_y = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_n])
 
-        load_barrier = self.mbarrier.alloc(count=1)
+        load_barrier = self.mbarrier.alloc(counts=1)
         self.sync()
 
         with self.single_thread():
@@ -57,7 +57,7 @@ class CopyAsyncTensorExample(tilus.Script):
         x += 1
         self.store_shared(s_y, x)
 
-        self.tma.fence_proxy_copy_async()
+        self.fence.async_view()
         self.sync()
 
         with self.single_thread():

@@ -44,13 +44,11 @@ class BlackwellMatmulV2(tilus.Script):
         )
 
         # allocate a tensor in tensor memory (tmem)
-        t_acc = self.tcgen05.alloc(
-            dtype=float32, shape=[self.block_m, self.block_n], init=0.0
-        )
+        t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
         # allocate barriers
-        tma_barriers = self.mbarrier.alloc(count=[1 for _ in range(self.stages)])
-        mma_barrier = self.mbarrier.alloc(count=1)
+        tma_barriers = self.mbarrier.alloc(counts=[1 for _ in range(self.stages)])
+        mma_barrier = self.mbarrier.alloc(counts=1)
         tma_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=0)
         mma_phase: uint32 = 0
 
@@ -104,7 +102,10 @@ class BlackwellMatmulV2(tilus.Script):
                 )
 
                 self.tcgen05.mma(
-                    s_a[current_stage], s_b[current_stage].transpose(), t_acc
+                    s_a[current_stage],
+                    s_b[current_stage].transpose(),
+                    t_acc,
+                    enable_input_d=offset_k != 0,
                 )
                 self.tcgen05.commit(mbarrier=mma_barrier)
                 self.mbarrier.wait(mma_barrier, phase=mma_phase)

@@ -23,7 +23,7 @@ class PingPongExample(tilus.Script):
         self.attrs.blocks = 1
         self.attrs.warps = 8
 
-        a_ready, b_ready = self.mbarrier.alloc(count=[128, 128]).tolist()
+        a_ready, b_ready = self.mbarrier.alloc(counts=[128, 128]).tolist()
         a_phase: uint32 = 0
         b_phase: uint32 = 1
         num_rounds = 10

@@ -54,9 +54,11 @@ class MatmulWGMMAV3(tilus.Script):
         sb = self.shared_tensor(dtype=float16, shape=[self.num_stages, block_n, block_k])
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
-        consumer_barriers = self.mbarrier.alloc(count=[1 for _ in range(self.num_stages)])
+        consumer_barriers = self.mbarrier.alloc(
+            counts=[1 for _ in range(self.num_stages)]
+        )
         producer_barriers = self.mbarrier.alloc(
-            count=[128 for _ in range(self.num_stages)]
+            counts=[128 for _ in range(self.num_stages)]
         )
 
         with self.thread_group(thread_begin=128, num_threads=32):

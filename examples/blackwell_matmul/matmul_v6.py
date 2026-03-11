@@ -148,7 +148,6 @@ class MmaWorker(tilus.Class):
         self.t_acc = self.tcgen05.alloc(
             dtype=float32,
             shape=[params.block_m // 2, params.block_n],
-            init=0.0,
             cta_group=2,
         )
         self.flush_barrier = self.mbarrier.alloc(1)
@@ -168,6 +167,7 @@ class MmaWorker(tilus.Class):
                         s_a[pipe.consumer_stage],
                         s_b[pipe.consumer_stage].transpose(),
                         self.t_acc,
+                        enable_input_d=offset_k != 0,
                         cta_group=2,
                     )
                     self.tcgen05.commit(
@@ -188,13 +188,14 @@ class MmaWorker(tilus.Class):
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4, 5, 6])
 class BlackwellMatmulV6(tilus.Script):
-    # debug_schedule = dict(
-    #     block_m=256,
-    #     block_n=256,
-    #     block_k=64,
-    #     stages=5,
-    #     e_block_n=16,
-    # )
+    debug_schedule = dict(
+        block_m=256,
+        block_n=256,
+        block_k=64,
+        stages=5,
+        e_block_n=16,
+    )
+
     def __init__(
         self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int
     ):
@@ -277,6 +278,7 @@ class BlackwellMatmulV6(tilus.Script):
             r_acc = self.tcgen05.load(t_acc)
             self.tcgen05.wait_load()
             self.store_shared(s_c, r_acc.to(float16))
+            self.fence.async_view()
             self.sync()
             with self.single_thread():
                 self.tma.shared_to_global(

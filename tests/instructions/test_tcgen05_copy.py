@@ -50,7 +50,7 @@ class TmemCopyExample(tilus.Script):
         s_x = self.shared_tensor(dtype=int32, shape=[self.block_m, self.block_n])
         t_x = self.tcgen05.alloc(dtype=int32, shape=[self.block_m, self.block_n])
 
-        barriers = self.mbarrier.alloc(count=[1])
+        barriers = self.mbarrier.alloc(counts=[1])
 
         # load x from global to shared
         self.copy_async(src=g_x, dst=s_x, offsets=[m_offset, n_offset])

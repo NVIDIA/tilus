@@ -44,16 +44,14 @@ class BlackwellMatmulV3(tilus.Script):
         )
 
         # allocate a tensor in tensor memory (tmem)
-        t_acc = self.tcgen05.alloc(
-            dtype=float32, shape=[self.block_m, self.block_n], init=0.0
-        )
+        t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
         # allocate barriers and the initial phases
         consumer_barriers = self.mbarrier.alloc(
-            count=[1 for _ in range(self.stages)]
+            counts=[1 for _ in range(self.stages)]
         )  # whether the data is ready for consumption
         producer_barriers = self.mbarrier.alloc(
-            count=[1 for _ in range(self.stages)]
+            counts=[1 for _ in range(self.stages)]
         )  # whether the data is ready to be filled
 
         with self.thread_group(thread_begin=0, num_threads=32):
@@ -106,7 +104,12 @@ class BlackwellMatmulV3(tilus.Script):
                 )  # wait until the stage is ready for consumption
                 consumer_phases[stage] ^= 1
                 with self.single_thread():
-                    self.tcgen05.mma(s_a[stage], s_b[stage].transpose(), t_acc)
+                    self.tcgen05.mma(
+                        s_a[stage],
+                        s_b[stage].transpose(),
+                        t_acc,
+                        enable_input_d=offset_k != 0,
+                    )
                     self.tcgen05.commit(mbarrier=producer_barriers[stage])
                 stage = (stage + 1) % self.stages
 
