@@ -23,12 +23,14 @@ from .root import RootInstructionGroup
 from .tcgen05 import Tcgen05InstructionGroup
 from .tma import TmaInstructionGroup
 from .wgmma import WgmmaInstructionGroup
+from .fence import FenceInstructionGroup
 
 
 class InstructionInterface(RootInstructionGroup):
     tcgen05 = Tcgen05InstructionGroup()
     tma = TmaInstructionGroup()
     mbarrier = BarrierInstructionGroup()
+    fence = FenceInstructionGroup()
     clc = ClusterLaunchControlInstructionGroup()
     cluster = BlockClusterInstructionGroup()
     wgmma = WgmmaInstructionGroup()

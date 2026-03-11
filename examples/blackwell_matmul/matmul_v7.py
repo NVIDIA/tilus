@@ -72,9 +72,10 @@ class BlackwellMatmulV7(tilus.Script):
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
         # return False, self.blockIdx
         cta_rank = self.cluster.blockRank
-        pipe.consumer_acquire()
+        pipe.consumer_acquire(scope='cluster')
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
+        self.fence.async_view(scope='shared')
         if cta_rank == 0:
             self.mbarrier.arrive(pipe.consumer_barrier())  
         else:
@@ -209,12 +210,10 @@ class BlackwellMatmulV7(tilus.Script):
 
         with self.single_warp(2):   # scheduler
             while True:
-                if cta_rank == 0:
-                    clc_pipe.producer_acquire(scope='cluster')
-                    with self.single_thread():
-                        self.mbarrier.arrive_and_expect_tx(clc_pipe.producer_barrier(), transaction_bytes=16)
-                        peer_mbarrier = self.cluster.map_shared_addr(clc_pipe.producer_barrier(), target_rank=1)
-                        self.mbarrier.arrive_and_expect_tx(peer_mbarrier, transaction_bytes=16, scope='cluster')
+                with self.single_thread():
+                    self.mbarrier.arrive_and_expect_tx(clc_pipe.producer_barrier(), transaction_bytes=16)
+                    clc_pipe.producer_acquire()
+                    if cta_rank == 0:
                         self.clc.try_cancel(s_clc_response[clc_pipe.producer_stage], mbarrier=clc_pipe.producer_barrier(), multicast=True)
                     clc_pipe.producer_advance()
 
@@ -275,7 +274,8 @@ def main(bench=True):
         # [4096, 4096, 4096],
         # [4096, 4096, 14336],
         # [8192, 8192, 8192],
-        [10240, 10240, 256],
+        [10240, 10240, 10240],
+        # [512, 512, 256],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
@@ -289,7 +289,6 @@ def main(bench=True):
         c_actual = torch.zeros(m_size, n_size, dtype=torch.float16, device="cuda")
         c_expected = torch.zeros(m_size, n_size, dtype=torch.float16, device="cuda")
 
-        torch.cuda.synchronize()
         matmul(m_size, n_size, k_size, a, b, c_actual)
         torch.cuda.synchronize()
 

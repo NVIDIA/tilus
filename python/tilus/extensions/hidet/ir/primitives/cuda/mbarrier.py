@@ -23,12 +23,12 @@ from hidet.lang import attrs, script, u32
 from hidet.utils import initialize
 
 
-def resolve_mbarrier_arrive_name(sem: str, scope: str) -> str:
-    return "cuda_mbarrier_arrive_{}_{}".format(sem, scope)
+def resolve_mbarrier_arrive_name(sem: str, scope: str, space: str) -> str:
+    return "cuda_mbarrier_arrive_{}_{}_{}".format(sem, scope, space)
 
 
-def resolve_mbarrier_arrive_expect_tx_name(sem: str, scope: str) -> str:
-    return "cuda_mbarrier_arrive_expect_tx_{}_{}".format(sem, scope)
+def resolve_mbarrier_arrive_expect_tx_name(sem: str, scope: str, space: str) -> str:
+    return "cuda_mbarrier_arrive_expect_tx_{}_{}_{}".format(sem, scope, space)
 
 
 def resolve_mbarrier_wait_name(sem: str, scope: str) -> str:
@@ -48,40 +48,42 @@ def register_mbarrier_primitives():
             memory_fence=True,
         )
 
-    # mbarrier.arrive.{sem}.{scope}.shared::cta.b64
+    # mbarrier.arrive.{sem}.{scope}.shared::{space}.b64
     for sem in ["release", "relaxed"]:
         for scope in ["cta", "cluster"]:
-            func_name = resolve_mbarrier_arrive_name(sem, scope)
-            inst = "mbarrier.arrive.{}.{}.shared::cta.b64".format(sem, scope)
+            for space in ['cta', 'cluster']:
+                func_name = resolve_mbarrier_arrive_name(sem, scope, space)
+                inst = "mbarrier.arrive.{}.{}.shared::{}.b64".format(sem, scope, space)
 
-            @no_type_check
-            @script
-            def cuda_mbarrier_arrive(mbarrier_addr: u32, count: u32):
-                attrs.func_kind = "cuda_internal"
-                attrs.func_name = func_name
-                asm(template=inst + " _, [%0], %1;", inputs=[mbarrier_addr, count], is_volatile=True)
+                @no_type_check
+                @script
+                def cuda_mbarrier_arrive(mbarrier_addr: u32, count: u32):
+                    attrs.func_kind = "cuda_internal"
+                    attrs.func_name = func_name
+                    asm(template=inst + " _, [%0], %1;", inputs=[mbarrier_addr, count], is_volatile=True)
 
-            register_primitive_function(name=func_name, func_or_type=cuda_mbarrier_arrive)
+                register_primitive_function(name=func_name, func_or_type=cuda_mbarrier_arrive)
 
-    # mbarrier.arrive.expect_tx.{sem}.{scope}.shared::cta.b64
+    # mbarrier.arrive.expect_tx.{sem}.{scope}.shared::{space}.b64
     for sem in ["release", "relaxed"]:
         for scope in ["cta", "cluster"]:
-            func_name = resolve_mbarrier_arrive_expect_tx_name(sem, scope)
-            inst = "mbarrier.arrive.expect_tx.{}.{}.shared::cta.b64".format(sem, scope)
+            for space in ['cta', 'cluster']:
+                func_name = resolve_mbarrier_arrive_expect_tx_name(sem, scope, space)
+                inst = "mbarrier.arrive.expect_tx.{}.{}.shared::{}.b64".format(sem, scope, space)
 
-            @no_type_check
-            @script
-            def cuda_mbarrier_arrive_expect_tx(mbarrier_addr: u32, transaction_bytes: u32):
-                attrs.func_kind = "cuda_internal"
-                attrs.func_name = func_name
-                asm(
-                    template=inst + " _, [%0], %1;",
-                    inputs=[mbarrier_addr, transaction_bytes],
-                    is_volatile=True,
-                    memory_fence=True,
-                )
+                @no_type_check
+                @script
+                def cuda_mbarrier_arrive_expect_tx(mbarrier_addr: u32, transaction_bytes: u32):
+                    attrs.func_kind = "cuda_internal"
+                    attrs.func_name = func_name
+                    asm(
+                        template=inst + " _, [%0], %1;",
+                        inputs=[mbarrier_addr, transaction_bytes],
+                        is_volatile=True,
+                        memory_fence=True,
+                    )
 
-            register_primitive_function(name=func_name, func_or_type=cuda_mbarrier_arrive_expect_tx)
+                register_primitive_function(name=func_name, func_or_type=cuda_mbarrier_arrive_expect_tx)
 
     # mbarrier.try_wait.parity.{sem}.{scope}.shared::cta.b64
     for sem in ["acquire", "relaxed"]:
@@ -289,7 +291,7 @@ def mbarrier_wait(mbarrier_addr: Expr, phase: Union[int, Expr], sem: str, scope:
     return call_primitive_func(func_name, args=[mbarrier_addr, u32(phase)])
 
 
-def mbarrier_arrive(mbarrier_addr: Expr, count: Union[int, Expr], sem: str, scope: str) -> Expr:
+def mbarrier_arrive(mbarrier_addr: Expr, count: Union[int, Expr], sem: str, scope: str, space: str) -> Expr:
     """
     Perform an arrive operation on an mbarrier object with explicit sem/scope.
 
@@ -302,20 +304,22 @@ def mbarrier_arrive(mbarrier_addr: Expr, count: Union[int, Expr], sem: str, scop
     sem : str
         Memory ordering semantics: 'release' or 'relaxed'.
     scope : str
-        Scope: 'cta' or 'cluster'.
+        Synchronization scope: 'cta' or 'cluster'.
+    space : str
+        Address space of the mbarrier object: 'cta' or 'cluster'.
 
     Returns
     -------
     ret : Expr
         A call expression that performs the arrive operation.
     """
-    func_name = resolve_mbarrier_arrive_name(sem, scope)
+    func_name = resolve_mbarrier_arrive_name(sem, scope, space)
     count_expr = count if isinstance(count, Expr) else u32(count)
     return call_primitive_func(func_name, args=[mbarrier_addr, count_expr])
 
 
 def mbarrier_arrive_expect_tx(
-    mbarrier_addr: Expr, transaction_bytes: Union[int, Expr], sem: str, scope: str
+    mbarrier_addr: Expr, transaction_bytes: Union[int, Expr], sem: str, scope: str, space: str
 ) -> Expr:
     """
     Perform combined arrive and expect-tx on an mbarrier object with explicit sem/scope.
@@ -329,14 +333,16 @@ def mbarrier_arrive_expect_tx(
     sem : str
         Memory ordering semantics: 'release' or 'relaxed'.
     scope : str
-        Scope: 'cta' or 'cluster'.
+        Synchronization scope: 'cta' or 'cluster'.
+    space : str
+        Address space of the mbarrier object: 'cta' or 'cluster'.
 
     Returns
     -------
     ret : Expr
         A call expression that performs the combined operation.
     """
-    func_name = resolve_mbarrier_arrive_expect_tx_name(sem, scope)
+    func_name = resolve_mbarrier_arrive_expect_tx_name(sem, scope, space)
     return call_primitive_func(func_name, args=[mbarrier_addr, u32(transaction_bytes)])
 
 

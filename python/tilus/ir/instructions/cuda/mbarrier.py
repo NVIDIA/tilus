@@ -80,9 +80,43 @@ class WaitBarrierInst(Instruction):
     ) -> WaitBarrierInst:
         return WaitBarrierInst(output=None, inputs=(), barrier=barrier, phase=phase, sem=sem, scope=scope)
 
+@dataclass(frozen=True, eq=False)
+class ArriveExpectTxMulticastBarrierInst(Instruction):
+    barrier: Expr
+    transaction_bytes: Expr
+    multicast: int
+    sem: Literal['release', 'relaxed']
+    scope: Literal['cta', 'cluster']
+
+    @staticmethod
+    def create(
+        barrier: Expr,
+        transaction_bytes: Expr,
+        multicast: int,
+        sem: Literal['release', 'relaxed'],
+        scope: Literal['cta', 'cluster'],
+    ) -> ArriveExpectTxMulticastBarrierInst:
+        return ArriveExpectTxMulticastBarrierInst(
+            output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, multicast=multicast, sem=sem, scope=scope
+        )
+
 
 @dataclass(frozen=True, eq=False)
-class FenceProxyCopyAsync(Instruction):
+class ArriveExpectTxRemoteBarrierInst(Instruction):
+    barrier: Expr
+    transaction_bytes: Expr
+    target_rank: int
+    sem: Literal['release', 'relaxed']
+    scope: Literal['cta', 'cluster']
+
     @staticmethod
-    def create() -> FenceProxyCopyAsync:
-        return FenceProxyCopyAsync(output=None, inputs=())
+    def create(
+        barrier: Expr,
+        transaction_bytes: Expr,
+        target_rank: int,
+        sem: Literal['release', 'relaxed'],
+        scope: Literal['cta', 'cluster'],
+    ) -> ArriveExpectTxRemoteBarrierInst:
+        return ArriveExpectTxRemoteBarrierInst(
+            output=None, inputs=(), barrier=barrier, transaction_bytes=transaction_bytes, target_rank=target_rank, sem=sem, scope=scope
+        )

@@ -52,9 +52,9 @@ from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
     ArriveExpectTxBarrierInst,
-    FenceProxyCopyAsync,
     WaitBarrierInst,
 )
+from tilus.ir.instructions.cuda.fence import FenceViewAsync
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
 from tilus.ir.instructions.cuda.tcgen05 import (
@@ -1285,8 +1285,8 @@ class StmtBuilder(StmtBuilderCore):
         inst = WaitBarrierInst.create(barrier=barrier, phase=phase, sem=sem, scope=scope)
         self.append(inst)
 
-    def fence_proxy_copy_async(self):
-        inst = FenceProxyCopyAsync.create()
+    def fence_view_async(self, scope: str):
+        inst = FenceViewAsync.create(scope=scope)
         self.append(inst)
 
     def cluster_launch_control_try_cancel(
