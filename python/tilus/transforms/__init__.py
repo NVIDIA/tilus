@@ -16,6 +16,7 @@ from typing import Sequence
 
 from .base import Pass, PassContext, apply_transforms
 from .bound_aware_simplify import bound_aware_simplify_pass
+from .dead_code_elimination import dead_code_elimination_pass
 from .declare_to_let import declare_to_let_pass
 from .inject_print_instruction import inject_print_instruction_pass
 from .layout_inference import layout_inference_pass
@@ -42,4 +43,5 @@ def get_default_passes() -> list[Pass]:
         layout_inference_pass(),
         bound_aware_simplify_pass(),
         analyze_scalar_pass(),
+        dead_code_elimination_pass(),
     ]
