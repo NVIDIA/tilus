@@ -9,7 +9,7 @@
 
 It also includes automatic tuning, caching, and a Pythonic interface for ease of use.
 
-Tilus is pronounced as tie-lus, /ˈtaɪləs/.
+Tilus is pronounced as "tie-lus" (/ˈtaɪləs/).
 
 ## Status
 
@@ -51,7 +51,7 @@ This project is based on the following research paper:
 ```
 
 ## Acknowledgement
-We would like to acknowledge the following projects for their influence on Tilus's design and development:
+We would like to acknowledge the following projects for their influence on Tilus' design and development:
 - **Hidet**: We take Hidet IR as our low-level target and reuse its runtime system.
 - **TVM**: Hidet's initial IR was adopted from TVM, and we also learned a lot from TVM on how to build a compiler.
 - **Triton**: The core idea of defining kernels at a thread-block level and working with tiles was inspired by Triton.
