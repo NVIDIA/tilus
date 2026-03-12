@@ -43,7 +43,15 @@ class ThreadGroupStack:
         depth = self.stack_depth()
         if depth > 0:
             parent_num_threads = self.num_threads[-1]
-            if thread_begin < 0 or thread_begin + num_threads > parent_num_threads:
+            if thread_begin == -1:
+                # Elect-any mode: num_threads must fit within parent
+                if num_threads > parent_num_threads:
+                    raise ValueError(
+                        "elect-any thread group num_threads={} exceeds parent_num_threads={}".format(
+                            num_threads, parent_num_threads
+                        )
+                    )
+            elif thread_begin < 0 or thread_begin + num_threads > parent_num_threads:
                 raise ValueError(
                     "thread_begin must be in [0, parent_num_threads - num_threads), got thread_begin={}, num_threads={}, parent_num_threads={}".format(
                         thread_begin, num_threads, parent_num_threads
@@ -52,10 +60,14 @@ class ThreadGroupStack:
         self.num_threads.append(num_threads)
 
         if depth > 0:
-            parent_num_threads = self.num_threads[-1]
             parent_thread_begin = self.thread_begin[-1]
-            self.thread_begin.append(parent_thread_begin + thread_begin)
-            self.thread_end.append(parent_thread_begin + thread_begin + num_threads)
+            if thread_begin == -1:
+                # Elect-any: record as starting at parent_thread_begin (will be resolved at codegen)
+                self.thread_begin.append(parent_thread_begin)
+                self.thread_end.append(parent_thread_begin + num_threads)
+            else:
+                self.thread_begin.append(parent_thread_begin + thread_begin)
+                self.thread_end.append(parent_thread_begin + thread_begin + num_threads)
         else:
             self.thread_begin.append(0)
             self.thread_end.append(num_threads)
