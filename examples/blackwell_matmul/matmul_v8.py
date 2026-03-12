@@ -67,15 +67,15 @@ class Pipeline(tilus.Class):
 @tilus.autotune("mma_stages", [2])
 @tilus.autotune("swizzle_size", [4, 8, 16])
 class BlackwellMatmulV8(tilus.Script):
-    debug_schedule = dict(
-        block_m=256,
-        block_n=256,
-        block_k=64,
-        tma_stages=6,
-        mma_stages=2,
-        e_block_n=32,
-        swizzle_size=8,
-    )
+    # debug_schedule = dict(
+    #     block_m=256,
+    #     block_n=256,
+    #     block_k=64,
+    #     tma_stages=6,
+    #     mma_stages=2,
+    #     e_block_n=32,
+    #     swizzle_size=8,
+    # )
 
     def __init__(
         self,
@@ -347,9 +347,9 @@ def main(bench=True):
     rows: list = []
 
     for m_size, n_size, k_size in [
-        # [4096, 4096, 4096],
-        # [4096, 4096, 14336],
-        # [8192, 8192, 8192],
+        [4096, 4096, 4096],
+        [4096, 4096, 14336],
+        [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
