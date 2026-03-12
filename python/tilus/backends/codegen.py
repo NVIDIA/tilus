@@ -276,7 +276,7 @@ class FunctionCodegen(IRFunctor):
         with self.builder.for_loop(stmt.iter_var, stmt.extent, attr=attr):
             self.visit(stmt.body)
 
-    def _elect_any_cond(self, num_threads: int, parent_num_threads: int):
+    def _elect_any_cond(self, num_threads: int, parent_num_threads: int) -> tuple:
         """Build the condition and tid_value for an elect-any ThreadGroupStmt.
 
         Returns (cond, tid_value) where cond is None if all threads should execute.

@@ -72,7 +72,7 @@ def register_warp_uniform_primitives():
     register_primitive_function(name=shfl_sync_i32.name, func_or_type=shfl_sync_i32)
 
 
-def elect_one_sync(membermask=None) -> Expr:
+def elect_one_sync(membermask: Expr = None) -> Expr:  # type: ignore[assignment]
     """Elect one thread from the warp.
 
     Returns a boolean-like u32 expression: 1 for the elected thread, 0 for all others.

@@ -6,7 +6,6 @@ import pandas
 import tilus
 import torch
 from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32
-from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
@@ -77,6 +76,7 @@ class BlackwellMatmulV8(tilus.Script):
         e_block_n=32,
         swizzle_size=8,
     )
+
     def __init__(
         self,
         block_m: int,
