@@ -18,7 +18,7 @@ from typing import Dict, Optional, Set, Type
 
 from hidet.ir import FuncType
 from hidet.ir.builders import FunctionBuilder
-from hidet.ir.dtypes import int32
+from hidet.ir.dtypes import int32, uint32
 from hidet.ir.expr import Constant, Var, logical_and
 from hidet.ir.func import Function as HidetFunction
 from hidet.ir.module import IRModule
@@ -30,6 +30,7 @@ from hidet.utils.doc import Doc, Text
 
 from tilus.backends.emitter import BaseInstEmitter
 from tilus.extensions.hidet.ir.module import merge_ir_modules
+from tilus.extensions.hidet.ir.primitives.cuda.elect import elect_one_sync, shfl_sync_i32
 from tilus.extensions.hidet.ir.tools.verifier import verify as verify_ir_module
 from tilus.ir.func import Function
 from tilus.ir.functors import IRFunctor
@@ -275,40 +276,110 @@ class FunctionCodegen(IRFunctor):
         with self.builder.for_loop(stmt.iter_var, stmt.extent, attr=attr):
             self.visit(stmt.body)
 
-    def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> None:
-        # check the validity of the thread group
-        parent_num_threads = self.thread_group_stack.num_threads[-1]
-        assert 0 <= stmt.thread_begin and stmt.thread_begin + stmt.num_threads <= parent_num_threads
+    def _elect_any_cond(self, num_threads: int, parent_num_threads: int) -> tuple:
+        """Build the condition and tid_value for an elect-any ThreadGroupStmt.
 
-        self.builder.comment(
-            "ThreadGroup(thread_begin={}, thread_end={}, num_threads={})".format(
-                stmt.thread_begin, stmt.thread_begin + stmt.num_threads, stmt.num_threads
-            ),
-            style="/*",
-        )
-        if (
-            is_power_of_two(stmt.num_threads)
-            and is_power_of_two(parent_num_threads)
-            and stmt.thread_begin % stmt.num_threads == 0
-        ):
-            cond = (self.current_thread // stmt.num_threads) == (stmt.thread_begin // stmt.num_threads)
-            tid_value = self.current_thread % stmt.num_threads
+        Returns (cond, tid_value) where cond is None if all threads should execute.
+        """
+        if num_threads == parent_num_threads:
+            # All threads — no condition needed
+            return None, self.current_thread
+        elif num_threads == 1:
+            if parent_num_threads % 32 != 0:
+                # Non-warp-aligned parent: fallback to thread 0
+                return self.current_thread == 0, Constant(0, int32)
+            elif parent_num_threads == 32:
+                # Single warp: use elect.sync directly
+                return elect_one_sync(), Constant(0, int32)
+            else:
+                # Multi-warp (parent % 32 == 0): pick warp 0, then elect one thread within it.
+                # Use shfl_sync to move warp_id into a uniform register — threadIdx / 32 is
+                # mathematically uniform within a warp but the compiler may not recognize it.
+                # shfl_sync forces the value through the warp shuffle unit, producing a
+                # guaranteed uniform value.
+                warp_id = self.current_thread // 32
+                uniform_warp_id = shfl_sync_i32(Constant(0xFFFFFFFF, uint32), warp_id, Constant(0, int32))
+                return (uniform_warp_id == 0) & elect_one_sync(), Constant(0, int32)
+        elif num_threads % 32 == 0 and parent_num_threads % 32 == 0:
+            # Warp-aligned multi-thread: use shfl_sync for uniform warp-level predicate
+            group_id = self.current_thread // num_threads
+            elected_group = shfl_sync_i32(Constant(0xFFFFFFFF, uint32), group_id, Constant(0, int32))
+            return group_id == elected_group, self.current_thread % num_threads
         else:
-            cond = logical_and(
-                stmt.thread_begin <= self.current_thread, self.current_thread < stmt.thread_begin + stmt.num_threads
+            # Sub-warp or non-aligned: fallback to picking the first group
+            return self.current_thread < num_threads, self.current_thread % num_threads
+
+    def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> None:
+        parent_thread_begin = self.thread_group_stack.thread_begin[-1]
+        parent_num_threads = self.thread_group_stack.num_threads[-1]
+
+        if stmt.thread_begin == -1:
+            # Elect-any mode
+            assert stmt.num_threads <= parent_num_threads
+            self.builder.comment(
+                "ThreadGroup(thread_begin=elect_any, num_threads={})".format(stmt.num_threads),
+                style="/*",
             )
-            tid_value = self.current_thread - stmt.thread_begin
-        with self.builder.if_then(cond=cond):
+            cond, tid_value = self._elect_any_cond(stmt.num_threads, parent_num_threads)
+            effective_thread_begin = 0
+        else:
+            # Fixed thread_begin mode
+            assert 0 <= stmt.thread_begin and stmt.thread_begin + stmt.num_threads <= parent_num_threads
+            self.builder.comment(
+                "ThreadGroup(thread_begin={}, thread_end={}, num_threads={})".format(
+                    stmt.thread_begin, stmt.thread_begin + stmt.num_threads, stmt.num_threads
+                ),
+                style="/*",
+            )
+            is_warp_aligned = (
+                stmt.num_threads >= 32
+                and stmt.num_threads % 32 == 0
+                and stmt.thread_begin % 32 == 0
+                and parent_thread_begin % 32 == 0
+                and is_power_of_two(stmt.num_threads)
+                and is_power_of_two(parent_num_threads)
+            )
+            if is_warp_aligned:
+                # Warp-aligned: use shfl_sync for uniform predicate
+                target_group = stmt.thread_begin // stmt.num_threads
+                group_id = self.current_thread // stmt.num_threads
+                elected_group = shfl_sync_i32(Constant(0xFFFFFFFF, uint32), group_id, Constant(0, int32))
+                cond = elected_group == target_group
+                tid_value = self.current_thread % stmt.num_threads
+            elif (
+                is_power_of_two(stmt.num_threads)
+                and is_power_of_two(parent_num_threads)
+                and stmt.thread_begin % stmt.num_threads == 0
+            ):
+                cond = (self.current_thread // stmt.num_threads) == (stmt.thread_begin // stmt.num_threads)
+                tid_value = self.current_thread % stmt.num_threads
+            else:
+                cond = logical_and(
+                    stmt.thread_begin <= self.current_thread,
+                    self.current_thread < stmt.thread_begin + stmt.num_threads,
+                )
+                tid_value = self.current_thread - stmt.thread_begin
+            effective_thread_begin = stmt.thread_begin
+
+        # Emit the body
+        if cond is None:
+            # All threads — no condition
             tid = self.builder.declare_var("tid", tp=int32, init=tid_value)
             old_thread = self._current_thread
             self._current_thread = tid
-            self.thread_group_stack.push(
-                thread_begin=stmt.thread_begin,
-                num_threads=stmt.num_threads,
-            )
+            self.thread_group_stack.push(thread_begin=effective_thread_begin, num_threads=stmt.num_threads)
             self.visit(stmt.body)
             self._current_thread = old_thread
             self.thread_group_stack.pop()
+        else:
+            with self.builder.if_then(cond=cond):
+                tid = self.builder.declare_var("tid", tp=int32, init=tid_value)
+                old_thread = self._current_thread
+                self._current_thread = tid
+                self.thread_group_stack.push(thread_begin=effective_thread_begin, num_threads=stmt.num_threads)
+                self.visit(stmt.body)
+                self._current_thread = old_thread
+                self.thread_group_stack.pop()
 
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> None:
         self.builder.declare(stmt.var, init=stmt.init)

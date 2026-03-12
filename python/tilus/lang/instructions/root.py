@@ -209,18 +209,27 @@ class RootInstructionGroup(InstructionGroup):
         """
         return ThreadGroupContext(self._builder, thread_begin=thread_begin, num_threads=num_threads)
 
-    def single_thread(self, thread: int = 0) -> ThreadGroupContext:
+    def single_thread(self, thread: int = -1) -> ThreadGroupContext:
         """Create a thread group context with only one thread.
 
-        This method is equivalent `thread_group(<any-thread>, num_threads=1)` that creates a thread group
-        context with only one thread. All instructions within the context will be executed by only one thread.
+        By default (``thread=-1``), uses elect-any semantics: the hardware is
+        free to pick any single thread in the current group, enabling the
+        back-end to emit ``elect.sync`` / uniform-predicate code.
+
+        Pass an explicit thread index (e.g., ``thread=0``) to pin execution to
+        a specific thread.
+
+        Parameters
+        ----------
+        thread : int
+            Thread index within the current group, or ``-1`` for elect-any.
 
         Returns
         -------
         ret: ThreadGroupContext
             The thread group context created.
         """
-        if thread >= self.current_num_threads:
+        if thread != -1 and thread >= self.current_num_threads:
             raise InstructionError(
                 "The thread index must be less than the number of threads in the current thread group"
             )

@@ -267,11 +267,15 @@ class IRPrinter(IRFunctor):
         return doc
 
     def visit_ThreadGroupStmt(self, stmt: ThreadGroupStmt) -> Doc:
+        if stmt.thread_begin == -1:
+            begin_str = "elect_any"
+        else:
+            begin_str = str(stmt.thread_begin)
         head_doc = (
             NewLine()
             + Text("with thread_group(thread_begin=")
-            + self.visit(stmt.thread_begin)
-            + ", num_threads="
+            + Text(begin_str)
+            + Text(", num_threads=")
             + self.visit(stmt.num_threads)
             + "):"
         )

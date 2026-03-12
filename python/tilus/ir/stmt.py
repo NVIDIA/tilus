@@ -53,6 +53,37 @@ class ForStmt(Stmt):
 
 @dataclass(frozen=True, eq=False)
 class ThreadGroupStmt(Stmt):
+    """Restricts execution of its body to a contiguous, aligned subset of threads.
+
+    Parameters
+    ----------
+    thread_begin : int
+        The index of the first thread in the sub-group, relative to the parent
+        thread group.
+
+        **Special value ``-1`` (elect-any):** When ``thread_begin == -1``, the
+        hardware is free to choose *any* contiguous, naturally-aligned group of
+        ``num_threads`` threads from the parent group.  For example, inside a
+        128-thread parent group with ``thread_begin=-1, num_threads=32``, the
+        runtime may pick any of the four warps (threads 0-31, 32-63, 64-95, or
+        96-127).
+
+        This "elect-any" mode enables the compiler back-end to use **uniform
+        registers and uniform predicates** for the thread selection, avoiding
+        per-thread branch divergence.  In particular:
+
+        * ``num_threads=1`` corresponds to the ``elect.sync`` semantic — one
+          arbitrary thread in the warp executes the body.
+        * ``num_threads=32`` lets the back-end pick one warp via a uniform
+          predicate instead of a divergent ``threadIdx / 32 == N`` branch.
+
+    num_threads : int
+        The number of threads that will execute the body.  Must be a
+        power-of-two when ``thread_begin == -1``.
+    body : Stmt
+        The statement tree to execute within the thread sub-group.
+    """
+
     thread_begin: int
     num_threads: int
     body: Stmt

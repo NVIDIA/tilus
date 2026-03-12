@@ -71,11 +71,12 @@ class BlackwellMatmulV8(tilus.Script):
     #     block_m=256,
     #     block_n=256,
     #     block_k=64,
-    #     tma_stages=5,
-    #     mma_stages=1,
-    #     e_block_n=16,
+    #     tma_stages=6,
+    #     mma_stages=2,
+    #     e_block_n=32,
     #     swizzle_size=8,
     # )
+
     def __init__(
         self,
         block_m: int,
