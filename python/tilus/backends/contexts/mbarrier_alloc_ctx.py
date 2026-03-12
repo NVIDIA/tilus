@@ -65,14 +65,22 @@ class BarrierAllocContext(BaseEmitContext):
         sb.append(syncthreads())
         self.kernel_prepend(sb.finish())
 
-    def allocate_barriers(self, counts: Sequence[Expr | int]) -> list[Var]:
+    def allocate_barriers(self, counts: Sequence[Expr | int]) -> tuple[Var, list[Var]]:
         """
-        Allocate a list of barriers with given counts.
+        Allocate a contiguous list of barriers with given counts.
 
         Each barrier is a 64-bit data structure stored in shared memory.
-        This function returns the address of the first barrier in the shared space.
+
+        Returns
+        -------
+        ret: tuple[Var, list[Var]]
+            A tuple of (base_addr, barrier_vars) where base_addr is the address of the first barrier
+            and barrier_vars are the addresses of each individual barrier. The barriers are guaranteed
+            to be contiguously allocated, so barrier_vars[i] = base_addr + i * 8.
         """
+        base_offset = len(self.barriers)
         barrier_vars = [Var("barrier_{}".format(c), type=uint32) for c in counts]
         self.counts.extend([uint32(c) if isinstance(c, int) else c for c in counts])
         self.barriers.extend(barrier_vars)
-        return barrier_vars
+        base_addr = self.barrier_addr + uint32(base_offset * uint64.nbytes)
+        return base_addr, barrier_vars

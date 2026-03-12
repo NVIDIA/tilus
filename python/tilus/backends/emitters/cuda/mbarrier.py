@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from hidet.ir.dtypes import uint32
+from hidet.ir.dtypes import uint32, uint64
+from hidet.ir.expr import Var
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.extensions.hidet.ir.primitives.cuda.fence import fence_view_async
@@ -42,10 +43,15 @@ class AllocBarrierInstEmitter(BaseInstEmitter):
         out_var = self.get_or_allocate_var(out)
 
         counts = [c if c is not None else self.current_num_threads for c in inst.counts]
-        barriers = self.contexts.barrier_alloc_ctx.allocate_barriers(counts=counts)
+        base_addr, barrier_vars = self.contexts.barrier_alloc_ctx.allocate_barriers(counts=counts)
 
-        for i in range(len(barriers)):
-            self.buffer_store(out_var, indices=[i], value=barriers[i])
+        for i in range(len(barrier_vars)):
+            self.buffer_store(out_var, indices=[i], value=barrier_vars[i])
+
+        # Register as CTA-invariant tensor: value(i) = base_addr + i * uint64.nbytes
+        axis = Var("i", type=uint32)
+        expr = base_addr + axis * uint32(uint64.nbytes)
+        self.contexts.const_reg_ctx.register(out, axes=[axis], expr=expr)
 
 
 @register_emitter(ArriveBarrierInst, target=nvgpu_sm80)
