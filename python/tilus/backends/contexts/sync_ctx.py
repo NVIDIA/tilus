@@ -49,8 +49,7 @@ class SyncContext(BaseEmitContext):
             key = (thread_begin, thread_end)
             if key not in self.thread_group_barrier:
                 # allocate a new barrier for this thread group
-                self.thread_group_barrier[key] = self.contexts.barrier_alloc_ctx.allocate_barriers(
-                    counts=[thread_end - thread_begin]
-                )[0]
+                _, barrier_vars = self.contexts.barrier_alloc_ctx.allocate_barriers(counts=[thread_end - thread_begin])
+                self.thread_group_barrier[key] = barrier_vars[0]
             barrier_addr = self.thread_group_barrier[key]
             return mbarrier_sync_shared(barrier_addr)

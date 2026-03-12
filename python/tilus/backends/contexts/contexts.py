@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from tilus.backends.context import BaseEmitContext
+from tilus.backends.contexts.const_reg_ctx import ConstRegTensorEmitContext
 from tilus.backends.contexts.global_view_ctx import GlobalTensorViewContext
 from tilus.backends.contexts.gmem_alloc_ctx import GlobalMemoryAllocationContext
 from tilus.backends.contexts.invariant_ctx import InvariantTrackingContext
@@ -36,6 +37,7 @@ class EmitContexts:
         self.tcgen05_ctx: Tcgen05EmitContext = Tcgen05EmitContext(codegen)
         self.barrier_alloc_ctx: BarrierAllocContext = BarrierAllocContext(codegen)
         self.sync_ctx: SyncContext = SyncContext(codegen)
+        self.const_reg_ctx: ConstRegTensorEmitContext = ConstRegTensorEmitContext(codegen)
 
     def contexts(self) -> list[BaseEmitContext]:
         """Get all contexts as a list.

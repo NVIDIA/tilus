@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from tilus.backends.contexts.const_reg_ctx import ConstRegTensorEmitContext
 from tilus.backends.contexts.contexts import EmitContexts
 from tilus.backends.contexts.global_view_ctx import GlobalTensorView, GlobalTensorViewContext
 from tilus.backends.contexts.gmem_alloc_ctx import GlobalMemoryAllocationContext
