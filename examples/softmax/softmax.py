@@ -1,15 +1,12 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Fused softmax kernel.
-
 Computes row-wise softmax: y[i, j] = exp(x[i,j] - max_j x[i,j])
                                       / sum_j exp(x[i,j] - max_j x[i,j])
-
 The kernel fuses the entire softmax into a single launch, avoiding
 redundant global memory round-trips that a naive PyTorch implementation
 would incur.  Each thread block processes `block_m` rows, iterating
 over the column dimension in tiles of `block_n`.
-
 Three passes over the row data:
   1. Compute row-wise max (for numerical stability).
   2. Compute exp(x - max) and accumulate the row-wise sum.
@@ -114,6 +111,7 @@ def main():
         "dtype",
         "torch (ms)",
         "tilus (ms)",
+        "speedup",
     ]
     rows = []
 
@@ -122,6 +120,7 @@ def main():
         (4096, 1024),
         (4096, 4096),
         (4096, 8192),
+        (8192, 8192),
     ]:
         softmax_kernel = FusedSoftmax()
 
@@ -137,22 +136,25 @@ def main():
         y_expected = torch.softmax(x.float(), dim=1).half()
 
         torch.testing.assert_close(
-            y_actual, y_expected, atol=1e-2, rtol=1e-2
+            y_actual, y_expected, atol=1e-3, rtol=1e-3
         )
 
+        torch_ms = benchmark_func(
+            lambda: torch.softmax(x, dim=1)
+        )
+        tilus_ms = benchmark_func(
+            lambda: softmax_kernel(
+                m_size, n_size, x, y_actual
+            )
+        )
         rows.append(
             [
                 m_size,
                 n_size,
                 "float16",
-                benchmark_func(
-                    lambda: torch.softmax(x, dim=1)
-                ),
-                benchmark_func(
-                    lambda: softmax_kernel(
-                        m_size, n_size, x, y_actual
-                    )
-                ),
+                torch_ms,
+                tilus_ms,
+                f"{torch_ms / tilus_ms:.2f}x",
             ]
         )
         print(
