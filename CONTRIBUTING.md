@@ -1,7 +1,8 @@
-# Tilus Contribution Guides
+# Tilus contribution guides
 
 ## Signing your contribution
-To help ensure the integrity and authenticity of contributions, all contributors are required to sign their commits. This is done by adding a 'Signed-off-by' line to each commit message, certifying compliance with the Developer Certificate of Origin (DCO).
+
+To help ensure the integrity and authenticity of contributions, all contributors are required to sign their commits. This is done by adding a `Signed-off-by` line to each commit message, certifying compliance with the Developer Certificate of Origin (DCO).
 
 ### How to sign your commits
 
