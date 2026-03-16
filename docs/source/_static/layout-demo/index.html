@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<!-- SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Layout Demo - Tilus</title>
+  <link rel="stylesheet" href="layout-demo.css" />
+  <style>
+    /* ---- Standalone page styles ---- */
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #fff;
+      color: #333;
+    }
+
+    .page-header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 24px 0;
+      text-align: center;
+    }
+
+    .page-header h1 {
+      margin: 0 0 6px 0;
+      font-size: 1.6em;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .page-header .subtitle {
+      font-size: 0.95em;
+      color: #adb5bd;
+      margin: 0 0 14px 0;
+    }
+
+    .page-header nav {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      font-size: 0.88em;
+    }
+
+    .page-header nav a {
+      color: #76b900;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .page-header nav a:hover {
+      color: #8fd400;
+      text-decoration: underline;
+    }
+
+    .page-body {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+
+    .page-body > .intro {
+      text-align: center;
+      max-width: 720px;
+      margin: 0 auto 24px;
+      font-size: 0.92em;
+      color: #495057;
+      line-height: 1.6;
+    }
+
+    .page-body > .intro code {
+      background: #f1f3f5;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.92em;
+    }
+
+    /* ---- Syntax help ---- */
+
+    .syntax-section {
+      max-width: 720px;
+      margin: 32px auto 0;
+      padding: 20px 24px;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      font-size: 0.88em;
+      line-height: 1.7;
+    }
+
+    .syntax-section h2 {
+      margin: 0 0 12px 0;
+      font-size: 1.05em;
+      color: #333;
+    }
+
+    .syntax-section h3 {
+      margin: 14px 0 6px 0;
+      font-size: 0.92em;
+      color: #495057;
+    }
+
+    .syntax-section code {
+      background: #e9ecef;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.92em;
+    }
+
+    .syntax-section ul {
+      margin: 4px 0;
+      padding-left: 20px;
+    }
+
+    .syntax-section li {
+      margin: 3px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Interactive Register Layout Demo</h1>
+  <p class="subtitle">Explore how Tilus distributes tensor elements across GPU threads</p>
+  <nav>
+    <a href="../../index.html">Tilus Documentation</a>
+    <a href="../../programming-guides/layout-system/register-layout.html">Register Layout Guide</a>
+    <a href="https://github.com/NVIDIA/tilus">GitHub</a>
+  </nav>
+</div>
+
+<div class="page-body">
+  <p class="intro">
+    Type a layout expression, press <strong>Enter</strong>, and see how tensor elements are
+    distributed across threads. Each cell shows <strong>T&lt;thread_id&gt;</strong> and the
+    <strong>local index</strong>. Cells are color-coded by thread. Hover to highlight all
+    elements owned by the same thread, or click a thread in the legend.
+  </p>
+
+  <div id="layout-demo-root"></div>
+
+  <div class="syntax-section">
+    <h2>Expression Syntax</h2>
+
+    <h3>Primitives</h3>
+    <ul>
+      <li><code>spatial(d0, d1, ...)</code> &mdash; distribute elements across threads</li>
+      <li><code>local(d0, d1, ...)</code> &mdash; store elements in each thread's local registers</li>
+      <li><code>column_spatial(d0, d1, ...)</code> &mdash; spatial in column-major order</li>
+      <li><code>column_local(d0, d1, ...)</code> &mdash; local in column-major order</li>
+    </ul>
+
+    <h3>Chained Product</h3>
+    <ul>
+      <li><code>local(3, 4).spatial(2, 3)</code> &mdash; equivalent to <code>product(local(3, 4), spatial(2, 3))</code></li>
+    </ul>
+
+    <h3>Operations</h3>
+    <ul>
+      <li><code>product(A, B)</code> or <code>A * B</code> &mdash; Kronecker-like product of two layouts</li>
+      <li><code>divide(A, B)</code> or <code>A / B</code> &mdash; divide layout A by B</li>
+      <li><code>reduce(layout, [dim0, ...])</code> &mdash; reduce over dimensions (creates replicated threads)</li>
+      <li><code>permute(layout, [d0, ...])</code> &mdash; permute dimensions</li>
+      <li><code>reshape(layout, [s0, ...])</code> &mdash; reshape to new shape</li>
+    </ul>
+
+    <h3>Try These</h3>
+    <ul>
+      <li><code>local(4, 4)</code> &mdash; single thread holds all 16 elements</li>
+      <li><code>spatial(4, 8).local(4, 4)</code> &mdash; 32 threads with 16 elements each</li>
+      <li><code>reduce(spatial(3, 4), [0])</code> &mdash; replicated elements across threads</li>
+      <li><code>local(2, 1).spatial(8, 4).local(1, 2)</code> &mdash; MMA m16n8k8 output layout</li>
+    </ul>
+  </div>
+</div>
+
+<script src="layout-demo.js"></script>
+</body>
+</html>

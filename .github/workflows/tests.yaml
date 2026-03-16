@@ -30,6 +30,7 @@ jobs:
           files: |
             tests/**
             python/**
+            docs/source/_static/layout-demo/**
             pyproject.toml
           base_sha: 'origin/main'
 

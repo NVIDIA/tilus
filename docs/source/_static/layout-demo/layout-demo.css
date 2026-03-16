@@ -1,0 +1,484 @@
+/* SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* Layout Demo Styles */
+
+.layout-demo-container {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ---- Input Panel ---- */
+
+.layout-demo-input-panel {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.input-row label {
+  font-weight: 600;
+  font-size: 0.9em;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.input-row input[type="text"] {
+  flex: 1;
+  min-width: 250px;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.95em;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.input-row input[type="text"]:focus {
+  outline: none;
+  border-color: #76b900;
+  box-shadow: 0 0 0 3px rgba(118, 185, 0, 0.15);
+}
+
+.input-row button {
+  padding: 8px 20px;
+  background: #76b900;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.input-row button:hover {
+  background: #689f00;
+}
+
+.preset-row {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preset-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preset-label {
+  font-size: 0.82em;
+  color: #6c757d;
+  font-weight: 600;
+  padding-top: 4px;
+  white-space: nowrap;
+  min-width: 120px;
+}
+
+.preset-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.preset-btn {
+  padding: 3px 10px;
+  background: #e9ecef;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.78em;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  cursor: pointer;
+  color: #495057;
+  transition: all 0.15s;
+}
+
+.preset-btn:hover {
+  background: #dee2e6;
+  border-color: #76b900;
+  color: #333;
+}
+
+/* ---- Error ---- */
+
+.layout-demo-error {
+  background: #fff3f3;
+  color: #c0392b;
+  border: 1px solid #e6b8b8;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: 0.88em;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* ---- Labeled Rows ---- */
+
+.layout-demo-labeled-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.labeled-row-label {
+  flex-shrink: 0;
+  font-size: 0.78em;
+  font-weight: 700;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 9px;
+  width: 155px;
+  text-align: right;
+}
+
+/* ---- Layout Repr ---- */
+
+.layout-demo-repr {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.85em;
+  color: #495057;
+  padding: 8px 12px;
+  background: #f1f3f5;
+  border-radius: 6px;
+  overflow-x: auto;
+  min-height: 1.5em;
+  flex: 1;
+}
+
+/* ---- Info Bar ---- */
+
+.layout-demo-info {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f1f3f5;
+  border-radius: 6px;
+  font-size: 0.85em;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.info-label {
+  color: #6c757d;
+  font-weight: 600;
+}
+
+.info-value {
+  color: #333;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-weight: 600;
+}
+
+.info-sep {
+  color: #ced4da;
+  margin: 0 6px;
+}
+
+/* ---- Mapping Process ---- */
+
+.layout-demo-mapping {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.85em;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  min-height: 1.5em;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  color: #495057;
+}
+
+.mapping-step {
+  white-space: nowrap;
+}
+
+.mapping-label {
+  color: #6c757d;
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.mapping-arrow {
+  color: #76b900;
+  font-weight: 700;
+  margin: 0 6px;
+}
+
+/* ---- Grid ---- */
+
+.layout-demo-grid-wrapper {
+  overflow-x: auto;
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+}
+
+.layout-demo-batch-label {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: #6c757d;
+  margin: 10px 0 4px 0;
+}
+
+.layout-demo-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.82em;
+  margin: 0 auto;
+}
+
+.layout-demo-grid th {
+  padding: 4px 8px;
+  font-size: 0.8em;
+  color: #868e96;
+  font-weight: 600;
+  text-align: center;
+}
+
+.layout-corner {
+  width: 28px;
+}
+
+.layout-col-header {
+  border-bottom: 2px solid #dee2e6;
+}
+
+.layout-row-header {
+  border-right: 2px solid #dee2e6;
+  text-align: right !important;
+  padding-right: 8px !important;
+}
+
+.layout-cell {
+  padding: 5px 7px;
+  text-align: center;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: default;
+  transition: opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+  min-width: 52px;
+}
+
+.layout-cell:hover {
+  transform: scale(1.08);
+  z-index: 2;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.layout-cell.dimmed {
+  opacity: 0.2;
+}
+
+.layout-cell.replicated {
+  border-style: dashed;
+}
+
+.cell-thread {
+  display: block;
+  font-weight: 700;
+  font-size: 0.92em;
+  color: #333;
+  line-height: 1.3;
+}
+
+.cell-local {
+  display: block;
+  font-size: 0.8em;
+  color: #555;
+  line-height: 1.3;
+}
+
+/* ---- Legend ---- */
+
+.layout-demo-legend {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.legend-title {
+  font-size: 0.82em;
+  color: #6c757d;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.legend-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+
+.legend-item:hover {
+  background: #e9ecef;
+}
+
+.legend-item.active {
+  border-color: #333;
+  background: #e9ecef;
+  font-weight: 700;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 2px solid;
+}
+
+.legend-label {
+  font-size: 0.78em;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  color: #495057;
+}
+
+/* ---- Product Explorer ---- */
+
+.product-toggle-btn {
+  display: block;
+  margin: 0 auto 14px;
+  padding: 4px 14px;
+  background: #e9ecef;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.8em;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.product-toggle-btn:hover {
+  background: #dee2e6;
+  border-color: #76b900;
+}
+
+.product-operand-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.product-panel {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 12px 14px;
+  min-width: 120px;
+  flex: 1;
+  max-width: 480px;
+}
+
+.product-panel-heading {
+  font-size: 0.85em;
+  font-weight: 700;
+  color: #495057;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.product-panel-repr {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.72em;
+  color: #6c757d;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.product-equals-label {
+  width: 16px;
+}
+
+.product-result-heading {
+  font-size: 0.88em;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.result-grid {
+  margin: 0 auto;
+}
+
+.compact-grid {
+  margin: 0 auto;
+}
+
+.compact-grid .layout-cell {
+  min-width: 42px;
+  padding: 3px 5px;
+}
+
+.compact-grid .cell-thread {
+  font-size: 0.85em;
+}
+
+.compact-grid .cell-local {
+  font-size: 0.75em;
+}
+
+/* Tile borders on the result grid — subtle dashed lines via box-shadow insets
+   so they don't interfere with the cell's own border */
+
+.result-grid td.tile-border-top {
+  box-shadow: inset 0 2px 0 0 #ced4da;
+}
+
+.result-grid td.tile-border-left {
+  box-shadow: inset 2px 0 0 0 #ced4da;
+}
+
+.result-grid td.tile-border-top.tile-border-left {
+  box-shadow: inset 2px 2px 0 0 #ced4da;
+}
+
+.result-grid th.tile-border-top {
+  border-top: 2px dashed #ced4da;
+}
+
+.result-grid th.tile-border-left {
+  border-left: 2px dashed #ced4da;
+}

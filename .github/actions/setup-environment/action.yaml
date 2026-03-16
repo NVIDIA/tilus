@@ -34,6 +34,7 @@ runs:
         # Install required packages
         install_package git
         install_package cmake
+        install_package nodejs
       shell: bash
 
     - name: Checkout Repository

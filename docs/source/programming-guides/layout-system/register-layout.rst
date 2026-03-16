@@ -166,7 +166,7 @@ The layout for operand C of ``mma.sync.aligned.m16n8k8 f16, f16, f16, f16`` (`Fi
     └───────┴───────┴───────┴───────┴───────┴───────┴───────┴───────┘
 
 
-We only give one example here, but feel free to try other layouts.
+We only give one example here. You can explore more layouts in the `Interactive Layout Demo <https://nvidia.github.io/tilus/_static/layout-demo/index.html>`_.
 
 Multiple Threads Hold the Same Element
 --------------------------------------
