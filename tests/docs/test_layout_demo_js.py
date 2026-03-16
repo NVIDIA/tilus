@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Tests that the JavaScript layout demo engine produces identical results
-to the Python layout implementation.
+Tests that the JavaScript layout demo engine produces identical results to the Python layout implementation.
 
 If these tests fail after changing the Python layout system, the JS demo
 at docs/source/_static/layout-demo/layout-demo.js must be updated to match.
 """
+
 from __future__ import annotations
 
 import json
@@ -26,10 +26,8 @@ import subprocess
 import textwrap
 from itertools import product
 from pathlib import Path
-from typing import Sequence
 
 import pytest
-
 from tilus.ir.layout.ops.register_ops import (
     column_local,
     column_spatial,
@@ -73,11 +71,13 @@ def _python_grid(layout: RegisterLayout) -> list[dict]:
         spatial_ids = layout.get_spatial(list(indices))
         spatial_ids = sorted([int(s) for s in spatial_ids])
         local_id = int(layout.get_local(list(indices)))
-        grid.append({
-            "indices": list(indices),
-            "spatial": spatial_ids,
-            "local": local_id,
-        })
+        grid.append(
+            {
+                "indices": list(indices),
+                "spatial": spatial_ids,
+                "local": local_id,
+            }
+        )
     return grid
 
 
@@ -149,6 +149,7 @@ def _js_eval(expr: str) -> dict:
 # Test cases: (expression_string, python_layout)
 # ============================================================
 
+
 def _test_cases() -> list[tuple[str, RegisterLayout]]:
     """Return pairs of (JS expression, equivalent Python layout)."""
     return [
@@ -161,46 +162,37 @@ def _test_cases() -> list[tuple[str, RegisterLayout]]:
         ("column_local(2, 3)", column_local(2, 3)),
         ("spatial(4, 8)", spatial(4, 8)),
         ("local(1, 1)", local(1, 1)),
-
         # Composition via chaining
         ("local(3, 4).spatial(2, 3)", compose(local(3, 4), spatial(2, 3))),
         ("spatial(2, 3).local(3, 4)", compose(spatial(2, 3), local(3, 4))),
         ("spatial(4, 8).local(4, 4)", compose(spatial(4, 8), local(4, 4))),
-
         # Composition via compose()
         ("compose(local(2, 2), spatial(4, 4))", compose(local(2, 2), spatial(4, 4))),
-
         # Multi-level composition
         (
             "local(2, 2).spatial(4, 4).local(2, 2)",
             compose(compose(local(2, 2), spatial(4, 4)), local(2, 2)),
         ),
-
         # Column variants composed
         (
             "column_local(2, 3).column_spatial(4, 2)",
             compose(column_local(2, 3), column_spatial(4, 2)),
         ),
-
         # Reduce (creates replicated threads)
         ("reduce(spatial(3, 4), [0])", reduce(spatial(3, 4), [0])),
         ("reduce(spatial(4, 6), [1])", reduce(spatial(4, 6), [1])),
-
         # Divide
         (
             "divide(spatial(4, 8).local(4, 4), local(4, 4))",
             divide(compose(spatial(4, 8), local(4, 4)), local(4, 4)),
         ),
-
         # Reshape
         (
             "reshape(spatial(4, 8), [8, 4])",
             reshape(spatial(4, 8), [8, 4]),
         ),
-
         # * operator
         ("local(3, 4) * spatial(2, 3)", compose(local(3, 4), spatial(2, 3))),
-
         # MMA-like layout (from docs)
         (
             "local(2, 1).spatial(8, 4).local(1, 2)",
@@ -255,19 +247,13 @@ def test_js_matches_python_grid(check_node, expr: str, py_layout: RegisterLayout
     js_grid = js_result["grid"]
     py_grid = _python_grid(py_layout)
 
-    assert len(js_grid) == len(py_grid), (
-        f"grid size mismatch for {expr}: JS={len(js_grid)} Python={len(py_grid)}"
-    )
+    assert len(js_grid) == len(py_grid), f"grid size mismatch for {expr}: JS={len(js_grid)} Python={len(py_grid)}"
 
     for js_cell, py_cell in zip(js_grid, py_grid):
-        assert js_cell["indices"] == py_cell["indices"], (
-            f"indices mismatch for {expr}"
-        )
+        assert js_cell["indices"] == py_cell["indices"], f"indices mismatch for {expr}"
         assert js_cell["spatial"] == py_cell["spatial"], (
-            f"spatial mismatch at {js_cell['indices']} for {expr}: "
-            f"JS={js_cell['spatial']} Python={py_cell['spatial']}"
+            f"spatial mismatch at {js_cell['indices']} for {expr}: JS={js_cell['spatial']} Python={py_cell['spatial']}"
         )
         assert js_cell["local"] == py_cell["local"], (
-            f"local mismatch at {js_cell['indices']} for {expr}: "
-            f"JS={js_cell['local']} Python={py_cell['local']}"
+            f"local mismatch at {js_cell['indices']} for {expr}: JS={js_cell['local']} Python={py_cell['local']}"
         )
