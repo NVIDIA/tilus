@@ -44,12 +44,8 @@ class FusedSoftmax(tilus.Script):
 
         offset_m = self.blockIdx.x * self.block_m
 
-        g_x = self.global_view(
-            x_ptr, dtype=float16, shape=[m_size, n_size]
-        )
-        g_y = self.global_view(
-            y_ptr, dtype=float16, shape=[m_size, n_size]
-        )
+        g_x = self.global_view(x_ptr, dtype=float16, shape=[m_size, n_size])
+        g_y = self.global_view(y_ptr, dtype=float16, shape=[m_size, n_size])
 
         # --- Pass 1: row-wise max for numerical stability ---
         r_max = self.register_tensor(
@@ -65,9 +61,7 @@ class FusedSoftmax(tilus.Script):
             ).to(float32)
             r_max = self.maximum(r_max, r_x)
 
-        r_row_max = self.max(
-            r_max, dim=1, keepdim=True
-        )  # [block_m, 1]
+        r_row_max = self.max(r_max, dim=1, keepdim=True)  # [block_m, 1]
 
         # --- Pass 2: exp(x - max) and row-wise sum ---
         r_sum = self.register_tensor(
@@ -84,9 +78,7 @@ class FusedSoftmax(tilus.Script):
             r_exp = self.exp(r_x - r_row_max)
             r_sum = r_sum + r_exp
 
-        r_row_sum = self.sum(
-            r_sum, dim=1, keepdim=True
-        )  # [block_m, 1]
+        r_row_sum = self.sum(r_sum, dim=1, keepdim=True)  # [block_m, 1]
 
         # --- Pass 3: normalize and store ---
         for offset_n in range(0, n_size, self.block_n):
@@ -124,29 +116,16 @@ def main():
     ]:
         softmax_kernel = FusedSoftmax()
 
-        x = (
-            torch.rand(
-                m_size, n_size, dtype=torch.float16, device="cuda"
-            )
-            - 0.5
-        ) * 2.0
+        x = (torch.rand(m_size, n_size, dtype=torch.float16, device="cuda") - 0.5) * 2.0
         y_actual = torch.empty_like(x)
 
         softmax_kernel(m_size, n_size, x, y_actual)
         y_expected = torch.softmax(x.float(), dim=1).half()
 
-        torch.testing.assert_close(
-            y_actual, y_expected, atol=1e-3, rtol=1e-3
-        )
+        torch.testing.assert_close(y_actual, y_expected, atol=1e-3, rtol=1e-3)
 
-        torch_ms = benchmark_func(
-            lambda: torch.softmax(x, dim=1)
-        )
-        tilus_ms = benchmark_func(
-            lambda: softmax_kernel(
-                m_size, n_size, x, y_actual
-            )
-        )
+        torch_ms = benchmark_func(lambda: torch.softmax(x, dim=1))
+        tilus_ms = benchmark_func(lambda: softmax_kernel(m_size, n_size, x, y_actual))
         rows.append(
             [
                 m_size,
@@ -157,10 +136,7 @@ def main():
                 f"{torch_ms / tilus_ms:.2f}x",
             ]
         )
-        print(
-            f"Softmax matches reference for "
-            f"size ({m_size}, {n_size})"
-        )
+        print(f"Softmax matches reference for size ({m_size}, {n_size})")
 
     df = pandas.DataFrame(rows, columns=headers)
     print(df)
