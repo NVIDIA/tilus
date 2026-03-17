@@ -41,6 +41,8 @@ EXAMPLES = [
     ("matmul", "matmul_v5.py", None),
     # norm example
     ("norm", "layer_norm.py", None),
+    # softmax example
+    ("softmax", "softmax.py", None),
     # attention examples (SM 8.0+)
     ("attention", "flash_attention_v1.py", nvgpu_sm80),
     ("attention", "flash_attention_v2.py", nvgpu_sm80),
