@@ -84,11 +84,17 @@ def _collect_gpu_diagnostics():
 
     # Check cuda-python bindings
     try:
-        import cuda
+        from cuda.bindings import runtime as cuda_runtime
 
-        diag.append(f"cuda-python: {cuda.__version__}")
-    except ImportError:
-        diag.append("cuda-python: not installed")
+        ver = cuda_runtime.getLocalRuntimeVersion()
+        diag.append(f"cuda-python runtime: {ver}")
+    except (ImportError, AttributeError):
+        import importlib.util
+
+        if importlib.util.find_spec("cuda") is not None:
+            diag.append("cuda-python: available")
+        else:
+            diag.append("cuda-python: not installed")
 
     # Check torch CUDA availability
     try:
@@ -116,7 +122,7 @@ def pytest_sessionstart(session):
     # set the cache directory to a subdirectory of the current directory
     tilus.option.cache_dir(Path(tilus.option.get_option("cache_dir")) / ".test_cache")
     # we do not clear the cache here since vscode may run tests in parallel
-    # print("Cache directory: {}".format(hidet.option.get_cache_dir()))
+    # print("Cache directory: {}".format(tilus.option.get_option("cache_dir")))
     # tilus.utils.clear_cache()
 
     # collect GPU diagnostics when running in CI
