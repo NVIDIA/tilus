@@ -41,12 +41,12 @@ You can learn more on different topics in the [programming guide](https://nvidia
 This project is based on the following research paper:
 
 ```bibtex
-@article{ding2025tilus,
-  title={Tilus: A Tile-Level GPGPU Programming Language for Low-Precision Computation},
-  author={Ding, Yaoyao and Hou, Bohan and Zhang, Xiao and Lin, Allan and
-    Chen, Tianqi and Hao, Cody Yu and Wang, Yida and Pekhimenko, Gennady},
-  journal={arXiv preprint arXiv:2504.12984},
-  year={2025}
+@inproceedings{ding2025tilus,
+ author = {Ding, Yaoyao and Hou, Bohan and Zhang, Xiao and Lin, Allan and Chen, Tianqi and Yu, Cody Hao and Wang, Yida and Pekhimenko, Gennady},
+ title = {Tilus: A Tile-Level GPGPU Programming Language for Low-Precision Computation},
+ url = {https://doi.org/10.1145/3760250.3762219},
+ booktitle = {Proceedings of the 31st ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 1},
+ series = {ASPLOS '26}
 }
 ```
 
