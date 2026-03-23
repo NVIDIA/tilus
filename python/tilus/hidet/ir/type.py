@@ -497,8 +497,12 @@ def type_equal(lhs: BaseType, rhs: BaseType) -> bool:
             if not type_equal(a, b):
                 return False
         return True
+    elif isinstance(lhs, ReferenceType) and isinstance(rhs, ReferenceType):
+        return type_equal(lhs.base_type, rhs.base_type)
+    elif isinstance(lhs, OpaqueType) and isinstance(rhs, OpaqueType):
+        return lhs.cpp_name == rhs.cpp_name
     else:
-        raise NotImplementedError()
+        raise NotImplementedError("type_equal not implemented for {} and {}".format(type(lhs), type(rhs)))
 
 
 def sizeof(tp: BaseType) -> int:

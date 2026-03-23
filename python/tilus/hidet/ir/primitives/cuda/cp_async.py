@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,34 +24,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # pylint: disable=line-too-long
-from typing import Union
+from typing import Optional, no_type_check
 
-from tilus.hidet.ir.expr import Call, Expr
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.primitives.cuda.funcs import call_cuda
 from tilus.hidet.ir.primitives.func import register_primitive_function
 from tilus.hidet.ir.stmt import asm
-from tilus.hidet.ir.type import PointerType, VoidType
+from tilus.hidet.ir.type import void_p
 from tilus.hidet.utils import initialize
 
 
 def resolve_name_cp_async(
-    cp_size: int, cache_level: str = "always", prefetch_bytes: int = 0, evict_policy: str = "evict_normal"
+    use_shared_space_dst: bool,
+    cp_size: int,
+    cache_level: str = "always",
+    evict: Optional[str] = None,
+    prefetch_bytes: int = 0,
 ) -> str:
-    if evict_policy == "evict_normal":
-        evict_policy_part = ""
+    if evict is None:
+        evict_part = ""
+    elif evict == "evict_first":
+        evict_part = "_evict_first"
     else:
-        evict_policy_part = "_{}".format(evict_policy)
+        assert False
     if prefetch_bytes:
         prefetch_part = "_l2_{}B".format(prefetch_bytes)
     else:
         prefetch_part = ""
     cache_part = "c" + cache_level[0]  # 'ca' or 'cg'
-    return "cp_async_size_{}_{}{}{}".format(cp_size, cache_part, prefetch_part, evict_policy_part)
-
-
-def resolve_name_async_wait_group() -> str:
-    pass
+    dst_space = "_shared_dst" if use_shared_space_dst else "generic_dst"
+    return "cp_async_size_{}_{}{}{}{}".format(cp_size, evict_part, cache_part, prefetch_part, dst_space)
 
 
 @initialize()
@@ -62,29 +66,46 @@ def register_cp_async():
     for cp_size in [4, 8, 16]:
         for prefetch_bytes in [0, 64, 128, 256]:
             for cache_level in ["always", "global"]:
-                for evict_policy in ["evict_normal", "evict_first", "evict_last"]:
+                for evict in [None, "evict_first"]:
                     if cache_level == "global" and cp_size != 16:
                         # cache level 'global' only support copy size of 16 bytes.
                         continue
-                    func_name = "cuda_" + resolve_name_cp_async(cp_size, cache_level, prefetch_bytes, evict_policy)
-                    if evict_policy == "evict_normal":
-                        template_string = "cp.async.{cache_level}.shared.global{prefetch} [%0], [%1], %2, %3;".format(
-                            cache_level={"always": "ca", "global": "cg"}[cache_level],
-                            prefetch=".L2::{}B".format(prefetch_bytes) if prefetch_bytes != 0 else "",
+                    if evict == "evict_first":
+                        template_string = (
+                            "{{\n"
+                            "    .reg .b64 p;\n"
+                            "    createpolicy.fractional.L2::evict_first.b64 p, 1.0;\n"
+                            "    cp.async.{cache_level}.shared.global.L2::cache_hint{prefetch} [%0], [%1], %2, %3, p;\n"
+                            "}}\n"
                         )
                     else:
-                        template_string = "{{ .reg .b64 p; createpolicy.fractional.L2::{evict_policy}.b64 p, 1.0; cp.async.{cache_level}.shared.global{prefetch}.L2::cache_hint [%0], [%1], %2, p; }}".format(
-                            evict_policy=evict_policy,
-                            cache_level={"always": "ca", "global": "cg"}[cache_level],
-                            prefetch=".L2::{}B".format(prefetch_bytes) if prefetch_bytes != 0 else "",
-                        )
+                        template_string = "cp.async.{cache_level}.shared.global{prefetch} [%0], [%1], %2, %3;"
+                    template_string = template_string.format(
+                        cache_level={"always": "ca", "global": "cg"}[cache_level],
+                        prefetch=".L2::{}B".format(prefetch_bytes) if prefetch_bytes != 0 else "",
+                    )
 
+                    func_name = "cuda_" + resolve_name_cp_async(False, cp_size, cache_level, evict, prefetch_bytes)
+
+                    @no_type_check
                     @script
-                    def cuda_cp_async(dst: PointerType(VoidType()), src: PointerType(VoidType()), src_size: i32):
+                    def cuda_cp_async(generic_dst: void_p, src: void_p, src_size: i32):
                         attrs.func_name = func_name
                         attrs.func_kind = "cuda_internal"
-                        dst_smem_ptr = cvta_generic_to_shared(dst)
-                        asm(template=template_string, inputs=[dst_smem_ptr, src, cp_size, src_size], is_volatile=True)
+                        dst_smem_ptr = cvta_generic_to_shared(generic_dst)
+                        asm(template=template_string, inputs=[dst_smem_ptr, src, cp_size, src_size])
+
+                    assert isinstance(cuda_cp_async, Function)
+                    register_primitive_function(name=cuda_cp_async.name, func_or_type=cuda_cp_async)
+
+                    func_name = "cuda_" + resolve_name_cp_async(True, cp_size, cache_level, evict, prefetch_bytes)
+
+                    @no_type_check
+                    @script
+                    def cuda_cp_async(shared_dst: int32, src: void_p, src_size: i32):
+                        attrs.func_name = func_name
+                        attrs.func_kind = "cuda_internal"
+                        asm(template=template_string, inputs=[shared_dst, src, cp_size, src_size])
 
                     assert isinstance(cuda_cp_async, Function)
                     register_primitive_function(name=cuda_cp_async.name, func_or_type=cuda_cp_async)
@@ -94,6 +115,7 @@ def register_cp_async():
 def register_cp_async_commit_group():
     from tilus.hidet.lang import attrs, script
 
+    @no_type_check
     @script
     def cuda_cp_async_commit_group():
         attrs.func_name = "cuda_cp_async_commit_group"
@@ -111,6 +133,7 @@ def register_cp_async_wait_group():
     for groups in range(10):
         func_name = "cuda_cp_async_wait_group_{}".format(groups)
 
+        @no_type_check
         @script
         def cuda_cp_async_wait_group():
             attrs.func_name = func_name
@@ -125,6 +148,7 @@ def register_cp_async_wait_group():
 def register_cp_async_wait_all():
     from tilus.hidet.lang import attrs, script
 
+    @no_type_check
     @script
     def cuda_cp_async_wait_all():
         attrs.func_name = "cuda_cp_async_wait_all"
@@ -139,11 +163,12 @@ def cp_async(
     dst: Expr,
     src: Expr,
     cp_size: int,
-    src_size=None,
-    cache_level="always",
-    prefetch_bytes=0,
-    evict_policy="evict_normal",
-) -> Call:
+    use_shared_space_dst: bool = False,
+    src_size: Optional[int | Expr] = None,
+    cache_level: str = "always",
+    evict: Optional[str] = None,
+    prefetch_bytes: int = 0,
+) -> Expr:
     """
     Copy data from global memory to shared memory asynchronously.
 
@@ -159,16 +184,22 @@ def cp_async(
         The address of the source in global memory.
     cp_size: int
         The number of bytes to be copied to the destination. Candidates: 4, 8 and 16.
-    src_size: Optional[Union[Expr, int]]
+    use_shared_space_dst: bool
+        Whether the dst is in shared memory space. If True, the dst should be an uint32 address in shared memory space.
+        Otherwise, the dst should be in the generic memory space and will be converted to shared memory space inside the
+        primitive function.
+    src_size: Union[Expr, int], optional
         The number of bytes in the source to be copied. If src_size < cp_size, the remaining part of destination will be filled with 0.
     cache_level: str
         The cache level. Candidates: 'always' and 'global'. When cache_level is 'global', the cp_size must be 16.
+    evict: Optional[str]
+        The evict priority. Can be 'evict_first', or None
     prefetch_bytes: int
         The number of bytes to be prefetched in L2 cache. Candidates: 0, 64, 128, 256.
 
     Returns
     -------
-    ret: Call
+    ret: Expr
         The call expression.
     """
     if not (isinstance(cp_size, int) and cp_size in [4, 8, 16]):
@@ -177,160 +208,35 @@ def cp_async(
         raise ValueError("prefetch_bytes must be either None, 64, 128 or 256, got {}.".format(prefetch_bytes))
     if cache_level not in ["global", "always"]:
         raise ValueError("Cache level candidates: {}, got {}".format(["always", "global"], cache_level))
+    if evict not in [None, "evict_first"]:
+        raise ValueError("Evict candidates: {}, got {}".format([None, "evict_first"], evict))
     if cache_level == "global":
         if cp_size != 16:
-            raise ValueError("When cache_level is global, the cp_size must be 16.")
+            raise ValueError("When cache_level is global, the cp_size must be 16, got {}".format(cp_size))
     if src_size is None:
-        src_size = cp_size
-    func_name = resolve_name_cp_async(cp_size, cache_level, prefetch_bytes, evict_policy)
+        src_size = int32.constant(cp_size)
+    elif isinstance(src_size, int):
+        src_size = int32.constant(src_size)
+    assert isinstance(src_size, Expr)
+
+    func_name = resolve_name_cp_async(use_shared_space_dst, cp_size, cache_level, evict, prefetch_bytes)
     return call_cuda(func_name, [dst, src, src_size])
 
 
 def cp_async_commit_group():
-    """
-    Commit all prior issued cp_async into a group.
-
-    See Also
-    --------
-        https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-commit-group
-    """
     return call_cuda("cp_async_commit_group", [])
 
 
-def cp_async_wait_group(allow_on_fly_groups: Union[int, Expr]):
-    """
-    Wait the completion of prior asynchronous copy operations.
+def cp_async_wait_group(allow_on_fly_groups):
+    from tilus.hidet.ir.expr import Constant
 
-    See Also
-    --------
-       https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-wait-group
-
-    Parameters
-    ----------
-    allow_on_fly_groups: Union[int, Expr]
-        The maximum number of asynchronous copies that are allowed to be on-the-fly after this function.
-        Can be a python integer or a hidet constant expression.
-    """
-    if isinstance(allow_on_fly_groups, Expr):
-        from tilus.hidet.ir.tools.simplifier import simplify_to_int
-
-        allow_on_fly_groups = simplify_to_int(allow_on_fly_groups)
-    if not 0 <= allow_on_fly_groups < 10:
-        raise ValueError("n out of bound")
-    return call_cuda("cp_async_wait_group_{}".format(allow_on_fly_groups), [])
+    if isinstance(allow_on_fly_groups, Constant):
+        allow_on_fly_groups = int(allow_on_fly_groups)
+    if isinstance(allow_on_fly_groups, int):
+        return call_cuda("cp_async_wait_group_{}".format(allow_on_fly_groups), [])
+    else:
+        raise ValueError("allow_on_fly_groups must be an integer, got {}".format(type(allow_on_fly_groups)))
 
 
 def cp_async_wait_all():
-    """
-    Wait all prior asynchronous copy operations.
-
-    See Also
-    --------
-       https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-wait-group
-    """
     return call_cuda("cp_async_wait_all", [])
-
-
-# ---------------------------------------------------------------------------
-# Extended cp_async with shared-space dst and evict_first policy (from extensions)
-# ---------------------------------------------------------------------------
-
-
-def _resolve_name_cp_async_ext(
-    use_shared_space_dst: bool,
-    cp_size: int,
-    cache_level: str = "always",
-    evict=None,
-    prefetch_bytes: int = 0,
-) -> str:
-    if evict is None:
-        evict_part = ""
-    elif evict == "evict_first":
-        evict_part = "_evict_first"
-    else:
-        assert False
-    if prefetch_bytes:
-        prefetch_part = "_l2_{}B".format(prefetch_bytes)
-    else:
-        prefetch_part = ""
-    cache_part = "c" + cache_level[0]
-    dst_space = "_shared_dst" if use_shared_space_dst else "generic_dst"
-    return "cp_async_size_{}_{}{}{}{}".format(cp_size, evict_part, cache_part, prefetch_part, dst_space)
-
-
-@initialize()
-def register_cp_async_ext():
-    from tilus.hidet.ir.dtypes import int32 as int32_dt
-    from tilus.hidet.lang import attrs, i32, script
-
-    for cp_size in [4, 8, 16]:
-        for prefetch_bytes in [0, 64, 128, 256]:
-            for cache_level in ["always", "global"]:
-                for evict in [None, "evict_first"]:
-                    if cache_level == "global" and cp_size != 16:
-                        continue
-                    if evict == "evict_first":
-                        template_string = (
-                            "{{\n"
-                            "    .reg .b64 p;\n"
-                            "    createpolicy.fractional.L2::evict_first.b64 p, 1.0;\n"
-                            "    cp.async.{cache_level}.shared.global.L2::cache_hint{prefetch} [%0], [%1], %2, %3, p;\n"
-                            "}}\n"
-                        )
-                    else:
-                        template_string = "cp.async.{cache_level}.shared.global{prefetch} [%0], [%1], %2, %3;"
-                    template_string = template_string.format(
-                        cache_level={"always": "ca", "global": "cg"}[cache_level],
-                        prefetch=".L2::{}B".format(prefetch_bytes) if prefetch_bytes != 0 else "",
-                    )
-
-                    # shared-space dst variant
-                    func_name = "cuda_" + _resolve_name_cp_async_ext(True, cp_size, cache_level, evict, prefetch_bytes)
-
-                    @script
-                    def cuda_cp_async_shared(shared_dst: int32_dt, src: PointerType(VoidType()), src_size: i32):
-                        attrs.func_name = func_name
-                        attrs.func_kind = "cuda_internal"
-                        asm(template=template_string, inputs=[shared_dst, src, cp_size, src_size])
-
-                    assert isinstance(cuda_cp_async_shared, Function)
-                    register_primitive_function(name=cuda_cp_async_shared.name, func_or_type=cuda_cp_async_shared)
-
-
-def cp_async_shared_dst(
-    dst: Expr,
-    src: Expr,
-    cp_size: int,
-    src_size=None,
-    cache_level: str = "always",
-    evict=None,
-    prefetch_bytes: int = 0,
-):
-    """
-    Copy data from global memory to shared memory asynchronously, using shared-space dst address.
-
-    Parameters
-    ----------
-    dst: Expr
-        The address of the destination in shared memory (uint32 in shared space).
-    src: Expr
-        The address of the source in global memory.
-    cp_size: int
-        The number of bytes to be copied. Candidates: 4, 8 and 16.
-    src_size: optional
-        Source size, defaults to cp_size.
-    cache_level: str
-        Cache level: 'always' or 'global'.
-    evict: optional
-        Eviction policy: None or 'evict_first'.
-    prefetch_bytes: int
-        L2 prefetch hint.
-    """
-    from tilus.hidet.ir.dtypes import int32 as int32_dt
-
-    if src_size is None:
-        src_size = int32_dt.constant(cp_size)
-    elif isinstance(src_size, int):
-        src_size = int32_dt.constant(src_size)
-    func_name = _resolve_name_cp_async_ext(True, cp_size, cache_level, evict, prefetch_bytes)
-    return call_cuda(func_name, [dst, src, src_size])

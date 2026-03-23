@@ -25,7 +25,6 @@
 # limitations under the License.
 from pathlib import Path
 
-import hidet
 import pytest
 import tilus
 import tilus.utils
@@ -52,8 +51,6 @@ def clear_before_test():
     import torch
 
     torch.cuda.empty_cache()
-    if hidet.cuda.available():
-        hidet.runtime.storage.current_memory_pool("cuda").clear()
     gc.collect()  # release resources with circular references but are unreachable
     yield
     # run after each test

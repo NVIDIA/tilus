@@ -109,18 +109,17 @@ class IRModule(Node):
         """Build the IR module into a compiled module.
 
         Uses tilus's own lowering, codegen, and compilation pipeline.
-        Returns a tvm_ffi module loaded from the compiled .so file.
+        Returns a callable CompiledModule backed by the compiled .so file.
         """
         import os
         import tempfile
 
-        import tvm_ffi
-
         from tilus.drivers import build_ir_module
+        from tilus.runtime.compiled_program import CompiledModule
 
         output_dir = tempfile.mkdtemp(prefix="tilus_build_")
         build_ir_module(self, output_dir)
-        return tvm_ffi.load_module(os.path.join(output_dir, "lib.so"))
+        return CompiledModule(os.path.join(output_dir, "lib.so"))
 
     def reset_funcs(self, functions: Dict[str, Function] = None, global_vars: Dict[str, Var] = None):
         self.functions = functions if functions else {}

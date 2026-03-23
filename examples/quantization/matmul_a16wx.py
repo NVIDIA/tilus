@@ -6,8 +6,8 @@ import pandas
 import tilus
 import torch
 from hidet import bfloat16
-from hidet.ir.dtypes import int4b
-from hidet.ir.type import DataType, void_p
+from tilus.hidet.ir.dtypes import int4b
+from tilus.hidet.ir.type import DataType, void_p
 from tilus import (
     Script,
     float3_e1m1,
