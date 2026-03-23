@@ -57,10 +57,16 @@ class Namer:
             if e.name is not None:
                 return e.name
             orig_name = e.hint
-        elif isinstance(e, (ScalarNode, TensorNode)):
+        elif ScalarNode is not None and isinstance(e, (ScalarNode, TensorNode)):
             orig_name = e.name
         else:
-            alias = {ScalarNode: "scalar", TensorNode: "tensor", Var: "v", Tensor: "x"}
+            alias = {Var: "v"}
+            if ScalarNode is not None:
+                alias[ScalarNode] = "scalar"
+            if TensorNode is not None:
+                alias[TensorNode] = "tensor"
+            if Tensor is not None:
+                alias[Tensor] = "x"
             orig_name = alias[type(e)] if type(e) in alias else type(e).__name__
 
         if orig_name in self.name_id_clock:
