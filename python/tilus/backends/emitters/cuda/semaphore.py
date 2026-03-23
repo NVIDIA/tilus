@@ -12,11 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.dtypes import boolean, int32
-from hidet.ir.expr import equal
-from hidet.ir.primitives.cuda.ldst import load, store
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
+from tilus.hidet.ir.dtypes import boolean, int32
+from tilus.hidet.ir.expr import equal
+from tilus.hidet.ir.primitives.cuda.ldst import load, store
 from tilus.ir.instructions import LockSemaphoreInst, ReleaseSemaphoreInst
 
 

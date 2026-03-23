@@ -18,9 +18,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.expr import Expr
-
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+from tilus.hidet.ir.expr import Expr
+from tilus.hidet.ir.primitives.cuda.tcgen05 import (
     tcgen05_encode_smem_descriptor,
 )
 

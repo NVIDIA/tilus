@@ -15,8 +15,8 @@
 import pytest
 import tilus
 import torch
-from hidet.ir.type import DataType
 from tilus import float8_e4m3, float16, float32, void_p
+from tilus.hidet.ir.type import DataType
 from tilus.utils import dtype_to_torch
 
 

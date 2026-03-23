@@ -17,9 +17,8 @@ from __future__ import annotations
 import itertools
 from typing import Sequence
 
-from hidet.ir.expr import Expr, Var
-from hidet.ir.type import DataType
-
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.type import DataType
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.tensor import RegisterTensor
 

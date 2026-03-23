@@ -18,8 +18,7 @@ import functools
 from dataclasses import dataclass
 from typing import Sequence
 
-from hidet.ir.expr import Expr, Var
-
+from tilus.hidet.ir.expr import Expr, Var
 from tilus.ir.inst import Instruction, InstructionConfig
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.layout.ops import column_spatial, spatial

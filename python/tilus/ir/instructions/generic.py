@@ -18,12 +18,10 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Callable, ClassVar, Optional, Sequence, Union
 
-from hidet.ir import primitives
-from hidet.ir.dtypes import DataType, boolean, i32
-from hidet.ir.expr import Expr, Var, as_expr
-from hidet.ir.tools import rewrite
-
-from tilus.extensions.hidet.ir.expr import index_vars
+from tilus.hidet.ir import primitives
+from tilus.hidet.ir.dtypes import DataType, boolean, i32
+from tilus.hidet.ir.expr import Expr, Var, as_expr, index_vars
+from tilus.hidet.ir.tools import rewrite
 from tilus.ir.inst import Instruction
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor

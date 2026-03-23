@@ -18,12 +18,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.dtypes import uint64
-from hidet.ir.expr import Expr
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.backends.emitters.cuda.tcgen05.smem_desc import SharedMatrixDescriptor
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+from tilus.hidet.ir.dtypes import uint64
+from tilus.hidet.ir.expr import Expr
+from tilus.hidet.ir.primitives.cuda.tcgen05 import (
     COLUMN_STRIDE,
     LANE_STRIDE,
     Tcgen05CopyMulticastKind,
@@ -31,7 +30,7 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05CtaGroupKind,
     tcgen05_copy,
 )
-from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
+from tilus.hidet.ir.utils.index_transform import index_deserialize
 from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst
 from tilus.ir.layout.cuda.tcgen05.smem import CanonicalSharedLayout, Tcgen05SwizzleMode, canonicalize_shared_layout
 from tilus.ir.tensor import SharedTensor, TMemoryTensor

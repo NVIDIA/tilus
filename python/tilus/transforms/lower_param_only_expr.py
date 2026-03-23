@@ -43,10 +43,8 @@ The algorithm is simple:
    than once).
 """
 
-from hidet.ir.expr import Expr, Var
-from hidet.ir.tools import collect
-
-from tilus.extensions.hidet.ir.tools import rewrite
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.tools import collect, rewrite
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.instructions import AllocateGlobalInst

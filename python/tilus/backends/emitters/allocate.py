@@ -12,10 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import tensor_var
-from hidet.ir.tools import rewrite
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
+from tilus.hidet.ir.expr import tensor_var
+from tilus.hidet.ir.tools import rewrite
 from tilus.ir import RegisterTensor
 from tilus.ir.instructions import AllocateRegisterInst
 

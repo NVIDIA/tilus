@@ -12,10 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import logical_or
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.clc import (
+from tilus.hidet.ir.expr import logical_or
+from tilus.hidet.ir.primitives.cuda.clc import (
     cluster_launch_control_query_response,
     cluster_launch_control_try_cancel,
 )

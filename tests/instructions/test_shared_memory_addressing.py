@@ -14,13 +14,13 @@
 # limitations under the License.
 import tilus
 from tilus import uint8, uint32
-from tilus.extensions.hidet.ir.primitives.cuda.cvta import (
+from tilus.hidet.ir.primitives.cuda.cvta import (
     cvta_cluster_shared_to_generic,
     cvta_generic_to_cluster_shared,
     cvta_generic_to_shared,
     cvta_shared_to_generic,
 )
-from tilus.extensions.hidet.ir.primitives.cuda.mapa import mapa_shared
+from tilus.hidet.ir.primitives.cuda.mapa import mapa_shared
 from tilus.testing import requires
 
 

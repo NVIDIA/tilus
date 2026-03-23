@@ -14,8 +14,7 @@
 # limitations under the License.
 from typing import Union
 
-from hidet.ir.expr import Expr
-
+from tilus.hidet.ir.expr import Expr
 from tilus.ir.inst import InstructionError
 from tilus.ir.tensor import RegisterTensor, SharedTensor
 

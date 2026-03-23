@@ -19,10 +19,9 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Optional, Sequence
 
-from hidet.ir.expr import Expr, Var
-from hidet.ir.type import DataType
-from hidet.utils import same_list
-
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.type import DataType
+from tilus.hidet.utils import same_list
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, TMemoryLayout
 from tilus.utils import nbytes_from_nbits, prod
 

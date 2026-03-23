@@ -22,13 +22,13 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 import filelock
-from hidet.drivers.build_module import write_function_types
-from hidet.ir.module import IRModule
 
 import tilus.option
 from tilus.backends.codegen import generate_ir_module
-from tilus.extensions.hidet.backend.build import compile_source
-from tilus.extensions.hidet.backend.codegen import codegen
+from tilus.hidet.backend.build import compile_source
+from tilus.hidet.backend.codegen import codegen
+from tilus.hidet.drivers.build_module import write_function_types
+from tilus.hidet.ir.module import IRModule
 from tilus.ir.prog import Program
 from tilus.ir.tools import verify
 from tilus.runtime import CompiledProgram, compiled_program_exists, load_compiled_program
@@ -111,43 +111,40 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     optimized_ir_module: IRModule
         The optimized low-level IR module.
     """
-    from hidet.transforms import lower_with
-
-    # from hidet.transforms.add_explicit_cast import add_explicit_cast_pass
-    from hidet.transforms.add_hints import add_hints_pass
-    from hidet.transforms.annotate_header_and_libs import annotate_header_and_libs_pass
-    from hidet.transforms.base import PassContext
-    from hidet.transforms.expand_let_expr import expand_let_expr_pass
-    from hidet.transforms.explicit_unroll import explicit_unroll_pass
-    from hidet.transforms.flatten_tensor_index import flatten_tensor_index_pass
-    from hidet.transforms.flatten_tensor_slice import flatten_tensor_slice_pass
-    from hidet.transforms.generate_launch_func import generate_launch_func_pass
-    from hidet.transforms.import_primitive_functions import import_primitive_functions_pass
-    from hidet.transforms.inline_function import inline_function_pass
-    from hidet.transforms.inline_let_stmt import inline_let_stmt_pass
-    from hidet.transforms.instantiate_symbols import instantiate_symbols_pass
-    from hidet.transforms.instruments import PassInstrument, ProfileInstrument, SaveIRInstrument
-    from hidet.transforms.lower_integer_subbyte import lower_integer_subbyte_pass
-    from hidet.transforms.lower_special_cast import lower_special_cast_pass
-    from hidet.transforms.lower_task_mapping import lower_task_mapping_pass
-    from hidet.transforms.propagate_launch_bound import propagate_launch_bound_pass
-    from hidet.transforms.resolve_generic_primitive_function import resolve_primitive_func_pass
-    from hidet.transforms.simplify_addition_chain import simplify_addition_chain_pass
-    from hidet.transforms.simplify_stmt import simplify_stmt_pass
-    from hidet.transforms.unify_global_objects import unify_global_objects_pass
-
     from tilus.backends.transforms.inline_register_tensor import inline_register_tensor_pass
-    from tilus.extensions.hidet.transforms.add_explicit_cast import (
+    from tilus.hidet.transforms import lower_with
+    from tilus.hidet.transforms.add_explicit_cast import (
         add_explicit_cast_pass as tilus_add_explicit_cast_pass,
     )
-    from tilus.extensions.hidet.transforms.bind_predefined_variables import bind_predefined_variables_pass
-    from tilus.extensions.hidet.transforms.check_launch_configuration import check_launch_configuration_pass
-    from tilus.extensions.hidet.transforms.deadcode_elimination import deadcode_elimination_pass
-    from tilus.extensions.hidet.transforms.declare_to_let import declare_to_let_pass
-    from tilus.extensions.hidet.transforms.hoist_loop_invariants import hoist_loop_invariants_pass
-    from tilus.extensions.hidet.transforms.lower_affine_to_recurence import lower_affine_to_recurrence_pass
-    from tilus.extensions.hidet.transforms.lower_subbyte_type import lower_subbyte_type_pass
-    from tilus.extensions.hidet.transforms.rule_based_simplifier import rule_based_simplify_pass
+    from tilus.hidet.transforms.add_hints import add_hints_pass
+    from tilus.hidet.transforms.annotate_header_and_libs import annotate_header_and_libs_pass
+    from tilus.hidet.transforms.base import PassContext
+    from tilus.hidet.transforms.bind_predefined_variables import bind_predefined_variables_pass
+    from tilus.hidet.transforms.check_launch_configuration import check_launch_configuration_pass
+    from tilus.hidet.transforms.deadcode_elimination import deadcode_elimination_pass
+    from tilus.hidet.transforms.declare_to_let import declare_to_let_pass
+    from tilus.hidet.transforms.expand_let_expr import expand_let_expr_pass
+    from tilus.hidet.transforms.explicit_unroll import explicit_unroll_pass
+    from tilus.hidet.transforms.flatten_tensor_index import flatten_tensor_index_pass
+    from tilus.hidet.transforms.flatten_tensor_slice import flatten_tensor_slice_pass
+    from tilus.hidet.transforms.generate_launch_func import generate_launch_func_pass
+    from tilus.hidet.transforms.hoist_loop_invariants import hoist_loop_invariants_pass
+    from tilus.hidet.transforms.import_primitive_functions import import_primitive_functions_pass
+    from tilus.hidet.transforms.inline_function import inline_function_pass
+    from tilus.hidet.transforms.inline_let_stmt import inline_let_stmt_pass
+    from tilus.hidet.transforms.instantiate_symbols import instantiate_symbols_pass
+    from tilus.hidet.transforms.instruments import PassInstrument, ProfileInstrument, SaveIRInstrument
+    from tilus.hidet.transforms.lower_affine_to_recurence import lower_affine_to_recurrence_pass
+    from tilus.hidet.transforms.lower_integer_subbyte import lower_integer_subbyte_pass
+    from tilus.hidet.transforms.lower_special_cast import lower_special_cast_pass
+    from tilus.hidet.transforms.lower_subbyte_type import lower_subbyte_type_pass
+    from tilus.hidet.transforms.lower_task_mapping import lower_task_mapping_pass
+    from tilus.hidet.transforms.propagate_launch_bound import propagate_launch_bound_pass
+    from tilus.hidet.transforms.resolve_generic_primitive_function import resolve_primitive_func_pass
+    from tilus.hidet.transforms.rule_based_simplifier import rule_based_simplify_pass
+    from tilus.hidet.transforms.simplify_addition_chain import simplify_addition_chain_pass
+    from tilus.hidet.transforms.simplify_stmt import simplify_stmt_pass
+    from tilus.hidet.transforms.unify_global_objects import unify_global_objects_pass
 
     transforms = [
         unify_global_objects_pass(),

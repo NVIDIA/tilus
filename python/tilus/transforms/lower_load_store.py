@@ -14,12 +14,11 @@
 # limitations under the License.
 from typing import Any, Sequence, Union
 
-from hidet import boolean
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var
-
 from tilus import SharedLayout
-from tilus.extensions.hidet.ir.utils.index_transform import index_within_bound
+from tilus.hidet import boolean
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.utils.index_transform import index_within_bound
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter

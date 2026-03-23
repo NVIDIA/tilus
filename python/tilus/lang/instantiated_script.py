@@ -31,12 +31,12 @@ import tabulate
 import torch
 import tvm_ffi
 from cuda.bindings.runtime import cudaDeviceSynchronize
-from hidet.ir.type import DataType, PointerType
-from hidet.utils.py import nocolor
 from tqdm import tqdm
 
 import tilus.option
 from tilus.drivers import BuildOptions, build_program, get_cache_dir
+from tilus.hidet.ir.type import DataType, PointerType
+from tilus.hidet.utils.py import nocolor
 from tilus.ir.prog import Program
 from tilus.lang.script import Script
 from tilus.runtime import CompiledProgram, load_compiled_program

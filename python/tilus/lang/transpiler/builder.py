@@ -16,9 +16,8 @@ from __future__ import annotations
 
 from typing import Any, Optional, Union
 
-from hidet.ir.expr import Var
-
 import tilus.lang.constructs.loops
+from tilus.hidet.ir.expr import Var
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.tensor import Tensor
 

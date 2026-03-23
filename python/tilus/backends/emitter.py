@@ -16,14 +16,13 @@ from __future__ import annotations
 
 from typing import Callable, Dict, Optional, Sequence, Type
 
-from hidet.ir.builders import FunctionBuilder
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var, tensor_pointer_var, tensor_var
-from hidet.ir.primitives.cuda.vars import blockIdx, dim3
-from hidet.ir.stmt import DeclareScope
-from hidet.ir.stmt import Stmt as HidetStmt
-
-from tilus.extensions.hidet.ir.builders.stmt_builder import TypedStmtBuilder as StmtBuilder
+from tilus.hidet.ir.builders import FunctionBuilder
+from tilus.hidet.ir.builders.stmt_builder import TypedStmtBuilder as StmtBuilder
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import Expr, Var, tensor_pointer_var, tensor_var
+from tilus.hidet.ir.primitives.cuda.vars import blockIdx, dim3
+from tilus.hidet.ir.stmt import DeclareScope
+from tilus.hidet.ir.stmt import Stmt as HidetStmt
 from tilus.ir.func import Function
 from tilus.ir.inst import Instruction
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
@@ -57,7 +56,7 @@ class BaseInstEmitter(StmtBuilder):
 
     def sync_reduce(self, value: Expr, op: str) -> Expr:
         if get_current_target().is_nvgpu():
-            from hidet.ir.primitives.cuda.sync import syncthreads_and, syncthreads_or
+            from tilus.hidet.ir.primitives.cuda.sync import syncthreads_and, syncthreads_or
 
             op2sync = {"and": syncthreads_and, "or": syncthreads_or}
             syncthreads_op = op2sync[op]
@@ -110,13 +109,13 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def block_rank_in_cluster(self) -> Expr:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster
+        from tilus.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster
 
         return block_rank_in_cluster()
 
     @property
     def blocks_per_cluster(self) -> Expr:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import cluster_blocks
+        from tilus.hidet.ir.primitives.cuda.cluster import cluster_blocks
 
         return cluster_blocks()
 

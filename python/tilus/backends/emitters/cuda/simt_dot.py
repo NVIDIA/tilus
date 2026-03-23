@@ -14,10 +14,9 @@
 # limitations under the License.
 from typing import Tuple
 
-from hidet.ir.expr import Expr, cast
-from hidet.ir.utils.broadcast_utils import broadcast_indices
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
+from tilus.hidet.ir.expr import Expr, cast
+from tilus.hidet.ir.utils.broadcast_utils import broadcast_indices
 from tilus.ir.instructions import SimtDotInst
 from tilus.target import gpgpu_any
 
@@ -52,7 +51,7 @@ class MmaDotInstEmitter(BaseInstEmitter):
             a_outer_indices = broadcast_indices(c_outer_indices, a_value.shape[:-2], c_outer_shape)
             b_outer_indices = broadcast_indices(c_outer_indices, b_value.shape[:-2], c_outer_shape)
             with self.for_grid(list(warp_repeat)) as repeat_indices:
-                from hidet.ir.mapping import spatial_map
+                from tilus.hidet.ir.mapping import spatial_map
 
                 spatial_indices: Tuple[Expr, ...] = spatial_map(warp_spatial, ranks=[1, 2, 0])(warp_id)[0]  # type: ignore
 

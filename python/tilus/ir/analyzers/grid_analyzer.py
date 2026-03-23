@@ -18,9 +18,10 @@ import logging
 import operator
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Type
 
-from hidet.ir import BitwiseXor, DataType, Div, Equal, Mod, TensorElement
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import (
+import tilus.logging
+from tilus.hidet.ir import BitwiseXor, DataType, Div, Equal, Mod, TensorElement
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import (
     Add,
     BinaryExpr,
     BitwiseAnd,
@@ -38,12 +39,10 @@ from hidet.ir.expr import (
     Sub,
     Var,
 )
-from hidet.ir.functors import IRFunctor
-from hidet.ir.layout import is_power_of_two
-from hidet.ir.tools import collect
-from hidet.utils import gcd
-
-import tilus.logging
+from tilus.hidet.ir.functors import IRFunctor
+from tilus.hidet.ir.layout import is_power_of_two
+from tilus.hidet.ir.tools import collect
+from tilus.hidet.utils import gcd
 from tilus.ir.func import Analysis
 
 logger = tilus.logging.get_logger(__name__)
@@ -631,8 +630,8 @@ def analyze_grid(
 
 
 if __name__ == "__main__":
-    from hidet.ir.dtypes import int32
-    from hidet.ir.expr import Var
+    from tilus.hidet.ir.dtypes import int32
+    from tilus.hidet.ir.expr import Var
 
     # i, = index_vars(1)
     # e = ((((i / 4) % 1) * 4) + ((i % 4) % 4))

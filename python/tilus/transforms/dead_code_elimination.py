@@ -20,9 +20,8 @@ Removes functional instructions whose output tensors are never consumed by any o
 
 from typing import Type
 
-from hidet.ir.expr import Expr, Var
-from hidet.ir.tools import collect as hidet_collect
-
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.tools import collect as hidet_collect
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter, IRVisitor
 from tilus.ir.inst import Instruction

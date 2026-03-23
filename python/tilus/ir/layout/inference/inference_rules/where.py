@@ -12,9 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.utils import same_list
-
 from tilus import RegisterLayout
+from tilus.hidet.utils import same_list
 from tilus.ir.instructions import WhereInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.layout.ops import register_ops

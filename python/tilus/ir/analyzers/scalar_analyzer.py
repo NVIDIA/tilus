@@ -17,13 +17,12 @@ from __future__ import annotations
 import logging
 from typing import Optional, Sequence
 
-from hidet.ir import Call
-from hidet.ir.expr import Add, Constant, Div, Expr, Mod, Multiply, Sub, Var
-from hidet.ir.functors import IRFunctor as HidetIRFunctor
-from hidet.ir.tools import collect as hidet_collect
-from hidet.ir.type import DataType
-
 import tilus.logging
+from tilus.hidet.ir import Call
+from tilus.hidet.ir.expr import Add, Constant, Div, Expr, Mod, Multiply, Sub, Var
+from tilus.hidet.ir.functors import IRFunctor as HidetIRFunctor
+from tilus.hidet.ir.tools import collect as hidet_collect
+from tilus.hidet.ir.type import DataType
 from tilus.ir.func import Analysis, Function
 from tilus.ir.stmt import AssignStmt, DeclareStmt, ForStmt, LetStmt
 from tilus.ir.tools import IRPrinter, collect

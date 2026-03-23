@@ -12,10 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import Var, if_then_else
-from hidet.ir.utils.broadcast_utils import broadcast_indices
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
+from tilus.hidet.ir.expr import Var, if_then_else
+from tilus.hidet.ir.utils.broadcast_utils import broadcast_indices
 from tilus.ir.instructions import WhereInst
 from tilus.ir.tensor import RegisterTensor
 

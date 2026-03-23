@@ -14,18 +14,14 @@
 # limitations under the License.
 from typing import Dict, Tuple
 
-from hidet.ir.dtypes import bfloat16, float16, int8, uint8, uint32
-from hidet.ir.dtypes.floats import FloatType
-from hidet.ir.expr import Expr, Var, cast, tensor_pointer_var, tensor_var
-from hidet.ir.primitives.cuda.half import fma_f16x2, sub_f16x2
-from hidet.ir.primitives.cuda.prmt import prmt
-from hidet.ir.type import BaseType, Callable, DataType, PointerType, TensorPointerType, TensorType
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.dtypes import (
+from tilus.hidet.ir.dtypes import (
+    bfloat16,
     float6_e3m2,
     float8_e4m3,
+    float16,
     int4b,
+    int8,
     uint1b,
     uint2b,
     uint3b,
@@ -33,11 +29,17 @@ from tilus.extensions.hidet.ir.dtypes import (
     uint5b,
     uint6b,
     uint7b,
+    uint8,
+    uint32,
 )
-from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
-from tilus.extensions.hidet.ir.primitives.cuda.bfloat16 import mul_bf16x2
-from tilus.extensions.hidet.ir.primitives.cuda.half import mul_f16x2
-from tilus.extensions.hidet.ir.primitives.cuda.lop3 import lop3
+from tilus.hidet.ir.dtypes.floats import FloatType
+from tilus.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
+from tilus.hidet.ir.expr import Expr, Var, cast, tensor_pointer_var, tensor_var
+from tilus.hidet.ir.primitives.cuda.bfloat16 import mul_bf16x2
+from tilus.hidet.ir.primitives.cuda.half import fma_f16x2, mul_f16x2, sub_f16x2
+from tilus.hidet.ir.primitives.cuda.lop3 import lop3
+from tilus.hidet.ir.primitives.cuda.prmt import prmt
+from tilus.hidet.ir.type import BaseType, Callable, DataType, PointerType, TensorPointerType, TensorType
 from tilus.ir.instructions import CastInst
 from tilus.target import amdgpu_any, nvgpu_any
 from tilus.utils import cdiv

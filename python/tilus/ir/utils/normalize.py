@@ -14,9 +14,9 @@
 # limitations under the License.
 from typing import Sequence
 
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr
-from hidet.ir.tools.simplifier import simplify, simplify_to_int
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import Expr
+from tilus.hidet.ir.tools.simplifier import simplify, simplify_to_int
 
 
 def normalize_dim3(dim3: Expr | int | Sequence[Expr | int]) -> tuple[Expr, Expr, Expr]:

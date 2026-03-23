@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from hidet.ir.expr import Var
-
+from tilus.hidet.ir.expr import Var
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.stmt import AssignStmt, LetStmt, Stmt

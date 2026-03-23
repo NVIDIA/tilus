@@ -12,11 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.dtypes import boolean, uint8, uint32
-from hidet.ir.expr import Expr, Var, bitwise_and, cast, left_shift, logical_and, tensor_pointer_var
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.ldst import load, store
+from tilus.hidet.ir.dtypes import boolean, uint8, uint32
+from tilus.hidet.ir.expr import Expr, Var, bitwise_and, cast, left_shift, logical_and, tensor_pointer_var
+from tilus.hidet.ir.primitives.cuda.ldst import load, store
 from tilus.ir.instructions.generic import ShuffleBaseInst, ShuffleDownInst, ShuffleUpInst
 from tilus.target import nvgpu_any
 from tilus.utils import gcd

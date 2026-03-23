@@ -14,8 +14,7 @@
 # limitations under the License.
 from typing import Sequence
 
-from hidet.ir.expr import Expr, as_expr
-
+from tilus.hidet.ir.expr import Expr, as_expr
 from tilus.ir.tensor import RegisterTensor
 
 from .root import InstructionGroup

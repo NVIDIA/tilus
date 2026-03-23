@@ -17,10 +17,10 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 
 import cuda.bindings.runtime as cudart
-from hidet.ir.dtypes import DataType, bfloat16, float16, float32, int8, int32
 
 from tilus import RegisterLayout
 from tilus.backends.emitters.cuda.mma_dot import AtomicMmaConfig
+from tilus.hidet.ir.dtypes import DataType, bfloat16, float16, float32, int8, int32
 from tilus.ir.layout import SharedLayout
 from tilus.ir.layout.ops import auto_local_spatial, reduce, shared_row_major, spatial
 from tilus.ir.utils import vector

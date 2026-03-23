@@ -13,13 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from hidet.ir import logical_or
-from hidet.ir.dtypes import int32, uint32
-from hidet.ir.expr import cast
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+from tilus.hidet.ir import logical_or
+from tilus.hidet.ir.dtypes import int32, uint32
+from tilus.hidet.ir.expr import cast
+from tilus.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
+from tilus.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05CtaGroupKind,
     tcgen05_alloc,
     tcgen05_dealloc,

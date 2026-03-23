@@ -16,16 +16,15 @@ from __future__ import annotations
 
 import functools
 
-from hidet import boolean
-from hidet.ir import DataType
-from hidet.ir.dtypes import int32, uint32
-from hidet.ir.expr import Expr, Var, bitwise_and, bitwise_or, cast, if_then_else, logical_and
-from hidet.ir.primitives.cuda.shfl import shfl_down_sync, shfl_up_sync
-from hidet.ir.type import tensor_pointer_type
-from hidet.utils.py import is_power_of_two
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize, index_serialize
+from tilus.hidet import boolean
+from tilus.hidet.ir import DataType
+from tilus.hidet.ir.dtypes import int32, uint32
+from tilus.hidet.ir.expr import Expr, Var, bitwise_and, bitwise_or, cast, if_then_else, logical_and
+from tilus.hidet.ir.primitives.cuda.shfl import shfl_down_sync, shfl_up_sync
+from tilus.hidet.ir.type import tensor_pointer_type
+from tilus.hidet.ir.utils.index_transform import index_deserialize, index_serialize
+from tilus.hidet.utils.py import is_power_of_two
 from tilus.ir.instructions.generic import ReduceInst
 from tilus.ir.layout import RegisterLayout, SharedLayout
 from tilus.ir.layout.ops.shared_ops import shared_row_major
@@ -53,7 +52,7 @@ class ReduceInstEmitter(BaseInstEmitter):
             raise NotImplementedError(f"Unsupported reduction operation: {op}")
 
     def scalar_reduce(self, lhs: Expr, rhs: Expr, op: str) -> Expr:
-        from hidet.ir.primitives import max, min
+        from tilus.hidet.ir.primitives import max, min
 
         if op == "sum":
             return lhs + rhs

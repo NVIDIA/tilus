@@ -12,10 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import Expr, Var, logical_and
-
 from tilus import RegisterLayout
-from tilus.extensions.hidet.ir.expr import index_vars
+from tilus.hidet.ir.expr import Expr, Var, index_vars, logical_and
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.instructions import LoadGlobalGenericInst, LoadGlobalInst, StoreGlobalGenericInst, StoreGlobalInst
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule

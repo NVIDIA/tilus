@@ -14,12 +14,23 @@
 # limitations under the License.
 from typing import List, Sequence
 
-from hidet.ir.dtypes import bfloat16, boolean, float16, float32, int4b, int8, int32, uint4b, uint8, uint32
-from hidet.ir.expr import Expr, cast, logical_and
-from hidet.ir.primitives.debug import printf
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.dtypes import float6_e3m2, float8_e4m3
+from tilus.hidet.ir.dtypes import (
+    bfloat16,
+    boolean,
+    float6_e3m2,
+    float8_e4m3,
+    float16,
+    float32,
+    int4b,
+    int8,
+    int32,
+    uint4b,
+    uint8,
+    uint32,
+)
+from tilus.hidet.ir.expr import Expr, cast, logical_and
+from tilus.hidet.ir.primitives.debug import printf
 from tilus.ir.instructions import FormatPrintInst, PrintTensorInst
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.layout.ops.register_ops import locate_at

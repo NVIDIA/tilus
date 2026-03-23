@@ -17,10 +17,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from hidet.ir.expr import Expr, Var
-
 from tilus.backends.context import BaseEmitContext
-from tilus.extensions.hidet.ir.tools import rewrite
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.tools import rewrite
 from tilus.ir.tensor import RegisterTensor
 
 

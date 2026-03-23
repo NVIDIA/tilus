@@ -43,8 +43,7 @@ The layout inference algorithm. We repeat the following steps in a loop:
 import logging
 from typing import Type
 
-from hidet.utils import same_list
-
+from tilus.hidet.utils import same_list
 from tilus.ir.func import Analysis, Function
 from tilus.ir.functors import IRVisitor
 from tilus.ir.inst import Instruction

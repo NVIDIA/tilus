@@ -17,9 +17,8 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 
-from hidet.ir.dtypes import bf16, f16, f32, i8, i32
-from hidet.ir.type import DataType
-
+from tilus.hidet.ir.dtypes import bf16, f16, f32, i8, i32
+from tilus.hidet.ir.type import DataType
 from tilus.ir.inst import Instruction
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.layout.ops import column_local, column_spatial, local, spatial
@@ -61,7 +60,7 @@ class AtomicMmaConfig:
         return isinstance(other, AtomicMmaConfig) and self.name == other.name
 
     def hidet_mma_config(self):
-        from hidet.ir.primitives.cuda.mma import MmaConfig
+        from tilus.hidet.ir.primitives.cuda.mma import MmaConfig
 
         v_pos = self.name.find("v")
         under_pos = self.name.find("_", v_pos)

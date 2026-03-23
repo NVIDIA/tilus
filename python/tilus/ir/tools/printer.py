@@ -14,12 +14,10 @@
 # limitations under the License.
 from typing import Any, Dict, List, Set, Tuple, Union
 
-from hidet.ir.expr import Expr, Var
-from hidet.ir.tools import IRPrinter as _HidetIRPrinter
-from hidet.ir.type import BaseType, DataType, PointerType, VoidType
-from hidet.utils.doc import Doc, NewLine, Text, doc_join
-
-from tilus.extensions.hidet.utils.doc import doc_comment, doc_join_lines, doc_strip_parentheses
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.tools import IRPrinter as _HidetIRPrinter
+from tilus.hidet.ir.type import BaseType, DataType, PointerType, VoidType
+from tilus.hidet.utils.doc import Doc, NewLine, Text, doc_comment, doc_join, doc_join_lines, doc_strip_parentheses
 from tilus.ir.func import Analysis, Function, Metadata
 from tilus.ir.functors import IRFunctor
 from tilus.ir.inst import Instruction, InstructionConfig

@@ -16,12 +16,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from hidet.ir import StmtBuilder
-from hidet.ir.dtypes import uint8
-from hidet.ir.expr import Expr, Var
-from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
-
 from tilus.backends.context import BaseEmitContext
+from tilus.hidet.ir import StmtBuilder
+from tilus.hidet.ir.dtypes import uint8
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from tilus.ir.tensor import SharedTensor
 from tilus.target import get_current_target
 

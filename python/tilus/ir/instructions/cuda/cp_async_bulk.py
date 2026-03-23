@@ -17,8 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
-from hidet.ir.expr import Expr, as_expr
-
+from tilus.hidet.ir.expr import Expr, as_expr
 from tilus.ir.inst import Instruction
 from tilus.ir.tensor import GlobalTensor, SharedTensor
 

@@ -13,15 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # mypy: disable-error-code="attr-defined"
-from hidet.ir import ForStmt, Function
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Address, Expr, TensorElement, Var
-from hidet.ir.functors import IRRewriter, IRVisitor
-from hidet.ir.primitives.cuda.vars import blockDim, blockIdx, gridDim, threadIdx
-from hidet.ir.stmt import BufferStoreStmt, DeclareScope, DeclareStmt, SeqStmt, Stmt
-from hidet.ir.tools import collect, rewrite
-from hidet.ir.type import TensorType
-from hidet.transforms.base import FunctionPass, Pass
+from tilus.hidet.ir import ForStmt, Function
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import Address, Expr, TensorElement, Var
+from tilus.hidet.ir.functors import IRRewriter, IRVisitor
+from tilus.hidet.ir.primitives.cuda.vars import blockDim, blockIdx, gridDim, threadIdx
+from tilus.hidet.ir.stmt import BufferStoreStmt, DeclareScope, DeclareStmt, SeqStmt, Stmt
+from tilus.hidet.ir.tools import collect, rewrite
+from tilus.hidet.ir.type import TensorType
+from tilus.hidet.transforms.base import FunctionPass, Pass
 
 """
 If there is only one assignment for a register tensor, and its value is the indexing of another register tensor,

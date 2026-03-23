@@ -12,12 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.dtypes import int32
-from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
-from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
-from hidet.ir.type import tensor_pointer_type
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
+from tilus.hidet.ir.primitives.cuda.smem import dynamic_shared_memory
+from tilus.hidet.ir.type import tensor_pointer_type
 from tilus.ir.instructions import (
     AllocateSharedInst,
     FreeSharedInst,

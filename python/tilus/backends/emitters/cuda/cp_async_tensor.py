@@ -19,23 +19,20 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 
 import numpy as np
-from hidet.ir import logical_or
-from hidet.ir.dtypes import uint32, uint64
-from hidet.ir.expr import Expr, Var, as_expr, cast
-from hidet.ir.tools import simplify
-from hidet.ir.type import DataType, PointerType, TensorType, sizeof
 
 from tilus import SharedLayout
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.expr import index_vars
-from tilus.extensions.hidet.ir.primitives.cuda.copy_async_tensor import (
+from tilus.hidet.ir import logical_or
+from tilus.hidet.ir.dtypes import uint32, uint64
+from tilus.hidet.ir.expr import Expr, Var, as_expr, cast, index_vars
+from tilus.hidet.ir.primitives.cuda.copy_async_tensor import (
     cp_async_tensor_commit_group,
     cp_async_tensor_global_to_cluster_shared,
     cp_async_tensor_global_to_shared,
     cp_async_tensor_shared_to_global,
     cp_async_tensor_wait_group,
 )
-from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import (
+from tilus.hidet.ir.primitives.cuda.tensor_map import (
     CUtensorMapType,
     TensorMapDataType,
     TensorMapFloatOOBFill,
@@ -44,7 +41,8 @@ from tilus.extensions.hidet.ir.primitives.cuda.tensor_map import (
     TensorMapSwizzle,
     encode_tensor_map,
 )
-from tilus.extensions.hidet.ir.tools import rewrite
+from tilus.hidet.ir.tools import rewrite, simplify
+from tilus.hidet.ir.type import DataType, PointerType, TensorType, sizeof
 from tilus.ir import GlobalLayout
 from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorCommitGroupInst,
@@ -225,7 +223,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         )
 
     def declare_host_buffer(self, name: str, dtype: DataType, shape: Sequence[int]) -> Var:
-        from hidet.ir.layout import strided_layout
+        from tilus.hidet.ir.layout import strided_layout
 
         return self.host_builder.declare_var(
             name=name, tp=TensorType(dtype=dtype, shape=shape, layout=strided_layout(shape=shape))

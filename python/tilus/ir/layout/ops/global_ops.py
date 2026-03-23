@@ -16,10 +16,9 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var
-
-from tilus.extensions.hidet.ir.utils.index_transform import index_multiply
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.utils.index_transform import index_multiply
 from tilus.ir.layout.global_layout import GlobalLayout
 from tilus.utils import prod
 

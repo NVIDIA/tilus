@@ -14,28 +14,27 @@
 # limitations under the License.
 from typing import List, Optional, Sequence
 
-from hidet.ir import logical_and
-from hidet.ir.dtypes import boolean, int32, uint32
-from hidet.ir.expr import Expr
-from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
-from hidet.ir.utils.index_transform import index_deserialize
-
 from tilus.backends.emitter import register_emitter
 from tilus.backends.emitters.cuda.cp_async_base import (
     CopyAsyncAnalysisResult,
     CopyAsyncAnalysisSharedToSharedResult,
     CopyAysncBaseEmitter,
 )
-from tilus.extensions.hidet.ir.primitives.cuda.copy_async_bulk import (
+from tilus.hidet.ir import logical_and
+from tilus.hidet.ir.dtypes import boolean, int32, uint32
+from tilus.hidet.ir.expr import Expr
+from tilus.hidet.ir.primitives.cuda.copy_async_bulk import (
     cp_async_bulk_global_to_cluster_shared,
     cp_async_bulk_global_to_shared,
     cp_async_bulk_shared_to_cluster_shared,
     cp_async_bulk_shared_to_global,
 )
-from tilus.extensions.hidet.ir.primitives.cuda.mapa import mapa_shared
-from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
+from tilus.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
+from tilus.hidet.ir.primitives.cuda.mapa import mapa_shared
+from tilus.hidet.ir.primitives.cuda.mbarrier import (
     mbarrier_expect_tx_shared,
 )
+from tilus.hidet.ir.utils.index_transform import index_deserialize
 from tilus.ir import GlobalTensor
 from tilus.ir.instructions import (
     CopyAsyncBulkGlobalToClusterSharedInst,

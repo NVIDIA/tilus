@@ -16,14 +16,13 @@ from __future__ import annotations
 
 from typing import Callable, List, Literal, Optional, Sequence, Type, Union
 
-from hidet.ir import primitives
-from hidet.ir.dtypes import boolean, int32, uint16, uint32
-from hidet.ir.expr import BitwiseXor, Equal, Expr, LessEqual, LessThan, LogicalNot, NotEqual, Var, as_expr
-from hidet.ir.tools import infer_type
-from hidet.ir.type import BaseType, DataType
-from hidet.ir.utils import broadcast_shapes, can_broadcast
-from hidet.utils import prod, same_list
-
+from tilus.hidet.ir import primitives
+from tilus.hidet.ir.dtypes import boolean, int32, uint16, uint32
+from tilus.hidet.ir.expr import BitwiseXor, Equal, Expr, LessEqual, LessThan, LogicalNot, NotEqual, Var, as_expr
+from tilus.hidet.ir.tools import infer_type
+from tilus.hidet.ir.type import BaseType, DataType
+from tilus.hidet.ir.utils import broadcast_shapes, can_broadcast
+from tilus.hidet.utils import prod, same_list
 from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
 from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
@@ -743,7 +742,7 @@ class StmtBuilder(StmtBuilderCore):
         f_compute: Callable[[Var, Var], Expr],
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from hidet.ir.utils.broadcast_utils import broadcast_shapes, can_mutually_broadcast
+        from tilus.hidet.ir.utils.broadcast_utils import broadcast_shapes, can_mutually_broadcast
 
         if not can_mutually_broadcast(x.shape, y.shape):
             raise InstructionError(f"Cannot broadcast {x.shape} and {y.shape}")
@@ -866,7 +865,7 @@ class StmtBuilder(StmtBuilderCore):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        from hidet.ir.utils.broadcast_utils import broadcast_shape, can_mutually_broadcast
+        from tilus.hidet.ir.utils.broadcast_utils import broadcast_shape, can_mutually_broadcast
 
         if not can_mutually_broadcast(x.shape, y.shape):
             raise InstructionError(f"Cannot broadcast shape {x.shape} and {y.shape} (op={inst_cls.__name__})")

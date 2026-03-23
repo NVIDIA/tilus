@@ -16,10 +16,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.dtypes import bf16, f8e4m3, f8e5m2, f16, i8, tf32, u1, u8
-from hidet.ir.expr import Expr
-from hidet.ir.type import DataType
-
+from tilus.hidet.ir.dtypes import bf16, f8e4m3, f8e5m2, f16, i8, tf32, u1, u8
+from tilus.hidet.ir.expr import Expr
+from tilus.hidet.ir.type import DataType
 from tilus.ir.inst import Instruction
 from tilus.ir.tensor import RegisterTensor, SharedTensor
 from tilus.utils import gcd

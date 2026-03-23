@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.mapa import mapa_shared
+from tilus.hidet.ir.primitives.cuda.mapa import mapa_shared
 from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 
 

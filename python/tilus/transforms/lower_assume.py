@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var
-
+from tilus.hidet.ir.expr import Constant, Equal, Expr, LogicalAnd, Mod, Var
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.instructions import AssumeInst

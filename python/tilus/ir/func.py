@@ -18,8 +18,7 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Mapping, Optional, Sequence
 
-from hidet.ir.expr import Expr, Var
-
+from tilus.hidet.ir.expr import Expr, Var
 from tilus.ir.node import IRNode
 from tilus.ir.stmt import Stmt
 from tilus.ir.utils import frozendict

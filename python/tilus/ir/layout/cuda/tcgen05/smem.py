@@ -18,8 +18,8 @@ from dataclasses import dataclass
 from typing import Literal, Optional, Sequence, cast
 
 import numpy as np
-from hidet.ir.type import DataType
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05SwizzleMode
+from tilus.hidet.ir.primitives.cuda.tcgen05 import Tcgen05SwizzleMode
+from tilus.hidet.ir.type import DataType
 from tilus.ir.layout.shared_layout import SharedLayout
 from tilus.ir.layout.utils.cute import CuteLayout, CuteSwizzle, IntTuple, SwizzledCuteLayout, cute_layout, tuple_product
 from tilus.utils import floor_log2

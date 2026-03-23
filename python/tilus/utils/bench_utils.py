@@ -21,9 +21,9 @@ import torch
 
 @functools.cache
 def _cuda_sleep_kernel():
-    from hidet.ir.primitives.cuda.time import nano_sleep
-    from hidet.lang import attrs, script, script_module
-    from hidet.lang.types import int64
+    from tilus.hidet.ir.primitives.cuda.time import nano_sleep
+    from tilus.hidet.lang import attrs, script, script_module
+    from tilus.hidet.lang.types import int64
 
     with script_module() as module:
 

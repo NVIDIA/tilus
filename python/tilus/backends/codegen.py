@@ -16,22 +16,20 @@ from __future__ import annotations
 
 from typing import Dict, Optional, Set, Type
 
-from hidet.ir import FuncType
-from hidet.ir.builders import FunctionBuilder
-from hidet.ir.dtypes import int32, uint32
-from hidet.ir.expr import Constant, Var, logical_and
-from hidet.ir.func import Function as HidetFunction
-from hidet.ir.module import IRModule
-from hidet.ir.primitives import set_kernel_max_dynamic_smem_bytes
-from hidet.ir.primitives.cuda.vars import threadIdx
-from hidet.ir.stmt import LaunchKernelStmt
-from hidet.utils import prod
-from hidet.utils.doc import Doc, Text
-
 from tilus.backends.emitter import BaseInstEmitter
-from tilus.extensions.hidet.ir.module import merge_ir_modules
-from tilus.extensions.hidet.ir.primitives.cuda.elect import elect_one_sync, shfl_sync_i32
-from tilus.extensions.hidet.ir.tools.verifier import verify as verify_ir_module
+from tilus.hidet.ir import FuncType
+from tilus.hidet.ir.builders import FunctionBuilder
+from tilus.hidet.ir.dtypes import int32, uint32
+from tilus.hidet.ir.expr import Constant, Var, logical_and
+from tilus.hidet.ir.func import Function as HidetFunction
+from tilus.hidet.ir.module import IRModule, merge_ir_modules
+from tilus.hidet.ir.primitives import set_kernel_max_dynamic_smem_bytes
+from tilus.hidet.ir.primitives.cuda.elect import elect_one_sync, shfl_sync_i32
+from tilus.hidet.ir.primitives.cuda.vars import threadIdx
+from tilus.hidet.ir.stmt import LaunchKernelStmt
+from tilus.hidet.ir.tools.verifier import verify as verify_ir_module
+from tilus.hidet.utils import prod
+from tilus.hidet.utils.doc import Doc, Text
 from tilus.ir.func import Function
 from tilus.ir.functors import IRFunctor
 from tilus.ir.inst import Instruction
