@@ -32,7 +32,7 @@ from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.stmt import LaunchKernelStmt
 from tilus.hidet.ir.tools import rewrite, simplify
-from tilus.hidet.transforms import Pass
+from tilus.hidet.transforms.base import Pass
 
 
 def _normalize_dim3(dim3: Union[int, Expr, Sequence[Union[int, Expr]]]) -> Tuple[Expr, Expr, Expr]:

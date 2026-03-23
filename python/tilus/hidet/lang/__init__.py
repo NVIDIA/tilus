@@ -71,7 +71,6 @@ from tilus.hidet.ir.expr import Dereference, Expr, Var, address, bitwise_not, ca
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.layout import DataLayout
 from tilus.hidet.ir.mapping import TaskMapping, auto_map, col_repeat, col_spatial, row_repeat, row_spatial
-from tilus.hidet.ir.primitives import __builtin_assume, printf
 from tilus.hidet.ir.stmt import DeclareScope, ForStmtAttr, asm
 from tilus.hidet.ir.type import BaseType, DataType, PointerType, ReferenceType, TensorType, VoidType, data_type, void_p
 from tilus.hidet.lang.constructs import meta

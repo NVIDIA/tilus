@@ -45,7 +45,7 @@ from tilus.hidet.ir.stmt import (
 )
 from tilus.hidet.ir.tools import TypeInfer, simplify
 from tilus.hidet.ir.type import BaseType, DataType, PointerType, TensorPointerType, TensorType
-from tilus.hidet.transforms import Pass
+from tilus.hidet.transforms.base import Pass
 from tilus.hidet.utils.py import is_power_of_two
 
 

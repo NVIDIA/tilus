@@ -29,7 +29,7 @@ from tilus.hidet.ir.expr import Call
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.stmt import BlackBoxStmt
 from tilus.hidet.ir.tools import collect
-from tilus.hidet.transforms import Pass
+from tilus.hidet.transforms.base import Pass
 
 
 class Annotator:

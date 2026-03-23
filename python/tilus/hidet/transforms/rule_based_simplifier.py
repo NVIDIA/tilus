@@ -57,7 +57,7 @@ class RuleBasedSimplifier(OriginalRuleBasedSimplifier):
         ]
 
         extra_bound_patterns = [
-            ((ec1, c1, c2), (ec1, c2), lambda ec1, c1, c2: (ec1 * c1) // c2, lambda ec1, c2: ec1 * (c1 // c2)),
+            ((ec1, c1, c2), (ec1, c1, c2), lambda ec1, c1, c2: (ec1 * c1) // c2, lambda ec1, c1, c2: ec1 * (c1 // c2)),
         ]
         self.args.update({e1, e2, c1, c2, ic1, ic2, ec1, ec2})
 

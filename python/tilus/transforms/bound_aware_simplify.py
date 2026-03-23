@@ -14,10 +14,11 @@
 # limitations under the License.
 from typing import Dict
 
+from tilus.hidet.ir.analyzers.bound_analyzer import BoundAnalyzer
 from tilus.hidet.ir.dtypes import boolean, int32
 from tilus.hidet.ir.expr import Constant, Expr, LessEqual, LessThan
 from tilus.hidet.ir.functors import IRRewriter as HidetIRRewriter
-from tilus.hidet.transforms.rule_based_simplifier import BoundAnalyzer, BoundInfo, RuleBasedSimplifier
+from tilus.hidet.transforms.rule_based_simplifier import BoundInfo, RuleBasedSimplifier
 from tilus.ir.analyzers import ScalarSet, ScalarSetAnalyzer, analyze_scalar
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter

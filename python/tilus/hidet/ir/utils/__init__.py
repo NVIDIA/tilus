@@ -23,7 +23,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import call_graph, expr_utils, hash_sum, index_transform
+from . import expr_utils, hash_sum, index_transform
 from .broadcast_utils import broadcast_indices, broadcast_shape, broadcast_shapes, can_broadcast, can_mutually_broadcast
 from .expr_utils import as_expr
 from .index_transform import (

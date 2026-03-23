@@ -46,8 +46,9 @@ def _cuda_sleep_kernel():
 
 def cuda_sleep(nanoseconds: int) -> None:
     """A sleep cuda kernel that will sleep for given nanoseconds."""
-    kernel = _cuda_sleep_kernel()
-    kernel(nanoseconds)
+    # Convert nanoseconds to CUDA clock cycles (approximate: 1 GHz = 1 cycle/ns)
+    # torch.cuda._sleep takes cycles, not nanoseconds
+    torch.cuda._sleep(nanoseconds)
 
 
 def benchmark_func(

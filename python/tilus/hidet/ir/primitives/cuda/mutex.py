@@ -34,8 +34,10 @@ from tilus.hidet.utils import initialize
 
 @initialize()
 def register_functions():
+    from tilus.hidet.ir.primitives.cuda.atomic import atomic_cas
+    from tilus.hidet.ir.primitives.cuda.sync import syncthreads, syncthreads_and
+    from tilus.hidet.ir.primitives.cuda.vars import threadIdx
     from tilus.hidet.lang import attrs, i32, script
-    from tilus.hidet.lang.cuda import atomic_cas, syncthreads, syncthreads_and, threadIdx
 
     @script
     def cuda_acquire_lock(mutex_lock: ~i32):

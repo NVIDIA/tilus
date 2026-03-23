@@ -33,7 +33,7 @@ from tilus.hidet.ir.stmt import DeclareStmt, EvaluateStmt, ReturnStmt, SeqStmt, 
 from tilus.hidet.ir.tools import collect, rewrite
 from tilus.hidet.ir.type import ReferenceType, TensorType
 from tilus.hidet.ir.utils.call_graph import CallGraph, CallGraphNode
-from tilus.hidet.transforms import Pass
+from tilus.hidet.transforms.base import Pass
 
 
 class InlineFunctionRewriter(IRRewriter):

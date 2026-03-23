@@ -28,7 +28,7 @@ from tilus.hidet.ir.expr import TensorElement, TensorSlice, tensor_element, tens
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.stmt import BufferStoreStmt
-from tilus.hidet.transforms import Pass
+from tilus.hidet.transforms.base import Pass
 
 
 def concat_slices(lhs_indices, lhs_starts, lhs_ends, rhs_indices, rhs_starts=None, rhs_ends=None):

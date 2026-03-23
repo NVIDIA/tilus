@@ -30,7 +30,7 @@ from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.primitives import is_primitive_function, lookup_primitive_function
 from tilus.hidet.ir.tools import collect
-from tilus.hidet.transforms import Pass
+from tilus.hidet.transforms.base import Pass
 
 
 class ImportPrimitiveFunctionPass(Pass):

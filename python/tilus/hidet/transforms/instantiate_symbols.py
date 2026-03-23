@@ -35,7 +35,7 @@ from tilus.hidet.ir.primitives.runtime import get_ptr_symbol_value, get_symbol_v
 from tilus.hidet.ir.stmt import LaunchKernelStmt, LetStmt
 from tilus.hidet.ir.tools import collect
 from tilus.hidet.ir.utils.call_graph import CallGraph
-from tilus.hidet.transforms import Pass
+from tilus.hidet.transforms.base import Pass
 
 
 class FuncSymbols:

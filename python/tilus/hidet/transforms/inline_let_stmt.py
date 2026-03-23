@@ -33,7 +33,7 @@ from tilus.hidet.ir.primitives import blockIdx, threadIdx
 from tilus.hidet.ir.stmt import LetStmt, Stmt
 from tilus.hidet.ir.tools import collect
 from tilus.hidet.ir.type import ArrayType, FuncType, TensorPointerType, TensorType
-from tilus.hidet.transforms import FunctionPass, Pass, RepeatFunctionPass
+from tilus.hidet.transforms.base import FunctionPass, Pass, RepeatFunctionPass
 from tilus.hidet.utils import same_list
 
 

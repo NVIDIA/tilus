@@ -392,7 +392,11 @@ class TypeInfer(IRFunctor):
         return c.index_dtype
 
     def visit_PlaceholderExpr(self, e: PlaceholderExpr):
-        raise NotImplementedError()
+        if e.required_type is not None:
+            return e.required_type
+        from tilus.hidet.ir.dtypes import int32
+
+        return int32
 
     def visit_CallOp(self, call: CallOp):
         arg_types = [

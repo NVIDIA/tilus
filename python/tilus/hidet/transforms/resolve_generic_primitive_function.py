@@ -32,7 +32,7 @@ from tilus.hidet.ir.primitives import is_primitive_function, lookup_primitive_fu
 from tilus.hidet.ir.primitives.math import registered_math_function_sets
 from tilus.hidet.ir.tools import TypeInfer, infer_type
 from tilus.hidet.ir.type import DataType
-from tilus.hidet.transforms import FunctionPass
+from tilus.hidet.transforms.base import FunctionPass
 from tilus.hidet.utils.py import green
 
 

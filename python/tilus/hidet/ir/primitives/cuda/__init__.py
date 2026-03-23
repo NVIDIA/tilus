@@ -12,36 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# Extension modules
-from . import (
-    bfloat16,
-    cast,
-    clc,
-    control,
-    copy_async_bulk,
-    copy_async_tensor,
-    elect,
-    fence,
-    float32,
-    integer_intrinsics,
-    mapa,
-    math,
-    mbarrier,
-    mma,
-    subbyte,
-    tcgen05,
-)
+# ruff: noqa: I001  (import order matters — base primitives first, extensions after)
+
+# Base hidet primitives (don't use @script, safe to import early)
+from . import math
+from . import mma
+
 from .barrier import (
     barrier_arrive,
     barrier_sync,
@@ -106,3 +82,27 @@ from .tmem import (
     tcgen05_relinquish_alloc_permit,
 )
 from .vars import blockDim, blockIdx, gridDim, threadIdx
+
+
+def _load_extension_modules():
+    """Load extension primitive modules that use @initialize/@script.
+
+    These must be loaded AFTER the base primitives module is fully initialized,
+    because the @script decorator's transpiler references primitives.pow etc.
+    """
+    from . import (  # noqa: F811
+        bfloat16,
+        cast,
+        clc,
+        control,
+        copy_async_bulk,
+        copy_async_tensor,
+        elect,
+        fence,
+        float32,
+        integer_intrinsics,
+        mapa,
+        mbarrier,
+        subbyte,
+        tcgen05,
+    )

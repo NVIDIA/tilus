@@ -28,7 +28,7 @@ from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.primitives.debug import __builtin_assume
 from tilus.hidet.ir.stmt import SeqStmt
-from tilus.hidet.transforms import Pass
+from tilus.hidet.transforms.base import Pass
 
 
 class AddHintsRewriter(IRRewriter):

@@ -37,7 +37,7 @@ from tilus.hidet.ir.stmt import (
     IfStmt,
     LetStmt,
 )
-from tilus.hidet.transforms import FunctionPass, Pass
+from tilus.hidet.transforms.base import FunctionPass, Pass
 
 
 def wrapper(stmt_visitor):

@@ -29,7 +29,7 @@ from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.primitives.vars import lookup_primitive_variable, registered_primitive_variables
 from tilus.hidet.ir.type import DataType, PointerType, data_type
-from tilus.hidet.transforms import Pass
+from tilus.hidet.transforms.base import Pass
 
 
 class UnifyGlobalObjectsRewriter(IRRewriter):

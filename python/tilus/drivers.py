@@ -243,9 +243,44 @@ def get_cache_dir(prog: Program, options: BuildOptions) -> Path:
     return cache_dir
 
 
-def build_program(prog: Program, options: Optional[BuildOptions] = None) -> str:
+def build_ir_module(ir_module: IRModule, output_dir: str) -> str:
+    """Build an IR module: optimize, codegen, and compile to a shared library.
+
+    Parameters
+    ----------
+    ir_module: IRModule
+        The low-level IR module to build.
+
+    output_dir: str
+        The directory to store the compiled artifacts.
+
+    Returns
+    -------
+    ret: str
+        The path to the output directory.
     """
-    Build the program into a compiled program that could be executed directly.
+    output_path = Path(output_dir)
+
+    # 1. optimize the low-level IR
+    ir_module = optimize_ir_module(ir_module, output_path)
+
+    # 2. generate the low-level code (CUDA C)
+    src_path = output_path / "source.cu"
+    codegen(ir_module, src_out_path=str(src_path), target="cuda")
+
+    # 3. save the function types to func_types.pickle
+    write_function_types(ir_module=ir_module, output_dir=output_dir)
+
+    # 4. compile the low-level code
+    lib_path = output_path / "lib.so"
+    target = tilus.target.get_current_target()
+    compile_source(source_file=str(src_path), output_library_file=str(lib_path), target=target)
+
+    return output_dir
+
+
+def build_program(prog: Program, options: Optional[BuildOptions] = None) -> str:
+    """Build the program into a compiled program that could be executed directly.
 
     Parameters
     ----------
@@ -279,27 +314,15 @@ def build_program(prog: Program, options: Optional[BuildOptions] = None) -> str:
         # 0. verify the program
         verify(prog)
 
-        # 1. optimize the program
+        # 1. optimize the program (tilus-level passes)
         prog = optimize_program(prog, options=options, cache_dir=cache_dir)
 
         # 2. generate the low-level IR (Hidet IR)
         ir_module: IRModule = generate_ir_module(prog)
 
-        # 3. optimize the low-level IR
-        ir_module = optimize_ir_module(ir_module, cache_dir)
-
-        # 4. generate the low-level code (CUDA C)
+        # 3-6. optimize, codegen, and compile the low-level IR
         module_dir = cache_dir / "module"
-        src_path = module_dir / "source.cu"
-        codegen(ir_module, src_out_path=str(src_path), target="cuda")
-
-        # 5. save the function types to func_types.pickle so that we know what functions are inside the lib.so
-        write_function_types(ir_module=ir_module, output_dir=str(module_dir))
-
-        # 6. compile the low-level code
-        lib_path = module_dir / "lib.so"
-        target = tilus.target.get_current_target()
-        compile_source(source_file=str(src_path), output_library_file=str(lib_path), target=target)
+        build_ir_module(ir_module, str(module_dir))
 
     return str(cache_dir)
 

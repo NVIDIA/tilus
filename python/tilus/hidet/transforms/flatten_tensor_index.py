@@ -43,7 +43,7 @@ from tilus.hidet.ir.type import (
     tensor_type,
 )
 from tilus.hidet.ir.utils.call_graph import CallGraph, CallGraphNode
-from tilus.hidet.transforms import Pass
+from tilus.hidet.transforms.base import Pass
 
 
 class FlattenTensorAccessRewriter(IRRewriter):
