@@ -26,7 +26,7 @@ from tilus.ir.tensor import SharedTensor
 class ClusterLaunchControlTryCancelEmitter(BaseInstEmitter):
     def emit(self, inst: ClusterLaunchControlTryCancelInst) -> None:
         response: SharedTensor = inst.shared_input
-        with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
+        with self.single_thread():
             self.append(
                 cluster_launch_control_try_cancel(
                     mbarrier=inst.mbarrier,

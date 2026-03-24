@@ -19,7 +19,6 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 
 import numpy as np
-
 from tilus import SharedLayout
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.hidet.ir import logical_or
@@ -350,7 +349,7 @@ class CopyAsyncTensorSharedToGlobalInstEmitter(CopyAsyncTensorBaseEmitter):
         shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
         tensor_map = self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
         tensor_coords = inst.offsets
-        with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
+        with self.single_thread():
             self.append(
                 cp_async_tensor_shared_to_global(
                     dst_tensor_map=~tensor_map,

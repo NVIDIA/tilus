@@ -14,6 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 
+import contextlib
 from typing import Callable, Dict, Optional, Sequence, Type
 
 from tilus.hidet.ir.builders import FunctionBuilder
@@ -191,6 +192,20 @@ class BaseInstEmitter(StmtBuilder):
         kernel body after this method is called.
         """
         self._codegen.extra_params.append(var)
+
+    def single_thread(self):
+        if self.current_num_threads == 1:
+            return contextlib.nullcontext()
+        elif self.current_num_threads == 32:
+            return self.if_then(elect_one_sync())
+        elif self.current_num_threads % 32 == 0:
+            return self.if_then(
+                logical_and(
+                    shfl_sync_i32(uint32(0xFFFFFFFF), self.current_thread // 32, int32(0)) == 0, elect_one_sync()
+                )
+            )
+        else:
+            return self.if_then(self.current_thread == 0)
 
     def emit(self, inst: Instruction) -> None:
         raise NotImplementedError()

@@ -181,19 +181,19 @@ class Tcgen05MmaSSInstMeta:
         i_desc = sb.declare_var("i_desc", tp=uint32, init=as_expr(self.i_desc.encoded()))
         a_desc = sb.declare_var("a_desc", tp=uint64, init=self.a_desc.encoded())
         b_desc = sb.declare_var("b_desc", tp=uint64, init=self.b_desc.encoded())
-        # tcgen05.mma has single-thread semantics - only one thread should issue it
-        with sb.if_then(sb.current_thread == 0):
-            sb.append(
-                tcgen05_mma_with_shared_a(
-                    d_tmem=self.d_tmem_addr,
-                    a_desc=a_desc,
-                    b_desc=b_desc,
-                    i_desc=i_desc,
-                    enable_input_d=self.enable_input_d,
-                    cta_group=self.cta_group,
-                    mma_kind=self.kind,
-                )
+        # tcgen05.mma has single-thread semantics — the caller (emitter) already
+        # asserts current_num_threads == 1, so no guard needed here.
+        sb.append(
+            tcgen05_mma_with_shared_a(
+                d_tmem=self.d_tmem_addr,
+                a_desc=a_desc,
+                b_desc=b_desc,
+                i_desc=i_desc,
+                enable_input_d=self.enable_input_d,
+                cta_group=self.cta_group,
+                mma_kind=self.kind,
             )
+        )
 
 
 @register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100a)

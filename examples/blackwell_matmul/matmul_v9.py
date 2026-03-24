@@ -64,19 +64,32 @@ class Pipeline(tilus.Class):
 @tilus.autotune("block_m", [256])
 @tilus.autotune("block_n, e_block_n", [[256, 16], [256, 32]])
 @tilus.autotune("block_k", [64])
-@tilus.autotune("tma_stages", [5, 6])
-@tilus.autotune("mma_stages", [2])
+@tilus.autotune("tma_stages", [3, 4])
 @tilus.autotune("swizzle_size", [4, 8, 16])
-class BlackwellMatmulV8(tilus.Script):
-    debug_schedule = dict(
-        block_m=256,
-        block_n=256,
-        block_k=64,
-        tma_stages=6,
-        mma_stages=2,
-        e_block_n=32,
-        swizzle_size=8,
-    )
+class BlackwellMatmulV9(tilus.Script):
+    """
+    nvjet-style schedule: each cluster (2 CTAs) computes [block_m, block_n x 2]
+    by reusing A tiles across two adjacent N-tiles. This reduces TMA loads from
+    8 to 6 per k-step for a [block_m, block_n x 2] output region.
+
+    Per k-step, each CTA issues 3 TMA loads (vs 2 in v8):
+      - a:     (block_m//2, block_k)   -- shared across both N-tiles
+      - b_n0:  (block_n//2, block_k)   -- B for first N-tile
+      - b_n1:  (block_n//2, block_k)   -- B for second N-tile
+
+    The tmem budget formerly used for mma_stages=2 double-buffering is now used
+    for two accumulators (one per N-tile), keeping the total tmem the same as v8.
+    tma_stages is reduced from 6 to 4 to keep smem usage constant.
+    """
+
+    # debug_schedule = dict(
+    #     block_m=256,
+    #     block_n=256,
+    #     block_k=64,
+    #     tma_stages=4,
+    #     e_block_n=32,
+    #     swizzle_size=8,
+    # )
 
     def __init__(
         self,
@@ -84,7 +97,6 @@ class BlackwellMatmulV8(tilus.Script):
         block_n: int,
         block_k: int,
         tma_stages: int,
-        mma_stages: int,
         e_block_n: int,
         swizzle_size: int,
     ):
@@ -94,24 +106,23 @@ class BlackwellMatmulV8(tilus.Script):
         self.block_k = block_k
         self.e_block_n = e_block_n
         self.tma_stages = tma_stages
-        self.mma_stages = mma_stages
         self.swizzle_size = swizzle_size
         self.clc_stages = 1
 
     def compute_block_coord(
-        self, linear_idx: int32, num_m_blocks: int32, num_n_blocks: int
+        self, linear_idx: int32, num_m_blocks: int32, num_n_block_pairs: int
     ):
         swizzle_size = self.swizzle_size
         tiles_per_group = num_m_blocks * swizzle_size
         group_idx = linear_idx // tiles_per_group
         in_group_idx = linear_idx % tiles_per_group
         first_n = group_idx * swizzle_size
-        group_width = num_n_blocks - first_n
+        group_width = num_n_block_pairs - first_n
         if group_width > swizzle_size:
             group_width = swizzle_size
         m_block = in_group_idx // group_width
-        n_block = first_n + in_group_idx % group_width
-        return m_block, n_block
+        n_block_pair = first_n + in_group_idx % group_width
+        return m_block, n_block_pair
 
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
         pipe.consumer_acquire(scope="cluster")
@@ -134,28 +145,37 @@ class BlackwellMatmulV8(tilus.Script):
         c_ptr: ~float16,
     ):
         """
-        Each CTA provides its own slice of A, B, and D.
+        Each cluster (2 CTAs) computes [block_m, block_n x 2] output by reusing
+        A tiles across two adjacent N-tiles.
+
         CTA0 = CTA with last bit of cluster rank = 0
         CTA1 = CTA with last bit of cluster rank = 1
 
-                            Input B (K, N)
-                          ┌───────┬───────┐
-                          │  b0   │  b1   │
-                          │(K,N/2)│(K,N/2)│
-                          │[CTA0] │[CTA1] │
-                          └───────┴───────┘
-        ┌──────────────┐  ┌───────────────┐
-        │  a0 (M/2, K) │  │  d0 (M/2, N)  │
-        │  [CTA0]      │  │  [CTA0]       │
-        ├──────────────┤  ├───────────────┤
-        │  a1 (M/2, K) │  │  d1 (M/2, N)  │
-        │  [CTA1]      │  │  [CTA1]       │
-        └──────────────┘  └───────────────┘
-         Input A (M, K)     Output D (M, N)
+                              Input B (K, N)
+                          ┌──────┬──────┬──────┬──────┐
+                          │b0_n0 │b1_n0 │b0_n1 │b1_n1 │
+                          │[CTA0]│[CTA1]│[CTA0]│[CTA1]│
+                          └──────┴──────┴──────┴──────┘
+                           N-tile 0       N-tile 1
+        ┌──────────────┐  ┌──────────────┬──────────────┐
+        │  a0 (M/2, K) │  │ d0 (M/2, N)  │ d0 (M/2, N)  │
+        │  [CTA0]      │  │ [CTA0]       │ [CTA0]       │
+        ├──────────────┤  ├──────────────┼──────────────┤
+        │  a1 (M/2, K) │  │ d1 (M/2, N)  │ d1 (M/2, N)  │
+        │  [CTA1]      │  │ [CTA1]       │ [CTA1]       │
+        └──────────────┘  └──────────────┴──────────────┘
+         Input A (M, K)     Output D (M, N x 2)
+
+        Per k-step TMA loads (6 total, vs 4 in v8 for same block_n):
+          CTA0: a0, b0_n0, b0_n1   (3 loads)
+          CTA1: a1, b1_n0, b1_n1   (3 loads)
         """
         num_m_blocks = cdiv(m_size, self.block_m)
         num_n_blocks = cdiv(n_size, self.block_n)
-        self.attrs.blocks = num_m_blocks * num_n_blocks * 2, 1
+        num_n_block_pairs = cdiv(num_n_blocks, 2)
+
+        # Each cluster handles 2 adjacent N-tiles
+        self.attrs.blocks = num_m_blocks * num_n_block_pairs * 2, 1
         self.attrs.cluster_blocks = 2
         self.attrs.warps = 8
 
@@ -164,7 +184,6 @@ class BlackwellMatmulV8(tilus.Script):
         block_k = self.block_k
         e_block_n = self.e_block_n
         tma_stages = self.tma_stages
-        mma_stages = self.mma_stages
         clc_stages = self.clc_stages
 
         g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
@@ -172,17 +191,23 @@ class BlackwellMatmulV8(tilus.Script):
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
 
         s_a = self.shared_tensor(dtype=float16, shape=[tma_stages, block_m // 2, block_k])
-        s_b = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n // 2, block_k])
-        t_acc = self.tcgen05.alloc(
-            dtype=float32, shape=[mma_stages, block_m // 2, block_n], cta_group=2
+        s_b_n0 = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n // 2, block_k])
+        s_b_n1 = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n // 2, block_k])
+
+        # Two accumulators for two N-tiles (replaces mma_stages=2 double-buffering)
+        t_acc_n0 = self.tcgen05.alloc(
+            dtype=float32, shape=[block_m // 2, block_n], cta_group=2
+        )
+        t_acc_n1 = self.tcgen05.alloc(
+            dtype=float32, shape=[block_m // 2, block_n], cta_group=2
         )
 
         s_clc_response = self.shared_tensor(dtype=int32, shape=[clc_stages, 4])
 
         tma_pipe = Pipeline(tma_stages)
         mma_pipe = Pipeline(
-            mma_stages, consumer_arrive_count=128
-        )  # 4 warps (epilogue warps)
+            1, consumer_arrive_count=128
+        )  # mma_stages=1, 4 warps (epilogue warps)
         clc_pipe = Pipeline(
             clc_stages, consumer_arrive_count=224 * 2
         )  # 7 warps * 2 blocks
@@ -192,24 +217,26 @@ class BlackwellMatmulV8(tilus.Script):
         self.cluster_sync()
 
         with self.single_warp(0):  # tma worker (gmem -> smem)
-            m_block_0, n_block_0 = self.compute_block_coord(
-                self.blockIdx.x // 2, num_m_blocks, num_n_blocks
+            m_block_0, n_pair_0 = self.compute_block_coord(
+                self.blockIdx.x // 2, num_m_blocks, num_n_block_pairs
             )
             offset_m_a = (m_block_0 * 2 + cta_rank) * (block_m // 2)
-            offset_n_b = n_block_0 * block_n + cta_rank * (block_n // 2)
+            offset_n_b0 = (n_pair_0 * 2) * block_n + cta_rank * (block_n // 2)
+            offset_n_b1 = (n_pair_0 * 2 + 1) * block_n + cta_rank * (block_n // 2)
             while True:
                 for offset_k in range(0, k_size, block_k):
                     tma_pipe.producer_acquire()
                     mbarrier = tma_pipe.producer_barrier()
                     if cta_rank == 0:
                         with self.single_thread():
-                            # the mbarrier on CTA0 will track the completion of both CTAs' loading
-                            transaction_bytes = (s_a[0].nbytes + s_b[0].nbytes) * 2
+                            # track all 6 TMA loads (3 per CTA x 2 CTAs) on CTA0's mbarrier
+                            transaction_bytes = (
+                                s_a[0].nbytes + s_b_n0[0].nbytes + s_b_n1[0].nbytes
+                            ) * 2
                             self.mbarrier.arrive_and_expect_tx(
                                 mbarrier, transaction_bytes
                             )
                     else:
-                        # get the mbarrier address in the CTA0 to signal
                         mbarrier = self.cluster.map_shared_addr(mbarrier, target_rank=0)
                     with self.single_thread():
                         self.tma.global_to_shared(
@@ -221,8 +248,15 @@ class BlackwellMatmulV8(tilus.Script):
                         )
                         self.tma.global_to_shared(
                             src=g_b,
-                            dst=s_b[tma_pipe.producer_stage],
-                            offsets=[offset_n_b, offset_k],
+                            dst=s_b_n0[tma_pipe.producer_stage],
+                            offsets=[offset_n_b0, offset_k],
+                            mbarrier=mbarrier,
+                            cta_group=2,
+                        )
+                        self.tma.global_to_shared(
+                            src=g_b,
+                            dst=s_b_n1[tma_pipe.producer_stage],
+                            offsets=[offset_n_b1, offset_k],
                             mbarrier=mbarrier,
                             cta_group=2,
                         )
@@ -231,11 +265,12 @@ class BlackwellMatmulV8(tilus.Script):
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
-                m_block_0, n_block_0 = self.compute_block_coord(
-                    new_blockIdx.x // 2, num_m_blocks, num_n_blocks
+                m_block_0, n_pair_0 = self.compute_block_coord(
+                    new_blockIdx.x // 2, num_m_blocks, num_n_block_pairs
                 )
                 offset_m_a = (m_block_0 * 2 + cta_rank) * (block_m // 2)
-                offset_n_b = n_block_0 * block_n + cta_rank * (block_n // 2)
+                offset_n_b0 = (n_pair_0 * 2) * block_n + cta_rank * (block_n // 2)
+                offset_n_b1 = (n_pair_0 * 2 + 1) * block_n + cta_rank * (block_n // 2)
 
         with self.single_warp(1):  # mma worker (smem -> tmem)
             while True:
@@ -244,10 +279,19 @@ class BlackwellMatmulV8(tilus.Script):
                         mma_pipe.producer_acquire()
                         for offset_k in range(0, k_size, block_k):
                             tma_pipe.consumer_acquire()
+                            # MMA for first N-tile
                             self.tcgen05.mma(
                                 s_a[tma_pipe.consumer_stage],
-                                s_b[tma_pipe.consumer_stage].transpose(),
-                                t_acc[mma_pipe.producer_stage],
+                                s_b_n0[tma_pipe.consumer_stage].transpose(),
+                                t_acc_n0,
+                                enable_input_d=offset_k != 0,
+                                cta_group=2,
+                            )
+                            # MMA for second N-tile (reuses same A)
+                            self.tcgen05.mma(
+                                s_a[tma_pipe.consumer_stage],
+                                s_b_n1[tma_pipe.consumer_stage].transpose(),
+                                t_acc_n1,
                                 enable_input_d=offset_k != 0,
                                 cta_group=2,
                             )
@@ -273,7 +317,7 @@ class BlackwellMatmulV8(tilus.Script):
                 if cta_rank == 0:
                     clc_pipe.producer_acquire(
                         scope="cluster"
-                    )  # peer cta will arrive this barrier, need 'cluster'scoped acquire
+                    )  # peer cta will arrive this barrier, need 'cluster' scoped acquire
                     self.mbarrier.arrive_and_expect_tx_multicast(
                         clc_pipe.producer_barrier(),
                         transaction_bytes=16,
@@ -293,17 +337,19 @@ class BlackwellMatmulV8(tilus.Script):
 
         with self.warp_group(warp_begin=4, num_warps=4):  # epilogue (tmem -> gmem)
             s_c = self.shared_tensor(dtype=float16, shape=[block_m // 2, self.e_block_n])
-            m_block_e, n_block_e = self.compute_block_coord(
-                self.blockIdx.x // 2, num_m_blocks, num_n_blocks
+            m_block_e, n_pair_e = self.compute_block_coord(
+                self.blockIdx.x // 2, num_m_blocks, num_n_block_pairs
             )
             offset_m_c = (m_block_e * 2 + cta_rank) * (block_m // 2)
-            offset_n_c = n_block_e * block_n
+            offset_n_c_n0 = (n_pair_e * 2) * block_n
+            offset_n_c_n1 = (n_pair_e * 2 + 1) * block_n
             while True:
                 mma_pipe.consumer_acquire()
 
+                # Store first N-tile
                 for e_offset_n in range(0, block_n, e_block_n):
                     t_acc_slice = self.tcgen05.slice(
-                        t_acc[mma_pipe.consumer_stage],
+                        t_acc_n0,
                         offsets=[0, e_offset_n],
                         shape=[block_m // 2, e_block_n],
                         dims=[0, 1],
@@ -317,7 +363,31 @@ class BlackwellMatmulV8(tilus.Script):
                         self.tma.shared_to_global(
                             s_c,
                             g_c,
-                            offsets=[offset_m_c, offset_n_c + e_offset_n],
+                            offsets=[offset_m_c, offset_n_c_n0 + e_offset_n],
+                            dims=[0, 1],
+                        )
+                        self.tma.commit_group()
+                        self.tma.wait_group(n=0)
+                    self.sync()
+
+                # Store second N-tile
+                for e_offset_n in range(0, block_n, e_block_n):
+                    t_acc_slice = self.tcgen05.slice(
+                        t_acc_n1,
+                        offsets=[0, e_offset_n],
+                        shape=[block_m // 2, e_block_n],
+                        dims=[0, 1],
+                    )
+                    r_acc = self.tcgen05.load(t_acc_slice)
+                    self.tcgen05.wait_load()
+                    self.store_shared(s_c, r_acc.to(float16))
+                    self.fence.async_view(space="shared")
+                    self.sync()
+                    with self.single_thread():
+                        self.tma.shared_to_global(
+                            s_c,
+                            g_c,
+                            offsets=[offset_m_c, offset_n_c_n1 + e_offset_n],
                             dims=[0, 1],
                         )
                         self.tma.commit_group()
@@ -330,27 +400,26 @@ class BlackwellMatmulV8(tilus.Script):
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
-                m_block_e, n_block_e = self.compute_block_coord(
-                    new_blockIdx.x // 2, num_m_blocks, num_n_blocks
+                m_block_e, n_pair_e = self.compute_block_coord(
+                    new_blockIdx.x // 2, num_m_blocks, num_n_block_pairs
                 )
                 offset_m_c = (m_block_e * 2 + cta_rank) * (block_m // 2)
-                offset_n_c = n_block_e * block_n
+                offset_n_c_n0 = (n_pair_e * 2) * block_n
+                offset_n_c_n1 = (n_pair_e * 2 + 1) * block_n
 
         # all allocated tensor memory must be deallocated
         self.sync()
-        self.tcgen05.dealloc(t_acc)
+        self.tcgen05.dealloc(t_acc_n0)
+        self.tcgen05.dealloc(t_acc_n1)
 
 
 def main(bench=True):
-    matmul = BlackwellMatmulV8()
+    matmul = BlackwellMatmulV9()
 
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
     rows: list = []
 
     for m_size, n_size, k_size in [
-        # [4096, 4096, 4096],
-        # [4096, 4096, 14336],
-        # [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
