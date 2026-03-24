@@ -7,5 +7,4 @@
 #pragma once
 
 #include <tilus/stream.h>
-#include <tilus/error.h>
 #include <tilus/context.h>

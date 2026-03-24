@@ -146,27 +146,9 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
             raise ValueError("Cannot recognize function name {}".format(name))
 
     def wrap_try_catch(self, body_doc: Doc, ret_type) -> Doc:
-        try_body_doc = NewLine() + Text("try {")
-        try_body_doc += body_doc.indent()
-        try_body_doc += NewLine() + Text("} catch (HidetException &e) { ")
-        try_body_doc += NewLine().indent() + Text("hidet_set_last_error(e.what());")
-        if ret_type.is_pointer():
-            ret = "0"
-        elif ret_type.is_void():
-            ret = ""
-        elif ret_type.is_data_type():
-            dtype = ret_type.as_data_type()
-            if dtype.is_integer():
-                ret = "0"
-            elif dtype.is_float():
-                ret = "0.0"
-            else:
-                raise NotImplementedError()
-        else:
-            raise NotImplementedError()
-        try_body_doc += NewLine().indent() + Text("return {};".format(ret))
-        try_body_doc += NewLine() + Text("}")
-        return try_body_doc
+        # No inner try-catch needed: TVM_FFI_DLL_EXPORT_TYPED_FUNC wraps the call
+        # in TVM_FFI_SAFE_CALL_BEGIN/END which catches all C++ exceptions.
+        return body_doc
 
     def scalar_literal(self, value, dtype: DataType):
         if dtype == dtypes.boolean:
