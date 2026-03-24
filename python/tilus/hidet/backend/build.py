@@ -83,7 +83,9 @@ class SourceCompiler:
             # run the compilation command
             with tempfile.TemporaryDirectory() as working_dir:
                 t1 = time.time()
-                result = subprocess.run(command.split(), stderr=PIPE, stdout=PIPE, cwd=working_dir, check=False)
+                env = os.environ.copy()
+                env["TMPDIR"] = working_dir
+                result = subprocess.run(command.split(), stderr=PIPE, stdout=PIPE, cwd=working_dir, env=env, check=False)
                 t2 = time.time()
 
                 for keep_file in keep_files:

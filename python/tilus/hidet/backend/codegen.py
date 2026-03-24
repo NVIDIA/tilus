@@ -139,7 +139,7 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
             if self.ir_module.namespace != "":
                 return items[0]
             else:
-                return "hidet_" + items[0]  # only add 'hidet_' prefix when no namespace
+                return "tilus_" + items[0]  # only add 'tilus_' prefix when no namespace
         elif len(items) == 2:
             return items[0] + "::" + items[1]
         else:
@@ -887,9 +887,9 @@ class CUDACodegen(Codegen):
             doc += Text("#include <cuda_bf16.h>") + NewLine()
         if self.require_fp8:
             doc += (
-                Text("#include <hidet/runtime/cuda/float8_e4m3.h>")
+                Text("#include <tilus/cuda/float8_e4m3.h>")
                 + NewLine()
-                + Text("#include <hidet/runtime/cuda/float8_e5m2.h>")
+                + Text("#include <tilus/cuda/float8_e5m2.h>")
                 + NewLine()
                 + Text("#include <cuda_fp8.h>")
                 + NewLine()
@@ -898,7 +898,7 @@ class CUDACodegen(Codegen):
             doc += Text("#include <cooperative_groups.h>") + NewLine()
         doc += Text("#include <cudaTypedefs.h>") + NewLine()
         doc += Text("#include <tilus/runtime.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/cuda/complex.h>") + NewLine()
+        doc += Text("#include <tilus/cuda/complex.h>") + NewLine()
         for header in self.ir_module.include_headers:
             doc += Text("#include <{}>").format(header) + NewLine()
 
@@ -1097,8 +1097,8 @@ class UpdatedCUDACodeGen(CUDACodegen):
 
     def require_headers(self) -> Doc:
         doc = Text("#include <tvm/ffi/function.h>") + NewLine()
-        doc += Text("#include <hidet/tvm/ffi/extra_type_traits.h>") + NewLine()
-        doc += Text("#include <hidet/void_p.h>") + NewLine()
+        doc += Text("#include <tilus/tvm/ffi/extra_type_traits.h>") + NewLine()
+        doc += Text("#include <tilus/tvm/ffi/void_p.h>") + NewLine()
         doc += super().require_headers()
         return doc
 
@@ -1128,7 +1128,7 @@ class UpdatedCUDACodeGen(CUDACodegen):
         for name, func in module.functions.items():
             if func.kind != "public":
                 continue
-            doc += Text(f"TVM_FFI_DLL_EXPORT_TYPED_FUNC({name}, hidet_{name});") + NewLine()
+            doc += Text(f"TVM_FFI_DLL_EXPORT_TYPED_FUNC({name}, tilus_{name});") + NewLine()
 
         doc = self.require_headers() + doc
         return doc

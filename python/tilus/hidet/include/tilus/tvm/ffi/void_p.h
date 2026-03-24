@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef DLL
+#define DLL __attribute__((visibility("default")))
+#endif
+
 class void_p {
 private:
   void *internal_ptr;
