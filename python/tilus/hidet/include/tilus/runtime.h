@@ -77,10 +77,24 @@ struct TilusContext {
 // Injected by tvm_ffi at library load time via InitContextSymbols.
 extern TilusContext* tilus_context;
 
+// Round up n to the next power of two (returns n if already a power of two).
+static inline int64_t tilus_next_pow2(int64_t n) {
+    if (n <= 0) return 1;
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n |= n >> 32;
+    return n + 1;
+}
+
 // Called from generated host-side launch functions.
 // require_clean=false  → dirty workspace (no initialization guarantee).
 // require_clean=true   → clean workspace (zero-initialized on first allocation;
 //                        caller must restore zeros after use).
+// Allocation size is rounded up to the next power of two to reduce reallocations.
 static inline void* request_cuda_workspace(int64_t nbytes, bool require_clean) {
     if (tilus_context == nullptr) {
         return nullptr;
@@ -91,16 +105,17 @@ static inline void* request_cuda_workspace(int64_t nbytes, bool require_clean) {
         return nullptr;
     }
 
+    const int64_t alloc_size = tilus_next_pow2(nbytes);
+
     if (require_clean) {
         if (tilus_context->clean_workspace_size[device_id] < nbytes) {
             if (tilus_context->clean_workspace[device_id] != nullptr) {
                 cudaFree(tilus_context->clean_workspace[device_id]);
                 tilus_context->clean_workspace[device_id] = nullptr;
             }
-            // cudaMallocManaged / cudaMemset ensures zero-init on first allocation.
-            cudaMalloc(&tilus_context->clean_workspace[device_id], static_cast<size_t>(nbytes));
-            cudaMemset(tilus_context->clean_workspace[device_id], 0, static_cast<size_t>(nbytes));
-            tilus_context->clean_workspace_size[device_id] = nbytes;
+            cudaMalloc(&tilus_context->clean_workspace[device_id], static_cast<size_t>(alloc_size));
+            cudaMemset(tilus_context->clean_workspace[device_id], 0, static_cast<size_t>(alloc_size));
+            tilus_context->clean_workspace_size[device_id] = alloc_size;
         }
         return tilus_context->clean_workspace[device_id];
     } else {
@@ -109,8 +124,8 @@ static inline void* request_cuda_workspace(int64_t nbytes, bool require_clean) {
                 cudaFree(tilus_context->workspace[device_id]);
                 tilus_context->workspace[device_id] = nullptr;
             }
-            cudaMalloc(&tilus_context->workspace[device_id], static_cast<size_t>(nbytes));
-            tilus_context->workspace_size[device_id] = nbytes;
+            cudaMalloc(&tilus_context->workspace[device_id], static_cast<size_t>(alloc_size));
+            tilus_context->workspace_size[device_id] = alloc_size;
         }
         return tilus_context->workspace[device_id];
     }
