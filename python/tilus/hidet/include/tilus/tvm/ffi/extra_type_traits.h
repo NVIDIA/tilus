@@ -1,3 +1,19 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// tvm::ffi::TypeTraits specializations for pointer types used in tilus kernels.
+//
+// tvm_ffi's PackedFunc calling convention marshals arguments through AnyView, which
+// dispatches on TypeTraits<T> to convert from the ABI-level representation to the
+// concrete C++ type expected by the callee.  The specializations here extend that
+// dispatch to the typed pointer types that tilus-generated host launchers receive
+// (e.g. half*, __nv_bfloat16*, float*, int32_t*, uint8_t*) and to void_p, a thin
+// wrapper used when the exact element type is unknown at the call site.
+//
+// Each specialization inherits from FallbackOnlyTraitsBase and implements
+// ConvertFallbackValue(DLTensor*), which validates the DLDataType of the incoming
+// tensor and returns a raw pointer to its data buffer.  dtype_to_str() is a small
+// helper used to produce human-readable error messages on type mismatch.
 #pragma once
 
 #include <tvm/ffi/type_traits.h>
@@ -5,7 +21,8 @@
 #include <cuda_fp16.h>
 #include <cuda_bf16.h>
 #include <type_traits>
-#include <hidet/void_p.h>
+
+#include "void_p.h"
 
 namespace tvm {
 namespace ffi {

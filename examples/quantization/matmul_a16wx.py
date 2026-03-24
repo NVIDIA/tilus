@@ -5,9 +5,6 @@ import math
 import pandas
 import tilus
 import torch
-from hidet import bfloat16
-from tilus.hidet.ir.dtypes import int4b
-from tilus.hidet.ir.type import DataType, void_p
 from tilus import (
     Script,
     float3_e1m1,
@@ -22,6 +19,8 @@ from tilus import (
     int32,
     uint8,
 )
+from tilus.hidet.ir.dtypes import bfloat16, int4b
+from tilus.hidet.ir.type import DataType, void_p
 from tilus.ir.layout.ops import concat, local, reduce, shared_row_major_swizzle, spatial
 from tilus.utils import benchmark_func, cdiv, dtype_to_torch, gcd
 from torch import nn

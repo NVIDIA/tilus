@@ -35,19 +35,12 @@ from typing import List, Optional, Sequence
 
 import torch
 import tvm_ffi
+import tvm_ffi.libinfo
 
 import tilus.option
 from tilus.hidet import libinfo
-from tilus.hidet.ffi.ffi import library_paths
 from tilus.hidet.libinfo import get_include_dirs
 from tilus.target import Target
-
-
-def get_hidet_runtime_dir() -> str:
-    path = library_paths["hidet_runtime"]
-    if path is None:
-        raise RuntimeError("Can not find hidet runtime library.")
-    return os.path.dirname(path)
 
 
 class CompilationFailed(Exception):
@@ -132,7 +125,8 @@ class NVCC(SourceCompiler):
         super().__init__()
         self.nvcc_path: str = self._resolve_nvcc_path()  # e.g., /usr/local/cuda/bin/nvcc
         self.include_dirs: List[str] = get_include_dirs()
-        self.library_dirs: List[str] = [get_hidet_runtime_dir()]
+        tvm_ffi_lib = tvm_ffi.libinfo.find_libtvm_ffi()
+        self.library_dirs: List[str] = [os.path.dirname(tvm_ffi_lib)] if tvm_ffi_lib else []
 
     @staticmethod
     @functools.lru_cache(maxsize=None)
@@ -201,8 +195,8 @@ class NVCC(SourceCompiler):
             # ftz=true and prec-div=false for fast math
             "-ftz={}".format("true" if True else "false"),
             "-prec-div={}".format("true" if False else "false"),
-            # link the hidet runtime, all APIs for communication between kernels and host system are in hidet runtime.
-            "-lhidet_runtime",
+            # link tvm_ffi runtime (provides TVMFFIEnvGetStream and other C env APIs)
+            "-ltvm_ffi",
             # shared cuda runtime library is used (.so), instead of static one (.a). used to reduce binary size.
             "--cudart shared",
             # allow constexpr function to be called from device code.

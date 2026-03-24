@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import tilus
 import torch
-from tilus.hidet.ir import DataType
 from tilus import boolean, f32, int32, void_p
+from tilus.hidet.ir import DataType
 from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.tensor import GlobalTensor
 from tilus.utils import benchmark_func, cdiv

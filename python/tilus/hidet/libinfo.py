@@ -64,14 +64,6 @@ def get_include_dirs():
     dir_path = os.path.abspath(os.path.join(hidet_package_root, "include"))
     include_dirs.append(dir_path)
 
-    # Also try the original hidet installation include path
-    try:
-        import hidet.libinfo
-
-        include_dirs.extend(hidet.libinfo.get_include_dirs())
-    except (ImportError, ValueError):
-        pass
-
     exist_include_dirs = [dir_path for dir_path in include_dirs if os.path.exists(dir_path)]
     if len(exist_include_dirs) == 0:
         raise ValueError("Can not find the c/c++ include path, tried:\n{}".format("\n".join(include_dirs)))

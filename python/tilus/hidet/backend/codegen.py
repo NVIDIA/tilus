@@ -897,13 +897,8 @@ class CUDACodegen(Codegen):
         if self.require_cooperative_groups:
             doc += Text("#include <cooperative_groups.h>") + NewLine()
         doc += Text("#include <cudaTypedefs.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/symbols.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/memory_planner.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/cpu/context.h>") + NewLine()
+        doc += Text("#include <tilus/runtime.h>") + NewLine()
         doc += Text("#include <hidet/runtime/cuda/complex.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/cuda/context.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/logging.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/int_fastdiv.h>") + NewLine()
         for header in self.ir_module.include_headers:
             doc += Text("#include <{}>").format(header) + NewLine()
 
@@ -1158,15 +1153,6 @@ class HIPCodegen(Codegen):
         doc = Doc()
         doc += Text("#include <stdint.h>") + NewLine()
         doc += Text('#include "hip/hip_runtime.h"') + NewLine()
-        doc += Text("#include <hidet/runtime/symbols.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/memory_planner.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/cpu/context.h>") + NewLine()
-        # TODO: add this header if necessary
-        # doc += Text('#include <hidet/runtime/hip/complex.h>') + NewLine()
-        if self.require_fp16:
-            doc += Text("#include <hidet/runtime/hip/f16_utils.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/hip/context.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/logging.h>") + NewLine()
 
         doc += NewLine()
         return doc
@@ -1237,23 +1223,6 @@ class CPUCodegen(Codegen):
         doc = Doc()
         doc += Text("#include <stdint.h>") + NewLine()
         doc += Text("#include <math.h>") + NewLine()
-        if self.require_immintrin:
-            # cpu does not have defined vector types, we redirect to this file
-            # to rename vector types to be the same as cuda, eg. __m128 -> float4
-            doc += Text("#include <hidet/runtime/cpu/vector_types.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/symbols.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/memory_planner.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/cpu/context.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/cpu/float32.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/logging.h>") + NewLine()
-        doc += Text("#include <hidet/runtime/int_fastdiv.h>") + NewLine()
-
-        if self.require_complex:
-            doc += Text("#include <hidet/runtime/cpu/complex.h>") + NewLine()
-        if self.require_fp16:
-            doc += Text("#include <hidet/runtime/cpu/float16.h>") + NewLine()
-        if self.require_bf16:
-            doc += Text("#include <hidet/runtime/cpu/bfloat16.h>") + NewLine()
         for header in self.ir_module.include_headers:
             doc += Text("#include <{}>").format(header) + NewLine()
         if self.require_tf32:

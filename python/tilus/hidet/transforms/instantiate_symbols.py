@@ -31,7 +31,6 @@ from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.primitives import is_primitive_function
-from tilus.hidet.ir.primitives.runtime import get_ptr_symbol_value, get_symbol_value
 from tilus.hidet.ir.stmt import LaunchKernelStmt, LetStmt
 from tilus.hidet.ir.tools import collect
 from tilus.hidet.ir.utils.call_graph import CallGraph
@@ -107,15 +106,12 @@ class InstantiateSymbolsRewriter(IRRewriter):
             attrs = self.visit(func.attrs)
 
             if func.kind == "public":
-                # for public function, we call the runtime primitive functions to get the symbol values
-                symbol_values = []
-                for symbol in ordered_symbols:
-                    if symbol.type.is_data_type() and symbol.type == int32:
-                        symbol_values.append(get_symbol_value(symbol.name))
-                    elif symbol.type.is_pointer():
-                        symbol_values.append(cast(get_ptr_symbol_value(symbol.name), dtype=symbol.type))
-                    else:
-                        raise NotImplementedError(symbol.type)
+                # SymbolVar is not used in tilus — this path should never be reached.
+                raise NotImplementedError(
+                    "SymbolVar is not supported in tilus: found symbol(s) {} in function {}".format(
+                        [s.name for s in ordered_symbols], func.name
+                    )
+                )
 
                 if len(symbol_params) > 0:
                     body = LetStmt(bind_vars=symbol_params, bind_values=symbol_values, body=body)
