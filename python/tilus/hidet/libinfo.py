@@ -24,11 +24,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Query the search directories for dynamic shared library, and the runtime header include path.
+Query the runtime header include path for tilus-generated kernels.
 """
 
 import os
-from typing import List
 
 
 def find_include_path():
@@ -68,28 +67,3 @@ def get_include_dirs():
     if len(exist_include_dirs) == 0:
         raise ValueError("Can not find the c/c++ include path, tried:\n{}".format("\n".join(include_dirs)))
     return exist_include_dirs
-
-
-def get_library_search_dirs() -> List[str]:
-    """
-    Get the library search directories for the dynamic libraries of hidet.
-
-    Returns
-    -------
-    lib_dirs : List[str]
-        The library search directories.
-    """
-    cur_file = os.path.abspath(__file__)
-    root = os.path.dirname(cur_file)
-    relative_dirs = [
-        "./",
-        "./lib",
-        "../",
-        "../lib",
-        "../../",
-        "../../lib",
-        "../../build/lib",
-        "../../build-release/lib",
-        "../../build-debug/lib",
-    ]
-    return [os.path.abspath(os.path.join(root, relative)) for relative in relative_dirs]
