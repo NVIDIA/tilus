@@ -29,7 +29,6 @@ from tilus.hidet.ir.module import IRModule
 
 from .add_explicit_cast import add_explicit_cast_pass
 from .add_hints import add_hints_pass
-from .annotate_header_and_libs import annotate_header_and_libs_pass
 from .base import FunctionPass, Pass, PassContext, RepeatFunctionPass, SequencePass
 from .bind_predefined_variables import bind_predefined_variables_pass
 from .check_launch_configuration import check_launch_configuration_pass

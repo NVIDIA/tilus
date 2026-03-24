@@ -117,7 +117,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         add_explicit_cast_pass as tilus_add_explicit_cast_pass,
     )
     from tilus.hidet.transforms.add_hints import add_hints_pass
-    from tilus.hidet.transforms.annotate_header_and_libs import annotate_header_and_libs_pass
     from tilus.hidet.transforms.base import PassContext
     from tilus.hidet.transforms.bind_predefined_variables import bind_predefined_variables_pass
     from tilus.hidet.transforms.check_launch_configuration import check_launch_configuration_pass
@@ -184,7 +183,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         inline_let_stmt_pass(),
         simplify_stmt_pass(),
         deadcode_elimination_pass(),
-        annotate_header_and_libs_pass(),
     ]
 
     instruments: list[PassInstrument] = []
