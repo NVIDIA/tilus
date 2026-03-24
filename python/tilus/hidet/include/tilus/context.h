@@ -53,7 +53,14 @@ static void tilus_context_init() {
     if (f.has_value()) {
         // A previously loaded tilus library already created the context.
         int64_t addr = (*f)().cast<int64_t>();
-        tilus_context = reinterpret_cast<TilusContext*>(static_cast<uintptr_t>(addr));
+        TilusContext* ctx = reinterpret_cast<TilusContext*>(static_cast<uintptr_t>(addr));
+        if (ctx->abi_version != TILUS_CONTEXT_ABI_VERSION) {
+            TVM_FFI_THROW(RuntimeError)
+                << "TilusContext ABI mismatch: expected version " << TILUS_CONTEXT_ABI_VERSION
+                << " but found version " << ctx->abi_version
+                << ". All tilus-generated libraries in the process must use the same ABI version.";
+        }
+        tilus_context = ctx;
     } else {
         // First tilus library in this process: allocate the shared context.
         TilusContext* ctx = new TilusContext{};  // zero-initializes all fields
