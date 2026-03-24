@@ -26,13 +26,11 @@
 from typing import Dict, List, Optional, Sequence, Union
 
 from tilus.hidet.ir import Expr, ForMappingStmt, ForStmt, IRModule, SeqStmt, Stmt, Var
-from tilus.hidet.ir.dtypes import int32
 from tilus.hidet.ir.expr import var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.mapping import ComposedTaskMapping, RepeatTaskMapping, SpatialTaskMapping, TaskMapping
 from tilus.hidet.ir.tools import rewrite, simplify
-from tilus.hidet.ir.tools.rewriter import PolinomialExpr2ExprRewriter
 from tilus.hidet.transforms.base import Pass
 from tilus.hidet.utils import prod
 
@@ -53,14 +51,6 @@ class TaskMappingExpander:
         self.loop_nests: List[ForStmt] = []
 
     def expand(self, mapping: TaskMapping, worker: Expr, loop_vars: List[Var], body: Stmt) -> Stmt:
-        if isinstance(mapping, SpatialTaskMapping) and len(loop_vars) != 0:
-            strides = strides_from_ranks(shape=mapping.task_shape, ranks=mapping.ranks)
-            flatten = int32.zero
-            for loop_var, stride in zip(loop_vars, strides):
-                flatten += loop_var * stride
-            rewriter = PolinomialExpr2ExprRewriter(flatten, worker)
-            body = rewriter.rewrite(body)
-
         tasks = self.visit(mapping, worker)
         seq = []
         for task in tasks:
