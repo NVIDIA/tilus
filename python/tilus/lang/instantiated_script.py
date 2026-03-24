@@ -35,7 +35,7 @@ from tqdm import tqdm
 
 import tilus.option
 from tilus.drivers import BuildOptions, build_program, get_cache_dir
-from tilus.hidet.ir.type import DataType, PointerType
+from tilus.hidet.ir.type import DataType, PointerType, TensorPointerType
 from tilus.hidet.utils.py import nocolor
 from tilus.ir.prog import Program
 from tilus.lang.script import Script
@@ -204,7 +204,7 @@ class CallParameters:
                 self.with_default = True
 
             # check that the parameter type is either a pythonic constant or a Hidet IR type
-            if isinstance(param.annotation, (DataType, PointerType)) or param.annotation in [bool, int, float, str]:
+            if isinstance(param.annotation, (DataType, PointerType, TensorPointerType)) or param.annotation in [bool, int, float, str]:
                 self.param_names.append(param.name)
                 self.param_types.append(param.annotation)
 
