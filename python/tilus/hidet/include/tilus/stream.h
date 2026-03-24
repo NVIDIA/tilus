@@ -6,8 +6,11 @@
 #pragma once
 
 #include <tvm/ffi/extra/c_env_api.h>
+#include <cuda_runtime.h>
 
-// kDLCUDA = 2 per DLDeviceType; device_id 0 is the current device.
+// kDLCUDA = 2 per DLDeviceType.
 static inline void* get_cuda_stream() {
-    return TVMFFIEnvGetStream(2, 0);
+    int device_id = 0;
+    cudaGetDevice(&device_id);
+    return TVMFFIEnvGetStream(2, device_id);
 }
