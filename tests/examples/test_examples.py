@@ -67,12 +67,7 @@ EXAMPLES = [
     ("hopper_matmul", "matmul_v2.py", nvgpu_sm90a),
     ("hopper_matmul", "matmul_v3.py", nvgpu_sm90a),
     # quantization examples (SM 8.0+)
-    # xfail: uses AllocateGlobal (split-K semaphore) which requires request_cuda_workspace
-    # to be wired up via tvm_ffi — pending implementation
-    pytest.param(
-        "quantization", "matmul_a16wx.py", nvgpu_sm80,
-        marks=pytest.mark.xfail(reason="AllocateGlobal requires request_cuda_workspace (tvm_ffi workspace API not yet wired)", strict=False),
-    ),
+    ("quantization", "matmul_a16wx.py", nvgpu_sm80),
     # flash attention decode examples (SM 8.0+)
     ("flash_attention_decode", "main.py", nvgpu_sm80),
 ]

@@ -1101,6 +1101,8 @@ class UpdatedCUDACodeGen(CUDACodegen):
         doc += Text("#include <tilus/tvm/ffi/extra_type_traits.h>") + NewLine()
         doc += Text("#include <tilus/tvm/ffi/void_p.h>") + NewLine()
         doc += super().require_headers()
+        # Exported global injected by tvm_ffi at load time with the shared TilusContext pointer.
+        doc += Text('extern "C" { TilusContext* tilus_context = nullptr; }') + NewLine()
         return doc
 
     def visit_IRModule(self, module: IRModule) -> Doc:
