@@ -19,8 +19,9 @@ from typing import Callable, Dict, Optional, Sequence, Type
 
 from tilus.hidet.ir.builders import FunctionBuilder
 from tilus.hidet.ir.builders.stmt_builder import TypedStmtBuilder as StmtBuilder
-from tilus.hidet.ir.dtypes import int32
-from tilus.hidet.ir.expr import Expr, Var, tensor_pointer_var, tensor_var
+from tilus.hidet.ir.dtypes import int32, uint32
+from tilus.hidet.ir.expr import Expr, Var, logical_and, tensor_pointer_var, tensor_var
+from tilus.hidet.ir.primitives.cuda.elect import elect_one_sync, shfl_sync_i32
 from tilus.hidet.ir.primitives.cuda.vars import blockIdx, dim3
 from tilus.hidet.ir.stmt import DeclareScope
 from tilus.hidet.ir.stmt import Stmt as HidetStmt

@@ -142,7 +142,7 @@ def encode_tensor_map(
             l2_promotion=l2_promotion.cpp_str(),
             oob_fill=oob_fill.cpp_str(),
         )
-        + r"""{{cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) LOG(ERROR) << "CUDA error: " << cudaGetErrorString(err) << "\n";}}"""
+        + r"""{{cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) TVM_FFI_THROW(RuntimeError) << "CUDA error: " << cudaGetErrorString(err) << "\n";}}"""
     )
 
     return BlackBoxStmt(template_string, tensor_map, rank, tensor_ptr, shape, strides, box_shape, elem_strides)

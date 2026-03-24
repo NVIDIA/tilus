@@ -19,9 +19,9 @@ static inline void* get_cuda_stream() {
 }
 
 // ---------------------------------------------------------------------------
-// Workspace stub — tilus kernels receive pre-allocated tensors from the
-// caller and do not need dynamic workspace allocation.
-// TODO: replace with tvm_ffi workspace API once contributed.
+// Workspace — not yet implemented; tvm_ffi workspace API support pending.
+// Kernels that use AllocateGlobal (e.g. split-K semaphores) will not work
+// until this is wired up.
 // ---------------------------------------------------------------------------
 static inline void* request_cuda_workspace(int64_t /*nbytes*/, bool /*require_clean*/) {
     return nullptr;

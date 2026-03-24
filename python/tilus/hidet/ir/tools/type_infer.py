@@ -191,6 +191,9 @@ class LogicalBinaryInfer(BinaryTypeInfer):
     def dtype(self, lhs: DataType, rhs: DataType, op):
         if is_bool(lhs) and is_bool(rhs):
             return dtypes.boolean
+        elif lhs.is_integer() and rhs.is_integer():
+            # Integer operands are allowed (e.g. uint32 predicates from CUDA primitives)
+            return dtypes.boolean
         else:
             return self.fail(lhs, rhs, op)
 

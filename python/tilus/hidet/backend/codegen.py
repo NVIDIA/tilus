@@ -878,6 +878,7 @@ class CUDACodegen(Codegen):
     def require_headers(self) -> Doc:
         doc = Doc()
         doc += Text("#include <stdint.h>") + NewLine()
+        doc += Text("#include <cassert>") + NewLine()
 
         if self.require_immintrin:
             doc += Text("#include <immintrin.h>") + NewLine()
