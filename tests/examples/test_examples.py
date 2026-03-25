@@ -72,8 +72,6 @@ EXAMPLES = [
 
 # Scripts that should be ignored (baseline implementations, utilities, etc.)
 IGNORED_SCRIPTS = [
-    # Not yet added to the test suite
-    ("blackwell_matmul", "matmul_v9.py"),
     # Internal implementations, not example entrypoints
     ("flash_attention_decode", "torch_kernel.py"),
     ("flash_attention_decode", "triton_kernel.py"),
