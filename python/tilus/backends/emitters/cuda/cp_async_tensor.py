@@ -19,9 +19,9 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 
 import numpy as np
+
 from tilus import SharedLayout
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.hidet.ir import logical_or
 from tilus.hidet.ir.dtypes import uint32, uint64
 from tilus.hidet.ir.expr import Expr, Var, as_expr, cast, index_vars
 from tilus.hidet.ir.primitives.cuda.copy_async_tensor import (

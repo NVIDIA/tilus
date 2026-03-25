@@ -193,8 +193,7 @@ def test_no_missing_examples():
     examples_dir = PROJECT_ROOT / "examples"
     missing_examples = []
 
-    for entry in EXAMPLES:
-        folder, script, *_ = entry.values if hasattr(entry, "values") else entry
+    for folder, script, _ in EXAMPLES:
         script_path = examples_dir / folder / script
         if not script_path.exists():
             missing_examples.append(f"{folder}/{script}")

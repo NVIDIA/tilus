@@ -204,7 +204,12 @@ class CallParameters:
                 self.with_default = True
 
             # check that the parameter type is either a pythonic constant or a Hidet IR type
-            if isinstance(param.annotation, (DataType, PointerType, TensorPointerType)) or param.annotation in [bool, int, float, str]:
+            if isinstance(param.annotation, (DataType, PointerType, TensorPointerType)) or param.annotation in [
+                bool,
+                int,
+                float,
+                str,
+            ]:
                 self.param_names.append(param.name)
                 self.param_types.append(param.annotation)
 

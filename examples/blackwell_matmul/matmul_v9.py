@@ -6,7 +6,6 @@ import pandas
 import tilus
 import torch
 from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32
-from tilus.extensions.hidet.utils.ncu_utils import ncu_run
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
@@ -191,8 +190,12 @@ class BlackwellMatmulV9(tilus.Script):
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
 
         s_a = self.shared_tensor(dtype=float16, shape=[tma_stages, block_m // 2, block_k])
-        s_b_n0 = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n // 2, block_k])
-        s_b_n1 = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n // 2, block_k])
+        s_b_n0 = self.shared_tensor(
+            dtype=float16, shape=[tma_stages, block_n // 2, block_k]
+        )
+        s_b_n1 = self.shared_tensor(
+            dtype=float16, shape=[tma_stages, block_n // 2, block_k]
+        )
 
         # Two accumulators for two N-tiles (replaces mma_stages=2 double-buffering)
         t_acc_n0 = self.tcgen05.alloc(

@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.hidet.ir.expr import logical_or
 from tilus.hidet.ir.primitives.cuda.clc import (
     cluster_launch_control_query_response,
     cluster_launch_control_try_cancel,
