@@ -105,6 +105,6 @@ from tilus.lang.classes import Pipeline
 from tilus.lang.constructs.structs import Dim3
 from tilus.tensor import empty, from_torch, full, ones, rand, randint, randn, view_torch, zeros
 
-from . import kernels, logging, option, utils, testing
+from . import kernels, logging, option, utils
 from .target import get_current_target
 from .version import __version__
