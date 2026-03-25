@@ -16,6 +16,7 @@ from typing import Literal
 
 import pytest
 import tilus
+import tilus.testing
 import torch
 from tilus import int32
 from tilus.ir.layout.cuda.tcgen05.smem import (

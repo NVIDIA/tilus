@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import tilus
+import tilus.testing
 import torch
 from tilus import float16, int32
 from tilus.utils import cdiv

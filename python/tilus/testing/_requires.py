@@ -26,9 +26,10 @@ def _requires(target: Target) -> Callable[[Callable], Callable]:
     target : Target
         The required target architecture. Examples include 'sm_90a', 'sm_80',
     """
-    import pytest
 
     def decorator(test_func):
+        import pytest
+
         try:
             required_target = target
             current_target = get_current_target()

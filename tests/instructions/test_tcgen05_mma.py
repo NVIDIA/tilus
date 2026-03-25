@@ -14,6 +14,7 @@
 # limitations under the License.
 import pytest
 import tilus
+import tilus.testing
 import torch
 from tilus import float8_e4m3, float16, float32, void_p
 from tilus.hidet.ir.type import DataType
