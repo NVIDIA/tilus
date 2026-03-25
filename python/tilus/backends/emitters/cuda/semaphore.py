@@ -12,11 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.dtypes import boolean, int32
-from hidet.ir.expr import equal
-from hidet.ir.primitives.cuda.ldst import load, store
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
+from tilus.hidet.ir.dtypes import boolean, int32
+from tilus.hidet.ir.expr import equal
+from tilus.hidet.ir.primitives.cuda.ldst import load, store
 from tilus.ir.instructions import LockSemaphoreInst, ReleaseSemaphoreInst
 
 
@@ -28,7 +27,7 @@ class LockSemaphoreEmitter(BaseInstEmitter):
 
         with self.while_loop(boolean.true):
             semaphore_value = self.declare_var("semaphore_value", tp=int32, init=-int32.one)
-            with self.if_then(self.current_thread == 0):
+            with self.single_thread():
                 self.assign(semaphore_value, load(addr=semaphore, space="generic", sync="acquire", scope="gpu"))
             cond = self.sync_reduce(equal(semaphore_value, semaphore_expect), op="or")  # type: ignore
             with self.if_then(cond):
@@ -40,5 +39,5 @@ class ReleaseSemaphoreEmitter(BaseInstEmitter):
     def emit(self, inst: ReleaseSemaphoreInst) -> None:
         semaphore = self.declare_var("semaphore", tp=~int32, init=inst.semaphore)
 
-        with self.if_then(self.current_thread == 0):
+        with self.single_thread():
             self.append(store(addr=semaphore, space="generic", value=inst.value, sync="release", scope="gpu"))

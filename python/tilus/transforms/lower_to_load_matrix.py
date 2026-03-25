@@ -24,12 +24,10 @@ We check whether the following conditions to determine whether we can lower a Lo
 
 from typing import Optional, Union
 
-from hidet.ir import DataType
-from hidet.ir.expr import Expr, Var
-from hidet.ir.tools import collect
-
 from tilus import RegisterLayout
-from tilus.extensions.hidet.ir.expr import index_vars
+from tilus.hidet.ir import DataType
+from tilus.hidet.ir.expr import Expr, Var, index_vars
+from tilus.hidet.ir.tools import collect
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Analysis, Function

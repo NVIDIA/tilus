@@ -14,20 +14,21 @@
 # limitations under the License.
 from __future__ import annotations
 
+import contextlib
 from typing import Callable, Dict, Optional, Sequence, Type
 
-from hidet.ir.builders import FunctionBuilder
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var, tensor_pointer_var, tensor_var
-from hidet.ir.primitives.cuda.vars import blockIdx, dim3
-from hidet.ir.stmt import DeclareScope
-from hidet.ir.stmt import Stmt as HidetStmt
-
-from tilus.extensions.hidet.ir.builders.stmt_builder import TypedStmtBuilder as StmtBuilder
+from tilus.hidet.ir.builders import FunctionBuilder
+from tilus.hidet.ir.builders.stmt_builder import TypedStmtBuilder as StmtBuilder
+from tilus.hidet.ir.dtypes import int32, uint32
+from tilus.hidet.ir.expr import Expr, Var, logical_and, tensor_pointer_var, tensor_var
+from tilus.hidet.ir.primitives.cuda.elect import elect_one_sync, shfl_sync_i32
+from tilus.hidet.ir.primitives.cuda.vars import blockIdx, dim3
+from tilus.hidet.ir.stmt import DeclareScope
+from tilus.hidet.ir.stmt import Stmt as HidetStmt
 from tilus.ir.func import Function
 from tilus.ir.inst import Instruction
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
-from tilus.target import Target, get_current_target, gpgpu_any
+from tilus.target import Target, get_current_target, gpgpu_any, nvgpu_sm90
 
 
 class BaseInstEmitter(StmtBuilder):
@@ -57,7 +58,7 @@ class BaseInstEmitter(StmtBuilder):
 
     def sync_reduce(self, value: Expr, op: str) -> Expr:
         if get_current_target().is_nvgpu():
-            from hidet.ir.primitives.cuda.sync import syncthreads_and, syncthreads_or
+            from tilus.hidet.ir.primitives.cuda.sync import syncthreads_and, syncthreads_or
 
             op2sync = {"and": syncthreads_and, "or": syncthreads_or}
             syncthreads_op = op2sync[op]
@@ -110,13 +111,13 @@ class BaseInstEmitter(StmtBuilder):
 
     @property
     def block_rank_in_cluster(self) -> Expr:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster
+        from tilus.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster
 
         return block_rank_in_cluster()
 
     @property
     def blocks_per_cluster(self) -> Expr:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import cluster_blocks
+        from tilus.hidet.ir.primitives.cuda.cluster import cluster_blocks
 
         return cluster_blocks()
 
@@ -192,6 +193,23 @@ class BaseInstEmitter(StmtBuilder):
         kernel body after this method is called.
         """
         self._codegen.extra_params.append(var)
+
+    def single_thread(self):
+        if self.current_num_threads == 1:
+            return contextlib.nullcontext()
+        elif self.current_num_threads % 32 == 0 and get_current_target().supports(nvgpu_sm90):
+            # elect.sync requires sm_90 or higher
+            if self.current_num_threads == 32:
+                return self.if_then(elect_one_sync())
+            else:
+                return self.if_then(
+                    logical_and(
+                        shfl_sync_i32(uint32(0xFFFFFFFF), self.current_thread // 32, int32(0)) == 0,
+                        elect_one_sync(),
+                    )
+                )
+        else:
+            return self.if_then(self.current_thread == 0)
 
     def emit(self, inst: Instruction) -> None:
         raise NotImplementedError()

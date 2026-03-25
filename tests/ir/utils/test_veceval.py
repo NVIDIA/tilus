@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
-from hidet.ir.expr import Var
+from tilus.hidet.ir.expr import Var
 from tilus.ir.utils.veceval import vectorized_evaluate
 
 
 def test_vectorized_evaluate():
-    from hidet.ir.dtypes import int32
+    from tilus.hidet.ir.dtypes import int32
 
     # Example usage
     x = Var("x", int32)

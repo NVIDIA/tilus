@@ -16,22 +16,20 @@ from __future__ import annotations
 
 from typing import Dict, Optional, Set, Type
 
-from hidet.ir import FuncType
-from hidet.ir.builders import FunctionBuilder
-from hidet.ir.dtypes import int32, uint32
-from hidet.ir.expr import Constant, Var, logical_and
-from hidet.ir.func import Function as HidetFunction
-from hidet.ir.module import IRModule
-from hidet.ir.primitives import set_kernel_max_dynamic_smem_bytes
-from hidet.ir.primitives.cuda.vars import threadIdx
-from hidet.ir.stmt import LaunchKernelStmt
-from hidet.utils import prod
-from hidet.utils.doc import Doc, Text
-
 from tilus.backends.emitter import BaseInstEmitter
-from tilus.extensions.hidet.ir.module import merge_ir_modules
-from tilus.extensions.hidet.ir.primitives.cuda.elect import elect_one_sync, shfl_sync_i32
-from tilus.extensions.hidet.ir.tools.verifier import verify as verify_ir_module
+from tilus.hidet.ir import FuncType
+from tilus.hidet.ir.builders import FunctionBuilder
+from tilus.hidet.ir.dtypes import int32, uint32
+from tilus.hidet.ir.expr import Constant, Var, logical_and
+from tilus.hidet.ir.func import Function as HidetFunction
+from tilus.hidet.ir.module import IRModule, merge_ir_modules
+from tilus.hidet.ir.primitives import set_kernel_max_dynamic_smem_bytes
+from tilus.hidet.ir.primitives.cuda.elect import elect_one_sync, shfl_sync_i32
+from tilus.hidet.ir.primitives.cuda.vars import threadIdx
+from tilus.hidet.ir.stmt import LaunchKernelStmt
+from tilus.hidet.ir.tools.verifier import verify as verify_ir_module
+from tilus.hidet.utils import prod
+from tilus.hidet.utils.doc import Doc, Text
 from tilus.ir.func import Function
 from tilus.ir.functors import IRFunctor
 from tilus.ir.inst import Instruction
@@ -57,7 +55,7 @@ from tilus.ir.tools import IRPrinter
 from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.ir.utils.normalize import normalize_dim3
 from tilus.ir.utils.thread_group_stack import ThreadGroupStack
-from tilus.target import get_current_target, match_target
+from tilus.target import get_current_target, match_target, nvgpu_sm90
 from tilus.utils import is_power_of_two
 
 
@@ -285,8 +283,8 @@ class FunctionCodegen(IRFunctor):
             # All threads — no condition needed
             return None, self.current_thread
         elif num_threads == 1:
-            if parent_num_threads % 32 != 0:
-                # Non-warp-aligned parent: fallback to thread 0
+            if parent_num_threads % 32 != 0 or not get_current_target().supports(nvgpu_sm90):
+                # Non-warp-aligned parent or pre-sm_90: fallback to thread 0
                 return self.current_thread == 0, Constant(0, int32)
             elif parent_num_threads == 32:
                 # Single warp: use elect.sync directly

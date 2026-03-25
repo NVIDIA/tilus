@@ -16,10 +16,10 @@ from __future__ import annotations
 
 from typing import Optional, Sequence
 
-from hidet.ir import Add, Constant, Div, Mod, Multiply, Sub
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var
-from hidet.ir.functors import ExprFunctor
+from tilus.hidet.ir import Add, Constant, Div, Mod, Multiply, Sub
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.functors import ExprFunctor
 
 
 class LinearDecompositionError(Exception):

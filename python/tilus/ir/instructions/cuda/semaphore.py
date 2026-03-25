@@ -16,8 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.expr import Expr
-
+from tilus.hidet.ir.expr import Expr
 from tilus.ir.inst import Instruction
 
 

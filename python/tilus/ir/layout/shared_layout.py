@@ -18,11 +18,10 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 
 import numpy as np
-from hidet.ir.expr import Expr, Var, as_expr
-from hidet.ir.utils.index_transform import index_deserialize
-from hidet.utils import prod
 
-from tilus.extensions.hidet.ir.expr import index_vars
+from tilus.hidet.ir.expr import Expr, Var, as_expr, index_vars
+from tilus.hidet.ir.utils.index_transform import index_deserialize
+from tilus.hidet.utils import prod
 from tilus.ir.node import IRNode
 from tilus.ir.utils.veceval import vectorized_evaluate
 
@@ -45,7 +44,7 @@ class Swizzle:
     def __call__(self, index: Expr) -> Expr:
         # we use a primitive function to here
         # todo: use general computation after refactor to cute-like shared layout
-        from tilus.extensions.hidet.ir.primitives.swizzle import swizzle
+        from tilus.hidet.ir.primitives.swizzle import swizzle
 
         if self.bits == 0:
             return index

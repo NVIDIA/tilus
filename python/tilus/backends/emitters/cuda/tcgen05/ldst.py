@@ -15,11 +15,10 @@
 
 from dataclasses import dataclass
 
-from hidet.ir.dtypes import int32, uint32
-from hidet.ir.expr import Expr, cast
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+from tilus.hidet.ir.dtypes import int32, uint32
+from tilus.hidet.ir.expr import Expr, cast
+from tilus.hidet.ir.primitives.cuda.tcgen05 import (
     COLUMN_STRIDE,
     LANE_STRIDE,
     Tcgen05LoadStoreNumKind,

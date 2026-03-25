@@ -295,22 +295,21 @@ def set_current_target(target: Target) -> None:
 
 @functools.cache
 def get_default_target() -> Target:
-    from hidet import cuda
+    import torch
 
-    has_nvgpu = cuda.available() and cuda.device_count() > 0
-    # has_amdgpu = hip.available() and hip.device_count() > 0
+    has_nvgpu = torch.cuda.is_available() and torch.cuda.device_count() > 0
     has_amdgpu = False
 
     if has_nvgpu and has_amdgpu:
         raise RuntimeError("Both AMD and NVIDIA GPUs are available. We do not support this configuration yet.")
     elif has_nvgpu:
-        compute_capabilities = [cuda.compute_capability(i) for i in range(cuda.device_count())]
+        compute_capabilities = [torch.cuda.get_device_capability(i) for i in range(torch.cuda.device_count())]
         if len(set(compute_capabilities)) > 1:
             raise RuntimeError(
                 "Multiple NVIDIA GPUs with different compute capabilities are available. "
                 "We do not support this configuration yet."
             )
-        major, minor = cuda.compute_capability()
+        major, minor = torch.cuda.get_device_capability()
 
         nvgpu_targets = [
             nvgpu_sm70,
@@ -360,7 +359,7 @@ def get_default_target() -> Target:
         # If no target found, raise an error
         raise RuntimeError(f"Unsupported NVIDIA GPU compute capability: {major}.{minor}")
     elif has_amdgpu:
-        from hidet import hip  # type: ignore
+        from tilus.hidet import hip  # type: ignore
 
         compute_capabilities = [
             hip.compute_capability(i)

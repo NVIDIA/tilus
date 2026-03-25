@@ -17,8 +17,8 @@ from __future__ import annotations
 from typing import List, Sequence
 
 import tabulate
-from hidet.utils import gcd, prod
 
+from tilus.hidet.utils import gcd, prod
 from tilus.ir.layout.ops.utils import LayoutOperationError, get_mode_groups
 from tilus.ir.layout.shared_layout import SharedLayout, Swizzle, shared_layout
 

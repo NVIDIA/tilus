@@ -27,9 +27,11 @@ classifiers = [
 ]
 dependencies = [
     "apache-tvm-ffi",
-    "hidet==0.6.1",
+    "filelock",
+    "numpy",
     "torch",
     "tabulate",
+    "tqdm",
 ]
 
 [project.optional-dependencies]
@@ -67,7 +69,7 @@ Documentation = "https://nvidia.github.io/tilus"
 
 [tool.setuptools.package-data]
 "tilus" = ["py.typed"]
-"tilus.extensions.hidet" = ["include/**/*.h"]
+"tilus.hidet" = ["include/**/*.h"]
 
 [tool.ruff]
 line-length = 120
@@ -99,6 +101,14 @@ convention = "numpy"
 "examples/**/*.py" = [
     "D400",
     "D205", # 1 blank line required between summary line and description
+]
+"python/tilus/hidet/**/*.py" = [
+    "D",     # skip docstring checks for integrated hidet code
+    "E402",  # module level imports not at top (hidet uses @initialize pattern)
+    "F401",  # unused imports (guarded imports for optional modules)
+    "F402",  # shadowed loop variables in hidet code
+    "F841",  # unused local variables in hidet code
+    "F821",  # undefined names (guarded imports for compute/cute)
 ]
 
 [tool.mypy]
@@ -139,24 +149,23 @@ module = [
 disable_error_code = ["override", "valid-type", "call-arg", "no-untyped-def", "has-type", "no-redef", "assignment", "import-not-found"]
 
 [[tool.mypy.overrides]]
-module = ["hidet.*"]
-follow_untyped_imports = true
+module = ["tilus.hidet.*"]
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = ["cuda.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["tilus.extensions.hidet.ir.primitives.*"]
-disable_error_code = ["operator", "index"]
-
-[[tool.mypy.overrides]]
 module = [
     "tilus.ir.builders.func_builder",  # todo: update the defintion of threadIx etc to enable this checking
     "tilus.backends.emitters.cast",  # todo: update the FloatType to add mantissa_nbits and exponent_nbits
-    "tilus.backends.codegen"
+    "tilus.backends.codegen",
+    "tilus.backends.emitters.shuffle",
+    "tilus.backends.emitters.cuda.cp_async",
+    "tilus.transforms.bound_aware_simplify",
 ]
-disable_error_code = ["attr-defined"]
+disable_error_code = ["attr-defined", "call-arg"]
 
 [tool.pyright]
 typeCheckingMode = "basic"

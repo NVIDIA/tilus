@@ -14,8 +14,8 @@
 # limitations under the License.
 import functools
 
-from hidet.ir import dtypes
-from hidet.ir.dtypes import DataType
+from tilus.hidet.ir import dtypes
+from tilus.hidet.ir.dtypes import DataType
 
 
 @functools.cache

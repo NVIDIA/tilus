@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.control import exit
+from tilus.hidet.ir.primitives.cuda.control import exit
 from tilus.ir.instructions import ExitInst
 
 

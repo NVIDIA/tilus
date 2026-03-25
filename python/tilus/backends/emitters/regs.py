@@ -50,8 +50,8 @@ class SliceRegisterInstEmitter(BaseInstEmitter):
 
     def _emit_const_reg(self, inst, dst_tensor, dst_layout, src_tensor, src_layout, const_reg_ctx):
         """Optimized emission: compute values from logical index expressions, bypassing array indexing."""
-        from hidet.ir.dtypes import int32
-        from hidet.ir.expr import Var
+        from tilus.hidet.ir.dtypes import int32
+        from tilus.hidet.ir.expr import Var
 
         dst_var = self.get_or_allocate_var(tensor=dst_tensor, name="slice_regs")
 

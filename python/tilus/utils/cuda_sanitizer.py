@@ -78,7 +78,7 @@ def sanitizer_run(func, *args, **kwargs):
     Usage:
 
     ```python
-        from hidet.utils.cuda_sanitizer import sanitizer_run
+        from tilus.hidet.utils.cuda_sanitizer import sanitizer_run
 
         def func():
             # Some CUDA operations

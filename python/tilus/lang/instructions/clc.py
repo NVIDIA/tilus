@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import Expr, Var
-
+from tilus.hidet.ir.expr import Expr, Var
 from tilus.ir.tensor import RegisterTensor, SharedTensor
 from tilus.lang.constructs.structs import Dim3
 

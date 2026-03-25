@@ -17,9 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Sequence
 
-from hidet import uint32
-from hidet.ir.expr import Expr
-
+from tilus.hidet import uint32
+from tilus.hidet.ir.expr import Expr
 from tilus.ir.inst import Instruction
 from tilus.ir.tensor import RegisterTensor
 

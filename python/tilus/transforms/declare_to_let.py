@@ -37,8 +37,7 @@ This pass is adopted from the pass with the same name from Hidet.
 from collections import defaultdict
 from typing import Dict
 
-from hidet.ir.expr import Address, Expr, Reference, Var
-
+from tilus.hidet.ir.expr import Address, Expr, Reference, Var
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.stmt import AssignStmt, DeclareStmt, LetStmt, SeqStmt, Stmt

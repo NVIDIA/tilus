@@ -15,7 +15,8 @@
 from typing import Sequence
 
 import numpy as np
-from hidet.ir.expr import (
+
+from tilus.hidet.ir.expr import (
     Add,
     BitwiseAnd,
     BitwiseXor,
@@ -30,7 +31,7 @@ from hidet.ir.expr import (
     Sub,
     Var,
 )
-from hidet.ir.functors import IRFunctor
+from tilus.hidet.ir.functors import IRFunctor
 
 
 class VectorizedEvaluator(IRFunctor):

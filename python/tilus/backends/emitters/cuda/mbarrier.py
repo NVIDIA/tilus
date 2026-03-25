@@ -13,13 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from hidet.ir.dtypes import uint32, uint64
-from hidet.ir.expr import Var
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.fence import fence_view_async
-from tilus.extensions.hidet.ir.primitives.cuda.mapa import mapa_shared
-from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import (
+from tilus.hidet.ir.dtypes import uint32, uint64
+from tilus.hidet.ir.expr import Var
+from tilus.hidet.ir.primitives.cuda.fence import fence_view_async
+from tilus.hidet.ir.primitives.cuda.mapa import mapa_shared
+from tilus.hidet.ir.primitives.cuda.mbarrier import (
     mbarrier_arrive,
     mbarrier_arrive_expect_tx,
     mbarrier_wait,

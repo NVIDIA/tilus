@@ -16,10 +16,9 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Union
 
-from hidet.ir.expr import Expr, Var
-from hidet.ir.primitives.cuda.vars import blockIdx
-from hidet.ir.type import BaseType
-
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.primitives.cuda.vars import blockIdx
+from tilus.hidet.ir.type import BaseType
 from tilus.ir.builders.stmt_builder import StmtBuilder
 from tilus.ir.func import Function, Metadata
 from tilus.ir.stmt import SeqStmt, Stmt

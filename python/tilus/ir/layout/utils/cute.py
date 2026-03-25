@@ -16,11 +16,11 @@ from __future__ import annotations
 
 from typing import Sequence, Union
 
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr
-from hidet.utils import prod
-from tilus.extensions.hidet.ir.primitives.swizzle import swizzle
-from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import Expr
+from tilus.hidet.ir.primitives.swizzle import swizzle
+from tilus.hidet.ir.utils.index_transform import index_deserialize
+from tilus.hidet.utils import prod
 from tilus.ir.layout.shared_layout import SharedLayout, Swizzle, shared_layout
 
 Int = Union[Expr, int]

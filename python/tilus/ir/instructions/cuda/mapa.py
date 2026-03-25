@@ -16,9 +16,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.dtypes import uint32
-from hidet.ir.expr import Expr
-
+from tilus.hidet.ir.dtypes import uint32
+from tilus.hidet.ir.expr import Expr
 from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.tensor import RegisterTensor
 

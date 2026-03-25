@@ -18,10 +18,9 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Sequence
 
-from hidet.ir.expr import Constant, Expr
-from hidet.ir.tools.simplifier import Simplifier
-from hidet.utils.doc import Doc, NewLine
-
+from tilus.hidet.ir.expr import Constant, Expr
+from tilus.hidet.ir.tools.simplifier import Simplifier
+from tilus.hidet.utils.doc import Doc, NewLine
 from tilus.ir.functors import IRVisitor
 from tilus.ir.instructions import LoadSharedInst, StoreSharedInst
 from tilus.ir.node import IRNode

@@ -16,8 +16,8 @@ from __future__ import annotations
 
 from typing import Generic, Type, TypeVar
 
-from hidet.ir.expr import Expr, Var
-from hidet.ir.stmt import Stmt as HidetStmt
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.stmt import Stmt as HidetStmt
 
 T = TypeVar("T")
 

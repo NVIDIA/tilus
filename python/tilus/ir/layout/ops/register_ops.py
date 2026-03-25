@@ -16,8 +16,7 @@ from __future__ import annotations
 
 from typing import Optional, Sequence
 
-from hidet.ir.expr import Expr
-
+from tilus.hidet.ir.expr import Expr
 from tilus.ir.layout.ops.utils import LayoutOperationError
 from tilus.ir.layout.register_layout import (
     RegisterLayout,
@@ -944,10 +943,9 @@ def locate_at(layout: RegisterLayout, global_indices: Sequence[Expr | int], spat
     ret: Expr
         Expression with value True if the global indices are located at the given spatial index, False otherwise.
     """
-    from hidet.ir.dtypes import boolean
-    from hidet.ir.expr import logical_and
-
-    from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize
+    from tilus.hidet.ir.dtypes import boolean
+    from tilus.hidet.ir.expr import logical_and
+    from tilus.hidet.ir.utils.index_transform import index_deserialize
 
     if len(global_indices) != len(layout.shape):
         raise ValueError(

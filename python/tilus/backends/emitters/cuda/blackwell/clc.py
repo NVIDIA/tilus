@@ -12,10 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.expr import logical_or
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.clc import (
+from tilus.hidet.ir.primitives.cuda.clc import (
     cluster_launch_control_query_response,
     cluster_launch_control_try_cancel,
 )
@@ -27,7 +25,7 @@ from tilus.ir.tensor import SharedTensor
 class ClusterLaunchControlTryCancelEmitter(BaseInstEmitter):
     def emit(self, inst: ClusterLaunchControlTryCancelInst) -> None:
         response: SharedTensor = inst.shared_input
-        with self.if_then(logical_or(self.current_num_threads == 1, self.current_thread == 0)):
+        with self.single_thread():
             self.append(
                 cluster_launch_control_try_cancel(
                     mbarrier=inst.mbarrier,

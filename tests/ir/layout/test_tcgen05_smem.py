@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from hidet.ir.dtypes import float16, float32
+from tilus.hidet.ir.dtypes import float16, float32
 from tilus.ir.layout.cuda.tcgen05.smem import (
     CanonicalSharedLayout,
     Tcgen05SwizzleMode,

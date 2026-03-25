@@ -67,15 +67,15 @@ class Pipeline(tilus.Class):
 @tilus.autotune("mma_stages", [2])
 @tilus.autotune("swizzle_size", [4, 8, 16])
 class BlackwellMatmulV8(tilus.Script):
-    # debug_schedule = dict(
-    #     block_m=256,
-    #     block_n=256,
-    #     block_k=64,
-    #     tma_stages=6,
-    #     mma_stages=2,
-    #     e_block_n=32,
-    #     swizzle_size=8,
-    # )
+    debug_schedule = dict(
+        block_m=256,
+        block_n=256,
+        block_k=64,
+        tma_stages=6,
+        mma_stages=2,
+        e_block_n=32,
+        swizzle_size=8,
+    )
 
     def __init__(
         self,
@@ -197,7 +197,7 @@ class BlackwellMatmulV8(tilus.Script):
             offset_m_a = (m_block_0 * 2 + cta_rank) * (block_m // 2)
             offset_n_b = n_block_0 * block_n + cta_rank * (block_n // 2)
             while True:
-                for offset_k in self.range(0, k_size, block_k, unroll=tma_stages):
+                for offset_k in range(0, k_size, block_k):
                     tma_pipe.producer_acquire()
                     mbarrier = tma_pipe.producer_barrier()
                     if cta_rank == 0:
@@ -241,7 +241,7 @@ class BlackwellMatmulV8(tilus.Script):
                 with self.single_thread():
                     if cta_rank == 0:
                         mma_pipe.producer_acquire()
-                        for offset_k in self.range(0, k_size, block_k, unroll=mma_stages):
+                        for offset_k in range(0, k_size, block_k):
                             tma_pipe.consumer_acquire()
                             self.tcgen05.mma(
                                 s_a[tma_pipe.consumer_stage],
@@ -347,9 +347,9 @@ def main(bench=True):
     rows: list = []
 
     for m_size, n_size, k_size in [
-        [4096, 4096, 4096],
-        [4096, 4096, 14336],
-        [8192, 8192, 8192],
+        # [4096, 4096, 4096],
+        # [4096, 4096, 14336],
+        # [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")

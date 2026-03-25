@@ -15,15 +15,13 @@
 from dataclasses import dataclass
 from typing import Sequence
 
-from hidet.ir import logical_and
-from hidet.ir.dtypes import boolean
-from hidet.ir.expr import Expr, Var
-from hidet.ir.type import DataType
-from hidet.utils import gcd
-from hidet.utils.doc import doc_join_lines
-
 from tilus.backends.codegen import BaseInstEmitter
-from tilus.extensions.hidet.ir.expr import index_vars
+from tilus.hidet.ir import logical_and
+from tilus.hidet.ir.dtypes import boolean
+from tilus.hidet.ir.expr import Expr, Var, index_vars
+from tilus.hidet.ir.type import DataType
+from tilus.hidet.utils import gcd
+from tilus.hidet.utils.doc import doc_join_lines
 from tilus.ir import GlobalTensor
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.tensor import SharedLayout, SharedTensor

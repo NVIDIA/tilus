@@ -16,17 +16,16 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from hidet.ir.builders import StmtBuilder
-from hidet.ir.dtypes import uint32, uint64
-from hidet.ir.expr import Expr, Var
-from hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
-from hidet.ir.primitives.cuda.smem import dynamic_shared_memory
-from hidet.ir.primitives.cuda.sync import syncthreads
-from hidet.ir.primitives.cuda.vars import threadIdx
-
 from tilus.backends.context import BaseEmitContext
-from tilus.extensions.hidet.ir.primitives.cuda.fence import fence_mbarrier_init_cluster
-from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import mbarrier_init_shared
+from tilus.hidet.ir.builders import StmtBuilder
+from tilus.hidet.ir.dtypes import uint32, uint64
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.primitives.cuda.cvta import cvta_generic_to_shared
+from tilus.hidet.ir.primitives.cuda.fence import fence_mbarrier_init_cluster
+from tilus.hidet.ir.primitives.cuda.mbarrier import mbarrier_init_shared
+from tilus.hidet.ir.primitives.cuda.smem import dynamic_shared_memory
+from tilus.hidet.ir.primitives.cuda.sync import syncthreads
+from tilus.hidet.ir.primitives.cuda.vars import threadIdx
 from tilus.ir.layout import ops
 from tilus.ir.tensor import SharedTensor
 

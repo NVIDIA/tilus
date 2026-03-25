@@ -15,12 +15,11 @@
 import typing
 from typing import Callable, Iterable, Literal, Optional, Sequence, Union
 
-from hidet.ir.dtypes import boolean
-from hidet.ir.expr import Constant, Expr, Var, as_expr
-from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
-from hidet.ir.tools import infer_type
-from hidet.ir.type import DataType
-
+from tilus.hidet.ir.dtypes import boolean
+from tilus.hidet.ir.expr import Constant, Expr, Var, as_expr
+from tilus.hidet.ir.primitives.cuda.vars import blockIdx, gridDim
+from tilus.hidet.ir.tools import infer_type
+from tilus.hidet.ir.type import DataType
 from tilus.ir.inst import InstructionError
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor

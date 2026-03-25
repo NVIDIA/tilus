@@ -17,10 +17,11 @@ from __future__ import annotations
 from typing import List, Optional, Sequence, Union
 
 import torch
-from hidet.graph.frontend.torch.utils import dtype_from_torch, dtype_to_torch
-from hidet.ir.dtypes import float32, int32
-from hidet.ir.type import DataType
-from hidet.utils import prod, same_list
+
+from tilus.hidet.ir.dtypes import float32, int32
+from tilus.hidet.ir.type import DataType
+from tilus.hidet.utils import prod, same_list
+from tilus.utils.torch_utils import dtype_from_torch, dtype_to_torch
 
 
 class Tensor:

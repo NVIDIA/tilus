@@ -17,6 +17,21 @@ from pathlib import Path
 import tvm_ffi
 
 
+class CompiledModule:
+    """A compiled module loaded from a shared library, callable via the 'launch' function."""
+
+    def __init__(self, lib_path: str | Path):
+        self.lib_path: Path = Path(lib_path)
+        self.module = tvm_ffi.load_module(str(self.lib_path))
+        self.launch_func = self.module["launch"]
+
+    def __call__(self, *args):
+        return self.launch_func(*args)
+
+    def __getitem__(self, name):
+        return self.module[name]
+
+
 class CompiledProgram:
     def __init__(self, program_dir: str | Path):
         self.program_dir: Path = Path(program_dir)

@@ -21,10 +21,10 @@ from functools import cached_property
 from typing import Sequence, Union
 
 import tabulate
-from hidet.ir.expr import Expr
-from hidet.utils import prod
 
-from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize, index_serialize
+from tilus.hidet.ir.expr import Expr
+from tilus.hidet.ir.utils.index_transform import index_deserialize, index_serialize
+from tilus.hidet.utils import prod
 from tilus.ir.layout.mfunction import MultiFunction, multi_function
 from tilus.ir.node import IRNode
 

@@ -174,3 +174,196 @@ def unique_file_name(pattern: str) -> Optional[str]:
             if not os.path.exists(file_name):
                 return file_name
             i += 1
+
+
+# ---------------------------------------------------------------------------
+# Functions below are ported from hidet/utils/py.py to be self-contained
+# (no hidet or tilus.hidet imports).
+# ---------------------------------------------------------------------------
+
+
+def prod(seq: Iterable) -> Any:
+    """Compute the product of all elements in *seq* (returns 1 for empty)."""
+    seq = list(seq)
+    if len(seq) == 0:
+        return 1
+    else:
+        c = seq[0]
+        for i in range(1, len(seq)):
+            c = c * seq[i]
+        return c
+
+
+def gcd(a: int, b: int, *args: int) -> int:
+    """
+    Get the greatest common divisor of non-negative integers.
+
+    Parameters
+    ----------
+    a: int
+        The lhs operand.
+    b: int
+        The rhs operand.
+
+    Returns
+    -------
+    ret: int
+        The greatest common divisor.
+    """
+    if len(args) > 0:
+        return gcd(gcd(a, b), *args)
+    assert a >= 0 and b >= 0
+    return a if b == 0 else gcd(b, a % b)
+
+
+def lcm(a: int, b: int) -> int:
+    """
+    Get the least common multiple of non-negative integers a and b.
+
+    Parameters
+    ----------
+    a: int
+        The lhs operand.
+    b: int
+        The rhs operand.
+
+    Returns
+    -------
+    ret: int
+        The least common multiple.
+    """
+    return a // gcd(a, b) * b
+
+
+def is_power_of_two(n: int) -> bool:
+    """
+    Check if an integer is a power of two: 1, 2, 4, 8, 16, 32, ...
+
+    Parameters
+    ----------
+    n: int
+        The integer to check.
+
+    Returns
+    -------
+    ret: bool
+        True if n is a power of two, False otherwise.
+    """
+    return n > 0 and (n & (n - 1)) == 0
+
+
+def _is_immutable(obj):
+    if isinstance(obj, (int, float, str, tuple)):
+        return True
+    # Lazy imports to avoid circular dependencies; gracefully return False
+    # when the hidet IR layer is not available.
+    try:
+        from tilus.hidet.ir.expr import Constant
+
+        if isinstance(obj, Constant) and obj.type.is_tensor():
+            return False
+        if isinstance(obj, Constant):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def same_list(lhs, rhs, use_equal=False):
+    """Check whether two lists are element-wise identical (by ``is``) or equal."""
+    if len(lhs) != len(rhs):
+        return False
+    for l, r in zip(lhs, rhs):
+        if use_equal or _is_immutable(l) and _is_immutable(r):
+            if l != r:
+                return False
+        else:
+            if l is not r:
+                return False
+    return True
+
+
+def initialize(*args, **kwargs):
+    """Decorate an initialization function.
+
+    After decorating with this function, the initialization function will be called after the definition.
+
+    Parameters
+    ----------
+    args:
+        The positional arguments of initializing.
+    kwargs:
+        The keyword arguments of initializing.
+
+    Returns
+    -------
+    ret:
+        A decorator that will call given function with args and kwargs,
+        and return None (to prevent this function to be called again).
+    """
+
+    def decorator(f):
+        f(*args, **kwargs)
+
+    return decorator
+
+
+def str_indent(msg: str, indent: int = 0) -> str:
+    """Indent every line of *msg* by *indent* spaces."""
+    lines = msg.split("\n")
+    lines = [" " * indent + line for line in lines]
+    return "\n".join(lines)
+
+
+def repeat_until_converge(func, obj, limit=None):
+    """Repeatedly apply *func* to *obj* until the result stops changing (identity check)."""
+    i = 0
+    while True:
+        i += 1
+        orig_obj = obj
+        obj = func(obj)
+        if obj is orig_obj:
+            return obj
+        if limit is not None and i >= limit:
+            return obj
+
+
+class COLORS:
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    MAGENTA = "\033[95m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+
+
+def green(v, fmt="{}"):
+    return COLORS.OKGREEN + fmt.format(v) + COLORS.ENDC
+
+
+def cyan(v, fmt="{}"):
+    return COLORS.OKCYAN + fmt.format(v) + COLORS.ENDC
+
+
+def blue(v, fmt="{}"):
+    return COLORS.OKBLUE + fmt.format(v) + COLORS.ENDC
+
+
+def red(v, fmt="{}"):
+    return COLORS.FAIL + fmt.format(v) + COLORS.ENDC
+
+
+def bold(v, fmt="{}"):
+    return COLORS.BOLD + fmt.format(v) + COLORS.ENDC
+
+
+def nocolor(s: str) -> str:
+    """Strip ANSI color codes from a string."""
+    for value in COLORS.__dict__.values():
+        if isinstance(value, str) and value[0] == "\033":
+            s = s.replace(value, "")
+    return s

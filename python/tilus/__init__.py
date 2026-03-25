@@ -12,10 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ruff: noqa: I001  (do not sort imports, we need to import the extensions first)
-from . import extensions as _
-
-from hidet.ir.dtypes import (
+# ruff: noqa: I001
+from tilus.hidet.ir.dtypes import (
     bf16,
     bfloat16,
     boolean,
@@ -42,10 +40,6 @@ from hidet.ir.dtypes import (
     uint16,
     uint32,
     uint64,
-)
-from hidet.ir.type import void_p
-
-from tilus.extensions.hidet.ir.dtypes import (
     f3e1m1,
     f4e2m1,
     f5e2m2,
@@ -101,7 +95,7 @@ from tilus.extensions.hidet.ir.dtypes import (
     uint6b,
     uint7b,
 )
-from hidet.ir.type import DataType
+from tilus.hidet.ir.type import void_p, DataType
 from tilus.ir.layout import RegisterLayout, SharedLayout
 from tilus.ir.tensor import RegisterTensor, SharedTensor, GlobalTensor
 from tilus.lang.instantiated_script import InstantiatedScript
@@ -111,6 +105,6 @@ from tilus.lang.classes import Pipeline
 from tilus.lang.constructs.structs import Dim3
 from tilus.tensor import empty, from_torch, full, ones, rand, randint, randn, view_torch, zeros
 
-from . import kernels, logging, option, utils, testing
+from . import kernels, logging, option, utils
 from .target import get_current_target
 from .version import __version__

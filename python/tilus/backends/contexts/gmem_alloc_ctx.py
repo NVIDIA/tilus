@@ -16,12 +16,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from hidet.ir import StmtBuilder
-from hidet.ir.dtypes import int32, uint8
-from hidet.ir.expr import Expr, Var, cast
-from hidet.ir.primitives.runtime import request_cuda_workspace
-
 from tilus.backends.context import BaseEmitContext
+from tilus.hidet.ir import StmtBuilder
+from tilus.hidet.ir.dtypes import int32, uint8
+from tilus.hidet.ir.expr import Expr, Var, cast
+from tilus.hidet.ir.primitives.runtime import request_cuda_workspace
 from tilus.target import get_current_target
 
 

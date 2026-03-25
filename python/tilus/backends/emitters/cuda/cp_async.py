@@ -14,16 +14,18 @@
 # limitations under the License.
 from typing import List, Optional, Sequence
 
-from hidet.ir.dtypes import boolean, int32, uint32
-from hidet.ir.expr import Expr, Var, cast, if_then_else
-from hidet.ir.primitives.cuda.cp_async import cp_async_commit_group, cp_async_wait_all, cp_async_wait_group
-from hidet.ir.type import DataType
-from hidet.ir.utils.index_transform import index_deserialize
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.dtypes import uint32x2, uint32x4
-from tilus.extensions.hidet.ir.primitives.cuda.cp_async import cp_async
-from tilus.extensions.hidet.ir.tools import rewrite
+from tilus.hidet.ir.dtypes import boolean, int32, uint32, uint32x2, uint32x4
+from tilus.hidet.ir.expr import Expr, Var, cast, if_then_else
+from tilus.hidet.ir.primitives.cuda.cp_async import (
+    cp_async,
+    cp_async_commit_group,
+    cp_async_wait_all,
+    cp_async_wait_group,
+)
+from tilus.hidet.ir.tools import rewrite
+from tilus.hidet.ir.type import DataType
+from tilus.hidet.ir.utils.index_transform import index_deserialize
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.instructions import (
     CopyAsyncCommitGroupInst,

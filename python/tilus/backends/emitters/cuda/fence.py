@@ -14,10 +14,9 @@
 # limitations under the License.
 
 
-from hidet.ir.dtypes import uint32, uint64
-from hidet.ir.expr import Var
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
+from tilus.hidet.ir.dtypes import uint32, uint64
+from tilus.hidet.ir.expr import Var
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
 )

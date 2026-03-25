@@ -146,7 +146,11 @@ def test_all_examples_are_listed():
     examples_dir = PROJECT_ROOT / "examples"
 
     # Build sets of (folder, script) tuples for quick lookup
-    listed_examples = {(folder, script) for folder, script, _ in EXAMPLES}
+    # Handle both plain tuples and pytest.param entries
+    def _get_values(entry):
+        return entry.values if hasattr(entry, "values") else entry
+
+    listed_examples = {(folder, script) for folder, script, *_ in (_get_values(e) for e in EXAMPLES)}
     ignored_scripts = set(IGNORED_SCRIPTS)
 
     # Find all Python files in examples directory

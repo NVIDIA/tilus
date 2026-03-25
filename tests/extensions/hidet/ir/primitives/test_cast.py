@@ -15,14 +15,11 @@
 import functools
 import typing
 
-import hidet
 import pytest
 import tabulate
 import torch
-from hidet.ir.dtypes import f32, uint8
-from hidet.lang import attrs
-from hidet.runtime.compiled_module import CompiledModule
-from tilus.extensions.hidet.ir.dtypes import (
+from tilus.hidet.ir.dtypes import (
+    f32,
     float4_e2m1,
     float5_e2m2,
     float5_e3m1,
@@ -33,18 +30,21 @@ from tilus.extensions.hidet.ir.dtypes import (
     float7_e3m3,
     float7_e4m2,
     float7_e5m1,
+    uint8,
 )
-from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
+from tilus.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
+from tilus.hidet.lang import attrs, script
+from tilus.hidet.lang.script import script_module
 
 
 @functools.cache
-def cast_from_f32_kernel(dtype: FloatSubbyteType) -> CompiledModule:
-    from tilus.extensions.hidet.ir.primitives.cuda.cast import cast_subbyte_float_from_f32
+def cast_from_f32_kernel(dtype: FloatSubbyteType):
+    from tilus.hidet.ir.primitives.cuda.cast import cast_subbyte_float_from_f32
 
-    with hidet.script_module() as script_module:
+    with script_module() as module:
 
         @typing.no_type_check
-        @hidet.script
+        @script
         def _cast_from_f32(dst: ~uint8, src: ~f32):
             attrs.func_kind = "cuda_kernel"
             attrs.cuda.grid_dim = 1
@@ -52,19 +52,19 @@ def cast_from_f32_kernel(dtype: FloatSubbyteType) -> CompiledModule:
 
             dst[0] = cast_subbyte_float_from_f32(src[0], dtype)
 
-    func = script_module.build()
+    func = module.build()
 
     return func
 
 
 @functools.cache
-def cast_to_f32_kernel(dtype: FloatSubbyteType) -> CompiledModule:
-    from tilus.extensions.hidet.ir.primitives.cuda.cast import cast_subbyte_float_to_f32
+def cast_to_f32_kernel(dtype: FloatSubbyteType):
+    from tilus.hidet.ir.primitives.cuda.cast import cast_subbyte_float_to_f32
 
-    with hidet.script_module() as script_module:
+    with script_module() as module:
 
         @typing.no_type_check
-        @hidet.script
+        @script
         def _cast_to_f32(dst: ~f32, src: ~uint8):
             attrs.func_kind = "cuda_kernel"
             attrs.cuda.grid_dim = 1
@@ -72,7 +72,7 @@ def cast_to_f32_kernel(dtype: FloatSubbyteType) -> CompiledModule:
 
             dst[0] = cast_subbyte_float_to_f32(src[0], dtype)
 
-    func = script_module.build()
+    func = module.build()
 
     return func
 

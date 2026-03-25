@@ -20,9 +20,9 @@ from functools import cached_property
 from typing import Sequence, Union
 
 import tabulate
-from hidet.ir.expr import Expr
 
-from tilus.extensions.hidet.ir.utils.index_transform import index_deserialize, index_serialize
+from tilus.hidet.ir.expr import Expr
+from tilus.hidet.ir.utils.index_transform import index_deserialize, index_serialize
 from tilus.utils import prod
 
 Int = Union[Expr, int]

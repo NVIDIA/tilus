@@ -16,10 +16,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.expr import Var
-from hidet.ir.type import DataType
-
 from tilus.backends.context import BaseEmitContext
+from tilus.hidet.ir.expr import Var
+from tilus.hidet.ir.type import DataType
 from tilus.ir import GlobalLayout
 from tilus.ir.tensor import GlobalTensor
 

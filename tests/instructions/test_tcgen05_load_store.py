@@ -14,6 +14,7 @@
 # limitations under the License.
 import pytest
 import tilus
+import tilus.testing
 import torch
 from tilus import DataType, float16, float32, int32, void_p
 from tilus.utils import cdiv

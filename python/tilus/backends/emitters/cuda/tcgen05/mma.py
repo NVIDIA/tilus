@@ -16,15 +16,27 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.dtypes import bfloat16, float16, float32, int8, int32, tfloat32, uint8, uint32, uint64
-from hidet.ir.expr import Expr, Var, as_expr, logical_or
-from hidet.ir.type import DataType
-
 from tilus.backends.codegen import CodeGenerationFailed
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.backends.emitters.cuda.tcgen05.smem_desc import SharedMatrixDescriptor
-from tilus.extensions.hidet.ir.dtypes import float4_e2m1, float6_e2m3, float6_e3m2, float8_e4m3, float8_e5m2
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+from tilus.hidet.ir.dtypes import (
+    bfloat16,
+    float4_e2m1,
+    float6_e2m3,
+    float6_e3m2,
+    float8_e4m3,
+    float8_e5m2,
+    float16,
+    float32,
+    int8,
+    int32,
+    tfloat32,
+    uint8,
+    uint32,
+    uint64,
+)
+from tilus.hidet.ir.expr import Expr, Var, as_expr, logical_or
+from tilus.hidet.ir.primitives.cuda.tcgen05 import (
     COLUMN_STRIDE,
     LANE_STRIDE,
     Tcgen05CtaGroupKind,
@@ -33,6 +45,7 @@ from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
     tcgen05_encode_mma_inst_descriptor,
     tcgen05_mma_with_shared_a,
 )
+from tilus.hidet.ir.type import DataType
 from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05MmaSSInst,
 )
@@ -168,19 +181,19 @@ class Tcgen05MmaSSInstMeta:
         i_desc = sb.declare_var("i_desc", tp=uint32, init=as_expr(self.i_desc.encoded()))
         a_desc = sb.declare_var("a_desc", tp=uint64, init=self.a_desc.encoded())
         b_desc = sb.declare_var("b_desc", tp=uint64, init=self.b_desc.encoded())
-        # tcgen05.mma has single-thread semantics - only one thread should issue it
-        with sb.if_then(sb.current_thread == 0):
-            sb.append(
-                tcgen05_mma_with_shared_a(
-                    d_tmem=self.d_tmem_addr,
-                    a_desc=a_desc,
-                    b_desc=b_desc,
-                    i_desc=i_desc,
-                    enable_input_d=self.enable_input_d,
-                    cta_group=self.cta_group,
-                    mma_kind=self.kind,
-                )
+        # tcgen05.mma has single-thread semantics — the caller (emitter) already
+        # asserts current_num_threads == 1, so no guard needed here.
+        sb.append(
+            tcgen05_mma_with_shared_a(
+                d_tmem=self.d_tmem_addr,
+                a_desc=a_desc,
+                b_desc=b_desc,
+                i_desc=i_desc,
+                enable_input_d=self.enable_input_d,
+                cta_group=self.cta_group,
+                mma_kind=self.kind,
             )
+        )
 
 
 @register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100a)

@@ -15,10 +15,10 @@
 """Tests for the dead code elimination pass."""
 
 import pytest
-from hidet.ir.dtypes import float16, float32
-from hidet.ir.expr import Var, as_expr
-from hidet.ir.primitives.cuda.vars import blockIdx
-from hidet.ir.type import PointerType
+from tilus.hidet.ir.dtypes import float16, float32
+from tilus.hidet.ir.expr import Var, as_expr
+from tilus.hidet.ir.primitives.cuda.vars import blockIdx
+from tilus.hidet.ir.type import PointerType
 from tilus.ir.func import Function, Metadata
 from tilus.ir.instructions.generic import (
     AddInst,

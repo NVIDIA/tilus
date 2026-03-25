@@ -15,7 +15,7 @@
 
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import (
+from tilus.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05CtaGroupKind,
     tcgen05_commit,
 )

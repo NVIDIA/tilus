@@ -16,14 +16,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.expr import Expr, Var
-from hidet.ir.primitives.cuda.cluster import this_cluster
-from hidet.ir.primitives.cuda.vars import blockIdx, gridDim
-from hidet.ir.tools import collect
-from hidet.ir.type import DataType
-
 from tilus.backends.context import BaseEmitContext
-from tilus.extensions.hidet.ir.tools import rewrite
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.primitives.cuda.cluster import this_cluster
+from tilus.hidet.ir.primitives.cuda.vars import blockIdx, gridDim
+from tilus.hidet.ir.tools import collect, rewrite
+from tilus.hidet.ir.type import DataType
 from tilus.ir import GlobalLayout
 
 

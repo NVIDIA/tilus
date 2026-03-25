@@ -14,6 +14,7 @@
 # limitations under the License.
 import pytest
 import tilus
+import tilus.testing
 import torch
 from tilus import boolean, int32, uint8
 from tilus.utils import cdiv

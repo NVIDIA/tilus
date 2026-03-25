@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import tilus
 import torch
-from hidet.ir import DataType
 from tilus import boolean, f32, int32, void_p
+from tilus.hidet.ir import DataType
 from tilus.utils import benchmark_func, cdiv
 
 pd.options.display.max_columns = None

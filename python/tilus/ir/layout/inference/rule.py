@@ -15,8 +15,7 @@
 from collections import defaultdict
 from typing import Callable, Type, TypeVar
 
-from hidet.utils.py import bold
-
+from tilus.hidet.utils.py import bold
 from tilus.ir.func import Analysis
 from tilus.ir.inst import Instruction
 from tilus.ir.layout import RegisterLayout, SharedLayout, TMemoryLayout

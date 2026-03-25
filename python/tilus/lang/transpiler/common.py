@@ -18,8 +18,8 @@ import ast
 import os
 from typing import Optional
 
-from hidet.lang.transpiler import PythonAstFunctor
-from hidet.utils import str_indent
+from tilus.hidet.lang.transpiler import PythonAstFunctor
+from tilus.hidet.utils import str_indent
 
 
 class TilusProgramError(Exception):

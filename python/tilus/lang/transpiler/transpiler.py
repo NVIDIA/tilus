@@ -22,15 +22,14 @@ import operator
 import types
 from typing import Any, Callable, Optional, Sequence, Tuple, Type, Union
 
-from hidet import ir as hidet_ir
-from hidet.ir.expr import Constant, Var, as_expr
-from hidet.ir.primitives.cuda.vars import blockIdx
-from hidet.ir.type import BaseType, data_type
-from hidet.lang.script import eliminate_decorators, eliminate_indent
-from hidet.lang.transpiler import PythonAstFunctor
-
 from tilus import ir as tilus_ir
-from tilus.extensions.hidet.ir.tools.type_infer import infer_type
+from tilus.hidet import ir as hidet_ir
+from tilus.hidet.ir.expr import Constant, Var, as_expr
+from tilus.hidet.ir.primitives.cuda.vars import blockIdx
+from tilus.hidet.ir.tools.type_infer import infer_type
+from tilus.hidet.ir.type import BaseType, data_type
+from tilus.hidet.lang.script import eliminate_decorators, eliminate_indent
+from tilus.hidet.lang.transpiler import PythonAstFunctor
 from tilus.ir.func import Function, Metadata
 from tilus.ir.inst import InstructionError
 from tilus.ir.stmt import DeclareStmt, SeqStmt, Stmt
@@ -388,7 +387,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
         elif isinstance(var, Tensor):
             if not isinstance(value, RegisterTensor) or not isinstance(var, RegisterTensor):
                 raise TilusProgramError(self, None, "Assignment between Value is only accepted for RegisterValue.")
-            from hidet.ir.type import type_equal
+            from tilus.hidet.ir.type import type_equal
 
             if not type_equal(var.dtype, value.dtype):
                 raise TilusProgramError(
@@ -631,8 +630,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                     raise TilusProgramError(self, expr, str(e)) from e
         elif isinstance(func, (types.BuiltinMethodType, types.BuiltinFunctionType)):
             # case 3
-            from hidet import ir
-            from hidet.ir import primitives
+            from tilus.hidet import ir
+            from tilus.hidet.ir import primitives
 
             if all(not isinstance(arg, ir.Node) for arg in args):
                 # pure python function call
@@ -734,7 +733,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
         return [self.visit(v) for v in expr.elts]
 
     def visit_BinOp(self, expr: ast.BinOp) -> Union[hidet_ir.Expr, RegisterTensor, float, int, list, tuple, str]:
-        from hidet import ir
+        from tilus.hidet import ir
 
         op_dict = {
             ast.Add: operator.add,
@@ -1205,8 +1204,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                 # there are two cases for a ~ operator: ~something
                 # case 1: get the address of an expression
                 # case 2: get the pointer type that points to the given type
-                from hidet.ir.expr import Address
-                from hidet.ir.type import BaseType
+                from tilus.hidet.ir.expr import Address
+                from tilus.hidet.ir.type import BaseType
 
                 if isinstance(value, BaseType):
                     return ~value
@@ -1283,7 +1282,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                     bind_name = with_item.optional_vars.id
 
                     if isinstance(bind_value, hidet_ir.Expr):
-                        from hidet.ir.tools import infer_type
+                        from tilus.hidet.ir.tools import infer_type
 
                         bind_var = self.declare(type=infer_type(bind_value), init=bind_value, hint=bind_name)
                         self.bind(bind_name, var_or_value=bind_var)

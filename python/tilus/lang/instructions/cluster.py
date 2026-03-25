@@ -12,9 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from hidet.ir.dtypes import uint32
-from hidet.ir.expr import Expr, Var, as_expr
-
+from tilus.hidet.ir.dtypes import uint32
+from tilus.hidet.ir.expr import Expr, Var, as_expr
 from tilus.ir.inst import InstructionError
 from tilus.ir.tensor import RegisterTensor
 from tilus.lang.constructs.structs import Dim3
@@ -24,13 +23,13 @@ from .root import InstructionGroup
 
 class BlockClusterInstructionGroup(InstructionGroup):
     def sync(self) -> None:
-        from tilus.extensions.hidet.ir.primitives.cuda.cluster import cluster_sync
+        from tilus.hidet.ir.primitives.cuda.cluster import cluster_sync
 
         self._builder.evaluate(pred=None, expr=cluster_sync())
 
     @property
     def blockIdx(self) -> Dim3:
-        from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterBlockIdx
+        from tilus.hidet.ir.primitives.cuda.vars import clusterBlockIdx
 
         return Dim3(
             clusterBlockIdx.x,
@@ -40,7 +39,7 @@ class BlockClusterInstructionGroup(InstructionGroup):
 
     @property
     def clusterDim(self) -> Dim3:
-        from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterDim
+        from tilus.hidet.ir.primitives.cuda.vars import clusterDim
 
         return Dim3(
             clusterDim.x,
@@ -50,7 +49,7 @@ class BlockClusterInstructionGroup(InstructionGroup):
 
     @property
     def blockRank(self) -> Var:
-        from tilus.extensions.hidet.ir.primitives.cuda.vars import clusterBlockRank
+        from tilus.hidet.ir.primitives.cuda.vars import clusterBlockRank
 
         return clusterBlockRank
 

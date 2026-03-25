@@ -15,9 +15,8 @@
 import dataclasses
 from typing import Any, Dict, Hashable, List, Mapping, Tuple, TypeVar, Union
 
-from hidet.ir.expr import Expr
-from hidet.ir.type import BaseType
-
+from tilus.hidet.ir.expr import Expr
+from tilus.hidet.ir.type import BaseType
 from tilus.ir.func import Function
 from tilus.ir.inst import Instruction, InstructionConfig
 from tilus.ir.layout import GlobalLayout, RegisterLayout, SharedLayout, TMemoryLayout
@@ -277,7 +276,7 @@ class IRRewriter(IRFunctor):
         return node
 
     def visit_Expr(self, expr: Expr) -> Expr:
-        from hidet.ir.tools import rewrite
+        from tilus.hidet.ir.tools import rewrite
 
         return rewrite(expr, rewrite_map=self.memo)
 

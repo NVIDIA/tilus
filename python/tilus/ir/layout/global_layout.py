@@ -17,11 +17,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Sequence
 
-from hidet.ir.dtypes import int32
-from hidet.ir.expr import Expr, Var, as_expr
-
-from tilus.extensions.hidet.ir.expr import index_vars
-from tilus.extensions.hidet.ir.utils.index_transform import index_multiply
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import Expr, Var, as_expr, index_vars
+from tilus.hidet.ir.utils.index_transform import index_multiply
 from tilus.ir.node import IRNode
 from tilus.utils import prod
 
@@ -68,7 +66,7 @@ class GlobalLayout(IRNode):
             The computed offset of the global tensor element at the given indices.
         """
         assert len(indices) == len(self.axes)
-        from hidet.ir.tools import rewrite
+        from tilus.hidet.ir.tools import rewrite
 
         return rewrite(self.offset, rewrite_map={axis: index for axis, index in zip(self.axes, indices)})
 

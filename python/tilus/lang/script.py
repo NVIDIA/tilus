@@ -16,8 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, TypeAlias, TypeVar
 
-from hidet.ir.expr import Expr
-
+from tilus.hidet.ir.expr import Expr
 from tilus.lang.instructions import InstructionInterface
 from tilus.lang.modules.cuda import cuda
 

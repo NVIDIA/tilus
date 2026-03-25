@@ -15,9 +15,8 @@
 import builtins
 from typing import Literal, Optional
 
-from hidet.ir.expr import Constant, Expr, Var, as_expr
-
-from tilus.extensions.hidet.ir.tools import simplify_expr
+from tilus.hidet.ir.expr import Constant, Expr, Var, as_expr
+from tilus.hidet.ir.tools import simplify_expr
 from tilus.ir.builders import IRBuilder
 from tilus.ir.stmt import DeclareStmt, ForStmt, Stmt
 

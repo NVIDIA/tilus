@@ -16,11 +16,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from hidet.ir.expr import Expr
-from hidet.ir.primitives.cuda.sync import syncthreads, syncwarp
-
 from tilus.backends.context import BaseEmitContext
-from tilus.extensions.hidet.ir.primitives.cuda.mbarrier import mbarrier_sync_shared
+from tilus.hidet.ir.expr import Expr
+from tilus.hidet.ir.primitives.cuda.mbarrier import mbarrier_sync_shared
+from tilus.hidet.ir.primitives.cuda.sync import syncthreads, syncwarp
 
 
 class SyncContext(BaseEmitContext):

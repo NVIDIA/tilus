@@ -16,12 +16,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from hidet.ir.expr import Expr, Var
-from hidet.ir.primitives.cuda.wgmma import WgmmaConfig, wgmma_async, wgmma_commit_group, wgmma_fence, wgmma_wait_group
-
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.extensions.hidet.ir.primitives.cuda.tcgen05 import Tcgen05SwizzleMode
-from tilus.extensions.hidet.ir.primitives.cuda.wgmma import wgmma_encode_smem_descriptor
+from tilus.hidet.ir.expr import Expr, Var
+from tilus.hidet.ir.primitives.cuda.tcgen05 import Tcgen05SwizzleMode
+from tilus.hidet.ir.primitives.cuda.wgmma import (
+    WgmmaConfig,
+    wgmma_async,
+    wgmma_commit_group,
+    wgmma_encode_smem_descriptor,
+    wgmma_fence,
+    wgmma_wait_group,
+)
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions.cuda.wgmma import (
     WgmmaCommitGroupInst,

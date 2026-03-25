@@ -17,9 +17,9 @@ import struct
 import pytest
 import tilus
 import torch
-from hidet.ir.dtypes import bfloat16, float16, float32, int8, int16, int32
-from hidet.ir.dtypes.integer_subbyte import IntegerSubbyteType
-from tilus.extensions.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
+from tilus.hidet.ir.dtypes import bfloat16, float16, float32, int8, int16, int32
+from tilus.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
+from tilus.hidet.ir.dtypes.integer_subbyte import IntegerSubbyteType
 from tilus.utils import dtype_to_torch
 from tqdm import tqdm
 
