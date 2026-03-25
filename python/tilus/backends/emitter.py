@@ -28,7 +28,7 @@ from tilus.hidet.ir.stmt import Stmt as HidetStmt
 from tilus.ir.func import Function
 from tilus.ir.inst import Instruction
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
-from tilus.target import Target, get_current_target, gpgpu_any
+from tilus.target import Target, get_current_target, gpgpu_any, nvgpu_sm90
 
 
 class BaseInstEmitter(StmtBuilder):
@@ -197,14 +197,17 @@ class BaseInstEmitter(StmtBuilder):
     def single_thread(self):
         if self.current_num_threads == 1:
             return contextlib.nullcontext()
-        elif self.current_num_threads == 32:
-            return self.if_then(elect_one_sync())
-        elif self.current_num_threads % 32 == 0:
-            return self.if_then(
-                logical_and(
-                    shfl_sync_i32(uint32(0xFFFFFFFF), self.current_thread // 32, int32(0)) == 0, elect_one_sync()
+        elif self.current_num_threads % 32 == 0 and get_current_target().supports(nvgpu_sm90):
+            # elect.sync requires sm_90 or higher
+            if self.current_num_threads == 32:
+                return self.if_then(elect_one_sync())
+            else:
+                return self.if_then(
+                    logical_and(
+                        shfl_sync_i32(uint32(0xFFFFFFFF), self.current_thread // 32, int32(0)) == 0,
+                        elect_one_sync(),
+                    )
                 )
-            )
         else:
             return self.if_then(self.current_thread == 0)
 

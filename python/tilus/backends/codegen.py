@@ -55,7 +55,7 @@ from tilus.ir.tools import IRPrinter
 from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.ir.utils.normalize import normalize_dim3
 from tilus.ir.utils.thread_group_stack import ThreadGroupStack
-from tilus.target import get_current_target, match_target
+from tilus.target import get_current_target, match_target, nvgpu_sm90
 from tilus.utils import is_power_of_two
 
 
@@ -283,8 +283,8 @@ class FunctionCodegen(IRFunctor):
             # All threads — no condition needed
             return None, self.current_thread
         elif num_threads == 1:
-            if parent_num_threads % 32 != 0:
-                # Non-warp-aligned parent: fallback to thread 0
+            if parent_num_threads % 32 != 0 or not get_current_target().supports(nvgpu_sm90):
+                # Non-warp-aligned parent or pre-sm_90: fallback to thread 0
                 return self.current_thread == 0, Constant(0, int32)
             elif parent_num_threads == 32:
                 # Single warp: use elect.sync directly
