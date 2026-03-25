@@ -42,7 +42,7 @@ struct TilusContext {
 };
 
 // Defined in each generated .cu; set by the constructor below.
-extern TilusContext* tilus_context;
+extern "C" { extern TilusContext* tilus_context; }
 
 // Library constructor: runs at dlopen time for every tilus-generated .so.
 // Uses tvm_ffi's process-global function registry to share the TilusContext

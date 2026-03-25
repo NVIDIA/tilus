@@ -38,8 +38,7 @@ EXAMPLES = [
     ("matmul", "matmul_v2.py", None),
     ("matmul", "matmul_v3.py", None),
     ("matmul", "matmul_v4.py", None),
-    # xfail: pre-existing kernel crash (illegal memory access) on both main and refactor branches
-    pytest.param("matmul", "matmul_v5.py", None, marks=pytest.mark.xfail(reason="Pre-existing kernel crash unrelated to refactor", strict=False)),
+    ("matmul", "matmul_v5.py", None),
     # norm example
     ("norm", "layer_norm.py", None),
     # softmax example
@@ -58,8 +57,7 @@ EXAMPLES = [
     ("blackwell_matmul", "matmul_v4.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v5.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v6.py", nvgpu_sm100a),
-    # xfail: pre-existing kernel crash (unspecified launch failure) on this branch
-    pytest.param("blackwell_matmul", "matmul_v7.py", nvgpu_sm100a, marks=pytest.mark.xfail(reason="Pre-existing kernel crash unrelated to refactor", strict=False)),
+    ("blackwell_matmul", "matmul_v7.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v8.py", nvgpu_sm100a),
     # hopper matmul example (SM 9.0)
     ("hopper_matmul", "matmul_v0.py", nvgpu_sm90a),
