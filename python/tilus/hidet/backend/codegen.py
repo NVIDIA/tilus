@@ -881,7 +881,8 @@ class CUDACodegen(Codegen):
             doc += Text("#include <cooperative_groups.h>") + NewLine()
         doc += Text("#include <cudaTypedefs.h>") + NewLine()
         doc += Text("#include <tilus/runtime.h>") + NewLine()
-        doc += Text("#include <tilus/cuda/complex.h>") + NewLine()
+        if self.require_complex:
+            doc += Text("#include <tilus/cuda/complex.h>") + NewLine()
         for header in self.ir_module.include_headers:
             doc += Text("#include <{}>").format(header) + NewLine()
 
@@ -1081,7 +1082,6 @@ class UpdatedCUDACodeGen(CUDACodegen):
     def require_headers(self) -> Doc:
         doc = Text("#include <tvm/ffi/function.h>") + NewLine()
         doc += Text("#include <tilus/tvm/ffi/extra_type_traits.h>") + NewLine()
-        doc += Text("#include <tilus/tvm/ffi/void_p.h>") + NewLine()
         doc += super().require_headers()
         # Exported global injected by tvm_ffi at load time with the shared TilusContext pointer.
         doc += Text('extern "C" { TilusContext* tilus_context = nullptr; }') + NewLine()
