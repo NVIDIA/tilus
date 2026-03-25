@@ -13,7 +13,7 @@ Tilus is pronounced as tie-lus, /ˈtaɪləs/.
 
 ## Status
 
-Tilus supports Ampere architecture, and we are actively working on the support of Hopper/Blackwell GPUs (see the [roadmap](https://github.com/NVIDIA/tilus/issues/49)).
+Tilus supports Ampere architecture, and we are actively working on support for Hopper/Blackwell GPUs (see the [roadmap](https://github.com/NVIDIA/tilus/issues/49)).
 
 ## Getting Started
 
