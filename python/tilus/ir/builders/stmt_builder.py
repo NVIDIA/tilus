@@ -67,6 +67,7 @@ from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05MmaSSInst,
     Tcgen05MmaTSInst,
     Tcgen05RelinquishAllocPermitInst,
+    Tcgen05ScaledMmaSSInst,
     Tcgen05SliceInst,
     Tcgen05StoreInst,
     Tcgen05ViewInst,
@@ -1429,6 +1430,22 @@ class StmtBuilder(StmtBuilderCore):
     ) -> None:
         enable_input_d = as_expr(enable_input_d) if isinstance(enable_input_d, bool) else enable_input_d
         inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d, cta_group=cta_group)
+        self.append(inst)
+
+    def tcgen05_scaled_mma_ss(
+        self,
+        a: SharedTensor,
+        b: SharedTensor,
+        d: TMemoryTensor,
+        scale_a: TMemoryTensor,
+        scale_b: TMemoryTensor,
+        enable_input_d: Expr | bool,
+        cta_group: int,
+    ) -> None:
+        enable_input_d = as_expr(enable_input_d) if isinstance(enable_input_d, bool) else enable_input_d
+        inst = Tcgen05ScaledMmaSSInst.create(
+            a=a, b=b, d=d, scale_a=scale_a, scale_b=scale_b, enable_input_d=enable_input_d, cta_group=cta_group
+        )
         self.append(inst)
 
     # wgmma

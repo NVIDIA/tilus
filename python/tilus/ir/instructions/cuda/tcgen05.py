@@ -174,3 +174,30 @@ class Tcgen05MmaTSInst(Instruction):
             raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
         # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.mma)
         return Tcgen05MmaTSInst(output=None, inputs=(a, b, d), enable_input_d=enable_input_d, cta_group=cta_group)
+
+
+@dataclass(frozen=True, eq=False)
+class Tcgen05ScaledMmaSSInst(Instruction):
+    """Block-scaled MMA instruction (shared A, shared B) for nvfp4/mxf4 tensor core operations.
+
+    PTX: tcgen05.mma.cta_group.kind.block_scale [d], a-desc, b-desc, idesc, [scaleA], [scaleB], enable-input-d;
+    """
+
+    enable_input_d: Expr
+    cta_group: int
+
+    @staticmethod
+    def create(
+        a: SharedTensor,
+        b: SharedTensor,
+        d: TMemoryTensor,
+        scale_a: TMemoryTensor,
+        scale_b: TMemoryTensor,
+        enable_input_d: Expr,
+        cta_group: int,
+    ) -> Tcgen05ScaledMmaSSInst:
+        if cta_group not in (1, 2):
+            raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
+        return Tcgen05ScaledMmaSSInst(
+            output=None, inputs=(a, b, d, scale_a, scale_b), enable_input_d=enable_input_d, cta_group=cta_group
+        )

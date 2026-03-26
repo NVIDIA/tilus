@@ -43,11 +43,14 @@ from tilus.hidet.ir.primitives.cuda.tcgen05 import (
     Tcgen05MmaKind,
     Tcgen05SwizzleMode,
     tcgen05_encode_mma_inst_descriptor,
+    tcgen05_encode_scaled_mma_inst_descriptor,
     tcgen05_mma_with_shared_a,
+    tcgen05_scaled_mma_with_shared_a,
 )
 from tilus.hidet.ir.type import DataType
 from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05MmaSSInst,
+    Tcgen05ScaledMmaSSInst,
 )
 from tilus.ir.layout.cuda.tcgen05.smem import canonicalize_shared_layout
 from tilus.ir.layout.utils.cute import CuteLayout
@@ -410,5 +413,270 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
                         enable_input_d=logical_or(inst.enable_input_d, k != 0),
                         cta_group=Tcgen05CtaGroupKind.from_int(inst.cta_group),
                         i_desc=i_dest,
+                    )
+                    inst_meta.emit(self)
+
+
+@dataclass
+class Tcgen05ScaledMmaInstDesc:
+    """Instruction descriptor for block-scaled MMA (Table 44 in PTX ISA).
+
+    See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instuction-desc-kind-mxf4-mxf4nvf4.
+    """
+
+    sparsity: int
+    sfb_id: int
+    a_dtype: int
+    b_dtype: int
+    negate_a: int
+    negate_b: int
+    transpose_a: int
+    transpose_b: int
+    n: int
+    scale_dtype: int  # 0 = UE4M3 (mxf4nvf4 only), 1 = UE8M0
+    m: int
+    sfa_id: int
+
+    def encoded(self) -> int:
+        return tcgen05_encode_scaled_mma_inst_descriptor(
+            sparsity=self.sparsity,
+            sfb_id=self.sfb_id,
+            a_dtype=self.a_dtype,
+            b_dtype=self.b_dtype,
+            negate_a=self.negate_a,
+            negate_b=self.negate_b,
+            transpose_a=self.transpose_a,
+            transpose_b=self.transpose_b,
+            shifted_n=self.n >> 3,
+            scale_dtype=self.scale_dtype,
+            shifted_m=self.m >> 7,
+            sfa_id=self.sfa_id,
+        )
+
+    @staticmethod
+    def create(
+        mma_kind: Tcgen05MmaKind,
+        a_dtype: DataType,
+        b_dtype: DataType,
+        negate_a: bool,
+        negate_b: bool,
+        transpose_a: bool,
+        transpose_b: bool,
+        n: int,
+        m: int,
+        sfa_id: int = 0,
+        sfb_id: int = 0,
+    ) -> Tcgen05ScaledMmaInstDesc:
+        if mma_kind not in (Tcgen05MmaKind.MXF4, Tcgen05MmaKind.MXF4NVF4):
+            raise CodeGenerationFailed(f"Scaled MMA only supports MXF4/MXF4NVF4, got {mma_kind}")
+
+        # For mxf4/mxf4nvf4, operand type is always E2M1
+        operand_dtype_map = {float4_e2m1: 1}
+        if a_dtype not in operand_dtype_map:
+            raise CodeGenerationFailed(f"Unsupported operand A dtype for scaled MMA: {a_dtype}")
+        if b_dtype not in operand_dtype_map:
+            raise CodeGenerationFailed(f"Unsupported operand B dtype for scaled MMA: {b_dtype}")
+
+        # Scale dtype: UE8M0 = 1 (default for mxf4), UE4M3 = 0 (mxf4nvf4 only)
+        scale_dtype = 1  # UE8M0
+
+        return Tcgen05ScaledMmaInstDesc(
+            sparsity=0,
+            sfb_id=sfb_id,
+            a_dtype=operand_dtype_map[a_dtype],
+            b_dtype=operand_dtype_map[b_dtype],
+            negate_a=1 if negate_a else 0,
+            negate_b=1 if negate_b else 0,
+            transpose_a=1 if transpose_a else 0,
+            transpose_b=1 if transpose_b else 0,
+            n=n,
+            scale_dtype=scale_dtype,
+            m=m,
+            sfa_id=sfa_id,
+        )
+
+
+@dataclass
+class Tcgen05ScaledMmaSSInstMeta:
+    kind: Tcgen05MmaKind
+    a_desc: SharedMatrixDescriptor
+    b_desc: SharedMatrixDescriptor
+    d_tmem_addr: Expr
+    scale_a_tmem_addr: Expr
+    scale_b_tmem_addr: Expr
+    enable_input_d: Expr
+    cta_group: Tcgen05CtaGroupKind
+    i_desc: Tcgen05ScaledMmaInstDesc
+
+    def emit(self, sb: BaseInstEmitter) -> None:
+        i_desc = sb.declare_var("i_desc", tp=uint32, init=as_expr(self.i_desc.encoded()))
+        a_desc = sb.declare_var("a_desc", tp=uint64, init=self.a_desc.encoded())
+        b_desc = sb.declare_var("b_desc", tp=uint64, init=self.b_desc.encoded())
+        sb.append(
+            tcgen05_scaled_mma_with_shared_a(
+                d_tmem=self.d_tmem_addr,
+                a_desc=a_desc,
+                b_desc=b_desc,
+                i_desc=i_desc,
+                scale_a_tmem=self.scale_a_tmem_addr,
+                scale_b_tmem=self.scale_b_tmem_addr,
+                enable_input_d=self.enable_input_d,
+                cta_group=self.cta_group,
+                mma_kind=self.kind,
+            )
+        )
+
+
+@register_emitter(Tcgen05ScaledMmaSSInst, target=nvgpu_sm100a)
+class TMemoryScaledMmaSSEmitter(BaseInstEmitter):
+    @staticmethod
+    def get_inst_mnk(
+        mma_kind: Tcgen05MmaKind, cta_group: int, m_size: int, n_size: int, k_size: int
+    ) -> tuple[int, int, int]:
+        """Get instruction tile sizes for block-scaled MMA.
+
+        For mxf4/mxf4nvf4 with cta_group=1: M=128, N=8..256 (multiples of 8), K=64.
+        """
+        if mma_kind in (Tcgen05MmaKind.MXF4, Tcgen05MmaKind.MXF4NVF4):
+            if cta_group == 1:
+                if m_size not in (128,):
+                    raise CodeGenerationFailed(f"m_size must be 128 for MXF4 MMA kind, got {m_size}")
+                if n_size % 8 != 0 or n_size < 8 or n_size > 256:
+                    raise CodeGenerationFailed(f"n_size must be multiple of 8 in [8,256] for MXF4 MMA kind, got {n_size}")
+                inst_m = m_size
+                inst_n = gcd(n_size, 256)
+                inst_k = 64
+                return inst_m, inst_n, inst_k
+            else:
+                if m_size != 256:
+                    raise CodeGenerationFailed(f"m_size must be 256 for MXF4 MMA kind with cta_group=2, got {m_size}")
+                if n_size % 16 != 0 or n_size < 16 or n_size > 256:
+                    raise CodeGenerationFailed(
+                        f"n_size must be multiple of 16 in [16,256] for MXF4 MMA kind with cta_group=2, got {n_size}"
+                    )
+                if k_size % 64 != 0:
+                    raise CodeGenerationFailed(f"k_size must be multiple of 64 for MXF4 with cta_group=2, got {k_size}")
+                inst_m = m_size
+                inst_n = n_size
+                inst_k = 64
+                return inst_m, inst_n, inst_k
+        else:
+            raise NotImplementedError(f"Unsupported MMA kind for scaled MMA: {mma_kind}")
+
+    def emit(self, inst: Tcgen05ScaledMmaSSInst) -> None:
+        assert self.current_num_threads == 1, "tcgen05.scaled_mma.ss must be called by a single thread"
+        a_tensor: SharedTensor = inst.inputs[0].as_shared_tensor()
+        b_tensor: SharedTensor = inst.inputs[1].as_shared_tensor()
+        d_tensor: TMemoryTensor = inst.inputs[2].as_tmemory_tensor()
+        scale_a_tensor: TMemoryTensor = inst.inputs[3].as_tmemory_tensor()
+        scale_b_tensor: TMemoryTensor = inst.inputs[4].as_tmemory_tensor()
+
+        a_shape = a_tensor.shape
+        b_shape = b_tensor.shape
+        d_shape = d_tensor.shape
+
+        if len(a_shape) != 2 or len(b_shape) != 2 or len(d_shape) != 2:
+            raise ValueError(f"Scaled MMA requires 2D tensors, but got shapes: a={a_shape}, b={b_shape}, d={d_shape}")
+
+        if inst.cta_group == 1:
+            if not (a_shape[0] == d_shape[0] and a_shape[1] == b_shape[0] and b_shape[1] == d_shape[1]):
+                raise ValueError(
+                    f"Incompatible shapes for scaled MMA: a={a_shape}, b={b_shape}, d={d_shape}."
+                )
+            m_size, n_size, k_size = a_shape[0], b_shape[1], a_shape[1]
+        elif inst.cta_group == 2:
+            if not (a_shape[0] == d_shape[0] and a_shape[1] == b_shape[0] and b_shape[1] * 2 == d_shape[1]):
+                raise ValueError(
+                    f"Incompatible shapes for scaled MMA with cta_group=2: a={a_shape}, b={b_shape}, d={d_shape}."
+                )
+            m_size, n_size, k_size = a_shape[0] * 2, b_shape[1] * 2, a_shape[1]
+        else:
+            raise ValueError(f"Invalid cta_group: {inst.cta_group}")
+
+        # canonicalize layouts
+        a_canonical = canonicalize_shared_layout(a_tensor.layout, dtype=a_tensor.dtype)
+        b_canonical = canonicalize_shared_layout(b_tensor.layout.transpose(), dtype=b_tensor.dtype)
+        if a_canonical is None:
+            raise CodeGenerationFailed(f"Cannot canonicalize layout of a tensor: {a_tensor.layout}.")
+        if b_canonical is None:
+            raise CodeGenerationFailed(f"Cannot canonicalize layout of b tensor: {b_tensor.layout}.")
+
+        if a_canonical.swizzle_mode != b_canonical.swizzle_mode:
+            raise CodeGenerationFailed(
+                f"Swizzle modes must match, got {a_canonical.swizzle_mode} and {b_canonical.swizzle_mode}."
+            )
+
+        # For nvfp4, always use MXF4 kind
+        mma_kind = Tcgen05MmaKind.MXF4
+        inst_m, inst_n, inst_k = self.get_inst_mnk(mma_kind, inst.cta_group, m_size, n_size, k_size)
+
+        repeat_m = m_size // inst_m
+        repeat_n = n_size // inst_n
+        repeat_k = k_size // inst_k
+
+        if inst.cta_group == 2:
+            assert repeat_m == 1 and repeat_n == 1
+
+        i_desc = Tcgen05ScaledMmaInstDesc.create(
+            mma_kind=mma_kind,
+            a_dtype=a_tensor.dtype,
+            b_dtype=b_tensor.dtype,
+            negate_a=False,
+            negate_b=False,
+            transpose_a=a_canonical.major_kind == "MN",
+            transpose_b=b_canonical.major_kind == "MN",
+            n=inst_n,
+            m=inst_m,
+        )
+
+        a_cute_layout: CuteLayout = a_canonical.swizzled_cute_layout.layout
+        b_cute_layout: CuteLayout = b_canonical.swizzled_cute_layout.layout
+
+        a_shared_addr: Var = self.shared_tensor_shared_space_addr[a_tensor]
+        b_shared_addr: Var = self.shared_tensor_shared_space_addr[b_tensor]
+        d_tmem_addr: Var = self.tensor2var[d_tensor]
+        scale_a_tmem_addr: Var = self.tensor2var[scale_a_tensor]
+        scale_b_tmem_addr: Var = self.tensor2var[scale_b_tensor]
+
+        for k in range(repeat_k):
+            for i in range(repeat_m):
+                for j in range(repeat_n):
+                    a_offset = a_cute_layout(i * inst_m, k * inst_k)
+                    b_offset = b_cute_layout(j * inst_n, k * inst_k)
+                    a_desc = SharedMatrixDescriptor(
+                        addr=a_shared_addr + a_offset * a_tensor.dtype.nbytes,
+                        lbo=a_canonical.LBO * a_tensor.dtype.nbytes,
+                        sbo=a_canonical.SBO * a_tensor.dtype.nbytes,
+                        base_offset=0,
+                        stride_mode=0,
+                        swizzle_mode=a_canonical.swizzle_mode.encode(),
+                    )
+                    b_desc = SharedMatrixDescriptor(
+                        addr=b_shared_addr + b_offset * b_tensor.dtype.nbytes,
+                        lbo=b_canonical.LBO * b_tensor.dtype.nbytes,
+                        sbo=b_canonical.SBO * b_tensor.dtype.nbytes,
+                        base_offset=0,
+                        stride_mode=0,
+                        swizzle_mode=b_canonical.swizzle_mode.encode(),
+                    )
+                    d_offset = i * inst_m * LANE_STRIDE + j * inst_n * COLUMN_STRIDE
+                    # Scale factors: each scale covers a block of 32 elements along K.
+                    # For block_scale (default .block32), one scale per 32 K-elements.
+                    # Scale tensor memory layout: scale_a has shape matching (M/128, K/32) columns,
+                    # scale_b has shape matching (N/128, K/32) columns.
+                    # The scale tmem offset per K-repeat: k * (inst_k // 32) columns of scale data.
+                    scale_k_cols = inst_k // 32  # number of scale columns per inst_k
+                    scale_a_offset = k * scale_k_cols * COLUMN_STRIDE
+                    scale_b_offset = k * scale_k_cols * COLUMN_STRIDE
+                    inst_meta = Tcgen05ScaledMmaSSInstMeta(
+                        kind=mma_kind,
+                        a_desc=a_desc,
+                        b_desc=b_desc,
+                        d_tmem_addr=d_tmem_addr + d_offset,
+                        scale_a_tmem_addr=scale_a_tmem_addr + scale_a_offset,
+                        scale_b_tmem_addr=scale_b_tmem_addr + scale_b_offset,
+                        enable_input_d=logical_or(inst.enable_input_d, k != 0),
+                        cta_group=Tcgen05CtaGroupKind.from_int(inst.cta_group),
+                        i_desc=i_desc,
                     )
                     inst_meta.emit(self)

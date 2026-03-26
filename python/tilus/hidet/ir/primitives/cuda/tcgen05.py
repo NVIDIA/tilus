@@ -264,6 +264,19 @@ def resolve_tcgen05_mma(cta_group: Tcgen05CtaGroupKind, mma_kind: Tcgen05MmaKind
     return ret
 
 
+def resolve_tcgen05_scaled_mma(
+    cta_group: Tcgen05CtaGroupKind, mma_kind: Tcgen05MmaKind, a_is_shared: bool
+) -> str:
+    ret = (
+        "cuda_tcgen05_scaled_mma_cta_group"
+        + cta_group.value
+        + mma_kind.value
+        + ("_a_shared" if a_is_shared else "_a_tmem")
+    )
+    ret = ret.replace(".", "_").replace("::", "_")
+    return ret
+
+
 @initialize()
 def register_tcgen05_instructions():
     from tilus.hidet.lang import attrs, meta, script
@@ -479,6 +492,38 @@ def register_tcgen05_instructions():
                 attrs.func_kind = "cuda_internal"
                 asm(template, inputs=[d_tmem, a_tmem, b_desc, i_desc, enable_input_d], is_volatile=True)
 
+    # block-scaled mma (for mxf4/mxf4nvf4 kinds)
+    for cta_group in [Tcgen05CtaGroupKind.CTA_1, Tcgen05CtaGroupKind.CTA_2]:
+        for mma_kind in [Tcgen05MmaKind.MXF4, Tcgen05MmaKind.MXF4NVF4]:
+            # a: shared memory, block_scale variant
+            template = (
+                "{{.reg.pred p; setp.ne.u32 p, %6, 0;"
+                " tcgen05.mma{cta_group}{mma_kind}.block_scale"
+                " [%0], %1, %2, %3, [%4], [%5], p;}}".format(
+                    cta_group=cta_group.value, mma_kind=mma_kind.value
+                )
+            )
+
+            @register_primitive_function_decorator
+            @no_type_check
+            @script
+            def tcgen05_scaled_mma_shared_a_(
+                d_tmem: uint32,
+                a_desc: uint64,
+                b_desc: uint64,
+                i_desc: uint32,
+                scale_a_tmem: uint32,
+                scale_b_tmem: uint32,
+                enable_input_d: uint32,
+            ):
+                attrs.func_name = resolve_tcgen05_scaled_mma(cta_group, mma_kind, a_is_shared=True)
+                attrs.func_kind = "cuda_internal"
+                asm(
+                    template,
+                    inputs=[d_tmem, a_desc, b_desc, i_desc, scale_a_tmem, scale_b_tmem, enable_input_d],
+                    is_volatile=True,
+                )
+
 
 def tcgen05_relinquish_alloc_permit(cta_group: Tcgen05CtaGroupKind) -> Expr:
     func_name = resolve_tcgen05_relinquish_alloc_permit(cta_group)
@@ -574,6 +619,45 @@ def tcgen05_encode_mma_inst_descriptor(
     return desc
 
 
+def tcgen05_encode_scaled_mma_inst_descriptor(
+    sparsity: int,
+    sfb_id: int,
+    a_dtype: int,
+    b_dtype: int,
+    negate_a: int,
+    negate_b: int,
+    transpose_a: int,
+    transpose_b: int,
+    shifted_n: int,
+    scale_dtype: int,
+    shifted_m: int,
+    sfa_id: int,
+) -> int:
+    """Encode instruction descriptor for block-scaled MMA (Table 44 in PTX ISA).
+
+    See Also: https://docs.nvidia.com/cuda/parallel-thread-execution/#tcgen05-instuction-desc-kind-mxf4-mxf4nvf4.
+    """
+    desc: int = 0
+    # bits 0-1: reserved
+    desc |= (sparsity & 0b1) << 2
+    # bit 3: reserved
+    desc |= (sfb_id & 0b11) << 4
+    # bit 6: reserved
+    desc |= (a_dtype & 0b111) << 7
+    desc |= (b_dtype & 0b11) << 10
+    # bit 12: reserved
+    desc |= (negate_a & 0b1) << 13
+    desc |= (negate_b & 0b1) << 14
+    desc |= (transpose_a & 0b1) << 15
+    desc |= (transpose_b & 0b1) << 16
+    desc |= (shifted_n & 0b111111) << 17
+    desc |= (scale_dtype & 0b1) << 23
+    # bits 24-26: reserved
+    desc |= (shifted_m & 0b11) << 27
+    desc |= (sfa_id & 0b11) << 29
+    return desc
+
+
 def tcgen05_copy(
     taddr: Expr,
     sdesc: Expr,
@@ -624,3 +708,20 @@ def tcgen05_mma_with_tmem_a(
 ) -> Expr:
     func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=False)
     return call_primitive_func(func_name, [d_tmem, a_tmem, b_desc, i_desc, enable_input_d])
+
+
+def tcgen05_scaled_mma_with_shared_a(
+    d_tmem: Expr,
+    a_desc: Expr,
+    b_desc: Expr,
+    i_desc: Expr,
+    scale_a_tmem: Expr,
+    scale_b_tmem: Expr,
+    enable_input_d: Expr | bool,
+    cta_group: Tcgen05CtaGroupKind,
+    mma_kind: Tcgen05MmaKind,
+) -> Expr:
+    func_name = resolve_tcgen05_scaled_mma(cta_group, mma_kind, a_is_shared=True)
+    return call_primitive_func(
+        func_name, [d_tmem, a_desc, b_desc, i_desc, scale_a_tmem, scale_b_tmem, as_expr(enable_input_d)]
+    )

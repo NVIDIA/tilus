@@ -157,3 +157,55 @@ class Tcgen05InstructionGroup(InstructionGroup):
             self._builder.tcgen05_mma_ts(a, b, d, enable_input_d=enable_input_d, cta_group=cta_group)
         else:
             raise InstructionError(f"Invalid type of a: {type(a)}, expected SharedTensor or TMemoryTensor")
+
+    def scaled_mma(
+        self,
+        a: SharedTensor,
+        b: SharedTensor,
+        d: TMemoryTensor,
+        scale_a: TMemoryTensor,
+        scale_b: TMemoryTensor,
+        enable_input_d: Expr | bool,
+        cta_group: int = 1,
+    ) -> None:
+        """
+        Perform block-scaled tensor core MMA operation for nvfp4 (E2M1) data types.
+
+        This instruction performs: D = (A * scale_A) @ (B * scale_B) + D
+
+        The operand tensors A and B contain E2M1 (nvfp4) data, and the scale factors
+        are stored in tensor memory using UE8M0 format. One scale factor applies per
+        block of 32 elements along the K dimension.
+
+        Parameters
+        ----------
+        a: SharedTensor
+            The first input matrix (E2M1 dtype). Must be a 2D tensor in shared memory. Shape: (M, K).
+        b: SharedTensor
+            The second input matrix (E2M1 dtype). Must be a 2D tensor in shared memory. Shape: (K, N).
+        d: TMemoryTensor
+            The output/accumulator matrix (float32). Must be a 2D tensor in tensor memory. Shape: (M, N).
+        scale_a: TMemoryTensor
+            Scale factors for matrix A, stored in tensor memory. Shape should cover (M, K/32) worth of scale data.
+        scale_b: TMemoryTensor
+            Scale factors for matrix B, stored in tensor memory. Shape should cover (N, K/32) worth of scale data.
+        enable_input_d: Expr | bool
+            Whether to use D as the initial accumulator value (True for D = A@B + D, False for D = A@B).
+        cta_group: int
+            The CTA group. Must be 1 or 2.
+        """
+        if self._builder.tg_stack.current_num_threads != 1:
+            raise InstructionError("tcgen05.scaled_mma must be called by a single thread")
+        if cta_group not in (1, 2):
+            raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
+        if not isinstance(a, SharedTensor):
+            raise InstructionError(f"scaled_mma requires SharedTensor for a, got {type(a)}")
+        if len(a.shape) != 2:
+            raise InstructionError("scaled_mma requires 2D shared tensors for a, got shape {}".format(a.shape))
+        if len(b.shape) != 2:
+            raise InstructionError("scaled_mma requires 2D shared tensors for b, got shape {}".format(b.shape))
+        if len(d.shape) != 2:
+            raise InstructionError("scaled_mma requires 2D tensor memory for d, got shape {}".format(d.shape))
+        self._builder.tcgen05_scaled_mma_ss(
+            a, b, d, scale_a, scale_b, enable_input_d=enable_input_d, cta_group=cta_group
+        )
