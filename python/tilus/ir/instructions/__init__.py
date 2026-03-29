@@ -28,7 +28,6 @@ from .cuda.cp_async_bulk import (
     CopyAsyncBulkSharedToClusterSharedInst,
     CopyAsyncBulkSharedToGlobalInst,
 )
-from .cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from .cuda.mbarrier import AllocBarrierInst, ArriveBarrierInst, WaitBarrierInst
 from .cuda.mma_dot import DotInst
 from .cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
@@ -51,7 +50,6 @@ from .generic import (
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
-    LoadSharedGenericInst,
     LoadSharedInst,
     ModInst,
     MulInst,
@@ -70,7 +68,6 @@ from .generic import (
     SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
-    StoreSharedGenericInst,
     StoreSharedInst,
     SubInst,
     SyncReduceThreadsInst,

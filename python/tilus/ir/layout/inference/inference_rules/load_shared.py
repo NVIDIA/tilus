@@ -15,22 +15,18 @@
 from tilus import RegisterLayout, SharedLayout
 from tilus.ir import RegisterTensor, SharedTensor
 from tilus.ir.analyzers.grid_analyzer import analyze_grid
-from tilus.ir.instructions import LoadMatrixInst, LoadSharedGenericInst, LoadSharedInst
-from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig
+from tilus.ir.instructions import LoadSharedInst
 from tilus.ir.layout import LayoutOperationError, ops
+from tilus.ir.layout.cuda.ldmatrix import LoadMatrixConfig
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.layout.ops import shared_row_major_swizzle
 from tilus.utils import gcd
 
 
-@register_rule(LoadMatrixInst)
 @register_rule(LoadSharedInst)
-@register_rule(LoadSharedGenericInst)
 class LoadSharedInferSwizzledSharedRule(LayoutInferenceRule):
     @staticmethod
-    def inference(
-        ctx: LayoutInferenceContext, inst: LoadSharedInst | LoadSharedGenericInst | LoadMatrixInst
-    ) -> dict[SharedTensor, SharedLayout]:
+    def inference(ctx: LayoutInferenceContext, inst: LoadSharedInst) -> dict[SharedTensor, SharedLayout]:
         a = inst.shared_input
         b = inst.register_output
 
@@ -52,14 +48,10 @@ class LoadSharedInferSwizzledSharedRule(LayoutInferenceRule):
         return {}
 
 
-@register_rule(LoadMatrixInst)
 @register_rule(LoadSharedInst)
-@register_rule(LoadSharedGenericInst)
 class LoadSharedInferRowMajorSharedRule(LayoutInferenceRule):
     @staticmethod
-    def inference(
-        ctx: LayoutInferenceContext, inst: LoadSharedInst | LoadSharedGenericInst | LoadMatrixInst
-    ) -> dict[SharedTensor, SharedLayout]:
+    def inference(ctx: LayoutInferenceContext, inst: LoadSharedInst) -> dict[SharedTensor, SharedLayout]:
         a = inst.shared_input
         b = inst.register_output
 
@@ -71,14 +63,53 @@ class LoadSharedInferRowMajorSharedRule(LayoutInferenceRule):
         return {a: shared_row_major(*a.shape)}
 
 
-@register_rule(LoadMatrixInst)
 @register_rule(LoadSharedInst)
-@register_rule(LoadSharedGenericInst)
+class LoadSharedInferLdmatrixRegisterRule(LayoutInferenceRule):
+    """Infer an ldmatrix-compatible register layout when the shared layout supports it.
+
+    The layout is: auto_local_spatial(num_warps, lhs_shape) * ldmatrix_layout,
+    where num_warps = num_threads // 32 and lhs_shape tiles the ldmatrix atom across the tensor.
+    """
+
+    @staticmethod
+    def inference(ctx: LayoutInferenceContext, inst: LoadSharedInst) -> dict[RegisterTensor, RegisterLayout]:
+        shared = inst.shared_input
+        register = inst.register_output
+
+        if not (shared.has_layout() and not register.has_layout()):
+            return {}
+
+        if len(register.shape) != 2 or ctx.num_threads % 32 != 0:
+            return {}
+
+        dtype = register.dtype
+        num_warps = ctx.num_threads // 32
+
+        for config in LoadMatrixConfig.all():
+            if dtype.nbytes != config.nbytes:
+                continue
+
+            ldmatrix_layout = config.ldmatrix_layout
+
+            # check shape divisibility by the ldmatrix tile
+            if any(s % ls != 0 for s, ls in zip(register.shape, ldmatrix_layout.shape)):
+                continue
+
+            # check the outer tiling fits the warp count
+            lhs_shape = [s // ls for s, ls in zip(register.shape, ldmatrix_layout.shape)]
+            if lhs_shape[0] * lhs_shape[1] < num_warps:
+                continue
+
+            layout = ops.auto_local_spatial(num_threads=num_warps, shape=lhs_shape) * ldmatrix_layout
+            return {register: layout}
+
+        return {}
+
+
+@register_rule(LoadSharedInst)
 class LoadSharedInferRegisterRule(LayoutInferenceRule):
     @staticmethod
-    def inference(
-        ctx: LayoutInferenceContext, inst: LoadSharedInst | LoadSharedGenericInst | LoadMatrixInst
-    ) -> dict[RegisterTensor, RegisterLayout]:
+    def inference(ctx: LayoutInferenceContext, inst: LoadSharedInst) -> dict[RegisterTensor, RegisterLayout]:
         shared = inst.shared_input
         register = inst.register_output
 

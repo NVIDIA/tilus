@@ -46,7 +46,6 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorWaitGroupInst,
 )
 from tilus.ir.instructions.cuda.fence import FenceViewAsync
-from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig, LoadMatrixInst
 from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
@@ -95,7 +94,6 @@ from tilus.ir.instructions.generic import (
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
-    LoadSharedGenericInst,
     LoadSharedInst,
     ModInst,
     MulInst,
@@ -112,7 +110,6 @@ from tilus.ir.instructions.generic import (
     SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
-    StoreSharedGenericInst,
     StoreSharedInst,
     SubInst,
     SyncReduceThreadsInst,
@@ -1080,24 +1077,6 @@ class StmtBuilder(StmtBuilderCore):
         inst = StoreSharedInst.create(dst=dst, src=src)
         self.append(inst)
 
-    def load_matrix(
-        self,
-        smem_addr: Var,
-        axes: Sequence[Var],
-        offset: Expr,
-        config: LoadMatrixConfig,
-        output: RegisterTensor,
-    ) -> RegisterTensor:
-        inst = LoadMatrixInst.create(
-            smem_addr=smem_addr,
-            axes=axes,
-            offset=offset,
-            config=config,
-            output=output,
-        )
-        self.append(inst)
-        return inst.register_output
-
     # global memory operations
     def global_view(self, ptr: Expr, dtype: DataType, layout: GlobalLayout) -> GlobalTensor:
         inst = GlobalViewInst.create(output=GlobalTensor.create(dtype=dtype, layout=layout), ptr=ptr)
@@ -1165,33 +1144,6 @@ class StmtBuilder(StmtBuilderCore):
         if out is None:
             out = RegisterTensor.create(dtype=dtype, shape=shape, optional_layout=layout)
         inst = LoadGlobalGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
-        self.append(inst)
-        return inst.register_output
-
-    def store_shared_generic(
-        self,
-        x: RegisterTensor,
-        *,
-        ptr: Var,
-        f_offset: Callable[[Sequence[Var]], Expr | int],
-        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
-    ) -> None:
-        inst = StoreSharedGenericInst.create(x=x, ptr=ptr, f_offset=f_offset, f_mask=f_mask)
-        self.append(inst)
-
-    def load_shared_generic(
-        self,
-        *,
-        dtype: DataType,
-        layout: RegisterLayout,
-        ptr: Var,
-        f_offset: Callable[[Sequence[Var]], Expr | int],
-        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
-        out: Optional[RegisterTensor] = None,
-    ) -> RegisterTensor:
-        if out is None:
-            out = RegisterTensor.create(dtype=dtype, shape=layout.shape, optional_layout=layout)
-        inst = LoadSharedGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
         self.append(inst)
         return inst.register_output
 

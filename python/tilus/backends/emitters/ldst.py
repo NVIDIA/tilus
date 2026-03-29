@@ -23,9 +23,7 @@ from tilus.hidet.ir.type import DataType
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.instructions import (
     LoadGlobalGenericInst,
-    LoadSharedGenericInst,
     StoreGlobalGenericInst,
-    StoreSharedGenericInst,
 )
 from tilus.ir.layout import RegisterLayout
 from tilus.utils import gcd
@@ -34,7 +32,7 @@ from tilus.utils import gcd
 class LoadStoreInstBaseEmitter(BaseInstEmitter):
     def analyze_vectorization(
         self,
-        inst: Union[LoadGlobalGenericInst, StoreGlobalGenericInst, LoadSharedGenericInst, StoreSharedGenericInst],
+        inst: Union[LoadGlobalGenericInst, StoreGlobalGenericInst],
     ) -> Optional[tuple[int, int]]:
         """
         Analyze the applicable vectorization of the load/store instruction to global or shared memory.
@@ -52,9 +50,9 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
         1-bit, 2-bit, ... and 7-bit data type).
         """
         # get the register value that is going to be stored or loaded to.
-        if isinstance(inst, (LoadGlobalGenericInst, LoadSharedGenericInst)):
+        if isinstance(inst, LoadGlobalGenericInst):
             regs_tensor = inst.register_output
-        elif isinstance(inst, (StoreGlobalGenericInst, StoreSharedGenericInst)):
+        elif isinstance(inst, StoreGlobalGenericInst):
             regs_tensor = inst.register_input
         else:
             raise NotImplementedError()
@@ -92,15 +90,11 @@ class LoadStoreInstBaseEmitter(BaseInstEmitter):
             return None
 
 
-@register_emitter(LoadSharedGenericInst)
 @register_emitter(LoadGlobalGenericInst)
-@register_emitter(StoreSharedGenericInst)
 @register_emitter(StoreGlobalGenericInst)
 class LoadGlobalGenericInstEmitter(LoadStoreInstBaseEmitter):
-    def emit(
-        self, inst: LoadGlobalGenericInst | LoadSharedGenericInst | StoreGlobalGenericInst | StoreSharedGenericInst
-    ) -> None:
-        if isinstance(inst, (LoadGlobalGenericInst, LoadSharedGenericInst)):
+    def emit(self, inst: LoadGlobalGenericInst | StoreGlobalGenericInst) -> None:
+        if isinstance(inst, LoadGlobalGenericInst):
             tensor = inst.register_output
         else:
             tensor = inst.register_input
@@ -131,7 +125,7 @@ class LoadGlobalGenericInstEmitter(LoadStoreInstBaseEmitter):
 
                 reg_ptr = self.declare_var("reg_ptr", ~unit_dtype, init=cast(~regs_buf[start_i], ~unit_dtype))
                 mem_ptr = self.declare_var("mem_ptr", ~unit_dtype, init=cast(~inst.ptr[offset], ~unit_dtype))
-                if isinstance(inst, (LoadGlobalGenericInst, LoadSharedGenericInst)):
+                if isinstance(inst, LoadGlobalGenericInst):
                     dst_ptr, src_ptr = reg_ptr, mem_ptr
                     with self.if_then(mask):
                         with self.for_range(extent=num_units) as i:
@@ -151,7 +145,7 @@ class LoadGlobalGenericInstEmitter(LoadStoreInstBaseEmitter):
                 rewrite_map = {axis: as_expr(global_index) for axis, global_index in zip(inst.axes, global_indices)}
                 offset = rewrite(inst.offset, rewrite_map=rewrite_map)
                 mask = rewrite(inst.mask, rewrite_map=rewrite_map) if inst.mask is not None else boolean.true
-                if isinstance(inst, (LoadGlobalGenericInst, LoadSharedGenericInst)):
+                if isinstance(inst, LoadGlobalGenericInst):
                     self.buffer_store(buf=regs_buf, indices=[i], value=if_then_else(mask, inst.ptr[offset], dtype.zero))
                 else:
                     with self.if_then(mask):

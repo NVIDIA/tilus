@@ -433,6 +433,92 @@ def register_ldmatrix_instructions():
                     raise ValueError()
 
 
+def resolve_stmatrix_func_name(num: int, shared_space_addr: bool = False, trans=False) -> str:
+    if num not in [1, 2, 4]:
+        raise ValueError("Only support storing 1, 2, or 4 matrices using stmatrix instruction.")
+    return "stmatrix_x{num}{shared}{trans}".format(
+        num=num, shared="_shared" if shared_space_addr else "", trans="_trans" if trans else ""
+    )
+
+
+@initialize()
+def register_stmatrix_instructions():
+    from tilus.hidet.lang import attrs, script, u32, void_p
+
+    for num in [1, 2, 4]:
+        for trans in [False, True]:
+            for shared_space_addr in [False, True]:
+                func_name = "cuda_" + resolve_stmatrix_func_name(
+                    num=num, shared_space_addr=shared_space_addr, trans=trans
+                )
+                inst_name = "stmatrix.sync.aligned.m8n8{num}{trans}{ss}.b16".format(
+                    num=f".x{num}", trans=".trans" if trans else "", ss=".shared" if shared_space_addr else ""
+                )
+                smem_type = u32 if shared_space_addr else void_p
+                if num == 1:
+                    template = "{inst_name} [%0], {{%1}};".format(inst_name=inst_name)
+
+                    @script
+                    def cuda_stmatrix(smem: smem_type, reg0: u32):
+                        attrs.func_name = func_name
+                        attrs.func_kind = "cuda_internal"
+                        asm(template, outputs=[], inputs=[smem, reg0], is_volatile=True)
+
+                    assert isinstance(cuda_stmatrix, Function)
+                    register_primitive_function(cuda_stmatrix.name, cuda_stmatrix)
+
+                elif num == 2:
+                    template = "{inst_name} [%0], {{%1, %2}};".format(inst_name=inst_name)
+
+                    @script
+                    def cuda_stmatrix(smem: smem_type, reg0: u32, reg1: u32):
+                        attrs.func_name = func_name
+                        attrs.func_kind = "cuda_internal"
+                        asm(template, outputs=[], inputs=[smem, reg0, reg1], is_volatile=True)
+
+                    assert isinstance(cuda_stmatrix, Function)
+                    register_primitive_function(cuda_stmatrix.name, cuda_stmatrix)
+                elif num == 4:
+                    template = "{inst_name} [%0], {{%1, %2, %3, %4}};".format(inst_name=inst_name)
+
+                    @script
+                    def cuda_stmatrix(smem: smem_type, reg0: u32, reg1: u32, reg2: u32, reg3: u32):
+                        attrs.func_name = func_name
+                        attrs.func_kind = "cuda_internal"
+                        asm(template, outputs=[], inputs=[smem, reg0, reg1, reg2, reg3], is_volatile=True)
+
+                    assert isinstance(cuda_stmatrix, Function)
+                    register_primitive_function(cuda_stmatrix.name, cuda_stmatrix)
+                else:
+                    raise ValueError()
+
+
+def stmatrix(regs: List[Expr], smem_addr: Expr, shared_space_addr: bool = False, trans: bool = False):
+    """
+    Store 1, 2, or 4 matrices with shape 8x8 from registers to shared memory.
+
+    See Also
+    --------
+    https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#warp-level-matrix-instructions-stmatrix
+
+    Parameters
+    ----------
+    regs: List[Expr]
+        The registers containing the data to store.
+    smem_addr: Expr
+        The address in shared memory.
+        If shared_space_addr is True, smem_addr is in shared memory space (uint32/int32).
+        If shared_space_addr is False, smem_addr is in generic memory space.
+    shared_space_addr: bool
+        Whether shared memory space is used for smem_addr.
+    trans: bool
+        Whether to transpose the matrix when storing.
+    """
+    num = len(regs)
+    func_name = resolve_stmatrix_func_name(num=num, shared_space_addr=shared_space_addr, trans=trans)
+    return call_cuda(func_name, [smem_addr] + [reg for reg in regs])
+
+
 def mma_sync(config: MmaConfig, a_addr: Expr, b_addr: Expr, c_addr: Expr):
     name = config.inst_name().replace(".", "_")
     return call_cuda(func_name=name, args=[a_addr, b_addr, c_addr])

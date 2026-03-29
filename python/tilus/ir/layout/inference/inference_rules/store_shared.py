@@ -14,20 +14,17 @@
 # limitations under the License.
 from tilus import SharedLayout
 from tilus.ir import SharedTensor
-from tilus.ir.instructions import StoreSharedGenericInst, StoreSharedInst
-from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixConfig
+from tilus.ir.instructions import StoreSharedInst
 from tilus.ir.layout import LayoutOperationError, ops
+from tilus.ir.layout.cuda.ldmatrix import LoadMatrixConfig
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.layout.ops import shared_row_major_swizzle
 
 
-@register_rule(StoreSharedGenericInst)
 @register_rule(StoreSharedInst)
 class StoreSharedSwizzleRule(LayoutInferenceRule):
     @staticmethod
-    def inference(
-        ctx: LayoutInferenceContext, inst: StoreSharedInst | StoreSharedGenericInst
-    ) -> dict[SharedTensor, SharedLayout]:
+    def inference(ctx: LayoutInferenceContext, inst: StoreSharedInst) -> dict[SharedTensor, SharedLayout]:
         a = inst.inputs[0].as_shared_tensor()
         b = inst.inputs[1].as_register_tensor()
 

@@ -26,6 +26,7 @@ from .inference_rules.elementwise_unary import UnaryRule
 from .inference_rules.empty_rule import EmptyRule
 from .inference_rules.ldst_global import LoadGlobalRule, StoreGlobalRule
 from .inference_rules.load_shared import (
+    LoadSharedInferLdmatrixRegisterRule,
     LoadSharedInferRegisterRule,
     LoadSharedInferRowMajorSharedRule,
     LoadSharedInferSwizzledSharedRule,
@@ -70,6 +71,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [LoadSharedInferSwizzledSharedRule, StoreSharedSwizzleRule],
     [SharedSliceRule, PermuteSharedRule, ReshapeSharedRule],
     [CopyAsyncRule],
+    [LoadSharedInferLdmatrixRegisterRule],
     [LoadSharedInferRegisterRule],
     [LoadSharedInferRowMajorSharedRule],
     [AllocateSharedRule],
