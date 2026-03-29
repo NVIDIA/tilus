@@ -43,8 +43,8 @@ class Tcgen05LdstRule(LayoutInferenceRule):
 
         for shape_kind in [
             Tcgen05LoadStoreShapeKind.R32x32B,
-            Tcgen05LoadStoreShapeKind.R16x64B,
             Tcgen05LoadStoreShapeKind.R16x128B,
+            Tcgen05LoadStoreShapeKind.R16x64B,
             Tcgen05LoadStoreShapeKind.R16x256B,
         ]:
             shape_rows = shape_kind.rows()
