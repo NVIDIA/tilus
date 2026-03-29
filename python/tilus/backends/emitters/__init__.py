@@ -25,6 +25,7 @@ from . import (
     ldst,
     reduce,
     regs,
+    shared_ldst,
     shuffle,
     smem,
     sync,

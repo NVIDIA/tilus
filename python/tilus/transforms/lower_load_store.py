@@ -16,14 +16,13 @@ from typing import Any, Sequence, Union
 
 from tilus import SharedLayout
 from tilus.hidet import boolean
-from tilus.hidet.ir.dtypes import int32
 from tilus.hidet.ir.expr import Expr, Var
 from tilus.hidet.ir.utils.index_transform import index_within_bound
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.inst import Instruction
-from tilus.ir.instructions import CopyAsyncInst, LoadGlobalInst, LoadSharedInst, StoreGlobalInst, StoreSharedInst
+from tilus.ir.instructions import CopyAsyncInst, LoadGlobalInst, StoreGlobalInst
 from tilus.ir.layout import GlobalLayout
 from tilus.ir.stmt import Stmt
 from tilus.transforms.base import Pass
@@ -82,38 +81,6 @@ class LowerLoadStoreRewriter(IRRewriter):
         f_offset, f_mask = self.get_funcs(offsets=inst.offsets, dims=inst.dims, layout=global_tensor.layout)
 
         sb.store_global_generic(register_tensor, ptr=ptr, f_offset=f_offset, f_mask=f_mask)
-        return sb.flush_stmts()
-
-    def visit_LoadSharedInst(self, inst: LoadSharedInst) -> Union[Instruction, Stmt]:
-        inst = super().visit_Instruction(inst)
-
-        sb = StmtBuilder()
-        register_tensor = inst.register_output
-        shared_tensor = inst.shared_input
-        rank = len(register_tensor.shape)
-        offsets = tuple(int32.zero for _ in range(rank))
-        dims = tuple(range(rank))
-        f_offset, f_mask = self.get_funcs(offsets=offsets, dims=dims, layout=shared_tensor.layout)
-        ptr = sb.tensor_ptr(shared_tensor)
-
-        self.memo[inst.register_output] = sb.load_shared_generic(
-            dtype=shared_tensor.dtype, layout=register_tensor.layout, ptr=ptr, f_offset=f_offset, f_mask=f_mask
-        )
-        return sb.flush_stmts()
-
-    def visit_StoreSharedInst(self, inst: StoreSharedInst) -> Union[Instruction, Stmt]:
-        inst = super().visit_Instruction(inst)
-
-        sb = StmtBuilder()
-        shared_tensor = inst.inputs[0].as_shared_tensor()
-        register_tensor = inst.inputs[1].as_register_tensor()
-        rank = len(register_tensor.shape)
-        offsets = tuple(int32.zero for _ in range(rank))
-        dims = tuple(range(rank))
-        f_offset, f_mask = self.get_funcs(offsets=offsets, dims=dims, layout=shared_tensor.layout)
-        ptr = sb.tensor_ptr(shared_tensor)
-
-        sb.store_shared_generic(register_tensor, ptr=ptr, f_offset=f_offset, f_mask=f_mask)
         return sb.flush_stmts()
 
     def visit_CopyAsyncInst(self, inst: CopyAsyncInst) -> Union[Instruction, Stmt]:

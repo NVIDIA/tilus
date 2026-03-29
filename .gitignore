@@ -71,3 +71,6 @@ Thumbs.db
 .hidet_cache
 
 uv.lock
+
+# claude tasks
+/TASK*.md

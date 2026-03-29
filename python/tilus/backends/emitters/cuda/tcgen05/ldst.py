@@ -95,7 +95,9 @@ class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
             try:
                 warp_repeat = divide(warp_layout, atom_layout)
                 warp_repeat_m, warp_repeat_n = warp_repeat.shape
-                assert warp_repeat == local(warp_repeat_m, warp_repeat_n)
+                # warp_repeat must be purely local (no spatial modes)
+                if any(m >= 0 for m in warp_repeat.spatial_modes):
+                    continue
             except LayoutOperationError:
                 continue
 
@@ -118,7 +120,9 @@ class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
                 with self.for_range(warp_repeat_n // num, attr="u") as warp_repeat_vec_j:
                     # get the tmem address for each instruction
                     atom_addr = (
-                        warp_tmem_base_addr + warp_repeat_i * LANE_STRIDE + warp_repeat_vec_j * num * COLUMN_STRIDE
+                        warp_tmem_base_addr
+                        + warp_repeat_i * shape_kind.rows() * LANE_STRIDE
+                        + warp_repeat_vec_j * num * COLUMN_STRIDE
                     )
 
                     # get the registers for the instruction
@@ -126,10 +130,10 @@ class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
                     num_regs = atom_layout.local_size
                     for wj in range(num):
                         warp_repeat_j = warp_repeat_vec_j * num + wj
+                        # Use warp_repeat.get_local to handle both row-major and column-major local orderings
+                        tile_local_idx = warp_repeat.get_local([warp_repeat_i, warp_repeat_j])
                         for i in range(num_regs):
-                            regs.append(
-                                ~regs_buf[(warp_repeat_i * warp_repeat_n + warp_repeat_j) * atom_layout.local_size + i]
-                            )
+                            regs.append(~regs_buf[tile_local_idx * atom_layout.local_size + i])
 
                     self.emit_tcgen05_inst(
                         LoadStoreWarpInst(

@@ -186,46 +186,6 @@ class StoreGlobalGenericInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class LoadSharedGenericInst(Instruction):
-    ptr: Var
-    axes: tuple[Var, ...]
-    offset: Expr
-    mask: Expr
-
-    @staticmethod
-    def create(
-        ptr: Var,
-        f_offset: Callable[[Sequence[Var]], Expr | int],
-        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]],
-        output: RegisterTensor,
-    ) -> LoadSharedGenericInst:
-        axes = tuple(index_vars(num_vars=len(output.shape)))
-        offset = as_expr(f_offset(axes))
-        mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
-        return LoadSharedGenericInst(output=output, inputs=tuple(), ptr=ptr, axes=axes, offset=offset, mask=mask)
-
-
-@dataclass(frozen=True, eq=False)
-class StoreSharedGenericInst(Instruction):
-    ptr: Var
-    axes: tuple[Var, ...]
-    offset: Expr
-    mask: Expr
-
-    @staticmethod
-    def create(
-        x: RegisterTensor,
-        ptr: Var,
-        f_offset: Callable[[Sequence[Var]], Expr | int],
-        f_mask: Optional[Callable[[Sequence[Var]], Expr | int | bool]] = None,
-    ) -> StoreSharedGenericInst:
-        axes = tuple(index_vars(num_vars=len(x.layout.shape)))
-        offset = as_expr(f_offset(axes))
-        mask = as_expr(f_mask(axes)) if f_mask is not None else boolean.true
-        return StoreSharedGenericInst(output=None, inputs=(x,), ptr=ptr, axes=axes, offset=offset, mask=mask)
-
-
-@dataclass(frozen=True, eq=False)
 class SliceRegisterInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: Optional[tuple[int, ...]]

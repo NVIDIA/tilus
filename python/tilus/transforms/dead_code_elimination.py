@@ -26,7 +26,6 @@ from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter, IRVisitor
 from tilus.ir.inst import Instruction
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst
-from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixInst
 from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 from tilus.ir.instructions.cuda.mbarrier import AllocBarrierInst
 from tilus.ir.instructions.cuda.mma_dot import DotInst
@@ -40,7 +39,6 @@ from tilus.ir.instructions.generic import (
     GlobalViewInst,
     LoadGlobalGenericInst,
     LoadGlobalInst,
-    LoadSharedGenericInst,
     LoadSharedInst,
     PermuteSharedInst,
     ReduceInst,
@@ -80,8 +78,6 @@ FUNCTIONAL_INST_TYPES: tuple[Type[Instruction], ...] = (
     LoadGlobalInst,
     LoadSharedInst,
     LoadGlobalGenericInst,
-    LoadSharedGenericInst,
-    LoadMatrixInst,
     Tcgen05LoadInst,
     # Shared/Global tensor views
     SliceGlobalInst,

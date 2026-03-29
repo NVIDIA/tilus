@@ -23,7 +23,6 @@ from tilus.ir.instructions import (
     Instruction,
     LoadGlobalGenericInst,
     LoadGlobalInst,
-    LoadSharedGenericInst,
     LoadSharedInst,
     PermuteSharedInst,
     PrintTensorInst,
@@ -33,7 +32,6 @@ from tilus.ir.instructions import (
     SliceSharedInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
-    StoreSharedGenericInst,
     StoreSharedInst,
 )
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
@@ -47,7 +45,6 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorGlobalToSharedInst,
     CopyAsyncTensorSharedToGlobalInst,
 )
-from tilus.ir.instructions.cuda.ldmatrix import LoadMatrixInst
 from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst, Tcgen05LoadInst, Tcgen05MmaSSInst, Tcgen05StoreInst
 from tilus.ir.instructions.cuda.wgmma import WgmmaMmaRSInst, WgmmaMmaSSInst
@@ -70,9 +67,7 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(CopyAsyncInst)  # todo: should have its own rule
 @register_rule(SliceRegisterInst)  # todo: should have its own rule
 @register_rule(SliceAssignInst)  # todo: should have its own rule
-@register_rule(LoadMatrixInst)  # todo: should have its own rule
 @register_rule(StoreGlobalGenericInst)  # todo: should have its own rule
-@register_rule(StoreSharedGenericInst)  # todo: should have its own rule
 @register_rule(AllocBarrierInst)  # todo: should have its own rule
 @register_rule(MapSharedAddrInst)
 @register_rule(ClusterLaunchControlTryCancelInst)
@@ -87,7 +82,6 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(PermuteSharedInst)
 @register_rule(ReshapeSharedInst)
 @register_rule(LoadSharedInst)
-@register_rule(LoadSharedGenericInst)
 @register_rule(FreeSharedInst)
 @register_rule(AllocateRegisterInst)
 @register_rule(AllocateSharedInst)
