@@ -360,18 +360,22 @@ class StoreSharedInstStmatrixEmitter(BaseInstEmitter):
         register_tensor = inst.inputs[1].as_register_tensor()
         dtype = register_tensor.dtype
 
-        # Try stmatrix
+        # Try stmatrix (only for non-swizzled shared layouts — stmatrix writes 16 bytes
+        # sequentially, which is incompatible with swizzled column layouts)
         config = _get_store_matrix_config(dtype, register_layout=register_tensor.layout)
         if config is not None:
-            if _check_shared_alignment_and_contiguity(
-                shared_tensor=shared_tensor,
-                register_shape=register_tensor.shape,
-                analysis=self.analysis,
-                config_nbytes=config.nbytes,
-                unit_shape_last=config.stmatrix_layout.shape[-1],
-            ):
-                self._emit_stmatrix(inst, config)
-                return
+            shared_layout = shared_tensor.layout
+            has_swizzle = shared_layout.optional_swizzle is not None
+            if not has_swizzle:
+                if _check_shared_alignment_and_contiguity(
+                    shared_tensor=shared_tensor,
+                    register_shape=register_tensor.shape,
+                    analysis=self.analysis,
+                    config_nbytes=config.nbytes,
+                    unit_shape_last=config.stmatrix_layout.shape[-1],
+                ):
+                    self._emit_stmatrix(inst, config)
+                    return
 
         # Fallback to generic stores
         _emit_generic_store_shared(self, inst)
@@ -416,9 +420,9 @@ class StoreSharedInstStmatrixEmitter(BaseInstEmitter):
             # Compute shared memory address for stmatrix.
             # stmatrix address: T0 stores addr for row 0, T1 for row 1, ..., T7 for row 7.
             # For x2: T8-T15 provide addrs for the second matrix's rows 0-7, etc.
-            # The lhs_layout tiles stmatrix atoms across the tensor.
-            # lane_id // 8 selects which matrix (tile) within the x1/x2/x4 vector.
-            # lane_id % 8 selects the row within the matrix.
+            # The address uses the same lhs/rhs decomposition as ldmatrix.
+            # NOTE: this only works with non-swizzled shared layouts because stmatrix
+            # writes 16 bytes sequentially from the given address.
             lane_id = self.current_thread % 32
             warp_id = self.current_thread // 32
             lhs_layout: RegisterLayout = divide(layout, stmatrix_layout)

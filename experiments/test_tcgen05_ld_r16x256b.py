@@ -21,7 +21,7 @@ class Tcgen05RoundTrip(tilus.Script):
     load from tmem -> cast to fp16 -> store to shared -> TMA to global
     """
 
-    debug_schedule = dict(block_m=128, block_n=32)
+    debug_schedule = dict(block_m=128, block_n=64)
 
     def __init__(self, block_m: int, block_n: int):
         super().__init__()
@@ -77,7 +77,7 @@ def main():
 
     kernel = Tcgen05RoundTrip()
 
-    m, n = 128, 32
+    m, n = 128, 64
     # Create input with a known non-zero pattern
     inp = torch.arange(m * n, dtype=torch.float16, device="cuda").reshape(m, n)
     out = torch.empty(m, n, dtype=torch.float16, device="cuda")
