@@ -360,22 +360,18 @@ class StoreSharedInstStmatrixEmitter(BaseInstEmitter):
         register_tensor = inst.inputs[1].as_register_tensor()
         dtype = register_tensor.dtype
 
-        # Try stmatrix (only for non-swizzled shared layouts — stmatrix writes 16 bytes
-        # sequentially, which is incompatible with swizzled column layouts)
+        # Try stmatrix
         config = _get_store_matrix_config(dtype, register_layout=register_tensor.layout)
         if config is not None:
-            shared_layout = shared_tensor.layout
-            has_swizzle = shared_layout.optional_swizzle is not None
-            if not has_swizzle:
-                if _check_shared_alignment_and_contiguity(
-                    shared_tensor=shared_tensor,
-                    register_shape=register_tensor.shape,
-                    analysis=self.analysis,
-                    config_nbytes=config.nbytes,
-                    unit_shape_last=config.stmatrix_layout.shape[-1],
-                ):
-                    self._emit_stmatrix(inst, config)
-                    return
+            if _check_shared_alignment_and_contiguity(
+                shared_tensor=shared_tensor,
+                register_shape=register_tensor.shape,
+                analysis=self.analysis,
+                config_nbytes=config.nbytes,
+                unit_shape_last=config.stmatrix_layout.shape[-1],
+            ):
+                self._emit_stmatrix(inst, config)
+                return
 
         # Fallback to generic stores
         _emit_generic_store_shared(self, inst)

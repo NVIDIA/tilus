@@ -215,7 +215,13 @@ class StmtBuilder:
         return StmtScope(self, stmts=ForMappingStmt(iter_vars, mapping, worker, cast(Stmt, None)), ret=iter_vars)
 
     def for_grid(self, shape: Sequence[Union[Expr, int]]) -> StmtScope:
-        return self.for_mapping(mapping=repeat_map(shape), iter_names=self._name_index_vars(len(shape)), worker=0)
+        iter_names = self._name_index_vars(len(shape))
+        iter_vars = [var(name) for name in iter_names]
+        # Build nested ForStmt from outermost to innermost
+        stmts = []
+        for iv, extent in zip(iter_vars, shape):
+            stmts.append(ForStmt(iv, extent, attr=ForStmtAttr()))
+        return StmtScope(self, stmts=stmts, ret=iter_vars)
 
     def for_range(self, extent: Union[Expr, int], *, attr: Optional[Union[str, ForStmtAttr]] = None) -> StmtScope:
         iter_var = var("i")
