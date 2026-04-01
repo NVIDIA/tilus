@@ -79,6 +79,10 @@ Call `tilus.option.debug.dump_ir()` before running the kernel. The IR after each
     ...
 ```
 
+## Skills
+
+- **`/ncu-report`** — Analyze Nsight Compute `.ncu-rep` profiling reports. Extracts metrics, performance data, SASS/CUDA source, and identifies bottlenecks. Usage: `/ncu-report <path-to-report.ncu-rep>`
+
 ## Testing After Refactors
 
 After a large refactor, first run `tests/kernels/matmul/test_matmul_v2.py` as a smoke test before running the full suite — the full suite is slow. Fix any matmul_v2 failures first, then expand to more tests.
