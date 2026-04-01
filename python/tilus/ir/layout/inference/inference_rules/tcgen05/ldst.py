@@ -42,10 +42,10 @@ class Tcgen05LdstRule(LayoutInferenceRule):
         total_columns_bits = tmem_tensor.shape[1] * dtype.nbits
 
         for shape_kind in [
-            Tcgen05LoadStoreShapeKind.R32x32B,
-            Tcgen05LoadStoreShapeKind.R16x64B,
-            Tcgen05LoadStoreShapeKind.R16x128B,
             Tcgen05LoadStoreShapeKind.R16x256B,
+            Tcgen05LoadStoreShapeKind.R16x128B,
+            Tcgen05LoadStoreShapeKind.R16x64B,
+            Tcgen05LoadStoreShapeKind.R32x32B,
         ]:
             shape_rows = shape_kind.rows()
             shape_columns_bits = shape_kind.columns_bits()

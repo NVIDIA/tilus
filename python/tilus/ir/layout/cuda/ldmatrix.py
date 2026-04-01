@@ -36,3 +36,20 @@ class LoadMatrixConfig:
             LoadMatrixConfig(4, False, spatial(8, 4)),
             LoadMatrixConfig(2, True, column_spatial(4, 8).local(2, 1)),
         )
+
+
+@dataclass(frozen=True, eq=False)
+class StoreMatrixConfig:
+    nbytes: int
+    trans: bool
+    stmatrix_layout: RegisterLayout
+
+    @staticmethod
+    @functools.cache
+    def all() -> tuple[StoreMatrixConfig, ...]:
+        return (
+            StoreMatrixConfig(1, False, spatial(8, 4).local(1, 4)),
+            StoreMatrixConfig(2, False, spatial(8, 4).local(1, 2)),
+            StoreMatrixConfig(4, False, spatial(8, 4)),
+            StoreMatrixConfig(2, True, column_spatial(4, 8).local(2, 1)),
+        )

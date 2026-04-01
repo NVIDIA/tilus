@@ -10,6 +10,7 @@ Tilus caches generated kernels. During development, set the cache directory via 
 - The cache directory can be safely deleted at any time.
 - To inspect the CUDA kernel generated for a specific script, delete the cache directory, run the program, and check the newly generated `source.cu`.
 - Use `debug_schedule=dict(...)` to pin a specific schedule, so only that single configuration is compiled.
+- **Important**: The cache key is based on the Tilus IR hash, not the codegen output. Changes to the emitter/codegen (e.g., fixing address computation) do NOT invalidate cached programs. You must delete the cache directory (`.cache`, `.cache/.test_cache`, or the script-specific cache) to force recompilation after emitter changes.
 
 ## Compilation Pipeline
 

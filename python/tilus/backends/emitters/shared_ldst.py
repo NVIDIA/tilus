@@ -35,19 +35,19 @@ from tilus.hidet.ir.dtypes import boolean, int32, uint8, uint16, uint32
 from tilus.hidet.ir.dtypes.vector import uint32x2, uint32x4
 from tilus.hidet.ir.expr import Expr, Var, as_expr, cast, deref, if_then_else, index_vars
 from tilus.hidet.ir.node import Node
-from tilus.hidet.ir.primitives.cuda.mma import ldmatrix
+from tilus.hidet.ir.primitives.cuda.mma import ldmatrix, stmatrix
 from tilus.hidet.ir.tools import collect
 from tilus.hidet.ir.tools.rewriter import rewrite
 from tilus.hidet.ir.type import DataType
 from tilus.ir.analyzers.grid_analyzer import TensorInfo, analyze_grid
 from tilus.ir.instructions import LoadSharedInst, StoreSharedInst
 from tilus.ir.layout import RegisterLayout
-from tilus.ir.layout.cuda.ldmatrix import LoadMatrixConfig
+from tilus.ir.layout.cuda.ldmatrix import LoadMatrixConfig, StoreMatrixConfig
 from tilus.ir.layout.ops import divide
 from tilus.ir.layout.ops.utils import LayoutOperationError
 from tilus.ir.tensor import RegisterTensor, SharedTensor
 from tilus.ir.utils import vector
-from tilus.target import nvgpu_sm75
+from tilus.target import nvgpu_sm75, nvgpu_sm90
 from tilus.utils import gcd
 
 
@@ -60,6 +60,21 @@ def _get_load_matrix_config(dtype: DataType, register_layout: RegisterLayout) ->
             continue
         try:
             divide(register_layout, config.ldmatrix_layout)
+        except LayoutOperationError:
+            continue
+        return config
+    return None
+
+
+def _get_store_matrix_config(dtype: DataType, register_layout: RegisterLayout) -> Optional[StoreMatrixConfig]:
+    """Check if the register layout is compatible with stmatrix."""
+    if len(register_layout.shape) != 2:
+        return None
+    for config in StoreMatrixConfig.all():
+        if dtype.nbytes != config.nbytes:
+            continue
+        try:
+            divide(register_layout, config.stmatrix_layout)
         except LayoutOperationError:
             continue
         return config
@@ -336,9 +351,97 @@ class LoadSharedInstGenericEmitter(BaseInstEmitter):
         _emit_generic_load_shared(self, inst)
 
 
+@register_emitter(StoreSharedInst, target=nvgpu_sm90)
+class StoreSharedInstStmatrixEmitter(BaseInstEmitter):
+    """Emitter for StoreSharedInst that tries stmatrix first, then falls back to generic stores.
+
+    stmatrix requires sm_90 or higher.
+    """
+
+    def emit(self, inst: StoreSharedInst) -> None:
+        shared_tensor = inst.inputs[0].as_shared_tensor()
+        register_tensor = inst.inputs[1].as_register_tensor()
+        dtype = register_tensor.dtype
+
+        # Try stmatrix
+        config = _get_store_matrix_config(dtype, register_layout=register_tensor.layout)
+        if config is not None:
+            if _check_shared_alignment_and_contiguity(
+                shared_tensor=shared_tensor,
+                register_shape=register_tensor.shape,
+                analysis=self.analysis,
+                config_nbytes=config.nbytes,
+                unit_shape_last=config.stmatrix_layout.shape[-1],
+            ):
+                self._emit_stmatrix(inst, config)
+                return
+
+        # Fallback to generic stores
+        _emit_generic_store_shared(self, inst)
+
+    def _emit_stmatrix(self, inst: StoreSharedInst, config: StoreMatrixConfig) -> None:
+        """Emit stmatrix instructions.
+
+        Each thread computes its shared memory address from its position in the full
+        register layout. The first local element (local_index=0) determines the address,
+        since it corresponds to the first fp16 in the packed u32 register.
+        """
+        shared_tensor = inst.inputs[0].as_shared_tensor()
+        register_tensor = inst.inputs[1].as_register_tensor()
+        layout = register_tensor.layout
+
+        regs_buf = self.get_or_allocate_var(register_tensor)
+
+        stmatrix_layout = config.stmatrix_layout
+        stmatrix_local_size = stmatrix_layout.local_size
+        total_local = layout.local_size
+        num_stmatrix_tiles = total_local // stmatrix_local_size
+        vector_size: int = gcd(num_stmatrix_tiles, 4)
+        num_vectors: int = num_stmatrix_tiles // vector_size
+
+        dtype = register_tensor.dtype
+
+        # Get shared-space address for stmatrix
+        smem_base_addr = self.declare_var(
+            "smem_addr", tp=int32, init=self.shared_tensor_shared_space_addr[shared_tensor]
+        )
+
+        # Get axes and offset from shared layout
+        axes: list[Var] = index_vars(num_vars=len(shared_tensor.shape))
+        offset: Expr = shared_tensor.layout(*axes)
+
+        with self.for_range(num_vectors, attr="u+") as vec_i:
+            regs: list[Expr] = []
+            for i in range(vector_size):
+                local_idx = (vec_i * vector_size + i) * stmatrix_local_size
+                regs.append(deref(cast(~regs_buf[local_idx], ~uint32)))
+
+            # Compute shared memory address for stmatrix.
+            # stmatrix address: T0 stores addr for row 0, T1 for row 1, ..., T7 for row 7.
+            # For x2: T8-T15 provide addrs for the second matrix's rows 0-7, etc.
+            # The address uses the same lhs/rhs decomposition as ldmatrix.
+            # NOTE: this only works with non-swizzled shared layouts because stmatrix
+            # writes 16 bytes sequentially from the given address.
+            lane_id = self.current_thread % 32
+            warp_id = self.current_thread // 32
+            lhs_layout: RegisterLayout = divide(layout, stmatrix_layout)
+            lhs_indices = vector(
+                lhs_layout.get_global(local_index=vec_i * vector_size + lane_id // 8, spatial_index=warp_id)
+            )
+            rhs_indices = vector([lane_id % 8, 0])
+            rhs_shape = vector(stmatrix_layout.shape)
+            shared_indices = list(lhs_indices * rhs_shape + rhs_indices)
+
+            rewrite_map: Mapping[Node, Node] = {axis: as_expr(idx) for axis, idx in zip(axes, shared_indices)}
+            offset_rewritten = rewrite(offset, rewrite_map=rewrite_map)
+            smem_addr = smem_base_addr + offset_rewritten * dtype.nbytes
+
+            self.append(stmatrix(regs=regs, smem_addr=smem_addr, shared_space_addr=True, trans=config.trans))
+
+
 @register_emitter(StoreSharedInst)
-class StoreSharedInstEmitter(BaseInstEmitter):
-    """Emitter for StoreSharedInst using generic element-wise stores with vectorization."""
+class StoreSharedInstGenericEmitter(BaseInstEmitter):
+    """Generic emitter for StoreSharedInst (element-wise stores with vectorization)."""
 
     def emit(self, inst: StoreSharedInst) -> None:
         _emit_generic_store_shared(self, inst)

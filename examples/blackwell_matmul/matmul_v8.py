@@ -353,8 +353,8 @@ def main(bench=True):
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
-        a = torch.randint(0, 2, size=(m_size, k_size), dtype=torch.float16, device="cuda")
-        b = torch.randint(0, 2, size=(n_size, k_size), dtype=torch.float16, device="cuda")
+        a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
+        b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
         c_actual = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
         c_expected = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 

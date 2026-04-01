@@ -119,10 +119,13 @@ class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
             with self.for_range(warp_repeat_m, attr="u") as warp_repeat_i:
                 with self.for_range(warp_repeat_n // num, attr="u") as warp_repeat_vec_j:
                     # get the tmem address for each instruction
+                    # Each column group covers shape_kind.columns_bits() / 32 tmem columns.
+                    # COLUMN_STRIDE advances by 1 tmem column (32 bits).
+                    columns_per_group = shape_kind.columns_bits() // 32
                     atom_addr = (
                         warp_tmem_base_addr
                         + warp_repeat_i * shape_kind.rows() * LANE_STRIDE
-                        + warp_repeat_vec_j * num * COLUMN_STRIDE
+                        + warp_repeat_vec_j * num * columns_per_group * COLUMN_STRIDE
                     )
 
                     # get the registers for the instruction

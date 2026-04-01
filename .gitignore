@@ -74,3 +74,4 @@ uv.lock
 
 # claude tasks
 /TASK*.md
+/REPORT*.md
