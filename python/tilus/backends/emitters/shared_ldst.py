@@ -47,7 +47,7 @@ from tilus.ir.layout.ops import divide
 from tilus.ir.layout.ops.utils import LayoutOperationError
 from tilus.ir.tensor import RegisterTensor, SharedTensor
 from tilus.ir.utils import vector
-from tilus.target import nvgpu_sm75
+from tilus.target import nvgpu_sm75, nvgpu_sm90
 from tilus.utils import gcd
 
 
@@ -351,9 +351,12 @@ class LoadSharedInstGenericEmitter(BaseInstEmitter):
         _emit_generic_load_shared(self, inst)
 
 
-@register_emitter(StoreSharedInst, target=nvgpu_sm75)
+@register_emitter(StoreSharedInst, target=nvgpu_sm90)
 class StoreSharedInstStmatrixEmitter(BaseInstEmitter):
-    """Emitter for StoreSharedInst that tries stmatrix first, then falls back to generic stores."""
+    """Emitter for StoreSharedInst that tries stmatrix first, then falls back to generic stores.
+
+    stmatrix requires sm_90 or higher.
+    """
 
     def emit(self, inst: StoreSharedInst) -> None:
         shared_tensor = inst.inputs[0].as_shared_tensor()
