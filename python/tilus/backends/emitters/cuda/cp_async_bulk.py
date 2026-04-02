@@ -114,9 +114,8 @@ class BulkCopyAsyncBetweenGlobalShared(CopyAysncBaseEmitter):
                     global_indices[i] = global_indices[i] + offset
 
             global_address = self.tensor2var[global_tensor] + global_tensor.layout(*global_indices)
-            shared_address = (
-                self.shared_tensor_shared_space_addr[shared_tensor]
-                + shared_tensor.layout(*shared_indices) * dtype.nbytes
+            shared_address = self.shared_tensor_shared_space_addr[shared_tensor] + shared_tensor.layout.byte_offset(
+                *shared_indices, nbytes=dtype.nbytes
             )
             mask = boolean.true if not check_bounds else within_bound(global_indices, global_tensor.shape)
             with self.if_then(mask):
@@ -275,10 +274,12 @@ class CopyAsyncBulkSharedToClusterSharedEmitter(CopyAysncBaseEmitter):
                 "src_addr",
                 tp=uint32,
                 init=self.shared_tensor_shared_space_addr[shared_src]
-                + shared_src.layout(*shared_indices) * dtype.nbytes,
+                + shared_src.layout.byte_offset(*shared_indices, nbytes=dtype.nbytes),
             )
             dst_addr = self.declare_var(
-                "dst_addr", tp=uint32, init=remote_dst_base_addr + shared_dst.layout(*shared_indices) * dtype.nbytes
+                "dst_addr",
+                tp=uint32,
+                init=remote_dst_base_addr + shared_dst.layout.byte_offset(*shared_indices, nbytes=dtype.nbytes),
             )
             with self.if_then(self.block_rank_in_cluster == uint32(inst.remote_rank)):
                 self.append(mbarrier_expect_tx_shared(barrier_addr, transaction_bytes=cp_size))

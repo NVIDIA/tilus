@@ -50,6 +50,27 @@ class Swizzle:
             return index
         return swizzle(index, self.base, self.bits, self.shift)
 
+    def to_byte_swizzle(self, nbytes: int) -> Swizzle:
+        """Convert element-level swizzle to byte-level swizzle.
+
+        When converting from element indices to byte offsets (multiplying by nbytes),
+        the swizzle base parameter shifts by log2(nbytes) because all bit positions
+        shift left by that amount.
+
+        Parameters
+        ----------
+        nbytes: int
+            The number of bytes per element. Must be a power of 2.
+
+        Returns
+        -------
+        ret: Swizzle
+            A new Swizzle with adjusted base for byte-level operation.
+        """
+        assert nbytes > 0 and (nbytes & (nbytes - 1)) == 0, "nbytes must be a power of 2"
+        k = nbytes.bit_length() - 1  # log2(nbytes)
+        return Swizzle(base=self.base + k, bits=self.bits, shift=self.shift)
+
     def __str__(self):
         return f"Swizzle(base={self.base}, bits={self.bits}, shift={self.shift})"
 
@@ -125,6 +146,45 @@ class SharedLayout(IRNode):
             total_index = self.optional_swizzle(total_index)
 
         return total_index
+
+    def byte_offset(self, *indices: Expr, nbytes: int) -> Expr:
+        """Compute the byte offset with byte-level swizzle.
+
+        Instead of ``layout(*indices) * nbytes`` which computes
+        ``swizzle(element_offset) * nbytes``, this method computes
+        ``swizzle_byte(element_offset * nbytes)`` where the swizzle parameters are
+        adjusted for byte-level operation. These are mathematically equivalent but the
+        byte-level form is more optimization-friendly because the multiplication is
+        folded into the address before the swizzle, avoiding a trailing multiply.
+
+        Parameters
+        ----------
+        indices: Sequence[Expr]
+            The indices of the shared tensor.
+        nbytes: int
+            The number of bytes per element. Must be a power of 2.
+
+        Returns
+        -------
+        ret: Expr
+            The byte offset with byte-level swizzle applied.
+        """
+        from tilus.ir.layout.ops.utils import get_mode_groups
+
+        # compute unswizzled element offset
+        group_modes = get_mode_groups(self.shape, self.mode_shape)
+        mode_indices: list[Expr] = []
+        for index, modes in zip(indices, group_modes):
+            mode_indices.extend(index_deserialize(index, shape=[self.mode_shape[m] for m in modes]))
+        total_index: Expr = as_expr(sum(index * stride for index, stride in zip(mode_indices, self.mode_strides)))
+
+        # convert to byte offset and apply byte-level swizzle
+        byte_offset = total_index * nbytes
+        if self.optional_swizzle is not None:
+            byte_swizzle = self.optional_swizzle.to_byte_swizzle(nbytes)
+            byte_offset = byte_swizzle(byte_offset)
+
+        return byte_offset
 
     def __eq__(self, other):
         if not isinstance(other, SharedLayout):
