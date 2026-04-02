@@ -242,36 +242,6 @@ def check_commits(base_commit: str) -> Dict[str, List[CommitSignatureStatus]]:
     }
 
 
-def find_first_unsigned_commit(base_commit: str) -> str:
-    """Find the first commit that needs signing, starting from the merge base.
-
-    Returns the commit hash of the first commit that needs DCO sign-off,
-    or the base_commit if all commits are properly signed.
-    """
-    commits = get_commit_range(base_commit)
-
-    if not commits:
-        return base_commit
-
-    # Check commits in reverse order (oldest first) to find the first unsigned one
-    commits.reverse()
-
-    for commit in commits:
-        if not check_commit_signature(commit):
-            # Found the first commit that needs signing
-            # Return the parent of this commit so we can rebase from there
-            exit_code, parent, stderr = run_git_command(["rev-parse", f"{commit}^"])
-            if exit_code == 0:
-                return parent
-            else:
-                # If we can't get the parent (e.g., this is the first commit),
-                # fall back to the base commit
-                return base_commit
-
-    # All commits are properly signed
-    return base_commit
-
-
 def print_signature_report(results: Dict[str, List[CommitSignatureStatus]]) -> None:
     """Print a comprehensive human-readable report of signature status."""
     total_commits = sum(len(commits) for commits in results.values())
@@ -319,53 +289,120 @@ def print_signature_report(results: Dict[str, List[CommitSignatureStatus]]) -> N
     print(f"{'=' * 60}")
 
 
-def get_fix_summary(results: Dict[str, List[CommitSignatureStatus]]) -> str:
+def get_fix_summary(results: Dict[str, List[CommitSignatureStatus]], fix_signoff: bool, fix_gpg: bool) -> str:
     """Generate a summary of what the fix operation will do."""
-    commits_needing_signoff = len(results["missing_signoff"]) + len(results["missing_both"])
+    parts = []
 
-    if commits_needing_signoff == 0:
-        return "✅ All commits already have DCO sign-off!"
+    if fix_signoff:
+        commits_needing_signoff = len(results["missing_signoff"]) + len(results["missing_both"])
+        if commits_needing_signoff > 0:
+            part = f"📝 Will add DCO sign-off to {commits_needing_signoff} commits:\n"
+            for status in results["missing_signoff"] + results["missing_both"]:
+                part += f"   • {status.short_info}\n"
+            parts.append(part)
 
-    summary = f"📝 Will add DCO sign-off to {commits_needing_signoff} commits:\n"
+    if fix_gpg:
+        commits_needing_gpg = len(results["missing_gpg"]) + len(results["missing_both"]) + len(results["invalid_gpg"])
+        if commits_needing_gpg > 0:
+            part = f"🔐 Will add GPG signatures to {commits_needing_gpg} commits:\n"
+            for status in results["missing_gpg"] + results["missing_both"] + results["invalid_gpg"]:
+                part += f"   • {status.short_info}\n"
+            parts.append(part)
 
-    for status in results["missing_signoff"] + results["missing_both"]:
-        summary += f"   • {status.short_info}\n"
+    if not parts:
+        return "✅ All commits already have proper signatures!"
 
-    if results["missing_gpg"] or results["invalid_gpg"]:
-        gpg_count = len(results["missing_gpg"]) + len(results["invalid_gpg"])
-        summary += f"\n🔐 Note: {gpg_count} commits will still need GPG signatures after this fix.\n"
-        summary += "    Use 'git rebase --gpg-sign <base_commit>' to add GPG signatures.\n"
-
-    return summary
+    return "\n".join(parts)
 
 
-def fix_commit_signatures(base_commit: str) -> bool:
-    """Use git rebase --signoff to sign all commits from the first unsigned commit."""
-    # Find the optimal rebase point (first unsigned commit)
-    optimal_base = find_first_unsigned_commit(base_commit)
+def find_first_unsigned_or_ungpg_commit(base_commit: str, check_signoff: bool = True, check_gpg: bool = False) -> str:
+    """Find the first commit that needs signing, starting from the merge base.
+
+    Returns the parent of the first commit that needs DCO sign-off or GPG signature,
+    or the base_commit if all commits are properly signed.
+    """
+    commits = get_commit_range(base_commit)
+
+    if not commits:
+        return base_commit
+
+    # Check commits in reverse order (oldest first) to find the first unsigned one
+    commits.reverse()
+
+    for commit in commits:
+        needs_fix = False
+        if check_signoff and not check_commit_signature(commit):
+            needs_fix = True
+        if check_gpg:
+            has_gpg, gpg_status, _ = check_gpg_signature(commit)
+            if not has_gpg or gpg_status != "valid":
+                needs_fix = True
+
+        if needs_fix:
+            exit_code, parent, stderr = run_git_command(["rev-parse", f"{commit}^"])
+            if exit_code == 0:
+                return parent
+            else:
+                return base_commit
+
+    return base_commit
+
+
+def fix_commit_signatures(base_commit: str, signoff: bool = True, gpg_sign: bool = False) -> bool:
+    """Use git rebase to fix commit signatures.
+
+    Parameters
+    ----------
+    base_commit : str
+        The base commit to rebase from.
+    signoff : bool
+        Whether to add DCO sign-off (--signoff).
+    gpg_sign : bool
+        Whether to add GPG signatures (--gpg-sign).
+    """
+    # Find the optimal rebase point
+    optimal_base = find_first_unsigned_or_ungpg_commit(base_commit, check_signoff=signoff, check_gpg=gpg_sign)
 
     if optimal_base == base_commit:
         # Check if there are any commits that need signing
         commits = get_commit_range(base_commit)
         if commits:
-            unsigned_count = sum(1 for commit in commits if not check_commit_signature(commit))
-            if unsigned_count == 0:
+            needs_work = False
+            for commit in commits:
+                if signoff and not check_commit_signature(commit):
+                    needs_work = True
+                    break
+                if gpg_sign:
+                    has_gpg, gpg_status, _ = check_gpg_signature(commit)
+                    if not has_gpg or gpg_status != "valid":
+                        needs_work = True
+                        break
+            if not needs_work:
                 print("✅ All commits are already properly signed")
                 return True
 
         print(f"Signing all commits between {base_commit[:8]} and HEAD...")
         rebase_target = base_commit
     else:
-        # Get commit count for both ranges for comparison
         optimized_commits = get_commit_range(optimal_base)
-
-        print(f"Rebasing {len(optimized_commits)} commits from {optimal_base[:8]} (first unsigned commit)")
-
+        print(f"Rebasing {len(optimized_commits)} commits from {optimal_base[:8]}")
         rebase_target = optimal_base
 
-    # Run git rebase with --signoff
-    print(f"Running: git rebase --signoff {rebase_target[:8]}")
-    exit_code, stdout, stderr = run_git_command(["rebase", rebase_target, "--signoff"], capture_output=False)
+    # Build rebase command
+    rebase_args = ["rebase", rebase_target]
+    flags = []
+    if signoff:
+        rebase_args.append("--signoff")
+        flags.append("--signoff")
+    if gpg_sign:
+        rebase_args.append("--gpg-sign")
+        flags.append("--gpg-sign")
+        # Force rewrite so GPG signatures are applied even when no other changes are needed
+        rebase_args.append("--force-rebase")
+        flags.append("--force-rebase")
+
+    print(f"Running: git rebase {' '.join(flags)} {rebase_target[:8]}")
+    exit_code, stdout, stderr = run_git_command(rebase_args, capture_output=False)
 
     if exit_code == 0:
         print("✅ Successfully signed all commits")
@@ -421,7 +458,7 @@ def main():
                 sys.exit(0)
 
         elif args.fix:
-            # Fix mode: only fix DCO sign-off (GPG signatures require separate handling)
+            # Fix mode: fix DCO sign-off and/or GPG signatures
 
             # Check for unstaged changes before proceeding
             print("Checking working tree status...")
@@ -430,35 +467,48 @@ def main():
             results = check_commits(base_commit)
 
             commits_needing_signoff = len(results["missing_signoff"]) + len(results["missing_both"])
+            commits_needing_gpg = (
+                len(results["missing_gpg"]) + len(results["invalid_gpg"]) + len(results["missing_both"])
+            )
 
-            if commits_needing_signoff == 0:
-                print("✅ All commits already have DCO sign-off!")
+            need_signoff = commits_needing_signoff > 0
+            need_gpg = commits_needing_gpg > 0
 
-                # Check if only GPG issues remain
-                gpg_issues = len(results["missing_gpg"]) + len(results["invalid_gpg"])
-                if gpg_issues > 0:
-                    print(f"\n🔐 Note: {gpg_issues} commits still need GPG signatures.")
-                    print("    Use 'git rebase --gpg-sign <base_commit>' to add GPG signatures.")
-
+            if not need_signoff and not need_gpg:
+                print("✅ All commits already have proper signatures!")
                 sys.exit(0)
 
             # Show what will be fixed
-            print(get_fix_summary(results))
+            print(get_fix_summary(results, fix_signoff=need_signoff, fix_gpg=need_gpg))
 
             # Show optimization info
-            optimal_base = find_first_unsigned_commit(base_commit)
+            optimal_base = find_first_unsigned_or_ungpg_commit(
+                base_commit, check_signoff=need_signoff, check_gpg=need_gpg
+            )
             if optimal_base != base_commit:
                 original_commits = get_commit_range(base_commit)
                 optimized_commits = get_commit_range(optimal_base)
-                print("\n🚀 Optimization detected:")
-                print(f"   • Original plan: rebase {len(original_commits)} commits from {base_commit[:8]}")
-                print(f"   • Optimized plan: rebase {len(optimized_commits)} commits from {optimal_base[:8]}")
-                print(f"   • Saving {len(original_commits) - len(optimized_commits)} unnecessary rebases!")
+                if len(original_commits) != len(optimized_commits):
+                    print("\n🚀 Optimization detected:")
+                    print(f"   • Original plan: rebase {len(original_commits)} commits from {base_commit[:8]}")
+                    print(f"   • Optimized plan: rebase {len(optimized_commits)} commits from {optimal_base[:8]}")
+                    print(f"   • Saving {len(original_commits) - len(optimized_commits)} unnecessary rebases!")
+
+            # Build description of what we'll do
+            fix_parts = []
+            total_affected = 0
+            if need_signoff:
+                fix_parts.append("DCO sign-off")
+                total_affected = max(total_affected, commits_needing_signoff)
+            if need_gpg:
+                fix_parts.append("GPG signatures")
+                total_affected = max(total_affected, commits_needing_gpg)
+            fix_desc = " and ".join(fix_parts)
 
             # Ask for confirmation unless non-interactive mode
             if not args.non_interactive:
                 try:
-                    response = input(f"\nAdd DCO sign-off to {commits_needing_signoff} commits? [Y/n]: ")
+                    response = input(f"\nAdd {fix_desc} to commits? [Y/n]: ")
                     if response.lower().strip() not in ["y", "yes", ""]:
                         print("Aborted by user")
                         sys.exit(1)
@@ -466,10 +516,10 @@ def main():
                     print("\nAborted by user")
                     sys.exit(1)
             else:
-                print(f"\nRunning in non-interactive mode, proceeding to sign {commits_needing_signoff} commits...")
+                print(f"\nRunning in non-interactive mode, proceeding to add {fix_desc}...")
 
-            # Perform the fix
-            if fix_commit_signatures(base_commit):
+            # Perform the fix (single rebase with both flags if needed)
+            if fix_commit_signatures(base_commit, signoff=need_signoff, gpg_sign=need_gpg):
                 sys.exit(0)
             else:
                 sys.exit(1)
