@@ -1,16 +1,78 @@
 ---
 name: ncu-report
-description: Analyze NVIDIA Nsight Compute (ncu) profiling reports (.ncu-rep files). Extract metrics, performance data, SASS/CUDA source, and identify bottlenecks.
-user_invocable: true
+description: >
+  Analyze NVIDIA Nsight Compute (ncu) profiling reports (.ncu-rep files).
+  Extract metrics, performance data, SASS/CUDA source, and identify bottlenecks.
+  TRIGGER when: user asks to analyze, profile, or look at an ncu report, .ncu-rep file,
+  Nsight Compute report, kernel performance/profiling data from ncu, or asks to generate/collect
+  an ncu profile for a tilus kernel or example script.
+  DO NOT TRIGGER when: user is writing unrelated profiling code.
+user-invocable: true
 ---
 
 # Nsight Compute Report Analysis
 
-You are analyzing an `.ncu-rep` profiling report using the `ncu` CLI (NVIDIA Nsight Compute).
-All `ncu` commands MUST use `TMPDIR=/tmp/ncu_tmp` prefix to avoid temp file errors.
+This skill handles two modes:
 
-The user will provide a path to an `.ncu-rep` file and optionally specify what they want to analyze.
-If the user does not specify a report path, check for `.ncu-rep` files under `examples/` in the repo.
+1. **Analyze an existing report**: The user provides a path to an `.ncu-rep` file (or one exists under `examples/`). Use the `ncu` CLI to extract and present metrics. All `ncu` commands MUST use `TMPDIR=/tmp/ncu_tmp` prefix to avoid temp file errors.
+
+2. **Generate a new report**: The user specifies a script or kernel to profile but does NOT provide a `.ncu-rep` file. In this case, set up profiling using `tilus.utils.ncu_utils.ncu_run()`, run it, then analyze the resulting report.
+
+## Generating a Report
+
+Tilus provides `tilus.utils.ncu_utils.ncu_run()` to profile kernels with full metrics and source correlation.
+
+### API
+```python
+from tilus.utils.ncu_utils import ncu_run
+
+# ncu_run(func, *args, kernel_regex=".*", **kwargs) -> NsightComputeReport
+report = ncu_run(main, bench=False, kernel_regex="tilus|nvjet")
+```
+
+- `func`: a callable (typically a `main()` function) that runs the kernel(s) to profile
+- `*args`, `**kwargs`: passed through to `func`
+- `kernel_regex`: regex to filter which kernels to profile (default `".*"`)
+- Returns `NsightComputeReport` with `.report_path` pointing to the generated `.ncu-rep` file
+
+### What it does
+- Runs the function under `ncu` with `--set full`, all rules enabled, and `--import-source yes`
+- Saves the report to `ncu-reports/reportN.ncu-rep` next to the script (auto-increments N)
+- Uses the system Python and the `ncu` binary at `/usr/local/cuda/bin/ncu`
+
+### How to generate a report for the user
+
+**IMPORTANT**: `ncu_run()` must be called inside a `if __name__ == "__main__":` block. It works by re-importing the script as a subprocess under `ncu` — if `ncu_run()` is at module level, the subprocess will call `ncu_run()` again, causing infinite recursion and a runtime error.
+
+**Step 1: Read the script** — find the example script the user specified and read it to understand how the kernel is invoked.
+
+**Step 2: Set up profiling** — choose one of these approaches:
+
+- **If the script already has a `__main__` block with `ncu_run()`**: just run it directly.
+- **If the script has a `__main__` block but no `ncu_run()`**: edit the `__main__` block to add `ncu_run()`. For example, if the block calls `main()`, change it to call `ncu_run(main, bench=False, kernel_regex="tilus")`.
+- **If the script has no `__main__` block or is hard to modify** (e.g., it's a test file, or the kernel launch is deeply nested): create a new script next to it (e.g., `profile_<name>.py`) that imports and calls the kernel under `ncu_run()`.
+
+Example of editing an existing `__main__` block:
+```python
+if __name__ == "__main__":
+    from tilus.utils.ncu_utils import ncu_run
+    ncu_run(main, bench=False, kernel_regex="tilus")
+```
+
+Example of creating a new profiling script:
+```python
+from tilus.utils.ncu_utils import ncu_run
+from matmul_v9 import main
+
+if __name__ == "__main__":
+    ncu_run(main, bench=False, kernel_regex="tilus")
+```
+
+**Step 3: Run the script** — `python <script_path>`. The report will be saved to `<script_dir>/ncu-reports/reportN.ncu-rep`.
+
+**Step 4: Analyze** — proceed to the Analysis Workflow below with the generated report.
+
+**Note**: `ncu` profiling requires `sudo` or appropriate permissions (CAP_SYS_ADMIN). If the command fails with permission errors, suggest running with `sudo`.
 
 ## Analysis Workflow
 
