@@ -96,7 +96,7 @@ def register_mbarrier_primitives():
             def cuda_mbarrier_wait(mbarrier_addr: u32, phase: u32):
                 attrs.func_kind = "cuda_internal"
                 attrs.func_name = func_name
-                ticks = u32(10_000_000)
+                ticks = u32(50_000)
                 asm(
                     template="{ .reg.pred P1; LAB_WAIT: " + inst + " P1, [%0], %1, %2; @!P1 bra.uni LAB_WAIT; }",
                     inputs=[mbarrier_addr, phase, ticks],
@@ -111,7 +111,7 @@ def register_mbarrier_primitives():
     @script
     def cuda_mbarrier_wait_shared(mbarrier_addr: u32, phase: u32):
         attrs.func_kind = "cuda_internal"
-        ticks = u32(10_000_000)
+        ticks = u32(50_000)
         asm(
             template="{ .reg.pred P1; LAB_WAIT: mbarrier.try_wait.parity.shared::cta.b64 P1, [%0], %1, %2; @!P1 bra.uni LAB_WAIT; }",
             inputs=[mbarrier_addr, phase, ticks],
@@ -186,7 +186,7 @@ def register_mbarrier_primitives():
     @script
     def cuda_mbarrier_sync(mbarrier_addr: u32):
         attrs.func_kind = "cuda_internal"
-        ticks = u32(10_000_000)
+        ticks = u32(50_000)
         asm(
             template="{ "
             "  .reg.pred P1; "

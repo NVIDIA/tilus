@@ -369,4 +369,4 @@ class CopyAsyncCommitGroupInstEmitter(BaseInstEmitter):
 @register_emitter(CopyAsyncTensorWaitGroupInst, target=nvgpu_sm90)
 class CopyAsyncWaitGroupInstEmitter(BaseInstEmitter):
     def emit(self, inst: CopyAsyncTensorWaitGroupInst) -> None:
-        self.append(cp_async_tensor_wait_group(inst.n))
+        self.append(cp_async_tensor_wait_group(inst.n, read=inst.read))

@@ -153,16 +153,28 @@ class TmaInstructionGroup(InstructionGroup):
         """
         self._builder.copy_async_tensor_commit_group()
 
-    def wait_group(self, n: int) -> None:
+    def wait_group(self, n: int, read: bool = False) -> None:
         """
         Wait for the previously issued async tensor copy operations to complete.
 
         This instruction waits for the previously issued async tensor copy operations to complete.
         The `n` parameter specifies the number of groups to allow to be on-the-fly.
 
+        When `read` is False (default), waits for all bulk async operations to complete,
+        including writes being made visible to the executing thread.
+
+        When `read` is True, only waits for reads from source locations to complete. Use
+        this when the source memory (e.g., shared memory) needs to be reused but there is
+        no subsequent instruction that reads the destination (e.g., global memory) written
+        by the TMA. If subsequent instructions need to load the global memory that the TMA
+        writes to, do NOT use `read=True` — use the default `read=False` to ensure writes
+        are visible.
+
         Parameters
         ----------
         n: int
             The number of groups to allow to be on-the-fly. It should be an integer larger or equal to 0.
+        read: bool
+            If True, only wait for reads to complete (not writes). Default is False.
         """
-        self._builder.copy_async_tensor_wait_group(n)
+        self._builder.copy_async_tensor_wait_group(n, read=read)

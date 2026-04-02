@@ -193,6 +193,21 @@ def register_copy_async_tensor():
             attrs.func_kind = "cuda_internal"
             asm(template="cp.async.bulk.wait_group {};".format(n), inputs=[], is_volatile=True, memory_fence=True)
 
+    for n in [0, 1, 2, 3, 4, 5, 6]:
+
+        @no_type_check
+        @register_primitive_function_decorator
+        @script
+        def func_read():
+            attrs.func_name = "cp_async_tensor_wait_group_{}_read".format(n)
+            attrs.func_kind = "cuda_internal"
+            asm(
+                template="cp.async.bulk.wait_group.read {};".format(n),
+                inputs=[],
+                is_volatile=True,
+                memory_fence=True,
+            )
+
 
 def cp_async_tensor_global_to_shared(
     dst: Expr,
@@ -246,7 +261,8 @@ def cp_async_tensor_commit_group() -> Expr:
     return call_primitive_func("cp_async_tensor_commit_group", args=[])
 
 
-def cp_async_tensor_wait_group(n: int) -> Expr:
+def cp_async_tensor_wait_group(n: int, read: bool = False) -> Expr:
     assert 0 <= n <= 6
-    func_name = "cp_async_tensor_wait_group_{}".format(n)
+    read_suffix = "_read" if read else ""
+    func_name = "cp_async_tensor_wait_group_{}{}".format(n, read_suffix)
     return call_primitive_func(func_name, args=[])
