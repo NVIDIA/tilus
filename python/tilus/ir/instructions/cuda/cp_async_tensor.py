@@ -90,7 +90,8 @@ class CopyAsyncTensorCommitGroupInst(Instruction):
 @dataclass(frozen=True, eq=False)
 class CopyAsyncTensorWaitGroupInst(Instruction):
     n: int
+    read: bool = False
 
     @staticmethod
-    def create(n: int) -> CopyAsyncTensorWaitGroupInst:
-        return CopyAsyncTensorWaitGroupInst(output=None, inputs=(), n=n)
+    def create(n: int, read: bool = False) -> CopyAsyncTensorWaitGroupInst:
+        return CopyAsyncTensorWaitGroupInst(output=None, inputs=(), n=n, read=read)

@@ -727,8 +727,8 @@ class StmtBuilder(StmtBuilderCore):
         inst = CopyAsyncTensorCommitGroupInst.create()
         self.append(inst)
 
-    def copy_async_tensor_wait_group(self, n: int) -> None:
-        inst = CopyAsyncTensorWaitGroupInst.create(n)
+    def copy_async_tensor_wait_group(self, n: int, read: bool = False) -> None:
+        inst = CopyAsyncTensorWaitGroupInst.create(n, read=read)
         self.append(inst)
 
     def elementwise_binary(
