@@ -32,10 +32,11 @@ class Pipeline(tilus.Class):
         self.producer_phase: uint32 = self.mbarrier.producer_initial_phase
         self.consumer_phase: uint32 = self.mbarrier.consumer_initial_phase
 
-    def producer_acquire(self, scope: str = "cta"):
+    def producer_acquire(self, scope: str = "cta", sem: str = "acquire"):
         self.mbarrier.wait(
             barrier=self.empty_barriers[self.producer_stage],
             phase=self.producer_phase,
+            sem=sem,
             scope=scope,
         )
 
@@ -46,10 +47,11 @@ class Pipeline(tilus.Class):
         self.producer_stage = (self.producer_stage + 1) % self.num_stages
         self.producer_phase = self.producer_phase ^ (self.producer_stage == 0)
 
-    def consumer_acquire(self, scope: str = "cta"):
+    def consumer_acquire(self, scope: str = "cta", sem: str = "acquire"):
         self.mbarrier.wait(
             barrier=self.full_barriers[self.consumer_stage],
             phase=self.consumer_phase,
+            sem=sem,
             scope=scope,
         )
 
@@ -125,7 +127,7 @@ class BlackwellMatmulV9(tilus.Script):
         return m_block, n_block_pair
 
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
-        pipe.consumer_acquire(scope="cluster")
+        pipe.consumer_acquire(scope="cluster", sem="relaxed")
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
         self.fence.async_view(space="shared")
@@ -320,8 +322,8 @@ class BlackwellMatmulV9(tilus.Script):
             while True:
                 if cta_rank == 0:
                     clc_pipe.producer_acquire(
-                        scope="cluster"
-                    )  # peer cta will arrive this barrier, need 'cluster' scoped acquire
+                        scope="cluster", sem="relaxed"
+                    )  # peer cta will arrive this barrier, relaxed is sufficient (shared memory only)
                     self.mbarrier.arrive_and_expect_tx_multicast(
                         clc_pipe.producer_barrier(),
                         transaction_bytes=16,
