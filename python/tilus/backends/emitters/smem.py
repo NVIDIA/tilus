@@ -66,10 +66,11 @@ class SliceSharedInstEmitter(BaseInstEmitter):
         slice_offset = shared_input.layout(*inst.offsets)
         output_var = self.get_or_allocate_var(shared_output)
         self.assign(output_var, ~self.tensor2var[shared_input][slice_offset])
+        slice_byte_offset = shared_input.layout.byte_offset(*inst.offsets, nbytes=shared_input.dtype.nbytes)
         self.shared_tensor_shared_space_addr[shared_output] = self.declare_var(
             "shared_addr",
             tp=int32,
-            init=self.shared_tensor_shared_space_addr[shared_input] + slice_offset * shared_input.dtype.nbytes,
+            init=self.shared_tensor_shared_space_addr[shared_input] + slice_byte_offset,
         )
 
 

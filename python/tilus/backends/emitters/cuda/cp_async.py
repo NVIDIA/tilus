@@ -117,8 +117,8 @@ class CopyAysncInstEmitter(BaseInstEmitter):
 
             def get_shared_address(task_indices: List[Expr]) -> Expr:
                 element_indices = get_element_indices(task_indices)
-                smem_offset = layout(*element_indices)
-                return smem_addr + smem_offset * dtype.nbytes
+                smem_byte_offset = layout.byte_offset(*element_indices, nbytes=dtype.nbytes)
+                return smem_addr + smem_byte_offset
 
         elif dtype.nbits % cp_size * 8 == 0:
             # a single element needs more cp.async instructions to copy

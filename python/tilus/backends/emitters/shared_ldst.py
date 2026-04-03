@@ -318,9 +318,9 @@ class LoadSharedInstLdmatrixEmitter(BaseInstEmitter):
             "smem_addr", tp=int32, init=self.shared_tensor_shared_space_addr[shared_tensor]
         )
 
-        # Get axes and offset from shared layout
+        # Get axes and byte offset from shared layout
         axes: list[Var] = index_vars(num_vars=len(shared_tensor.shape))
-        offset: Expr = shared_tensor.layout(*axes)
+        byte_offset: Expr = shared_tensor.layout.byte_offset(*axes, nbytes=dtype.nbytes)
 
         with self.for_range(num_vectors, attr="u+") as vec_i:
             regs: list[Expr] = []
@@ -337,8 +337,8 @@ class LoadSharedInstLdmatrixEmitter(BaseInstEmitter):
             shared_indices = list(lhs_indices * rhs_shape + rhs_indices)
 
             rewrite_map: Mapping[Node, Node] = {axis: index for axis, index in zip(axes, shared_indices)}
-            offset_rewritten = rewrite(offset, rewrite_map=rewrite_map)
-            smem_addr = smem_base_addr + offset_rewritten * dtype.nbytes
+            byte_offset_rewritten = rewrite(byte_offset, rewrite_map=rewrite_map)
+            smem_addr = smem_base_addr + byte_offset_rewritten
 
             self.append(ldmatrix(regs=regs, smem_addr=smem_addr, shared_space_addr=True, trans=config.trans))
 
@@ -406,9 +406,9 @@ class StoreSharedInstStmatrixEmitter(BaseInstEmitter):
             "smem_addr", tp=int32, init=self.shared_tensor_shared_space_addr[shared_tensor]
         )
 
-        # Get axes and offset from shared layout
+        # Get axes and byte offset from shared layout
         axes: list[Var] = index_vars(num_vars=len(shared_tensor.shape))
-        offset: Expr = shared_tensor.layout(*axes)
+        byte_offset: Expr = shared_tensor.layout.byte_offset(*axes, nbytes=dtype.nbytes)
 
         with self.for_range(num_vectors, attr="u+") as vec_i:
             regs: list[Expr] = []
@@ -433,8 +433,8 @@ class StoreSharedInstStmatrixEmitter(BaseInstEmitter):
             shared_indices = list(lhs_indices * rhs_shape + rhs_indices)
 
             rewrite_map: Mapping[Node, Node] = {axis: as_expr(idx) for axis, idx in zip(axes, shared_indices)}
-            offset_rewritten = rewrite(offset, rewrite_map=rewrite_map)
-            smem_addr = smem_base_addr + offset_rewritten * dtype.nbytes
+            byte_offset_rewritten = rewrite(byte_offset, rewrite_map=rewrite_map)
+            smem_addr = smem_base_addr + byte_offset_rewritten
 
             self.append(stmatrix(regs=regs, smem_addr=smem_addr, shared_space_addr=True, trans=config.trans))
 
