@@ -7,7 +7,6 @@ import tilus
 import torch
 from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
-from tilus.utils.ncu_utils import ncu_run
 
 tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
 tilus.option.debug.dump_ir()
