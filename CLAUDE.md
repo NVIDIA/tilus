@@ -70,7 +70,7 @@ Call `tilus.option.debug.dump_ir()` before running the kernel. The IR after each
 ```python
     ...
     self.store_shared(s_c, ...)
-    self.fence.async_view(space="shared")   # fence.proxy.async.shared::cta
+    self.fence.proxy_async(space="shared")   # fence.proxy.async.shared::cta
     self.sync()
     with self.single_thread():
         self.tma.shared_to_global(s_c, g_c, ...)

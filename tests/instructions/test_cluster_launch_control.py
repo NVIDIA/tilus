@@ -90,7 +90,7 @@ class ClusterLaunchControlExample(tilus.Script):
             # consumer of clc pipeline
             self.mbarrier.wait(consumer_mbarriers[consumer_stage], phase=consumer_phase)
             is_valid, blockIdx = self.clc.query_response(cancel_response[consumer_stage])
-            self.fence.async_view()  # ensure the visibility of the stored result before issuing the next clc operation
+            self.fence.proxy_async()  # ensure the visibility of the stored result before issuing the next clc operation
             self.mbarrier.arrive(producer_mbarriers[consumer_stage])
             consumer_stage = (1 + consumer_stage) % self.num_stages
             consumer_phase = consumer_phase ^ (consumer_stage == 0)

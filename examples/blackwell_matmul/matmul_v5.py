@@ -233,7 +233,7 @@ class BlackwellMatmulV5(tilus.Script):
             r_acc = self.tcgen05.load(t_acc)
             self.tcgen05.wait_load()
             self.store_shared(s_c, r_acc.to(float16))
-            self.fence.async_view()
+            self.fence.proxy_async()
             self.sync()
             with self.single_thread():
                 self.tma.shared_to_global(

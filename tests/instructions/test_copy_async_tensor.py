@@ -57,7 +57,7 @@ class CopyAsyncTensorExample(tilus.Script):
         x += 1
         self.store_shared(s_y, x)
 
-        self.fence.async_view()
+        self.fence.proxy_async()
         self.sync()
 
         with self.single_thread():

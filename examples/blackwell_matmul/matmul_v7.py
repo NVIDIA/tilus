@@ -95,7 +95,7 @@ class BlackwellMatmulV7(tilus.Script):
         pipe.consumer_acquire(scope="cluster")
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
-        self.fence.async_view(space="shared")
+        self.fence.proxy_async(space="shared")
         self.mbarrier.arrive_and_expect_tx_remote(
             pipe.consumer_barrier(), transaction_bytes=0, target_rank=0
         )
@@ -278,7 +278,7 @@ class BlackwellMatmulV7(tilus.Script):
                     r_acc = self.tcgen05.load(t_acc_slice)
                     self.tcgen05.wait_load()
                     self.store_shared(s_c, r_acc.to(float16))
-                    self.fence.async_view(space="shared")
+                    self.fence.proxy_async(space="shared")
                     self.sync()
                     with self.single_thread():
                         self.tma.shared_to_global(
