@@ -30,7 +30,6 @@ import filelock
 import tabulate
 import torch
 import tvm_ffi
-from cuda.bindings.runtime import cudaDeviceSynchronize
 from tqdm import tqdm
 
 import tilus.option
@@ -740,8 +739,6 @@ class InstantiatedScript:
         self.jit_instances: dict[JitKey, JitInstance] = {}
         self.dispatch_table: dict[tuple[JitKey, TuningKey], tvm_ffi.Function] = {}
 
-        self.launch_blocking: bool = tilus.option.get_option("debug.launch_blocking")
-
     def __call__(self, *args, **kwargs):
         if kwargs or self.with_default:
             # we allow the user to pass the keyword arguments to the script instance, or use the default values
@@ -775,10 +772,6 @@ class InstantiatedScript:
         # call the compiled function
         kernel_args = (args[i] for i in self.kernel_params)
         ret = compiled_func(*kernel_args)
-
-        # sync the device if the user wants to block the launch
-        if self.launch_blocking:
-            cudaDeviceSynchronize()
 
         return ret
 

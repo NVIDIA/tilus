@@ -336,7 +336,7 @@ class BlackwellMatmulV8(tilus.Script):
                 offset_n_c = n_block_e * block_n
 
         # all allocated tensor memory must be deallocated
-        self.sync()
+        self.cluster_sync()
         self.tcgen05.dealloc(t_acc)
 
 

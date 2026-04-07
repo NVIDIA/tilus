@@ -191,7 +191,7 @@ class NVCC(SourceCompiler):
             # the target PTX and SASS version.
             "-gencode arch=compute_{cc},code=sm_{cc}".format(cc=arch[len("sm_") :]),
             # allow ptxas (PTX assembler) to output information like register/smem usage.
-            "--ptxas-options=-v",
+            "--ptxas-options=-v" + (",--opt-level=0" if tilus.option.get_option("debug.disable_ptxas_opt") else ""),
             # compile into position independent code.
             # '--compiler-options -fPIC,-m64,-mavx2,-march=native, -O3',
             # embed the line information into the binary, allow Nsight Compute to get the source code for profiling.
@@ -233,21 +233,34 @@ class NVCC(SourceCompiler):
         self.run_compile_command(" ".join(command), src_path, out_lib_path, keep_files)
 
         if tilus.option.get_option("debug.dump_ir"):
-            # dump the the SASS code from the lib
+            # dump SASS with source line info using nvdisasm -g on extracted cubins
             target_sass_path = src_path.removesuffix(".cu") + ".sass"
-            with open(target_sass_path, "w", encoding="utf-8") as f:
+            with tempfile.TemporaryDirectory() as extract_dir:
                 try:
+                    # extract cubin(s) from the shared library
                     subprocess.run(
-                        [
-                            "cuobjdump",
-                            "-sass",
-                            out_lib_path,
-                        ],
-                        stdout=f,
+                        ["cuobjdump", "-xelf", "all", out_lib_path],
+                        cwd=extract_dir,
+                        stdout=PIPE,
+                        stderr=PIPE,
                         check=True,
                     )
-                except subprocess.CalledProcessError as e:
-                    f.write("Failed to dump SASS code from {}: {}\n".format(out_lib_path, str(e)))
+                    # find all extracted cubin files
+                    cubin_files = sorted(
+                        os.path.join(extract_dir, f) for f in os.listdir(extract_dir) if f.endswith(".cubin")
+                    )
+                    with open(target_sass_path, "w", encoding="utf-8") as f:
+                        for cubin_file in cubin_files:
+                            result = subprocess.run(
+                                ["nvdisasm", "-g", "-c", cubin_file],
+                                stdout=PIPE,
+                                stderr=PIPE,
+                                check=True,
+                            )
+                            f.write(result.stdout.decode("utf-8"))
+                except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                    with open(target_sass_path, "w", encoding="utf-8") as f:
+                        f.write("Failed to dump SASS code from {}: {}\n".format(out_lib_path, str(e)))
 
 
 def compile_source(
