@@ -46,10 +46,13 @@ class VectorAdd(tilus.Script):
         self.store_global(gc, rc, offsets=[offset])
 
 
+def _nbytes_fp32_vector_add(n_elts: int) -> int:
+    # 3 x fp32: read a, read b, write c
+    return n_elts * 4 * 3
+
+
 def main():
     headers = ["n", "name", "latency (ms)", "GB/s"]
-    # 3 x fp32: read a, read b, write c
-    nbytes = lambda n_elts: n_elts * 4 * 3
     workloads = [1 << 20, 1 << 24]
 
     rows = []
@@ -73,7 +76,7 @@ def main():
             ("tilus", lambda: kernel(n, a, b, c_actual)),
         ]:
             latency = benchmark_func(func, warmup=5, repeat=20)
-            gbps = nbytes(n) / (latency * 1e-3) / 1e9
+            gbps = _nbytes_fp32_vector_add(n) / (latency * 1e-3) / 1e9
             rows.append([n, name, latency, gbps])
 
     df = pandas.DataFrame(rows, columns=headers)
