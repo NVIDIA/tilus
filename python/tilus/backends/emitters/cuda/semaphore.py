@@ -32,9 +32,9 @@ class LockSemaphoreEmitter(BaseInstEmitter):
                 semaphore_value = self.declare_var("semaphore_value", tp=int32, init=-int32.one)
                 with self.single_thread():
                     self.assign(semaphore_value, load(addr=semaphore, space="generic", sync="acquire", scope="gpu"))
-                    cond = self.sync_reduce(equal(semaphore_value, semaphore_expect), op="or")  # type: ignore
-                    with self.if_then(cond):
-                        self.brk()
+                cond = self.sync_reduce(equal(semaphore_value, semaphore_expect), op="or")  # type: ignore
+                with self.if_then(cond):
+                    self.brk()
         else:
             # at some inner thread group, we cannot use sync_reduce since there is not such underlying instruction like syncrhoize_or for a
             # subset of threads.  Instead, we let a single thread to repeat loading the semaphore until it acquires the lock, then
