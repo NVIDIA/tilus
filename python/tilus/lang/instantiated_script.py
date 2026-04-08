@@ -659,7 +659,13 @@ class JitInstance:
                     ):
                         compiled_func = compiled_program.get_launch_func()
                         try:
-                            latency.append(benchmark_func(lambda: compiled_func(*kernel_args), warmup=1, repeat=10))  # type: ignore
+                            latency.append(
+                                benchmark_func(
+                                    lambda: compiled_func(*kernel_args),
+                                    warmup=tilus.option.get_option("bench_warmup"),
+                                    repeat=tilus.option.get_option("bench_repeat"),
+                                )
+                            )  # type: ignore
                         except RuntimeError as e:
                             raise RuntimeError(
                                 f"Failed to benchmark the kernel {self.instance_name} with schedule: \n"

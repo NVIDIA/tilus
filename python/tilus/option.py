@@ -74,6 +74,18 @@ def _register_options():
         default_value=False,
         description="Whether to block the launch of the kernel until the kernel is finished.",
     )
+    _register_hidet_option(
+        "tilus.bench_warmup",
+        type_hint="int",
+        default_value=5,
+        description="The number of warmup iterations before benchmarking during autotuning.",
+    )
+    _register_hidet_option(
+        "tilus.bench_repeat",
+        type_hint="int",
+        default_value=50,
+        description="The number of repeat iterations for benchmarking during autotuning.",
+    )
 
 
 _register_options()
@@ -118,6 +130,30 @@ def parallel_workers(n: int) -> None:
         The number of parallel workers.
     """
     return _set_hidet_option("tilus.parallel_workers", n)
+
+
+def bench_warmup(n: int) -> None:
+    """
+    Set the number of warmup iterations before benchmarking during autotuning.
+
+    Parameters
+    ----------
+    n: int
+        The number of warmup iterations.
+    """
+    _set_hidet_option("tilus.bench_warmup", n)
+
+
+def bench_repeat(n: int) -> None:
+    """
+    Set the number of repeat iterations for benchmarking during autotuning.
+
+    Parameters
+    ----------
+    n: int
+        The number of repeat iterations.
+    """
+    _set_hidet_option("tilus.bench_repeat", n)
 
 
 class debug:

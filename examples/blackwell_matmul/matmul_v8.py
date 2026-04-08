@@ -31,11 +31,12 @@ class Pipeline(tilus.Class):
         self.producer_phase: uint32 = self.mbarrier.producer_initial_phase
         self.consumer_phase: uint32 = self.mbarrier.consumer_initial_phase
 
-    def producer_acquire(self, scope: str = "cta"):
+    def producer_acquire(self):
         self.mbarrier.wait(
             barrier=self.empty_barriers[self.producer_stage],
             phase=self.producer_phase,
-            scope=scope,
+            sem="relaxed",
+            scope="cta",
         )
 
     def producer_barrier(self) -> RegisterTensor:
@@ -45,11 +46,12 @@ class Pipeline(tilus.Class):
         self.producer_stage = (self.producer_stage + 1) % self.num_stages
         self.producer_phase = self.producer_phase ^ (self.producer_stage == 0)
 
-    def consumer_acquire(self, scope: str = "cta"):
+    def consumer_acquire(self):
         self.mbarrier.wait(
             barrier=self.full_barriers[self.consumer_stage],
             phase=self.consumer_phase,
-            scope=scope,
+            sem="relaxed",
+            scope="cta",
         )
 
     def consumer_barrier(self) -> RegisterTensor:
@@ -67,15 +69,15 @@ class Pipeline(tilus.Class):
 @tilus.autotune("mma_stages", [2])
 @tilus.autotune("swizzle_size", [4, 8, 16])
 class BlackwellMatmulV8(tilus.Script):
-    debug_schedule = dict(
-        block_m=256,
-        block_n=256,
-        block_k=64,
-        tma_stages=6,
-        mma_stages=2,
-        e_block_n=32,
-        swizzle_size=8,
-    )
+    # debug_schedule = dict(
+    #     block_m=256,
+    #     block_n=256,
+    #     block_k=64,
+    #     tma_stages=6,
+    #     mma_stages=2,
+    #     e_block_n=32,
+    #     swizzle_size=8,
+    # )
 
     def __init__(
         self,
@@ -113,10 +115,10 @@ class BlackwellMatmulV8(tilus.Script):
         return m_block, n_block
 
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
-        pipe.consumer_acquire(scope="cluster")
+        pipe.consumer_acquire()
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
-        self.fence.async_view(space="shared")
+        self.fence.proxy_async(space="shared")
         self.mbarrier.arrive_and_expect_tx_remote(
             pipe.consumer_barrier(), transaction_bytes=0, target_rank=0
         )
@@ -270,9 +272,7 @@ class BlackwellMatmulV8(tilus.Script):
         with self.single_warp(2):  # scheduler
             while True:
                 if cta_rank == 0:
-                    clc_pipe.producer_acquire(
-                        scope="cluster"
-                    )  # peer cta will arrive this barrier, need 'cluster'scoped acquire
+                    clc_pipe.producer_acquire()
                     self.mbarrier.arrive_and_expect_tx_multicast(
                         clc_pipe.producer_barrier(),
                         transaction_bytes=16,
@@ -310,7 +310,7 @@ class BlackwellMatmulV8(tilus.Script):
                     r_acc = self.tcgen05.load(t_acc_slice)
                     self.tcgen05.wait_load()
                     self.store_shared(s_c, r_acc.to(float16))
-                    self.fence.async_view(space="shared")
+                    self.fence.proxy_async(space="shared")
                     self.sync()
                     with self.single_thread():
                         self.tma.shared_to_global(
@@ -320,7 +320,7 @@ class BlackwellMatmulV8(tilus.Script):
                             dims=[0, 1],
                         )
                         self.tma.commit_group()
-                        self.tma.wait_group(n=0)
+                        self.tma.wait_group(n=0, read=True)
                     self.sync()
 
                 self.mbarrier.arrive(mma_pipe.consumer_barrier())
@@ -372,7 +372,7 @@ def main(bench=True):
                 ("torch", lambda: torch.matmul(a, b.T, out=c_expected)),
                 ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c_actual)),
             ]:
-                latency = benchmark_func(func, warmup=5, repeat=20)
+                latency = benchmark_func(func, warmup=5, repeat=200)
                 tflops = 2 * m_size * n_size * k_size / latency * 1e-9
                 rows.append([m_size, n_size, k_size, name, latency, tflops])
 
@@ -384,4 +384,4 @@ def main(bench=True):
 if __name__ == "__main__":
     main(bench=True)
     # main(bench=False)
-    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
+    # ncu_run(main, bench=False, kernel_regex="tilus|nvjet")

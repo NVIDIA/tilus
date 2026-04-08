@@ -16,14 +16,14 @@
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.hidet.ir.dtypes import uint32, uint64
 from tilus.hidet.ir.expr import Var
-from tilus.hidet.ir.primitives.cuda.fence import fence_view_async
+from tilus.hidet.ir.primitives.cuda.fence import fence_proxy_async, fence_proxy_async_generic_release_shared
 from tilus.hidet.ir.primitives.cuda.mapa import mapa_shared
 from tilus.hidet.ir.primitives.cuda.mbarrier import (
     mbarrier_arrive,
     mbarrier_arrive_expect_tx,
     mbarrier_wait,
 )
-from tilus.ir.instructions.cuda.fence import FenceViewAsync
+from tilus.ir.instructions.cuda.fence import FenceProxyAsync, FenceProxyAsyncRelease
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
     ArriveBarrierInst,
@@ -111,7 +111,13 @@ class WaitBarrierInstEmitter(BaseInstEmitter):
         self.append(mbarrier_wait(inst.barrier, inst.phase, sem=inst.sem, scope=inst.scope))
 
 
-@register_emitter(FenceViewAsync, target=nvgpu_sm80)
-class FenceViewAsyncEmitter(BaseInstEmitter):
-    def emit(self, inst: FenceViewAsync) -> None:
-        self.append(fence_view_async(scope=inst.space))
+@register_emitter(FenceProxyAsync, target=nvgpu_sm80)
+class FenceProxyAsyncEmitter(BaseInstEmitter):
+    def emit(self, inst: FenceProxyAsync) -> None:
+        self.append(fence_proxy_async(space=inst.space))
+
+
+@register_emitter(FenceProxyAsyncRelease, target=nvgpu_sm90)
+class FenceProxyAsyncReleaseEmitter(BaseInstEmitter):
+    def emit(self, inst: FenceProxyAsyncRelease) -> None:
+        self.append(fence_proxy_async_generic_release_shared())

@@ -45,7 +45,7 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorSharedToGlobalInst,
     CopyAsyncTensorWaitGroupInst,
 )
-from tilus.ir.instructions.cuda.fence import FenceViewAsync
+from tilus.ir.instructions.cuda.fence import FenceProxyAsync, FenceProxyAsyncRelease
 from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
@@ -1272,8 +1272,12 @@ class StmtBuilder(StmtBuilderCore):
         )
         self.append(inst)
 
-    def fence_view_async(self, space: str) -> None:
-        inst = FenceViewAsync.create(scope=space)
+    def fence_proxy_async(self, space: str) -> None:
+        inst = FenceProxyAsync.create(space=space)
+        self.append(inst)
+
+    def fence_proxy_async_release(self) -> None:
+        inst = FenceProxyAsyncRelease.create()
         self.append(inst)
 
     def cluster_launch_control_try_cancel(

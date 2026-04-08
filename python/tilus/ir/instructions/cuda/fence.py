@@ -20,12 +20,30 @@ from tilus.ir.inst import Instruction
 
 
 @dataclass(frozen=True, eq=False)
-class FenceViewAsync(Instruction):
+class FenceProxyAsync(Instruction):
+    """Bidirectional async proxy fence: fence.proxy.async.{space}."""
+
     space: str
 
     @staticmethod
-    def create(scope: str) -> FenceViewAsync:
-        assert scope in ("shared", "global"), (
-            f"Invalid scope for async fence view: {scope}. Supported candidates are 'shared' and 'global'."
+    def create(space: str) -> FenceProxyAsync:
+        assert space in ("shared", "global"), (
+            f"Invalid space for async proxy fence: {space}. Supported candidates are 'shared' and 'global'."
         )
-        return FenceViewAsync(output=None, inputs=(), space=scope)
+        return FenceProxyAsync(output=None, inputs=(), space=space)
+
+
+@dataclass(frozen=True, eq=False)
+class FenceProxyAsyncRelease(Instruction):
+    """Unidirectional generic-to-async release proxy fence.
+
+    PTX: fence.proxy.async::generic.release.sync_restrict::shared::cta.cluster
+
+    This is a lighter-weight alternative to the bidirectional fence.proxy.async.shared::cta.
+    It only ensures that prior generic proxy writes to shared::cta memory are visible to
+    subsequent async proxy reads, with release semantics at cluster scope.
+    """
+
+    @staticmethod
+    def create() -> FenceProxyAsyncRelease:
+        return FenceProxyAsyncRelease(output=None, inputs=())
