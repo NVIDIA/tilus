@@ -68,49 +68,69 @@ def syncwarp() -> Call:
 
 
 def bar_sync(cooperative_threads: int) -> Call:
-    """Synchronize threads in a warp group using bar.sync instruction.
+    """Synchronize threads using bar.sync with barrier 1.
 
-    This function implements the CUDA bar.sync instruction which allows threads to arrive at a pre-computed barrier
-    and wait for a fixed number of cooperating threads to arrive. It is commonly used for coordinating threads
-    when they need to write to and read from shared memory.
-
-    Args:
-        cooperative_threads (int): The number of cooperating threads that must arrive at the barrier.
-            Must be a multiple of 32.
-
-    Returns
-    -------
-        Call: A primitive function call that represents the bar.sync instruction.
-
-    Example:
-        ```cuda
-        st.shared [r0],r1;     // write my result to shared memory
-        bar.cta.sync  1, CNT1; // arrive, wait for others to arrive
-        ld.shared r2,[r3];     // use shared results from other threads
-        ```
-
-    Raises
-    ------
-        ValueError: If cooperative_threads is not a multiple of 32.
-
-    Note:
-        The bar.sync instruction ensures that all cooperating threads have completed their operations
-        before any thread proceeds past the barrier. This is particularly useful for coordinating
-        shared memory access patterns.
+    Deprecated: prefer bar_sync_aligned(barrier_id, thread_count) for explicit barrier ID control.
     """
-    if cooperative_threads % 32 != 0:
-        raise ValueError(f"cooperating threads in bar.cta.sync must be a multiple of 32, but got {cooperative_threads}")
+    return bar_sync_aligned(barrier_id=1, thread_count=cooperative_threads)
 
-    func_name = f"cuda_bar_sync_{cooperative_threads}"
+
+def bar_sync_aligned(barrier_id: int, thread_count: int) -> Call:
+    """Synchronize threads using a named barrier with bar.cta.sync.
+
+    PTX: bar.cta.sync {barrier_id}, {thread_count};
+
+    The .aligned modifier is used (via bar.cta.sync shorthand) to indicate all participating
+    threads execute the same barrier instruction.
+
+    Parameters
+    ----------
+    barrier_id : int
+        Named barrier index (0-15). Barrier 0 is reserved for __syncthreads().
+    thread_count : int
+        Number of participating threads. Must be a multiple of 32.
+    """
+    if not 0 <= barrier_id <= 15:
+        raise ValueError(f"barrier_id must be 0..15, got {barrier_id}")
+    if thread_count % 32 != 0:
+        raise ValueError(f"thread_count must be a multiple of 32, got {thread_count}")
+
+    func_name = f"cuda_bar_sync_aligned_{barrier_id}_{thread_count}"
     if not is_primitive_function(func_name):
 
         @script
-        def cuda_bar_sync():
+        def cuda_bar_sync_aligned():
             attrs.func_name = func_name
             attrs.func_kind = "cuda_internal"
-            template = "bar.cta.sync 1, {};".format(cooperative_threads)
+            template = "bar.cta.sync {}, {};".format(barrier_id, thread_count)
             asm(template=template)
 
-        assert isinstance(cuda_bar_sync, Function)
-        register_primitive_function(name=cuda_bar_sync.name, func_or_type=cuda_bar_sync)
+        assert isinstance(cuda_bar_sync_aligned, Function)
+        register_primitive_function(name=cuda_bar_sync_aligned.name, func_or_type=cuda_bar_sync_aligned)
+    return call_primitive_func(func_name, [])
+
+
+def bar_warp_sync(membermask: int) -> Call:
+    """Synchronize a subset of threads within a warp.
+
+    PTX: bar.warp.sync {membermask};
+
+    Parameters
+    ----------
+    membermask : int
+        32-bit mask where each bit corresponds to a lane in the warp.
+        The executing thread must be in the mask.
+    """
+    func_name = f"cuda_bar_warp_sync_{membermask:#010x}"
+    if not is_primitive_function(func_name):
+
+        @script
+        def cuda_bar_warp_sync():
+            attrs.func_name = func_name
+            attrs.func_kind = "cuda_internal"
+            template = "bar.warp.sync {};".format(membermask)
+            asm(template=template)
+
+        assert isinstance(cuda_bar_warp_sync, Function)
+        register_primitive_function(name=cuda_bar_warp_sync.name, func_or_type=cuda_bar_warp_sync)
     return call_primitive_func(func_name, [])

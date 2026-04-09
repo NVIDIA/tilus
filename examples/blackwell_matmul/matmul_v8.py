@@ -69,15 +69,15 @@ class Pipeline(tilus.Class):
 @tilus.autotune("mma_stages", [2])
 @tilus.autotune("swizzle_size", [4, 8, 16])
 class BlackwellMatmulV8(tilus.Script):
-    # debug_schedule = dict(
-    #     block_m=256,
-    #     block_n=256,
-    #     block_k=64,
-    #     tma_stages=6,
-    #     mma_stages=2,
-    #     e_block_n=32,
-    #     swizzle_size=8,
-    # )
+    debug_schedule = dict(
+        block_m=256,
+        block_n=256,
+        block_k=64,
+        tma_stages=6,
+        mma_stages=2,
+        e_block_n=32,
+        swizzle_size=8,
+    )
 
     def __init__(
         self,
