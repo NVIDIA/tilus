@@ -70,18 +70,18 @@ class BlackwellMatmulV3(tilus.Script):
                         consumer_barriers[stage],
                         transaction_bytes=s_a[stage].nbytes + s_b[stage].nbytes,
                     )
-                    self.tma.global_to_shared(
-                        src=g_a,
-                        dst=s_a[stage],
-                        offsets=[offset_m, offset_k],
-                        mbarrier=consumer_barriers[stage],
-                    )
-                    self.tma.global_to_shared(
-                        src=g_b,
-                        dst=s_b[stage],
-                        offsets=[offset_n, offset_k],
-                        mbarrier=consumer_barriers[stage],
-                    )
+                self.tma.global_to_shared(
+                    src=g_a,
+                    dst=s_a[stage],
+                    offsets=[offset_m, offset_k],
+                    mbarrier=consumer_barriers[stage],
+                )
+                self.tma.global_to_shared(
+                    src=g_b,
+                    dst=s_b[stage],
+                    offsets=[offset_n, offset_k],
+                    mbarrier=consumer_barriers[stage],
+                )
                 stage = (stage + 1) % self.stages
 
             # remaining mma stages to wait for completion
@@ -103,14 +103,13 @@ class BlackwellMatmulV3(tilus.Script):
                     consumer_barriers[stage], phase=consumer_phases[stage]
                 )  # wait until the stage is ready for consumption
                 consumer_phases[stage] ^= 1
-                with self.single_thread():
-                    self.tcgen05.mma(
-                        s_a[stage],
-                        s_b[stage].transpose(),
-                        t_acc,
-                        enable_input_d=offset_k != 0,
-                    )
-                    self.tcgen05.commit(mbarrier=producer_barriers[stage])
+                self.tcgen05.mma(
+                    s_a[stage],
+                    s_b[stage].transpose(),
+                    t_acc,
+                    enable_input_d=offset_k != 0,
+                )
+                self.tcgen05.commit(mbarrier=producer_barriers[stage])
                 stage = (stage + 1) % self.stages
 
         self.sync()

@@ -184,21 +184,20 @@ class BlackwellMatmulV7(tilus.Script):
                     else:
                         # get the mbarrier address in the CTA0 to signal
                         mbarrier = self.cluster.map_shared_addr(mbarrier, target_rank=0)
-                    with self.single_thread():
-                        self.tma.global_to_shared(
-                            src=g_a,
-                            dst=s_a[tma_pipe.producer_stage],
-                            offsets=[offset_m_a, offset_k],
-                            mbarrier=mbarrier,
-                            cta_group=2,
-                        )
-                        self.tma.global_to_shared(
-                            src=g_b,
-                            dst=s_b[tma_pipe.producer_stage],
-                            offsets=[offset_n_b, offset_k],
-                            mbarrier=mbarrier,
-                            cta_group=2,
-                        )
+                    self.tma.global_to_shared(
+                        src=g_a,
+                        dst=s_a[tma_pipe.producer_stage],
+                        offsets=[offset_m_a, offset_k],
+                        mbarrier=mbarrier,
+                        cta_group=2,
+                    )
+                    self.tma.global_to_shared(
+                        src=g_b,
+                        dst=s_b[tma_pipe.producer_stage],
+                        offsets=[offset_n_b, offset_k],
+                        mbarrier=mbarrier,
+                        cta_group=2,
+                    )
                     tma_pipe.producer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
@@ -209,30 +208,29 @@ class BlackwellMatmulV7(tilus.Script):
 
         with self.single_warp(1):  # mma worker (smem -> tmem)
             while True:
-                with self.single_thread():
-                    if cta_rank == 0:
-                        mma_pipe.producer_acquire()
-                        for offset_k in self.range(0, k_size, block_k, unroll=mma_stages):
-                            tma_pipe.consumer_acquire()
-                            self.tcgen05.mma(
-                                s_a[tma_pipe.consumer_stage],
-                                s_b[tma_pipe.consumer_stage].transpose(),
-                                t_acc[mma_pipe.producer_stage],
-                                enable_input_d=offset_k != 0,
-                                cta_group=2,
-                            )
-                            self.tcgen05.commit(
-                                mbarrier=tma_pipe.consumer_barrier(),
-                                cta_group=2,
-                                multicast_mask=0b11,
-                            )
-                            tma_pipe.consumer_advance()
+                if cta_rank == 0:
+                    mma_pipe.producer_acquire()
+                    for offset_k in self.range(0, k_size, block_k, unroll=mma_stages):
+                        tma_pipe.consumer_acquire()
+                        self.tcgen05.mma(
+                            s_a[tma_pipe.consumer_stage],
+                            s_b[tma_pipe.consumer_stage].transpose(),
+                            t_acc[mma_pipe.producer_stage],
+                            enable_input_d=offset_k != 0,
+                            cta_group=2,
+                        )
                         self.tcgen05.commit(
-                            mbarrier=mma_pipe.producer_barrier(),
+                            mbarrier=tma_pipe.consumer_barrier(),
                             cta_group=2,
                             multicast_mask=0b11,
                         )
-                        mma_pipe.producer_advance()
+                        tma_pipe.consumer_advance()
+                    self.tcgen05.commit(
+                        mbarrier=mma_pipe.producer_barrier(),
+                        cta_group=2,
+                        multicast_mask=0b11,
+                    )
+                    mma_pipe.producer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
@@ -249,12 +247,11 @@ class BlackwellMatmulV7(tilus.Script):
                         transaction_bytes=16,
                         multicast_mask=0b11,
                     )
-                    with self.single_thread():
-                        self.clc.try_cancel(
-                            s_clc_response[clc_pipe.producer_stage],
-                            mbarrier=clc_pipe.producer_barrier(),
-                            multicast=True,
-                        )
+                    self.clc.try_cancel(
+                        s_clc_response[clc_pipe.producer_stage],
+                        mbarrier=clc_pipe.producer_barrier(),
+                        multicast=True,
+                    )
                     clc_pipe.producer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
@@ -280,7 +277,7 @@ class BlackwellMatmulV7(tilus.Script):
                     self.store_shared(s_c, r_acc.to(float16))
                     self.fence.proxy_async(space="shared")
                     self.sync()
-                    with self.single_thread():
+                    with self.single_warp():
                         self.tma.shared_to_global(
                             s_c,
                             g_c,
@@ -301,7 +298,7 @@ class BlackwellMatmulV7(tilus.Script):
                 offset_n_c = new_blockIdx.y * block_n
 
         # all allocated tensor memory must be deallocated
-        self.sync()
+        self.cluster_sync()
         self.tcgen05.dealloc(t_acc)
 
 

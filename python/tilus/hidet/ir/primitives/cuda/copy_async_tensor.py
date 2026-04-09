@@ -62,7 +62,7 @@ def register_copy_async_tensor():
                 )
                 cta_group_item = "" if cta_group is None else ".cta_group::{}".format(cta_group)
                 cache_hint_item = "" if not has_cache_hint else "::L2::cache_hint"
-                inst = "cp.async.bulk.tensor.{}d.shared::cta.global.tile.mbarrier::complete_tx::bytes{}{}".format(
+                bare_inst = "cp.async.bulk.tensor.{}d.shared::cta.global.tile.mbarrier::complete_tx::bytes{}{}".format(
                     dim, cta_group_item, cache_hint_item
                 )
                 if has_cache_hint:
@@ -71,7 +71,14 @@ def register_copy_async_tensor():
                     )
                 else:
                     operands = "[%0], [%1, {{{}}}], [%2]".format(", ".join(["%{}".format(i + 3) for i in range(dim)]))
-                template = inst + " " + operands + ";"
+                # predicate is the last input
+                pred_idx = (
+                    1 + 1 + dim + (1 if has_cache_hint else 0) + 1
+                )  # dst, tmap, coords..., mbarrier, [cache_hint]
+                bare_template = bare_inst + " " + operands + ";"
+                template = "{{.reg.pred __pred; setp.ne.u32 __pred, %{pred}, 0; @__pred {inst}}}".format(
+                    pred=pred_idx, inst=bare_template
+                )
                 coords_type = meta.types([int32 for _ in range(dim)])
                 cache_hint_type = meta.types([uint64] if has_cache_hint else [])
 
@@ -84,12 +91,13 @@ def register_copy_async_tensor():
                     coords: coords_type,
                     mbarrier: uint32,
                     cache_hint: cache_hint_type,
+                    predicate: uint32,
                 ):
                     attrs.func_name = func_name
                     attrs.func_kind = "cuda_internal"
                     asm(
                         template=template,
-                        inputs=[dst, tensor_map, mbarrier, *cache_hint, *coords],
+                        inputs=[dst, tensor_map, mbarrier, *cache_hint, *coords, predicate],
                         is_volatile=True,
                         memory_fence=True,
                     )
@@ -104,7 +112,7 @@ def register_copy_async_tensor():
                     multicast_item = "" if not multicast else ".multicast::cluster"
                     cta_group_item = "" if cta_group is None else ".cta_group::{}".format(cta_group)
                     cache_hint_item = "" if not has_cache_hint else "::L2::cache_hint"
-                    inst = "cp.async.bulk.tensor.{}d.shared::cluster.global.tile.mbarrier::complete_tx::bytes{}{}{}".format(
+                    bare_inst = "cp.async.bulk.tensor.{}d.shared::cluster.global.tile.mbarrier::complete_tx::bytes{}{}{}".format(
                         dim, multicast_item, cta_group_item, cache_hint_item
                     )
                     cnt = 0
@@ -122,7 +130,11 @@ def register_copy_async_tensor():
                     if has_cache_hint:
                         operands += ", %{}".format(cnt)  # cache hint
                         cnt += 1
-                    template = inst + " " + operands + ";"
+                    pred_idx = cnt  # predicate is the last input
+                    bare_template = bare_inst + " " + operands + ";"
+                    template = "{{.reg.pred __pred; setp.ne.u32 __pred, %{pred}, 0; @__pred {inst}}}".format(
+                        pred=pred_idx, inst=bare_template
+                    )
                     coords_type = meta.types([int32 for _ in range(dim)])
                     cta_mask_type = meta.types([uint16] if multicast else [])
                     cache_hint_type = meta.types([uint64] if has_cache_hint else [])
@@ -137,12 +149,13 @@ def register_copy_async_tensor():
                         mbarrier: uint32,
                         cta_mask: cta_mask_type,
                         cache_hint: cache_hint_type,
+                        predicate: uint32,
                     ):
                         attrs.func_name = func_name
                         attrs.func_kind = "cuda_internal"
                         asm(
                             template=template,
-                            inputs=[dst, tensor_map, *coords, mbarrier, *cta_mask, *cache_hint],
+                            inputs=[dst, tensor_map, *coords, mbarrier, *cta_mask, *cache_hint, predicate],
                             is_volatile=True,
                             memory_fence=True,
                         )
@@ -151,12 +164,17 @@ def register_copy_async_tensor():
         for has_cache_hint in [False, True]:
             func_name = resolve_cp_async_bulk_tensor_shared_to_global(dim=dim, cache_hint=has_cache_hint)
             cache_hint_item = "" if not has_cache_hint else "::L2::cache_hint"
-            inst = "cp.async.bulk.tensor.{}d.global.shared::cta.tile.bulk_group{}".format(dim, cache_hint_item)
+            bare_inst = "cp.async.bulk.tensor.{}d.global.shared::cta.tile.bulk_group{}".format(dim, cache_hint_item)
             if has_cache_hint:
                 operands = "[%0, {{{}}}], [%1], %2".format(", ".join(["%{}".format(i + 3) for i in range(dim)]))
             else:
                 operands = "[%0, {{{}}}], [%1]".format(", ".join(["%{}".format(i + 2) for i in range(dim)]))
-            template = inst + " " + operands + ";"
+            # predicate is the last input: tmap, src, [cache_hint], coords...
+            pred_idx = 1 + 1 + (1 if has_cache_hint else 0) + dim  # dst_tmap, src, [cache], coords
+            bare_template = bare_inst + " " + operands + ";"
+            template = "{{.reg.pred __pred; setp.ne.u32 __pred, %{pred}, 0; @__pred {inst}}}".format(
+                pred=pred_idx, inst=bare_template
+            )
             coords_type = meta.types([int32 for _ in range(dim)])
             cache_hint_type = meta.types([uint64] if has_cache_hint else [])
 
@@ -164,13 +182,17 @@ def register_copy_async_tensor():
             @register_primitive_function_decorator
             @script
             def cp_async_tensor_shared_to_global_device(
-                dst_tensor_map: CUTensorMapPointerType, src: uint32, coords: coords_type, cache_hint: cache_hint_type
+                dst_tensor_map: CUTensorMapPointerType,
+                src: uint32,
+                coords: coords_type,
+                cache_hint: cache_hint_type,
+                predicate: uint32,
             ):
                 attrs.func_name = func_name
                 attrs.func_kind = "cuda_internal"
                 asm(
                     template=template,
-                    inputs=[dst_tensor_map, src, *cache_hint, *coords],
+                    inputs=[dst_tensor_map, src, *cache_hint, *coords, predicate],
                     is_volatile=True,
                     memory_fence=True,
                 )
@@ -216,13 +238,16 @@ def cp_async_tensor_global_to_shared(
     mbarrier: Expr,
     cta_group: Optional[int] = None,
     cache_policy: Optional[Expr] = None,
+    predicate: Expr = uint32(1),
 ) -> Expr:
     assert cache_policy is None, "cache_policy is not supported yet"
     func_name = resolve_cp_async_bulk_tensor_global_to_shared(
         dim=len(coords), cta_group=cta_group, cache_hint=cache_policy is not None
     )
     optional_cache_policy: list[Expr] = [cache_policy] if cache_policy is not None else []
-    return call_primitive_func(func_name, args=[dst, src_tensor_map, *coords, mbarrier, *optional_cache_policy])
+    return call_primitive_func(
+        func_name, args=[dst, src_tensor_map, *coords, mbarrier, *optional_cache_policy, predicate]
+    )
 
 
 def cp_async_tensor_global_to_cluster_shared(
@@ -233,6 +258,7 @@ def cp_async_tensor_global_to_cluster_shared(
     multicast_mask: Expr,
     cta_group: Optional[int] = None,
     cache_policy: Optional[Expr] = None,
+    predicate: Expr = uint32(1),
 ) -> Expr:
     assert cache_policy is None, "cache_policy is not supported yet"
     func_name = resolve_cp_async_bulk_tensor_global_to_cluster_shared(
@@ -244,17 +270,21 @@ def cp_async_tensor_global_to_cluster_shared(
     optional_cache_policy: list[Expr] = [cache_policy] if cache_policy is not None else []
     return call_primitive_func(
         func_name,
-        args=[dst, src_tensor_map, *coords, mbarrier, multicast_mask, *optional_cache_policy],
+        args=[dst, src_tensor_map, *coords, mbarrier, multicast_mask, *optional_cache_policy, predicate],
     )
 
 
 def cp_async_tensor_shared_to_global(
-    dst_tensor_map: Expr, src: Expr, coords: Sequence[Expr], cache_policy: Optional[Expr] = None
+    dst_tensor_map: Expr,
+    src: Expr,
+    coords: Sequence[Expr],
+    cache_policy: Optional[Expr] = None,
+    predicate: Expr = uint32(1),
 ) -> Expr:
     assert cache_policy is None, "cache_policy is not supported yet"
     func_name = resolve_cp_async_bulk_tensor_shared_to_global(dim=len(coords), cache_hint=cache_policy is not None)
     optional_cache_policy: list[Expr] = [cache_policy] if cache_policy is not None else []
-    return call_primitive_func(func_name, args=[dst_tensor_map, src, *coords, *optional_cache_policy])
+    return call_primitive_func(func_name, args=[dst_tensor_map, src, *optional_cache_policy, *coords, predicate])
 
 
 def cp_async_tensor_commit_group() -> Expr:

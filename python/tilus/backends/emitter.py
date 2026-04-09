@@ -51,6 +51,14 @@ class BaseInstEmitter(StmtBuilder):
         if self.current_num_threads != 32:
             raise ValueError(f"Instruction {inst} requires a warp (32 threads): {msg}.")
 
+    def assert_is_warp_aligned(self, inst: Instruction, msg: str) -> None:
+        if self.current_num_threads != 32 or self.current_thread_group_begin % 32 != 0:
+            raise ValueError(
+                f"Instruction {inst} requires exactly one warp-aligned warp "
+                f"(thread_begin % 32 == 0, num_threads == 32), "
+                f"got thread_begin={self.current_thread_group_begin}, num_threads={self.current_num_threads}: {msg}."
+            )
+
     def sync(self):
         optional_sync_call = self.contexts.sync_ctx.sync()
         if optional_sync_call is not None:

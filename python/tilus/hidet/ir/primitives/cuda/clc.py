@@ -26,21 +26,31 @@ def register_functions():
 
     @no_type_check
     @script
-    def cuda_cluster_launch_control_try_cancel(mbarrier_addr: uint32, response_smem_addr: uint32, multicast: bool):
+    def cuda_cluster_launch_control_try_cancel(
+        mbarrier_addr: uint32, response_smem_addr: uint32, multicast: bool, predicate: uint32
+    ):
         attrs.func_kind = "cuda_internal"
 
         if multicast:
             asm(
-                template="clusterlaunchcontrol.try_cancel.async.shared::cta.mbarrier::complete_tx::bytes.multicast::cluster::all.b128 [%0], [%1];",
+                template=(
+                    "{.reg.pred __pred; setp.ne.u32 __pred, %2, 0;"
+                    " @__pred clusterlaunchcontrol.try_cancel.async.shared::cta"
+                    ".mbarrier::complete_tx::bytes.multicast::cluster::all.b128 [%0], [%1];}"
+                ),
                 outputs=[],
-                inputs=[response_smem_addr, mbarrier_addr],
+                inputs=[response_smem_addr, mbarrier_addr, predicate],
                 is_volatile=True,
             )
         else:
             asm(
-                template="clusterlaunchcontrol.try_cancel.async.shared::cta.mbarrier::complete_tx::bytes.b128 [%0], [%1];",
+                template=(
+                    "{.reg.pred __pred; setp.ne.u32 __pred, %2, 0;"
+                    " @__pred clusterlaunchcontrol.try_cancel.async.shared::cta"
+                    ".mbarrier::complete_tx::bytes.b128 [%0], [%1];}"
+                ),
                 outputs=[],
-                inputs=[response_smem_addr, mbarrier_addr],
+                inputs=[response_smem_addr, mbarrier_addr, predicate],
                 is_volatile=True,
             )
 
@@ -68,7 +78,9 @@ def register_functions():
         register_primitive_function(name=func.name, func_or_type=func)
 
 
-def cluster_launch_control_try_cancel(mbarrier: Expr, response: Expr, multicast: Expr | bool) -> Expr:
+def cluster_launch_control_try_cancel(
+    mbarrier: Expr, response: Expr, multicast: Expr | bool, predicate: Expr = uint32(1)
+) -> Expr:
     """Request cancellation of a cluster that has not launched yet.
 
     This function requests atomically cancelling the launch of a cluster that has not started running yet.
@@ -91,7 +103,9 @@ def cluster_launch_control_try_cancel(mbarrier: Expr, response: Expr, multicast:
     Expr
         An expression representing the primitive function call.
     """
-    return call_primitive_func("cuda_cluster_launch_control_try_cancel", args=[mbarrier, response, uint32(multicast)])
+    return call_primitive_func(
+        "cuda_cluster_launch_control_try_cancel", args=[mbarrier, response, uint32(multicast), predicate]
+    )
 
 
 def cluster_launch_control_query_response(response: Expr, outputs: Expr) -> Expr:

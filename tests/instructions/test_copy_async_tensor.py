@@ -42,8 +42,9 @@ class CopyAsyncTensorExample(tilus.Script):
         load_barrier = self.mbarrier.alloc(counts=1)
         self.sync()
 
-        with self.single_thread():
-            self.mbarrier.arrive_and_expect_tx(load_barrier, transaction_bytes=s_x.nbytes)
+        with self.single_warp():
+            with self.single_thread():
+                self.mbarrier.arrive_and_expect_tx(load_barrier, transaction_bytes=s_x.nbytes)
             self.tma.global_to_shared(
                 src=g_x,
                 dst=s_x,
@@ -60,7 +61,7 @@ class CopyAsyncTensorExample(tilus.Script):
         self.fence.proxy_async()
         self.sync()
 
-        with self.single_thread():
+        with self.single_warp():
             self.tma.shared_to_global(
                 src=s_y,
                 dst=g_y,

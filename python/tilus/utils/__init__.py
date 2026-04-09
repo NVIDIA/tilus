@@ -16,6 +16,7 @@ from . import stats
 from .bench_utils import benchmark_func
 from .cache_utils import clear_cache
 from .multiprocess import parallel_imap, parallel_map
+from .ncu_utils import ncu_run
 from .py import (
     cdiv,
     floor_log2,

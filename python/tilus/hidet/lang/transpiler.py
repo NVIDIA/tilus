@@ -72,7 +72,6 @@ from ast import (
     If,
     IfExp,
     In,
-    Index,
     Invert,
     Lambda,
     List,
@@ -85,12 +84,10 @@ from ast import (
     Module,
     Mult,
     Name,
-    NameConstant,
     Nonlocal,
     Not,
     NotEq,
     NotIn,
-    Num,
     Or,
     Pass,
     Pow,
@@ -100,7 +97,6 @@ from ast import (
     Slice,
     Starred,
     Store,
-    Str,
     Sub,
     Subscript,
     Tuple,
@@ -268,13 +264,13 @@ class PythonAstFunctor:
     def visit_Constant(self, expr: Constant):
         raise NotImplementedError()
 
-    def visit_Num(self, expr: Num):
+    def visit_Num(self, expr):
         return self.visit(ast.copy_location(Constant(expr.n), expr))
 
-    def visit_Str(self, expr: Str):
+    def visit_Str(self, expr):
         return self.visit(ast.copy_location(Constant(expr.s), expr))
 
-    def visit_NameConstant(self, expr: NameConstant):
+    def visit_NameConstant(self, expr):
         return self.visit(ast.copy_location(Constant(expr.value), expr))
 
     def visit_Attribute(self, expr: Attribute):
@@ -298,10 +294,10 @@ class PythonAstFunctor:
     def visit_Slice(self, expr: Slice):
         raise NotImplementedError()
 
-    def visit_ExtSlice(self, expr: ExtSlice):
+    def visit_ExtSlice(self, expr):
         raise NotImplementedError()
 
-    def visit_Index(self, expr: Index):
+    def visit_Index(self, expr):
         raise NotImplementedError()
 
     def visit_ListComp(self, expr: ListComp):
@@ -880,7 +876,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
             else_body = else_scope.flush_stmts() if len(stmt.orelse) > 0 else None
             self.current_scope.append(ir.IfStmt(cond=cond, then_body=then_body, else_body=else_body))
 
-    def visit_Index(self, expr: Index):
+    def visit_Index(self, expr):
         return self.visit(expr.value)
 
     def visit_Constant(self, expr: Constant):
@@ -1209,7 +1205,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
     def visit_Starred(self, expr: Starred):
         raise HidetProgramError(self, expr, "Hidet do not support unpack operator.")
 
-    def visit_ExtSlice(self, expr: ExtSlice):
+    def visit_ExtSlice(self, expr):
         return [self.visit(v) for v in expr.dims]
 
     def visit_Slice(self, expr: Slice):

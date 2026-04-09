@@ -390,15 +390,16 @@ def register_tcgen05_instructions():
                 Tcgen05CopyMulticastKind.WARP_X2_01_23,
                 Tcgen05CopyMulticastKind.WARP_X4,
             ]:
-                template = f"tcgen05.cp{cta_group.value}{shape_kind.value}{multicast.value} [%0], %1;"
+                bare_inst = f"tcgen05.cp{cta_group.value}{shape_kind.value}{multicast.value} [%0], %1;"
+                template = f"{{{{.reg.pred __pred; setp.ne.u32 __pred, %2, 0; @__pred {bare_inst}}}}}"
 
                 @register_primitive_function_decorator
                 @no_type_check
                 @script
-                def tcgen05_copy_(taddr: int32, sdesc: uint64):
+                def tcgen05_copy_(taddr: int32, sdesc: uint64, predicate: uint32):
                     attrs.func_name = resolve_tcgen05_copy(cta_group, shape_kind, multicast)
                     attrs.func_kind = "cuda_internal"
-                    asm(template, inputs=[taddr, sdesc], is_volatile=True)
+                    asm(template, inputs=[taddr, sdesc, predicate], is_volatile=True)
 
     # commit
     for cta_group in [Tcgen05CtaGroupKind.CTA_1, Tcgen05CtaGroupKind.CTA_2]:
@@ -407,16 +408,18 @@ def register_tcgen05_instructions():
             Tcgen05CommitMulticastKind.CLUSTER,
         ]:
             has_mask = multicast == Tcgen05CommitMulticastKind.CLUSTER
-            template = f"tcgen05.commit{cta_group.value}.mbarrier::arrive::one.shared::cluster{multicast.value}.b64 [%0]{', %1' if has_mask else ''};"
+            commit_inst = f"tcgen05.commit{cta_group.value}.mbarrier::arrive::one.shared::cluster{multicast.value}.b64 [%0]{', %1' if has_mask else ''};"
+            pred_idx = 1 + (1 if has_mask else 0)
+            template = f"{{{{.reg.pred __pred; setp.ne.u32 __pred, %{pred_idx}, 0; @__pred {commit_inst}}}}}"
             cta_mask_type = meta.types(arg_types=[uint16]) if has_mask else meta.types(arg_types=[])
 
             @register_primitive_function_decorator
             @no_type_check
             @script
-            def tcgen05_commit_(mbarrier: int32, cta_mask: cta_mask_type):
+            def tcgen05_commit_(mbarrier: int32, cta_mask: cta_mask_type, predicate: uint32):
                 attrs.func_name = resolve_tcgen05_commit(cta_group, multicast)
                 attrs.func_kind = "cuda_internal"
-                asm(template, inputs=[mbarrier, *cta_mask], is_volatile=True)
+                asm(template, inputs=[mbarrier, *cta_mask, predicate], is_volatile=True)
 
     # encode_smem_descriptor
     @register_primitive_function_decorator
@@ -447,7 +450,8 @@ def register_tcgen05_instructions():
         for mma_kind in [Tcgen05MmaKind.F16, Tcgen05MmaKind.TF32, Tcgen05MmaKind.F8F6F4, Tcgen05MmaKind.I8]:
             # a: shared memory
             template = (
-                "{{.reg.pred p; setp.ne.u32 p, %4, 0; tcgen05.mma{cta_group}{mma_kind} [%0], %1, %2, %3, p;}}".format(
+                "{{{{.reg.pred __pred; .reg.pred p; setp.ne.u32 __pred, %5, 0; setp.ne.u32 p, %4, 0;"
+                " @__pred tcgen05.mma{cta_group}{mma_kind} [%0], %1, %2, %3, p;}}}}".format(
                     cta_group=cta_group.value, mma_kind=mma_kind.value
                 )
             )
@@ -456,15 +460,21 @@ def register_tcgen05_instructions():
             @no_type_check
             @script
             def tcgen05_mma_shared_a_(
-                d_tmem: uint32, a_desc: uint64, b_desc: uint64, i_desc: uint32, enable_input_d: uint32
+                d_tmem: uint32,
+                a_desc: uint64,
+                b_desc: uint64,
+                i_desc: uint32,
+                enable_input_d: uint32,
+                predicate: uint32,
             ):
                 attrs.func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=True)
                 attrs.func_kind = "cuda_internal"
-                asm(template, inputs=[d_tmem, a_desc, b_desc, i_desc, enable_input_d], is_volatile=True)
+                asm(template, inputs=[d_tmem, a_desc, b_desc, i_desc, enable_input_d, predicate], is_volatile=True)
 
             # a: tensor memory
             template = (
-                "{{.reg.pred p; setp.ne.u32 p, %4, 0; tcgen05.mma{cta_group}{mma_kind} [%0], [%1], %2, %3, p;}}".format(
+                "{{{{.reg.pred __pred; .reg.pred p; setp.ne.u32 __pred, %5, 0; setp.ne.u32 p, %4, 0;"
+                " @__pred tcgen05.mma{cta_group}{mma_kind} [%0], [%1], %2, %3, p;}}}}".format(
                     cta_group=cta_group.value, mma_kind=mma_kind.value
                 )
             )
@@ -473,11 +483,16 @@ def register_tcgen05_instructions():
             @no_type_check
             @script
             def tcgen05_mma_tmem_a_(
-                d_tmem: uint32, a_tmem: uint32, b_desc: uint64, i_desc: uint32, enable_input_d: uint32
+                d_tmem: uint32,
+                a_tmem: uint32,
+                b_desc: uint64,
+                i_desc: uint32,
+                enable_input_d: uint32,
+                predicate: uint32,
             ):
                 attrs.func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=False)
                 attrs.func_kind = "cuda_internal"
-                asm(template, inputs=[d_tmem, a_tmem, b_desc, i_desc, enable_input_d], is_volatile=True)
+                asm(template, inputs=[d_tmem, a_tmem, b_desc, i_desc, enable_input_d, predicate], is_volatile=True)
 
 
 def tcgen05_relinquish_alloc_permit(cta_group: Tcgen05CtaGroupKind) -> Expr:
@@ -580,21 +595,23 @@ def tcgen05_copy(
     cta_group: Tcgen05CtaGroupKind,
     shape: Tcgen05CopyShapeKind,
     multicast: Tcgen05CopyMulticastKind,
+    predicate: Expr = uint32(1),
 ) -> Expr:
     func_name = resolve_tcgen05_copy(cta_group, shape, multicast)
-    return call_primitive_func(func_name, [taddr, sdesc])
+    return call_primitive_func(func_name, [taddr, sdesc, predicate])
 
 
 def tcgen05_commit(
     mbarrier: Expr,
     cta_mask: Optional[int],
     cta_group: Tcgen05CtaGroupKind,
+    predicate: Expr = uint32(1),
 ) -> Expr:
     if cta_mask is None:
-        args = [mbarrier]
+        args = [mbarrier, predicate]
         multicast = Tcgen05CommitMulticastKind.NONE
     else:
-        args = [mbarrier, uint16(cta_mask)]
+        args = [mbarrier, uint16(cta_mask), predicate]
         multicast = Tcgen05CommitMulticastKind.CLUSTER
     func_name = resolve_tcgen05_commit(cta_group, multicast)
     return call_primitive_func(func_name, args)
@@ -608,9 +625,10 @@ def tcgen05_mma_with_shared_a(
     enable_input_d: Expr | bool,
     cta_group: Tcgen05CtaGroupKind,
     mma_kind: Tcgen05MmaKind,
+    predicate: Expr = uint32(1),
 ) -> Expr:
     func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=True)
-    return call_primitive_func(func_name, [d_tmem, a_desc, b_desc, i_desc, as_expr(enable_input_d)])
+    return call_primitive_func(func_name, [d_tmem, a_desc, b_desc, i_desc, as_expr(enable_input_d), predicate])
 
 
 def tcgen05_mma_with_tmem_a(
@@ -621,6 +639,7 @@ def tcgen05_mma_with_tmem_a(
     enable_input_d: Expr,
     cta_group: Tcgen05CtaGroupKind,
     mma_kind: Tcgen05MmaKind,
+    predicate: Expr = uint32(1),
 ) -> Expr:
     func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=False)
-    return call_primitive_func(func_name, [d_tmem, a_tmem, b_desc, i_desc, enable_input_d])
+    return call_primitive_func(func_name, [d_tmem, a_tmem, b_desc, i_desc, enable_input_d, predicate])

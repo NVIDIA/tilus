@@ -212,21 +212,22 @@ class BlackwellMatmulV8(tilus.Script):
                     else:
                         # get the mbarrier address in the CTA0 to signal
                         mbarrier = self.cluster.map_shared_addr(mbarrier, target_rank=0)
-                    with self.single_thread():
-                        self.tma.global_to_shared(
-                            src=g_a,
-                            dst=s_a[tma_pipe.producer_stage],
-                            offsets=[offset_m_a, offset_k],
-                            mbarrier=mbarrier,
-                            cta_group=2,
-                        )
-                        self.tma.global_to_shared(
-                            src=g_b,
-                            dst=s_b[tma_pipe.producer_stage],
-                            offsets=[offset_n_b, offset_k],
-                            mbarrier=mbarrier,
-                            cta_group=2,
-                        )
+                    # TMA loads are warp-cooperative: all 32 threads participate,
+                    # predication is handled internally by the emitter
+                    self.tma.global_to_shared(
+                        src=g_a,
+                        dst=s_a[tma_pipe.producer_stage],
+                        offsets=[offset_m_a, offset_k],
+                        mbarrier=mbarrier,
+                        cta_group=2,
+                    )
+                    self.tma.global_to_shared(
+                        src=g_b,
+                        dst=s_b[tma_pipe.producer_stage],
+                        offsets=[offset_n_b, offset_k],
+                        mbarrier=mbarrier,
+                        cta_group=2,
+                    )
                     tma_pipe.producer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
@@ -240,30 +241,31 @@ class BlackwellMatmulV8(tilus.Script):
 
         with self.single_warp(1):  # mma worker (smem -> tmem)
             while True:
-                with self.single_thread():
-                    if cta_rank == 0:
-                        mma_pipe.producer_acquire()
-                        for offset_k in range(0, k_size, block_k):
-                            tma_pipe.consumer_acquire()
-                            self.tcgen05.mma(
-                                s_a[tma_pipe.consumer_stage],
-                                s_b[tma_pipe.consumer_stage].transpose(),
-                                t_acc[mma_pipe.producer_stage],
-                                enable_input_d=offset_k != 0,
-                                cta_group=2,
-                            )
-                            self.tcgen05.commit(
-                                mbarrier=tma_pipe.consumer_barrier(),
-                                cta_group=2,
-                                multicast_mask=0b11,
-                            )
-                            tma_pipe.consumer_advance()
+                # tcgen05.mma and tcgen05.commit are warp-cooperative:
+                # all 32 threads participate, predication handled internally
+                if cta_rank == 0:
+                    mma_pipe.producer_acquire()
+                    for offset_k in range(0, k_size, block_k):
+                        tma_pipe.consumer_acquire()
+                        self.tcgen05.mma(
+                            s_a[tma_pipe.consumer_stage],
+                            s_b[tma_pipe.consumer_stage].transpose(),
+                            t_acc[mma_pipe.producer_stage],
+                            enable_input_d=offset_k != 0,
+                            cta_group=2,
+                        )
                         self.tcgen05.commit(
-                            mbarrier=mma_pipe.producer_barrier(),
+                            mbarrier=tma_pipe.consumer_barrier(),
                             cta_group=2,
                             multicast_mask=0b11,
                         )
-                        mma_pipe.producer_advance()
+                        tma_pipe.consumer_advance()
+                    self.tcgen05.commit(
+                        mbarrier=mma_pipe.producer_barrier(),
+                        cta_group=2,
+                        multicast_mask=0b11,
+                    )
+                    mma_pipe.producer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
@@ -278,12 +280,12 @@ class BlackwellMatmulV8(tilus.Script):
                         transaction_bytes=16,
                         multicast_mask=0b11,
                     )
-                    with self.single_thread():
-                        self.clc.try_cancel(
-                            s_clc_response[clc_pipe.producer_stage],
-                            mbarrier=clc_pipe.producer_barrier(),
-                            multicast=True,
-                        )
+                    # clc.try_cancel is warp-cooperative: predication handled internally
+                    self.clc.try_cancel(
+                        s_clc_response[clc_pipe.producer_stage],
+                        mbarrier=clc_pipe.producer_barrier(),
+                        multicast=True,
+                    )
                     clc_pipe.producer_advance()
 
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
@@ -312,7 +314,9 @@ class BlackwellMatmulV8(tilus.Script):
                     self.store_shared(s_c, r_acc.to(float16))
                     self.fence.proxy_async(space="shared")
                     self.sync()
-                    with self.single_thread():
+                    # TMA store is warp-cooperative: use single_warp() to select
+                    # one warp, predication handled internally by the emitter
+                    with self.single_warp():
                         self.tma.shared_to_global(
                             s_c,
                             g_c,
