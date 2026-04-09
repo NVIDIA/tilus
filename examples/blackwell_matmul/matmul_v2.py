@@ -54,10 +54,11 @@ class BlackwellMatmulV2(tilus.Script):
 
         for i in range(self.stages - 1):
             offset_k = i * self.block_k
-            with self.single_thread():
-                self.mbarrier.arrive_and_expect_tx(
-                    tma_barriers[i], transaction_bytes=s_a[i].nbytes + s_b[i].nbytes
-                )
+            with self.single_warp():
+                with self.single_thread():
+                    self.mbarrier.arrive_and_expect_tx(
+                        tma_barriers[i], transaction_bytes=s_a[i].nbytes + s_b[i].nbytes
+                    )
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a[i],
@@ -77,14 +78,14 @@ class BlackwellMatmulV2(tilus.Script):
         preload_stage: int32 = self.stages - 1
 
         for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
-            with self.single_thread():  # we use a single thread to issue the TMA copy
-                # preload
+            with self.single_warp():
                 preload_offset_k = offset_k + (self.stages - 1) * self.block_k
-                self.mbarrier.arrive_and_expect_tx(
-                    tma_barriers[preload_stage],
-                    transaction_bytes=s_a[preload_stage].nbytes
-                    + s_b[preload_stage].nbytes,
-                )
+                with self.single_thread():
+                    self.mbarrier.arrive_and_expect_tx(
+                        tma_barriers[preload_stage],
+                        transaction_bytes=s_a[preload_stage].nbytes
+                        + s_b[preload_stage].nbytes,
+                    )
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a[preload_stage],
@@ -100,7 +101,6 @@ class BlackwellMatmulV2(tilus.Script):
                 self.mbarrier.wait(
                     tma_barriers[current_stage], phase=tma_phases[current_stage].item()
                 )
-
                 self.tcgen05.mma(
                     s_a[current_stage],
                     s_b[current_stage].transpose(),

@@ -75,10 +75,9 @@ class ClusterLaunchControlExample(tilus.Script):
                     self.mbarrier.arrive_and_expect_tx_multicast(
                         consumer_mbarriers[producer_stage], transaction_bytes=16, multicast_mask=self.multicast_mask
                     )
-                    with self.single_thread():
-                        self.clc.try_cancel(
-                            cancel_response[producer_stage], mbarrier=consumer_mbarriers[producer_stage], multicast=True
-                        )
+                    self.clc.try_cancel(
+                        cancel_response[producer_stage], mbarrier=consumer_mbarriers[producer_stage], multicast=True
+                    )
                     producer_stage = (1 + producer_stage) % self.num_stages
                     producer_phase = producer_phase ^ (producer_stage == 0)
 

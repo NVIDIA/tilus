@@ -49,10 +49,11 @@ class BlackwellMatmulV1(tilus.Script):
         self.sync()
 
         for offset_k in range(0, k_size, self.block_k):
-            with self.single_thread():  # we use a single thread to issue the TMA copy
-                self.mbarrier.arrive_and_expect_tx(
-                    tma_barrier, transaction_bytes=s_a.nbytes + s_b.nbytes
-                )
+            with self.single_warp():
+                with self.single_thread():
+                    self.mbarrier.arrive_and_expect_tx(
+                        tma_barrier, transaction_bytes=s_a.nbytes + s_b.nbytes
+                    )
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a,
@@ -66,16 +67,10 @@ class BlackwellMatmulV1(tilus.Script):
                     mbarrier=tma_barrier,
                 )
                 self.mbarrier.wait(tma_barrier, phase=phase)
-
-                # perform tcgen05 mma on two shared tensors
                 self.tcgen05.mma(
                     s_a, s_b.transpose(), t_acc, enable_input_d=offset_k != 0
                 )
-
-                # commit the mma operation the finish of the committed operations will trigger a arrive event on the barrier
                 self.tcgen05.commit(mbarrier=mma_barrier)
-
-                # wait for all pending arrivals to finish (in this case, the expected count = 1, which is the operation of mma)
                 self.mbarrier.wait(mma_barrier, phase=phase)
             self.sync()
 

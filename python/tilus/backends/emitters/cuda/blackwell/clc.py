@@ -24,15 +24,16 @@ from tilus.ir.tensor import SharedTensor
 @register_emitter(ClusterLaunchControlTryCancelInst)
 class ClusterLaunchControlTryCancelEmitter(BaseInstEmitter):
     def emit(self, inst: ClusterLaunchControlTryCancelInst) -> None:
+        self.assert_is_warp_aligned(inst, "CLC try_cancel is a warp-cooperative instruction")
         response: SharedTensor = inst.shared_input
-        with self.single_thread():
-            self.append(
-                cluster_launch_control_try_cancel(
-                    mbarrier=inst.mbarrier,
-                    response=self.shared_tensor_shared_space_addr[response],
-                    multicast=inst.multicast,
-                )
+        self.append(
+            cluster_launch_control_try_cancel(
+                mbarrier=inst.mbarrier,
+                response=self.shared_tensor_shared_space_addr[response],
+                multicast=inst.multicast,
+                predicate=self.contexts.leader_lane_ctx.leader_lane,
             )
+        )
 
 
 @register_emitter(ClusterLaunchControlQueryResponseInst)

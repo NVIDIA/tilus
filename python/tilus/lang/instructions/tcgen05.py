@@ -75,8 +75,11 @@ class Tcgen05InstructionGroup(InstructionGroup):
         self._builder.tcgen05_copy(src, dst)
 
     def commit(self, mbarrier: Expr | RegisterTensor, cta_group: int = 1, multicast_mask: Optional[int] = None) -> None:
-        if self._builder.tg_stack.current_num_threads != 1:
-            raise InstructionError("tcgen05.commit must be called by a single thread")
+        num_threads = self._builder.tg_stack.current_num_threads
+        if num_threads != 32:
+            raise InstructionError(
+                "tcgen05.commit must be called by a warp (32 threads), got {} threads".format(num_threads)
+            )
         self._builder.tcgen05_commit(mbarrier, cta_group, multicast_mask)
 
     def mma(
@@ -131,8 +134,11 @@ class Tcgen05InstructionGroup(InstructionGroup):
         cta_group: int
             The CTA group that executes the MMA operation. Must be either 1 or 2.
         """
-        if self._builder.tg_stack.current_num_threads != 1:
-            raise InstructionError("tcgen05.mma must be called by a single thread")
+        num_threads = self._builder.tg_stack.current_num_threads
+        if num_threads != 32:
+            raise InstructionError(
+                "tcgen05.mma must be called by a warp (32 threads), got {} threads".format(num_threads)
+            )
         if cta_group not in (1, 2):
             raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
         if isinstance(a, SharedTensor):

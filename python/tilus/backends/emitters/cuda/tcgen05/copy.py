@@ -187,15 +187,11 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
 
         raise ValueError("No valid instructions generated")
 
-    def check_single_thread(self) -> None:
-        if self.current_num_threads != 1:
-            raise ValueError("The number of threads must be 1 to emit tcgen05.copy instruction")
-
     def emit(self, inst: Tcgen05CopyInst) -> None:
         shared_tensor = inst.inputs[1].as_shared_tensor()
         tmem_tensor = inst.inputs[0].as_tmemory_tensor()
 
-        self.check_single_thread()
+        self.assert_is_warp_aligned(inst, "tcgen05.copy is a warp-cooperative instruction")
 
         if len(shared_tensor.shape) != 2:
             raise ValueError("The shared tensor must be a 2D tensor, got shape {}".format(shared_tensor.shape))
@@ -221,5 +217,6 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
                         cta_group=inst_meta.cta_group,
                         shape=inst_meta.shape_kind,
                         multicast=inst_meta.multicast,
+                        predicate=self.contexts.leader_lane_ctx.leader_lane,
                     )
                 )

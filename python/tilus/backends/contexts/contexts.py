@@ -17,6 +17,7 @@ from tilus.backends.contexts.const_reg_ctx import ConstRegTensorEmitContext
 from tilus.backends.contexts.global_view_ctx import GlobalTensorViewContext
 from tilus.backends.contexts.gmem_alloc_ctx import GlobalMemoryAllocationContext
 from tilus.backends.contexts.invariant_ctx import InvariantTrackingContext
+from tilus.backends.contexts.leader_lane_ctx import LeaderLaneContext
 from tilus.backends.contexts.mbarrier_alloc_ctx import BarrierAllocContext
 from tilus.backends.contexts.smem_alloc_ctx import SharedMemoryAllocationContext
 from tilus.backends.contexts.sync_ctx import SyncContext
@@ -38,6 +39,7 @@ class EmitContexts:
         self.barrier_alloc_ctx: BarrierAllocContext = BarrierAllocContext(codegen)
         self.sync_ctx: SyncContext = SyncContext(codegen)
         self.const_reg_ctx: ConstRegTensorEmitContext = ConstRegTensorEmitContext(codegen)
+        self.leader_lane_ctx: LeaderLaneContext = LeaderLaneContext(codegen)
 
     def contexts(self) -> list[BaseEmitContext]:
         """Get all contexts as a list.

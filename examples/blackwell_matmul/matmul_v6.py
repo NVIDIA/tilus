@@ -123,21 +123,20 @@ class LoadWorker(tilus.Class):
                 else:
                     # get the mbarrier address in the CTA0 to signal
                     mbarrier = self.cluster.map_shared_addr(mbarrier, target_rank=0)
-                with self.single_thread():
-                    self.tma.global_to_shared(
-                        src=params.g_a,
-                        dst=s_a[pipe.producer_stage],
-                        offsets=[offset_m, offset_k],
-                        mbarrier=mbarrier,
-                        cta_group=2,
-                    )
-                    self.tma.global_to_shared(
-                        src=params.g_b,
-                        dst=s_b[pipe.producer_stage],
-                        offsets=[offset_n, offset_k],
-                        mbarrier=mbarrier,
-                        cta_group=2,
-                    )
+                self.tma.global_to_shared(
+                    src=params.g_a,
+                    dst=s_a[pipe.producer_stage],
+                    offsets=[offset_m, offset_k],
+                    mbarrier=mbarrier,
+                    cta_group=2,
+                )
+                self.tma.global_to_shared(
+                    src=params.g_b,
+                    dst=s_b[pipe.producer_stage],
+                    offsets=[offset_n, offset_k],
+                    mbarrier=mbarrier,
+                    cta_group=2,
+                )
                 pipe.producer_advance()
 
 
@@ -158,7 +157,7 @@ class MmaWorker(tilus.Class):
         num_stages: int = pipe.num_stages
         cta_rank = self.cluster.blockRank
         if cta_rank == 0:
-            with self.thread_group(thread_begin=32, num_threads=1):
+            with self.thread_group(thread_begin=32, num_threads=32):
                 for offset_k in self.range(
                     0, self.params.k_size, self.params.block_k, unroll=num_stages
                 ):
@@ -280,7 +279,7 @@ class BlackwellMatmulV6(tilus.Script):
             self.store_shared(s_c, r_acc.to(float16))
             self.fence.proxy_async()
             self.sync()
-            with self.single_thread():
+            with self.single_warp():
                 self.tma.shared_to_global(
                     s_c,
                     params.g_c,
@@ -292,7 +291,7 @@ class BlackwellMatmulV6(tilus.Script):
             self.sync()
 
         # all allocated tensor memory must be deallocated
-        self.sync()
+        self.cluster_sync()
         self.tcgen05.dealloc(mma_worker.t_acc)
 
 
@@ -303,9 +302,9 @@ def main(bench=True):
     rows: list = []
 
     for m_size, n_size, k_size in [
-        [4096, 4096, 4096],
-        [4096, 4096, 14336],
-        [8192, 8192, 8192],
+        # [4096, 4096, 4096],
+        # [4096, 4096, 14336],
+        # [8192, 8192, 8192],
         [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")

@@ -289,6 +289,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
 @register_emitter(CopyAsyncTensorGlobalToSharedInst, target=nvgpu_sm90)
 class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
     def emit(self, inst: CopyAsyncTensorGlobalToSharedInst) -> None:
+        self.assert_is_warp_aligned(inst, "TMA global to shared is a warp-cooperative instruction")
         global_tensor: GlobalTensor = inst.inputs[1].as_global_tensor()
         shared_tensor: SharedTensor = inst.inputs[0].as_shared_tensor()
         assert global_tensor.dtype == shared_tensor.dtype
@@ -304,7 +305,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         src_tensor_map = ~self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
         coords = list(reversed(inst.offsets))
         optional_multicast_mask = inst.multicast_mask
-        self.assert_is_single_thread(inst, "TMA global to shared copy without multicast requires a single thread.")
+        predicate = self.contexts.leader_lane_ctx.leader_lane
 
         if optional_multicast_mask is None:
             self.append(
@@ -315,6 +316,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
                     mbarrier=inst.mbarrier,
                     cta_group=inst.cta_group,
                     cache_policy=inst.cache_policy,
+                    predicate=predicate,
                 )
             )
         else:
@@ -328,6 +330,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
                     multicast_mask=multicast_mask,
                     cta_group=inst.cta_group,
                     cache_policy=inst.cache_policy,
+                    predicate=predicate,
                 )
             )
 
@@ -335,6 +338,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
 @register_emitter(CopyAsyncTensorSharedToGlobalInst, target=nvgpu_sm90)
 class CopyAsyncTensorSharedToGlobalInstEmitter(CopyAsyncTensorBaseEmitter):
     def emit(self, inst: CopyAsyncTensorSharedToGlobalInst) -> None:
+        self.assert_is_warp_aligned(inst, "TMA shared to global is a warp-cooperative instruction")
         global_tensor: GlobalTensor = inst.inputs[0].as_global_tensor()
         shared_tensor: SharedTensor = inst.inputs[1].as_shared_tensor()
         assert global_tensor.dtype == shared_tensor.dtype
@@ -349,15 +353,15 @@ class CopyAsyncTensorSharedToGlobalInstEmitter(CopyAsyncTensorBaseEmitter):
         shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
         tensor_map = self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
         tensor_coords = inst.offsets
-        with self.single_thread():
-            self.append(
-                cp_async_tensor_shared_to_global(
-                    dst_tensor_map=~tensor_map,
-                    src=shared_addr,
-                    coords=list(reversed(tensor_coords)),
-                    cache_policy=inst.cache_policy,
-                )
+        self.append(
+            cp_async_tensor_shared_to_global(
+                dst_tensor_map=~tensor_map,
+                src=shared_addr,
+                coords=list(reversed(tensor_coords)),
+                cache_policy=inst.cache_policy,
+                predicate=self.contexts.leader_lane_ctx.leader_lane,
             )
+        )
 
 
 @register_emitter(CopyAsyncTensorCommitGroupInst, target=nvgpu_sm90)

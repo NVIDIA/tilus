@@ -181,8 +181,6 @@ class Tcgen05MmaSSInstMeta:
         i_desc = sb.declare_var("i_desc", tp=uint32, init=as_expr(self.i_desc.encoded()))
         a_desc = sb.declare_var("a_desc", tp=uint64, init=self.a_desc.encoded())
         b_desc = sb.declare_var("b_desc", tp=uint64, init=self.b_desc.encoded())
-        # tcgen05.mma has single-thread semantics — the caller (emitter) already
-        # asserts current_num_threads == 1, so no guard needed here.
         sb.append(
             tcgen05_mma_with_shared_a(
                 d_tmem=self.d_tmem_addr,
@@ -192,6 +190,7 @@ class Tcgen05MmaSSInstMeta:
                 enable_input_d=self.enable_input_d,
                 cta_group=self.cta_group,
                 mma_kind=self.kind,
+                predicate=sb.contexts.leader_lane_ctx.leader_lane,
             )
         )
 
@@ -295,7 +294,7 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
             raise CodeGenerationFailed(f"The given majorness is not supported: {a_major_kind} and {b_major_kind}.")
 
     def emit(self, inst: Tcgen05MmaSSInst) -> None:
-        assert self.current_num_threads == 1, "tcgen05.mma.ss must be called by a single thread"
+        self.assert_is_warp_aligned(inst, "tcgen05.mma is a warp-cooperative instruction")
         a_tensor: SharedTensor = inst.inputs[0].as_shared_tensor()
         b_tensor: SharedTensor = inst.inputs[1].as_shared_tensor()
         d_tensor: TMemoryTensor = inst.inputs[2].as_tmemory_tensor()

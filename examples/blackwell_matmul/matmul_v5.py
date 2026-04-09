@@ -117,18 +117,18 @@ class LoadWorker(tilus.Class):
                         transaction_bytes=s_a[pipe.producer_stage].nbytes
                         + s_b[pipe.producer_stage].nbytes,
                     )
-                    self.tma.global_to_shared(
-                        src=params.g_a,
-                        dst=s_a[pipe.producer_stage],
-                        offsets=[offset_m, offset_k],
-                        mbarrier=pipe.producer_release_barrier(),
-                    )
-                    self.tma.global_to_shared(
-                        src=params.g_b,
-                        dst=s_b[pipe.producer_stage],
-                        offsets=[offset_n, offset_k],
-                        mbarrier=pipe.producer_release_barrier(),
-                    )
+                self.tma.global_to_shared(
+                    src=params.g_a,
+                    dst=s_a[pipe.producer_stage],
+                    offsets=[offset_m, offset_k],
+                    mbarrier=pipe.producer_release_barrier(),
+                )
+                self.tma.global_to_shared(
+                    src=params.g_b,
+                    dst=s_b[pipe.producer_stage],
+                    offsets=[offset_n, offset_k],
+                    mbarrier=pipe.producer_release_barrier(),
+                )
                 pipe.producer_advance()
 
 
@@ -150,18 +150,16 @@ class MmaWorker(tilus.Class):
                 0, self.params.k_size, self.params.block_k, unroll=num_stages
             ):
                 pipe.consumer_acquire()
-                with self.single_thread():
-                    self.tcgen05.mma(
-                        s_a[pipe.consumer_stage],
-                        s_b[pipe.consumer_stage].transpose(),
-                        self.t_acc,
-                        enable_input_d=offset_k != 0,
-                    )
-                    self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier())
+                self.tcgen05.mma(
+                    s_a[pipe.consumer_stage],
+                    s_b[pipe.consumer_stage].transpose(),
+                    self.t_acc,
+                    enable_input_d=offset_k != 0,
+                )
+                self.tcgen05.commit(mbarrier=pipe.consumer_release_barrier())
                 pipe.consumer_advance()
 
-            with self.single_thread():
-                self.tcgen05.commit(mbarrier=self.flush_barrier)
+            self.tcgen05.commit(mbarrier=self.flush_barrier)
             self.mbarrier.wait(self.flush_barrier, phase=0)
 
 
@@ -235,7 +233,7 @@ class BlackwellMatmulV5(tilus.Script):
             self.store_shared(s_c, r_acc.to(float16))
             self.fence.proxy_async()
             self.sync()
-            with self.single_thread():
+            with self.single_warp():
                 self.tma.shared_to_global(
                     s_c,
                     params.g_c,

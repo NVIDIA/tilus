@@ -54,16 +54,11 @@ class BlackwellMatmulV0(tilus.Script):
             self.copy_async_wait_all()
             self.sync()
 
-            with self.single_thread():
-                # perform tcgen05 mma on two shared tensors
+            with self.single_warp():
                 self.tcgen05.mma(
                     s_a, s_b.transpose(), t_acc, enable_input_d=offset_k != 0
                 )
-
-                # commit the mma operation the finish of the committed operations will trigger a arrive event on the barrier
                 self.tcgen05.commit(mbarrier=mbarriers[0])
-
-                # wait for all pending arrivals to finish (in this case, the expected count = 1, which is the operation of mma)
                 self.mbarrier.wait(mbarriers[0], phase=phase)
             self.sync()
 

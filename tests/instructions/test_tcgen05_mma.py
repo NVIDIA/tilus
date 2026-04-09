@@ -58,8 +58,9 @@ class Tcgen05MmaExample(tilus.Script):
         self.sync()
 
         # load a and b from global to shared
-        with self.single_thread():
-            self.mbarrier.arrive_and_expect_tx(tma_mbarrier, transaction_bytes=s_a.nbytes + s_b.nbytes)
+        with self.single_warp():
+            with self.single_thread():
+                self.mbarrier.arrive_and_expect_tx(tma_mbarrier, transaction_bytes=s_a.nbytes + s_b.nbytes)
             self.tma.global_to_shared(
                 src=g_a,
                 dst=s_a,
@@ -75,7 +76,7 @@ class Tcgen05MmaExample(tilus.Script):
         self.mbarrier.wait(tma_mbarrier, phase=0)
 
         # perform mma
-        with self.single_thread():
+        with self.single_warp():
             self.tcgen05.mma(a=s_a, b=s_b.transpose(), d=t_d, enable_input_d=False)
             self.tcgen05.commit(mma_mbarrier)
         self.mbarrier.wait(mma_mbarrier, phase=0)
@@ -159,7 +160,7 @@ class Tcgen05Mma2CTAExample(tilus.Script):
         # load a and b from global to shared
         m_offset = self.mma_m // 2 * cta_rank
         n_offset = self.mma_n // 2 * cta_rank
-        with self.single_thread():
+        with self.single_warp():
             self.tma.global_to_shared(
                 src=g_a,
                 dst=s_a,
@@ -178,7 +179,7 @@ class Tcgen05Mma2CTAExample(tilus.Script):
         # perform mma
         if cta_rank == 0:
             self.mbarrier.wait(tma_mbarrier, phase=0)
-            with self.single_thread():
+            with self.single_warp():
                 self.tcgen05.mma(a=s_a, b=s_b.transpose(), d=t_d, cta_group=2, enable_input_d=False)
                 self.tcgen05.commit(mma_mbarrier, cta_group=2, multicast_mask=0b11)
         self.mbarrier.wait(mma_mbarrier, phase=0)

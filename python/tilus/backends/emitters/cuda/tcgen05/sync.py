@@ -28,11 +28,12 @@ from tilus.target import nvgpu_sm100
 @register_emitter(Tcgen05CommitInst, target=nvgpu_sm100)
 class TMemoryCommitEmitter(BaseInstEmitter):
     def emit(self, inst: Tcgen05CommitInst) -> None:
-        assert self.current_num_threads == 1, "tcgen05 commit must be called by a single thread"
+        self.assert_is_warp_aligned(inst, "tcgen05 commit is a warp-cooperative instruction")
         self.append(
             tcgen05_commit(
                 mbarrier=inst.mbarrier,
                 cta_mask=inst.multicast_mask,
                 cta_group=Tcgen05CtaGroupKind.from_int(inst.cta_group),
+                predicate=self.contexts.leader_lane_ctx.leader_lane,
             )
         )
