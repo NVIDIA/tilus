@@ -110,6 +110,10 @@ class BaseInstEmitter(StmtBuilder):
         return self._codegen.thread_group_stack.thread_end[-1]
 
     @property
+    def current_thread_group_depth(self) -> int:
+        return self._codegen.thread_group_stack.stack_depth()
+
+    @property
     def block_rank_in_cluster(self) -> Expr:
         from tilus.hidet.ir.primitives.cuda.cluster import block_rank_in_cluster
 

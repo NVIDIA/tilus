@@ -215,8 +215,16 @@ def get_cache_dir(prog: Program, options: BuildOptions) -> Path:
     cache_dir: Path
         The cache directory.
     """
+    options_dict = dataclasses.asdict(options)
+    options_dict.update(
+        {
+            "disable_ptxas_opt": tilus.option.get_option("debug.disable_ptxas_opt"),
+            "target": tilus.target.get_current_target(),
+        }
+    )
+
     prog_text: str = str(prog)
-    options_text: str = str(options)
+    options_text: str = str(options_dict)
     hex_digest: str = hashlib.sha256(options_text.encode() + prog_text.encode()).hexdigest()[:12]
     cache_dir: Path = Path(tilus.option.get_option("cache_dir")) / "programs" / hex_digest
     program_path: Path = cache_dir / "program.txt"

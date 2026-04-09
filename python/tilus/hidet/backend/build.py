@@ -31,7 +31,7 @@ import tempfile
 import time
 import warnings
 from subprocess import PIPE
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, cast
 
 import torch
 import tvm_ffi
@@ -127,23 +127,26 @@ class SourceCompiler:
 class NVCC(SourceCompiler):
     def __init__(self):
         super().__init__()
-        self.nvcc_path: str = self._resolve_nvcc_path()  # e.g., /usr/local/cuda/bin/nvcc
+        self.nvcc_path: str = cast(str, self._resolve_tool("nvcc", required=True))
+        self.cuobjdump_path: Optional[str] = self._resolve_tool("cuobjdump")
+        self.nvdisasm_path: Optional[str] = self._resolve_tool("nvdisasm")
         self.include_dirs: List[str] = get_include_dirs()
         tvm_ffi_lib = tvm_ffi.libinfo.find_libtvm_ffi()
         self.library_dirs: List[str] = [os.path.dirname(tvm_ffi_lib)] if tvm_ffi_lib else []
 
     @staticmethod
     @functools.lru_cache(maxsize=None)
-    def _resolve_nvcc_path():
-        path: Optional[str] = shutil.which("nvcc")
+    def _resolve_tool(name: str, required: bool = False) -> Optional[str]:
+        path: Optional[str] = shutil.which(name)
         if path is not None:
             return path
-        try_dirs = ["/usr/local/cuda/bin/", "/usr/bin"]
-        for try_dir in try_dirs:
-            path = os.path.join(try_dir, "nvcc")
+        for try_dir in ["/usr/local/cuda/bin/", "/usr/bin"]:
+            path = os.path.join(try_dir, name)
             if os.path.exists(path):
                 return path
-        raise FileNotFoundError("Can not find nvcc compiler.")
+        if required:
+            raise FileNotFoundError("Can not find {}.".format(name))
+        return None
 
     def compile(
         self,
@@ -191,7 +194,7 @@ class NVCC(SourceCompiler):
             # the target PTX and SASS version.
             "-gencode arch=compute_{cc},code=sm_{cc}".format(cc=arch[len("sm_") :]),
             # allow ptxas (PTX assembler) to output information like register/smem usage.
-            "--ptxas-options=-v",
+            "--ptxas-options=-v" + (",--opt-level=0" if tilus.option.get_option("debug.disable_ptxas_opt") else ""),
             # compile into position independent code.
             # '--compiler-options -fPIC,-m64,-mavx2,-march=native, -O3',
             # embed the line information into the binary, allow Nsight Compute to get the source code for profiling.
@@ -233,21 +236,35 @@ class NVCC(SourceCompiler):
         self.run_compile_command(" ".join(command), src_path, out_lib_path, keep_files)
 
         if tilus.option.get_option("debug.dump_ir"):
-            # dump the the SASS code from the lib
+            # dump SASS with source line info using nvdisasm -g on extracted cubins
             target_sass_path = src_path.removesuffix(".cu") + ".sass"
-            with open(target_sass_path, "w", encoding="utf-8") as f:
-                try:
-                    subprocess.run(
-                        [
-                            "cuobjdump",
-                            "-sass",
-                            out_lib_path,
-                        ],
-                        stdout=f,
-                        check=True,
-                    )
-                except subprocess.CalledProcessError as e:
-                    f.write("Failed to dump SASS code from {}: {}\n".format(out_lib_path, str(e)))
+            if self.cuobjdump_path is not None:
+                with tempfile.TemporaryDirectory() as extract_dir:
+                    try:
+                        # extract cubin(s) from the shared library
+                        subprocess.run(
+                            [self.cuobjdump_path, "-xelf", "all", out_lib_path],
+                            cwd=extract_dir,
+                            stdout=PIPE,
+                            stderr=PIPE,
+                            check=True,
+                        )
+                        # find all extracted cubin files
+                        cubin_files = sorted(
+                            os.path.join(extract_dir, f) for f in os.listdir(extract_dir) if f.endswith(".cubin")
+                        )
+                        with open(target_sass_path, "w", encoding="utf-8") as f:
+                            for cubin_file in cubin_files:
+                                result = subprocess.run(
+                                    [self.nvdisasm_path, "-g", "-c", cubin_file],
+                                    stdout=PIPE,
+                                    stderr=PIPE,
+                                    check=True,
+                                )
+                                f.write(result.stdout.decode("utf-8"))
+                    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                        with open(target_sass_path, "w", encoding="utf-8") as f:
+                            f.write("Failed to dump SASS code from {}: {}\n".format(out_lib_path, str(e)))
 
 
 def compile_source(
