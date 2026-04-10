@@ -481,23 +481,8 @@ class ProgramCodegen(IRFunctor):
             sub_ir_module = func_codegen(func)
             ir_module = merge_ir_modules([ir_module, sub_ir_module])
 
-        # if there is only one public function, we copy it and generate a function named 'launch', which is used as the
-        # entry point of the module
-        public_functions = [func for func in ir_module.functions.values() if func.kind == "public"]
-
-        if len(public_functions) == 1 and "launch" not in ir_module.functions:
-            public_func: HidetFunction = public_functions[0]
-            ir_module.add_function(
-                name="launch",
-                func=HidetFunction(
-                    name="launch",
-                    params=public_func.params,
-                    body=public_func.body,
-                    ret_type=public_func.ret_type,
-                    kind=public_func.kind,
-                    attrs=public_func.attrs,
-                ),
-            )
+        # The 'launch' entry point is handled by GenerateLaunchFuncPass which runs later
+        # in the optimization pipeline.
         return ir_module
 
 

@@ -104,14 +104,23 @@ class BlackwellMatmulV8(tilus.Script):
     ):
         swizzle_size = self.swizzle_size
         tiles_per_group = num_m_blocks * swizzle_size
-        group_idx = linear_idx // tiles_per_group
-        in_group_idx = linear_idx % tiles_per_group
+        group_idx, in_group_idx = self.fast_divmod(linear_idx, tiles_per_group)
         first_n = group_idx * swizzle_size
-        group_width = num_n_blocks - first_n
-        if group_width > swizzle_size:
-            group_width = swizzle_size
-        m_block = in_group_idx // group_width
-        n_block = first_n + in_group_idx % group_width
+        m_block: int32 = 0
+        n_block: int32 = 0
+        # When num_n_blocks is divisible by swizzle_size, all groups are full and
+        # last_group_width is never used. Use swizzle_size as a safe fallback to
+        # avoid division-by-zero in the precompute.
+        remainder = num_n_blocks - num_n_blocks // swizzle_size * swizzle_size
+        last_group_width = remainder if remainder > 0 else swizzle_size
+        if first_n + swizzle_size <= num_n_blocks:
+            # Full group: swizzle_size is a compile-time constant
+            m_block, r = self.fast_divmod(in_group_idx, swizzle_size)
+            n_block = first_n + r
+        else:
+            # Last group: divisor is num_n_blocks % swizzle_size, which is grid-constant
+            m_block, r = self.fast_divmod(in_group_idx, last_group_width)
+            n_block = first_n + r
         return m_block, n_block
 
     def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
@@ -394,3 +403,4 @@ if __name__ == "__main__":
     main(bench=True)
     # main(bench=False)
     # ncu_run(main, bench=False, kernel_regex="tilus|nvjet")
+    # nsys_run(main, bench=True)

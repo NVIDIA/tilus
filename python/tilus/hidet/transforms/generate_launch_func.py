@@ -105,15 +105,40 @@ def add_launch_func(ir_module: IRModule, kernel_func: Function):
 class GenerateLaunchFuncPass(Pass):
     def process_module(self, ir_module: IRModule) -> IRModule:
         if any(func.name.startswith("launch") for func in ir_module.functions.values() if func.kind == "public"):
-            # the launch function has already existed
             return ir_module
+
+        # Find existing codegen host functions (public, not "launch")
+        host_funcs = [
+            (name, func)
+            for name, func in ir_module.functions.items()
+            if func.kind == "public" and not name.startswith("launch")
+        ]
+
+        if len(host_funcs) == 1:
+            # Single host function: rename it to "launch" so the runtime can find it.
+            # This avoids creating a duplicate function.
+            old_name, host_func = host_funcs[0]
+            renamed = Function(
+                name="launch",
+                params=host_func.params,
+                body=host_func.body,
+                ret_type=host_func.ret_type,
+                kind=host_func.kind,
+                attrs=host_func.attrs,
+            )
+            del ir_module.functions[old_name]
+            if old_name in ir_module.global_vars:
+                del ir_module.global_vars[old_name]
+            ir_module.add_function("launch", renamed)
+            return ir_module
+
+        # Multiple or no host functions: generate a launch function from the kernel
         kernel_functions: Dict[str, Function] = {
             name: func
             for name, func in ir_module.functions.items()
             if func.kind in ["cuda_kernel", "hip_kernel", "cpu_kernel"]
         }
         if len(kernel_functions) == 0:
-            # no kernel function found in the module, do nothing
             return ir_module
         if len(kernel_functions) > 1:
             raise NotImplementedError("Can only handle one kernel function in a module")
