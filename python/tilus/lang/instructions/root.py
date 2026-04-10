@@ -1736,3 +1736,37 @@ class RootInstructionGroup(InstructionGroup):
         if dst.dtype != src.dtype:
             raise InstructionError("The dtypes of dst and src must match, got {} and {}".format(dst.dtype, src.dtype))
         self._builder.assign_register(dst, src)
+
+    def fast_divmod(self, a: Union[Expr, int], b: Union[Expr, int]) -> tuple:
+        """Fast integer division and modulo using precomputed magic multiplier.
+
+        Computes ``(a // b, a % b)`` for ``a >= 0`` and ``b > 0`` using the
+        FastDivmod algorithm. The divisor ``b`` must be a grid-constant expression
+        (known at kernel launch time). A Hidet IR pass will lower this to
+        ``__umulhi(a, magic) >> shift`` with host-side precomputation of
+        ``(magic, shift)`` from ``b``.
+
+        Parameters
+        ----------
+        a : Expr
+            The dividend (int32, must be >= 0).
+        b : Expr
+            The divisor (int32, must be > 0 and grid-constant).
+
+        Returns
+        -------
+        quotient : Expr
+            floor(a / b)
+        remainder : Expr
+            a % b (computed as a - quotient * b)
+        """
+        from tilus.hidet.ir.primitives.cuda.fast_divmod import fastdiv
+
+        if isinstance(b, Constant):
+            q = a // b
+            r = a % b
+            return q, r
+        else:
+            q = fastdiv(a, b)
+            r = a - q * b
+            return q, r
