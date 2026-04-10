@@ -25,8 +25,8 @@ This pass:
 
 from typing import Dict, List, Optional, Set, Tuple
 
-from tilus.hidet.ir.dtypes import uint32
-from tilus.hidet.ir.expr import Call, Expr, Var
+from tilus.hidet.ir.dtypes import int32, uint32
+from tilus.hidet.ir.expr import Call, Cast, Expr, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.module import IRModule
@@ -101,8 +101,8 @@ class FastDivRewriter(IRRewriter):
             expanded_b = self.tracker.expand(b)
             key = str(self.printer(expanded_b))
             if key not in self.divisor_map:
-                m_var = Var("fast_div_m", type=uint32)
-                s_var = Var("fast_div_s", type=uint32)
+                m_var = Var("fast_div_m", type=int32)
+                s_var = Var("fast_div_s", type=int32)
                 self.divisor_map[key] = (expanded_b, m_var, s_var)
             _, m_var, s_var = self.divisor_map[key]
             # Replace fastdiv(a, b) with fastdiv_runtime(a, m, s)
@@ -238,10 +238,13 @@ class LowerFastDivPass(Pass):
         precompute_stmts = []
         extra_launch_args = []
         for divisor_expr, _, _ in divisor_entries:
-            launch_m = Var("fast_div_m", type=uint32)
-            launch_s = Var("fast_div_s", type=uint32)
-            precompute_stmts.append(DeclareStmt(launch_m, init=fastdiv_precompute_m(divisor_expr)))
-            precompute_stmts.append(DeclareStmt(launch_s, init=fastdiv_precompute_s(divisor_expr)))
+            launch_m = Var("fast_div_m", type=int32)
+            launch_s = Var("fast_div_s", type=int32)
+            # Precompute functions return uint32; cast to int32 for the kernel params
+            # to keep everything in int32 and avoid signed/unsigned casts that prevent
+            # ptxas from using uniform registers.
+            precompute_stmts.append(DeclareStmt(launch_m, init=Cast(fastdiv_precompute_m(divisor_expr), int32)))
+            precompute_stmts.append(DeclareStmt(launch_s, init=Cast(fastdiv_precompute_s(divisor_expr), int32)))
             extra_launch_args.append(launch_m)
             extra_launch_args.append(launch_s)
         return precompute_stmts, extra_launch_args

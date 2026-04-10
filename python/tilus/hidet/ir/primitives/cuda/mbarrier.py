@@ -15,11 +15,11 @@
 # pylint: disable=cell-var-from-loop
 from typing import Union, no_type_check
 
-from tilus.hidet.ir.dtypes import boolean
+from tilus.hidet.ir.dtypes import boolean, int32
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
 from tilus.hidet.ir.stmt import asm
-from tilus.hidet.lang import attrs, script, u32
+from tilus.hidet.lang import attrs, i32, script, u32
 from tilus.hidet.utils import initialize
 
 
@@ -93,7 +93,7 @@ def register_mbarrier_primitives():
 
             @no_type_check
             @script
-            def cuda_mbarrier_wait(mbarrier_addr: u32, phase: u32):
+            def cuda_mbarrier_wait(mbarrier_addr: u32, phase: i32):
                 attrs.func_kind = "cuda_internal"
                 attrs.func_name = func_name
                 ticks = u32(50_000)
@@ -109,7 +109,7 @@ def register_mbarrier_primitives():
     # Legacy primitives (no sem/scope qualifiers) kept for backward compatibility
     @no_type_check
     @script
-    def cuda_mbarrier_wait_shared(mbarrier_addr: u32, phase: u32):
+    def cuda_mbarrier_wait_shared(mbarrier_addr: u32, phase: i32):
         attrs.func_kind = "cuda_internal"
         ticks = u32(50_000)
         asm(
@@ -219,12 +219,12 @@ def mbarrier_init_shared(mbarrier_addr: Expr, arrive_count: Union[int, Expr]) ->
 
 
 def mbarrier_wait_shared(mbarrier_addr: Expr, phase: Union[int, Expr]) -> Expr:
-    return call_primitive_func("cuda_mbarrier_wait_shared", args=[mbarrier_addr, u32(phase)])
+    return call_primitive_func("cuda_mbarrier_wait_shared", args=[mbarrier_addr, int32(phase)])
 
 
 def mbarrier_wait(mbarrier_addr: Expr, phase: Union[int, Expr], sem: str, scope: str) -> Expr:
     func_name = resolve_mbarrier_wait_name(sem, scope)
-    return call_primitive_func(func_name, args=[mbarrier_addr, u32(phase)])
+    return call_primitive_func(func_name, args=[mbarrier_addr, int32(phase)])
 
 
 def mbarrier_arrive(mbarrier_addr: Expr, count: Union[int, Expr], sem: str, scope: str, space: str) -> Expr:

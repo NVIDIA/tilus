@@ -376,10 +376,10 @@ def main(bench=True):
         c_actual = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
         c_expected = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
-        matmul(m_size, n_size, k_size, a, b, c_actual)
+        torch.matmul(a, b.T, out=c_expected)
         torch.cuda.synchronize()
 
-        torch.matmul(a, b.T, out=c_expected)
+        matmul(m_size, n_size, k_size, a, b, c_actual)
         torch.cuda.synchronize()
 
         torch.testing.assert_close(c_actual, c_expected, atol=1e-2, rtol=1e-2)
