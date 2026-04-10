@@ -1,0 +1,53 @@
+<div id="version-switcher" style="padding: 0.5rem 1rem; border-top: 1px solid var(--color-sidebar-border);">
+  <label for="version-select" style="font-size: 0.85em; font-weight: 600; display: block; margin-bottom: 0.3rem;">
+    Version
+  </label>
+  <select id="version-select" style="width: 100%; padding: 0.3rem; border-radius: 4px; border: 1px solid var(--color-sidebar-border); background: var(--color-background-secondary); color: var(--color-foreground-primary); font-size: 0.85em;">
+    <option>loading...</option>
+  </select>
+</div>
+
+<script>
+(function() {
+  var switcher = document.getElementById('version-switcher');
+  var select = document.getElementById('version-select');
+
+  // Deployed structure: https://nvidia.github.io/tilus/{version}/page.html
+  var pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  var baseUrl = '';
+  var currentVersion = '';
+  var relPageParts = [];
+
+  if (pathParts.length >= 2) {
+    baseUrl = '/' + pathParts[0];
+    currentVersion = pathParts[1];
+    relPageParts = pathParts.slice(2);
+  }
+
+  fetch(baseUrl + '/versions.json')
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('not found');
+      return resp.json();
+    })
+    .then(function(versions) {
+      // versions.json format:
+      // [{"slug": "stable", "label": "v0.2.0 (Stable)"}, {"slug": "latest", "label": "latest"}, ...]
+      select.innerHTML = '';
+      versions.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.slug;
+        opt.textContent = v.label;
+        if (v.slug === currentVersion) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.addEventListener('change', function() {
+        var relPage = relPageParts.join('/') || 'index.html';
+        window.location.href = baseUrl + '/' + select.value + '/' + relPage;
+      });
+    })
+    .catch(function() {
+      switcher.style.display = 'none';
+    });
+})();
+</script>

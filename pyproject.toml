@@ -51,7 +51,6 @@ dev = [
     # for documentation
     "jinja2",
     "sphinx",
-    "sphinx-gallery",
     "sphinx-copybutton",
     "autodocsumm",
     "sphinx-book-theme==1.1.4",
