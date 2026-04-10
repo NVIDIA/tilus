@@ -12,23 +12,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import stats
-from .bench_utils import benchmark_func
-from .cache_utils import clear_cache
-from .multiprocess import parallel_imap, parallel_map
-from .profiler import ncu_run, nsys_run
-from .py import (
-    cdiv,
-    floor_log2,
-    gcd,
-    idiv,
-    initialize,
-    is_power_of_two,
-    lcm,
-    nbytes_from_nbits,
-    prod,
-    relative_to_with_walk_up,
-    same_list,
-    to_snake_case,
+from typing import Any
+
+from tilus.utils.profiler.common import Profiler, ProfilerReport, profiler_main
+
+_profiler = Profiler(
+    binary_name="nsys",
+    ui_binary_name="nsys-ui",
+    command_template="{profiler_path} profile -o {report_path} {python_executable} {python_script} {args}",
+    report_dir="nsys-reports",
+    report_ext="nsys-rep",
+    display_name="Nsight Systems",
+    entry_script=__file__,
 )
-from .torch_utils import dtype_from_torch, dtype_to_torch
+
+NsightSystemReport = ProfilerReport
+
+
+def nsys_run(func: Any, *args: Any, **kwargs: Any) -> ProfilerReport:
+    return _profiler.run(func, args, kwargs)
+
+
+if __name__ == "__main__":
+    profiler_main()
