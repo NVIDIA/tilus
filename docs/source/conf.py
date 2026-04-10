@@ -4,8 +4,6 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 
-# from sphinx_gallery.sorting import FileNameSortKey
-
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -28,7 +26,6 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx_copybutton",
     "autodocsumm",
-    "sphinx_gallery.gen_gallery",
 ]
 
 autodoc_typehints = "description"
@@ -38,13 +35,6 @@ autodoc_member_order = "alphabetical"
 
 templates_path = ["_templates"]
 exclude_patterns = []
-
-sphinx_gallery_conf = {
-    "examples_dirs": ["../../examples/matmul"],
-    "gallery_dirs": ["getting-started/tutorials/matmul"],
-    "filename_pattern": r".*\.py",
-    "download_all_examples": True,
-}
 
 intersphinx_mapping = {
     # 'python': ('https://docs.python.org/3', None),
@@ -60,6 +50,15 @@ html_theme_options = {
     "repository_url": "https://github.com/NVIDIA/tilus",
     "use_repository_button": True,
     "show_navbar_depth": 1,
+}
+html_sidebars = {
+    "**": [
+        "navbar-logo.html",
+        "icon-links.html",
+        "search-button-field.html",
+        "sbt-sidebar-nav.html",
+        "versioning.html",
+    ],
 }
 html_static_path = ["_static"]
 html_css_files = [

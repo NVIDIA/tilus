@@ -1,28 +1,29 @@
-name: Build and Deploy Docs
+name: Deploy Docs
 
 on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.sha }}
-  cancel-in-progress: true
+  group: deploy-docs
+  cancel-in-progress: false
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 jobs:
-  build:
+  build-and-deploy:
     if: github.repository == 'NVIDIA/tilus'
-    continue-on-error: true
-    runs-on: yaoyao-centml
-    container:
-      image: nvidia/cuda:12.6.2-devel-ubuntu22.04
-      options: --gpus all
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup and Install Tilus
         id: setup-and-install
@@ -35,18 +36,102 @@ jobs:
           cd docs
           make html
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/build/html
+      - name: Determine version directory
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            echo "dir=$VERSION" >> $GITHUB_OUTPUT
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+          else
+            echo "dir=latest" >> $GITHUB_OUTPUT
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+          fi
 
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deploy to gh-pages
+        run: |
+          VERSION_DIR="${{ steps.version.outputs.dir }}"
+          IS_TAG="${{ steps.version.outputs.is_tag }}"
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Clone the gh-pages branch (or create it if it doesn't exist)
+          git fetch origin gh-pages:gh-pages 2>/dev/null || true
+          DEPLOY_DIR=$(mktemp -d)
+          if git rev-parse --verify gh-pages >/dev/null 2>&1; then
+            git worktree add "$DEPLOY_DIR" gh-pages
+          else
+            git worktree add --orphan "$DEPLOY_DIR" gh-pages
+            cd "$DEPLOY_DIR"
+            git commit --allow-empty -m "Initialize gh-pages"
+            cd -
+          fi
+
+          # Copy new build into versioned subdirectory
+          rm -rf "$DEPLOY_DIR/$VERSION_DIR"
+          cp -r docs/build/html "$DEPLOY_DIR/$VERSION_DIR"
+
+          # For tag releases, also update the "stable" symlink
+          if [[ "$IS_TAG" == "true" ]]; then
+            rm -rf "$DEPLOY_DIR/stable"
+            cp -r docs/build/html "$DEPLOY_DIR/stable"
+          fi
+
+          # Update versions.json and generate root index.html
+          cd "$DEPLOY_DIR"
+          python3 << PYEOF
+          import json, pathlib
+
+          versions_file = pathlib.Path("versions.json")
+          versions = json.loads(versions_file.read_text()) if versions_file.exists() else []
+          # versions.json format: [{"slug": "stable", "label": "v0.2.0 (Stable)"}, ...]
+          slugs = {v["slug"] for v in versions}
+
+          version = "${VERSION_DIR}"
+          is_tag = "${IS_TAG}" == "true"
+
+          # Add the version entry if new
+          if version not in slugs:
+              versions.append({"slug": version, "label": version})
+              slugs.add(version)
+
+          # For tag releases, add or update the "stable" entry
+          if is_tag:
+              # Remove old stable entry
+              versions = [v for v in versions if v["slug"] != "stable"]
+              versions.append({"slug": "stable", "label": version + " (Stable)"})
+
+          # Sort: latest first, stable second, then tags in reverse order
+          def sort_key(v):
+              s = v["slug"]
+              if s == "latest":
+                  return (0, "")
+              if s == "stable":
+                  return (1, "")
+              return (2, s)
+          versions.sort(key=sort_key)
+          versions_file.write_text(json.dumps(versions, indent=2) + "\n")
+
+          # Generate root index.html
+          # Redirect to stable if it exists, otherwise latest
+          has_stable = any(v["slug"] == "stable" for v in versions)
+          target = "stable" if has_stable else "latest"
+          pathlib.Path("index.html").write_text(
+              "<!DOCTYPE html>\\n"
+              "<html>\\n"
+              f'<head><meta http-equiv="refresh" content="0; url={target}/index.html"></head>\\n'
+              f"<body><p>Redirecting to <a href=\\"{target}/index.html\\">{target} documentation</a>...</p></body>\\n"
+              "</html>\\n"
+          )
+          PYEOF
+
+          # Add .nojekyll to prevent GitHub Pages from ignoring _static
+          touch .nojekyll
+
+          # Commit and push
+          git add -A
+          git diff --cached --quiet && echo "No changes to deploy" && exit 0
+          git commit -m "Deploy docs: $VERSION_DIR ($(date -u +%Y-%m-%d))"
+          git push origin gh-pages
