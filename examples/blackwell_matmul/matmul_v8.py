@@ -118,9 +118,12 @@ class BlackwellMatmulV8(tilus.Script):
         pipe.consumer_acquire()
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
-        self.fence.proxy_async(space="shared")
         self.mbarrier.arrive_and_expect_tx_remote(
-            pipe.consumer_barrier(), transaction_bytes=0, target_rank=0
+            pipe.consumer_barrier(),
+            transaction_bytes=0,
+            target_rank=0,
+            sem="relaxed",
+            scope="cluster",
         )
         pipe.consumer_advance()
         return is_valid, new_blockIdx
@@ -279,6 +282,8 @@ class BlackwellMatmulV8(tilus.Script):
                         clc_pipe.producer_barrier(),
                         transaction_bytes=16,
                         multicast_mask=0b11,
+                        sem="relaxed",
+                        scope="cluster",
                     )
                     # clc.try_cancel is warp-cooperative: predication handled internally
                     self.clc.try_cancel(
