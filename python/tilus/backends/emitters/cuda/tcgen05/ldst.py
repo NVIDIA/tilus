@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.hidet.ir.dtypes import int32, uint32
 from tilus.hidet.ir.expr import Expr, cast
+from tilus.hidet.ir.primitives.cuda.elect import shfl_sync_i32
 from tilus.hidet.ir.primitives.cuda.tcgen05 import (
     COLUMN_STRIDE,
     LANE_STRIDE,
@@ -112,8 +113,15 @@ class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
             regs_buf = self.declare_var(
                 "regs_buf", tp=~uint32, init=cast(~self.get_or_allocate_var(regs_tensor)[0], ~uint32)
             )
+            # Broadcast warp index via shfl so ptxas recognizes it as warp-uniform
+            # and can keep the tmem address in uniform registers (UR).
+            warp_idx = self.declare_var(
+                "warp_idx",
+                tp=int32,
+                init=shfl_sync_i32(uint32(0xFFFFFFFF), self.current_thread // 32, int32(0)),
+            )
             warp_tmem_base_addr = self.declare_var(
-                "warp_tmem_base_addr", tp=~int32, init=tmem_base_addr + self.current_thread // 32 * 32 * LANE_STRIDE
+                "warp_tmem_base_addr", tp=~int32, init=tmem_base_addr + warp_idx * 32 * LANE_STRIDE
             )
 
             with self.for_range(warp_repeat_m, attr="u") as warp_repeat_i:

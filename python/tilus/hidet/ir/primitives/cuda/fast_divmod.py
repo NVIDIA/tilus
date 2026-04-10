@@ -30,11 +30,11 @@ Host-side precomputation of (multiplier, shift) is done using plain C functions
 
 from typing import no_type_check
 
-from tilus.hidet.ir.dtypes import uint32, uint64
+from tilus.hidet.ir.dtypes import int32, uint32, uint64
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
 from tilus.hidet.ir.stmt import asm
-from tilus.hidet.lang import attrs, script
+from tilus.hidet.lang import attrs, i32, script, u32
 from tilus.hidet.utils import initialize
 
 
@@ -42,7 +42,7 @@ from tilus.hidet.utils import initialize
 def register_fast_divmod_primitives():
     @no_type_check
     @script
-    def cuda_fastdiv(a: uint32, b: uint32) -> uint32:
+    def cuda_fastdiv(a: i32, b: i32) -> i32:
         """Semantic placeholder for floor(a / b) where a >= 0 and b > 0.
 
         This function will be lowered by LowerFastDivPass to use precomputed
@@ -53,15 +53,17 @@ def register_fast_divmod_primitives():
 
     @no_type_check
     @script
-    def cuda_fastdiv_runtime(a: uint32, multiplier: uint32, shift: uint32) -> uint32:
+    def cuda_fastdiv_runtime(a: i32, multiplier: i32, shift: i32) -> i32:
         """Runtime fast division: __umulhi(a, multiplier) >> shift.
 
         When multiplier == 0, the divisor is a power of 2 and we use a simple shift.
-        This runs on the device.
+        This runs on the device. The operands are int32 to avoid signed/unsigned casts
+        that prevent ptxas from using uniform registers. The asm uses unsigned operations
+        which is correct since a >= 0 and multiplier/shift are bit patterns.
         """
         attrs.func_kind = "cuda_internal"
-        ret: uint32 = 0
-        if multiplier == uint32(0):
+        ret: i32 = 0
+        if multiplier == i32(0):
             ret = a >> shift
         else:
             asm(
@@ -128,7 +130,11 @@ def fastdiv(a: Expr, b: Expr) -> Expr:
 
 
 def fastdiv_runtime(a: Expr, multiplier: Expr, shift: Expr) -> Expr:
-    """Runtime fast division using precomputed multiplier and shift (device-side)."""
+    """Runtime fast division using precomputed multiplier and shift (device-side).
+
+    Takes int32 operands to avoid signed/unsigned casts that prevent ptxas
+    from using uniform registers for block-constant computations.
+    """
     return call_primitive_func("cuda_fastdiv_runtime", args=[a, multiplier, shift])
 
 
