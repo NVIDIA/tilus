@@ -63,10 +63,12 @@ jobs:
           if git rev-parse --verify gh-pages >/dev/null 2>&1; then
             git worktree add "$DEPLOY_DIR" gh-pages
           else
-            git worktree add --orphan "$DEPLOY_DIR" gh-pages
-            cd "$DEPLOY_DIR"
+            # Create orphan gh-pages branch
+            git checkout --orphan gh-pages
+            git rm -rf . 2>/dev/null || true
             git commit --allow-empty -m "Initialize gh-pages"
-            cd -
+            git checkout -
+            git worktree add "$DEPLOY_DIR" gh-pages
           fi
 
           # Copy new build into versioned subdirectory
