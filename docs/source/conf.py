@@ -54,7 +54,6 @@ html_theme_options = {
 html_sidebars = {
     "**": [
         "navbar-logo.html",
-        "icon-links.html",
         "search-button-field.html",
         "sbt-sidebar-nav.html",
         "versioning.html",
