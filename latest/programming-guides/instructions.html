@@ -1,0 +1,868 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>4. Instructions &#8212; tilus  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=38aa6179" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'programming-guides/instructions';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="5. Control Flow" href="control-flow.html" />
+    <link rel="prev" title="3.5. Global Tensor" href="type-system/global-tensor.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">tilus  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/install.html">1. Installation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../getting-started/tutorials/__init__.html">2. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../getting-started/tutorials/matmul.html">2.1. Matrix multiplication</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../getting-started/tutorials/matmul/matmul_v0.html">2.1.1. V0: Naive Matmul</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../getting-started/tutorials/matmul/matmul_v1.html">2.1.2. V1: Use Shared Memory</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../getting-started/tutorials/matmul/matmul_v2.html">2.1.3. V2: Auto-tuning</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../getting-started/tutorials/matmul/matmul_v3.html">2.1.4. V3: Async Copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../getting-started/tutorials/matmul/matmul_v4.html">2.1.5. V4: Software Pipelining</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../getting-started/tutorials/matmul/matmul_v5.html">2.1.6. V5: Split-K</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Programming Guides</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">1. Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tilus-script.html">2. Tilus Script</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="type-system/scalar-types.html">3.1. Scalar Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="type-system/pointer-types.html">3.2. Pointer Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="type-system/register-tensor.html">3.3. Register Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="type-system/global-tensor.html">3.5. Global Tensor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">4. Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="control-flow.html">5. Control Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="thread-group.html">6. Thread Group</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cache.html">7. Cache</a></li>
+<li class="toctree-l1"><a class="reference internal" href="autotuning.html">8. Autotuning</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="layout-system/__init__.html">9. Layout System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="layout-system/global-layout.html">9.1. Global Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="layout-system/shared-layout.html">9.2. Shared Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="layout-system/register-layout.html">9.3. Register Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="layout-system/layout-inference.html">9.4. Automatic Layout Inference</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/_static/layout-demo/index.html">Layout Demo</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../python-api/tilus.html">tilus</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.autotune.html">tilus.autotune</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../python-api/tilus-option.html">tilus.option</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.option.cache_dir.html">tilus.option.cache_dir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.option.parallel_workers.html">tilus.option.parallel_workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.option.debug.dump_ir.html">tilus.option.debug.dump_ir</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../python-api/tilus-script.html">tilus.Script</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.attrs.html">tilus.Script.attrs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.blockIdx.html">tilus.Script.blockIdx</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.gridDim.html">tilus.Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.assume.html">tilus.Script.assume</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.range.html">tilus.Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.thread_group.html">tilus.Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.abs.html">tilus.Script.abs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.add.html">tilus.Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.annotate_layout.html">tilus.Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.assign.html">tilus.Script.assign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.cast.html">tilus.Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async.html">tilus.Script.copy_async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_commit_group.html">tilus.Script.copy_async_commit_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_all.html">tilus.Script.copy_async_wait_all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_group.html">tilus.Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.cluster_sync.html">tilus.Script.cluster_sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.dot.html">tilus.Script.dot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.exp.html">tilus.Script.exp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.exp2.html">tilus.Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.free_shared.html">tilus.Script.free_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.global_tensor.html">tilus.Script.global_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.global_view.html">tilus.Script.global_view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.load_global.html">tilus.Script.load_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.load_shared.html">tilus.Script.load_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.lock_semaphore.html">tilus.Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.max.html">tilus.Script.max</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.maximum.html">tilus.Script.maximum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.min.html">tilus.Script.min</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.print_tensor.html">tilus.Script.print_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.printf.html">tilus.Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.register_tensor.html">tilus.Script.register_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.release_semaphore.html">tilus.Script.release_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.repeat.html">tilus.Script.repeat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.repeat_interleave.html">tilus.Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.round.html">tilus.Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.shared_tensor.html">tilus.Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.squeeze.html">tilus.Script.squeeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.store_global.html">tilus.Script.store_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.store_shared.html">tilus.Script.store_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.sum.html">tilus.Script.sum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.sync.html">tilus.Script.sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.transpose.html">tilus.Script.transpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.unsqueeze.html">tilus.Script.unsqueeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.view.html">tilus.Script.view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.where.html">tilus.Script.where</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../python-api/tilus-ir/__index__.html">tilus.ir</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/tilus-ir/datatype.html">tilus.ir.DataType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/tilus-ir/pointer.html">tilus.ir.PointerType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/tilus-ir/tensor.html">tilus.ir.Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/tilus-ir/register_tensor.html">tilus.ir.RegisterTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/tilus-ir/generated/tilus.ir.layout.register_layout.html">tilus.ir.layout.register_layout</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/tilus-ir/shared_layout.html">tilus.ir.SharedLayout</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/tilus-ir/global_layout.html">tilus.ir.GlobalLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/tilus-ir/generated/tilus.ir.layout.global_row_major.html">tilus.ir.layout.global_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/tilus-ir/generated/tilus.ir.layout.global_column_major.html">tilus.ir.layout.global_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/tilus-ir/generated/tilus.ir.layout.global_strides.html">tilus.ir.layout.global_strides</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/tilus-ir/generated/tilus.ir.layout.global_compose.html">tilus.ir.layout.global_compose</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item"><div id="version-switcher" style="padding: 0.5rem 1rem; border-top: 1px solid var(--color-sidebar-border);">
+  <label for="version-select" style="font-size: 0.85em; font-weight: 600; display: block; margin-bottom: 0.3rem;">
+    Version
+  </label>
+  <select id="version-select" style="width: 100%; padding: 0.3rem; border-radius: 4px; border: 1px solid var(--color-sidebar-border); background: var(--color-background-secondary); color: var(--color-foreground-primary); font-size: 0.85em;">
+    <option>loading...</option>
+  </select>
+</div>
+
+<script>
+(function() {
+  var switcher = document.getElementById('version-switcher');
+  var select = document.getElementById('version-select');
+
+  // Deployed structure: https://nvidia.github.io/tilus/{version}/page.html
+  var pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  var baseUrl = '';
+  var currentVersion = '';
+  var relPageParts = [];
+
+  if (pathParts.length >= 2) {
+    baseUrl = '/' + pathParts[0];
+    currentVersion = pathParts[1];
+    relPageParts = pathParts.slice(2);
+  }
+
+  fetch(baseUrl + '/versions.json')
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('not found');
+      return resp.json();
+    })
+    .then(function(versions) {
+      // versions.json format:
+      // [{"slug": "stable", "label": "v0.2.0 (Stable)"}, {"slug": "latest", "label": "latest"}, ...]
+      select.innerHTML = '';
+      versions.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.slug;
+        opt.textContent = v.label;
+        if (v.slug === currentVersion) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.addEventListener('change', function() {
+        var relPage = relPageParts.join('/') || 'index.html';
+        window.location.href = baseUrl + '/' + select.value + '/' + relPage;
+      });
+    })
+    .catch(function() {
+      switcher.style.display = 'none';
+    });
+})();
+</script></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/NVIDIA/tilus" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="Source repository"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/programming-guides/instructions.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Instructions</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-creation-and-free">4.1. Tensor Creation and Free</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-and-store">4.2. Load and Store</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-copy-sm80">4.3. Asynchronous Copy (SM80+)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bulk-asynchronous-copy-sm90">4.4. Bulk Asynchronous Copy (SM90+)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-asynchronous-copy-sm90">4.5. TMA Asynchronous Copy (SM90+)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-algebra">4.6. Linear Algebra</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#elementwise-arithmetic">4.7. Elementwise Arithmetic</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.8. Transform</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.9. Reduction</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#barrier">4.10. Barrier</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#atomic-and-semaphore">4.11. Atomic and Semaphore</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.12. Synchronization</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.13. Miscellaneous</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="instructions">
+<h1><span class="section-number">4. </span>Instructions<a class="headerlink" href="#instructions" title="Link to this heading"><span>¶</span></a></h1>
+<p>Tilus provides a set of instructions for working with tensors maintained by the thread block. These instructions allow
+you to create, copy, and compute tensors in global, shared, and register memory.</p>
+<section id="tensor-creation-and-free">
+<h2><span class="section-number">4.1. </span>Tensor Creation and Free<a class="headerlink" href="#tensor-creation-and-free" title="Link to this heading"><span>¶</span></a></h2>
+<div class="margin admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Please submit a feature request if your kernel requires additional instructions.</p>
+</div>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.global_view.html#tilus.Script.global_view" title="tilus.Script.global_view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_view</span></code></a>(ptr, *, dtype, shape[, strides])</p></td>
+<td><p>Create a global tensor view.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.register_tensor.html#tilus.Script.register_tensor" title="tilus.Script.register_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register_tensor</span></code></a>(*, dtype, shape[, init])</p></td>
+<td><p>Create a register tensor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.shared_tensor.html#tilus.Script.shared_tensor" title="tilus.Script.shared_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shared_tensor</span></code></a>(*, dtype, shape)</p></td>
+<td><p>Allocate a shared tensor.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.global_tensor.html#tilus.Script.global_tensor" title="tilus.Script.global_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_tensor</span></code></a>(dtype, shape, *[, layout])</p></td>
+<td><p>Allocate a global tensor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.free_shared.html#tilus.Script.free_shared" title="tilus.Script.free_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">free_shared</span></code></a>(tensor)</p></td>
+<td><p>Free a shared tensor.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="load-and-store">
+<h2><span class="section-number">4.2. </span>Load and Store<a class="headerlink" href="#load-and-store" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.load_global.html#tilus.Script.load_global" title="tilus.Script.load_global"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_global</span></code></a>(src, /, *, offsets, shape[, ...])</p></td>
+<td><p>Load a slice of global tensor into a register tensor.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.store_global.html#tilus.Script.store_global" title="tilus.Script.store_global"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_global</span></code></a>(dst, src, *, offsets[, dims])</p></td>
+<td><p>Store a register tensor into a slice of a global tensor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.load_shared.html#tilus.Script.load_shared" title="tilus.Script.load_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_shared</span></code></a>(src, *[, out])</p></td>
+<td><p>Load a shared tensor into a register tensor.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.store_shared.html#tilus.Script.store_shared" title="tilus.Script.store_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_shared</span></code></a>(dst, src, *[, offsets, dims])</p></td>
+<td><p>Store a register tensor into a shared tensor.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="asynchronous-copy-sm80">
+<h2><span class="section-number">4.3. </span>Asynchronous Copy (SM80+)<a class="headerlink" href="#asynchronous-copy-sm80" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async</span></code></a>(src, dst, offsets[, dims, evict, ...])</p></td>
+<td><p>Copy from global to shared tensor asynchronously.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_commit_group.html#tilus.Script.copy_async_commit_group" title="tilus.Script.copy_async_commit_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_commit_group</span></code></a>()</p></td>
+<td><p>Commit async copies into a group.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_group.html#tilus.Script.copy_async_wait_group" title="tilus.Script.copy_async_wait_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_wait_group</span></code></a>(n)</p></td>
+<td><p>Wait the completion of asynchronous copy groups.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all" title="tilus.Script.copy_async_wait_all"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_wait_all</span></code></a>()</p></td>
+<td><p>Wait for all copy_async instructions to complete.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="bulk-asynchronous-copy-sm90">
+<h2><span class="section-number">4.4. </span>Bulk Asynchronous Copy (SM90+)<a class="headerlink" href="#bulk-asynchronous-copy-sm90" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+</tbody>
+</table>
+</div>
+</section>
+<section id="tma-asynchronous-copy-sm90">
+<h2><span class="section-number">4.5. </span>TMA Asynchronous Copy (SM90+)<a class="headerlink" href="#tma-asynchronous-copy-sm90" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+</tbody>
+</table>
+</div>
+</section>
+<section id="linear-algebra">
+<h2><span class="section-number">4.6. </span>Linear Algebra<a class="headerlink" href="#linear-algebra" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.dot.html#tilus.Script.dot" title="tilus.Script.dot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dot</span></code></a>(a, b[, c, acc_dtype, out])</p></td>
+<td><p>Dot product.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="elementwise-arithmetic">
+<h2><span class="section-number">4.7. </span>Elementwise Arithmetic<a class="headerlink" href="#elementwise-arithmetic" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.add.html#tilus.Script.add" title="tilus.Script.add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add</span></code></a>(lhs, rhs[, out])</p></td>
+<td><p>Add two register tensors element-wise.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.exp.html#tilus.Script.exp" title="tilus.Script.exp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the exponential of each element.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.exp2.html#tilus.Script.exp2" title="tilus.Script.exp2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp2</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the base-2 exponential of each element.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.abs.html#tilus.Script.abs" title="tilus.Script.abs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abs</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the absolute value of a register tensor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.maximum.html#tilus.Script.maximum" title="tilus.Script.maximum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">maximum</span></code></a>(lhs, rhs[, out])</p></td>
+<td><p>Compute the element-wise maximum.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.round.html#tilus.Script.round" title="tilus.Script.round"><code class="xref py py-obj docutils literal notranslate"><span class="pre">round</span></code></a>(x, *[, out])</p></td>
+<td><p>Round each element to the nearest integer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.where.html#tilus.Script.where" title="tilus.Script.where"><code class="xref py py-obj docutils literal notranslate"><span class="pre">where</span></code></a>(condition, x, y, *[, out])</p></td>
+<td><p>Select elements from two tensors based on a condition.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="transform">
+<h2><span class="section-number">4.8. </span>Transform<a class="headerlink" href="#transform" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.assign.html#tilus.Script.assign" title="tilus.Script.assign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">assign</span></code></a>(dst, src)</p></td>
+<td><p>Assign the value of src tensor to dst tensor.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.cast.html#tilus.Script.cast" title="tilus.Script.cast"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cast</span></code></a>(x, dtype)</p></td>
+<td><p>Cast a register tensor to a different data type.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.squeeze.html#tilus.Script.squeeze" title="tilus.Script.squeeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">squeeze</span></code></a>(x, *, dim[, out])</p></td>
+<td><p>Squeeze a dimension of a register tensor with size 1.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.unsqueeze.html#tilus.Script.unsqueeze" title="tilus.Script.unsqueeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unsqueeze</span></code></a>(x, *, dim[, out])</p></td>
+<td><p>Unsqueeze a dimension of a register tensor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.repeat.html#tilus.Script.repeat" title="tilus.Script.repeat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">repeat</span></code></a>(x, repeats, *[, out])</p></td>
+<td><p>Repeat elements of a register tensor along its dimensions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.repeat_interleave.html#tilus.Script.repeat_interleave" title="tilus.Script.repeat_interleave"><code class="xref py py-obj docutils literal notranslate"><span class="pre">repeat_interleave</span></code></a>(x, repeats, *[, out])</p></td>
+<td><p>Repeat elements of a register tensor along its dimensions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.view.html#tilus.Script.view" title="tilus.Script.view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">view</span></code></a>(x, *[, layout, dtype])</p></td>
+<td><p>View register tensor with a different layout or data type.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.transpose.html#tilus.Script.transpose" title="tilus.Script.transpose"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transpose</span></code></a>(x)</p></td>
+<td><p>Transpose a 2-D register tensor.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="reduction">
+<h2><span class="section-number">4.9. </span>Reduction<a class="headerlink" href="#reduction" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.max.html#tilus.Script.max" title="tilus.Script.max"><code class="xref py py-obj docutils literal notranslate"><span class="pre">max</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<td><p>Compute the maximum value along a dimension.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.min.html#tilus.Script.min" title="tilus.Script.min"><code class="xref py py-obj docutils literal notranslate"><span class="pre">min</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<td><p>Compute the minimum value along a dimension.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.sum.html#tilus.Script.sum" title="tilus.Script.sum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sum</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<td><p>Sum the elements along a specified dimension.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="barrier">
+<h2><span class="section-number">4.10. </span>Barrier<a class="headerlink" href="#barrier" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+</tbody>
+</table>
+</div>
+</section>
+<section id="atomic-and-semaphore">
+<h2><span class="section-number">4.11. </span>Atomic and Semaphore<a class="headerlink" href="#atomic-and-semaphore" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.lock_semaphore.html#tilus.Script.lock_semaphore" title="tilus.Script.lock_semaphore"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lock_semaphore</span></code></a>(semaphore, value)</p></td>
+<td><p>Lock semaphore with a specified value.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.release_semaphore.html#tilus.Script.release_semaphore" title="tilus.Script.release_semaphore"><code class="xref py py-obj docutils literal notranslate"><span class="pre">release_semaphore</span></code></a>(semaphore, value)</p></td>
+<td><p>Release semaphore with a specified value.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="synchronization">
+<h2><span class="section-number">4.12. </span>Synchronization<a class="headerlink" href="#synchronization" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sync</span></code></a>()</p></td>
+<td><p>Perform a synchronization.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.cluster_sync.html#tilus.Script.cluster_sync" title="tilus.Script.cluster_sync"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cluster_sync</span></code></a>()</p></td>
+<td><p>Perform a cluster-wide synchronization.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="miscellaneous">
+<h2><span class="section-number">4.13. </span>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.assume.html#tilus.Script.assume" title="tilus.Script.assume"><code class="xref py py-obj docutils literal notranslate"><span class="pre">assume</span></code></a>(cond)</p></td>
+<td><p>Compiler hint to assume a condition is true.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.annotate_layout.html#tilus.Script.annotate_layout" title="tilus.Script.annotate_layout"><code class="xref py py-obj docutils literal notranslate"><span class="pre">annotate_layout</span></code></a>(tensor, layout)</p></td>
+<td><p>Annotate the layout of a register or shared tensor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.print_tensor.html#tilus.Script.print_tensor" title="tilus.Script.print_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">print_tensor</span></code></a>(msg, tensor[, fmt])</p></td>
+<td><p>Print a tensor with a message.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.printf.html#tilus.Script.printf" title="tilus.Script.printf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">printf</span></code></a>(fstring, *args)</p></td>
+<td><p>Print a formatted string.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="type-system/global-tensor.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">3.5. </span>Global Tensor</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="control-flow.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">5. </span>Control Flow</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-creation-and-free">4.1. Tensor Creation and Free</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-and-store">4.2. Load and Store</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-copy-sm80">4.3. Asynchronous Copy (SM80+)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bulk-asynchronous-copy-sm90">4.4. Bulk Asynchronous Copy (SM90+)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-asynchronous-copy-sm90">4.5. TMA Asynchronous Copy (SM90+)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-algebra">4.6. Linear Algebra</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#elementwise-arithmetic">4.7. Elementwise Arithmetic</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.8. Transform</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.9. Reduction</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#barrier">4.10. Barrier</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#atomic-and-semaphore">4.11. Atomic and Semaphore</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.12. Synchronization</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.13. Miscellaneous</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By NVIDIA
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, NVIDIA.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

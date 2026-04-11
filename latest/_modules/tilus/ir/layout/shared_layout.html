@@ -1,0 +1,973 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tilus.ir.layout.shared_layout &#8212; tilus  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/custom.css?v=38aa6179" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/tilus/ir/layout/shared_layout';</script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">tilus  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started/install.html">1. Installation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../getting-started/tutorials/__init__.html">2. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../getting-started/tutorials/matmul.html">2.1. Matrix multiplication</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../getting-started/tutorials/matmul/matmul_v0.html">2.1.1. V0: Naive Matmul</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../getting-started/tutorials/matmul/matmul_v1.html">2.1.2. V1: Use Shared Memory</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../getting-started/tutorials/matmul/matmul_v2.html">2.1.3. V2: Auto-tuning</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../getting-started/tutorials/matmul/matmul_v3.html">2.1.4. V3: Async Copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../getting-started/tutorials/matmul/matmul_v4.html">2.1.5. V4: Software Pipelining</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../getting-started/tutorials/matmul/matmul_v5.html">2.1.6. V5: Split-K</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Programming Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/overview.html">1. Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/tilus-script.html">2. Tilus Script</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../programming-guides/type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/scalar-types.html">3.1. Scalar Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/pointer-types.html">3.2. Pointer Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/register-tensor.html">3.3. Register Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/global-tensor.html">3.5. Global Tensor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/instructions.html">4. Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/control-flow.html">5. Control Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/thread-group.html">6. Thread Group</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/cache.html">7. Cache</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/autotuning.html">8. Autotuning</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../programming-guides/layout-system/__init__.html">9. Layout System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/layout-system/global-layout.html">9.1. Global Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/layout-system/shared-layout.html">9.2. Shared Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/layout-system/register-layout.html">9.3. Register Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/layout-system/layout-inference.html">9.4. Automatic Layout Inference</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/_static/layout-demo/index.html">Layout Demo</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus.html">tilus</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.autotune.html">tilus.autotune</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus-option.html">tilus.option</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.option.cache_dir.html">tilus.option.cache_dir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.option.parallel_workers.html">tilus.option.parallel_workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.option.debug.dump_ir.html">tilus.option.debug.dump_ir</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus-script.html">tilus.Script</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.attrs.html">tilus.Script.attrs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.blockIdx.html">tilus.Script.blockIdx</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.gridDim.html">tilus.Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.assume.html">tilus.Script.assume</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.range.html">tilus.Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.thread_group.html">tilus.Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.abs.html">tilus.Script.abs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.add.html">tilus.Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.annotate_layout.html">tilus.Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.assign.html">tilus.Script.assign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.cast.html">tilus.Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async.html">tilus.Script.copy_async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async_commit_group.html">tilus.Script.copy_async_commit_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async_wait_all.html">tilus.Script.copy_async_wait_all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async_wait_group.html">tilus.Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.cluster_sync.html">tilus.Script.cluster_sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.dot.html">tilus.Script.dot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.exp.html">tilus.Script.exp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.exp2.html">tilus.Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.free_shared.html">tilus.Script.free_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.global_tensor.html">tilus.Script.global_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.global_view.html">tilus.Script.global_view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.load_global.html">tilus.Script.load_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.load_shared.html">tilus.Script.load_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.lock_semaphore.html">tilus.Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.max.html">tilus.Script.max</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.maximum.html">tilus.Script.maximum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.min.html">tilus.Script.min</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.print_tensor.html">tilus.Script.print_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.printf.html">tilus.Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.register_tensor.html">tilus.Script.register_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.release_semaphore.html">tilus.Script.release_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.repeat.html">tilus.Script.repeat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.repeat_interleave.html">tilus.Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.round.html">tilus.Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.shared_tensor.html">tilus.Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.squeeze.html">tilus.Script.squeeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.store_global.html">tilus.Script.store_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.store_shared.html">tilus.Script.store_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.sum.html">tilus.Script.sum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.sync.html">tilus.Script.sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.transpose.html">tilus.Script.transpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.unsqueeze.html">tilus.Script.unsqueeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.view.html">tilus.Script.view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.where.html">tilus.Script.where</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus-ir/__index__.html">tilus.ir</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/datatype.html">tilus.ir.DataType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/pointer.html">tilus.ir.PointerType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/tensor.html">tilus.ir.Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/register_tensor.html">tilus.ir.RegisterTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.register_layout.html">tilus.ir.layout.register_layout</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/shared_layout.html">tilus.ir.SharedLayout</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/tilus-ir/global_layout.html">tilus.ir.GlobalLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_row_major.html">tilus.ir.layout.global_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_column_major.html">tilus.ir.layout.global_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_strides.html">tilus.ir.layout.global_strides</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_compose.html">tilus.ir.layout.global_compose</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item"><div id="version-switcher" style="padding: 0.5rem 1rem; border-top: 1px solid var(--color-sidebar-border);">
+  <label for="version-select" style="font-size: 0.85em; font-weight: 600; display: block; margin-bottom: 0.3rem;">
+    Version
+  </label>
+  <select id="version-select" style="width: 100%; padding: 0.3rem; border-radius: 4px; border: 1px solid var(--color-sidebar-border); background: var(--color-background-secondary); color: var(--color-foreground-primary); font-size: 0.85em;">
+    <option>loading...</option>
+  </select>
+</div>
+
+<script>
+(function() {
+  var switcher = document.getElementById('version-switcher');
+  var select = document.getElementById('version-select');
+
+  // Deployed structure: https://nvidia.github.io/tilus/{version}/page.html
+  var pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  var baseUrl = '';
+  var currentVersion = '';
+  var relPageParts = [];
+
+  if (pathParts.length >= 2) {
+    baseUrl = '/' + pathParts[0];
+    currentVersion = pathParts[1];
+    relPageParts = pathParts.slice(2);
+  }
+
+  fetch(baseUrl + '/versions.json')
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('not found');
+      return resp.json();
+    })
+    .then(function(versions) {
+      // versions.json format:
+      // [{"slug": "stable", "label": "v0.2.0 (Stable)"}, {"slug": "latest", "label": "latest"}, ...]
+      select.innerHTML = '';
+      versions.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.slug;
+        opt.textContent = v.label;
+        if (v.slug === currentVersion) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.addEventListener('change', function() {
+        var relPage = relPageParts.join('/') || 'index.html';
+        window.location.href = baseUrl + '/' + select.value + '/' + relPage;
+      });
+    })
+    .catch(function() {
+      switcher.style.display = 'none';
+    });
+})();
+</script></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/NVIDIA/tilus" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="Source repository"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1></h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for tilus.ir.layout.shared_layout</h1><div class="highlight"><pre>
+<span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
+<span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.expr</span><span class="w"> </span><span class="kn">import</span> <span class="n">Expr</span><span class="p">,</span> <span class="n">Var</span><span class="p">,</span> <span class="n">as_expr</span><span class="p">,</span> <span class="n">index_vars</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.utils.index_transform</span><span class="w"> </span><span class="kn">import</span> <span class="n">index_deserialize</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">prod</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.node</span><span class="w"> </span><span class="kn">import</span> <span class="n">IRNode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.utils.veceval</span><span class="w"> </span><span class="kn">import</span> <span class="n">vectorized_evaluate</span>
+
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eq</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Swizzle</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A swizzle function.</span>
+
+<span class="sd">    0xxxxYYYxxZZZxxxx</span>
+<span class="sd">    z_mask = ((1 &lt;&lt; self.bbits) - 1) &lt;&lt; self.mbase</span>
+<span class="sd">    y_mask = ((1 &lt;&lt; self.bbits) - 1) &lt;&lt; (self.mbase + self.sshift)</span>
+<span class="sd">    return offset ^ ((offset &amp; y_mask) &gt;&gt; self.sshift)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">base</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">bits</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">shift</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="n">Expr</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
+        <span class="c1"># we use a primitive function to here</span>
+        <span class="c1"># todo: use general computation after refactor to cute-like shared layout</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.primitives.swizzle</span><span class="w"> </span><span class="kn">import</span> <span class="n">swizzle</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bits</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">index</span>
+        <span class="k">return</span> <span class="n">swizzle</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shift</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_byte_swizzle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nbytes</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Swizzle</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert element-level swizzle to byte-level swizzle.</span>
+
+<span class="sd">        When converting from element indices to byte offsets (multiplying by nbytes),</span>
+<span class="sd">        the swizzle base parameter shifts by log2(nbytes) because all bit positions</span>
+<span class="sd">        shift left by that amount.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        nbytes: int</span>
+<span class="sd">            The number of bytes per element. Must be a power of 2.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ret: Swizzle</span>
+<span class="sd">            A new Swizzle with adjusted base for byte-level operation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="n">nbytes</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="p">(</span><span class="n">nbytes</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">nbytes</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;nbytes must be a power of 2&quot;</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">nbytes</span><span class="o">.</span><span class="n">bit_length</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span>  <span class="c1"># log2(nbytes)</span>
+        <span class="k">return</span> <span class="n">Swizzle</span><span class="p">(</span><span class="n">base</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">base</span> <span class="o">+</span> <span class="n">k</span><span class="p">,</span> <span class="n">bits</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bits</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">shift</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Swizzle(base=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="si">}</span><span class="s2">, bits=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bits</span><span class="si">}</span><span class="s2">, shift=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shift</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Swizzle</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span> <span class="o">==</span> <span class="n">value</span><span class="o">.</span><span class="n">base</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">bits</span> <span class="o">==</span> <span class="n">value</span><span class="o">.</span><span class="n">bits</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">shift</span> <span class="o">==</span> <span class="n">value</span><span class="o">.</span><span class="n">shift</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shift</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="SharedLayout">
+<a class="viewcode-back" href="../../../../python-api/tilus-ir/shared_layout.html#tilus.ir.SharedLayout">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eq</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SharedLayout</span><span class="p">(</span><span class="n">IRNode</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The layout for shared tensor.</span>
+
+<span class="sd">    We use three components to describe a shared tensor layout: the shape, the mode shape, and the mode strides.</span>
+
+<span class="sd">    The mode shape and mode strides are used to describe how to split each dimension into multiple sub-dimensions (modes),</span>
+<span class="sd">    and the strides of each mode.</span>
+
+<span class="sd">    For example, consider a shape of (64, 32), we can split the first dimension into two sub-dimensions (modes) of size 8 and 8,</span>
+<span class="sd">    and the second dimension into two sub-dimensions (modes) of size 16 and 2. The mode shape would be (8, 8, 16, 2). We can</span>
+<span class="sd">    have strides for each mode, for example, (256, 2, 16, 1). Then given the indices (i, j), we can compute the indices in the</span>
+<span class="sd">    sub-dimensions (i1, i2, j1, j2) where i1 = i // 8, i2 = i % 8, j1 = j // 2, j2 = j % 2. The offset can be computed as:</span>
+<span class="sd">    offset = i1 * 256 + i2 * 2 + j1 * 16 + j2 * 1. To get the final offset in the shared tensor, we can use the formula:</span>
+<span class="sd">    (i, j) =&gt; ((i // 8) * 256) + ((i % 8) * 2) + ((j // 2) * 16) + ((j % 2) * 1).</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    shape: tuple[int, ...]</span>
+<span class="sd">        The shape of the shared tensor. Each dimension is a constant integer.</span>
+<span class="sd">    mode_shape: tuple[int, ...]</span>
+<span class="sd">        We can split each dimension into multiple sub-dimensions (modes).</span>
+<span class="sd">    mode_strides: tuple[int, ...]</span>
+<span class="sd">        The strides of each mode.</span>
+<span class="sd">    swizzle: Optional[Swizzle]</span>
+<span class="sd">        The swizzle function to apply on the final offset. If None, no swizzling is applied.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">mode_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">mode_strides</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">optional_swizzle</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Swizzle</span><span class="p">]</span>
+
+<div class="viewcode-block" id="SharedLayout.__call__">
+<a class="viewcode-back" href="../../../../python-api/tilus-ir/shared_layout.html#tilus.ir.SharedLayout.__call__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">indices</span><span class="p">:</span> <span class="n">Expr</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the offset on given indices.</span>
+
+<span class="sd">        This method computes the offset of an element in the shared tensor with the given indices.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        indices: Sequence[Expr]</span>
+<span class="sd">            The indices of the shared tensor. The length of the indices should match the number of axes in the layout.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ret: Expr</span>
+<span class="sd">            The computed offset of the shared tensor element at the given indices.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout.ops.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_mode_groups</span>
+
+        <span class="c1"># get the stride-based index</span>
+        <span class="n">group_modes</span> <span class="o">=</span> <span class="n">get_mode_groups</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">)</span>
+        <span class="n">mode_indices</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Expr</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">modes</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">group_modes</span><span class="p">):</span>
+            <span class="n">mode_indices</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">index_deserialize</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">m</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">modes</span><span class="p">]))</span>
+        <span class="n">total_index</span><span class="p">:</span> <span class="n">Expr</span> <span class="o">=</span> <span class="n">as_expr</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">index</span> <span class="o">*</span> <span class="n">stride</span> <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">stride</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mode_indices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_strides</span><span class="p">)))</span>
+
+        <span class="c1"># apply swizzle if exists</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_swizzle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">total_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_swizzle</span><span class="p">(</span><span class="n">total_index</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">total_index</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">byte_offset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">indices</span><span class="p">:</span> <span class="n">Expr</span><span class="p">,</span> <span class="n">nbytes</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the byte offset with byte-level swizzle.</span>
+
+<span class="sd">        Instead of ``layout(*indices) * nbytes`` which computes</span>
+<span class="sd">        ``swizzle(element_offset) * nbytes``, this method computes</span>
+<span class="sd">        ``swizzle_byte(element_offset * nbytes)`` where the swizzle parameters are</span>
+<span class="sd">        adjusted for byte-level operation. These are mathematically equivalent but the</span>
+<span class="sd">        byte-level form is more optimization-friendly because the multiplication is</span>
+<span class="sd">        folded into the address before the swizzle, avoiding a trailing multiply.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        indices: Sequence[Expr]</span>
+<span class="sd">            The indices of the shared tensor.</span>
+<span class="sd">        nbytes: int</span>
+<span class="sd">            The number of bytes per element. Must be a power of 2.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ret: Expr</span>
+<span class="sd">            The byte offset with byte-level swizzle applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout.ops.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_mode_groups</span>
+
+        <span class="c1"># compute unswizzled element offset</span>
+        <span class="n">group_modes</span> <span class="o">=</span> <span class="n">get_mode_groups</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">)</span>
+        <span class="n">mode_indices</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Expr</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">modes</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">group_modes</span><span class="p">):</span>
+            <span class="n">mode_indices</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">index_deserialize</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">m</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">modes</span><span class="p">]))</span>
+        <span class="n">total_index</span><span class="p">:</span> <span class="n">Expr</span> <span class="o">=</span> <span class="n">as_expr</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">index</span> <span class="o">*</span> <span class="n">stride</span> <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">stride</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mode_indices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_strides</span><span class="p">)))</span>
+
+        <span class="c1"># convert to byte offset and apply byte-level swizzle</span>
+        <span class="n">byte_offset</span> <span class="o">=</span> <span class="n">total_index</span> <span class="o">*</span> <span class="n">nbytes</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_swizzle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">byte_swizzle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_swizzle</span><span class="o">.</span><span class="n">to_byte_swizzle</span><span class="p">(</span><span class="n">nbytes</span><span class="p">)</span>
+            <span class="n">byte_offset</span> <span class="o">=</span> <span class="n">byte_swizzle</span><span class="p">(</span><span class="n">byte_offset</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">byte_offset</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">SharedLayout</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">shape</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">mode_shape</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_strides</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">mode_strides</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_swizzle</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">optional_swizzle</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_strides</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_swizzle</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">swizzle</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Swizzle</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_swizzle</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No swizzle is applied on this layout.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_swizzle</span>
+
+<div class="viewcode-block" id="SharedLayout.create">
+<a class="viewcode-back" href="../../../../python-api/tilus-ir/shared_layout.html#tilus.ir.SharedLayout.create">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span>
+        <span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">mode_shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">mode_strides</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">optional_swizzle</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Swizzle</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a SharedLayout from shape, mode_shape, and mode_strides.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        shape: Sequence[int]</span>
+<span class="sd">            The shape of the shared tensor.</span>
+<span class="sd">        mode_shape: Sequence[int]</span>
+<span class="sd">            The mode shape of the shared tensor.</span>
+<span class="sd">        mode_strides: Sequence[int]</span>
+<span class="sd">            The mode strides of the shared tensor.</span>
+<span class="sd">        swizzle: Optional[Swizzle]</span>
+<span class="sd">            The swizzle function to apply on the final offset. If None, no swizzling is applied.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ret: SharedLayout</span>
+<span class="sd">            The created SharedLayout.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">s</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">shape</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;All dimensions in shape must be positive integers.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mode_strides</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;mode_shape and mode_strides must have the same length.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">prod</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">)</span> <span class="o">!=</span> <span class="n">prod</span><span class="p">(</span><span class="n">shape</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The product of mode_shape must equal to the product of shape.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">SharedLayout</span><span class="p">(</span>
+            <span class="n">shape</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span>
+            <span class="n">mode_shape</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">),</span>
+            <span class="n">mode_strides</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">mode_strides</span><span class="p">),</span>
+            <span class="n">optional_swizzle</span><span class="o">=</span><span class="n">optional_swizzle</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">as_numpy_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">grid_axes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">extent</span><span class="p">)</span> <span class="k">for</span> <span class="n">extent</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">],</span> <span class="n">indexing</span><span class="o">=</span><span class="s2">&quot;ij&quot;</span><span class="p">)</span>
+        <span class="n">axes</span> <span class="o">=</span> <span class="n">index_vars</span><span class="p">(</span><span class="n">num_vars</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="p">(</span><span class="o">*</span><span class="n">axes</span><span class="p">)</span>
+        <span class="n">atom_grid</span> <span class="o">=</span> <span class="n">vectorized_evaluate</span><span class="p">(</span><span class="n">expr</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span> <span class="n">var2value</span><span class="o">=</span><span class="p">{</span><span class="n">axis</span><span class="p">:</span> <span class="n">grid_axes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">axis</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">axes</span><span class="p">)})</span>
+        <span class="k">return</span> <span class="n">atom_grid</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">as_axes_mapping</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Var</span><span class="p">],</span> <span class="n">Expr</span><span class="p">]:</span>
+        <span class="n">axes</span> <span class="o">=</span> <span class="n">index_vars</span><span class="p">(</span><span class="n">num_vars</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="p">(</span><span class="o">*</span><span class="n">axes</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">axes</span><span class="p">,</span> <span class="n">offset</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">count_size</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Count the total size of the shared layout.</span>
+
+<span class="sd">        It is the minimum number of elements required to store the tensor in shared memory.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ret: int</span>
+<span class="sd">            The total size of the shared layout.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">extent</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">extent</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">]</span>
+        <span class="n">max_index</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">a</span> <span class="o">*</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_strides</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">max_index</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">slice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">retain_dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout.ops.shared_ops</span><span class="w"> </span><span class="kn">import</span> <span class="n">shared_slice</span>
+
+        <span class="k">return</span> <span class="n">shared_slice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">retain_dims</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">apply_swizzle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">swizzle</span><span class="p">:</span> <span class="n">Swizzle</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_swizzle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Chained swizzle is not supported.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">SharedLayout</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+            <span class="n">shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+            <span class="n">mode_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">,</span>
+            <span class="n">mode_strides</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode_strides</span><span class="p">,</span>
+            <span class="n">optional_swizzle</span><span class="o">=</span><span class="n">swizzle</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">prepend_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extent</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">extent</span><span class="p">,)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">if</span> <span class="n">extent</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">mode_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">extent</span><span class="p">,)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span>
+            <span class="n">mode_strides</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">count_size</span><span class="p">(),)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_strides</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mode_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span>
+            <span class="n">mode_strides</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode_strides</span>
+
+        <span class="k">return</span> <span class="n">SharedLayout</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+            <span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span>
+            <span class="n">mode_shape</span><span class="o">=</span><span class="n">mode_shape</span><span class="p">,</span>
+            <span class="n">mode_strides</span><span class="o">=</span><span class="n">mode_strides</span><span class="p">,</span>
+            <span class="n">optional_swizzle</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">optional_swizzle</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">transpose</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">permute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout.ops.shared_ops</span><span class="w"> </span><span class="kn">import</span> <span class="n">shared_permute</span>
+
+        <span class="k">return</span> <span class="n">shared_permute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dims</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">unsqueeze</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout.ops.shared_ops</span><span class="w"> </span><span class="kn">import</span> <span class="n">shared_unsqueeze</span>
+
+        <span class="k">return</span> <span class="n">shared_unsqueeze</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dims</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">visualize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablefmt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;simple_grid&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout.ops.shared_ops</span><span class="w"> </span><span class="kn">import</span> <span class="n">visualize_layout</span>
+
+        <span class="k">return</span> <span class="n">visualize_layout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablefmt</span><span class="o">=</span><span class="n">tablefmt</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">canonicalize_shared_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Canonicalize a SharedLayout.</span>
+
+<span class="sd">    This function merges consecutive modes that belong to the same dimension if they have compatible strides.</span>
+<span class="sd">    It also standardizes the swizzle representation by setting it to None if it swizzle 0 bits. After canonicalization,</span>
+<span class="sd">    two SharedLayouts that are functionally equivalent will have the same representation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    layout: SharedLayout</span>
+<span class="sd">        The SharedLayout to be canonicalized.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ret: SharedLayout</span>
+<span class="sd">        The canonicalized SharedLayout.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout.ops.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_mode_groups</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">remove_singleton_modes</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">ms</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">ms</span> <span class="ow">in</span> <span class="n">layout</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">layout</span>
+        <span class="n">mode_shape</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">mode_strides</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ms</span><span class="p">,</span> <span class="n">mstr</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">,</span> <span class="n">layout</span><span class="o">.</span><span class="n">mode_strides</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">ms</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">mode_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ms</span><span class="p">)</span>
+                <span class="n">mode_strides</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mstr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">SharedLayout</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+            <span class="n">shape</span><span class="o">=</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+            <span class="n">mode_shape</span><span class="o">=</span><span class="n">mode_shape</span><span class="p">,</span>
+            <span class="n">mode_strides</span><span class="o">=</span><span class="n">mode_strides</span><span class="p">,</span>
+            <span class="n">optional_swizzle</span><span class="o">=</span><span class="n">layout</span><span class="o">.</span><span class="n">optional_swizzle</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">merge_consecutive_modes</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+        <span class="c1"># merge consecutive modes that belong to the same dimension</span>
+        <span class="n">mode_groups</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="n">get_mode_groups</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">layout</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">)</span>
+        <span class="n">grouped_mode_shape</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">grouped_mode_strides</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">modes</span> <span class="ow">in</span> <span class="n">mode_groups</span><span class="p">:</span>
+            <span class="n">grouped_mode_shape</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+            <span class="n">grouped_mode_strides</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">modes</span><span class="p">):</span>
+                <span class="n">j</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="k">while</span> <span class="p">(</span>
+                    <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">modes</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="n">layout</span><span class="o">.</span><span class="n">mode_strides</span><span class="p">[</span><span class="n">modes</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+                    <span class="o">==</span> <span class="n">layout</span><span class="o">.</span><span class="n">mode_strides</span><span class="p">[</span><span class="n">modes</span><span class="p">[</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">*</span> <span class="n">layout</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">modes</span><span class="p">[</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]]</span>
+                <span class="p">):</span>
+                    <span class="n">j</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">grouped_mode_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prod</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">modes</span><span class="p">[</span><span class="n">k</span><span class="p">]]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)))</span>
+                <span class="n">grouped_mode_strides</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">mode_strides</span><span class="p">[</span><span class="n">modes</span><span class="p">[</span><span class="n">j</span><span class="p">]])</span>
+                <span class="n">i</span> <span class="o">=</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="n">mode_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">grouped_mode_shape</span> <span class="k">for</span> <span class="n">shape</span> <span class="ow">in</span> <span class="n">group</span><span class="p">)</span>
+        <span class="n">mode_strides</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">strides</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">grouped_mode_strides</span> <span class="k">for</span> <span class="n">strides</span> <span class="ow">in</span> <span class="n">group</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">layout</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">SharedLayout</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+                <span class="n">shape</span><span class="o">=</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                <span class="n">mode_shape</span><span class="o">=</span><span class="n">mode_shape</span><span class="p">,</span>
+                <span class="n">mode_strides</span><span class="o">=</span><span class="n">mode_strides</span><span class="p">,</span>
+                <span class="n">optional_swizzle</span><span class="o">=</span><span class="n">layout</span><span class="o">.</span><span class="n">optional_swizzle</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">canonicalize_swizzle</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+        <span class="c1"># canonicalize swizzle: if swizzle has 0 bits, set it to None (both mean no swizzle)</span>
+        <span class="k">if</span> <span class="n">layout</span><span class="o">.</span><span class="n">optional_swizzle</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">layout</span><span class="o">.</span><span class="n">optional_swizzle</span><span class="o">.</span><span class="n">bits</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">SharedLayout</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+                <span class="n">shape</span><span class="o">=</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                <span class="n">mode_shape</span><span class="o">=</span><span class="n">layout</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">,</span>
+                <span class="n">mode_strides</span><span class="o">=</span><span class="n">layout</span><span class="o">.</span><span class="n">mode_strides</span><span class="p">,</span>
+                <span class="n">optional_swizzle</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">layout</span>
+
+    <span class="n">layout</span> <span class="o">=</span> <span class="n">remove_singleton_modes</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span>
+    <span class="n">layout</span> <span class="o">=</span> <span class="n">merge_consecutive_modes</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span>
+    <span class="n">layout</span> <span class="o">=</span> <span class="n">canonicalize_swizzle</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">layout</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">shared_layout</span><span class="p">(</span>
+    <span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">mode_shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">mode_strides</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">optional_swizzle</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Swizzle</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a SharedLayout from shape, mode_shape, and mode_strides.</span>
+
+<span class="sd">    The created SharedLayout is canonicalized.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    shape: Sequence[int]</span>
+<span class="sd">        The shape of the shared tensor.</span>
+<span class="sd">    mode_shape: Sequence[int]</span>
+<span class="sd">        The mode shape of the shared tensor.</span>
+<span class="sd">    mode_strides: Sequence[int]</span>
+<span class="sd">        The mode strides of the shared tensor.</span>
+<span class="sd">    swizzle: Optional[Swizzle]</span>
+<span class="sd">        The swizzle function to apply on the final offset. If None, no swizzling is applied.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ret: SharedLayout</span>
+<span class="sd">        The created SharedLayout.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">layout</span> <span class="o">=</span> <span class="n">SharedLayout</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+        <span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span>
+        <span class="n">mode_shape</span><span class="o">=</span><span class="n">mode_shape</span><span class="p">,</span>
+        <span class="n">mode_strides</span><span class="o">=</span><span class="n">mode_strides</span><span class="p">,</span>
+        <span class="n">optional_swizzle</span><span class="o">=</span><span class="n">optional_swizzle</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">layout</span> <span class="o">=</span> <span class="n">canonicalize_shared_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">layout</span>
+</pre></div>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By NVIDIA
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, NVIDIA.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
