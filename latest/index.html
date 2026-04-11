@@ -285,21 +285,8 @@
 
     </div>
 </nav></div>
-        <div class="sidebar-primary-item"><div id="version-switcher" style="padding: 0.5rem 1rem; border-top: 1px solid var(--color-sidebar-border);">
-  <label for="version-select" style="font-size: 0.85em; font-weight: 600; display: block; margin-bottom: 0.3rem;">
-    Version
-  </label>
-  <select id="version-select" style="width: 100%; padding: 0.3rem; border-radius: 4px; border: 1px solid var(--color-sidebar-border); background: var(--color-background-secondary); color: var(--color-foreground-primary); font-size: 0.85em;">
-    <option>loading...</option>
-  </select>
-</div>
-
-<script>
+        <div class="sidebar-primary-item"><script>
 (function() {
-  var switcher = document.getElementById('version-switcher');
-  var select = document.getElementById('version-select');
-
-  // Deployed structure: https://nvidia.github.io/tilus/{version}/page.html
   var pathParts = window.location.pathname.split('/').filter(Boolean);
 
   var baseUrl = '';
@@ -318,9 +305,16 @@
       return resp.json();
     })
     .then(function(versions) {
-      // versions.json format:
-      // [{"slug": "stable", "label": "v0.2.0 (Stable)"}, {"slug": "latest", "label": "latest"}, ...]
-      select.innerHTML = '';
+      var headerButtons = document.querySelector('.article-header-buttons');
+      if (!headerButtons) return;
+
+      headerButtons.style.display = 'flex';
+      headerButtons.style.alignItems = 'center';
+
+      var select = document.createElement('select');
+      select.title = 'Switch version';
+      select.style.cssText = 'padding: 0.15rem 0.4rem; border-radius: 4px; border: 1px solid var(--pst-color-border); background: var(--pst-color-background); color: var(--pst-color-text-base); font-size: var(--pst-sidebar-font-size); cursor: pointer; appearance: auto; margin-right: 0.5rem; height: 2.25em;';
+
       versions.forEach(function(v) {
         var opt = document.createElement('option');
         opt.value = v.slug;
@@ -328,14 +322,15 @@
         if (v.slug === currentVersion) opt.selected = true;
         select.appendChild(opt);
       });
+
       select.addEventListener('change', function() {
         var relPage = relPageParts.join('/') || 'index.html';
         window.location.href = baseUrl + '/' + select.value + '/' + relPage;
       });
+
+      headerButtons.insertBefore(select, headerButtons.firstChild);
     })
-    .catch(function() {
-      switcher.style.display = 'none';
-    });
+    .catch(function() {});
 })();
 </script></div>
     </div>
