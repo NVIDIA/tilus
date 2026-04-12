@@ -16,7 +16,6 @@ jobs:
     outputs:
       should_run_tests: ${{ steps.changed-tests.outputs.any_changed }}
       should_run_examples: ${{ steps.changed-examples.outputs.any_changed }}
-      should_run_docs: ${{ steps.changed-docs.outputs.any_changed }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -44,15 +43,47 @@ jobs:
             pyproject.toml
           base_sha: 'origin/main'
 
-      - name: Check for changes in docs
-        id: changed-docs
-        uses: step-security/changed-files@v46
+  test-python-compat:
+    needs: check-changes
+    if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_tests == 'true'
+    runs-on: linux-amd64-gpu-l4-latest-1
+    container:
+      image: nvidia/cuda:12.6.2-devel-ubuntu22.04
+      options: --gpus all
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
-          files: |
-            python/**
-            docs/**
-            pyproject.toml
-          base_sha: 'origin/main'
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          apt-get update && apt-get install -y git cmake nodejs software-properties-common
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get update && apt-get install -y python3.10 python3.10-venv python3.10-dev \
+            python3.11 python3.11-venv python3.11-dev \
+            python3.12 python3.12-venv python3.12-dev \
+            python3.13 python3.13-venv python3.13-dev
+
+      - name: Mark repo as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Run smoke tests across Python versions
+        run: |
+          for pyver in 3.10 3.11 3.12 3.13; do
+            echo "========================================="
+            echo "Testing Python $pyver"
+            echo "========================================="
+            python${pyver} -m venv /tmp/venv-${pyver}
+            source /tmp/venv-${pyver}/bin/activate
+            pip install --upgrade pip
+            pip install build
+            python -m build .
+            pip install dist/*.whl[dev]
+            pytest tests/kernels/matmul/test_matmul_v2.py -v
+            deactivate
+            rm -rf /tmp/venv-${pyver} dist/
+          done
 
   test-core:
     needs: check-changes
@@ -81,27 +112,6 @@ jobs:
       - name: Run main tests
         run: pytest ./tests --ignore=tests/examples/
 
-  docs:
-    needs: check-changes
-    if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_docs == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup and Install Tilus
-        id: setup-and-install
-        uses: ./.github/actions/setup-environment
-        with:
-          python-version: '3.10'
-
-      - name: Build docs
-        run: |
-          cd docs
-          sphinx-build -W source build/html
-
   test-examples:
     needs: check-changes
     if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_examples == 'true'
@@ -127,21 +137,21 @@ jobs:
 
   all-functional-tests:
     name: All Functional Tests
-    needs: [test-core, docs, test-examples]
+    needs: [test-python-compat, test-core, test-examples]
     if: always() && github.repository == 'NVIDIA/tilus'
     runs-on: ubuntu-latest
     steps:
       - name: Check job results
         run: |
+          echo "Python compat result: ${{ needs.test-python-compat.result }}"
           echo "Core tests result: ${{ needs.test-core.result }}"
-          echo "Docs result: ${{ needs.docs.result }}"
           echo "Example tests result: ${{ needs.test-examples.result }}"
 
           # Check if any required job failed
-          if [[ "${{ needs.test-core.result }}" == "failure" ]] || [[ "${{ needs.docs.result }}" == "failure" ]] || [[ "${{ needs.test-examples.result }}" == "failure" ]]; then
+          if [[ "${{ needs.test-python-compat.result }}" == "failure" ]] || [[ "${{ needs.test-core.result }}" == "failure" ]] || [[ "${{ needs.test-examples.result }}" == "failure" ]]; then
             echo "One or more functional tests failed"
             exit 1
-          elif [[ "${{ needs.test-core.result }}" == "cancelled" ]] || [[ "${{ needs.docs.result }}" == "cancelled" ]] || [[ "${{ needs.test-examples.result }}" == "cancelled" ]]; then
+          elif [[ "${{ needs.test-python-compat.result }}" == "cancelled" ]] || [[ "${{ needs.test-core.result }}" == "cancelled" ]] || [[ "${{ needs.test-examples.result }}" == "cancelled" ]]; then
             echo "One or more functional tests were cancelled"
             exit 1
           else

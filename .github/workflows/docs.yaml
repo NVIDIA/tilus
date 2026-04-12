@@ -1,22 +1,23 @@
-name: Deploy Docs
+name: Docs
 
 on:
   push:
     branches:
       - main
+      - "pull-request/[0-9]+"
     tags:
       - "v*"
   workflow_dispatch:
 
 concurrency:
-  group: deploy-docs
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: write
 
 jobs:
-  build-and-deploy:
+  build:
     if: github.repository == 'NVIDIA/tilus'
     runs-on: ubuntu-latest
     steps:
@@ -34,7 +35,30 @@ jobs:
       - name: Build docs
         run: |
           cd docs
-          sphinx-build -W source build/html
+          make html SPHINXOPTS="-W"  # -W treats warnings as errors
+
+      - name: Upload docs artifact
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-html
+          path: docs/build/html/
+
+  deploy:
+    needs: build
+    if: github.repository == 'NVIDIA/tilus' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download docs artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-html
+          path: docs/build/html/
 
       - name: Determine version directory
         id: version
@@ -83,51 +107,10 @@ jobs:
 
           # Update versions.json and generate root index.html
           cd "$DEPLOY_DIR"
-          python3 << PYEOF
-          import json, pathlib
-
-          versions_file = pathlib.Path("versions.json")
-          versions = json.loads(versions_file.read_text()) if versions_file.exists() else []
-          # versions.json format: [{"slug": "stable", "label": "v0.2.0 (Stable)"}, ...]
-          slugs = {v["slug"] for v in versions}
-
-          version = "${VERSION_DIR}"
-          is_tag = "${IS_TAG}" == "true"
-
-          # Add the version entry if new
-          if version not in slugs:
-              versions.append({"slug": version, "label": version})
-              slugs.add(version)
-
-          # For tag releases, add or update the "stable" entry
-          if is_tag:
-              # Remove old stable entry
-              versions = [v for v in versions if v["slug"] != "stable"]
-              versions.append({"slug": "stable", "label": version + " (Stable)"})
-
-          # Sort: latest first, stable second, then tags in reverse order
-          def sort_key(v):
-              s = v["slug"]
-              if s == "latest":
-                  return (0, "")
-              if s == "stable":
-                  return (1, "")
-              return (2, s)
-          versions.sort(key=sort_key)
-          versions_file.write_text(json.dumps(versions, indent=2) + "\n")
-
-          # Generate root index.html
-          # Redirect to stable if it exists, otherwise latest
-          has_stable = any(v["slug"] == "stable" for v in versions)
-          target = "stable" if has_stable else "latest"
-          pathlib.Path("index.html").write_text(
-              "<!DOCTYPE html>\\n"
-              "<html>\\n"
-              f'<head><meta http-equiv="refresh" content="0; url={target}/index.html"></head>\\n'
-              f"<body><p>Redirecting to <a href=\\"{target}/index.html\\">{target} documentation</a>...</p></body>\\n"
-              "</html>\\n"
-          )
-          PYEOF
+          TAG_FLAG=""
+          if [[ "$IS_TAG" == "true" ]]; then TAG_FLAG="--is-tag"; fi
+          python3 "$GITHUB_WORKSPACE/.github/workflows/scripts/update_gh_pages.py" \
+            --version-dir "$VERSION_DIR" $TAG_FLAG
 
           # Add .nojekyll to prevent GitHub Pages from ignoring _static
           touch .nojekyll
