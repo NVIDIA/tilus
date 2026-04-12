@@ -34,7 +34,7 @@ jobs:
       - name: Build docs
         run: |
           cd docs
-          make html
+          sphinx-build -W source build/html
 
       - name: Determine version directory
         id: version

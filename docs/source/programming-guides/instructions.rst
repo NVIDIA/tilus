@@ -43,25 +43,6 @@ Asynchronous Copy (SM80+)
    copy_async_wait_group
    copy_async_wait_all
 
-
-Bulk Asynchronous Copy (SM90+)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autosummary::
-
-   copy_async_bulk_global_to_shared
-   copy_async_bulk_global_to_cluster_shared
-   copy_async_bulk_shared_to_global
-
-TMA Asynchronous Copy (SM90+)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autosummary::
-
-   copy_async_tensor_global_to_shared
-   copy_async_tensor_shared_to_global
-   copy_async_tensor_commit_group
-   copy_async_tensor_wait_group
-   fence_proxy_copy_async
-
 Linear Algebra
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -106,16 +87,6 @@ Reduction
    sum
 
 
-Barrier
-~~~~~~~
-
-.. autosummary::
-
-   init_barrier
-   arrive_barrier
-   arrive_remote_barrier
-   wait_barrier
-
 Atomic and Semaphore
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -142,3 +113,22 @@ Miscellaneous
    annotate_layout
    print_tensor
    printf
+
+
+Barrier
+~~~~~~~
+
+.. currentmodule:: tilus.lang.instructions.mbarrier.BarrierInstructionGroup
+
+.. autosummary::
+
+   alloc
+   arrive
+   arrive_and_expect_tx
+   arrive_and_expect_tx_multicast
+   arrive_and_expect_tx_remote
+   wait
+   consumer_initial_phase
+   producer_initial_phase
+
+.. currentmodule:: tilus.Script
