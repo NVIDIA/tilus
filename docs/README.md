@@ -19,6 +19,15 @@ make html
 
 The output will be in `docs/build/html/`. Open `docs/build/html/index.html` in a browser to view.
 
+## Live preview
+
+```bash
+cd docs
+sphinx-autobuild source build/html
+```
+
+Opens a local server at `http://localhost:8000` that auto-rebuilds and refreshes the browser when you edit RST files.
+
 ## Clean build
 
 ```bash

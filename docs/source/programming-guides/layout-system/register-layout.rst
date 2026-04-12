@@ -318,7 +318,7 @@ We can treat layouts as a special kind of tensors, where each element in the lay
 locations with the element. We have a list of operations that can be performed on layouts to transform the layouts. All of them are defined
 under the :py:mod:`tilus.ir.layout` module. Here is a list of the operations:
 
-.. currentmodule:: tilus.ir.layout
+.. currentmodule:: tilus.ir.layout.ops
 
 Layout Creation
 ~~~~~~~~~~~~~~~

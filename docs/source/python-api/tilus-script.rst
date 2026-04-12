@@ -56,22 +56,12 @@ Instructions
    abs
    add
    annotate_layout
-   arrive_barrier
-   arrive_remote_barrier
    assign
    cast
    copy_async
    copy_async_commit_group
    copy_async_wait_all
    copy_async_wait_group
-   copy_async_bulk_global_to_shared
-   copy_async_bulk_global_to_cluster_shared
-   copy_async_bulk_shared_to_global
-   copy_async_tensor_global_to_shared
-   copy_async_tensor_shared_to_global
-   copy_async_tensor_commit_group
-   copy_async_tensor_wait_group
-   fence_proxy_copy_async
    cluster_sync
    dot
    exp
@@ -79,7 +69,6 @@ Instructions
    free_shared
    global_tensor
    global_view
-   init_barrier
    load_global
    load_shared
    lock_semaphore
@@ -102,8 +91,17 @@ Instructions
    transpose
    unsqueeze
    view
-   wait_barrier
    where
+
+
+Instruction Groups
+------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   instruction-groups/mbarrier
+   instruction-groups/fence
 
 
 Script Attributes
@@ -113,10 +111,14 @@ Script Attributes
 
 .. class:: Attributes
 
-.. currentmodule:: tilus.lang.Attributes
+   The ``attrs`` object on a :class:`~tilus.Script` instance is used to set kernel launch configuration.
 
-.. autosummary::
-   :toctree: generated
+   .. attribute:: blocks
+      :type: list[int]
 
-   blocks
-   warps
+      The grid dimensions of the kernel launch. Set as a list of up to 3 integers, e.g., ``self.attrs.blocks = [grid_x, grid_y]``.
+
+   .. attribute:: warps
+      :type: int
+
+      The number of warps per thread block. Must be a compile-time constant.
