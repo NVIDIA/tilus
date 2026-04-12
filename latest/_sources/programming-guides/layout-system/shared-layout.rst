@@ -14,9 +14,9 @@ We support the following functions to create a global layout:
 
 .. autosummary::
 
-    tilus.ir.layout.shared_row_major
-    tilus.ir.layout.shared_column_major
-    tilus.ir.layout.shared_compose
+    tilus.ir.layout.ops.shared_row_major
+    tilus.ir.layout.ops.shared_column_major
+    tilus.ir.layout.ops.shared_compose
     tilus.ir.SharedLayout.create
 
 Please refer to the :py:class:`~tilus.ir.SharedLayout` class for internals of the shared layout.

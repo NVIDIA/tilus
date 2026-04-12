@@ -9,7 +9,7 @@ tilus.ir.RegisterLayout
 Register Layout Operations
 --------------------------
 
-.. currentmodule:: tilus.ir.layout
+.. currentmodule:: tilus.ir.layout.ops
 
 .. autosummary::
    :toctree: generated/

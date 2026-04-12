@@ -48,8 +48,8 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'python-api/tilus-script';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="tilus.Script.attrs" href="generated/tilus.Script.attrs.html" />
-    <link rel="prev" title="tilus.option.debug.dump_ir" href="generated/tilus.option.debug.dump_ir.html" />
+    <link rel="next" title="Script.attrs" href="generated/tilus.Script.attrs.html" />
+    <link rel="prev" title="tilus.option.debug.disable_ptxas_opt" href="generated/tilus.option.debug.disable_ptxas_opt.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -208,54 +208,71 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.option.cache_dir.html">tilus.option.cache_dir</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.option.parallel_workers.html">tilus.option.parallel_workers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.option.debug.dump_ir.html">tilus.option.debug.dump_ir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.option.debug.disable_ptxas_opt.html">tilus.option.debug.disable_ptxas_opt</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">tilus.Script</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.attrs.html">tilus.Script.attrs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.blockIdx.html">tilus.Script.blockIdx</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.gridDim.html">tilus.Script.gridDim</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.assume.html">tilus.Script.assume</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.range.html">tilus.Script.range</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.thread_group.html">tilus.Script.thread_group</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.abs.html">tilus.Script.abs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.add.html">tilus.Script.add</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.annotate_layout.html">tilus.Script.annotate_layout</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.assign.html">tilus.Script.assign</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.cast.html">tilus.Script.cast</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async.html">tilus.Script.copy_async</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_commit_group.html">tilus.Script.copy_async_commit_group</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_wait_all.html">tilus.Script.copy_async_wait_all</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_wait_group.html">tilus.Script.copy_async_wait_group</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.cluster_sync.html">tilus.Script.cluster_sync</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.dot.html">tilus.Script.dot</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.exp.html">tilus.Script.exp</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.exp2.html">tilus.Script.exp2</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.free_shared.html">tilus.Script.free_shared</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.global_tensor.html">tilus.Script.global_tensor</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.global_view.html">tilus.Script.global_view</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.load_global.html">tilus.Script.load_global</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.load_shared.html">tilus.Script.load_shared</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.lock_semaphore.html">tilus.Script.lock_semaphore</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.max.html">tilus.Script.max</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.maximum.html">tilus.Script.maximum</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.min.html">tilus.Script.min</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.print_tensor.html">tilus.Script.print_tensor</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.printf.html">tilus.Script.printf</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.register_tensor.html">tilus.Script.register_tensor</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.release_semaphore.html">tilus.Script.release_semaphore</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.repeat.html">tilus.Script.repeat</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.repeat_interleave.html">tilus.Script.repeat_interleave</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.round.html">tilus.Script.round</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.shared_tensor.html">tilus.Script.shared_tensor</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.squeeze.html">tilus.Script.squeeze</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.store_global.html">tilus.Script.store_global</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.store_shared.html">tilus.Script.store_shared</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.sum.html">tilus.Script.sum</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.sync.html">tilus.Script.sync</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.transpose.html">tilus.Script.transpose</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.unsqueeze.html">tilus.Script.unsqueeze</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.view.html">tilus.Script.view</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.where.html">tilus.Script.where</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.attrs.html">Script.attrs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.blockIdx.html">Script.blockIdx</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.gridDim.html">Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.assume.html">Script.assume</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.range.html">Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.thread_group.html">Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.abs.html">Script.abs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.add.html">Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.annotate_layout.html">Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.assign.html">Script.assign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.cast.html">Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.cluster_sync.html">Script.cluster_sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.dot.html">Script.dot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.exp.html">Script.exp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.exp2.html">Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.free_shared.html">Script.free_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.global_tensor.html">Script.global_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.global_view.html">Script.global_view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.load_global.html">Script.load_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.load_shared.html">Script.load_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.lock_semaphore.html">Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.max.html">Script.max</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.maximum.html">Script.maximum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.min.html">Script.min</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.print_tensor.html">Script.print_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.printf.html">Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.register_tensor.html">Script.register_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.repeat.html">Script.repeat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.repeat_interleave.html">Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.round.html">Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.store_global.html">Script.store_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.store_shared.html">Script.store_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.sum.html">Script.sum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.sync.html">Script.sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.transpose.html">Script.transpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.unsqueeze.html">Script.unsqueeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.view.html">Script.view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.where.html">Script.where</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="instruction-groups/mbarrier.html">Script.mbarrier</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html">Script.mbarrier.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html">Script.mbarrier.arrive</a></li>
+<li class="toctree-l3"><a class="reference internal" href="instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html">Script.mbarrier.arrive_and_expect_tx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html">Script.mbarrier.arrive_and_expect_tx_multicast</a></li>
+<li class="toctree-l3"><a class="reference internal" href="instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html">Script.mbarrier.arrive_and_expect_tx_remote</a></li>
+<li class="toctree-l3"><a class="reference internal" href="instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html">Script.mbarrier.wait</a></li>
+<li class="toctree-l3"><a class="reference internal" href="instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html">Script.mbarrier.producer_initial_phase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html">Script.mbarrier.consumer_initial_phase</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="instruction-groups/fence.html">Script.fence</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html">Script.fence.proxy_async</a></li>
+<li class="toctree-l3"><a class="reference internal" href="instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html">Script.fence.proxy_async_release</a></li>
+</ul>
+</details></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="tilus-ir/__index__.html">tilus.ir</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -266,10 +283,29 @@
 <li class="toctree-l2"><a class="reference internal" href="tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.register_layout.html">tilus.ir.layout.register_layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html">tilus.ir.layout.ops.auto_local_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.column_local.html">tilus.ir.layout.ops.column_local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.column_spatial.html">tilus.ir.layout.ops.column_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.compose.html">tilus.ir.layout.ops.compose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.concat.html">tilus.ir.layout.ops.concat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.divide.html">tilus.ir.layout.ops.divide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.flatten.html">tilus.ir.layout.ops.flatten</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.local.html">tilus.ir.layout.ops.local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.permute.html">tilus.ir.layout.ops.permute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.reduce.html">tilus.ir.layout.ops.reduce</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.register_layout.html">tilus.ir.layout.ops.register_layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.reshape.html">tilus.ir.layout.ops.reshape</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.spatial.html">tilus.ir.layout.ops.spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.squeeze.html">tilus.ir.layout.ops.squeeze</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.unsqueeze.html">tilus.ir.layout.ops.unsqueeze</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="tilus-ir/shared_layout.html">tilus.ir.SharedLayout</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="tilus-ir/shared_layout.html">tilus.ir.SharedLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.shared_row_major.html">tilus.ir.layout.ops.shared_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.shared_column_major.html">tilus.ir.layout.ops.shared_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.ops.shared_compose.html">tilus.ir.layout.ops.shared_compose</a></li>
+</ul>
+</details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="tilus-ir/global_layout.html">tilus.ir.GlobalLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.global_row_major.html">tilus.ir.layout.global_row_major</a></li>
 <li class="toctree-l3"><a class="reference internal" href="tilus-ir/generated/tilus.ir.layout.global_column_major.html">tilus.ir.layout.global_column_major</a></li>
@@ -498,8 +534,13 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#attributes-and-variables">Attributes and Variables</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#language-constructs">Language Constructs</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instructions">Instructions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instruction-groups">Instruction Groups</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#script-attributes">Script Attributes</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.lang.Attributes"><code class="docutils literal notranslate"><span class="pre">Attributes</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.lang.Attributes"><code class="docutils literal notranslate"><span class="pre">Attributes</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.lang.Attributes.blocks"><code class="docutils literal notranslate"><span class="pre">Attributes.blocks</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.lang.Attributes.warps"><code class="docutils literal notranslate"><span class="pre">Attributes.warps</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -696,18 +737,35 @@ including memory accesses, computations, and any other operations that need to b
 </table>
 </div>
 </section>
+<section id="instruction-groups">
+<h2>Instruction Groups<a class="headerlink" href="#instruction-groups" title="Link to this heading"><span>¶</span></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="instruction-groups/mbarrier.html">Script.mbarrier</a></li>
+<li class="toctree-l1"><a class="reference internal" href="instruction-groups/fence.html">Script.fence</a></li>
+</ul>
+</div>
+</section>
 <section id="script-attributes">
 <h2>Script Attributes<a class="headerlink" href="#script-attributes" title="Link to this heading"><span>¶</span></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="tilus.lang.Attributes">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">tilus.lang.</span></span><span class="sig-name descname"><span class="pre">Attributes</span></span><a class="reference internal" href="../_modules/tilus/lang/script.html#Attributes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tilus.lang.Attributes" title="Link to this definition"><span>¶</span></a></dt>
-<dd></dd></dl>
+<dd><p>The <code class="docutils literal notranslate"><span class="pre">attrs</span></code> object on a <a class="reference internal" href="#tilus.Script" title="tilus.Script"><code class="xref py py-class docutils literal notranslate"><span class="pre">Script</span></code></a> instance is used to set kernel launch configuration.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="tilus.lang.Attributes.blocks">
+<span class="sig-name descname"><span class="pre">blocks</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#tilus.lang.Attributes.blocks" title="Link to this definition"><span>¶</span></a></dt>
+<dd><p>The grid dimensions of the kernel launch. Set as a list of up to 3 integers, e.g., <code class="docutils literal notranslate"><span class="pre">self.attrs.blocks</span> <span class="pre">=</span> <span class="pre">[grid_x,</span> <span class="pre">grid_y]</span></code>.</p>
+</dd></dl>
 
-<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
-<tbody>
-</tbody>
-</table>
-</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="tilus.lang.Attributes.warps">
+<span class="sig-name descname"><span class="pre">warps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#tilus.lang.Attributes.warps" title="Link to this definition"><span>¶</span></a></dt>
+<dd><p>The number of warps per thread block. Must be a compile-time constant.</p>
+</dd></dl>
+
+</dd></dl>
+
 </section>
 </section>
 
@@ -723,12 +781,12 @@ including memory accesses, computations, and any other operations that need to b
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="generated/tilus.option.debug.dump_ir.html"
+       href="generated/tilus.option.debug.disable_ptxas_opt.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">tilus.option.debug.dump_ir</p>
+        <p class="prev-next-title">tilus.option.debug.disable_ptxas_opt</p>
       </div>
     </a>
     <a class="right-next"
@@ -736,7 +794,7 @@ including memory accesses, computations, and any other operations that need to b
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">tilus.Script.attrs</p>
+        <p class="prev-next-title">Script.attrs</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -764,8 +822,13 @@ including memory accesses, computations, and any other operations that need to b
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#attributes-and-variables">Attributes and Variables</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#language-constructs">Language Constructs</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instructions">Instructions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instruction-groups">Instruction Groups</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#script-attributes">Script Attributes</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.lang.Attributes"><code class="docutils literal notranslate"><span class="pre">Attributes</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.lang.Attributes"><code class="docutils literal notranslate"><span class="pre">Attributes</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.lang.Attributes.blocks"><code class="docutils literal notranslate"><span class="pre">Attributes.blocks</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.lang.Attributes.warps"><code class="docutils literal notranslate"><span class="pre">Attributes.warps</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
