@@ -174,7 +174,7 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">1. Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tilus-script.html">2. Tilus Script</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="type-system/scalar-types.html">3.1. Scalar Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="type-system/data-types.html">3.1. Data Types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="type-system/pointer-types.html">3.2. Pointer Types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="type-system/register-tensor.html">3.3. Register Tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
@@ -196,7 +196,7 @@
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/_static/layout-demo/index.html">Layout Demo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/latest/_static/layout-demo/index.html">Layout Demo</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul class="nav bd-sidenav">
@@ -211,32 +211,48 @@
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.option.debug.disable_ptxas_opt.html">tilus.option.debug.disable_ptxas_opt</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../python-api/tilus-target.html">tilus.target</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.target.get_current_target.html">tilus.target.get_current_target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.target.set_current_target.html">tilus.target.set_current_target</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../python-api/tilus-script.html">tilus.Script</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.attrs.html">Script.attrs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.blockIdx.html">Script.blockIdx</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.gridDim.html">Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.current_num_threads.html">Script.current_num_threads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.current_thread_begin.html">Script.current_thread_begin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.current_thread_end.html">Script.current_thread_end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.assume.html">Script.assume</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.range.html">Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.single_thread.html">Script.single_thread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.single_warp.html">Script.single_warp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.static_assert.html">Script.static_assert</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.thread_group.html">Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.warp_group.html">Script.warp_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.abs.html">Script.abs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.add.html">Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.all.html">Script.all</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.annotate_layout.html">Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.any.html">Script.any</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.assign.html">Script.assign</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.cast.html">Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.clip.html">Script.clip</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.cluster_sync.html">Script.cluster_sync</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.dot.html">Script.dot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.exp.html">Script.exp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.exp2.html">Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.fast_divmod.html">Script.fast_divmod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.flatten.html">Script.flatten</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.free_shared.html">Script.free_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.global_tensor.html">Script.global_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.global_view.html">Script.global_view</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.load_global.html">Script.load_global</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.load_shared.html">Script.load_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.lock_semaphore.html">Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.log.html">Script.log</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.max.html">Script.max</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.maximum.html">Script.maximum</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.min.html">Script.min</a></li>
@@ -246,8 +262,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.repeat.html">Script.repeat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.repeat_interleave.html">Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.round.html">Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.square.html">Script.square</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.store_global.html">Script.store_global</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.store_shared.html">Script.store_shared</a></li>
@@ -271,6 +291,54 @@
 <li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/fence.html">Script.fence</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html">Script.fence.proxy_async</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html">Script.fence.proxy_async_release</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/tma.html">Script.tma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html">Script.tma.global_to_shared</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html">Script.tma.shared_to_global</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html">Script.tma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html">Script.tma.wait_group</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/tcgen05.html">Script.tcgen05</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html">Script.tcgen05.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html">Script.tcgen05.dealloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html">Script.tcgen05.slice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html">Script.tcgen05.view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html">Script.tcgen05.relinquish_alloc_permit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html">Script.tcgen05.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html">Script.tcgen05.store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html">Script.tcgen05.wait_load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html">Script.tcgen05.wait_store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html">Script.tcgen05.commit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html">Script.tcgen05.copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html">Script.tcgen05.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/clc.html">Script.clc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html">Script.clc.try_cancel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html">Script.clc.query_response</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/cluster.html">Script.cluster</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html">Script.cluster.sync</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html">Script.cluster.map_shared_addr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx.html">Script.cluster.blockIdx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank.html">Script.cluster.blockRank</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim.html">Script.cluster.clusterDim</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/wgmma.html">Script.wgmma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html">Script.wgmma.fence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html">Script.wgmma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html">Script.wgmma.wait_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html">Script.wgmma.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/attrs.html">Script.attrs</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/generated/tilus.lang.script.Attributes.blocks.html">Script.attrs.blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/generated/tilus.lang.script.Attributes.cluster_blocks.html">Script.attrs.cluster_blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/generated/tilus.lang.script.Attributes.warps.html">Script.attrs.warps</a></li>
 </ul>
 </details></li>
 </ul>
@@ -526,11 +594,16 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">6.1. Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-thread-groups">6.1. Why Thread Groups?</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-thread-group-context-manager">6.2. The <code class="docutils literal notranslate"><span class="pre">thread_group</span></code> Context Manager</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-thread-partitioning-works">6.3. How Thread Partitioning Works</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage-examples">6.4. Basic Usage Examples</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization-within-thread-groups">6.5. Synchronization Within Thread Groups</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shortcuts">6.3. Shortcuts</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#self-single-thread-thread-1">6.3.1. <code class="docutils literal notranslate"><span class="pre">self.single_thread(thread=-1)</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#self-single-warp-warp-0">6.3.2. <code class="docutils literal notranslate"><span class="pre">self.single_warp(warp=0)</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#self-warp-group-warp-begin-num-warps">6.3.3. <code class="docutils literal notranslate"><span class="pre">self.warp_group(warp_begin,</span> <span class="pre">num_warps)</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#producer-consumer-pipelines">6.4. Producer-Consumer Pipelines</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization-scope">6.5. Synchronization Scope</a></li>
 </ul>
             </nav>
         </div>
@@ -544,154 +617,150 @@ document.write(`
                   
   <section id="thread-group">
 <h1><span class="section-number">6. </span>Thread Group<a class="headerlink" href="#thread-group" title="Link to this heading"><span>¶</span></a></h1>
-<p>In Tilus Script, you can partition the threads in a thread block into smaller <strong>thread groups</strong> and define instructions that execute only within specific thread groups. This provides fine-grained control over thread execution and enables efficient parallel programming patterns.</p>
-<section id="overview">
-<h2><span class="section-number">6.1. </span>Overview<a class="headerlink" href="#overview" title="Link to this heading"><span>¶</span></a></h2>
-<p>At the root level of a kernel, there is one thread group that includes all threads in the thread block. Using the <code class="docutils literal notranslate"><span class="pre">thread_group</span></code> context manager, you can:</p>
-<ul class="simple">
-<li><p>Partition threads into multiple sub-groups</p></li>
-<li><p>Execute instructions on specific thread groups only</p></li>
-<li><p>Create nested thread group hierarchies</p></li>
-<li><p>Synchronize threads within a group</p></li>
-</ul>
+<p>In a GPU kernel, all threads in a thread block execute the same code. But in practice, different
+threads often need to do different things — one warp loads data while another computes, or a single
+thread updates a barrier while the rest wait. <strong>Thread groups</strong> let you partition threads within a
+block and assign different work to each partition.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>  <span class="c1"># 128 threads total</span>
+
+    <span class="c1"># All 128 threads execute this</span>
+    <span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+        <span class="c1"># Only threads 0–31 (one warp) execute this</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+        <span class="c1"># Only threads 32–63 execute this</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+    <span class="c1"># All 128 threads execute this again</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+</pre></div>
+</div>
+<section id="why-thread-groups">
+<h2><span class="section-number">6.1. </span>Why Thread Groups?<a class="headerlink" href="#why-thread-groups" title="Link to this heading"><span>¶</span></a></h2>
+<p>Thread groups serve three purposes:</p>
+<ol class="arabic simple">
+<li><p><strong>Hardware requirements</strong> — Some instructions require a specific number of threads. TMA operations
+need a warp-aligned group (32 threads). WGMMA needs a full warp group (128 threads). Mbarrier
+arrive/expect-tx-multicast needs at least 16 threads. Semaphore operations need exactly one thread.</p></li>
+<li><p><strong>Parallel pipelines</strong> — In high-performance kernels, you often want one set of threads loading
+data while another set computes. Thread groups let you express this naturally.</p></li>
+<li><p><strong>Avoiding redundant work</strong> — Operations like barrier signaling or TMA setup only need one thread.
+Running them on all threads wastes cycles and can cause incorrect behavior (e.g., decrementing
+a barrier count 128 times instead of once).</p></li>
+</ol>
 </section>
 <section id="the-thread-group-context-manager">
 <h2><span class="section-number">6.2. </span>The <code class="docutils literal notranslate"><span class="pre">thread_group</span></code> Context Manager<a class="headerlink" href="#the-thread-group-context-manager" title="Link to this heading"><span>¶</span></a></h2>
-<p><strong>Syntax:</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="p">,</span> <span class="n">num_threads</span><span class="p">):</span>
-    <span class="c1"># Instructions executed by threads in the specified thread group</span>
+<p>The core API is <code class="docutils literal notranslate"><span class="pre">self.thread_group(thread_begin,</span> <span class="pre">num_threads)</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="c1"># Only threads 0–31 execute instructions here</span>
     <span class="o">...</span>
 </pre></div>
 </div>
-<p><strong>Parameters:</strong></p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">thread_begin</span></code> (int): The index of the first thread in the thread group (relative to the parent thread group).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">num_threads</span></code> (int): The number of threads in this thread group.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">thread_begin</span></code>: index of the first thread (relative to the <strong>parent</strong> group, not the block).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_threads</span></code>: how many consecutive threads are in this group.</p></li>
 </ul>
 <p><strong>Constraints:</strong></p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">thread_begin</span></code> must be non-negative and within the parent thread group’s range.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">thread_begin</span> <span class="pre">+</span> <span class="pre">num_threads</span></code> must not exceed the parent thread group’s size.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">num_threads</span></code> must divide evenly into the parent thread group’s size.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">thread_begin</span> <span class="pre">&gt;=</span> <span class="pre">0</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">thread_begin</span> <span class="pre">+</span> <span class="pre">num_threads</span> <span class="pre">&lt;=</span> <span class="pre">parent</span> <span class="pre">group</span> <span class="pre">size</span></code></p></li>
 </ul>
-</section>
-<section id="how-thread-partitioning-works">
-<h2><span class="section-number">6.3. </span>How Thread Partitioning Works<a class="headerlink" href="#how-thread-partitioning-works" title="Link to this heading"><span>¶</span></a></h2>
-<p>Thread groups partition the current thread group by specifying:</p>
-<ol class="arabic simple">
-<li><p><strong>thread_begin</strong>: The starting thread index (relative to the parent group)</p></li>
-<li><p><strong>num_threads</strong>: How many consecutive threads to include</p></li>
-</ol>
-<p>This allows you to create non-overlapping thread groups that cover different ranges of threads within the parent group.</p>
-<p><strong>Examples:</strong></p>
-<ul class="simple">
-<li><p>If you have 128 threads and specify <code class="docutils literal notranslate"><span class="pre">thread_begin=0,</span> <span class="pre">num_threads=32</span></code>, threads 0-31 execute</p></li>
-<li><p>If you have 128 threads and specify <code class="docutils literal notranslate"><span class="pre">thread_begin=32,</span> <span class="pre">num_threads=32</span></code>, threads 32-63 execute</p></li>
-<li><p>If you have 128 threads and specify <code class="docutils literal notranslate"><span class="pre">thread_begin=64,</span> <span class="pre">num_threads=64</span></code>, threads 64-127 execute</p></li>
-</ul>
-</section>
-<section id="basic-usage-examples">
-<h2><span class="section-number">6.4. </span>Basic Usage Examples<a class="headerlink" href="#basic-usage-examples" title="Link to this heading"><span>¶</span></a></h2>
-<p><strong>Example 1: Simple Thread Group Partitioning</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyScript</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+<p>Thread groups can be <strong>nested</strong> — each level partitions the parent group further:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">64</span><span class="p">):</span>
+    <span class="c1"># Threads 0–63</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
-        <span class="c1"># Specify 4 warps = 128 threads total</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+        <span class="c1"># Threads 0–31 (relative to parent = absolute 0–31)</span>
+        <span class="o">...</span>
 
-        <span class="c1"># All threads execute this</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">f32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="mi">16</span><span class="p">])</span>
-
-        <span class="c1"># Only threads 0-31 execute this block</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
-            <span class="c1"># Instructions for first 32 threads</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_global</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
-
-        <span class="c1"># Only threads 32-63 execute this block</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
-            <span class="c1"># Instructions for second 32 threads</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_global</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
-
-        <span class="c1"># All threads execute this again</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-</pre></div>
-</div>
-<p><strong>Example 2: Using Different Thread Ranges</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyScript</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
-        <span class="c1"># Specify 4 warps = 128 threads total</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>
-
-        <span class="c1"># Only threads 0-31 execute this</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
-            <span class="c1"># First group of 32 threads processes first chunk</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_global</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
-
-        <span class="c1"># Only threads 32-63 execute this</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
-            <span class="c1"># Second group of 32 threads processes second chunk</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_global</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="mi">32</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
-</pre></div>
-</div>
-<p><strong>Example 3: Nested Thread Groups</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyScript</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
-        <span class="c1"># Specify 4 warps = 128 threads total</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>
-
-        <span class="c1"># First level: first 32 threads (threads 0-31)</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
-            <span class="c1"># Only threads 0-31 enter here</span>
-
-            <span class="c1"># Second level: further split into threads 0-15</span>
-            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">16</span><span class="p">):</span>
-                <span class="c1"># Only threads 0-15 execute this</span>
-                <span class="n">fine_grained_work</span><span class="p">()</span>
-
-            <span class="c1"># Second level: threads 16-31</span>
-            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">16</span><span class="p">):</span>
-                <span class="c1"># Only threads 16-31 execute this</span>
-                <span class="n">different_fine_grained_work</span><span class="p">()</span>
-
-            <span class="c1"># Back to first level - all threads 0-31 execute this</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+        <span class="c1"># Threads 32–63 (relative to parent = absolute 32–63)</span>
+        <span class="o">...</span>
 </pre></div>
 </div>
 </section>
-<section id="synchronization-within-thread-groups">
-<h2><span class="section-number">6.5. </span>Synchronization Within Thread Groups<a class="headerlink" href="#synchronization-within-thread-groups" title="Link to this heading"><span>¶</span></a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">self.sync()</span></code> instruction synchronizes all threads in the <strong>current thread group</strong>, not the entire thread block.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyScript</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
-        <span class="c1"># Specify 4 warps = 128 threads total</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>
-
-        <span class="c1"># First 64 threads</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">64</span><span class="p">):</span>
-            <span class="c1"># Some work by first 64 threads (threads 0-63)</span>
-            <span class="n">work_part_1</span><span class="p">()</span>
-
-            <span class="c1"># Synchronize only threads 0-63</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>  <span class="c1"># Only waits for threads 0-63</span>
-
-            <span class="c1"># Continue with synchronized work</span>
-            <span class="n">work_part_2</span><span class="p">()</span>
-
-        <span class="c1"># Synchronize all threads in the thread block</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+<section id="shortcuts">
+<h2><span class="section-number">6.3. </span>Shortcuts<a class="headerlink" href="#shortcuts" title="Link to this heading"><span>¶</span></a></h2>
+<p>Tilus provides convenience methods for common thread group patterns:</p>
+<section id="self-single-thread-thread-1">
+<h3><span class="section-number">6.3.1. </span><code class="docutils literal notranslate"><span class="pre">self.single_thread(thread=-1)</span></code><a class="headerlink" href="#self-single-thread-thread-1" title="Link to this heading"><span>¶</span></a></h3>
+<p>Execute with exactly one thread. By default (<code class="docutils literal notranslate"><span class="pre">thread=-1</span></code>), the hardware picks any thread
+using elect-any semantics, which generates efficient uniform-predicate code. Pass an explicit
+index to pin execution to a specific thread.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+    <span class="c1"># One thread signals the barrier</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span><span class="n">barrier</span><span class="p">,</span> <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">tile_bytes</span><span class="p">)</span>
 </pre></div>
 </div>
+</section>
+<section id="self-single-warp-warp-0">
+<h3><span class="section-number">6.3.2. </span><code class="docutils literal notranslate"><span class="pre">self.single_warp(warp=0)</span></code><a class="headerlink" href="#self-single-warp-warp-0" title="Link to this heading"><span>¶</span></a></h3>
+<p>Execute with one warp (32 threads). Equivalent to <code class="docutils literal notranslate"><span class="pre">thread_group(warp</span> <span class="pre">*</span> <span class="pre">32,</span> <span class="pre">32)</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
+    <span class="c1"># One warp issues the TMA copy</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=...</span><span class="p">,</span> <span class="n">mbarrier</span><span class="o">=</span><span class="n">barrier</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="self-warp-group-warp-begin-num-warps">
+<h3><span class="section-number">6.3.3. </span><code class="docutils literal notranslate"><span class="pre">self.warp_group(warp_begin,</span> <span class="pre">num_warps)</span></code><a class="headerlink" href="#self-warp-group-warp-begin-num-warps" title="Link to this heading"><span>¶</span></a></h3>
+<p>Execute with multiple warps. Equivalent to <code class="docutils literal notranslate"><span class="pre">thread_group(warp_begin</span> <span class="pre">*</span> <span class="pre">32,</span> <span class="pre">num_warps</span> <span class="pre">*</span> <span class="pre">32)</span></code>.
+Commonly used with <code class="docutils literal notranslate"><span class="pre">num_warps=4</span></code> for WGMMA (which requires 128 threads).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">warp_group</span><span class="p">(</span><span class="n">warp_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_warps</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
+    <span class="c1"># 128 threads (warps 0–3) perform WGMMA</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">fence</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span><span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">acc</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="producer-consumer-pipelines">
+<h2><span class="section-number">6.4. </span>Producer-Consumer Pipelines<a class="headerlink" href="#producer-consumer-pipelines" title="Link to this heading"><span>¶</span></a></h2>
+<p>The most common use of thread groups is building <strong>producer-consumer pipelines</strong> where one group
+loads data and another group computes. Barriers synchronize between them:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1"># 64 threads</span>
+
+    <span class="n">barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">num_stages</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+        <span class="c1"># Producer warp: loads tiles via TMA</span>
+        <span class="k">for</span> <span class="n">stage</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="n">num_stages</span><span class="p">):</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span><span class="n">barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">tile_bytes</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="o">...</span><span class="p">,</span> <span class="n">mbarrier</span><span class="o">=</span><span class="n">barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">])</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+        <span class="c1"># Consumer warp: waits for data, then computes</span>
+        <span class="k">for</span> <span class="n">stage</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="n">num_stages</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">acc</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The producer and consumer warps run <strong>in parallel</strong> — the producer starts loading the next tile
+while the consumer is still computing on the current one. Barriers prevent the consumer from
+reading data that hasn’t arrived yet.</p>
+</section>
+<section id="synchronization-scope">
+<h2><span class="section-number">6.5. </span>Synchronization Scope<a class="headerlink" href="#synchronization-scope" title="Link to this heading"><span>¶</span></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">self.sync()</span></code> synchronizes all threads in the <strong>current thread group</strong>, not the entire block:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">64</span><span class="p">):</span>
+    <span class="n">work_phase_1</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>    <span class="c1"># Syncs only threads 0–63</span>
+    <span class="n">work_phase_2</span><span class="p">()</span>
+
+<span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>        <span class="c1"># Syncs all threads in the block</span>
+</pre></div>
+</div>
+<p>This means you can synchronize within a warp group without stalling threads in other groups.</p>
 </section>
 </section>
 
@@ -740,11 +809,16 @@ document.write(`
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">6.1. Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-thread-groups">6.1. Why Thread Groups?</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-thread-group-context-manager">6.2. The <code class="docutils literal notranslate"><span class="pre">thread_group</span></code> Context Manager</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-thread-partitioning-works">6.3. How Thread Partitioning Works</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage-examples">6.4. Basic Usage Examples</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization-within-thread-groups">6.5. Synchronization Within Thread Groups</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shortcuts">6.3. Shortcuts</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#self-single-thread-thread-1">6.3.1. <code class="docutils literal notranslate"><span class="pre">self.single_thread(thread=-1)</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#self-single-warp-warp-0">6.3.2. <code class="docutils literal notranslate"><span class="pre">self.single_warp(warp=0)</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#self-warp-group-warp-begin-num-warps">6.3.3. <code class="docutils literal notranslate"><span class="pre">self.warp_group(warp_begin,</span> <span class="pre">num_warps)</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#producer-consumer-pipelines">6.4. Producer-Consumer Pipelines</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization-scope">6.5. Synchronization Scope</a></li>
 </ul>
   </nav></div>
 

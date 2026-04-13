@@ -173,7 +173,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/overview.html">1. Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/tilus-script.html">2. Tilus Script</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../programming-guides/type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/scalar-types.html">3.1. Scalar Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/data-types.html">3.1. Data Types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/pointer-types.html">3.2. Pointer Types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/register-tensor.html">3.3. Register Tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
@@ -195,7 +195,7 @@
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/_static/layout-demo/index.html">Layout Demo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/latest/_static/layout-demo/index.html">Layout Demo</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul class="nav bd-sidenav">
@@ -210,32 +210,48 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.option.debug.disable_ptxas_opt.html">tilus.option.debug.disable_ptxas_opt</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus-target.html">tilus.target</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.target.get_current_target.html">tilus.target.get_current_target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.target.set_current_target.html">tilus.target.set_current_target</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus-script.html">tilus.Script</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.attrs.html">Script.attrs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.blockIdx.html">Script.blockIdx</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.gridDim.html">Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.current_num_threads.html">Script.current_num_threads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.current_thread_begin.html">Script.current_thread_begin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.current_thread_end.html">Script.current_thread_end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.assume.html">Script.assume</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.range.html">Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.single_thread.html">Script.single_thread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.single_warp.html">Script.single_warp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.static_assert.html">Script.static_assert</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.thread_group.html">Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.warp_group.html">Script.warp_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.abs.html">Script.abs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.add.html">Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.all.html">Script.all</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.annotate_layout.html">Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.any.html">Script.any</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.assign.html">Script.assign</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.cast.html">Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.clip.html">Script.clip</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.cluster_sync.html">Script.cluster_sync</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.dot.html">Script.dot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.exp.html">Script.exp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.exp2.html">Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.fast_divmod.html">Script.fast_divmod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.flatten.html">Script.flatten</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.free_shared.html">Script.free_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.global_tensor.html">Script.global_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.global_view.html">Script.global_view</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.load_global.html">Script.load_global</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.load_shared.html">Script.load_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.lock_semaphore.html">Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.log.html">Script.log</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.max.html">Script.max</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.maximum.html">Script.maximum</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.min.html">Script.min</a></li>
@@ -245,8 +261,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.repeat.html">Script.repeat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.repeat_interleave.html">Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.round.html">Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.square.html">Script.square</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.store_global.html">Script.store_global</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.store_shared.html">Script.store_shared</a></li>
@@ -270,6 +290,54 @@
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/fence.html">Script.fence</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html">Script.fence.proxy_async</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html">Script.fence.proxy_async_release</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/tma.html">Script.tma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html">Script.tma.global_to_shared</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html">Script.tma.shared_to_global</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html">Script.tma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html">Script.tma.wait_group</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/tcgen05.html">Script.tcgen05</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html">Script.tcgen05.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html">Script.tcgen05.dealloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html">Script.tcgen05.slice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html">Script.tcgen05.view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html">Script.tcgen05.relinquish_alloc_permit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html">Script.tcgen05.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html">Script.tcgen05.store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html">Script.tcgen05.wait_load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html">Script.tcgen05.wait_store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html">Script.tcgen05.commit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html">Script.tcgen05.copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html">Script.tcgen05.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/clc.html">Script.clc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html">Script.clc.try_cancel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html">Script.clc.query_response</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/cluster.html">Script.cluster</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html">Script.cluster.sync</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html">Script.cluster.map_shared_addr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx.html">Script.cluster.blockIdx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank.html">Script.cluster.blockRank</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim.html">Script.cluster.clusterDim</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/wgmma.html">Script.wgmma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html">Script.wgmma.fence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html">Script.wgmma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html">Script.wgmma.wait_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html">Script.wgmma.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/attrs.html">Script.attrs</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/generated/tilus.lang.script.Attributes.blocks.html">Script.attrs.blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/generated/tilus.lang.script.Attributes.cluster_blocks.html">Script.attrs.cluster_blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/generated/tilus.lang.script.Attributes.warps.html">Script.attrs.warps</a></li>
 </ul>
 </details></li>
 </ul>
@@ -505,70 +573,57 @@ document.write(`
 <div class="viewcode-block" id="BarrierInstructionGroup">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/mbarrier.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">BarrierInstructionGroup</span><span class="p">(</span><span class="n">InstructionGroup</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Memory barrier (mbarrier) instructions for synchronizing asynchronous operations.</span>
+
+<span class="sd">    An mbarrier is a 64-bit synchronization primitive in shared memory that tracks two counts:</span>
+<span class="sd">    **pending arrivals** and **pending transaction bytes (tx-count)**. A barrier transitions to the</span>
+<span class="sd">    next phase when both counts reach zero.</span>
+
+<span class="sd">    Mbarriers coordinate producer-consumer patterns in pipelined GPU kernels. The typical workflow is:</span>
+
+<span class="sd">    1. **Allocate** barriers with ``alloc()``, specifying expected arrival counts per stage.</span>
+<span class="sd">    2. **Producers** call ``arrive()`` or ``arrive_and_expect_tx()`` to signal progress and declare</span>
+<span class="sd">       expected async data transfers (e.g., TMA copies). The TMA engine automatically decrements</span>
+<span class="sd">       the tx-count as transfers complete.</span>
+<span class="sd">    3. **Consumers** call ``wait()`` to block until the barrier&#39;s current phase finishes (both</span>
+<span class="sd">       pending arrivals and tx-count reach zero).</span>
+
+<span class="sd">    The barrier alternates between phase 0 and phase 1. Use ``producer_initial_phase`` and</span>
+<span class="sd">    ``consumer_initial_phase`` as starting phase values for multi-stage pipelines.</span>
+
+<span class="sd">    For cluster-wide synchronization, ``arrive_and_expect_tx_multicast()`` signals barriers across</span>
+<span class="sd">    multiple CTAs, and ``arrive_and_expect_tx_remote()`` signals a specific peer CTA&#39;s barrier.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">producer_initial_phase</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">consumer_initial_phase</span> <span class="o">=</span> <span class="mi">0</span>
 
 <div class="viewcode-block" id="BarrierInstructionGroup.alloc">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">alloc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">counts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterTensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Allocate barriers in shared memory and get its address in shared space.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Allocate and initialize one or more mbarriers in shared memory.</span>
 
-<span class="sd">         A barrier is an 64-bit data structure, encoded as uint64, in shared memory, which</span>
-<span class="sd">         contains the following information in the 64 bits:</span>
-
-<span class="sd">         - The current phase of the barrier (i.e., phase): 0 or 1.</span>
-<span class="sd">         - The count of pending arrivals in the current phase: 1 to 2^20 - 1.</span>
-<span class="sd">         - The count of expected arrivals in the next phase: 0 to 2^20 - 1.</span>
-<span class="sd">         - The count of pending asynchronous memory transactions in the current phase (i.e., `tx-count`):</span>
-<span class="sd">           -(2^20 - 1) to 2^20 - 1.</span>
-
-<span class="sd">         This instruction allocates one or multiple uint64 elements in shared memory to be used as mbarrier(s).</span>
-<span class="sd">         The parameter `counts` specifies the expected arrivals for the barrier(s).</span>
-<span class="sd">         After initialization, the barrier will have the following initial state:</span>
-
-<span class="sd">         - phase = 0</span>
-<span class="sd">         - pending arrivals = counts[i]</span>
-<span class="sd">         - expected arrivals = counts[i]</span>
-<span class="sd">         - tx-count = 0</span>
-
-<span class="sd">         When `counts` is not provided, it defaults to [NUM_THREADS] where NUM_THREADS is the number of threads in the current thread group.</span>
-
-<span class="sd">         Some instructions (e.g., tma copy instructions) that take a barrier as an argument might:</span>
-
-<span class="sd">         - increase the `tx-count` by the number of bytes to be copied before the copy starts.</span>
-<span class="sd">         - decrease the `tx-count` by the number of bytes copied after the copy completes asynchronously.</span>
-
-<span class="sd">         The `mbarrier.arrive` instruction will decrease the pending arrivals by the number of threads in the thread</span>
-<span class="sd">         group that call the instruction.</span>
-
-<span class="sd">         The `mbarrier.wait` instruction will make the thread group wait until the given phase has finished.</span>
-
-<span class="sd">         Once the following conditions are met for the current phase:</span>
-
-<span class="sd">         - pending arrivals == 0</span>
-<span class="sd">         - tx-count == 0</span>
-
-<span class="sd">         The barrier will switch to the next phase, and the following will happen:</span>
-
-<span class="sd">         - phase = phase ^ 1</span>
-<span class="sd">         - pending arrivals = expected arrivals in the next phase</span>
-<span class="sd">         - expected arrivals does not change</span>
-<span class="sd">         - tx-count = 0</span>
+<span class="sd">        Each barrier is initialized with phase 0, the specified expected arrival count, and</span>
+<span class="sd">        tx-count of 0. When a single value is provided, one barrier is allocated; when a</span>
+<span class="sd">        sequence is provided, multiple barriers are allocated with the corresponding counts.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        counts: Sequence[Expr | int] | Expr | int, optional</span>
-<span class="sd">            The sequence of expected arrival counts for the allocated barriers. Each count must be evaluated to a positive int32 integer.</span>
-<span class="sd">            When not provided, it defaults to [NUM_THREADS] where NUM_THREADS is the number of threads in the current thread group.</span>
-<span class="sd">            Multiple barriers will be allocated with each barrier initialized with the corresponding expected arrivals specified in the sequence.</span>
-<span class="sd">            When a single Expr or int is provided, it will be treated as a sequence with one element, and one barrier will be allocated and initialized</span>
-<span class="sd">            with the given expected arrival count.</span>
+<span class="sd">            Expected arrival counts for the barriers. Each count must evaluate to a positive</span>
+<span class="sd">            int32. A single value allocates one barrier; a sequence allocates multiple.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        ret: RegisterTensor</span>
-<span class="sd">            A register tensor of dtype uint32 containing the address of the allocated barrier(s) in shared memory.</span>
-<span class="sd">            The i-th element corresponds to the address of the barrier with expected arrivals specified by counts[i].</span>
+<span class="sd">            A register tensor of dtype uint32 containing the shared memory address(es) of</span>
+<span class="sd">            the allocated barrier(s). Element *i* holds the address for ``counts[i]``.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 8.0+ (sm_80).</span>
+<span class="sd">        - **PTX**: ``mbarrier.init.shared::cta.b64``</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="p">(</span><span class="n">Expr</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
             <span class="n">processed_counts</span> <span class="o">=</span> <span class="p">[</span><span class="n">as_expr</span><span class="p">(</span><span class="n">counts</span><span class="p">)]</span>
@@ -601,6 +656,12 @@ document.write(`
 <span class="sd">            The memory ordering semantics for the arrive operation. Candidates: &#39;relaxed&#39;, &#39;release&#39;.</span>
 <span class="sd">        scope: str</span>
 <span class="sd">            The syncrhonization scope for the arrive operation. Candidates: &#39;cta&#39;, &#39;cluster&#39;.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 8.0+ (sm_80).</span>
+<span class="sd">        - **PTX**: ``mbarrier.arrive.shared::cta.b64``</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">sem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span> <span class="s2">&quot;release&quot;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -639,6 +700,12 @@ document.write(`
 <span class="sd">            The memory ordering semantics for the arrive operation. Candidates: &#39;relaxed&#39;, &#39;release&#39;.</span>
 <span class="sd">        scope: str</span>
 <span class="sd">            The syncrhonization scope for the arrive operation. Candidates: &#39;cta&#39;, &#39;cluster&#39;.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
+<span class="sd">        - **PTX**: ``mbarrier.arrive.expect_tx.shared::cta.b64``</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">sem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span> <span class="s2">&quot;release&quot;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -683,6 +750,12 @@ document.write(`
 <span class="sd">            The memory ordering semantics for the wait operation. Candidates: &#39;acquire&#39;, &#39;relaxed&#39;.</span>
 <span class="sd">        scope: str</span>
 <span class="sd">            The synchronization scope for the wait operation. Candidates: &#39;cta&#39;, &#39;cluster&#39;.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
+<span class="sd">        - **PTX**: ``mbarrier.try_wait.parity.shared::cta.b64``</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">sem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;acquire&quot;</span><span class="p">,</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -705,34 +778,33 @@ document.write(`
         <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;release&quot;</span><span class="p">,</span>
         <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cluster&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Arrive at a barrier with expected asynchronous memory transactions and multicast the arrival to a subset of blocks in the cluster.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Arrive at barriers across multiple CTAs with expected async transactions.</span>
 
-<span class="sd">        This instruction arrives the all barriers on each CTA in the current block cluster with the same offset of the given barrier. The arrival count is 1</span>
-<span class="sd">        and the expected transaction bytes are specified by `transaction_bytes`.</span>
-
-<span class="sd">        The `barrier` parameter specifies the address of the barrier for the current block, and the `multicast_mask` parameter specifies which blocks</span>
-<span class="sd">        in the cluster will be involved in this arrival operation. For example, when `multicast_mask` is 0b101, only the barriers on blocks 0 and 2 be signaled by the arrival</span>
-<span class="sd">        and expect-tx operation, while other blocks will not be affected.</span>
-
-<span class="sd">        This instruction must be executed in a thread group with at least 16 threads. The arrive-and-expect-tx operation will not be performed by each</span>
-<span class="sd">        thread. Instead, one thread will be elected to perform the operation for one CTA in the multicast.</span>
+<span class="sd">        Signals an arrive-and-expect-tx on the barriers at the same shared memory offset in each</span>
+<span class="sd">        CTA specified by ``multicast_mask``. The arrival count is 1 and the tx-count is increased</span>
+<span class="sd">        by ``transaction_bytes`` on each signaled barrier. One thread is elected per CTA to perform</span>
+<span class="sd">        the operation.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        barrier: RegisterTensor</span>
-<span class="sd">            A register tensor with one uint32 element representing the address of the barrier in the local shared memory for the current block.</span>
+<span class="sd">            A single-element uint32 register tensor with the barrier&#39;s shared memory address</span>
+<span class="sd">            in the current CTA. The same offset is used for peer CTAs.</span>
 <span class="sd">        transaction_bytes: Expr | int</span>
-<span class="sd">            The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to the barriers. The barriers&#39; tx-count</span>
-<span class="sd">            will be increased by this value on arrival and decreased as the async transactions complete. It must be evaluated to a non-negative int32.</span>
+<span class="sd">            Expected async transfer size in bytes. Must evaluate to a non-negative int32.</span>
 <span class="sd">        multicast_mask: int</span>
-<span class="sd">            A bitmask specifying which blocks in the cluster will be involved in this arrival operation. The least significant bit corresponds to block 0,</span>
-<span class="sd">            the second least significant bit corresponds to block 1, and so on. For example, when `multicast_mask` is 0b101, only the barriers on</span>
-<span class="sd">            blocks 0 and 2 be signaled by the arrival and expect-tx operation, while other blocks will not be affected.</span>
+<span class="sd">            Bitmask of CTAs to signal. Bit *i* corresponds to the CTA with rank *i*.</span>
+<span class="sd">            E.g., ``0b101`` signals CTAs 0 and 2.</span>
 <span class="sd">        sem: str</span>
-<span class="sd">            The memory ordering semantics for the arrive operation. Candidates: &#39;relaxed&#39;, &#39;release&#39;.</span>
+<span class="sd">            Memory ordering semantics. Candidates: ``&#39;relaxed&#39;``, ``&#39;release&#39;``.</span>
 <span class="sd">        scope: str</span>
-<span class="sd">            The syncrhonization scope for the arrive operation. Candidates: &#39;cta&#39;, &#39;cluster&#39;.</span>
+<span class="sd">            Synchronization scope. Candidates: ``&#39;cta&#39;``, ``&#39;cluster&#39;``.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Must be executed by a thread group with at least 16 threads.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
+<span class="sd">        - **PTX**: ``mbarrier.arrive.expect_tx.shared::cluster.b64`` with ``mapa.shared::cluster``</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">sem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span> <span class="s2">&quot;release&quot;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -757,29 +829,31 @@ document.write(`
         <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;release&quot;</span><span class="p">,</span>
         <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cluster&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Arrive at a barrier on a peer thread block in the same cluster with expected asynchronous memory transactions.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Arrive at a peer CTA&#39;s barrier with expected async transactions.</span>
 
-<span class="sd">        The arrival count would be 1 and the expected transaction bytes are specified by `transaction_bytes`.</span>
-
-<span class="sd">        The `barrier` parameter must be on the local shared memory of the current block. The mbarrier on the target block</span>
-<span class="sd">        specified by `target_rank` that has the same offset as the given `barrier` will be signaled by this arrival operation</span>
-<span class="sd">        and expect the asynchronous transactions.</span>
+<span class="sd">        Signals an arrive-and-expect-tx on the barrier in the CTA specified by ``target_rank``.</span>
+<span class="sd">        The barrier at the same shared memory offset as the local ``barrier`` in the target CTA</span>
+<span class="sd">        is signaled with arrival count 1 and tx-count increased by ``transaction_bytes``.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        barrier: RegisterTensor</span>
-<span class="sd">            A register tensor with one uint32 element representing the address of the barrier in the local shared memory for the current block.</span>
+<span class="sd">            A single-element uint32 register tensor with the barrier&#39;s shared memory address</span>
+<span class="sd">            in the current CTA. The same offset is used for the target CTA.</span>
 <span class="sd">        transaction_bytes: Expr | int</span>
-<span class="sd">            The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to the barrier. The barrier&#39;s tx-count</span>
-<span class="sd">            will be increased by this value on arrival and decreased as the async transactions complete. It must be evaluated to a non-negative int32.</span>
+<span class="sd">            Expected async transfer size in bytes. Must evaluate to a non-negative int32.</span>
 <span class="sd">        target_rank: int</span>
-<span class="sd">            The rank of the target block in the same cluster for this remote arrive operation. It must be in the range of `[0, clusterSize)` where</span>
-<span class="sd">            `clusterSize` is the total number of blocks in the cluster.</span>
+<span class="sd">            Rank of the target CTA in the cluster. Must be in ``[0, clusterSize)``.</span>
 <span class="sd">        sem: str</span>
-<span class="sd">            The memory ordering semantics for the arrive operation. Candidates: &#39;relaxed&#39;, &#39;release&#39;.</span>
+<span class="sd">            Memory ordering semantics. Candidates: ``&#39;relaxed&#39;``, ``&#39;release&#39;``.</span>
 <span class="sd">        scope: str</span>
-<span class="sd">            The syncrhonization scope for the arrive operation. Candidates: &#39;cta&#39;, &#39;cluster&#39;.</span>
+<span class="sd">            Synchronization scope. Candidates: ``&#39;cta&#39;``, ``&#39;cluster&#39;``.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
+<span class="sd">        - **PTX**: ``mbarrier.arrive.expect_tx.shared::cluster.b64`` with ``mapa.shared::cluster``</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">sem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span> <span class="s2">&quot;release&quot;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>

@@ -174,7 +174,7 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">1. Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tilus-script.html">2. Tilus Script</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="type-system/scalar-types.html">3.1. Scalar Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="type-system/data-types.html">3.1. Data Types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="type-system/pointer-types.html">3.2. Pointer Types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="type-system/register-tensor.html">3.3. Register Tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
@@ -196,7 +196,7 @@
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/_static/layout-demo/index.html">Layout Demo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/latest/_static/layout-demo/index.html">Layout Demo</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
 <ul class="nav bd-sidenav">
@@ -211,32 +211,48 @@
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.option.debug.disable_ptxas_opt.html">tilus.option.debug.disable_ptxas_opt</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../python-api/tilus-target.html">tilus.target</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.target.get_current_target.html">tilus.target.get_current_target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.target.set_current_target.html">tilus.target.set_current_target</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../python-api/tilus-script.html">tilus.Script</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.attrs.html">Script.attrs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.blockIdx.html">Script.blockIdx</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.gridDim.html">Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.current_num_threads.html">Script.current_num_threads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.current_thread_begin.html">Script.current_thread_begin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.current_thread_end.html">Script.current_thread_end</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.assume.html">Script.assume</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.range.html">Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.single_thread.html">Script.single_thread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.single_warp.html">Script.single_warp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.static_assert.html">Script.static_assert</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.thread_group.html">Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.warp_group.html">Script.warp_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.abs.html">Script.abs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.add.html">Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.all.html">Script.all</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.annotate_layout.html">Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.any.html">Script.any</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.assign.html">Script.assign</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.cast.html">Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.clip.html">Script.clip</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.cluster_sync.html">Script.cluster_sync</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.dot.html">Script.dot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.exp.html">Script.exp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.exp2.html">Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.fast_divmod.html">Script.fast_divmod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.flatten.html">Script.flatten</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.free_shared.html">Script.free_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.global_tensor.html">Script.global_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.global_view.html">Script.global_view</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.load_global.html">Script.load_global</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.load_shared.html">Script.load_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.lock_semaphore.html">Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.log.html">Script.log</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.max.html">Script.max</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.maximum.html">Script.maximum</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.min.html">Script.min</a></li>
@@ -246,8 +262,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.repeat.html">Script.repeat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.repeat_interleave.html">Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.round.html">Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.square.html">Script.square</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.store_global.html">Script.store_global</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.store_shared.html">Script.store_shared</a></li>
@@ -271,6 +291,54 @@
 <li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/fence.html">Script.fence</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html">Script.fence.proxy_async</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html">Script.fence.proxy_async_release</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/tma.html">Script.tma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html">Script.tma.global_to_shared</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html">Script.tma.shared_to_global</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html">Script.tma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html">Script.tma.wait_group</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/tcgen05.html">Script.tcgen05</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html">Script.tcgen05.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html">Script.tcgen05.dealloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html">Script.tcgen05.slice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html">Script.tcgen05.view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html">Script.tcgen05.relinquish_alloc_permit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html">Script.tcgen05.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html">Script.tcgen05.store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html">Script.tcgen05.wait_load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html">Script.tcgen05.wait_store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html">Script.tcgen05.commit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html">Script.tcgen05.copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html">Script.tcgen05.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/clc.html">Script.clc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html">Script.clc.try_cancel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html">Script.clc.query_response</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/cluster.html">Script.cluster</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html">Script.cluster.sync</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html">Script.cluster.map_shared_addr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx.html">Script.cluster.blockIdx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank.html">Script.cluster.blockRank</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim.html">Script.cluster.clusterDim</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/instruction-groups/wgmma.html">Script.wgmma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html">Script.wgmma.fence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html">Script.wgmma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html">Script.wgmma.wait_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html">Script.wgmma.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../python-api/attrs.html">Script.attrs</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/generated/tilus.lang.script.Attributes.blocks.html">Script.attrs.blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/generated/tilus.lang.script.Attributes.cluster_blocks.html">Script.attrs.cluster_blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../python-api/generated/tilus.lang.script.Attributes.warps.html">Script.attrs.warps</a></li>
 </ul>
 </details></li>
 </ul>
@@ -526,17 +594,29 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-creation-and-free">4.1. Tensor Creation and Free</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-and-store">4.2. Load and Store</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-copy-sm80">4.3. Asynchronous Copy (SM80+)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-algebra">4.4. Linear Algebra</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#elementwise-arithmetic">4.5. Elementwise Arithmetic</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.6. Transform</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.7. Reduction</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#atomic-and-semaphore">4.8. Atomic and Semaphore</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.9. Synchronization</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.10. Miscellaneous</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#barrier">4.11. Barrier</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generic-instructions">4.1. Generic Instructions</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-creation-and-free">4.1.1. Tensor Creation and Free</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#load-and-store">4.1.2. Load and Store</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-copy-sm80">4.1.3. Asynchronous Copy (SM80+)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-algebra">4.1.4. Linear Algebra</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#elementwise-arithmetic">4.1.5. Elementwise Arithmetic</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.1.6. Reduction</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.7. Transform</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.8. Synchronization</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#atomic-and-semaphore">4.1.9. Atomic and Semaphore</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.10. Miscellaneous</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instruction-groups">4.2. Instruction Groups</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-barrier-self-mbarrier">4.2.1. Memory Barrier (<code class="docutils literal notranslate"><span class="pre">self.mbarrier</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fence-self-fence">4.2.2. Fence (<code class="docutils literal notranslate"><span class="pre">self.fence</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-self-tma">4.2.3. TMA (<code class="docutils literal notranslate"><span class="pre">self.tma</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#wgmma-self-wgmma">4.2.4. WGMMA (<code class="docutils literal notranslate"><span class="pre">self.wgmma</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tcgen05-self-tcgen05">4.2.5. TCGEN05 (<code class="docutils literal notranslate"><span class="pre">self.tcgen05</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cluster-self-cluster">4.2.6. Cluster (<code class="docutils literal notranslate"><span class="pre">self.cluster</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#clc-self-clc">4.2.7. CLC (<code class="docutils literal notranslate"><span class="pre">self.clc</span></code>)</a></li>
+</ul>
+</li>
 </ul>
             </nav>
         </div>
@@ -550,37 +630,54 @@ document.write(`
                   
   <section id="instructions">
 <h1><span class="section-number">4. </span>Instructions<a class="headerlink" href="#instructions" title="Link to this heading"><span>¶</span></a></h1>
-<p>Tilus provides a set of instructions for working with tensors maintained by the thread block. These instructions allow
-you to create, copy, and compute tensors in global, shared, and register memory.</p>
-<section id="tensor-creation-and-free">
-<h2><span class="section-number">4.1. </span>Tensor Creation and Free<a class="headerlink" href="#tensor-creation-and-free" title="Link to this heading"><span>¶</span></a></h2>
+<p>Tilus provides a set of instructions for writing GPU kernels. Instructions are available as methods
+on the <a class="reference internal" href="../python-api/tilus-script.html#tilus.Script" title="tilus.Script"><code class="xref py py-class docutils literal notranslate"><span class="pre">Script</span></code></a> class and are called within the <code class="docutils literal notranslate"><span class="pre">__call__</span></code> method of a script.</p>
+<p>Instructions fall into two categories:</p>
+<ul class="simple">
+<li><p><strong>Generic instructions</strong> (<code class="docutils literal notranslate"><span class="pre">self.&lt;instruction&gt;</span></code>) — common operations available on all GPUs, such as
+tensor creation, load/store, arithmetic, and synchronization.</p></li>
+<li><p><strong>Instruction groups</strong> (<code class="docutils literal notranslate"><span class="pre">self.&lt;group&gt;.&lt;instruction&gt;</span></code>) — specialized hardware-specific operations
+organized by the hardware unit they target, such as TMA, WGMMA, and TCGEN05.</p></li>
+</ul>
+<section id="generic-instructions">
+<h2><span class="section-number">4.1. </span>Generic Instructions<a class="headerlink" href="#generic-instructions" title="Link to this heading"><span>¶</span></a></h2>
 <div class="margin admonition hint">
 <p class="admonition-title">Hint</p>
 <p>Please submit a feature request if your kernel requires additional instructions.</p>
 </div>
+<section id="tensor-creation-and-free">
+<h3><span class="section-number">4.1.1. </span>Tensor Creation and Free<a class="headerlink" href="#tensor-creation-and-free" title="Link to this heading"><span>¶</span></a></h3>
+<p>Create and manage tensors in register, shared, and global memory. Register tensors hold per-thread
+data, shared tensors are visible to all threads in a block, and global tensors are accessible by all
+blocks.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.global_view.html#tilus.Script.global_view" title="tilus.Script.global_view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_view</span></code></a>(ptr, *, dtype, shape[, strides])</p></td>
-<td><p>Create a global tensor view.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.register_tensor.html#tilus.Script.register_tensor" title="tilus.Script.register_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register_tensor</span></code></a>(*, dtype, shape[, init])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.register_tensor.html#tilus.Script.register_tensor" title="tilus.Script.register_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register_tensor</span></code></a>(*, dtype, shape[, init])</p></td>
 <td><p>Create a register tensor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.shared_tensor.html#tilus.Script.shared_tensor" title="tilus.Script.shared_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shared_tensor</span></code></a>(*, dtype, shape)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.shared_tensor.html#tilus.Script.shared_tensor" title="tilus.Script.shared_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shared_tensor</span></code></a>(*, dtype, shape)</p></td>
 <td><p>Allocate a shared tensor.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.global_tensor.html#tilus.Script.global_tensor" title="tilus.Script.global_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_tensor</span></code></a>(dtype, shape, *[, layout])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.global_tensor.html#tilus.Script.global_tensor" title="tilus.Script.global_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_tensor</span></code></a>(dtype, shape, *[, layout])</p></td>
 <td><p>Allocate a global tensor.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.global_view.html#tilus.Script.global_view" title="tilus.Script.global_view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_view</span></code></a>(ptr, *, dtype, shape[, strides])</p></td>
+<td><p>Create a global tensor view.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.free_shared.html#tilus.Script.free_shared" title="tilus.Script.free_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">free_shared</span></code></a>(tensor)</p></td>
 <td><p>Free a shared tensor.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.reshape_shared.html#tilus.Script.reshape_shared" title="tilus.Script.reshape_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reshape_shared</span></code></a>(tensor, shape)</p></td>
+<td><p>Reshape a shared tensor.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
 <section id="load-and-store">
-<h2><span class="section-number">4.2. </span>Load and Store<a class="headerlink" href="#load-and-store" title="Link to this heading"><span>¶</span></a></h2>
+<h3><span class="section-number">4.1.2. </span>Load and Store<a class="headerlink" href="#load-and-store" title="Link to this heading"><span>¶</span></a></h3>
+<p>Transfer data between memory spaces. Load instructions copy data from global or shared memory into
+register tensors; store instructions write register data back.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.load_global.html#tilus.Script.load_global" title="tilus.Script.load_global"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_global</span></code></a>(src, /, *, offsets, shape[, ...])</p></td>
@@ -600,11 +697,14 @@ you to create, copy, and compute tensors in global, shared, and register memory.
 </div>
 </section>
 <section id="asynchronous-copy-sm80">
-<h2><span class="section-number">4.3. </span>Asynchronous Copy (SM80+)<a class="headerlink" href="#asynchronous-copy-sm80" title="Link to this heading"><span>¶</span></a></h2>
+<h3><span class="section-number">4.1.3. </span>Asynchronous Copy (SM80+)<a class="headerlink" href="#asynchronous-copy-sm80" title="Link to this heading"><span>¶</span></a></h3>
+<p>Copy data from global to shared memory asynchronously using the <code class="docutils literal notranslate"><span class="pre">cp.async</span></code> hardware path.
+Operations are grouped with <code class="docutils literal notranslate"><span class="pre">copy_async_commit_group</span></code> and waited on with <code class="docutils literal notranslate"><span class="pre">copy_async_wait_group</span></code>.
+For Hopper+ GPUs, prefer <code class="docutils literal notranslate"><span class="pre">tma.global_to_shared</span></code> which uses the TMA engine.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async</span></code></a>(src, dst, offsets[, dims, evict, ...])</p></td>
-<td><p>Copy from global to shared tensor asynchronously.</p></td>
+<td><p>Asynchronously copy a tile from global memory to shared memory.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_commit_group.html#tilus.Script.copy_async_commit_group" title="tilus.Script.copy_async_commit_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_commit_group</span></code></a>()</p></td>
 <td><p>Commit async copies into a group.</p></td>
@@ -620,7 +720,10 @@ you to create, copy, and compute tensors in global, shared, and register memory.
 </div>
 </section>
 <section id="linear-algebra">
-<h2><span class="section-number">4.4. </span>Linear Algebra<a class="headerlink" href="#linear-algebra" title="Link to this heading"><span>¶</span></a></h2>
+<h3><span class="section-number">4.1.4. </span>Linear Algebra<a class="headerlink" href="#linear-algebra" title="Link to this heading"><span>¶</span></a></h3>
+<p>Matrix multiplication using tensor cores. The <code class="docutils literal notranslate"><span class="pre">dot</span></code> instruction automatically selects the
+appropriate MMA instruction based on the data types and GPU architecture. For explicit control
+over Hopper or Blackwell tensor cores, use <code class="docutils literal notranslate"><span class="pre">wgmma.mma</span></code> or <code class="docutils literal notranslate"><span class="pre">tcgen05.mma</span></code> instead.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.dot.html#tilus.Script.dot" title="tilus.Script.dot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dot</span></code></a>(a, b[, c, acc_dtype, out])</p></td>
@@ -631,36 +734,81 @@ you to create, copy, and compute tensors in global, shared, and register memory.
 </div>
 </section>
 <section id="elementwise-arithmetic">
-<h2><span class="section-number">4.5. </span>Elementwise Arithmetic<a class="headerlink" href="#elementwise-arithmetic" title="Link to this heading"><span>¶</span></a></h2>
+<h3><span class="section-number">4.1.5. </span>Elementwise Arithmetic<a class="headerlink" href="#elementwise-arithmetic" title="Link to this heading"><span>¶</span></a></h3>
+<p>Per-element unary and binary operations on register tensors. All elementwise operations support
+an optional <code class="docutils literal notranslate"><span class="pre">out</span></code> parameter to write results into an existing tensor, and binary operations
+support NumPy-style broadcasting.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.add.html#tilus.Script.add" title="tilus.Script.add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add</span></code></a>(lhs, rhs[, out])</p></td>
-<td><p>Add two register tensors element-wise.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.abs.html#tilus.Script.abs" title="tilus.Script.abs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abs</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the element-wise absolute value.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.add.html#tilus.Script.add" title="tilus.Script.add"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add</span></code></a>(lhs, rhs[, out])</p></td>
+<td><p>Element-wise addition with broadcasting.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.clip.html#tilus.Script.clip" title="tilus.Script.clip"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clip</span></code></a>(x, min, max, *[, out])</p></td>
+<td><p>Clip element values to the range [min, max].</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.exp.html#tilus.Script.exp" title="tilus.Script.exp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp</span></code></a>(x, *[, out])</p></td>
-<td><p>Compute the exponential of each element.</p></td>
+<td><p>Compute the element-wise natural exponential (e^x).</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.exp2.html#tilus.Script.exp2" title="tilus.Script.exp2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp2</span></code></a>(x, *[, out])</p></td>
-<td><p>Compute the base-2 exponential of each element.</p></td>
+<td><p>Compute the element-wise base-2 exponential (2^x).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.abs.html#tilus.Script.abs" title="tilus.Script.abs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abs</span></code></a>(x, *[, out])</p></td>
-<td><p>Compute the absolute value of a register tensor.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.log.html#tilus.Script.log" title="tilus.Script.log"><code class="xref py py-obj docutils literal notranslate"><span class="pre">log</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the element-wise natural logarithm (ln x).</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.maximum.html#tilus.Script.maximum" title="tilus.Script.maximum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">maximum</span></code></a>(lhs, rhs[, out])</p></td>
-<td><p>Compute the element-wise maximum.</p></td>
+<td><p>Element-wise maximum with broadcasting.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.round.html#tilus.Script.round" title="tilus.Script.round"><code class="xref py py-obj docutils literal notranslate"><span class="pre">round</span></code></a>(x, *[, out])</p></td>
-<td><p>Round each element to the nearest integer.</p></td>
+<td><p>Round each element to the nearest integer (round-to-nearest-even).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.where.html#tilus.Script.where" title="tilus.Script.where"><code class="xref py py-obj docutils literal notranslate"><span class="pre">where</span></code></a>(condition, x, y, *[, out])</p></td>
-<td><p>Select elements from two tensors based on a condition.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.rsqrt.html#tilus.Script.rsqrt" title="tilus.Script.rsqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rsqrt</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the element-wise reciprocal square root (1/sqrt(x)).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.sqrt.html#tilus.Script.sqrt" title="tilus.Script.sqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sqrt</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the element-wise square root.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.square.html#tilus.Script.square" title="tilus.Script.square"><code class="xref py py-obj docutils literal notranslate"><span class="pre">square</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the element-wise square (x^2).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.where.html#tilus.Script.where" title="tilus.Script.where"><code class="xref py py-obj docutils literal notranslate"><span class="pre">where</span></code></a>(condition, x, y, *[, out])</p></td>
+<td><p>Select elements from <code class="docutils literal notranslate"><span class="pre">x</span></code> or <code class="docutils literal notranslate"><span class="pre">y</span></code> based on a boolean condition.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="reduction">
+<h3><span class="section-number">4.1.6. </span>Reduction<a class="headerlink" href="#reduction" title="Link to this heading"><span>¶</span></a></h3>
+<p>Reduce a register tensor along one or more dimensions. Each reduction supports <code class="docutils literal notranslate"><span class="pre">dim</span></code> to specify
+which dimensions to reduce, <code class="docutils literal notranslate"><span class="pre">keepdim</span></code> to preserve the reduced dimension with size 1, and <code class="docutils literal notranslate"><span class="pre">out</span></code>
+for in-place output.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.all.html#tilus.Script.all" title="tilus.Script.all"><code class="xref py py-obj docutils literal notranslate"><span class="pre">all</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<td><p>Test whether all elements are non-zero along the specified dimension(s).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.any.html#tilus.Script.any" title="tilus.Script.any"><code class="xref py py-obj docutils literal notranslate"><span class="pre">any</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<td><p>Test whether any element is non-zero along the specified dimension(s).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.max.html#tilus.Script.max" title="tilus.Script.max"><code class="xref py py-obj docutils literal notranslate"><span class="pre">max</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<td><p>Compute the maximum along the specified dimension(s).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.min.html#tilus.Script.min" title="tilus.Script.min"><code class="xref py py-obj docutils literal notranslate"><span class="pre">min</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<td><p>Compute the minimum along the specified dimension(s).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.sum.html#tilus.Script.sum" title="tilus.Script.sum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sum</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<td><p>Sum elements along the specified dimension(s).</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
 <section id="transform">
-<h2><span class="section-number">4.6. </span>Transform<a class="headerlink" href="#transform" title="Link to this heading"><span>¶</span></a></h2>
+<h3><span class="section-number">4.1.7. </span>Transform<a class="headerlink" href="#transform" title="Link to this heading"><span>¶</span></a></h3>
+<p>Reshape, reinterpret, or rearrange register tensor data without changing the underlying values.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.assign.html#tilus.Script.assign" title="tilus.Script.assign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">assign</span></code></a>(dst, src)</p></td>
@@ -669,47 +817,46 @@ you to create, copy, and compute tensors in global, shared, and register memory.
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.cast.html#tilus.Script.cast" title="tilus.Script.cast"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cast</span></code></a>(x, dtype)</p></td>
 <td><p>Cast a register tensor to a different data type.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.squeeze.html#tilus.Script.squeeze" title="tilus.Script.squeeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">squeeze</span></code></a>(x, *, dim[, out])</p></td>
-<td><p>Squeeze a dimension of a register tensor with size 1.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.unsqueeze.html#tilus.Script.unsqueeze" title="tilus.Script.unsqueeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unsqueeze</span></code></a>(x, *, dim[, out])</p></td>
-<td><p>Unsqueeze a dimension of a register tensor.</p></td>
-</tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.repeat.html#tilus.Script.repeat" title="tilus.Script.repeat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">repeat</span></code></a>(x, repeats, *[, out])</p></td>
 <td><p>Repeat elements of a register tensor along its dimensions.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.repeat_interleave.html#tilus.Script.repeat_interleave" title="tilus.Script.repeat_interleave"><code class="xref py py-obj docutils literal notranslate"><span class="pre">repeat_interleave</span></code></a>(x, repeats, *[, out])</p></td>
 <td><p>Repeat elements of a register tensor along its dimensions.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.view.html#tilus.Script.view" title="tilus.Script.view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">view</span></code></a>(x, *[, layout, dtype])</p></td>
-<td><p>View register tensor with a different layout or data type.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.squeeze.html#tilus.Script.squeeze" title="tilus.Script.squeeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">squeeze</span></code></a>(x, *, dim[, out])</p></td>
+<td><p>Squeeze a dimension of a register tensor with size 1.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.transpose.html#tilus.Script.transpose" title="tilus.Script.transpose"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transpose</span></code></a>(x)</p></td>
 <td><p>Transpose a 2-D register tensor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.unsqueeze.html#tilus.Script.unsqueeze" title="tilus.Script.unsqueeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unsqueeze</span></code></a>(x, *, dim[, out])</p></td>
+<td><p>Unsqueeze a dimension of a register tensor.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.view.html#tilus.Script.view" title="tilus.Script.view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">view</span></code></a>(x, *[, layout, dtype])</p></td>
+<td><p>View register tensor with a different layout or data type.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
-<section id="reduction">
-<h2><span class="section-number">4.7. </span>Reduction<a class="headerlink" href="#reduction" title="Link to this heading"><span>¶</span></a></h2>
+<section id="synchronization">
+<h3><span class="section-number">4.1.8. </span>Synchronization<a class="headerlink" href="#synchronization" title="Link to this heading"><span>¶</span></a></h3>
+<p>Synchronize threads within a block or across a cluster. <code class="docutils literal notranslate"><span class="pre">sync</span></code> is the block-level barrier
+(equivalent to <code class="docutils literal notranslate"><span class="pre">__syncthreads()</span></code>). For cluster-wide synchronization, use <code class="docutils literal notranslate"><span class="pre">self.cluster.sync()</span></code>.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.max.html#tilus.Script.max" title="tilus.Script.max"><code class="xref py py-obj docutils literal notranslate"><span class="pre">max</span></code></a>(x, *[, dim, keepdim, out])</p></td>
-<td><p>Compute the maximum value along a dimension.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.min.html#tilus.Script.min" title="tilus.Script.min"><code class="xref py py-obj docutils literal notranslate"><span class="pre">min</span></code></a>(x, *[, dim, keepdim, out])</p></td>
-<td><p>Compute the minimum value along a dimension.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.sum.html#tilus.Script.sum" title="tilus.Script.sum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sum</span></code></a>(x, *[, dim, keepdim, out])</p></td>
-<td><p>Sum the elements along a specified dimension.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sync</span></code></a>()</p></td>
+<td><p>Perform a synchronization.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
 <section id="atomic-and-semaphore">
-<h2><span class="section-number">4.8. </span>Atomic and Semaphore<a class="headerlink" href="#atomic-and-semaphore" title="Link to this heading"><span>¶</span></a></h2>
+<h3><span class="section-number">4.1.9. </span>Atomic and Semaphore<a class="headerlink" href="#atomic-and-semaphore" title="Link to this heading"><span>¶</span></a></h3>
+<p>Inter-block synchronization using global memory semaphores. <code class="docutils literal notranslate"><span class="pre">lock_semaphore</span></code> spins until the
+semaphore reaches a target value; <code class="docutils literal notranslate"><span class="pre">release_semaphore</span></code> sets it to signal other blocks. Both
+must be called from a single thread (<code class="docutils literal notranslate"><span class="pre">self.single_thread()</span></code>).</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.lock_semaphore.html#tilus.Script.lock_semaphore" title="tilus.Script.lock_semaphore"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lock_semaphore</span></code></a>(semaphore, value)</p></td>
@@ -722,29 +869,22 @@ you to create, copy, and compute tensors in global, shared, and register memory.
 </table>
 </div>
 </section>
-<section id="synchronization">
-<h2><span class="section-number">4.9. </span>Synchronization<a class="headerlink" href="#synchronization" title="Link to this heading"><span>¶</span></a></h2>
-<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sync</span></code></a>()</p></td>
-<td><p>Perform a synchronization.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.cluster_sync.html#tilus.Script.cluster_sync" title="tilus.Script.cluster_sync"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cluster_sync</span></code></a>()</p></td>
-<td><p>Perform a cluster-wide synchronization.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
 <section id="miscellaneous">
-<h2><span class="section-number">4.10. </span>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Link to this heading"><span>¶</span></a></h2>
+<h3><span class="section-number">4.1.10. </span>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Link to this heading"><span>¶</span></a></h3>
+<p>Compiler hints, debugging aids, and layout annotations.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.assume.html#tilus.Script.assume" title="tilus.Script.assume"><code class="xref py py-obj docutils literal notranslate"><span class="pre">assume</span></code></a>(cond)</p></td>
 <td><p>Compiler hint to assume a condition is true.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.annotate_layout.html#tilus.Script.annotate_layout" title="tilus.Script.annotate_layout"><code class="xref py py-obj docutils literal notranslate"><span class="pre">annotate_layout</span></code></a>(tensor, layout)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.static_assert.html#tilus.Script.static_assert" title="tilus.Script.static_assert"><code class="xref py py-obj docutils literal notranslate"><span class="pre">static_assert</span></code></a>(cond, msg)</p></td>
+<td><p>Assert a compile-time condition.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.annotate_layout.html#tilus.Script.annotate_layout" title="tilus.Script.annotate_layout"><code class="xref py py-obj docutils literal notranslate"><span class="pre">annotate_layout</span></code></a>(tensor, layout)</p></td>
 <td><p>Annotate the layout of a register or shared tensor.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.fast_divmod.html#tilus.Script.fast_divmod" title="tilus.Script.fast_divmod"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fast_divmod</span></code></a>(a, b)</p></td>
+<td><p>Fast integer division and modulo using precomputed magic multiplier.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.print_tensor.html#tilus.Script.print_tensor" title="tilus.Script.print_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">print_tensor</span></code></a>(msg, tensor[, fmt])</p></td>
 <td><p>Print a tensor with a message.</p></td>
@@ -756,12 +896,20 @@ you to create, copy, and compute tensors in global, shared, and register memory.
 </table>
 </div>
 </section>
-<section id="barrier">
-<h2><span class="section-number">4.11. </span>Barrier<a class="headerlink" href="#barrier" title="Link to this heading"><span>¶</span></a></h2>
+</section>
+<section id="instruction-groups">
+<h2><span class="section-number">4.2. </span>Instruction Groups<a class="headerlink" href="#instruction-groups" title="Link to this heading"><span>¶</span></a></h2>
+<p>Instruction groups provide access to specialized hardware units. Each group is accessed as an
+attribute of the script (e.g., <code class="docutils literal notranslate"><span class="pre">self.tma.global_to_shared(...)</span></code>).</p>
+<section id="memory-barrier-self-mbarrier">
+<h3><span class="section-number">4.2.1. </span>Memory Barrier (<code class="docutils literal notranslate"><span class="pre">self.mbarrier</span></code>)<a class="headerlink" href="#memory-barrier-self-mbarrier" title="Link to this heading"><span>¶</span></a></h3>
+<p>Mbarriers are synchronization primitives in shared memory that track pending arrivals and
+asynchronous transaction bytes (tx-count). They coordinate producer-consumer patterns in pipelined
+kernels, particularly with TMA and TCGEN05 async operations. See <a class="reference internal" href="../python-api/instruction-groups/mbarrier.html"><span class="doc">Script.mbarrier</span></a>.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">alloc</span></code></a>(counts)</p></td>
-<td><p>Allocate barriers in shared memory and get its address in shared space.</p></td>
+<td><p>Allocate and initialize one or more mbarriers in shared memory.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive</span></code></a>(barrier[, count, sem, scope])</p></td>
 <td><p>Arrive at a barrier.</p></td>
@@ -770,23 +918,171 @@ you to create, copy, and compute tensors in global, shared, and register memory.
 <td><p>Arrive at a barrier with expected asynchronous memory transactions.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast</span></code></a>(barrier, ...)</p></td>
-<td><p>Arrive at a barrier with expected asynchronous memory transactions and multicast the arrival to a subset of blocks in the cluster.</p></td>
+<td><p>Arrive at barriers across multiple CTAs with expected async transactions.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote</span></code></a>(barrier, ...[, ...])</p></td>
-<td><p>Arrive at a barrier on a peer thread block in the same cluster with expected asynchronous memory transactions.</p></td>
+<td><p>Arrive at a peer CTA's barrier with expected async transactions.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-obj docutils literal notranslate"><span class="pre">wait</span></code></a>(barrier, phase[, sem, scope])</p></td>
 <td><p>Wait at a barrier.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">consumer_initial_phase</span></code></a></p></td>
-<td><p></p></td>
+</tbody>
+</table>
+</div>
+</section>
+<section id="fence-self-fence">
+<h3><span class="section-number">4.2.2. </span>Fence (<code class="docutils literal notranslate"><span class="pre">self.fence</span></code>)<a class="headerlink" href="#fence-self-fence" title="Link to this heading"><span>¶</span></a></h3>
+<p>Proxy fences ensure memory ordering between different memory access paths (generic proxy vs.
+async proxy). Required when generic writes (e.g., <code class="docutils literal notranslate"><span class="pre">store_shared</span></code>) must be visible to async
+reads (e.g., <code class="docutils literal notranslate"><span class="pre">tma.shared_to_global</span></code>). See <a class="reference internal" href="../python-api/instruction-groups/fence.html"><span class="doc">Script.fence</span></a>.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html#tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async" title="tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async"><code class="xref py py-obj docutils literal notranslate"><span class="pre">proxy_async</span></code></a>([space])</p></td>
+<td><p>Bidirectional async proxy fence.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">producer_initial_phase</span></code></a></p></td>
-<td><p></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html#tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release" title="tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release"><code class="xref py py-obj docutils literal notranslate"><span class="pre">proxy_async_release</span></code></a>()</p></td>
+<td><p>Unidirectional generic-to-async release proxy fence for shared memory.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
+</section>
+<section id="tma-self-tma">
+<h3><span class="section-number">4.2.3. </span>TMA (<code class="docutils literal notranslate"><span class="pre">self.tma</span></code>)<a class="headerlink" href="#tma-self-tma" title="Link to this heading"><span>¶</span></a></h3>
+<p>The Tensor Memory Accelerator (TMA) on Hopper+ GPUs performs asynchronous bulk data transfers
+between global and shared memory without occupying SM compute resources. Completion is tracked
+via mbarriers. See <a class="reference internal" href="../python-api/instruction-groups/tma.html"><span class="doc">Script.tma</span></a>.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html#tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared" title="tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_to_shared</span></code></a>(*, src, dst, offsets[, ...])</p></td>
+<td><p>Asynchronously copy a tile from global memory to shared memory via TMA.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html#tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global" title="tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shared_to_global</span></code></a>(src, dst, offsets[, dims, ...])</p></td>
+<td><p>Asynchronously copy a tile from shared memory to global memory via TMA.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html#tilus.lang.instructions.tma.TmaInstructionGroup.commit_group" title="tilus.lang.instructions.tma.TmaInstructionGroup.commit_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">commit_group</span></code></a>()</p></td>
+<td><p>Commit pending TMA async copy operations into a group.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html#tilus.lang.instructions.tma.TmaInstructionGroup.wait_group" title="tilus.lang.instructions.tma.TmaInstructionGroup.wait_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">wait_group</span></code></a>(n[, read])</p></td>
+<td><p>Wait for TMA async copy commit groups to complete.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="wgmma-self-wgmma">
+<h3><span class="section-number">4.2.4. </span>WGMMA (<code class="docutils literal notranslate"><span class="pre">self.wgmma</span></code>)<a class="headerlink" href="#wgmma-self-wgmma" title="Link to this heading"><span>¶</span></a></h3>
+<p>Warp Group Matrix Multiply-Accumulate on Hopper GPUs. Executes asynchronous MMA using a warp group
+(4 warps, 128 threads) with operands in shared memory or registers. Requires a strict
+fence → mma → commit → wait protocol. See <a class="reference internal" href="../python-api/instruction-groups/wgmma.html"><span class="doc">Script.wgmma</span></a>.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html#tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence" title="tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fence</span></code></a>()</p></td>
+<td><p>Issue a warp group MMA fence.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html#tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group" title="tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">commit_group</span></code></a>()</p></td>
+<td><p>Commit the previously issued warp group MMA operations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html#tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group" title="tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">wait_group</span></code></a>(n)</p></td>
+<td><p>Wait for warp group MMA commit groups to complete.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html#tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma" title="tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mma</span></code></a>(a, b, d)</p></td>
+<td><p>Perform warp group matrix multiply-accumulate (MMA) operation.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="tcgen05-self-tcgen05">
+<h3><span class="section-number">4.2.5. </span>TCGEN05 (<code class="docutils literal notranslate"><span class="pre">self.tcgen05</span></code>)<a class="headerlink" href="#tcgen05-self-tcgen05" title="Link to this heading"><span>¶</span></a></h3>
+<p>Tensor Core Generation 05 on Blackwell GPUs. Introduces tensor memory (TMEM) — a dedicated
+on-chip accumulator space for MMA operations. Supports the full TMEM lifecycle: allocation,
+data movement (load/store/copy), MMA compute, and deallocation. See <a class="reference internal" href="../python-api/instruction-groups/tcgen05.html"><span class="doc">Script.tcgen05</span></a>.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">alloc</span></code></a>(dtype, shape[, cta_group])</p></td>
+<td><p>Allocate a tensor in tensor memory (TMEM).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dealloc</span></code></a>(tensor)</p></td>
+<td><p>Deallocate a tensor memory tensor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice"><code class="xref py py-obj docutils literal notranslate"><span class="pre">slice</span></code></a>(tensor, offsets, dims, shape)</p></td>
+<td><p>Create a sliced view of a tensor memory tensor.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">view</span></code></a>(tensor, dtype, shape)</p></td>
+<td><p>Reinterpret a tensor memory tensor with a different dtype and shape.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">relinquish_alloc_permit</span></code></a>(cta_group)</p></td>
+<td><p>Relinquish the tensor memory allocation permit.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load</span></code></a>(tensor)</p></td>
+<td><p>Load data from tensor memory into registers.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store</span></code></a>(tensor, src)</p></td>
+<td><p>Store data from registers into tensor memory.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load"><code class="xref py py-obj docutils literal notranslate"><span class="pre">wait_load</span></code></a>()</p></td>
+<td><p>Wait for all pending tensor memory load operations to complete.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store"><code class="xref py py-obj docutils literal notranslate"><span class="pre">wait_store</span></code></a>()</p></td>
+<td><p>Wait for all pending tensor memory store operations to complete.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy</span></code></a>(src, dst)</p></td>
+<td><p>Copy data from shared memory to tensor memory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">commit</span></code></a>(mbarrier[, cta_group, multicast_mask])</p></td>
+<td><p>Commit pending tcgen05 async operations and signal an mbarrier.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mma</span></code></a>(a, b, d, enable_input_d[, cta_group])</p></td>
+<td><p>Perform tensor core matrix multiply-accumulate with TMEM accumulator.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cluster-self-cluster">
+<h3><span class="section-number">4.2.6. </span>Cluster (<code class="docutils literal notranslate"><span class="pre">self.cluster</span></code>)<a class="headerlink" href="#cluster-self-cluster" title="Link to this heading"><span>¶</span></a></h3>
+<p>Block cluster operations for multi-CTA coordination on Hopper+ GPUs. Provides cluster-wide
+synchronization, introspection (block index/rank within the cluster), and cross-CTA shared memory
+addressing. See <a class="reference internal" href="../python-api/instruction-groups/cluster.html"><span class="doc">Script.cluster</span></a>.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sync</span></code></a>()</p></td>
+<td><p>Synchronize all thread blocks in the current cluster.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">map_shared_addr</span></code></a>(addr, target_rank)</p></td>
+<td><p>Map shared memory address(es) to the corresponding address(es) in another CTA's shared memory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx"><code class="xref py py-obj docutils literal notranslate"><span class="pre">blockIdx</span></code></a></p></td>
+<td><p>The block index within the cluster.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank"><code class="xref py py-obj docutils literal notranslate"><span class="pre">blockRank</span></code></a></p></td>
+<td><p>The linear rank of the current block within the cluster.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clusterDim</span></code></a></p></td>
+<td><p>The dimensions of the cluster.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="clc-self-clc">
+<h3><span class="section-number">4.2.7. </span>CLC (<code class="docutils literal notranslate"><span class="pre">self.clc</span></code>)<a class="headerlink" href="#clc-self-clc" title="Link to this heading"><span>¶</span></a></h3>
+<p>Cluster Launch Control on Blackwell GPUs enables dynamic work scheduling by canceling
+not-yet-launched clusters. A scheduler CTA requests cancellation, then queries the result to
+take over the canceled cluster’s work. See <a class="reference internal" href="../python-api/instruction-groups/clc.html"><span class="doc">Script.clc</span></a>.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">try_cancel</span></code></a>(response, mbarrier, multicast)</p></td>
+<td><p>Request cancellation of a cluster that has not yet been launched.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response"><code class="xref py py-obj docutils literal notranslate"><span class="pre">query_response</span></code></a>(response)</p></td>
+<td><p>Query the response from a cluster launch control try_cancel operation.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 </section>
 </section>
 
@@ -835,17 +1131,29 @@ you to create, copy, and compute tensors in global, shared, and register memory.
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-creation-and-free">4.1. Tensor Creation and Free</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-and-store">4.2. Load and Store</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-copy-sm80">4.3. Asynchronous Copy (SM80+)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-algebra">4.4. Linear Algebra</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#elementwise-arithmetic">4.5. Elementwise Arithmetic</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.6. Transform</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.7. Reduction</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#atomic-and-semaphore">4.8. Atomic and Semaphore</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.9. Synchronization</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.10. Miscellaneous</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#barrier">4.11. Barrier</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generic-instructions">4.1. Generic Instructions</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-creation-and-free">4.1.1. Tensor Creation and Free</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#load-and-store">4.1.2. Load and Store</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-copy-sm80">4.1.3. Asynchronous Copy (SM80+)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-algebra">4.1.4. Linear Algebra</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#elementwise-arithmetic">4.1.5. Elementwise Arithmetic</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.1.6. Reduction</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.7. Transform</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.8. Synchronization</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#atomic-and-semaphore">4.1.9. Atomic and Semaphore</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.10. Miscellaneous</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instruction-groups">4.2. Instruction Groups</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-barrier-self-mbarrier">4.2.1. Memory Barrier (<code class="docutils literal notranslate"><span class="pre">self.mbarrier</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fence-self-fence">4.2.2. Fence (<code class="docutils literal notranslate"><span class="pre">self.fence</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-self-tma">4.2.3. TMA (<code class="docutils literal notranslate"><span class="pre">self.tma</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#wgmma-self-wgmma">4.2.4. WGMMA (<code class="docutils literal notranslate"><span class="pre">self.wgmma</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tcgen05-self-tcgen05">4.2.5. TCGEN05 (<code class="docutils literal notranslate"><span class="pre">self.tcgen05</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cluster-self-cluster">4.2.6. Cluster (<code class="docutils literal notranslate"><span class="pre">self.cluster</span></code>)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#clc-self-clc">4.2.7. CLC (<code class="docutils literal notranslate"><span class="pre">self.clc</span></code>)</a></li>
+</ul>
+</li>
 </ul>
   </nav></div>
 

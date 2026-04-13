@@ -5,6 +5,8 @@ Script.fence
 
 .. autoclass:: FenceInstructionGroup
    :no-autosummary:
+   :no-members:
+   :exclude-members: __init__, __new__
 
 .. rubric:: Instructions
 
@@ -12,7 +14,6 @@ Script.fence
 
 .. autosummary::
    :toctree: generated
-   :template: instruction_group_member.rst
 
    proxy_async
    proxy_async_release
