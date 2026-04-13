@@ -14,7 +14,6 @@ Script.mbarrier
 
 .. autosummary::
    :toctree: generated
-   :template: instruction_group_member.rst
 
    alloc
    arrive
@@ -27,7 +26,6 @@ Script.mbarrier
 
 .. autosummary::
    :toctree: generated
-   :template: instruction_group_member.rst
 
    producer_initial_phase
    consumer_initial_phase

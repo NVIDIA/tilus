@@ -32,9 +32,11 @@ Attributes and Variables
 .. autosummary::
    :toctree: generated
 
-   attrs
    blockIdx
    gridDim
+   current_num_threads
+   current_thread_begin
+   current_thread_end
 
 Language Constructs
 -------------------
@@ -44,7 +46,11 @@ Language Constructs
 
    assume
    range
+   single_thread
+   single_warp
+   static_assert
    thread_group
+   warp_group
 
 
 Instructions
@@ -55,23 +61,28 @@ Instructions
 
    abs
    add
+   all
    annotate_layout
+   any
    assign
    cast
+   clip
    copy_async
    copy_async_commit_group
    copy_async_wait_all
    copy_async_wait_group
-   cluster_sync
    dot
    exp
    exp2
+   fast_divmod
+   flatten
    free_shared
    global_tensor
    global_view
    load_global
    load_shared
    lock_semaphore
+   log
    max
    maximum
    min
@@ -81,8 +92,12 @@ Instructions
    release_semaphore
    repeat
    repeat_interleave
+   reshape_shared
    round
+   rsqrt
    shared_tensor
+   sqrt
+   square
    squeeze
    store_global
    store_shared
@@ -98,27 +113,45 @@ Instruction Groups
 ------------------
 
 .. toctree::
-   :maxdepth: 1
+   :hidden:
 
    instruction-groups/mbarrier
    instruction-groups/fence
+   instruction-groups/tma
+   instruction-groups/tcgen05
+   instruction-groups/clc
+   instruction-groups/cluster
+   instruction-groups/wgmma
+
+.. list-table::
+   :widths: 20 80
+
+   * - :doc:`mbarrier <instruction-groups/mbarrier>`
+     - Memory barrier instructions for synchronizing async memory transactions.
+   * - :doc:`fence <instruction-groups/fence>`
+     - Fence instructions for memory ordering between proxies.
+   * - :doc:`tma <instruction-groups/tma>`
+     - Tensor Memory Accelerator (TMA) async copy instructions.
+   * - :doc:`tcgen05 <instruction-groups/tcgen05>`
+     - Tensor Core Generation 05 (Blackwell) instructions.
+   * - :doc:`clc <instruction-groups/clc>`
+     - Cluster Launch Control instructions.
+   * - :doc:`cluster <instruction-groups/cluster>`
+     - Block cluster synchronization and shared memory access.
+   * - :doc:`wgmma <instruction-groups/wgmma>`
+     - Warp Group Matrix Multiply-Accumulate (Hopper) instructions.
 
 
 Script Attributes
 -----------------
 
-.. currentmodule:: tilus.lang
+.. toctree::
+   :hidden:
 
-.. class:: Attributes
+   attrs
 
-   The ``attrs`` object on a :class:`~tilus.Script` instance is used to set kernel launch configuration.
+.. list-table::
+   :widths: 20 80
 
-   .. attribute:: blocks
-      :type: list[int]
-
-      The grid dimensions of the kernel launch. Set as a list of up to 3 integers, e.g., ``self.attrs.blocks = [grid_x, grid_y]``.
-
-   .. attribute:: warps
-      :type: int
-
-      The number of warps per thread block. Must be a compile-time constant.
+   * - :doc:`attrs <attrs>`
+     - Kernel launch configuration (blocks, warps, cluster).

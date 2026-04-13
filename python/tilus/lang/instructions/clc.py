@@ -20,6 +20,30 @@ from .root import InstructionGroup
 
 
 class ClusterLaunchControlInstructionGroup(InstructionGroup):
+    """Cluster Launch Control (CLC) instructions for dynamic work scheduling on Blackwell GPUs.
+
+    CLC enables a running kernel to **cancel clusters that have not yet started**, effectively
+    implementing dynamic grid scheduling and work-stealing patterns. A scheduler CTA can
+    request cancellation of a pending cluster, and if successful, take over that cluster's
+    work.
+
+    The workflow is:
+
+    1. ``try_cancel()`` — asynchronously request cancellation. An opaque 16-byte response is
+       written to shared memory, tracked by an mbarrier.
+    2. ``mbarrier.wait()`` — wait for the response to arrive.
+    3. ``query_response()`` — decode the response to check if cancellation succeeded and
+       retrieve the canceled cluster's CTA coordinates.
+
+    If cancellation succeeds, the scheduler can use the returned CTA ID to compute the
+    work tile that the canceled cluster would have processed, and execute that work itself.
+    If it fails (the cluster already started), the scheduler can retry or proceed with
+    other work.
+
+    With ``multicast=True``, the response is broadcast to all CTAs in the requesting cluster,
+    so all CTAs can independently query the result.
+    """
+
     def try_cancel(self, response: SharedTensor, mbarrier: Expr | RegisterTensor, multicast: Expr | bool) -> None:
         """Request cancellation of a cluster that has not yet been launched.
 
@@ -61,11 +85,12 @@ class ClusterLaunchControlInstructionGroup(InstructionGroup):
 
         Notes
         -----
-        - Requires sm_100 or higher.
+        - **Thread group**: Can be executed by any sized thread group (at least 32 threads if ``multicast=True``).
+        - **Hardware**: Requires compute capability 10.0+ (sm_100).
+        - **PTX**: ``clusterlaunchcontrol.try_cancel``
         - This instruction performs an mbarrier arrive operation combined with an expect-tx operation (16 bytes)
           before issuing the cancellation request. The mbarrier's tx-count is increased by 16 bytes when the
           instruction is issued, and decreased by 16 bytes when the response write completes asynchronously.
-        - The mbarrier phase will complete when both the pending arrival count and tx-count reach zero.
         """
         self._builder.cluster_launch_control_try_cancel(response, mbarrier, multicast)
 
@@ -99,12 +124,12 @@ class ClusterLaunchControlInstructionGroup(InstructionGroup):
 
         Notes
         -----
-        - Requires sm_100 or higher.
-        - The behavior is undefined if called before the `try_cancel` operation has completed (i.e., before
+        - **Thread group**: Can be executed by any sized thread group.
+        - **Hardware**: Requires compute capability 10.0+ (sm_100).
+        - **PTX**: ``clusterlaunchcontrol.query_cancel.is_canceled`` and
+          ``clusterlaunchcontrol.query_cancel.get_first_ctaid``
+        - The behavior is undefined if called before the ``try_cancel`` operation has completed (i.e., before
           the associated mbarrier has signaled completion).
-        - Maps to PTX instructions:
-          - `clusterlaunchcontrol.query_cancel.is_canceled.pred.b128`
-          - `clusterlaunchcontrol.query_cancel.get_first_ctaid.v4.b32.b128`
         """
         ret = self._builder.cluster_launch_control_query_response(response)
         items = []

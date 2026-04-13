@@ -165,7 +165,7 @@ class BlackwellMatmulV7(tilus.Script):
 
         cta_rank = self.cluster.blockRank
 
-        self.cluster_sync()
+        self.cluster.sync()
 
         with self.single_warp(0):  # tma worker (gmem -> smem)
             offset_m_a = self.blockIdx.x * (block_m // 2)
@@ -298,7 +298,7 @@ class BlackwellMatmulV7(tilus.Script):
                 offset_n_c = new_blockIdx.y * block_n
 
         # all allocated tensor memory must be deallocated
-        self.cluster_sync()
+        self.cluster.sync()
         self.tcgen05.dealloc(t_acc)
 
 

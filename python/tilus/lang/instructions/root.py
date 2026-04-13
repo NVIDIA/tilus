@@ -274,6 +274,18 @@ class RootInstructionGroup(InstructionGroup):
 
     @staticmethod
     def static_assert(cond: bool | Expr, msg: str) -> None:
+        """Assert a compile-time condition.
+
+        Raises ``AssertionError`` at compile time if the condition is false. The condition
+        must be a compile-time constant (a ``bool`` or a ``Constant`` expression).
+
+        Parameters
+        ----------
+        cond: bool | Expr
+            The compile-time condition to check. Must be a constant value.
+        msg: str
+            The error message to display if the assertion fails.
+        """
         if not isinstance(cond, Constant) and not isinstance(cond, bool):
             raise ValueError("Static assert condition must be a constant")
         if not cond:
@@ -311,6 +323,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         tensor: RegisterTensor
             The allocated register tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         f_init: Optional[Callable[[Sequence[Var]], Expr]] = None
         if init is not None:
@@ -363,6 +379,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: GlobalTensor
             The allocated global tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.allocate_global(
             dtype=dtype,
@@ -392,6 +412,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: SharedTensor
             The allocated shared tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.allocate_shared(dtype=dtype, shape=shape)
 
@@ -428,6 +452,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: GlobalTensor
             The global tensor view created.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         from tilus.ir.layout import global_row_major, global_strides
 
@@ -482,6 +510,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: RegisterTensor
             The register tensor containing the loaded data from the global tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         if len(offsets) != len(src.shape):
             raise InstructionError(
@@ -521,6 +553,10 @@ class RootInstructionGroup(InstructionGroup):
             The offsets for each dimension of the global tensor where the register tensor will be stored.
         dims: Sequence[int], optional
             The dimensions of the global tensor that are being sliced.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         if dims is not None and len(dims) != len(src.shape):
             raise InstructionError(
@@ -548,6 +584,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: RegisterTensor
             The register tensor containing the loaded data from the shared tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.load_shared(src=src, output=out)
 
@@ -575,6 +615,10 @@ class RootInstructionGroup(InstructionGroup):
             The dimensions of the shared tensor that are being sliced. If not provided, it is assumed that all
             dimensions are being sliced in the same order as the register tensor. The length of this sequence must
             match the number of dimensions of the register tensor being stored.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         if dst.dtype != src.dtype:
             raise InstructionError(
@@ -597,6 +641,10 @@ class RootInstructionGroup(InstructionGroup):
         ----------
         tensor: SharedTensor
             The shared tensor to free.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         self._builder.free_shared(tensor)
 
@@ -614,6 +662,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: SharedTensor
             The reshaped shared tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.reshape_shared(tensor=tensor, shape=shape)
 
@@ -626,28 +678,13 @@ class RootInstructionGroup(InstructionGroup):
         evict: Optional[str] = None,
         check_bounds: bool = True,
     ) -> None:
-        """Copy from global to shared tensor asynchronously.
+        """Asynchronously copy a tile from global memory to shared memory.
 
-        This instruction issues an asynchronous  copy of a tile from a global tensor to a shared tensor. The `src` parameter
-        specifies the global tensor to copy from, while the `dst` parameter specifies the shared tensor to copy to.
+        Issues an ``cp.async`` transfer from a region of ``src`` (global) to ``dst`` (shared).
+        Use ``copy_async_commit_group()`` and ``copy_async_wait_group()`` to synchronize.
 
-        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
-        will be copied from. The length of this sequence must match the rank of the global tensor.
-
-        The `dims` parameter specifies which dimensions of the global tensor are being sliced. If not provided, it is
-        assumed that all dimensions are being sliced in the same order as the shared tensor. The length of this sequence
-        must match the number of dimensions of the shared tensor being copied to.
-
-        The `evict` parameter can be used to specify the eviction policy. When we use this instruction, the data in
-        the global memory will be cached. We can use the `evict` parameter to specify the eviction policy for the cached
-        data of this instruction.
-
-        It's valid to specify the loading elements out of bounds of the global tensor, in which case, we will perform
-        bound checking and fill the out-of-bounds elements with zero in the shared tensor. The bound checking might
-        introduce some overhead, especially when the user make sure that the accessed global elements are always in
-        bounds but our compiler cannot infer it. In this case, we can set `check_bounds` to `False` to skip the bound
-        checking. It's the user's responsibility to ensure that the accessed global elements are always in bounds when
-        `check_bounds` is set to `False`.
+        Out-of-bounds accesses are zero-filled by default. Set ``check_bounds=False`` to skip
+        bounds checking when you can guarantee all accesses are in-bounds.
 
         Parameters
         ----------
@@ -656,29 +693,26 @@ class RootInstructionGroup(InstructionGroup):
         dst: SharedTensor
             The shared tensor to copy to.
         offsets: Sequence[Expr | int]
-            The offsets for each dimension of the global tensor where the tile will be copied from. The length of this
-            sequence must match the number of dimensions of the global tensor.
+            Starting offsets for each dimension of the global tensor. Length must match the
+            rank of the global tensor.
         dims: Sequence[int], optional
-            The dimensions of the global tensor that are being sliced when the rank of shared tensor is less than the
-            rank of the global tensor. If not provided, it is assumed that all dimensions are being sliced in the
-            same order as the shared tensor. The length of this sequence must match the number of dimensions of the
-            shared tensor being copied to.
+            Which dimensions of the global tensor are being sliced. If not provided, defaults
+            to all dimensions in order.
         evict: str, optional
-            The eviction policy for the cached data of this instruction. If not provided, the default eviction
-            policy `evict_normal` is used, which is to evict the cached data when the shared memory is full. The
-            eviction policy can be one of
+            Cache eviction policy. Candidates:
 
-            The candidates are:
-
-            - 'evict_normal': Evict the cached data when the shared memory is full.
-            - 'evict_first': Evict the cached data of this instruction first when an eviction is needed. This policy is
-              suitable for streaming data where the data is only needed once and will not be reused.
+            - ``'evict_normal'`` (default): normal eviction priority.
+            - ``'evict_first'``: evict this data first; suitable for streaming access patterns.
 
         check_bounds: bool, optional
-            Whether to check the bounds of the accessed global elements. When set to `True`, the accessed global
-            elements will be checked to ensure they are within bounds. If any accessed global element is out of bounds,
-            it will be filled with zero in the shared tensor. When set to `False`, the bound checking will be skipped,
-            and the user must ensure that the accessed global elements are always in bounds. The default value is `True`.
+            If ``True`` (default), out-of-bounds accesses are zero-filled. If ``False``,
+            bounds checking is skipped (caller must guarantee in-bounds access).
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        - **Hardware**: Requires compute capability 8.0+ (sm_80).
+        - **PTX**: ``cp.async``
         """
         if dims is None:
             if len(dst.shape) != len(src.shape):
@@ -701,6 +735,10 @@ class RootInstructionGroup(InstructionGroup):
             self.copy_async_commit_group()
             self.copy_async_wait_group(0)
 
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        - **Hardware**: Requires compute capability 8.0+ (sm_80).
         """
         self._builder.copy_async_wait_all()
 
@@ -709,6 +747,11 @@ class RootInstructionGroup(InstructionGroup):
 
         This instruction commits all the pending asynchronous copy operations into a group.
 
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        - **Hardware**: Requires compute capability 8.0+ (sm_80).
+        - **PTX**: ``cp.async.commit_group``
         """
         self._builder.copy_async_commit_group()
 
@@ -725,6 +768,12 @@ class RootInstructionGroup(InstructionGroup):
         n: Union[Expr, int]
             The maximum number of asynchronous copy groups that can be unfinished at the same time. If `n` is 0,
             it will wait until all asynchronous copy groups are finished.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        - **Hardware**: Requires compute capability 8.0+ (sm_80).
+        - **PTX**: ``cp.async.wait_group``
         """
         self._builder.copy_async_wait_group(n)
 
@@ -776,6 +825,11 @@ class RootInstructionGroup(InstructionGroup):
         ret: RegisterTensor
             The result of the dot product, which is a register tensor with shape [m, n]. It will be `out` if provided,
             or a new register tensor if not.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        - **Hardware**: Requires compute capability 7.0+ (sm_70) for tensor core MMA, or any GPU for SIMT fallback.
         """
         if c is None:
             if acc_dtype is None:
@@ -819,6 +873,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: RegisterTensor
             The register tensor with the specified data type.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.cast(x=x, dtype=dtype)
 
@@ -856,6 +914,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: RegisterTensor
             The register tensor with the specified layout and/or data type.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.view(x=x, layout=layout, dtype=dtype, local_offset=0)
 
@@ -881,6 +943,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: RegisterTensor
             The register tensor with the specified dimension squeezed out.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.squeeze(x, dim=dim, out=out)
 
@@ -909,10 +975,18 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: RegisterTensor
             The register tensor with the specified dimension(s) unsqueezed.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.unsqueeze(x, dim=dim, out=out)
 
     def flatten(self):
+        """Flatten a register tensor into a 1-D tensor.
+
+        .. note:: This instruction is not yet implemented.
+        """
         self._builder
 
     def transpose(
@@ -933,6 +1007,10 @@ class RootInstructionGroup(InstructionGroup):
         -------
         ret: RegisterTensor
             The transposed register tensor. The shape of the output tensor will be [x.shape[1], x.shape[0]].
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.transpose(x)
 
@@ -942,23 +1020,23 @@ class RootInstructionGroup(InstructionGroup):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute the absolute value of a register tensor.
-
-        This instruction computes the absolute value of each element in the register tensor `x`. The result is a new
-        register tensor with the same dtype, shape, and layout as `x`.
+        """Compute the element-wise absolute value.
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to compute the absolute value of.
+            Input tensor.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the absolute values of the elements in `x`. The shape and dtype of the
-            output tensor will be the same as that of `x`.
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.abs(x, out=out)
 
@@ -968,23 +1046,23 @@ class RootInstructionGroup(InstructionGroup):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute the exponential of each element.
-
-        This instruction computes the natural exponential of each element in the register tensor `x`. The result is a
-        new register tensor with the same dtype, shape, and layout as `x`.
+        """Compute the element-wise natural exponential (e^x).
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to compute the exponential of.
+            Input tensor.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the exponential values of the elements in `x`. The shape and dtype of the
-            output tensor will be the same as that of `x`.
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.exp(x, out=out)
 
@@ -994,23 +1072,23 @@ class RootInstructionGroup(InstructionGroup):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute the base-2 exponential of each element.
-
-        This instruction computes the base-2 exponential of each element in the register tensor `x`. The result is a
-        new register tensor with the same dtype, shape, and layout as `x`.
+        """Compute the element-wise base-2 exponential (2^x).
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to compute the base-2 exponential of.
+            Input tensor.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the base-2 exponential values of the elements in `x`. The shape and dtype of the
-            output tensor will be the same as that of `x`.
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.exp2(x, out=out)
 
@@ -1020,23 +1098,23 @@ class RootInstructionGroup(InstructionGroup):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute the natural logarithm of each element.
-
-        This instruction computes the natural logarithm of each element in the register tensor `x`. The result is a
-        new register tensor with the same dtype, shape, and layout as `x`.
+        """Compute the element-wise natural logarithm (ln x).
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to compute the natural logarithm of.
+            Input tensor.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the natural logarithm values of the elements in `x`. The shape and dtype of the
-            output tensor will be the same as that of `x`.
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.log(x, out=out)
 
@@ -1046,24 +1124,26 @@ class RootInstructionGroup(InstructionGroup):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Round each element to the nearest integer.
+        """Round each element to the nearest integer (round-to-nearest-even).
 
-        This instruction rounds each element in the register tensor `x` to the nearest integer. The result is a new
-        register tensor with the same dtype, shape, and layout as `x`. We use the "round-to-nearest-even" rounding mode.
-        This means that if the fractional part of a number is exactly 0.5, it will be rounded to the nearest even integer.
+        Uses banker's rounding: if the fractional part is exactly 0.5, rounds to the nearest
+        even integer.
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to round.
+            Input tensor.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the rounded values of the elements in `x`. The shape and dtype of the
-            output tensor will be the same as that of `x`.
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.round(x, out=out)
 
@@ -1073,23 +1153,23 @@ class RootInstructionGroup(InstructionGroup):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute the square of each element.
-
-        This instruction computes the square of each element in the register tensor `x`. The result is a new
-        register tensor with the same dtype, shape, and layout as `x`.
+        """Compute the element-wise square (x^2).
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to compute the square of.
+            Input tensor.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the squared values of the elements in `x`. The shape and dtype of the
-            output tensor will be the same as that of `x`.
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.square(x, out=out)
 
@@ -1099,23 +1179,23 @@ class RootInstructionGroup(InstructionGroup):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute the square root of each element.
-
-        This instruction computes the square root of each element in the register tensor `x`. The result is a new
-        register tensor with the same dtype, shape, and layout as `x`.
+        """Compute the element-wise square root.
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to compute the square root of.
+            Input tensor.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the square root values of the elements in `x`. The shape and dtype of the
-            output tensor will be the same as that of `x`.
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.sqrt(x, out=out)
 
@@ -1125,23 +1205,23 @@ class RootInstructionGroup(InstructionGroup):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute the reciprocal of the square root of each element.
-
-        This instruction computes the reciprocal of the square root of each element in the register tensor `x`. The result is a new
-        register tensor with the same dtype, shape, and layout as `x`.
+        """Compute the element-wise reciprocal square root (1/sqrt(x)).
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to compute the reciprocal of the square root of.
+            Input tensor.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the reciprocal of the square root values of the elements in `x`. The shape and dtype of the
-            output tensor will be the same as that of `x`.
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.rsqrt(x, out=out)
 
@@ -1153,28 +1233,27 @@ class RootInstructionGroup(InstructionGroup):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Clip the values of a register tensor to a specified range.
-
-        This instruction clips the values of the register tensor `x` to the range specified by `min` and `max`. The
-        resulting values will be in the range [min, max]. The result is a new register tensor with the same
-        dtype, shape, and layout as `x`.
+        """Clip element values to the range [min, max].
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to clip.
+            Input tensor.
         min: Expr | int | float
-            The minimum value to clip the elements of `x` to. Any value less than `min` will be set to `min`.
+            Lower bound. Values below this are set to ``min``.
         max: Expr | int | float
-            The maximum value to clip the elements of `x` to. Any value greater than `max` will be set to `max`.
+            Upper bound. Values above this are set to ``max``.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the clipped values of the elements in `x`. The shape and dtype of the
-            output tensor will be the same as that of `x`.
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.clip(x=x, min=min, max=max, out=out)
 
@@ -1223,6 +1302,10 @@ class RootInstructionGroup(InstructionGroup):
         See Also
         --------
         :py:meth:`torch.Tensor.repeat`: A similar function in PyTorch.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.repeat(
             x=x,
@@ -1270,6 +1353,10 @@ class RootInstructionGroup(InstructionGroup):
         ret: RegisterTensor
             The register tensor containing the repeated elements of `x`. The shape of the output tensor will be
             determined by the `repeats` parameter, and its dtype will be the same as that of `x`.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.repeat_interleave(
             x=x,
@@ -1310,32 +1397,27 @@ class RootInstructionGroup(InstructionGroup):
         keepdim: bool = False,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Sum the elements along a specified dimension.
-
-        This instruction computes the sum of the elements in the register tensor `x` along the specified dimension `dim`.
-        If `keepdim` is set to `True`, the output tensor will have the same number of dimensions as the input tensor,
-        with the specified dimension reduced to size 1. If `keepdim` is set to `False`, the output tensor will have
-        the specified dimension removed, resulting in a tensor with one less dimension.
+        """Sum elements along the specified dimension(s).
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to reduce.
+            Input tensor.
         dim: int | Sequence[int], optional
-            The dimension(s) along which to compute the sum. They should be in range of [0, len(x.shape)). If not provided,
-            all dimensions will be reduced.
-        keepdim: bool, optional
-            Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
-            same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
-            the output tensor will have the specified dimension removed, resulting in a tensor with one less dimension.
-            Default is `False`.
+            Dimension(s) to reduce. If not provided, reduces all dimensions.
+        keepdim: bool
+            If ``True``, retains the reduced dimension with size 1. Default is ``False``.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the sum of the elements along the specified dimension.
+            The reduced tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._reduce(x, dim=dim, keepdim=keepdim, op="sum", out=out)
 
@@ -1347,27 +1429,27 @@ class RootInstructionGroup(InstructionGroup):
         keepdim: bool = False,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute the maximum value along a dimension.
+        """Compute the maximum along the specified dimension(s).
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to reduce.
+            Input tensor.
         dim: int | Sequence[int], optional
-            The dimension(s) along which to compute the maximum value. They should be in range of [0, len(x.shape)). If not provided,
-            all dimensions will be reduced.
-        keepdim: bool, optional
-            Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
-            same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
-            the output tensor will have the specified dimension removed, resulting in a tensor with one less dimension.
-            Default is `False`.
+            Dimension(s) to reduce. If not provided, reduces all dimensions.
+        keepdim: bool
+            If ``True``, retains the reduced dimension with size 1. Default is ``False``.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the maximum value along the specified dimension.
+            The reduced tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._reduce(x, dim=dim, keepdim=keepdim, op="max", out=out)
 
@@ -1379,32 +1461,27 @@ class RootInstructionGroup(InstructionGroup):
         keepdim: bool = False,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute the minimum value along a dimension.
-
-        This instruction computes the minimum value of the elements in the register tensor `x` along the specified
-        dimension `dim`. If `keepdim` is set to `True`, the output tensor will have the same number of dimensions as
-        the input tensor, with the specified dimension reduced to size 1. If `keepdim` is set to `False`, the output
-        tensor will have the specified dimension removed, resulting in a tensor with one less dimension.
+        """Compute the minimum along the specified dimension(s).
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to reduce.
+            Input tensor.
         dim: int | Sequence[int], optional
-            The dimension(s) along which to compute the minimum value. They should be in range of [0, len(x.shape)). If not provided,
-            all dimensions will be reduced.
-        keepdim: bool, optional
-            Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
-            same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
-            the output tensor will have the specified dimension removed, resulting in a tensor with one less dimension.
-            Default is `False`.
+            Dimension(s) to reduce. If not provided, reduces all dimensions.
+        keepdim: bool
+            If ``True``, retains the reduced dimension with size 1. Default is ``False``.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the minimum value along the specified dimension.
+            The reduced tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._reduce(x, dim=dim, keepdim=keepdim, op="min", out=out)
 
@@ -1416,33 +1493,27 @@ class RootInstructionGroup(InstructionGroup):
         keepdim: bool = False,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute whether there is a non-zero element along a dimension.
-
-        This instruction computes whether any element in the register tensor `x` along the specified
-        dimension `dim` is non-zero. If `keepdim` is set to `True`, the output tensor will have the same number of dimensions as the
-        input tensor, with the specified dimension reduced to size 1. If `keepdim` is set to `False`, the output tensor will have the
-        specified dimension removed, resulting in a tensor with one less dimension.
+        """Test whether any element is non-zero along the specified dimension(s).
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to reduce. It must be a boolean tensor.
+            Input boolean tensor.
         dim: int | Sequence[int], optional
-            The dimension(s) along which to compute the any value. They should be in range of [0, len(x.shape)). If not provided,
-            all dimensions will be reduced.
-        keepdim: bool, optional
-            Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the
-            same number of dimensions as the input tensor, with the specified dimension reduced to size 1. If `False`,
-            the output tensor will have the specified dimension removed, resulting in a tensor with one less dimension.
-            Default is `False`.
+            Dimension(s) to reduce. If not provided, reduces all dimensions.
+        keepdim: bool
+            If ``True``, retains the reduced dimension with size 1. Default is ``False``.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the boolean result of whether any element in the register tensor `x` along the specified
-            dimension `dim` is non-zero. The data type of the output tensor will be boolean.
+            Boolean tensor with the reduction result.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         if x.dtype != boolean:
             raise InstructionError("The input tensor must be a boolean tensor.")
@@ -1456,89 +1527,75 @@ class RootInstructionGroup(InstructionGroup):
         keepdim: bool = False,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Compute whether all elements are non-zero along a dimension.
-
-        This instruction computes whether all elements in the register tensor `x` along the specified
-        dimension `dim` are non-zero. If `keepdim` is set to `True`, the output tensor will have the same number of dimensions as the
-        input tensor, with the specified dimension reduced to size 1. If `keepdim` is set to `False`, the output tensor will have the
-        specified dimension removed, resulting in a tensor with one less dimension.
+        """Test whether all elements are non-zero along the specified dimension(s).
 
         Parameters
         ----------
         x: RegisterTensor
-            The register tensor to reduce. It must be a boolean tensor.
+            Input boolean tensor.
         dim: int | Sequence[int], optional
-            The dimension along which to compute the all value. This should be a valid dimension index for the tensor. If not provided,
-            all dimensions will be reduced.
-        keepdim: bool, optional
-            Whether to keep the reduced dimension in the output tensor. If `True`, the output tensor will have the same number of dimensions as the
-            input tensor, with the specified dimension reduced to size 1. If `keepdim` is set to `False`, the output tensor will have the
-            specified dimension removed, resulting in a tensor with one less dimension.
-            Default is `False`.
+            Dimension(s) to reduce. If not provided, reduces all dimensions.
+        keepdim: bool
+            If ``True``, retains the reduced dimension with size 1. Default is ``False``.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the boolean result of whether all elements in the register tensor `x` along the specified
-            dimension `dim` are non-zero. The data type of the output tensor will be boolean.
+            Boolean tensor with the reduction result.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         if x.dtype != boolean:
             raise InstructionError("The input tensor must be a boolean tensor.")
         return self._reduce(x, dim=dim, keepdim=keepdim, op="all", out=out)
 
     def add(self, lhs: RegisterTensor, rhs: RegisterTensor, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        """Add two register tensors element-wise.
-
-        This instruction computes the element-wise addition of two register tensors `lhs` and `rhs`. The result is a new
-        register tensor with the same dtype.
-
-        This instruction supports broadcasting, so if the shapes of `lhs` and `rhs` are not the same, they will be
-        broadcasted to a common shape before performing the addition. The broadcasting rules are similar to those in
-        NumPy and PyTorch, where dimensions of size 1 can be expanded to match the other tensor's shape.
+        """Element-wise addition with broadcasting.
 
         Parameters
         ----------
         lhs: RegisterTensor
-            The left-hand side register tensor to add.
+            Left operand.
         rhs: RegisterTensor
-            The right-hand side register tensor to add.
+            Right operand.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the element-wise sum of `lhs` and `rhs`. The shape of the output
-            tensor will be determined by the broadcasting rules applied to `lhs` and `rhs`.
+            ``lhs + rhs``, broadcast to a common shape.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.add(lhs, rhs, out=out)
 
     def maximum(self, lhs: RegisterTensor, rhs: RegisterTensor, out: Optional[RegisterTensor] = None) -> RegisterTensor:
-        """Compute the element-wise maximum.
-
-        This instruction computes the element-wise maximum of two register tensors `lhs` and `rhs`. The result is a new
-        register tensor with the same dtype.
-
-        This instruction supports broadcasting, so if the shapes of `lhs` and `rhs` are not the same, they will be
-        broadcasted to a common shape before performing the maximum operation. The broadcasting rules are similar to
-        those in NumPy and PyTorch, where dimensions of size 1 can be expanded to match the other tensor's shape.
+        """Element-wise maximum with broadcasting.
 
         Parameters
         ----------
         lhs: RegisterTensor
-            The left-hand side register tensor to compare.
+            Left operand.
         rhs: RegisterTensor
-            The right-hand side register tensor to compare.
+            Right operand.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the element-wise maximum of `lhs` and `rhs`. The shape of the output
-            tensor will be determined by the broadcasting rules applied to `lhs` and `rhs`.
+            ``max(lhs, rhs)`` element-wise, broadcast to a common shape.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         return self._builder.maximum(lhs, rhs, out=out)
 
@@ -1550,37 +1607,30 @@ class RootInstructionGroup(InstructionGroup):
         *,
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
-        """Select elements from two tensors based on a condition.
+        """Select elements from ``x`` or ``y`` based on a boolean condition.
 
-        This instruction selects elements from two tensors `x` and `y` based on a boolean condition tensor. For each
-        element in the condition tensor, if the condition is `True`, the corresponding element from `x` is selected,
-        otherwise the corresponding element from `y` is selected. The result is a new register tensor with the same
-        dtype as `x` and `y`.
-
-        This instruction supports broadcasting, so if the shapes of `x` and `y` are not the same, they will be
-        broadcasted to a common shape before performing the selection. The broadcasting rules are similar to those in
-        NumPy and PyTorch, where dimensions of size 1 can be expanded to match the other tensor's shape.
+        Returns ``x`` where ``condition`` is ``True``, ``y`` otherwise. Supports broadcasting.
+        Scalar values for ``x`` or ``y`` are automatically promoted to tensors.
 
         Parameters
         ----------
         condition: RegisterTensor
-            The boolean register tensor that determines which elements to select from `x` and `y`. Its shape must match
-            the shape of `x` and `y` after broadcasting.
+            Boolean tensor determining element selection.
         x: RegisterTensor | Expr | int | float
-            The register tensor or expression to select elements from when the condition is `True`. If `x` is not a
-            register tensor, it will be converted to a zero-dimensional register tensor with the same dtype as `y`.
+            Values selected where ``condition`` is ``True``.
         y: RegisterTensor | Expr | int | float
-            The register tensor or expression to select elements from when the condition is `False`. If `y` is not a
-            register tensor, it will be converted to a zero-dimensional register tensor with the same dtype as `x`.
+            Values selected where ``condition`` is ``False``.
         out: RegisterTensor, optional
-            The register tensor to store the result. If not provided, a new register tensor will be allocated.
+            Output tensor. If not provided, a new tensor is allocated.
 
         Returns
         -------
         ret: RegisterTensor
-            The register tensor containing the selected elements based on the condition. The shape of the output tensor
-            will be determined by the broadcasting rules applied to `x` and `y`. The dtype of the output tensor will be
-            the same as that of `x` and `y`.
+            Tensor with the same dtype as ``x`` and ``y``, broadcast to a common shape.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         if not isinstance(condition, RegisterTensor):
             cond_expr = as_expr(condition)
@@ -1611,6 +1661,10 @@ class RootInstructionGroup(InstructionGroup):
         value: Expr | int
             The value to lock the semaphore with. This can be an integer or an expression that evaluates to an 32-bit
             signed integer.
+
+        Notes
+        -----
+        - **Thread group**: Must be executed by a single thread (use ``self.single_thread()``).
         """
         self._builder.lock_semaphore(semaphore, value)
 
@@ -1628,20 +1682,22 @@ class RootInstructionGroup(InstructionGroup):
         value: Expr | int
             The value to release the semaphore with. This can be an integer or an expression that evaluates to an
             32-bit signed integer.
+
+        Notes
+        -----
+        - **Thread group**: Must be executed by a single thread (use ``self.single_thread()``).
         """
         self._builder.release_semaphore(semaphore, value)
-
-    def cluster_sync(self) -> None:
-        """Perform a cluster-wide synchronization.
-
-        All threads in the entire block cluster will wait at this point until all threads reach this instruction.
-        """
-        self._builder.cluster_sync()
 
     def sync(self) -> None:
         """Perform a synchronization.
 
         The thread block will continue execution only after all previous instructions finished executing.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        - **PTX**: ``bar.sync``
         """
         self._builder.syncthreads()
 
@@ -1667,6 +1723,10 @@ class RootInstructionGroup(InstructionGroup):
             The tensor to annotate.
         layout: RegisterLayout | SharedLayout
             The layout to annotate the tensor with. The type of layout must match the type of tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         self._builder.annotate_layout(tensor, layout)
 
@@ -1694,6 +1754,10 @@ class RootInstructionGroup(InstructionGroup):
             - float16: "%5.2f"
             - float32: "%6.3f"
             - boolean: "%1d"
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         self._builder.print_tensor(msg=msg, tensor=tensor, fmt=fmt)
 
@@ -1718,6 +1782,10 @@ class RootInstructionGroup(InstructionGroup):
         :c:func:`printf`: The C-style printf function for formatted output. For its documentation, refer to the
         `printf reference <https://cplusplus.com/reference/cstdio/printf/>`_.
 
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         self._builder.printf(fstring, *args)
 
@@ -1732,6 +1800,10 @@ class RootInstructionGroup(InstructionGroup):
             The destination tensor.
         src: RegisterTensor
             The source tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         if dst.dtype != src.dtype:
             raise InstructionError("The dtypes of dst and src must match, got {} and {}".format(dst.dtype, src.dtype))
@@ -1759,6 +1831,10 @@ class RootInstructionGroup(InstructionGroup):
             floor(a / b)
         remainder : Expr
             a % b (computed as a - quotient * b)
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
         """
         from tilus.hidet.ir.primitives.cuda.fast_divmod import fastdiv
 

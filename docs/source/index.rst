@@ -37,7 +37,7 @@ Additional features include automatic tuning, caching, and a Pythonic interface 
    :maxdepth: 1
    :caption: Live Demos
 
-   Layout Demo <https://nvidia.github.io/tilus/_static/layout-demo/index.html>
+   Layout Demo <https://nvidia.github.io/tilus/latest/_static/layout-demo/index.html>
 
 .. toctree::
    :maxdepth: 1
@@ -45,5 +45,6 @@ Additional features include automatic tuning, caching, and a Pythonic interface 
 
    python-api/tilus
    python-api/tilus-option
+   python-api/tilus-target
    python-api/tilus-script
    python-api/tilus-ir/__index__

@@ -1,5 +1,5 @@
-Scalar Types
-============
+Data Types
+==========
 
 Tilus supports the following data types. All of them are instances of the :class:`tilus.ir.DataType` class.
 

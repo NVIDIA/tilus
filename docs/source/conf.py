@@ -108,10 +108,23 @@ def _rewrite_autosummary_title(app, docname, source):
             )
             return
 
+    # Attributes members: Attributes.blocks -> Script.attrs.blocks
+    if "Attributes." in docname:
+        member = docname.rsplit(".", 1)[-1]
+        new_title = f"Script.attrs.{member}"
+        source[0] = re.sub(
+            r"^.*?\n=+\n",
+            new_title + "\n" + "=" * len(new_title) + "\n",
+            source[0],
+            count=1,
+        )
+        return
+
     # Script members: tilus.Script.abs -> Script.abs
     prefix = "tilus.Script."
     if prefix in docname:
         short_name = docname.rsplit(".", 1)[-1]
+
         new_title = f"Script.{short_name}"
         source[0] = re.sub(
             r"^.*?\n=+\n",
