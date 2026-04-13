@@ -112,6 +112,7 @@ def _rewrite_autosummary_title(app, docname, source):
     prefix = "tilus.Script."
     if prefix in docname:
         short_name = docname.rsplit(".", 1)[-1]
+
         new_title = f"Script.{short_name}"
         source[0] = re.sub(
             r"^.*?\n=+\n",
