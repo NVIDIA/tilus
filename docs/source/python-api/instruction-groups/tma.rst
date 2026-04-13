@@ -14,7 +14,6 @@ Script.tma
 
 .. autosummary::
    :toctree: generated
-   :template: instruction_group_member.rst
 
    global_to_shared
    shared_to_global

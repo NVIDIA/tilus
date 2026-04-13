@@ -57,6 +57,8 @@ jobs:
           fetch-depth: 0
 
       - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           apt-get update && apt-get install -y git cmake nodejs software-properties-common
           add-apt-repository -y ppa:deadsnakes/ppa
@@ -66,10 +68,21 @@ jobs:
             python3.13 python3.13-venv python3.13-dev
 
       - name: Mark repo as safe for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Run smoke tests across Python versions
+        shell: bash
         run: |
+          # Derive version from git so setuptools-scm doesn't need git access during build
+          export SETUPTOOLS_SCM_PRETEND_VERSION=$(python3.10 -c "
+          from setuptools_scm import get_version
+          print(get_version())
+          " 2>/dev/null || git describe --tags --always 2>/dev/null || echo "0.0.0")
+
+          echo "Using version: $SETUPTOOLS_SCM_PRETEND_VERSION"
+
           for pyver in 3.10 3.11 3.12 3.13; do
             echo "========================================="
             echo "Testing Python $pyver"
@@ -77,12 +90,10 @@ jobs:
             python${pyver} -m venv /tmp/venv-${pyver}
             source /tmp/venv-${pyver}/bin/activate
             pip install --upgrade pip
-            pip install build
-            python -m build .
-            pip install dist/*.whl[dev]
+            pip install ".[dev]"
             pytest tests/kernels/matmul/test_matmul_v2.py -v
             deactivate
-            rm -rf /tmp/venv-${pyver} dist/
+            rm -rf /tmp/venv-${pyver}
           done
 
   test-core:

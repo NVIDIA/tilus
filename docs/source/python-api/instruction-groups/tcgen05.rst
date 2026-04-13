@@ -14,7 +14,6 @@ Script.tcgen05
 
 .. autosummary::
    :toctree: generated
-   :template: instruction_group_member.rst
 
    alloc
    dealloc

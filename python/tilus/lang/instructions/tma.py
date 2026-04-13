@@ -21,6 +21,27 @@ from .root import InstructionGroup
 
 
 class TmaInstructionGroup(InstructionGroup):
+    """Tensor Memory Accelerator (TMA) instructions for asynchronous bulk data transfers.
+
+    TMA is a dedicated hardware engine on Hopper+ GPUs that asynchronously copies multi-dimensional
+    tiles between global memory and shared memory, without occupying SM compute resources.
+
+    TMA transfers are **asynchronous**: the issuing thread returns immediately while the TMA engine
+    performs the copy in the background. Completion is tracked through mbarriers:
+
+    1. Issue ``global_to_shared()`` or ``shared_to_global()`` — the mbarrier's tx-count is
+       automatically increased.
+    2. The TMA engine completes the transfer and decrements the mbarrier's tx-count.
+    3. Consumers call ``mbarrier.wait()`` to block until all transfers for a phase are done.
+
+    For legacy (non-mbarrier) async copies, use ``commit_group()`` and ``wait_group()`` to
+    group and synchronize transfers.
+
+    TMA supports **multicast** (``multicast_mask``) to deliver the same global tile to shared
+    memory of multiple CTAs in a cluster, and **CTA groups** (``cta_group=2``) for coordinated
+    two-CTA operations where the mbarrier can reside on a peer CTA.
+    """
+
     def global_to_shared(
         self,
         *,
@@ -33,42 +54,27 @@ class TmaInstructionGroup(InstructionGroup):
         multicast_mask: Optional[Expr | int] = None,
         cache_policy: Optional[Expr] = None,
     ) -> None:
-        """
-        TMA async copy from global to shared tensor asynchronously.
+        """Asynchronously copy a tile from global memory to shared memory via TMA.
 
-        This instruction issues a TMA tensor async copy from global to shared tensor.
+        Issues an asynchronous TMA transfer from a region of ``src`` (global) to ``dst`` (shared).
+        The ``offsets`` specify where in the global tensor the tile starts, and ``dims`` specifies
+        which global dimensions map to the shared tensor dimensions.
 
-        The `src` parameter specifies the global tensor to copy from, while the `dst` parameter specifies the shared
-        tensor to copy to.
+        Completion is tracked via the ``mbarrier``: this instruction automatically increases the
+        barrier's tx-count by the transfer size in bytes. When the TMA engine finishes, it
+        decrements the tx-count by the same amount. Use ``mbarrier.wait()`` to block until done.
 
-        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
-        will be copied from. The length of this sequence must match the number of dimensions of the global tensor.
+        **Multicast and CTA groups:**
 
-        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
-        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
-
-        The `mbarrier` parameter specifies the memory barrier to be used for synchronizing the copy operation. It should be an uint32
-        expression or a register tensor with one element of uint32 type specifying the address of the barrier in shared space.
-        This instruction will signal an arrival to the barrier and increase the expect-tx by the number of bytes pending in the copy operation.
-        Upon finishing the underlying TMA operation, the TMA engine will signal to reduce the expect-rx by the same number of bytes.
-
-        The `cta_group` and `multicast_mask` parameters specify whether the loaded data will be multicast to other thread blocks in the same cluster,
-        and how the mbarrier signaling is handled.
-        - When `cta_group == 1` and `multicast_mask == None`, both `dst` and `mbarrier` must be in the current thread block.
-        - When `cta_group == 1` and `multicast_mask != None`, the loaded data will be stored in the thread blocks specified by `multicast_mask`.
-          The same offset of the shared memory as `dst` will be used in those thread blocks.  The `mbarrier` must be in the current thread block.
-        - When `cta_group == 2` and `multicast_mask == None`, The `dst` must be in the current thread block, while the `mbarrier` can be in
-          the current or the peer thread block in the cluster.
-        - When `cta_group == 2` and `multicast_mask != None`, the loaded data will be stored in the thread blocks specified by `multicast_mask`.
-          The same offset of the shared memory as `dst` will be used in those thread blocks. The `mbarrier` can be in the current or the peer
-          thread block. When it is in the current thread block, the mbarrier with the same shared memory offset in thread blocks specified in `multicast_mask`
-          will be signaled. When the `mbarrier` is in the peer thread block, the mbarrier with the same shared memory offset in the peer thread blocks for
-          the thread blocks in `multicast_mask` will be signaled.
-
-        If `multicast_mask` is given, it should be a uint16 variable specifying the multicast mask to be used, where the i-th bit specifying the
-        thread block with rank i.
-
-        The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+        - ``cta_group=1, multicast_mask=None``: single-CTA transfer. Both ``dst`` and ``mbarrier``
+          must be in the current CTA.
+        - ``cta_group=1, multicast_mask != None``: the loaded tile is delivered to shared memory of
+          all CTAs specified by the mask. ``mbarrier`` must be in the current CTA.
+        - ``cta_group=2, multicast_mask=None``: ``dst`` must be in the current CTA, but ``mbarrier``
+          can be in the current or peer CTA.
+        - ``cta_group=2, multicast_mask != None``: the tile is multicast, and ``mbarrier`` can be in
+          the current or peer CTA. Barriers at the same shared memory offset in the target CTAs
+          are signaled.
 
         Parameters
         ----------
@@ -77,18 +83,29 @@ class TmaInstructionGroup(InstructionGroup):
         dst: SharedTensor
             The shared tensor to copy to.
         offsets: Sequence[Expr | int]
-            The offsets for each dimension of the global tensor where the tile will be copied from. The
-            length of this sequence must match the number of dimensions of the global tensor.
-        dims: Sequence[int]
-            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
-            number of dimensions of the shared tensor being copied to.
+            Starting offsets for each dimension of the global tensor. Length must match the rank
+            of the global tensor.
+        dims: Sequence[int], optional
+            Which dimensions of the global tensor are being sliced. ``dims[0]`` maps to the first
+            dimension of the shared tensor, ``dims[1]`` to the second, etc. If not provided,
+            defaults to all dimensions in order.
         mbarrier: Expr | RegisterTensor
-            The memory barrier to be used for synchronizing the copy operation. It should be an uint32 expression specifying the address
-            of the barrier in shared space. It can also be a register tensor with a single element of uint32 type containing the address of the barrier.
-        multicast_mask: Optional[Expr]
-            The multicast mask to be used. It should be a uint16 variable specifying the multicast thread blocks. When not given, no multicast is performed.
+            The barrier for tracking completion. A uint32 expression or single-element register
+            tensor containing the barrier's shared memory address.
+        cta_group: int
+            CTA group size for the transfer. 1 (default) for single-CTA, 2 for two-CTA
+            coordinated operations.
+        multicast_mask: Optional[Expr | int]
+            A uint16 bitmask specifying which CTAs in the cluster receive the data. Bit *i*
+            corresponds to the CTA with rank *i*. When ``None``, no multicast is performed.
         cache_policy: Optional[Expr]
-            The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+            Cache eviction policy encoded as a uint64 value.
+
+        Notes
+        -----
+        - **Thread group**: Must be executed by a warp-aligned thread group (i.e., a multiple of 32 threads).
+        - **Hardware**: Requires compute capability 9.0+ (sm_90).
+        - **PTX**: ``cp.async.bulk.tensor.global.shared::cta.tile.mbarrier::complete_tx::bytes``
         """
         self._builder.copy_async_tensor_global_to_shared(
             src=src,
@@ -109,21 +126,20 @@ class TmaInstructionGroup(InstructionGroup):
         dims: Optional[Sequence[int]] = None,
         cache_policy: Optional[Expr] = None,
     ) -> None:
-        """
-        TMA async copy from shared to global tensor asynchronously.
+        """Asynchronously copy a tile from shared memory to global memory via TMA.
 
-        This instruction issues a TMA tensor async copy from shared to global tensor.
+        Issues an asynchronous TMA transfer from ``src`` (shared) to a region of ``dst`` (global).
+        The ``offsets`` specify where in the global tensor the tile is written to, and ``dims``
+        specifies which global dimensions map to the shared tensor dimensions.
 
-        The `src` parameter specifies the shared tensor to copy from, while the `dst` parameter specifies the global
-        tensor to copy to.
+        Unlike ``global_to_shared()``, this instruction does not use an mbarrier. Use
+        ``commit_group()`` and ``wait_group()`` to synchronize completion.
 
-        The `offsets` parameter specifies the starting offsets for each dimension of the global tensor where the tile
-        will be copied to. The length of this sequence must match the number of dimensions of the global tensor.
+        .. important::
 
-        The `dims` parameter specifies which dimensions of the global tensor are being sliced. The dimension dim[0] of
-        the global tensor corresponds to the first dimension of the shared tensor, dim[1] to the second, and so on.
-
-        The `cache_policy` parameter specifies the cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+            If the shared memory data was written via the **generic proxy** (e.g., ``store_shared()``),
+            a ``fence.proxy_async()`` or ``fence.proxy_async_release()`` must be called before this
+            instruction to ensure the writes are visible to the TMA engine (async proxy).
 
         Parameters
         ----------
@@ -132,43 +148,51 @@ class TmaInstructionGroup(InstructionGroup):
         dst: GlobalTensor
             The global tensor to copy to.
         offsets: Sequence[Expr | int]
-            The offsets for each dimension of the global tensor where the tile will be copied to. The
-            length of this sequence must match the number of dimensions of the global tensor.
-        dims: Sequence[int]
-            The dimensions of the global tensor that are being sliced. The length of this sequence must match the
-            number of dimensions of the shared tensor being copied from.
+            Starting offsets for each dimension of the global tensor. Length must match the rank
+            of the global tensor.
+        dims: Sequence[int], optional
+            Which dimensions of the global tensor are being sliced. If not provided, defaults to
+            all dimensions in order.
         cache_policy: Optional[Expr]
-            The cache policy to be used. It should be an uint64 variable encoded with the cache policy.
+            Cache eviction policy encoded as a uint64 value.
+
+        Notes
+        -----
+        - **Thread group**: Must be executed by a warp-aligned thread group (i.e., a multiple of 32 threads).
+        - **Hardware**: Requires compute capability 9.0+ (sm_90).
+        - **PTX**: ``cp.async.bulk.tensor.shared::cta.global.tile``
         """
         self._builder.copy_async_tensor_shared_to_global(
             src=src, dst=dst, offsets=offsets, dims=dims, cache_policy=cache_policy
         )
 
     def commit_group(self):
-        """
-        Commit the previously issued async tensor copy operations.
+        """Commit pending TMA async copy operations into a group.
 
-        This instruction commits the previously issued async tensor copy operations.
+        Groups all prior uncommitted ``shared_to_global()`` operations so they can be
+        collectively waited on with ``wait_group()``.
 
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        - **Hardware**: Requires compute capability 9.0+ (sm_90).
+        - **PTX**: ``cp.async.bulk.commit_group``
         """
         self._builder.copy_async_tensor_commit_group()
 
     def wait_group(self, n: int, read: bool = False) -> None:
-        """
-        Wait for the previously issued async tensor copy operations to complete.
+        """Wait for TMA async copy commit groups to complete.
 
-        This instruction waits for the previously issued async tensor copy operations to complete.
-        The `n` parameter specifies the number of groups to allow to be on-the-fly.
+        Blocks until at most ``n`` commit groups remain pending. Use ``n=0`` to wait for all
+        committed groups.
 
-        When `read` is False (default), waits for all bulk async operations to complete,
-        including writes being made visible to the executing thread.
+        When ``read=False`` (default), waits for all operations to complete, including writes
+        being visible to the executing thread.
 
-        When `read` is True, only waits for reads from source locations to complete. Use
-        this when the source memory (e.g., shared memory) needs to be reused but there is
-        no subsequent instruction that reads the destination (e.g., global memory) written
-        by the TMA. If subsequent instructions need to load the global memory that the TMA
-        writes to, do NOT use `read=True` — use the default `read=False` to ensure writes
-        are visible.
+        When ``read=True``, only waits for reads from source locations to complete. This is
+        useful when the source shared memory needs to be reused, but there is no subsequent
+        instruction that reads the destination global memory. If subsequent instructions need
+        to read the global memory written by TMA, use the default ``read=False``.
 
         Parameters
         ----------
@@ -176,5 +200,11 @@ class TmaInstructionGroup(InstructionGroup):
             The number of groups to allow to be on-the-fly. It should be an integer larger or equal to 0.
         read: bool
             If True, only wait for reads to complete (not writes). Default is False.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        - **Hardware**: Requires compute capability 9.0+ (sm_90).
+        - **PTX**: ``cp.async.bulk.wait_group`` or ``cp.async.bulk.wait_group.read``
         """
         self._builder.copy_async_tensor_wait_group(n, read=read)

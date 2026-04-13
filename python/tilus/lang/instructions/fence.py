@@ -18,47 +18,43 @@ from .root import InstructionGroup
 
 
 class FenceInstructionGroup(InstructionGroup):
-    """Fence instructions for memory ordering.
+    """Fence instructions for memory ordering between memory proxies.
 
-    Naming convention follows the PTX fence instruction taxonomy
-    (PTX ISA 9.7.13.4: membar / fence). Each tilus method corresponds
-    to one PTX instruction template with parameters for meaningful variation.
+    CUDA GPUs have multiple memory proxies (generic, async, alias, tensormap) that can access
+    the same memory through different paths. When one proxy writes data that another proxy needs
+    to read, a **proxy fence** is required to ensure the writes are visible.
 
-    Implemented
-    -----------
-    proxy_async(space)
-        Bidirectional async proxy fence: ``fence.proxy.async.{space}``
-    proxy_async_release()
-        Unidirectional generic-to-async release:
-        ``fence.proxy.async::generic.release.sync_restrict::shared::cta.cluster``
+    The most common scenario is coordinating between:
 
-    TODO
-    ----
-    thread(sem, scope, sync_restrict=None)
-        Thread fence: ``fence.{sem}.{scope}``
-        When sync_restrict is set:
-        - ``fence.acquire.sync_restrict::shared::cluster.cluster``
-        - ``fence.release.sync_restrict::shared::cta.cluster``
-    proxy_alias()
-        Bidirectional alias proxy fence: ``fence.proxy.alias``
-    proxy_async_acquire()
-        Unidirectional generic-to-async acquire:
-        ``fence.proxy.async::generic.acquire.sync_restrict::shared::cluster.cluster``
-    proxy_tensormap_release(scope)
-        Unidirectional tensormap release:
-        ``fence.proxy.tensormap::generic.release.{scope}``
-    proxy_tensormap_acquire(addr, scope)
-        Unidirectional tensormap acquire:
-        ``fence.proxy.tensormap::generic.acquire.{scope} [addr], 128``
+    - **Generic proxy** writes: ``store_shared()``, register-to-shared stores
+    - **Async proxy** reads/writes: TMA operations (``tma.global_to_shared()``, ``tma.shared_to_global()``)
+
+    For example, after writing to shared memory with ``store_shared()`` and before issuing
+    ``tma.shared_to_global()``, a ``proxy_async()`` or ``proxy_async_release()`` fence is needed
+    to ensure the TMA engine sees the updated data.
+
+    ``proxy_async_release()`` is a lighter-weight alternative to ``proxy_async()`` when only
+    generic-to-async ordering is needed (not bidirectional).
     """
 
     def proxy_async(self, space: str = "shared") -> None:
         """Bidirectional async proxy fence.
 
-        PTX: ``fence.proxy.async.{space}``
+        Establishes ordering between the async proxy and the generic proxy for memory
+        operations in the specified state space. Required when both proxies access the
+        same memory (e.g., generic writes followed by TMA reads, or TMA writes followed
+        by generic reads).
 
-        Establishes ordering between the async proxy and the generic proxy
-        for memory operations in the specified state space.
+        Parameters
+        ----------
+        space: str
+            The state space for the fence. Candidates: ``'shared'``, ``'global'``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        - **Hardware**: Requires compute capability 8.0+ (sm_80).
+        - **PTX**: ``fence.proxy.async.shared::cta`` or ``fence.proxy.async.global``
         """
         if space not in ("shared", "global"):
             raise ValueError(
@@ -69,12 +65,14 @@ class FenceInstructionGroup(InstructionGroup):
     def proxy_async_release(self) -> None:
         """Unidirectional generic-to-async release proxy fence for shared memory.
 
-        PTX: ``fence.proxy.async::generic.release.sync_restrict::shared::cta.cluster``
+        A lighter-weight alternative to ``proxy_async()``. Only ensures that prior generic proxy
+        writes to shared memory are visible to subsequent async proxy reads (e.g.,
+        ``store_shared()`` followed by ``tma.shared_to_global()``).
 
-        A lighter-weight alternative to proxy_async(). Only ensures that prior
-        generic proxy writes to shared::cta memory are visible to subsequent
-        async proxy reads (e.g., stmatrix followed by tma.shared_to_global).
-
-        Requires sm_90 or higher.
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        - **Hardware**: Requires compute capability 9.0+ (sm_90).
+        - **PTX**: ``fence.proxy.async::generic.release.sync_restrict::shared::cta.cluster``
         """
         self._builder.fence_proxy_async_release()

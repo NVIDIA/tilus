@@ -3,7 +3,7 @@ Type System
 
 This section provides an overview of the type system of Tilus Script. There are three categories of types in Tilus Script:
 
-1. **Scalar Types**: represent basic data types such as integers, floats, and booleans.
+1. **Basic Data Types**: represent basic data types such as integers, floats, and booleans.
 2. **Pointer Types**: represent addresses of data in memory.
 3. **Tensor Types**: represent multi-dimensional arrays of data in global, shared, or register memory.
 
@@ -16,7 +16,7 @@ For a complete list of types for each category, refer to the following sections:
    :maxdepth: 1
    :titlesonly:
 
-   scalar-types
+   data-types
    pointer-types
    register-tensor
    shared-tensor

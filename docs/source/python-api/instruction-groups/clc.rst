@@ -14,7 +14,6 @@ Script.clc
 
 .. autosummary::
    :toctree: generated
-   :template: instruction_group_member.rst
 
    try_cancel
    query_response

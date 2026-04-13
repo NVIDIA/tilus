@@ -14,7 +14,6 @@ Script.wgmma
 
 .. autosummary::
    :toctree: generated
-   :template: instruction_group_member.rst
 
    fence
    commit_group

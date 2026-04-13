@@ -291,7 +291,7 @@ class BlackwellMatmulV6(tilus.Script):
             self.sync()
 
         # all allocated tensor memory must be deallocated
-        self.cluster_sync()
+        self.cluster.sync()
         self.tcgen05.dealloc(mma_worker.t_acc)
 
 

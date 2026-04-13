@@ -32,12 +32,11 @@ Attributes and Variables
 .. autosummary::
    :toctree: generated
 
-   attrs
    blockIdx
+   gridDim
    current_num_threads
    current_thread_begin
    current_thread_end
-   gridDim
 
 Language Constructs
 -------------------
@@ -68,7 +67,6 @@ Instructions
    assign
    cast
    clip
-   cluster_sync
    copy_async
    copy_async_commit_group
    copy_async_wait_all
