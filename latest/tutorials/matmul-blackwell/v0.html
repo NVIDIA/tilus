@@ -49,7 +49,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-blackwell/v0';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="1. Overview" href="../../programming-guides/overview.html" />
+    <link rel="next" title="1. TMA Loads" href="v1.html" />
     <link rel="prev" title="Matmul (Blackwell)" href="__init__.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -171,6 +171,7 @@
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="__init__.html">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">0. A Minimal Blackwell Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads</a></li>
 </ul>
 </details></li>
 </ul>
@@ -1100,10 +1101,10 @@ dispatch directly to the GPU.</p>
 mechanism (<code class="docutils literal notranslate"><span class="pre">cp.async</span></code> in PTX), where every thread issues its own small copy
 instruction. This has high instruction overhead and does not leverage dedicated
 hardware for bulk data movement.</p>
-<p>In the next version, we replace <code class="docutils literal notranslate"><span class="pre">copy_async</span></code> with <strong>TMA</strong> (Tensor Memory
-Access) loads. TMA offloads address generation and data movement to a dedicated
-hardware unit — a single TMA instruction copies an entire tile with minimal
-instruction overhead, and is issued by just one warp.</p>
+<p>In <a class="reference internal" href="v1.html"><span class="doc">the next version</span></a>, we replace <code class="docutils literal notranslate"><span class="pre">copy_async</span></code> with <strong>TMA</strong> (Tensor
+Memory Access) loads. TMA offloads address generation and data movement to a
+dedicated hardware unit — a single TMA instruction copies an entire tile with
+minimal instruction overhead, and is issued by just one warp.</p>
 </section>
 <section id="full-source">
 <h2>Full Source<a class="headerlink" href="#full-source" title="Link to this heading"><span>¶</span></a></h2>
@@ -1133,11 +1134,11 @@ instruction overhead, and is issued by just one warp.</p>
       </div>
     </a>
     <a class="right-next"
-       href="../../programming-guides/overview.html"
+       href="v1.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">1. </span>Overview</p>
+        <p class="prev-next-title">1. TMA Loads</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
