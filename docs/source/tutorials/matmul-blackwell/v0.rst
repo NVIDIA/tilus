@@ -351,4 +351,4 @@ Full Source
 -----------
 
 The complete example file is located at
-:download:`examples/blackwell_matmul/matmul_v0.py <../../../../examples/blackwell_matmul/matmul_v0.py>`.
+`examples/blackwell_matmul/matmul_v0.py <https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v0.py>`__.
