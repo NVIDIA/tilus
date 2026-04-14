@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 210" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- Global Memory -->
+  <rect x="20" y="60" width="120" height="70" rx="6" fill="#e8f0fe" stroke="#4a86c8" stroke-width="1.5"/>
+  <text x="80" y="92" text-anchor="middle" font-weight="600" fill="#2a5fa5">Global</text>
+  <text x="80" y="108" text-anchor="middle" font-size="11" fill="#2a5fa5">Memory</text>
+
+  <!-- Arrow: Global -> Shared -->
+  <line x1="145" y1="95" x2="205" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="175" y="82" text-anchor="middle" font-size="10" fill="#666">copy_async</text>
+
+  <!-- Shared Memory -->
+  <rect x="210" y="60" width="120" height="70" rx="6" fill="#d4edda" stroke="#28a745" stroke-width="1.5"/>
+  <text x="270" y="92" text-anchor="middle" font-weight="600" fill="#155724">Shared</text>
+  <text x="270" y="108" text-anchor="middle" font-size="11" fill="#155724">Memory</text>
+
+  <!-- Arrow: Shared -> Tensor Memory -->
+  <line x1="335" y1="95" x2="405" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="370" y="82" text-anchor="middle" font-size="10" fill="#666">tcgen05.mma</text>
+
+  <!-- Tensor Memory -->
+  <rect x="410" y="60" width="120" height="70" rx="6" fill="#fff3cd" stroke="#ffc107" stroke-width="1.5"/>
+  <text x="470" y="92" text-anchor="middle" font-weight="600" fill="#856404">Tensor</text>
+  <text x="470" y="108" text-anchor="middle" font-size="11" fill="#856404">Memory</text>
+
+  <!-- Arrow: Tensor Memory -> Register -->
+  <line x1="535" y1="95" x2="605" y2="95" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="570" y="82" text-anchor="middle" font-size="10" fill="#666">tcgen05.load</text>
+
+  <!-- Register -->
+  <rect x="610" y="60" width="120" height="70" rx="6" fill="#f8d7da" stroke="#dc3545" stroke-width="1.5"/>
+  <text x="670" y="92" text-anchor="middle" font-weight="600" fill="#721c24">Register</text>
+  <text x="670" y="108" text-anchor="middle" font-size="11" fill="#721c24">File</text>
+
+  <!-- Arrow: Register -> Global (store) -->
+  <path d="M670,135 L670,175 L80,175 L80,135" fill="none" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="375" y="168" text-anchor="middle" font-size="10" fill="#666">store_global</text>
+</svg>

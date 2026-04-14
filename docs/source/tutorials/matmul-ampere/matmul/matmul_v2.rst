@@ -1,5 +1,5 @@
-V2: Auto-tuning
-===============
+2. Auto-tuning
+==============
 
 In previous versions of the matmul kernel, we manually set the hyperparameters
 such as ``block_m``, ``block_n``, and ``block_k``. However, these

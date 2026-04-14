@@ -1,7 +1,7 @@
 .. _tutorial_matmul_v0:
 
-V0: Naive Matmul
-================
+0. Naive Matmul
+===============
 
 This tutorial demonstrates a simple implementation of matrix multiplication
 using Tilus. We use this example to illustrate the basic concepts of writing a

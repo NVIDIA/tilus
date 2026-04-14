@@ -20,4 +20,5 @@ For a complete list of types for each category, refer to the following sections:
    pointer-types
    register-tensor
    shared-tensor
+   tmemory-tensor
    global-tensor

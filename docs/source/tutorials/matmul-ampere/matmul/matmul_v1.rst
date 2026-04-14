@@ -1,5 +1,5 @@
-V1: Use Shared Memory
-=====================
+1. Use Shared Memory
+====================
 
 In the :doc:`previous tutorial <matmul_v0>`, every thread block loaded its tiles of
 **A** and **B** directly from global memory into registers. Global memory has high
