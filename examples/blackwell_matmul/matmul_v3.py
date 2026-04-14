@@ -45,84 +45,72 @@ class BlackwellMatmulV3(tilus.Script):
             dtype=float16, shape=[self.stages, self.block_n, self.block_k]
         )
 
-        # allocate a tensor in tensor memory (tmem)
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
-        # allocate barriers and the initial phases
-        consumer_barriers = self.mbarrier.alloc(
-            counts=[1 for _ in range(self.stages)]
-        )  # whether the data is ready for consumption
-        producer_barriers = self.mbarrier.alloc(
-            counts=[1 for _ in range(self.stages)]
-        )  # whether the data is ready to be filled
+        # full_barriers: signaled when data is ready (TMA done)
+        full_barriers = self.mbarrier.alloc(counts=[1] * self.stages)
+        # empty_barriers: signaled when slot is free (MMA done)
+        empty_barriers = self.mbarrier.alloc(counts=[1] * self.stages)
 
+        # TMA warp (producer): loads tiles from global to shared memory
         with self.thread_group(thread_begin=0, num_threads=32):
-            # tma warp
             stage: int32 = 0
-            producer_phases = self.register_tensor(
-                dtype=uint32, shape=[self.stages], init=1
-            )  # all stages are ready to be filled at the beginning
+            # init=1: all stages start empty (ready to be filled)
+            empty_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=1)
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
-                self.mbarrier.wait(
-                    producer_barriers[stage], phase=producer_phases[stage]
-                )  # wait until the stage is ready to be filled
-                producer_phases[stage] ^= 1
+                # wait for the MMA warp to free this stage
+                self.mbarrier.wait(empty_barriers[stage], phase=empty_phases[stage])
+                empty_phases[stage] ^= 1
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
-                        consumer_barriers[stage],
+                        full_barriers[stage],
                         transaction_bytes=s_a[stage].nbytes + s_b[stage].nbytes,
                     )
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a[stage],
                     offsets=[offset_m, offset_k],
-                    mbarrier=consumer_barriers[stage],
+                    mbarrier=full_barriers[stage],
                 )
                 self.tma.global_to_shared(
                     src=g_b,
                     dst=s_b[stage],
                     offsets=[offset_n, offset_k],
-                    mbarrier=consumer_barriers[stage],
+                    mbarrier=full_barriers[stage],
                 )
                 stage = (stage + 1) % self.stages
 
-            # remaining mma stages to wait for completion
-            for _ in self.range(min(self.stages, cdiv(k_size, self.block_k))):
-                self.mbarrier.wait(
-                    producer_barriers[stage], phase=producer_phases[stage]
-                )  # wait until the stage is ready to be filled
-                producer_phases[stage] ^= 1
-                stage = (stage + 1) % self.stages
-
+        # MMA warp (consumer): computes on tiles loaded by the TMA warp
         with self.thread_group(thread_begin=32, num_threads=32):
-            # mma warp
-            consumer_phases = self.register_tensor(
-                dtype=uint32, shape=[self.stages], init=0
-            )  # all stages are not ready for consumption at the beginning
+            # init=0: no stages are full yet (waiting for TMA)
+            full_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=0)
             stage: int32 = 0
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
-                self.mbarrier.wait(
-                    consumer_barriers[stage], phase=consumer_phases[stage]
-                )  # wait until the stage is ready for consumption
-                consumer_phases[stage] ^= 1
+                # wait for the TMA warp to fill this stage
+                self.mbarrier.wait(full_barriers[stage], phase=full_phases[stage])
+                full_phases[stage] ^= 1
                 self.tcgen05.mma(
                     s_a[stage],
                     s_b[stage].transpose(),
                     t_acc,
                     enable_input_d=offset_k != 0,
                 )
-                self.tcgen05.commit(mbarrier=producer_barriers[stage])
+                # commit signals empty_barriers: frees this stage for TMA reuse
+                self.tcgen05.commit(mbarrier=empty_barriers[stage])
                 stage = (stage + 1) % self.stages
+
+            # drain: wait for all in-flight MMA to finish
+            flush_barrier = self.mbarrier.alloc(1)
+            self.tcgen05.commit(mbarrier=flush_barrier)
+            self.mbarrier.wait(flush_barrier, phase=0)
 
         self.sync()
 
-        # load the result from tensor memory to register
         r_acc = self.tcgen05.load(t_acc)
 
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
         self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
 
-        # all allocated tensor memory must be deallocated
         self.sync()
         self.tcgen05.dealloc(t_acc)
 
