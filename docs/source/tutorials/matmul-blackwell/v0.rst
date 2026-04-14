@@ -341,10 +341,10 @@ mechanism (``cp.async`` in PTX), where every thread issues its own small copy
 instruction. This has high instruction overhead and does not leverage dedicated
 hardware for bulk data movement.
 
-In the next version, we replace ``copy_async`` with **TMA** (Tensor Memory
-Access) loads. TMA offloads address generation and data movement to a dedicated
-hardware unit --- a single TMA instruction copies an entire tile with minimal
-instruction overhead, and is issued by just one warp.
+In :doc:`the next version <v1>`, we replace ``copy_async`` with **TMA** (Tensor
+Memory Access) loads. TMA offloads address generation and data movement to a
+dedicated hardware unit --- a single TMA instruction copies an entire tile with
+minimal instruction overhead, and is issued by just one warp.
 
 
 Full Source
