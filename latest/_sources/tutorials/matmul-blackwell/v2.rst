@@ -206,8 +206,8 @@ limitation: each iteration runs one MMA and must wait for it to complete
 (via ``tcgen05.commit`` + ``mbarrier.wait``) before issuing the next. The MMA
 pipeline depth is effectively 1 --- no in-flight MMAs overlap.
 
-In the next version, we separate the load and compute into **different thread
-groups**: a dedicated TMA warp and a dedicated MMA warp. With separate warps, the
+In :doc:`the next version <v3>`, we separate the load and compute into
+**different thread groups**: a dedicated TMA warp and a dedicated MMA warp. With separate warps, the
 MMA warp can issue its next MMA immediately after the previous one without
 waiting for the TMA warp, and vice versa. This enables true parallelism between
 TMA and MMA, with the two warps progressing independently and synchronizing only

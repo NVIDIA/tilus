@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>2. Multi-Stage Software Pipelining &#8212; tilus  documentation</title>
+    <title>3. Warp Specialization &#8212; tilus  documentation</title>
   
   
   
@@ -45,11 +45,11 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-blackwell/v2';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-blackwell/v3';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="3. Warp Specialization" href="v3.html" />
-    <link rel="prev" title="1. TMA Loads" href="v1.html" />
+    <link rel="next" title="1. Overview" href="../../programming-guides/overview.html" />
+    <link rel="prev" title="2. Multi-Stage Software Pipelining" href="v2.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -171,8 +171,8 @@
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="__init__.html">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">2. Multi-Stage Software Pipelining</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">3. Warp Specialization</a></li>
 </ul>
 </details></li>
 </ul>
@@ -509,7 +509,7 @@
       
       
       
-      <li><a href="../../_sources/tutorials/matmul-blackwell/v2.rst" target="_blank"
+      <li><a href="../../_sources/tutorials/matmul-blackwell/v3.rst" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -593,7 +593,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>2. Multi-Stage Software Pipelining</h1>
+    <h1>3. Warp Specialization</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -604,14 +604,13 @@ document.write(`
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-full-kernel">The Full Kernel</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v1">What Changed from V1</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#software-pipelining">Software Pipelining</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multi-stage-shared-memory">Multi-Stage Shared Memory</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#per-stage-barriers-and-phases">Per-Stage Barriers and Phases</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#loop-unrolling">Loop Unrolling</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v2">What Changed from V2</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">Warp Specialization</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#producer-consumer-barriers">Producer-Consumer Barriers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#flush-barrier">Flush Barrier</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prefill">Prefill</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#main-loop">Main Loop</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-warp-producer">TMA Warp (Producer)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mma-warp-consumer">MMA Warp (Consumer)</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
@@ -627,24 +626,28 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="multi-stage-software-pipelining">
-<span id="tutorial-blackwell-matmul-v2"></span><h1>2. Multi-Stage Software Pipelining<a class="headerlink" href="#multi-stage-software-pipelining" title="Link to this heading"><span>¶</span></a></h1>
-<p>In <a class="reference internal" href="v1.html"><span class="doc">V1</span></a>, each loop iteration first waits for TMA to finish loading data,
-then issues the MMA. Load and compute are fully serialized — the TMA engine sits
-idle during MMA, and the tensor cores sit idle during TMA.</p>
-<p>This version introduces <strong>multi-stage software pipelining</strong>: shared memory is
-divided into multiple stages (a ring buffer), and the kernel prefills several
-stages before entering the main loop. In each iteration of the main loop, the TMA
-loads data for a future iteration while the MMA processes data from a previously
-loaded stage. This overlaps load and compute, significantly improving utilization.</p>
+  <section id="warp-specialization">
+<span id="tutorial-blackwell-matmul-v3"></span><h1>3. Warp Specialization<a class="headerlink" href="#warp-specialization" title="Link to this heading"><span>¶</span></a></h1>
+<p>In <a class="reference internal" href="v2.html"><span class="doc">V2</span></a>, each iteration issues one MMA and waits for it to complete
+(via <code class="docutils literal notranslate"><span class="pre">tcgen05.commit</span></code> + <code class="docutils literal notranslate"><span class="pre">mbarrier.wait</span></code>) before issuing the next. The tensor
+core MMA pipeline sees only one operation at a time — it goes idle between
+consecutive MMAs while the warp handles TMA and synchronization.</p>
+<p>To keep the MMA pipeline busy, we want <strong>multiple MMAs in flight</strong>: issue the
+next MMA as soon as its input data is ready, without waiting for the previous
+MMA to finish writing its results. This is achieved through <strong>warp
+specialization</strong> — assigning TMA and MMA to <strong>separate warps</strong>, each running
+its own loop. The MMA warp can issue MMA after MMA without interruption, while
+the TMA warp independently keeps shared memory filled. The two warps synchronize
+only through mbarriers, allowing multiple in-flight MMA and TMA operations
+simultaneously.</p>
 <section id="the-full-kernel">
 <h2>The Full Kernel<a class="headerlink" href="#the-full-kernel" title="Link to this heading"><span>¶</span></a></h2>
-<div class="literal-block-wrapper docutils container" id="id1">
-<div class="code-block-caption"><span class="caption-text">BlackwellMatmulV2 — full kernel</span><a class="headerlink" href="#id1" title="Link to this code"><span>¶</span></a></div>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">BlackwellMatmulV3 — full kernel</span><a class="headerlink" href="#id2" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_m, block_n&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">]])</span>
 <span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">])</span>
 <span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">BlackwellMatmulV2</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BlackwellMatmulV3</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">block_m</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">block_n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">block_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">stages</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">=</span> <span class="n">block_m</span>
@@ -669,7 +672,6 @@ loaded stage. This overlaps load and compute, significantly improving utilizatio
 
         <span class="n">g_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
         <span class="n">g_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">n_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
-        <span class="c1"># multi-stage shared memory: leading dimension indexes the pipeline stage</span>
         <span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span>
             <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">]</span>
         <span class="p">)</span>
@@ -679,82 +681,64 @@ loaded stage. This overlaps load and compute, significantly improving utilizatio
 
         <span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">])</span>
 
-        <span class="c1"># one TMA barrier per stage; each tracks its own phase independently</span>
-        <span class="n">tma_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">)])</span>
-        <span class="n">mma_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="c1"># per-stage phase tracking via register tensor</span>
-        <span class="n">tma_phases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">uint32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">mma_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># full_barriers: signaled when data is ready (TMA done)</span>
+        <span class="n">full_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">)</span>
+        <span class="c1"># empty_barriers: signaled when slot is free (MMA done)</span>
+        <span class="n">empty_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">)</span>
 
-        <span class="c1"># prefill: issue TMA loads for the first (stages - 1) tiles without waiting</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
-            <span class="n">offset_k</span> <span class="o">=</span> <span class="n">i</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span>
-            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
+        <span class="c1"># TMA warp (producer): loads tiles from global to shared memory</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+            <span class="n">stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="c1"># init=1: all stages start empty (ready to be filled)</span>
+            <span class="n">empty_phases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">uint32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
+                <span class="c1"># wait for the MMA warp to free this stage</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">empty_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">empty_phases</span><span class="p">[</span><span class="n">stage</span><span class="p">])</span>
+                <span class="n">empty_phases</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span> <span class="o">^=</span> <span class="mi">1</span>
                 <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
-                        <span class="n">tma_barriers</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
+                        <span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                        <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
                     <span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
                     <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                    <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
                     <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_barriers</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
                 <span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
                     <span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                    <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
                     <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_barriers</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
                 <span class="p">)</span>
+                <span class="n">stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-
-        <span class="n">current_stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">preload_stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span> <span class="o">-</span> <span class="mi">1</span>
-
-        <span class="c1"># unroll by stages so the compiler can resolve stage indices to constants</span>
-        <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
-            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
-                <span class="c1"># preload: issue TMA for a future tile into the next free stage</span>
-                <span class="n">preload_offset_k</span> <span class="o">=</span> <span class="n">offset_k</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span>
-                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
-                        <span class="n">tma_barriers</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-                        <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
-                        <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
-                    <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-                    <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">preload_offset_k</span><span class="p">],</span>
-                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_barriers</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-                <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-                    <span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">preload_offset_k</span><span class="p">],</span>
-                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_barriers</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-                <span class="p">)</span>
-                <span class="c1"># wait for the current stage&#39;s TMA data to arrive</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
-                    <span class="n">tma_barriers</span><span class="p">[</span><span class="n">current_stage</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
-                <span class="p">)</span>
-                <span class="c1"># compute on the current stage</span>
+        <span class="c1"># MMA warp (consumer): computes on tiles loaded by the TMA warp</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+            <span class="c1"># init=0: no stages are full yet (waiting for TMA)</span>
+            <span class="n">full_phases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">uint32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
+                <span class="c1"># wait for the TMA warp to fill this stage</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">full_phases</span><span class="p">[</span><span class="n">stage</span><span class="p">])</span>
+                <span class="n">full_phases</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span> <span class="o">^=</span> <span class="mi">1</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
-                    <span class="n">s_a</span><span class="p">[</span><span class="n">current_stage</span><span class="p">],</span>
-                    <span class="n">s_b</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+                    <span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                    <span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
                     <span class="n">t_acc</span><span class="p">,</span>
                     <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
                 <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">mma_barrier</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">mma_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">mma_phase</span><span class="p">)</span>
+                <span class="c1"># commit signals empty_barriers: frees this stage for TMA reuse</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">empty_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">])</span>
+                <span class="n">stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
 
-            <span class="c1"># advance stage indices (ring buffer)</span>
-            <span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span> <span class="o">^=</span> <span class="mi">1</span>
-            <span class="n">mma_phase</span> <span class="o">^=</span> <span class="mi">1</span>
-            <span class="n">preload_stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">preload_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
-            <span class="n">current_stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">current_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+            <span class="c1"># drain: wait for all in-flight MMA to finish</span>
+            <span class="n">flush_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">flush_barrier</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">flush_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
         <span class="n">r_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">t_acc</span><span class="p">)</span>
 
@@ -767,8 +751,8 @@ loaded stage. This overlaps load and compute, significantly improving utilizatio
 </div>
 </div>
 </section>
-<section id="what-changed-from-v1">
-<h2>What Changed from V1<a class="headerlink" href="#what-changed-from-v1" title="Link to this heading"><span>¶</span></a></h2>
+<section id="what-changed-from-v2">
+<h2>What Changed from V2<a class="headerlink" href="#what-changed-from-v2" title="Link to this heading"><span>¶</span></a></h2>
 <div class="pst-scrollable-table-container"><table class="table">
 <colgroup>
 <col style="width: 15.8%" />
@@ -777,241 +761,208 @@ loaded stage. This overlaps load and compute, significantly improving utilizatio
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"></th>
-<th class="head"><p>V1</p></th>
 <th class="head"><p>V2</p></th>
+<th class="head"><p>V3</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><strong>Shared memory</strong></p></td>
-<td><p>Single stage: <code class="docutils literal notranslate"><span class="pre">[block_m,</span> <span class="pre">block_k]</span></code></p></td>
-<td><p>Multi-stage ring buffer: <code class="docutils literal notranslate"><span class="pre">[stages,</span> <span class="pre">block_m,</span> <span class="pre">block_k]</span></code></p></td>
+<tr class="row-even"><td><p><strong>Warp structure</strong></p></td>
+<td><p>Single warp does both TMA and MMA</p></td>
+<td><p>TMA warp + MMA warp (warp specialization)</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>TMA barriers</strong></p></td>
-<td><p>1 barrier</p></td>
-<td><p>1 barrier <strong>per stage</strong></p></td>
+<tr class="row-odd"><td><p><strong>Barriers</strong></p></td>
+<td><p>TMA barriers + 1 MMA barrier</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">full_barriers</span></code> + <code class="docutils literal notranslate"><span class="pre">empty_barriers</span></code> (producer-consumer)</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>Phase tracking</strong></p></td>
-<td><p>Single <code class="docutils literal notranslate"><span class="pre">phase</span></code> variable</p></td>
-<td><p>Per-stage <code class="docutils literal notranslate"><span class="pre">tma_phases</span></code> register tensor</p></td>
+<tr class="row-even"><td><p><strong>Parallelism</strong></p></td>
+<td><p>TMA and MMA overlap across iterations</p></td>
+<td><p>TMA and MMA run <strong>truly in parallel</strong> on separate warps</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Loop structure</strong></p></td>
-<td><p>Load then compute, serial</p></td>
-<td><p>Prefill stages, then overlap load and compute</p></td>
+<tr class="row-odd"><td><p><strong>In-flight MMA</strong></p></td>
+<td><p>1 (wait after each MMA)</p></td>
+<td><p>Multiple (MMA warp issues next MMA without waiting for TMA)</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>New parameter</strong></p></td>
-<td><p>—</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">stages</span></code> (autotuned: 2, 3, or 4)</p></td>
+<tr class="row-even"><td><p><strong>Prefill</strong></p></td>
+<td><p>Explicit prefill loop</p></td>
+<td><p>Implicit: TMA warp runs ahead of MMA warp</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
-<section id="software-pipelining">
-<h2>Software Pipelining<a class="headerlink" href="#software-pipelining" title="Link to this heading"><span>¶</span></a></h2>
-<figure class="align-center" id="id2">
-<a class="reference internal image-reference" href="../../_images/v2_pipeline.svg"><img alt="../../_images/v2_pipeline.svg" src="../../_images/v2_pipeline.svg" style="width: 100%;" />
-</a>
-<figcaption>
-<p><span class="caption-text">Top: V1 serializes load and compute. Bottom: V2 overlaps them using a
-multi-stage pipeline.</span><a class="headerlink" href="#id2" title="Link to this image"><span>¶</span></a></p>
-</figcaption>
-</figure>
-<p>The idea is simple: if we have <code class="docutils literal notranslate"><span class="pre">S</span></code> stages of shared memory, we can have up to
-<code class="docutils literal notranslate"><span class="pre">S</span> <span class="pre">-</span> <span class="pre">1</span></code> TMA loads in flight while one stage is being consumed by MMA. The
-kernel proceeds in two phases:</p>
-<ol class="arabic">
-<li><p><strong>Prefill</strong> — Before the main loop, load the first <code class="docutils literal notranslate"><span class="pre">S</span> <span class="pre">-</span> <span class="pre">1</span></code> stages via TMA.
-These loads run asynchronously; we do not wait for them yet.</p></li>
-<li><p><strong>Main loop</strong> — Each iteration does three things:</p>
+<section id="id1">
+<h2>Warp Specialization<a class="headerlink" href="#id1" title="Link to this heading"><span>¶</span></a></h2>
+<p>In V2, a single warp handles both TMA and MMA. Each iteration looks like: issue
+TMA → wait for TMA → issue MMA → <strong>wait for MMA</strong> → repeat.
+The <code class="docutils literal notranslate"><span class="pre">tcgen05.commit</span></code> + <code class="docutils literal notranslate"><span class="pre">mbarrier.wait</span></code> after each MMA means the tensor core
+pipeline sees at most one MMA at a time. Between consecutive MMAs, the pipeline
+goes idle while the warp handles synchronization, TMA issuing, and TMA waiting.</p>
+<p>With warp specialization, we assign TMA and MMA to <strong>separate warps</strong>, each
+running its own loop:</p>
 <ul class="simple">
-<li><p><strong>Preload</strong>: issue a TMA load into the next free stage (<code class="docutils literal notranslate"><span class="pre">preload_stage</span></code>).</p></li>
-<li><p><strong>Wait</strong>: wait for the current stage’s TMA to complete
-(<code class="docutils literal notranslate"><span class="pre">tma_barriers[current_stage]</span></code>).</p></li>
-<li><p><strong>Compute</strong>: run MMA on the current stage’s data.</p></li>
+<li><p><strong>TMA warp</strong> (threads 0–31): issues TMA loads back-to-back. Before each load,
+it only waits on <code class="docutils literal notranslate"><span class="pre">empty_barriers</span></code> to ensure the shared memory slot is free.</p></li>
+<li><p><strong>MMA warp</strong> (threads 32–63): issues MMA operations back-to-back. Before each
+MMA, it only waits on <code class="docutils literal notranslate"><span class="pre">full_barriers</span></code> to ensure the input data has arrived.
+Crucially, it does <strong>not</strong> wait for the previous MMA to complete — it issues
+<code class="docutils literal notranslate"><span class="pre">tcgen05.commit(mbarrier=empty_barriers[stage])</span></code> which returns immediately
+and makes the barrier track the MMA’s completion in the background. When the
+MMA actually finishes, the hardware will signal the barrier, freeing the stage
+for the TMA warp. Meanwhile, the MMA warp has already moved on to the next
+iteration. This allows <strong>multiple MMAs to be in flight</strong> in the tensor core
+pipeline.</p></li>
 </ul>
-<p>After each iteration, both <code class="docutils literal notranslate"><span class="pre">current_stage</span></code> and <code class="docutils literal notranslate"><span class="pre">preload_stage</span></code> advance
-modulo <code class="docutils literal notranslate"><span class="pre">stages</span></code>, cycling through the ring buffer.</p>
-</li>
-</ol>
+<p>The result: as long as TMA delivers data fast enough, the MMA warp keeps the
+tensor core pipeline fully occupied with no idle gaps between operations.</p>
 </section>
-<section id="multi-stage-shared-memory">
-<h2>Multi-Stage Shared Memory<a class="headerlink" href="#multi-stage-shared-memory" title="Link to this heading"><span>¶</span></a></h2>
-<p>In V1, shared tensors had shape <code class="docutils literal notranslate"><span class="pre">[block_m,</span> <span class="pre">block_k]</span></code> — a single buffer that
-was overwritten every iteration. In V2, shared tensors gain a leading stage
-dimension:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">])</span>
-<span class="n">s_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">])</span>
+<section id="producer-consumer-barriers">
+<h2>Producer-Consumer Barriers<a class="headerlink" href="#producer-consumer-barriers" title="Link to this heading"><span>¶</span></a></h2>
+<p>V2 used TMA barriers and a single MMA barrier. V3 replaces them with a
+<strong>producer-consumer</strong> barrier pair, as described in the
+<a class="reference internal" href="../../python-api/instruction-groups/mbarrier.html"><span class="doc">mbarrier guide</span></a>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">full_barriers</span></code>: signaled when TMA has filled a stage (data ready).
+The MMA warp waits on these.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">empty_barriers</span></code>: signaled when MMA has consumed a stage (slot free).
+The TMA warp waits on these.</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">full_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">)</span>
+<span class="n">empty_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Each stage <code class="docutils literal notranslate"><span class="pre">s_a[i]</span></code> / <code class="docutils literal notranslate"><span class="pre">s_b[i]</span></code> is an independent buffer. TMA writes to one
-stage while MMA reads from another, without conflicts.</p>
+<p>The initial phases reflect the starting state:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">empty_phases</span></code> are initialized to <code class="docutils literal notranslate"><span class="pre">1</span></code>
+(<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase"><code class="xref py py-attr docutils literal notranslate"><span class="pre">producer_initial_phase</span></code></a>):
+all stages start empty, so the TMA warp can begin filling immediately.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">full_phases</span></code> are initialized to <code class="docutils literal notranslate"><span class="pre">0</span></code>
+(<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase"><code class="xref py py-attr docutils literal notranslate"><span class="pre">consumer_initial_phase</span></code></a>):
+no stages are full yet, so the MMA warp blocks until the first TMA completes.</p></li>
+</ul>
 </section>
-<section id="per-stage-barriers-and-phases">
-<h2>Per-Stage Barriers and Phases<a class="headerlink" href="#per-stage-barriers-and-phases" title="Link to this heading"><span>¶</span></a></h2>
-<p>Each stage has its own mbarrier to track TMA completion independently:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tma_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">)])</span>
-<span class="n">tma_phases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">uint32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<section id="flush-barrier">
+<h2>Flush Barrier<a class="headerlink" href="#flush-barrier" title="Link to this heading"><span>¶</span></a></h2>
+<p>After the MMA loop ends, we need to ensure all in-flight MMAs have completed
+before reading the accumulator. This is done with a <strong>flush barrier</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># drain: wait for all in-flight MMA to finish</span>
+<span class="n">flush_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">flush_barrier</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">flush_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Since the same stage is reused every <code class="docutils literal notranslate"><span class="pre">stages</span></code> iterations, each stage’s barrier
-goes through its own phase cycle. The <code class="docutils literal notranslate"><span class="pre">tma_phases</span></code> register tensor stores the
-current expected phase for each stage’s barrier.</p>
-<p>The MMA barrier remains a single barrier (as in V1) since MMA operations are
-still serialized.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p><a class="reference internal" href="../../python-api/generated/tilus.Script.register_tensor.html#tilus.Script.register_tensor" title="tilus.Script.register_tensor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">register_tensor()</span></code></a> allocates a register tensor with a
-given shape and initial value. Here <code class="docutils literal notranslate"><span class="pre">tma_phases</span></code> is a vector of <code class="docutils literal notranslate"><span class="pre">stages</span></code>
-uint32 values, all initialized to 0. Use <code class="docutils literal notranslate"><span class="pre">.item()</span></code> to extract a scalar
-from a single-element slice (e.g., <code class="docutils literal notranslate"><span class="pre">tma_phases[current_stage].item()</span></code>).</p>
-</div>
-</section>
-<section id="loop-unrolling">
-<h2>Loop Unrolling<a class="headerlink" href="#loop-unrolling" title="Link to this heading"><span>¶</span></a></h2>
-<p>The main loop uses <a class="reference internal" href="../../python-api/generated/tilus.Script.range.html#tilus.Script.range" title="tilus.Script.range"><code class="xref py py-meth docutils literal notranslate"><span class="pre">self.range()</span></code></a> with
-<code class="docutils literal notranslate"><span class="pre">unroll=self.stages</span></code> instead of Python’s <code class="docutils literal notranslate"><span class="pre">range()</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
-</pre></div>
-</div>
-<p>This instructs the compiler to unroll the loop body by the number of stages. Loop
-unrolling is important for pipelined kernels because the stage index
-(<code class="docutils literal notranslate"><span class="pre">current_stage</span></code>, <code class="docutils literal notranslate"><span class="pre">preload_stage</span></code>) cycles modulo <code class="docutils literal notranslate"><span class="pre">stages</span></code> — with
-unrolling, the compiler can resolve these indices to constants, eliminating
-modular arithmetic and enabling more efficient code generation.</p>
+<p>This extra <code class="docutils literal notranslate"><span class="pre">tcgen05.commit</span></code> makes the <code class="docutils literal notranslate"><span class="pre">flush_barrier</span></code> track all prior
+uncommitted MMA operations. Once the barrier completes, it is safe to read
+from tensor memory.</p>
 </section>
 <section id="walkthrough">
 <h2>Walkthrough<a class="headerlink" href="#walkthrough" title="Link to this heading"><span>¶</span></a></h2>
-<section id="prefill">
-<h3>Prefill<a class="headerlink" href="#prefill" title="Link to this heading"><span>¶</span></a></h3>
+<section id="tma-warp-producer">
+<h3>TMA Warp (Producer)<a class="headerlink" href="#tma-warp-producer" title="Link to this heading"><span>¶</span></a></h3>
 <div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-text">Prefill: load the first stages - 1 tiles</span><a class="headerlink" href="#id3" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
-    <span class="n">offset_k</span> <span class="o">=</span> <span class="n">i</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span>
-    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
+<div class="code-block-caption"><span class="caption-text">TMA warp</span><a class="headerlink" href="#id3" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># TMA warp (producer): loads tiles from global to shared memory</span>
+<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="n">stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># init=1: all stages start empty (ready to be filled)</span>
+    <span class="n">empty_phases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">uint32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
+        <span class="c1"># wait for the MMA warp to free this stage</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">empty_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">empty_phases</span><span class="p">[</span><span class="n">stage</span><span class="p">])</span>
+        <span class="n">empty_phases</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span> <span class="o">^=</span> <span class="mi">1</span>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
-                <span class="n">tma_barriers</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
+                <span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
             <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
-            <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
             <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_barriers</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+            <span class="n">mbarrier</span><span class="o">=</span><span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
             <span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span>
-            <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
             <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_barriers</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+            <span class="n">mbarrier</span><span class="o">=</span><span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
         <span class="p">)</span>
+        <span class="n">stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
 
 </pre></div>
 </div>
 </div>
-<p>Before the main loop, the first <code class="docutils literal notranslate"><span class="pre">stages</span> <span class="pre">-</span> <span class="pre">1</span></code> TMA loads are issued without
-waiting. Each iteration loads into stage <code class="docutils literal notranslate"><span class="pre">i</span></code> and signals <code class="docutils literal notranslate"><span class="pre">tma_barriers[i]</span></code>.
-After the prefill, <code class="docutils literal notranslate"><span class="pre">self.sync()</span></code> ensures all threads have issued their TMA
-requests before entering the main loop.</p>
+<p>The TMA warp runs a loop over all K-tiles:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.wait</span></code></a>
+on <code class="docutils literal notranslate"><span class="pre">empty_barriers[stage]</span></code> blocks until the MMA warp has freed this stage.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.arrive_and_expect_tx</span></code></a>
+on <code class="docutils literal notranslate"><span class="pre">full_barriers[stage]</span></code> declares the expected TMA bytes.</p></li>
+<li><p>Two <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html#tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared" title="tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.global_to_shared</span></code></a>
+calls load the A and B tiles.</p></li>
+<li><p>The stage index advances modulo <code class="docutils literal notranslate"><span class="pre">stages</span></code>.</p></li>
+</ul>
+<p>Note there is no explicit prefill loop as in V2: the TMA warp simply starts
+running and naturally gets ahead of the MMA warp (which blocks until the first
+<code class="docutils literal notranslate"><span class="pre">full_barrier</span></code> is signaled).</p>
 </section>
-<section id="main-loop">
-<h3>Main Loop<a class="headerlink" href="#main-loop" title="Link to this heading"><span>¶</span></a></h3>
+<section id="mma-warp-consumer">
+<h3>MMA Warp (Consumer)<a class="headerlink" href="#mma-warp-consumer" title="Link to this heading"><span>¶</span></a></h3>
 <div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-text">Main loop: overlap preload and compute</span><a class="headerlink" href="#id4" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">current_stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="n">preload_stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span> <span class="o">-</span> <span class="mi">1</span>
-
-<span class="c1"># unroll by stages so the compiler can resolve stage indices to constants</span>
-<span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
-    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
-        <span class="c1"># preload: issue TMA for a future tile into the next free stage</span>
-        <span class="n">preload_offset_k</span> <span class="o">=</span> <span class="n">offset_k</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
-                <span class="n">tma_barriers</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-                <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
-                <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
-            <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-            <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
-            <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">preload_offset_k</span><span class="p">],</span>
-            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_barriers</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-            <span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span>
-            <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">preload_offset_k</span><span class="p">],</span>
-            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_barriers</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-        <span class="p">)</span>
-        <span class="c1"># wait for the current stage&#39;s TMA data to arrive</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
-            <span class="n">tma_barriers</span><span class="p">[</span><span class="n">current_stage</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
-        <span class="p">)</span>
-        <span class="c1"># compute on the current stage</span>
+<div class="code-block-caption"><span class="caption-text">MMA warp</span><a class="headerlink" href="#id4" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># MMA warp (consumer): computes on tiles loaded by the TMA warp</span>
+<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="c1"># init=0: no stages are full yet (waiting for TMA)</span>
+    <span class="n">full_phases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">uint32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
+        <span class="c1"># wait for the TMA warp to fill this stage</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">full_phases</span><span class="p">[</span><span class="n">stage</span><span class="p">])</span>
+        <span class="n">full_phases</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span> <span class="o">^=</span> <span class="mi">1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
-            <span class="n">s_a</span><span class="p">[</span><span class="n">current_stage</span><span class="p">],</span>
-            <span class="n">s_b</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+            <span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+            <span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
             <span class="n">t_acc</span><span class="p">,</span>
             <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">mma_barrier</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">mma_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">mma_phase</span><span class="p">)</span>
+        <span class="c1"># commit signals empty_barriers: frees this stage for TMA reuse</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">empty_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">])</span>
+        <span class="n">stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
 
-    <span class="c1"># advance stage indices (ring buffer)</span>
-    <span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span> <span class="o">^=</span> <span class="mi">1</span>
-    <span class="n">mma_phase</span> <span class="o">^=</span> <span class="mi">1</span>
-    <span class="n">preload_stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">preload_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
-    <span class="n">current_stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">current_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+    <span class="c1"># drain: wait for all in-flight MMA to finish</span>
+    <span class="n">flush_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">flush_barrier</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">flush_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
 </pre></div>
 </div>
 </div>
-<p>In each iteration:</p>
+<p>The MMA warp runs a matching loop:</p>
 <ul class="simple">
-<li><p><strong>Preload</strong> (into <code class="docutils literal notranslate"><span class="pre">preload_stage</span></code>):
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.arrive_and_expect_tx</span></code></a>
-and <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html#tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared" title="tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.global_to_shared</span></code></a>
-issue TMA loads for a future K-tile into the next free stage. This runs
-asynchronously — the TMA engine works in the background.</p></li>
-<li><p><strong>Wait</strong> (on <code class="docutils literal notranslate"><span class="pre">current_stage</span></code>):
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.wait</span></code></a>
-blocks until the current stage’s TMA data has arrived. The phase comes from
-<code class="docutils literal notranslate"><span class="pre">tma_phases[current_stage]</span></code>.</p></li>
-<li><p><strong>Compute</strong> (from <code class="docutils literal notranslate"><span class="pre">current_stage</span></code>):
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.mma</span></code></a>
-reads <code class="docutils literal notranslate"><span class="pre">s_a[current_stage]</span></code> and <code class="docutils literal notranslate"><span class="pre">s_b[current_stage]</span></code>, accumulating into the
-tensor memory accumulator.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.wait</span></code></a>
+on <code class="docutils literal notranslate"><span class="pre">full_barriers[stage]</span></code> blocks until TMA data has arrived.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.mma</span></code></a>
+computes on the loaded tiles.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit</span></code></a>
+on <code class="docutils literal notranslate"><span class="pre">empty_barriers[stage]</span></code> signals that this stage is now free for the TMA
+warp to reuse.</p></li>
+<li><p>After the loop, the flush barrier ensures all MMA writes to tensor memory are
+complete.</p></li>
 </ul>
-<p>After the MMA,
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit</span></code></a>
-and <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.wait</span></code></a>
-on the MMA barrier ensure the MMA completes before the next iteration.</p>
-<p>Finally, the stage indices advance modulo <code class="docutils literal notranslate"><span class="pre">stages</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span> <span class="o">^=</span> <span class="mi">1</span>                     <span class="c1"># flip phase for this stage</span>
-<span class="n">mma_phase</span> <span class="o">^=</span> <span class="mi">1</span>
-<span class="n">preload_stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">preload_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>   <span class="c1"># next free stage</span>
-<span class="n">current_stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">current_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>   <span class="c1"># next stage to consume</span>
-</pre></div>
-</div>
 </section>
 </section>
 <section id="what-s-next">
 <h2>What’s Next<a class="headerlink" href="#what-s-next" title="Link to this heading"><span>¶</span></a></h2>
-<p>V2 overlaps TMA loads with MMA compute across iterations, but there is still a
-limitation: each iteration runs one MMA and must wait for it to complete
-(via <code class="docutils literal notranslate"><span class="pre">tcgen05.commit</span></code> + <code class="docutils literal notranslate"><span class="pre">mbarrier.wait</span></code>) before issuing the next. The MMA
-pipeline depth is effectively 1 — no in-flight MMAs overlap.</p>
-<p>In <a class="reference internal" href="v3.html"><span class="doc">the next version</span></a>, we separate the load and compute into
-<strong>different thread groups</strong>: a dedicated TMA warp and a dedicated MMA warp. With separate warps, the
-MMA warp can issue its next MMA immediately after the previous one without
-waiting for the TMA warp, and vice versa. This enables true parallelism between
-TMA and MMA, with the two warps progressing independently and synchronizing only
-through mbarriers.</p>
+<p>V3 achieves true overlap between TMA and MMA through warp specialization.
+However, the code still manages the pipeline state (stages, barriers, phases)
+inline, which becomes increasingly complex as we add more features.</p>
+<p>In the next version, we refactor the pipeline logic into reusable <strong>helper
+classes</strong> (<code class="docutils literal notranslate"><span class="pre">Pipeline</span></code>, <code class="docutils literal notranslate"><span class="pre">LoadWorker</span></code>, <code class="docutils literal notranslate"><span class="pre">MmaWorker</span></code>) using <code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code>,
+and add a TMA-based <strong>epilogue</strong> for writing results back to global memory.</p>
 </section>
 <section id="full-source">
 <h2>Full Source<a class="headerlink" href="#full-source" title="Link to this heading"><span>¶</span></a></h2>
 <p>The complete example file is located at
-<a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v2.py">examples/blackwell_matmul/matmul_v2.py</a>.</p>
+<a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v3.py">examples/blackwell_matmul/matmul_v3.py</a>.</p>
 </section>
 </section>
 
@@ -1027,20 +978,20 @@ through mbarriers.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="v1.html"
+       href="v2.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">1. TMA Loads</p>
+        <p class="prev-next-title">2. Multi-Stage Software Pipelining</p>
       </div>
     </a>
     <a class="right-next"
-       href="v3.html"
+       href="../../programming-guides/overview.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">3. Warp Specialization</p>
+        <p class="prev-next-title"><span class="section-number">1. </span>Overview</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1061,14 +1012,13 @@ through mbarriers.</p>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-full-kernel">The Full Kernel</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v1">What Changed from V1</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#software-pipelining">Software Pipelining</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multi-stage-shared-memory">Multi-Stage Shared Memory</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#per-stage-barriers-and-phases">Per-Stage Barriers and Phases</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#loop-unrolling">Loop Unrolling</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v2">What Changed from V2</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">Warp Specialization</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#producer-consumer-barriers">Producer-Consumer Barriers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#flush-barrier">Flush Barrier</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prefill">Prefill</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#main-loop">Main Loop</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-warp-producer">TMA Warp (Producer)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mma-warp-consumer">MMA Warp (Consumer)</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
