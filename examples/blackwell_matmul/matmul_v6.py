@@ -1,7 +1,5 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-import os
-
 import pandas
 import tilus
 import torch
@@ -9,7 +7,7 @@ from tilus import float16, float32, int32, uint32
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor
 from tilus.utils import benchmark_func, cdiv
 
-tilus.option.cache_dir(os.path.join(os.path.dirname(__file__), "cache"))
+tilus.option.cache_dir("./cache")
 
 
 class Pipeline(tilus.Class):
@@ -187,14 +185,6 @@ class MmaWorker(tilus.Class):
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4, 5, 6])
 class BlackwellMatmulV6(tilus.Script):
-    debug_schedule = dict(
-        block_m=256,
-        block_n=256,
-        block_k=64,
-        stages=5,
-        e_block_n=16,
-    )
-
     def __init__(
         self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int
     ):
@@ -299,31 +289,31 @@ def main(bench=True):
     matmul = BlackwellMatmulV6()
 
     headers = ["m", "n", "k", "name", "latency (ms)", "tflops"]
-    rows: list = []
+    rows = []
 
     for m_size, n_size, k_size in [
-        # [4096, 4096, 4096],
-        # [4096, 4096, 14336],
-        # [8192, 8192, 8192],
-        [10240, 10240, 10240],
+        [8192, 8192, 8192],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
         b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
-        c_actual = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
-        c_expected = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
+        c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
-        matmul(m_size, n_size, k_size, a, b, c_actual)
-        torch.matmul(a, b.T, out=c_expected)
-        torch.testing.assert_close(c_actual, c_expected, atol=1e-2, rtol=1e-2)
+        c_ref = a @ b.T
+        torch.cuda.synchronize()
+
+        matmul(m_size, n_size, k_size, a, b, c)
+        torch.cuda.synchronize()
+
+        torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
 
         # benchmark
         if bench:
             for name, func in [
-                ("torch", lambda: torch.matmul(a, b.T, out=c_expected)),
-                ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c_actual)),
+                ("torch", lambda: a @ b.T),
+                ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c)),
             ]:
-                latency = benchmark_func(func, warmup=5, repeat=20)
+                latency = benchmark_func(func, warmup=5, repeat=100)
                 tflops = 2 * m_size * n_size * k_size / latency * 1e-9
                 rows.append([m_size, n_size, k_size, name, latency, tflops])
 
@@ -334,4 +324,4 @@ def main(bench=True):
 
 if __name__ == "__main__":
     main(bench=True)
-    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
+    # tilus.utils.ncu_run(main, bench=False, kernel_regex="tilus|nvjet")

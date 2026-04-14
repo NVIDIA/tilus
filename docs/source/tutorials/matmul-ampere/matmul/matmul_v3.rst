@@ -1,5 +1,5 @@
-V3: Async Copy
-==============
+3. Async Copy
+=============
 
 On NVIDIA Ampere and newer architectures, hardware support for asynchronous
 copy from global memory to shared memory was introduced. The key advantage is
