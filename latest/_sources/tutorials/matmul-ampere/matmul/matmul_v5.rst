@@ -1,5 +1,5 @@
-V5: Split-K
-===========
+5. Split-K
+==========
 
 In previous examples each output tile of C is computed by a single thread
 block that iterates over the entire K dimension. This works well when M and N

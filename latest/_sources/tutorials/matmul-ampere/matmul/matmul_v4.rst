@@ -1,5 +1,5 @@
-V4: Software Pipelining
-=======================
+4. Software Pipelining
+======================
 
 This example demonstrates how to overlap computation and memory operations
 using **software pipelining**.

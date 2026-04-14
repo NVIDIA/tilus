@@ -1,5 +1,5 @@
-Matrix multiplication
-=====================
+Matmul (Ampere)
+===============
 
 This tutorial shows how to implement matrix multiplication kernel (C = A x B) in
 **tilus**.

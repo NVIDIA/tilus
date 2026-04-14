@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>2.1.6. V5: Split-K &#8212; tilus  documentation</title>
+    <title>3. Async Copy &#8212; tilus  documentation</title>
   
   
   
@@ -45,11 +45,11 @@
     <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'getting-started/tutorials/matmul/matmul_v5';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-ampere/matmul/matmul_v3';</script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="1. Overview" href="../../../programming-guides/overview.html" />
-    <link rel="prev" title="2.1.5. V4: Software Pipelining" href="matmul_v4.html" />
+    <link rel="next" title="4. Software Pipelining" href="matmul_v4.html" />
+    <link rel="prev" title="2. Auto-tuning" href="matmul_v2.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -154,18 +154,22 @@
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started/install.html">Installation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../../install.html">1. Installation</a></li>
-<li class="toctree-l1 current active has-children"><a class="reference internal" href="../__init__.html">2. Tutorials</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2 current active has-children"><a class="reference internal" href="../matmul.html">2.1. Matrix multiplication</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="matmul_v0.html">2.1.1. V0: Naive Matmul</a></li>
-<li class="toctree-l3"><a class="reference internal" href="matmul_v1.html">2.1.2. V1: Use Shared Memory</a></li>
-<li class="toctree-l3"><a class="reference internal" href="matmul_v2.html">2.1.3. V2: Auto-tuning</a></li>
-<li class="toctree-l3"><a class="reference internal" href="matmul_v3.html">2.1.4. V3: Async Copy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="matmul_v4.html">2.1.5. V4: Software Pipelining</a></li>
-<li class="toctree-l3 current active"><a class="current reference internal" href="#">2.1.6. V5: Split-K</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../__init__.html">Matmul (Ampere)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="matmul_v0.html">0. Naive Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v1.html">1. Use Shared Memory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v2.html">2. Auto-tuning</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">3. Async Copy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v4.html">4. Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 </ul>
 </details></li>
 </ul>
@@ -178,7 +182,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/pointer-types.html">3.2. Pointer Types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/register-tensor.html">3.3. Register Tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/global-tensor.html">3.5. Global Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/tmemory-tensor.html">3.5. Tensor Memory Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/global-tensor.html">3.6. Global Tensor</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../programming-guides/instructions.html">4. Instructions</a></li>
@@ -349,6 +354,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/tensor.html">tilus.ir.Tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/register_tensor.html">tilus.ir.RegisterTensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/tmemory_tensor.html">tilus.ir.TMemoryTensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html">tilus.ir.layout.ops.auto_local_spatial</a></li>
@@ -500,7 +506,7 @@
       
       
       
-      <li><a href="../../../_sources/getting-started/tutorials/matmul/matmul_v5.rst" target="_blank"
+      <li><a href="../../../_sources/tutorials/matmul-ampere/matmul/matmul_v3.rst" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -584,7 +590,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>V5: Split-K</h1>
+    <h1>3. Async Copy</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -594,10 +600,8 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-instructions">2.1.6.1. New Instructions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#aggregation-protocol">2.1.6.2. Aggregation Protocol</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-implementation">2.1.6.3. Kernel Implementation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#launch-the-kernel">2.1.6.4. Launch the Kernel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-implementation">Kernel Implementation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#launch-the-kernel">Launch the Kernel</a></li>
 </ul>
             </nav>
         </div>
@@ -609,70 +613,46 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="v5-split-k">
-<h1><span class="section-number">2.1.6. </span>V5: Split-K<a class="headerlink" href="#v5-split-k" title="Link to this heading"><span>¶</span></a></h1>
-<p>In previous examples each output tile of C is computed by a single thread
-block that iterates over the entire K dimension. This works well when M and N
-are large enough to saturate the GPU. However, for workloads with small M and
-N but large K, there are not enough output tiles to keep all SMs busy.</p>
-<p><strong>Split-K</strong> addresses this by partitioning the K dimension into
-<code class="docutils literal notranslate"><span class="pre">split_k_factor</span></code> segments, assigning each segment to a separate thread block.
-The partial results are then aggregated in-place using semaphore-based
-synchronization.</p>
-<section id="new-instructions">
-<h2><span class="section-number">2.1.6.1. </span>New Instructions<a class="headerlink" href="#new-instructions" title="Link to this heading"><span>¶</span></a></h2>
-<p>This example introduces three new tilus instructions:</p>
+  <section id="async-copy">
+<h1>3. Async Copy<a class="headerlink" href="#async-copy" title="Link to this heading"><span>¶</span></a></h1>
+<p>On NVIDIA Ampere and newer architectures, hardware support for asynchronous
+copy from global memory to shared memory was introduced. The key advantage is
+that data moves directly from global to shared memory <strong>without</strong> using
+registers as an intermediate buffer, freeing register resources and reducing
+latency.</p>
+<p>Tilus exposes this feature through two block-level instructions:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.global_tensor.html#tilus.Script.global_tensor" title="tilus.Script.global_tensor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">global_tensor()</span></code></a> – allocates a global tensor managed by
-tilus. Here it stores one semaphore per output tile. The
-<code class="docutils literal notranslate"><span class="pre">requires_clean=True</span></code> flag guarantees the tensor is zero-initialized before
-each kernel launch.</p></li>
-<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.lock_semaphore.html#tilus.Script.lock_semaphore" title="tilus.Script.lock_semaphore"><code class="xref py py-meth docutils literal notranslate"><span class="pre">lock_semaphore()</span></code></a> – spins until the semaphore reaches the
-expected <code class="docutils literal notranslate"><span class="pre">value</span></code>, then proceeds. This ensures blocks aggregate in the
-correct order.</p></li>
-<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.release_semaphore.html#tilus.Script.release_semaphore" title="tilus.Script.release_semaphore"><code class="xref py py-meth docutils literal notranslate"><span class="pre">release_semaphore()</span></code></a> – sets the semaphore to a new value,
-unblocking the next waiting block.</p></li>
+<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async()</span></code></a> – issues an asynchronous copy from a global
+tensor to a shared tensor. The call returns immediately; the data transfer
+happens in the background.</p></li>
+<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all" title="tilus.Script.copy_async_wait_all"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async_wait_all()</span></code></a> – blocks until <strong>all</strong> previously
+issued asynchronous copies have completed, guaranteeing that the data is
+available in shared memory.</p></li>
 </ul>
-</section>
-<section id="aggregation-protocol">
-<h2><span class="section-number">2.1.6.2. </span>Aggregation Protocol<a class="headerlink" href="#aggregation-protocol" title="Link to this heading"><span>¶</span></a></h2>
-<p>Suppose <code class="docutils literal notranslate"><span class="pre">split_k_factor=4</span></code>, producing blocks 0, 1, 2, 3 for the same output
-tile:</p>
-<ol class="arabic simple">
-<li><p><strong>Block 0</strong> stores its partial result directly to C (no lock needed).
-It then releases the semaphore with value 1.</p></li>
-<li><p><strong>Block 1</strong> spins on <a class="reference internal" href="../../../python-api/generated/tilus.Script.lock_semaphore.html#tilus.Script.lock_semaphore" title="tilus.Script.lock_semaphore"><code class="xref py py-meth docutils literal notranslate"><span class="pre">lock_semaphore()</span></code></a> until the
-semaphore equals 1. It loads the partial C, adds its own contribution,
-stores the sum back, and releases with value 2.</p></li>
-<li><p><strong>Block 2</strong> and <strong>Block 3</strong> follow the same pattern.</p></li>
-<li><p><strong>The last block</strong> releases the semaphore with value 0, resetting it for
-<code class="docutils literal notranslate"><span class="pre">requires_clean=True</span></code>.</p></li>
-</ol>
-</section>
+<p>Because <a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all" title="tilus.Script.copy_async_wait_all"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async_wait_all()</span></code></a> does not synchronize threads
+within the block, a subsequent <a class="reference internal" href="../../../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a> call is still
+necessary before reading the shared memory data.</p>
 <section id="kernel-implementation">
-<h2><span class="section-number">2.1.6.3. </span>Kernel Implementation<a class="headerlink" href="#kernel-implementation" title="Link to this heading"><span>¶</span></a></h2>
+<h2>Kernel Implementation<a class="headerlink" href="#kernel-implementation" title="Link to this heading"><span>¶</span></a></h2>
+<p>The kernel below is structurally similar to V2 but replaces the
+<code class="docutils literal notranslate"><span class="pre">load_global</span></code> / <code class="docutils literal notranslate"><span class="pre">store_shared</span></code> pair with <a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async()</span></code></a>,
+eliminating the register intermediate buffer:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;num_warps&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_m, block_n&quot;</span><span class="p">,</span> <span class="p">[(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">),</span> <span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span> <span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">),</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">256</span><span class="p">)])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_m, block_n&quot;</span><span class="p">,</span> <span class="p">[(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">),</span> <span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span> <span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">)])</span>
 <span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;num_stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
-<span class="hll"><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;split_k_factor&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">16</span><span class="p">])</span>
-</span><span class="k">class</span><span class="w"> </span><span class="nc">MatmulV5</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MatmulV3</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">num_warps</span><span class="p">,</span>
         <span class="n">block_m</span><span class="p">,</span>
         <span class="n">block_n</span><span class="p">,</span>
         <span class="n">block_k</span><span class="p">,</span>
-        <span class="n">num_stages</span><span class="p">,</span>
-        <span class="n">split_k_factor</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">=</span> <span class="n">block_m</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">=</span> <span class="n">block_n</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span> <span class="o">=</span> <span class="n">block_k</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_warps</span> <span class="o">=</span> <span class="n">num_warps</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span> <span class="o">=</span> <span class="n">num_stages</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">split_k_factor</span> <span class="o">=</span> <span class="n">split_k_factor</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -683,150 +663,67 @@ stores the sum back, and releases with value 2.</p></li>
         <span class="n">b_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
         <span class="n">c_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
     <span class="p">):</span>
-<span class="hll">        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span>
-</span><span class="hll">            <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">),</span>
-</span><span class="hll">            <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">),</span>
-</span><span class="hll">            <span class="bp">self</span><span class="o">.</span><span class="n">split_k_factor</span><span class="p">,</span>
-</span>        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">),</span>
+            <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">),</span>
+        <span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_warps</span>
 
-        <span class="c1"># the k_size for each thread block</span>
-        <span class="n">block_k_size</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">cdiv</span><span class="p">(</span><span class="n">cdiv</span><span class="p">(</span><span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_k_factor</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span>
-        <span class="p">)</span>
-<span class="hll">        <span class="n">start_offset_k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">z</span> <span class="o">*</span> <span class="n">block_k_size</span>
-</span><span class="hll">        <span class="n">end_offset_k</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">start_offset_k</span> <span class="o">+</span> <span class="n">block_k_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">)</span>
-</span>
         <span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">,</span> <span class="n">block_k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span>
         <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">block_m</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span>
         <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">block_n</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">y</span>
 
         <span class="n">ga</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
         <span class="n">gb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">k_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
-        <span class="n">sa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span><span class="p">,</span> <span class="n">block_m</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
-        <span class="n">sb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span><span class="p">,</span> <span class="n">block_k</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
+        <span class="n">sa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+        <span class="n">sb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_k</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
         <span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">stage</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
-            <span class="n">offset_k</span> <span class="o">=</span> <span class="n">start_offset_k</span> <span class="o">+</span> <span class="n">stage</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">])</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">gb</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">sb</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_k</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async_commit_group</span><span class="p">()</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">copy_async_wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-
-        <span class="n">current_stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">preload_stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span> <span class="o">-</span> <span class="mi">1</span>
-        <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span>
-            <span class="n">start_offset_k</span><span class="p">,</span> <span class="n">end_offset_k</span><span class="p">,</span> <span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
-        <span class="p">):</span>
-            <span class="c1"># computation for current tile</span>
-            <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">[</span><span class="n">current_stage</span><span class="p">])</span>
-            <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sb</span><span class="p">[</span><span class="n">current_stage</span><span class="p">])</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">acc</span><span class="p">)</span>
-
-            <span class="c1"># preload the next tile of A and B into shared memory</span>
-            <span class="n">preload_offset_k</span> <span class="o">=</span> <span class="n">offset_k</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">block_k</span>
-            <span class="k">if</span> <span class="n">preload_offset_k</span> <span class="o">&lt;</span> <span class="n">end_offset_k</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span>
-                    <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">preload_offset_k</span><span class="p">],</span>
-                <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span>
-                    <span class="n">src</span><span class="o">=</span><span class="n">gb</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">sb</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
-                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">preload_offset_k</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">],</span>
-                <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async_commit_group</span><span class="p">()</span>
-
-            <span class="c1"># update the stage</span>
-            <span class="n">current_stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">current_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
-            <span class="n">preload_stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">preload_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async_wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">):</span>
+            <span class="c1"># issue asynchronous copy instructions to load tiles of A and B</span>
+<span class="hll">            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">])</span>
+</span><span class="hll">            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">gb</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">sb</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_k</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
+</span><span class="hll">
+</span><span class="hll">            <span class="c1"># wait for all asynchronous copy operations to complete</span>
+</span><span class="hll">            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async_wait_all</span><span class="p">()</span>
+</span><span class="hll">
+</span>            <span class="c1"># synchronize threads in the block to ensure data is available in shared memory</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
-        <span class="c1"># free the shared memory tensors for A and B</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">)</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sb</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">acc</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">free_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">free_shared</span><span class="p">(</span><span class="n">sb</span><span class="p">)</span>
-<span class="hll">
-</span>        <span class="c1"># cast the accumulator to float16 and change the register tensor&#39;s layout</span>
-<span class="hll">        <span class="n">sc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
-</span>        <span class="n">casted_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="n">casted_acc</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-        <span class="n">rc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sc</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">free_shared</span><span class="p">(</span><span class="n">sc</span><span class="p">)</span>
 
-        <span class="n">m_blocks</span><span class="p">,</span> <span class="n">n_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="n">block_m</span><span class="p">),</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="n">block_n</span><span class="p">)</span>
+        <span class="n">casted_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">)</span>
         <span class="n">gc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">c_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_k_factor</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">store_global</span><span class="p">(</span><span class="n">gc</span><span class="p">,</span> <span class="n">rc</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-<span class="hll">            <span class="n">semaphores</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_tensor</span><span class="p">(</span>
-</span><span class="hll">                <span class="n">dtype</span><span class="o">=</span><span class="n">int32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_blocks</span><span class="p">,</span> <span class="n">n_blocks</span><span class="p">],</span> <span class="n">requires_clean</span><span class="o">=</span><span class="kc">True</span>
-</span><span class="hll">            <span class="p">)</span>
-</span><span class="hll">            <span class="n">semaphore</span><span class="p">:</span> <span class="o">~</span><span class="n">int32</span> <span class="o">=</span> <span class="n">semaphores</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">y</span><span class="p">]</span><span class="o">.</span><span class="n">item_ptr</span><span class="p">()</span>
-</span>
-            <span class="c1"># load and accumulate the partial result in global memory</span>
-<span class="hll">            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">z</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-</span><span class="hll">                <span class="bp">self</span><span class="o">.</span><span class="n">lock_semaphore</span><span class="p">(</span><span class="n">semaphore</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
-</span>                <span class="n">partial_rc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_global</span><span class="p">(</span>
-                    <span class="n">gc</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">],</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">]</span>
-                <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">rc</span><span class="p">,</span> <span class="n">partial_rc</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">rc</span><span class="p">)</span>
-
-            <span class="c1"># store the result to global memory and release the semaphore</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">store_global</span><span class="p">(</span><span class="n">gc</span><span class="p">,</span> <span class="n">rc</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
-<span class="hll">
-</span>            <span class="c1"># release the semaphore</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>  <span class="c1"># we need to make sure the previous store_global is finished</span>
-<span class="hll">            <span class="bp">self</span><span class="o">.</span><span class="n">release_semaphore</span><span class="p">(</span>
-</span><span class="hll">                <span class="n">semaphore</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">z</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_k_factor</span>
-</span>            <span class="p">)</span>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">store_global</span><span class="p">(</span><span class="n">gc</span><span class="p">,</span> <span class="n">casted_acc</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
 </pre></div>
 </div>
-<p>Key points in the code above:</p>
-<ul class="simple">
-<li><p><strong>Three-dimensional grid</strong> (lines 85–89) – the third grid dimension is
-<code class="docutils literal notranslate"><span class="pre">split_k_factor</span></code>, and <code class="docutils literal notranslate"><span class="pre">self.blockIdx.z</span></code> identifies which K-segment a
-block processes.</p></li>
-<li><p><strong>Per-block K range</strong> (lines 93–97) – each block computes over
-<code class="docutils literal notranslate"><span class="pre">[start_offset_k,</span> <span class="pre">end_offset_k)</span></code>, a contiguous slice of the K dimension
-rounded to multiples of <code class="docutils literal notranslate"><span class="pre">block_k</span></code>.</p></li>
-<li><p><strong>Pipelined main loop</strong> (lines 109–147) – identical in structure to V4,
-with the loop bounds narrowed to the block’s K-segment.</p></li>
-<li><p><strong>Layout change via shared memory</strong> (lines 154–159) – after accumulation,
-the result is cast to float16, written to shared memory, and reloaded. This
-changes the register tensor layout to one suitable for the global store and
-subsequent aggregation.</p></li>
-<li><p><strong>Semaphore-guarded aggregation</strong> (lines 166–186):</p>
-<ul>
-<li><p>When <code class="docutils literal notranslate"><span class="pre">split_k_factor</span> <span class="pre">&gt;</span> <span class="pre">1</span></code>, a <a class="reference internal" href="../../../python-api/generated/tilus.Script.global_tensor.html#tilus.Script.global_tensor" title="tilus.Script.global_tensor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">global_tensor()</span></code></a>
-allocates one int32 semaphore per output tile.</p></li>
-<li><p>Block 0 stores directly; blocks 1+ call
-<a class="reference internal" href="../../../python-api/generated/tilus.Script.lock_semaphore.html#tilus.Script.lock_semaphore" title="tilus.Script.lock_semaphore"><code class="xref py py-meth docutils literal notranslate"><span class="pre">lock_semaphore()</span></code></a>, load the partial result, accumulate,
-and store.</p></li>
-<li><p>Each block calls <a class="reference internal" href="../../../python-api/generated/tilus.Script.release_semaphore.html#tilus.Script.release_semaphore" title="tilus.Script.release_semaphore"><code class="xref py py-meth docutils literal notranslate"><span class="pre">release_semaphore()</span></code></a> with the next
-expected value (wrapping to 0 for the last block).</p></li>
-</ul>
-</li>
-</ul>
+<p>Lines 86–90 (within the loop) are the core change compared to V2:</p>
+<ol class="arabic simple">
+<li><p>Two <a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async()</span></code></a> calls issue background copies for
+tiles of A and B.</p></li>
+<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all" title="tilus.Script.copy_async_wait_all"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async_wait_all()</span></code></a> ensures both copies have landed
+in shared memory.</p></li>
+<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a> synchronizes all threads so every thread sees
+the updated shared data before the computation begins.</p></li>
+</ol>
 </section>
 <section id="launch-the-kernel">
-<h2><span class="section-number">2.1.6.4. </span>Launch the Kernel<a class="headerlink" href="#launch-the-kernel" title="Link to this heading"><span>¶</span></a></h2>
+<h2>Launch the Kernel<a class="headerlink" href="#launch-the-kernel" title="Link to this heading"><span>¶</span></a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
     <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span> <span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;latency (ms)&quot;</span><span class="p">,</span> <span class="s2">&quot;tflops&quot;</span><span class="p">]</span>
     <span class="n">workloads</span> <span class="o">=</span> <span class="p">[</span>
         <span class="p">[</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">],</span>
-        <span class="p">[</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">,</span> <span class="mi">14336</span><span class="p">],</span>
     <span class="p">]</span>
 
     <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">workloads</span><span class="p">:</span>
-        <span class="n">matmul</span> <span class="o">=</span> <span class="n">MatmulV5</span><span class="p">()</span>
+        <span class="n">matmul</span> <span class="o">=</span> <span class="n">MatmulV3</span><span class="p">()</span>
 
         <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
         <span class="n">b</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
@@ -853,7 +750,7 @@ expected value (wrapping to 0 for the last block).</p></li>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The full source code for this example can be found at
-<a class="reference download internal" download="" href="../../../_downloads/758b09481cbaa7a9240913266ea7b96b/matmul_v5.py"><code class="xref download docutils literal notranslate"><span class="pre">matmul_v5.py</span></code></a>.</p>
+<a class="reference download internal" download="" href="../../../_downloads/70f0175a2ecf3a85b566f88f3d083f30/matmul_v3.py"><code class="xref download docutils literal notranslate"><span class="pre">matmul_v3.py</span></code></a>.</p>
 </div>
 </section>
 </section>
@@ -870,20 +767,20 @@ expected value (wrapping to 0 for the last block).</p></li>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="matmul_v4.html"
+       href="matmul_v2.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">2.1.5. </span>V4: Software Pipelining</p>
+        <p class="prev-next-title">2. Auto-tuning</p>
       </div>
     </a>
     <a class="right-next"
-       href="../../../programming-guides/overview.html"
+       href="matmul_v4.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">1. </span>Overview</p>
+        <p class="prev-next-title">4. Software Pipelining</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -903,10 +800,8 @@ expected value (wrapping to 0 for the last block).</p></li>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-instructions">2.1.6.1. New Instructions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#aggregation-protocol">2.1.6.2. Aggregation Protocol</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-implementation">2.1.6.3. Kernel Implementation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#launch-the-kernel">2.1.6.4. Launch the Kernel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-implementation">Kernel Implementation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#launch-the-kernel">Launch the Kernel</a></li>
 </ul>
   </nav></div>
 

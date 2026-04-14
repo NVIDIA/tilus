@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>2.1.4. V3: Async Copy &#8212; tilus  documentation</title>
+    <title>2. Auto-tuning &#8212; tilus  documentation</title>
   
   
   
@@ -45,11 +45,12 @@
     <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'getting-started/tutorials/matmul/matmul_v3';</script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-ampere/matmul/matmul_v2';</script>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="2.1.5. V4: Software Pipelining" href="matmul_v4.html" />
-    <link rel="prev" title="2.1.3. V2: Auto-tuning" href="matmul_v2.html" />
+    <link rel="next" title="3. Async Copy" href="matmul_v3.html" />
+    <link rel="prev" title="1. Use Shared Memory" href="matmul_v1.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -154,18 +155,22 @@
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started/install.html">Installation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../../install.html">1. Installation</a></li>
-<li class="toctree-l1 current active has-children"><a class="reference internal" href="../__init__.html">2. Tutorials</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2 current active has-children"><a class="reference internal" href="../matmul.html">2.1. Matrix multiplication</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="matmul_v0.html">2.1.1. V0: Naive Matmul</a></li>
-<li class="toctree-l3"><a class="reference internal" href="matmul_v1.html">2.1.2. V1: Use Shared Memory</a></li>
-<li class="toctree-l3"><a class="reference internal" href="matmul_v2.html">2.1.3. V2: Auto-tuning</a></li>
-<li class="toctree-l3 current active"><a class="current reference internal" href="#">2.1.4. V3: Async Copy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="matmul_v4.html">2.1.5. V4: Software Pipelining</a></li>
-<li class="toctree-l3"><a class="reference internal" href="matmul_v5.html">2.1.6. V5: Split-K</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../__init__.html">Matmul (Ampere)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="matmul_v0.html">0. Naive Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v1.html">1. Use Shared Memory</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">2. Auto-tuning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v3.html">3. Async Copy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v4.html">4. Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 </ul>
 </details></li>
 </ul>
@@ -178,7 +183,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/pointer-types.html">3.2. Pointer Types</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/register-tensor.html">3.3. Register Tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/global-tensor.html">3.5. Global Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/tmemory-tensor.html">3.5. Tensor Memory Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/global-tensor.html">3.6. Global Tensor</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../programming-guides/instructions.html">4. Instructions</a></li>
@@ -349,6 +355,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/tensor.html">tilus.ir.Tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/register_tensor.html">tilus.ir.RegisterTensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/tmemory_tensor.html">tilus.ir.TMemoryTensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html">tilus.ir.layout.ops.auto_local_spatial</a></li>
@@ -500,7 +507,7 @@
       
       
       
-      <li><a href="../../../_sources/getting-started/tutorials/matmul/matmul_v3.rst" target="_blank"
+      <li><a href="../../../_sources/tutorials/matmul-ampere/matmul/matmul_v2.rst" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -584,7 +591,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>V3: Async Copy</h1>
+    <h1>2. Auto-tuning</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -594,8 +601,9 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-implementation">2.1.4.1. Kernel Implementation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#launch-the-kernel">2.1.4.2. Launch the Kernel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#imports">Imports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#annotate-the-search-space">Annotate the Search Space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#launch-the-kernel">Launch the Kernel</a></li>
 </ul>
             </nav>
         </div>
@@ -607,34 +615,48 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="v3-async-copy">
-<h1><span class="section-number">2.1.4. </span>V3: Async Copy<a class="headerlink" href="#v3-async-copy" title="Link to this heading"><span>¶</span></a></h1>
-<p>On NVIDIA Ampere and newer architectures, hardware support for asynchronous
-copy from global memory to shared memory was introduced. The key advantage is
-that data moves directly from global to shared memory <strong>without</strong> using
-registers as an intermediate buffer, freeing register resources and reducing
-latency.</p>
-<p>Tilus exposes this feature through two block-level instructions:</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async()</span></code></a> – issues an asynchronous copy from a global
-tensor to a shared tensor. The call returns immediately; the data transfer
-happens in the background.</p></li>
-<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all" title="tilus.Script.copy_async_wait_all"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async_wait_all()</span></code></a> – blocks until <strong>all</strong> previously
-issued asynchronous copies have completed, guaranteeing that the data is
-available in shared memory.</p></li>
-</ul>
-<p>Because <a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all" title="tilus.Script.copy_async_wait_all"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async_wait_all()</span></code></a> does not synchronize threads
-within the block, a subsequent <a class="reference internal" href="../../../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a> call is still
-necessary before reading the shared memory data.</p>
-<section id="kernel-implementation">
-<h2><span class="section-number">2.1.4.1. </span>Kernel Implementation<a class="headerlink" href="#kernel-implementation" title="Link to this heading"><span>¶</span></a></h2>
-<p>The kernel below is structurally similar to V2 but replaces the
-<code class="docutils literal notranslate"><span class="pre">load_global</span></code> / <code class="docutils literal notranslate"><span class="pre">store_shared</span></code> pair with <a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async()</span></code></a>,
-eliminating the register intermediate buffer:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;num_warps&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_m, block_n&quot;</span><span class="p">,</span> <span class="p">[(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">),</span> <span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span> <span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">)])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">])</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">MatmulV3</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
+  <section id="auto-tuning">
+<h1>2. Auto-tuning<a class="headerlink" href="#auto-tuning" title="Link to this heading"><span>¶</span></a></h1>
+<p>In previous versions of the matmul kernel, we manually set the hyperparameters
+such as <code class="docutils literal notranslate"><span class="pre">block_m</span></code>, <code class="docutils literal notranslate"><span class="pre">block_n</span></code>, and <code class="docutils literal notranslate"><span class="pre">block_k</span></code>. However, these
+hyperparameters can significantly affect the performance of the kernel, and
+finding the optimal values for them can be a tedious and time-consuming process.</p>
+<p>Tilus provides the <a class="reference internal" href="../../../python-api/generated/tilus.autotune.html#tilus.autotune" title="tilus.autotune"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tilus.autotune()</span></code></a> decorator to annotate the search space
+of the hyperparameters and let tilus automatically search for the best
+configuration.</p>
+<p>The decorator accepts parameter names and a list of values. When multiple
+<code class="docutils literal notranslate"><span class="pre">&#64;tilus.autotune</span></code> decorators are stacked, tilus forms the Cartesian product of
+all value lists and tries every combination. At the first invocation the kernel
+is compiled for each configuration, benchmarked on the actual arguments, and the
+fastest configuration is selected automatically. Subsequent calls reuse the
+winner.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;arg_name1&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">v11</span><span class="p">,</span> <span class="n">v12</span><span class="p">,</span> <span class="n">v13</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;arg_name2, arg_name3&quot;</span><span class="p">,</span> <span class="p">[(</span><span class="n">v21</span><span class="p">,</span> <span class="n">v31</span><span class="p">),</span> <span class="p">(</span><span class="n">v22</span><span class="p">,</span> <span class="n">v32</span><span class="p">)])</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AwesomeKernel</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_arg</span><span class="p">,</span> <span class="n">arg_name1</span><span class="p">,</span> <span class="n">arg_name2</span><span class="p">,</span> <span class="n">arg_name3</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="o">...</span>
+</pre></div>
+</div>
+<p>When instantiating the class, only the non-tuned arguments are provided –
+the tuned parameters are filled in automatically by the autotuning engine.</p>
+<section id="imports">
+<h2>Imports<a class="headerlink" href="#imports" title="Link to this heading"><span>¶</span></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">tilus</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tilus</span><span class="w"> </span><span class="kn">import</span> <span class="n">float16</span><span class="p">,</span> <span class="n">float32</span><span class="p">,</span> <span class="n">int32</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">cdiv</span>
+</pre></div>
+</div>
+</section>
+<section id="annotate-the-search-space">
+<h2>Annotate the Search Space<a class="headerlink" href="#annotate-the-search-space" title="Link to this heading"><span>¶</span></a></h2>
+<p>Reusing the same kernel implementation as in V1, we add
+<a class="reference internal" href="../../../python-api/generated/tilus.autotune.html#tilus.autotune" title="tilus.autotune"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tilus.autotune()</span></code></a> decorators for <code class="docutils literal notranslate"><span class="pre">num_warps</span></code>, <code class="docutils literal notranslate"><span class="pre">block_m</span></code>/<code class="docutils literal notranslate"><span class="pre">block_n</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">block_k</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;num_warps&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
+</span><span class="hll"><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_m, block_n&quot;</span><span class="p">,</span> <span class="p">[(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">),</span> <span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span> <span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">)])</span>
+</span><span class="hll"><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">])</span>
+</span><span class="k">class</span><span class="w"> </span><span class="nc">MatmulV2</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">num_warps</span><span class="p">,</span>
@@ -643,10 +665,10 @@ eliminating the register intermediate buffer:</p>
         <span class="n">block_k</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_warps</span> <span class="o">=</span> <span class="n">num_warps</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">=</span> <span class="n">block_m</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">=</span> <span class="n">block_n</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span> <span class="o">=</span> <span class="n">block_k</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">num_warps</span> <span class="o">=</span> <span class="n">num_warps</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -663,30 +685,35 @@ eliminating the register intermediate buffer:</p>
         <span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_warps</span>
 
-        <span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">,</span> <span class="n">block_k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span>
-        <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">block_m</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span>
-        <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">block_n</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">y</span>
+        <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span>
+        <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">y</span>
 
         <span class="n">ga</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
         <span class="n">gb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">k_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
-        <span class="n">sa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
-        <span class="n">sb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_k</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
-        <span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">sa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">])</span>
+        <span class="n">sb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">])</span>
+        <span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mf">0.0</span>
+        <span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">):</span>
-            <span class="c1"># issue asynchronous copy instructions to load tiles of A and B</span>
-<span class="hll">            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">])</span>
-</span><span class="hll">            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">gb</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">sb</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_k</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
-</span><span class="hll">
-</span><span class="hll">            <span class="c1"># wait for all asynchronous copy operations to complete</span>
-</span><span class="hll">            <span class="bp">self</span><span class="o">.</span><span class="n">copy_async_wait_all</span><span class="p">()</span>
-</span><span class="hll">
-</span>            <span class="c1"># synchronize threads in the block to ensure data is available in shared memory</span>
+        <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">):</span>
+            <span class="n">lda</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_global</span><span class="p">(</span>
+                <span class="n">ga</span><span class="p">,</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">,</span> <span class="n">lda</span><span class="p">)</span>
+            <span class="n">ldb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_global</span><span class="p">(</span>
+                <span class="n">gb</span><span class="p">,</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_k</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">],</span>
+                <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sb</span><span class="p">,</span> <span class="n">ldb</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
             <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">)</span>
             <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sb</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">acc</span><span class="p">)</span>
+            <span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">acc</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">free_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">)</span>
@@ -697,18 +724,14 @@ eliminating the register intermediate buffer:</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">store_global</span><span class="p">(</span><span class="n">gc</span><span class="p">,</span> <span class="n">casted_acc</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
 </pre></div>
 </div>
-<p>Lines 86–90 (within the loop) are the core change compared to V2:</p>
-<ol class="arabic simple">
-<li><p>Two <a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async()</span></code></a> calls issue background copies for
-tiles of A and B.</p></li>
-<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all" title="tilus.Script.copy_async_wait_all"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async_wait_all()</span></code></a> ensures both copies have landed
-in shared memory.</p></li>
-<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a> synchronizes all threads so every thread sees
-the updated shared data before the computation begins.</p></li>
-</ol>
+<p>The three decorators create a space of <span class="math notranslate nohighlight">\(2 \times 3 \times 2 = 12\)</span>
+configurations. Tilus compiles all twelve, benchmarks them, and keeps the
+fastest.</p>
 </section>
 <section id="launch-the-kernel">
-<h2><span class="section-number">2.1.4.2. </span>Launch the Kernel<a class="headerlink" href="#launch-the-kernel" title="Link to this heading"><span>¶</span></a></h2>
+<h2>Launch the Kernel<a class="headerlink" href="#launch-the-kernel" title="Link to this heading"><span>¶</span></a></h2>
+<p>Notice that <code class="docutils literal notranslate"><span class="pre">MatmulV2()</span></code> is instantiated with <strong>no arguments</strong> – the
+tuned parameters are determined automatically.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
     <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span> <span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;latency (ms)&quot;</span><span class="p">,</span> <span class="s2">&quot;tflops&quot;</span><span class="p">]</span>
     <span class="n">workloads</span> <span class="o">=</span> <span class="p">[</span>
@@ -717,13 +740,15 @@ the updated shared data before the computation begins.</p></li>
 
     <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">workloads</span><span class="p">:</span>
-        <span class="n">matmul</span> <span class="o">=</span> <span class="n">MatmulV3</span><span class="p">()</span>
-
+<span class="hll">        <span class="n">matmul</span> <span class="o">=</span> <span class="n">MatmulV2</span><span class="p">()</span>
+</span>
         <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
         <span class="n">b</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
         <span class="n">c_actual</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
         <span class="n">c_expect</span> <span class="o">=</span> <span class="n">a</span> <span class="o">@</span> <span class="n">b</span>
         <span class="n">matmul</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c_actual</span><span class="p">)</span>
+
+        <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">synchronize</span><span class="p">()</span>
 
         <span class="c1"># check correctness</span>
         <span class="n">torch</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_close</span><span class="p">(</span><span class="n">c_expect</span><span class="p">,</span> <span class="n">c_actual</span><span class="p">)</span>
@@ -741,10 +766,14 @@ the updated shared data before the computation begins.</p></li>
     <span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>The first call to <code class="docutils literal notranslate"><span class="pre">matmul(m,</span> <span class="pre">n,</span> <span class="pre">k,</span> <span class="pre">a,</span> <span class="pre">b,</span> <span class="pre">c_actual)</span></code> triggers the
+autotuning process: every configuration is compiled and benchmarked on the
+given arguments. The best configuration is then cached, so subsequent
+invocations skip tuning entirely.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The full source code for this example can be found at
-<a class="reference download internal" download="" href="../../../_downloads/70f0175a2ecf3a85b566f88f3d083f30/matmul_v3.py"><code class="xref download docutils literal notranslate"><span class="pre">matmul_v3.py</span></code></a>.</p>
+<a class="reference download internal" download="" href="../../../_downloads/0e015c0cb50524955ad83583aef47a25/matmul_v2.py"><code class="xref download docutils literal notranslate"><span class="pre">matmul_v2.py</span></code></a>.</p>
 </div>
 </section>
 </section>
@@ -761,20 +790,20 @@ the updated shared data before the computation begins.</p></li>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="matmul_v2.html"
+       href="matmul_v1.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">2.1.3. </span>V2: Auto-tuning</p>
+        <p class="prev-next-title">1. Use Shared Memory</p>
       </div>
     </a>
     <a class="right-next"
-       href="matmul_v4.html"
+       href="matmul_v3.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">2.1.5. </span>V4: Software Pipelining</p>
+        <p class="prev-next-title">3. Async Copy</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -794,8 +823,9 @@ the updated shared data before the computation begins.</p></li>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-implementation">2.1.4.1. Kernel Implementation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#launch-the-kernel">2.1.4.2. Launch the Kernel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#imports">Imports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#annotate-the-search-space">Annotate the Search Space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#launch-the-kernel">Launch the Kernel</a></li>
 </ul>
   </nav></div>
 
