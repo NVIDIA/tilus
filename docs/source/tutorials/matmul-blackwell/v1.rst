@@ -177,13 +177,14 @@ V1 is still single-stage: the warp waits for TMA to complete before issuing the
 MMA, then waits for MMA before starting the next TMA. Load and compute are
 fully serialized.
 
-In the next version, we introduce **multi-stage software pipelining** --- the
-kernel prefills multiple stages of shared memory before entering the main loop,
-so that the TMA for iteration *i+1* can overlap with the MMA for iteration *i*.
+In :doc:`the next version <v2>`, we introduce **multi-stage software pipelining**
+--- the kernel prefills multiple stages of shared memory before entering the main
+loop, so that the TMA for iteration *i+1* can overlap with the MMA for
+iteration *i*.
 
 
 Full Source
 -----------
 
 The complete example file is located at
-:download:`examples/blackwell_matmul/matmul_v1.py <../../../../examples/blackwell_matmul/matmul_v1.py>`.
+`examples/blackwell_matmul/matmul_v1.py <https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v1.py>`__.

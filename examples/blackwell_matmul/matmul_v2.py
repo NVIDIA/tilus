@@ -38,6 +38,7 @@ class BlackwellMatmulV2(tilus.Script):
 
         g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
+        # multi-stage shared memory: leading dimension indexes the pipeline stage
         s_a = self.shared_tensor(
             dtype=float16, shape=[self.stages, self.block_m, self.block_k]
         )
@@ -45,15 +46,16 @@ class BlackwellMatmulV2(tilus.Script):
             dtype=float16, shape=[self.stages, self.block_n, self.block_k]
         )
 
-        # allocate a tensor in tensor memory (tmem)
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
-        # allocate barriers
+        # one TMA barrier per stage; each tracks its own phase independently
         tma_barriers = self.mbarrier.alloc(counts=[1 for _ in range(self.stages)])
         mma_barrier = self.mbarrier.alloc(counts=1)
+        # per-stage phase tracking via register tensor
         tma_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=0)
         mma_phase: uint32 = 0
 
+        # prefill: issue TMA loads for the first (stages - 1) tiles without waiting
         for i in range(self.stages - 1):
             offset_k = i * self.block_k
             with self.single_warp():
@@ -79,8 +81,10 @@ class BlackwellMatmulV2(tilus.Script):
         current_stage: int32 = 0
         preload_stage: int32 = self.stages - 1
 
+        # unroll by stages so the compiler can resolve stage indices to constants
         for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
             with self.single_warp():
+                # preload: issue TMA for a future tile into the next free stage
                 preload_offset_k = offset_k + (self.stages - 1) * self.block_k
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
@@ -100,9 +104,11 @@ class BlackwellMatmulV2(tilus.Script):
                     offsets=[offset_n, preload_offset_k],
                     mbarrier=tma_barriers[preload_stage],
                 )
+                # wait for the current stage's TMA data to arrive
                 self.mbarrier.wait(
                     tma_barriers[current_stage], phase=tma_phases[current_stage].item()
                 )
+                # compute on the current stage
                 self.tcgen05.mma(
                     s_a[current_stage],
                     s_b[current_stage].transpose(),
@@ -112,19 +118,18 @@ class BlackwellMatmulV2(tilus.Script):
                 self.tcgen05.commit(mbarrier=mma_barrier)
                 self.mbarrier.wait(mma_barrier, phase=mma_phase)
 
+            # advance stage indices (ring buffer)
             tma_phases[current_stage] ^= 1
             mma_phase ^= 1
             preload_stage = (preload_stage + 1) % self.stages
             current_stage = (current_stage + 1) % self.stages
             self.sync()
 
-        # load the result from tensor memory to register
         r_acc = self.tcgen05.load(t_acc)
 
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
         self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
 
-        # all allocated tensor memory must be deallocated
         self.sync()
         self.tcgen05.dealloc(t_acc)
 
