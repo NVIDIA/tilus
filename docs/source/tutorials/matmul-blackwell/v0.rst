@@ -296,7 +296,7 @@ This kernel works but is far from optimal. The main bottleneck is the
 mechanism, which requires all threads to participate and does not leverage
 the hardware's **Tensor Memory Access (TMA)** engine.
 
-In :ref:`V1 <tutorial_blackwell_matmul_v1>`, we replace ``copy_async`` with
+In the next version, we replace ``copy_async`` with
 **TMA** loads, which offload address generation and data movement to a dedicated
 hardware unit, freeing up warps for computation.
 
