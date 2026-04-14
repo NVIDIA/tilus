@@ -617,18 +617,27 @@ document.write(`
 <dl class="py method">
 <dt class="sig sig-object py" id="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx">
 <span class="sig-prename descclassname"><span class="pre">Script.mbarrier.</span></span><span class="sig-name descname"><span class="pre">arrive_and_expect_tx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">barrier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transaction_bytes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sem</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'release'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cta'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/tilus/lang/instructions/mbarrier.html#BarrierInstructionGroup.arrive_and_expect_tx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="Link to this definition"><span>¶</span></a></dt>
-<dd><p>Arrive at a barrier with expected asynchronous memory transactions.</p>
-<p>Each thread in the current thread group decreases the pending arrivals of the given barrier by 1, and increases
-the barrier’s pending transaction byte count (tx-count) by <cite>transaction_bytes</cite>.</p>
+<dd><p>Arrive at a barrier and declare expected asynchronous transaction bytes.</p>
+<p>Each thread in the current thread group performs two updates on the barrier:</p>
+<ol class="arabic simple">
+<li><p>Decrements the pending arrival count by 1.</p></li>
+<li><p>Increases the pending tx-count by <code class="docutils literal notranslate"><span class="pre">transaction_bytes</span></code>.</p></li>
+</ol>
+<p>The tx-count tracks asynchronous data transfers (e.g., TMA copies). When an async
+operation tied to this barrier completes, the hardware automatically decrements the
+tx-count by the number of bytes transferred. The phase completes only when both
+pending arrivals and tx-count reach zero.</p>
+<p>Typically used with <a class="reference internal" href="../../generated/tilus.Script.single_thread.html#tilus.Script.single_thread" title="tilus.Script.single_thread"><code class="xref py py-meth docutils literal notranslate"><span class="pre">single_thread()</span></code></a> so that only one thread
+sets the tx-count expectation, while the TMA engine performs the actual transfer.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>barrier</strong> (<a class="reference internal" href="../../tilus-ir/register_tensor.html#tilus.ir.RegisterTensor" title="tilus.ir.RegisterTensor"><em>RegisterTensor</em></a>) – A register tensor with one uint32 element representing the address of the barrier in the local shared memory.</p></li>
-<li><p><strong>transaction_bytes</strong> (<em>Expr</em><em> | </em><em>int</em>) – The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to this
-barrier. The barrier’s tx-count will be increased by this value on arrival and decreased as the async
-transactions complete. It must be evaluated to a non-negative int32.</p></li>
-<li><p><strong>sem</strong> (<em>str</em>) – The memory ordering semantics for the arrive operation. Candidates: ‘relaxed’, ‘release’.</p></li>
-<li><p><strong>scope</strong> (<em>str</em>) – The syncrhonization scope for the arrive operation. Candidates: ‘cta’, ‘cluster’.</p></li>
+<li><p><strong>barrier</strong> (<a class="reference internal" href="../../tilus-ir/register_tensor.html#tilus.ir.RegisterTensor" title="tilus.ir.RegisterTensor"><em>RegisterTensor</em></a>) – A single-element uint32 register tensor holding the barrier’s shared memory address.</p></li>
+<li><p><strong>transaction_bytes</strong> (<em>Expr</em><em> | </em><em>int</em>) – The number of bytes expected from async transactions (e.g., TMA copies). The
+barrier’s tx-count is increased by this value; it is automatically decreased by
+the hardware as the transactions complete. Must evaluate to a non-negative int32.</p></li>
+<li><p><strong>sem</strong> (<em>str</em>) – Memory ordering semantics. Candidates: <code class="docutils literal notranslate"><span class="pre">'relaxed'</span></code>, <code class="docutils literal notranslate"><span class="pre">'release'</span></code>.</p></li>
+<li><p><strong>scope</strong> (<em>str</em>) – Synchronization scope. Candidates: <code class="docutils literal notranslate"><span class="pre">'cta'</span></code>, <code class="docutils literal notranslate"><span class="pre">'cluster'</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>

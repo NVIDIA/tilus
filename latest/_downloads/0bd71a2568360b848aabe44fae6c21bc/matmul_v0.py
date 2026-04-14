@@ -27,51 +27,63 @@ class BlackwellMatmulV0(tilus.Script):
         b_ptr: ~float16,
         c_ptr: ~float16,
     ):
+        # set the number of blocks and warps for the kernel launch
         self.attrs.blocks = [cdiv(m_size, self.block_m), cdiv(n_size, self.block_n)]
         self.attrs.warps = 4
 
+        # compute the tile offset from the block index
         offset_m: int32 = self.block_m * self.blockIdx.x
         offset_n: int32 = self.block_n * self.blockIdx.y
 
+        # create global tensor views from raw pointers
         g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
+
+        # allocate shared memory tiles for A and B
         s_a = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[self.block_n, self.block_k])
 
-        # allocate a tensor in tensor memory (tmem)
+        # allocate a tensor in tensor memory (tmem) as the MMA accumulator
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
-        # allocate one barrier in shared memory
+        # allocate one mbarrier to track MMA completion
         mbarriers = self.mbarrier.alloc(counts=[1])
 
-        # use a phase to record the current phase of the barrier
+        # mbarrier phase flips between 0 and 1 after each wait
         phase: uint32 = 0
 
+        # synchronize all threads before entering the main loop
         self.sync()
 
         for offset_k in range(0, k_size, self.block_k):
+            # async copy tiles from global to shared memory (legacy, non-TMA)
             self.copy_async(src=g_a, dst=s_a, offsets=[offset_m, offset_k])
             self.copy_async(src=g_b, dst=s_b, offsets=[offset_n, offset_k])
             self.copy_async_wait_all()
             self.sync()
 
+            # tcgen05 instructions are warp-cooperative (issued by a single warp)
             with self.single_warp():
+                # D = A @ B (first iter) or D = A @ B + D (subsequent iters)
                 self.tcgen05.mma(
                     s_a, s_b.transpose(), t_acc, enable_input_d=offset_k != 0
                 )
+                # make the mbarrier track completion of prior async tcgen05 ops
                 self.tcgen05.commit(mbarrier=mbarriers[0])
+                # wait until the MMA writes to tmem are complete
                 self.mbarrier.wait(mbarriers[0], phase=phase)
             self.sync()
 
             phase ^= 1
 
-        # load the result from tensor memory to register
+        # load the result from tensor memory to registers
         r_acc = self.tcgen05.load(t_acc)
 
+        # cast to float16 and store to global memory
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
         self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
 
-        # all allocated tensor memory must be deallocated
+        # all allocated tensor memory must be deallocated before kernel exits
         self.sync()
         self.tcgen05.dealloc(t_acc)
 

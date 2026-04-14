@@ -576,32 +576,20 @@ document.write(`
 <span class="kn">from</span><span class="w"> </span><span class="nn">.root</span><span class="w"> </span><span class="kn">import</span> <span class="n">InstructionGroup</span>
 
 
-<div class="viewcode-block" id="BarrierInstructionGroup">
-<a class="viewcode-back" href="../../../../python-api/instruction-groups/mbarrier.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">BarrierInstructionGroup</span><span class="p">(</span><span class="n">InstructionGroup</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Memory barrier (mbarrier) instructions for synchronizing asynchronous operations.</span>
 
-<span class="sd">    An mbarrier is a 64-bit synchronization primitive in shared memory that tracks two counts:</span>
-<span class="sd">    **pending arrivals** and **pending transaction bytes (tx-count)**. A barrier transitions to the</span>
-<span class="sd">    next phase when both counts reach zero.</span>
-
-<span class="sd">    Mbarriers coordinate producer-consumer patterns in pipelined GPU kernels. The typical workflow is:</span>
-
-<span class="sd">    1. **Allocate** barriers with ``alloc()``, specifying expected arrival counts per stage.</span>
-<span class="sd">    2. **Producers** call ``arrive()`` or ``arrive_and_expect_tx()`` to signal progress and declare</span>
-<span class="sd">       expected async data transfers (e.g., TMA copies). The TMA engine automatically decrements</span>
-<span class="sd">       the tx-count as transfers complete.</span>
-<span class="sd">    3. **Consumers** call ``wait()`` to block until the barrier&#39;s current phase finishes (both</span>
-<span class="sd">       pending arrivals and tx-count reach zero).</span>
-
-<span class="sd">    The barrier alternates between phase 0 and phase 1. Use ``producer_initial_phase`` and</span>
-<span class="sd">    ``consumer_initial_phase`` as starting phase values for multi-stage pipelines.</span>
-
-<span class="sd">    For cluster-wide synchronization, ``arrive_and_expect_tx_multicast()`` signals barriers across</span>
-<span class="sd">    multiple CTAs, and ``arrive_and_expect_tx_remote()`` signals a specific peer CTA&#39;s barrier.</span>
+<span class="sd">    See :doc:`/python-api/instruction-groups/mbarrier` for a detailed guide on how mbarriers work.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="c1">#: Initial phase value for the producer in a producer-consumer pipeline.</span>
+    <span class="c1">#: The producer starts by waiting for the barrier to leave this phase (i.e., waiting for the</span>
+    <span class="c1">#: consumer to free the slot), so it is initialized to ``1``.</span>
     <span class="n">producer_initial_phase</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="c1">#: Initial phase value for the consumer in a producer-consumer pipeline.</span>
+    <span class="c1">#: The consumer starts by waiting for the barrier to leave this phase (i.e., waiting for the</span>
+    <span class="c1">#: producer to fill the slot), so it is initialized to ``0`` (the barrier&#39;s initial phase).</span>
     <span class="n">consumer_initial_phase</span> <span class="o">=</span> <span class="mi">0</span>
 
 <div class="viewcode-block" id="BarrierInstructionGroup.alloc">
@@ -609,13 +597,18 @@ document.write(`
     <span class="k">def</span><span class="w"> </span><span class="nf">alloc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">counts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterTensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Allocate and initialize one or more mbarriers in shared memory.</span>
 
-<span class="sd">        Each barrier is initialized with phase 0, the specified expected arrival count, and</span>
-<span class="sd">        tx-count of 0. When a single value is provided, one barrier is allocated; when a</span>
-<span class="sd">        sequence is provided, multiple barriers are allocated with the corresponding counts.</span>
+<span class="sd">        Each barrier is a 64-bit object in shared memory, initialized with:</span>
+
+<span class="sd">        - ``phase = 0``</span>
+<span class="sd">        - ``pending_arrivals = counts[i]`` (the expected arrival count)</span>
+<span class="sd">        - ``expected_arrivals = counts[i]`` (used to reset pending_arrivals on phase flip)</span>
+<span class="sd">        - ``tx-count = 0``</span>
+
+<span class="sd">        A single value allocates one barrier; a sequence allocates multiple barriers.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        counts: Sequence[Expr | int] | Expr | int, optional</span>
+<span class="sd">        counts: Sequence[Expr | int] | Expr | int</span>
 <span class="sd">            Expected arrival counts for the barriers. Each count must evaluate to a positive</span>
 <span class="sd">            int32. A single value allocates one barrier; a sequence allocates multiple.</span>
 
@@ -649,19 +642,26 @@ document.write(`
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Arrive at a barrier.</span>
 
-<span class="sd">        Each thread in the current thread group decreases the pending arrivals of the given barrier by `count`.</span>
+<span class="sd">        Each thread in the current thread group decrements the barrier&#39;s pending arrival count</span>
+<span class="sd">        by ``count``. When pending arrivals (and tx-count) both reach zero, the hardware flips</span>
+<span class="sd">        the phase and resets the counters for the next phase.</span>
+
+<span class="sd">        With ``sem=&#39;release&#39;``, all prior memory writes by the arriving thread are guaranteed</span>
+<span class="sd">        visible to any thread that later completes a successful ``wait`` with acquire semantics</span>
+<span class="sd">        on this barrier.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        barrier: RegisterTensor</span>
-<span class="sd">            A register tensor with one uint32 element representing the address of the barrier in the local shared memory.</span>
+<span class="sd">            A single-element uint32 register tensor holding the barrier&#39;s shared memory address.</span>
 <span class="sd">        count: Expr | int</span>
-<span class="sd">            The number of arrivals contributed by each thread in the current thread group. It must be evaluated to a positive int32.</span>
-<span class="sd">            By default, it is 1.</span>
+<span class="sd">            The number of arrivals contributed by each thread. Must evaluate to a positive int32.</span>
+<span class="sd">            Default is 1.</span>
 <span class="sd">        sem: str</span>
-<span class="sd">            The memory ordering semantics for the arrive operation. Candidates: &#39;relaxed&#39;, &#39;release&#39;.</span>
+<span class="sd">            Memory ordering semantics. ``&#39;release&#39;`` ensures prior writes are visible to waiters;</span>
+<span class="sd">            ``&#39;relaxed&#39;`` provides no ordering guarantees. Candidates: ``&#39;relaxed&#39;``, ``&#39;release&#39;``.</span>
 <span class="sd">        scope: str</span>
-<span class="sd">            The syncrhonization scope for the arrive operation. Candidates: &#39;cta&#39;, &#39;cluster&#39;.</span>
+<span class="sd">            Synchronization scope. Candidates: ``&#39;cta&#39;``, ``&#39;cluster&#39;``.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
@@ -689,23 +689,33 @@ document.write(`
         <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;release&quot;</span><span class="p">,</span>
         <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Arrive at a barrier with expected asynchronous memory transactions.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Arrive at a barrier and declare expected asynchronous transaction bytes.</span>
 
-<span class="sd">        Each thread in the current thread group decreases the pending arrivals of the given barrier by 1, and increases</span>
-<span class="sd">        the barrier&#39;s pending transaction byte count (tx-count) by `transaction_bytes`.</span>
+<span class="sd">        Each thread in the current thread group performs two updates on the barrier:</span>
+
+<span class="sd">        1. Decrements the pending arrival count by 1.</span>
+<span class="sd">        2. Increases the pending tx-count by ``transaction_bytes``.</span>
+
+<span class="sd">        The tx-count tracks asynchronous data transfers (e.g., TMA copies). When an async</span>
+<span class="sd">        operation tied to this barrier completes, the hardware automatically decrements the</span>
+<span class="sd">        tx-count by the number of bytes transferred. The phase completes only when both</span>
+<span class="sd">        pending arrivals and tx-count reach zero.</span>
+
+<span class="sd">        Typically used with :meth:`~tilus.Script.single_thread` so that only one thread</span>
+<span class="sd">        sets the tx-count expectation, while the TMA engine performs the actual transfer.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        barrier: RegisterTensor</span>
-<span class="sd">            A register tensor with one uint32 element representing the address of the barrier in the local shared memory.</span>
+<span class="sd">            A single-element uint32 register tensor holding the barrier&#39;s shared memory address.</span>
 <span class="sd">        transaction_bytes: Expr | int</span>
-<span class="sd">            The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to this</span>
-<span class="sd">            barrier. The barrier&#39;s tx-count will be increased by this value on arrival and decreased as the async</span>
-<span class="sd">            transactions complete. It must be evaluated to a non-negative int32.</span>
+<span class="sd">            The number of bytes expected from async transactions (e.g., TMA copies). The</span>
+<span class="sd">            barrier&#39;s tx-count is increased by this value; it is automatically decreased by</span>
+<span class="sd">            the hardware as the transactions complete. Must evaluate to a non-negative int32.</span>
 <span class="sd">        sem: str</span>
-<span class="sd">            The memory ordering semantics for the arrive operation. Candidates: &#39;relaxed&#39;, &#39;release&#39;.</span>
+<span class="sd">            Memory ordering semantics. Candidates: ``&#39;relaxed&#39;``, ``&#39;release&#39;``.</span>
 <span class="sd">        scope: str</span>
-<span class="sd">            The syncrhonization scope for the arrive operation. Candidates: &#39;cta&#39;, &#39;cluster&#39;.</span>
+<span class="sd">            Synchronization scope. Candidates: ``&#39;cta&#39;``, ``&#39;cluster&#39;``.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
@@ -733,29 +743,32 @@ document.write(`
         <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;acquire&quot;</span><span class="p">,</span>
         <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait at a barrier.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait for a barrier phase to complete.</span>
 
-<span class="sd">        This instruction makes the threads in the current thread group wait at the specified barrier until the pending</span>
-<span class="sd">        arrivals and tx-count of the given phase are both zero.</span>
+<span class="sd">        All threads in the current thread group block until the barrier&#39;s current phase</span>
+<span class="sd">        differs from ``phase``. This means the phase has completed --- all pending arrivals</span>
+<span class="sd">        and tx-count have reached zero, the hardware has flipped the phase bit, and it is</span>
+<span class="sd">        safe to read data produced in that phase.</span>
 
-<span class="sd">        When the barrier&#39;s current phase is not equal to the specified `phase`, the threads will proceed without waiting</span>
-<span class="sd">        since the specified phase has already finished.</span>
+<span class="sd">        If the barrier&#39;s current phase already differs from ``phase`` (i.e., the phase has</span>
+<span class="sd">        already completed), the threads proceed immediately without blocking.</span>
 
-<span class="sd">        When the barrier&#39;s current phase is equal to the specified `phase`, the threads will wait until both the pending</span>
-<span class="sd">        arrivals and tx-count of the current phase are zero. Once these conditions are met, the barrier will switch to</span>
-<span class="sd">        the next phase, and the threads will proceed.</span>
+<span class="sd">        With ``sem=&#39;acquire&#39;``, all writes made visible by arrive operations (with release</span>
+<span class="sd">        semantics) on this barrier in the completed phase are guaranteed visible to the</span>
+<span class="sd">        waiting threads.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        barrier: RegisterTensor</span>
-<span class="sd">            The barrier to wait on. It must be a register tensor with one uint32 element representing the address of the barrier in the local shared memory.</span>
+<span class="sd">            A single-element uint32 register tensor holding the barrier&#39;s shared memory address.</span>
 <span class="sd">        phase: Expr | RegisterTensor | int</span>
-<span class="sd">            The phase value to wait for. It must be evaluated to either 0 or 1. It can also be a register tensor with single</span>
-<span class="sd">            element representing the phase value.</span>
+<span class="sd">            The phase to wait for completion of. Must be 0 or 1. Can also be a single-element</span>
+<span class="sd">            register tensor.</span>
 <span class="sd">        sem: str</span>
-<span class="sd">            The memory ordering semantics for the wait operation. Candidates: &#39;acquire&#39;, &#39;relaxed&#39;.</span>
+<span class="sd">            Memory ordering semantics. ``&#39;acquire&#39;`` ensures writes from the completed phase</span>
+<span class="sd">            are visible; ``&#39;relaxed&#39;`` provides no ordering. Candidates: ``&#39;acquire&#39;``, ``&#39;relaxed&#39;``.</span>
 <span class="sd">        scope: str</span>
-<span class="sd">            The synchronization scope for the wait operation. Candidates: &#39;cta&#39;, &#39;cluster&#39;.</span>
+<span class="sd">            Synchronization scope. Candidates: ``&#39;cta&#39;``, ``&#39;cluster&#39;``.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
@@ -786,10 +799,11 @@ document.write(`
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Arrive at barriers across multiple CTAs with expected async transactions.</span>
 
-<span class="sd">        Signals an arrive-and-expect-tx on the barriers at the same shared memory offset in each</span>
-<span class="sd">        CTA specified by ``multicast_mask``. The arrival count is 1 and the tx-count is increased</span>
-<span class="sd">        by ``transaction_bytes`` on each signaled barrier. One thread is elected per CTA to perform</span>
-<span class="sd">        the operation.</span>
+<span class="sd">        Unlike :meth:`arrive` and :meth:`arrive_and_expect_tx` where every thread in the group</span>
+<span class="sd">        arrives on the same barrier, this instruction elects **one thread per target CTA** in</span>
+<span class="sd">        ``multicast_mask``. Each elected thread arrives on the barrier at the same shared memory</span>
+<span class="sd">        offset in its assigned CTA. The arrival count is 1 and the tx-count is increased by</span>
+<span class="sd">        ``transaction_bytes`` on each signaled barrier.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -837,17 +851,23 @@ document.write(`
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Arrive at a peer CTA&#39;s barrier with expected async transactions.</span>
 
-<span class="sd">        Signals an arrive-and-expect-tx on the barrier in the CTA specified by ``target_rank``.</span>
-<span class="sd">        The barrier at the same shared memory offset as the local ``barrier`` in the target CTA</span>
-<span class="sd">        is signaled with arrival count 1 and tx-count increased by ``transaction_bytes``.</span>
+<span class="sd">        Each thread in the current thread group arrives on the barrier in the remote CTA</span>
+<span class="sd">        specified by ``target_rank``, using the same shared memory offset as the local</span>
+<span class="sd">        ``barrier``. Each thread decrements the remote barrier&#39;s pending arrival count by 1</span>
+<span class="sd">        and increases its tx-count by ``transaction_bytes``.</span>
+
+<span class="sd">        This is used in cluster-wide pipelines where one CTA needs to signal another CTA&#39;s</span>
+<span class="sd">        barrier (e.g., to indicate that data has been loaded into the remote CTA&#39;s shared</span>
+<span class="sd">        memory).</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        barrier: RegisterTensor</span>
 <span class="sd">            A single-element uint32 register tensor with the barrier&#39;s shared memory address</span>
-<span class="sd">            in the current CTA. The same offset is used for the target CTA.</span>
+<span class="sd">            in the current CTA. The barrier at the same offset in the target CTA is signaled.</span>
 <span class="sd">        transaction_bytes: Expr | int</span>
-<span class="sd">            Expected async transfer size in bytes. Must evaluate to a non-negative int32.</span>
+<span class="sd">            Expected async transfer size in bytes. The remote barrier&#39;s tx-count is increased</span>
+<span class="sd">            by this value. Must evaluate to a non-negative int32.</span>
 <span class="sd">        target_rank: int</span>
 <span class="sd">            Rank of the target CTA in the cluster. Must be in ``[0, clusterSize)``.</span>
 <span class="sd">        sem: str</span>
@@ -872,7 +892,6 @@ document.write(`
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">arrive_expect_tx_remote_barrier</span><span class="p">(</span>
             <span class="n">barrier</span><span class="p">,</span> <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">transaction_bytes</span><span class="p">,</span> <span class="n">target_rank</span><span class="o">=</span><span class="n">target_rank</span><span class="p">,</span> <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="n">scope</span>
         <span class="p">)</span></div>
-</div>
 
 </pre></div>
 

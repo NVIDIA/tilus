@@ -5,7 +5,7 @@ A tensor memory tensor (i.e., :py:class:`~tilus.ir.tensor.TMemoryTensor`) is a t
 of Blackwell GPUs (sm_100+). Tensor Memory is a dedicated on-chip memory specialized for use by the 5th-generation
 Tensor Cores (``tcgen05``).
 
-.. figure:: /tutorials/matmul-blackwell/figures/v0_tmem_layout.svg
+.. figure:: /python-api/instruction-groups/figures/tmem_layout.svg
    :width: 80%
    :align: center
 

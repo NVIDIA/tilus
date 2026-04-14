@@ -634,6 +634,13 @@ supporting both shared-memory and TMEM operands for the A matrix.</p></li>
 <p>With <code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code>, two CTAs in the same cluster collaborate: each CTA provides half the
 data (split along the M dimension) and holds half the accumulator, enabling larger tile sizes.</p>
 </div>
+<figure class="align-center" id="id1">
+<a class="reference internal image-reference" href="../../_images/tmem_layout.svg"><img alt="../../_images/tmem_layout.svg" src="../../_images/tmem_layout.svg" style="width: 90%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">Tensor Memory layout: 128 lanes x 512 columns, each cell 32 bits.</span><a class="headerlink" href="#id1" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
 <p class="rubric">Instructions</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>

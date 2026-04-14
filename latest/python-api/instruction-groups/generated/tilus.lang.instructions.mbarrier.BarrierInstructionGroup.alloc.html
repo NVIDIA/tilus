@@ -618,12 +618,17 @@ document.write(`
 <dt class="sig sig-object py" id="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc">
 <span class="sig-prename descclassname"><span class="pre">Script.mbarrier.</span></span><span class="sig-name descname"><span class="pre">alloc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">counts</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/tilus/lang/instructions/mbarrier.html#BarrierInstructionGroup.alloc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc" title="Link to this definition"><span>¶</span></a></dt>
 <dd><p>Allocate and initialize one or more mbarriers in shared memory.</p>
-<p>Each barrier is initialized with phase 0, the specified expected arrival count, and
-tx-count of 0. When a single value is provided, one barrier is allocated; when a
-sequence is provided, multiple barriers are allocated with the corresponding counts.</p>
+<p>Each barrier is a 64-bit object in shared memory, initialized with:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">=</span> <span class="pre">0</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pending_arrivals</span> <span class="pre">=</span> <span class="pre">counts[i]</span></code> (the expected arrival count)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">expected_arrivals</span> <span class="pre">=</span> <span class="pre">counts[i]</span></code> (used to reset pending_arrivals on phase flip)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tx-count</span> <span class="pre">=</span> <span class="pre">0</span></code></p></li>
+</ul>
+<p>A single value allocates one barrier; a sequence allocates multiple barriers.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>counts</strong> (<em>Sequence</em><em>[</em><em>Expr</em><em> | </em><em>int</em><em>] </em><em>| </em><em>Expr</em><em> | </em><em>int</em><em>, </em><em>optional</em>) – Expected arrival counts for the barriers. Each count must evaluate to a positive
+<dd class="field-odd"><p><strong>counts</strong> (<em>Sequence</em><em>[</em><em>Expr</em><em> | </em><em>int</em><em>] </em><em>| </em><em>Expr</em><em> | </em><em>int</em>) – Expected arrival counts for the barriers. Each count must evaluate to a positive
 int32. A single value allocates one barrier; a sequence allocates multiple.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>

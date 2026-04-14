@@ -606,7 +606,6 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-flow">Data Flow</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-memory-tmem">Tensor Memory (TMEM)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-barriers-mbarrier">Asynchronous Barriers (mbarrier)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-layout-k-major">Data Layout: K-major</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#thread-groups">Thread Groups</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-setup">Kernel Setup</a></li>
@@ -631,10 +630,9 @@ document.write(`
   <section id="a-minimal-blackwell-matmul">
 <span id="tutorial-blackwell-matmul-v0"></span><h1>0. A Minimal Blackwell Matmul<a class="headerlink" href="#a-minimal-blackwell-matmul" title="Link to this heading"><span>¶</span></a></h1>
 <p>This first version implements a minimal but correct matrix multiplication kernel
-on Blackwell GPUs. It introduces three key Blackwell features:
-<strong>Tensor Memory</strong> (<a class="reference internal" href="../../python-api/instruction-groups/tcgen05.html"><span class="doc">tcgen05</span></a>),
-<strong>5th-generation Tensor Cores</strong>, and
-<strong>asynchronous barriers</strong> (<a class="reference internal" href="../../python-api/instruction-groups/mbarrier.html"><span class="doc">mbarrier</span></a>).</p>
+on Blackwell GPUs. It introduces two key Blackwell features:
+<strong>Tensor Memory and 5th-generation Tensor Cores</strong> (<a class="reference internal" href="../../python-api/instruction-groups/tcgen05.html"><span class="doc">tcgen05</span></a>)
+and <strong>asynchronous barriers</strong> (<a class="reference internal" href="../../python-api/instruction-groups/mbarrier.html"><span class="doc">mbarrier</span></a>).</p>
 <p>The kernel is not yet fast — we will optimize it step by step in later
 versions — but it establishes the foundation for everything that follows.</p>
 <section id="the-full-kernel">
@@ -661,51 +659,63 @@ big picture. We will explain each part in the sections that follow.</p>
         <span class="n">b_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
         <span class="n">c_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
     <span class="p">):</span>
+        <span class="c1"># set the number of blocks and warps for the kernel launch</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">),</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">)]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>
 
+        <span class="c1"># compute the tile offset from the block index</span>
         <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span>
         <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">y</span>
 
+        <span class="c1"># create global tensor views from raw pointers</span>
         <span class="n">g_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
         <span class="n">g_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">n_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
+
+        <span class="c1"># allocate shared memory tiles for A and B</span>
         <span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">])</span>
         <span class="n">s_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">])</span>
 
-        <span class="c1"># allocate a tensor in tensor memory (tmem)</span>
+        <span class="c1"># allocate a tensor in tensor memory (tmem) as the MMA accumulator</span>
         <span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">])</span>
 
-        <span class="c1"># allocate one barrier in shared memory</span>
+        <span class="c1"># allocate one mbarrier to track MMA completion</span>
         <span class="n">mbarriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 
-        <span class="c1"># use a phase to record the current phase of the barrier</span>
+        <span class="c1"># mbarrier phase flips between 0 and 1 after each wait</span>
         <span class="n">phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">0</span>
 
+        <span class="c1"># synchronize all threads before entering the main loop</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
         <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">):</span>
+            <span class="c1"># async copy tiles from global to shared memory (legacy, non-TMA)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">copy_async_wait_all</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
+            <span class="c1"># tcgen05 instructions are warp-cooperative (issued by a single warp)</span>
             <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
+                <span class="c1"># D = A @ B (first iter) or D = A @ B + D (subsequent iters)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
                     <span class="n">s_a</span><span class="p">,</span> <span class="n">s_b</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span> <span class="n">t_acc</span><span class="p">,</span> <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span>
                 <span class="p">)</span>
+                <span class="c1"># make the mbarrier track completion of prior async tcgen05 ops</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">mbarriers</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="c1"># wait until the MMA writes to tmem are complete</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">mbarriers</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">phase</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
             <span class="n">phase</span> <span class="o">^=</span> <span class="mi">1</span>
 
-        <span class="c1"># load the result from tensor memory to register</span>
+        <span class="c1"># load the result from tensor memory to registers</span>
         <span class="n">r_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">t_acc</span><span class="p">)</span>
 
+        <span class="c1"># cast to float16 and store to global memory</span>
         <span class="n">g_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">c_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">store_global</span><span class="p">(</span><span class="n">g_c</span><span class="p">,</span> <span class="n">r_acc</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">float16</span><span class="p">),</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
 
-        <span class="c1"># all allocated tensor memory must be deallocated</span>
+        <span class="c1"># all allocated tensor memory must be deallocated before kernel exits</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">dealloc</span><span class="p">(</span><span class="n">t_acc</span><span class="p">)</span>
 </pre></div>
@@ -727,11 +737,21 @@ The hatched regions show the full slices of A and B<sup>T</sup> that participate
 in computing the highlighted C tile.</span><a class="headerlink" href="#id2" title="Link to this image"><span>¶</span></a></p>
 </figcaption>
 </figure>
-<p>// remove the x and = in the figure, instead, adding A x B^T = C at the bottom (centered).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Data layout: K-major.</strong> Blackwell tensor cores expect operands in one of two
+shared memory layouts: MN-major or K-major. This tutorial uses K-major (K is
+the contiguous dimension), so A is <code class="docutils literal notranslate"><span class="pre">[M,</span> <span class="pre">K]</span></code> and B is <code class="docutils literal notranslate"><span class="pre">[N,</span> <span class="pre">K]</span></code>.
+<code class="docutils literal notranslate"><span class="pre">tcgen05.mma</span></code> expects logical shapes <code class="docutils literal notranslate"><span class="pre">[M,</span> <span class="pre">K]</span></code> and <code class="docutils literal notranslate"><span class="pre">[K,</span> <span class="pre">N]</span></code>, which is why
+we call <code class="docutils literal notranslate"><span class="pre">s_b.transpose()</span></code> — a view operation that reinterprets the layout
+without copying data.</p>
+</div>
 </section>
 <section id="data-flow">
 <h2>Data Flow<a class="headerlink" href="#data-flow" title="Link to this heading"><span>¶</span></a></h2>
-<p>The kernel moves data through four memory levels:</p>
+<p>Unlike Triton where shared memory is managed automatically, tilus gives explicit
+control over data placement — this is necessary to use Blackwell hardware
+features like TMA and tcgen05. The kernel moves data through four memory levels:</p>
 <figure class="align-center" id="id3">
 <a class="reference internal image-reference" href="../../_images/v0_data_flow.svg"><img alt="../../_images/v0_data_flow.svg" src="../../_images/v0_data_flow.svg" style="width: 100%;" />
 </a>
@@ -756,15 +776,19 @@ final result back to global memory.</p></li>
 </section>
 <section id="tensor-memory-tmem">
 <h2>Tensor Memory (TMEM)<a class="headerlink" href="#tensor-memory-tmem" title="Link to this heading"><span>¶</span></a></h2>
-<p><strong>Tensor Memory</strong> is a new memory space introduced on Blackwell (sm_100),
-private to the SM’s tensor cores.
-It acts as a high-bandwidth accumulator for MMA operations,
-avoiding the need to hold large accumulator tiles in registers.</p>
+<p>On pre-Blackwell architectures, MMA results are accumulated in the register
+file, which creates two problems: the accumulator tiles consume a large number of
+registers per thread (e.g., 128 registers just for one Hopper GMMA N=256 result),
+and the MMA traffic monopolizes register file bandwidth, stalling other work.
+Blackwell introduces <strong>Tensor Memory</strong> — a dedicated on-chip memory private to
+the SM’s tensor cores. By moving the accumulator into TMEM, the register file is
+freed for epilogue and load instructions to run concurrently with the tensor
+cores.</p>
 <p>Tensor Memory is organized as a 2D structure of <strong>128 lanes</strong> (rows) and
 <strong>512 columns</strong> per CTA, with each cell being 32 bits. Memory is allocated
 in units of 32 columns.</p>
 <figure class="align-center" id="id4">
-<a class="reference internal image-reference" href="../../_images/v0_tmem_layout.svg"><img alt="../../_images/v0_tmem_layout.svg" src="../../_images/v0_tmem_layout.svg" style="width: 80%;" />
+<a class="reference internal image-reference" href="../../_images/tmem_layout.svg"><img alt="../../_images/tmem_layout.svg" src="../../_images/tmem_layout.svg" style="width: 80%;" />
 </a>
 <figcaption>
 <p><span class="caption-text">Tensor Memory layout: 128 lanes x 512 columns, each cell 32 bits.</span><a class="headerlink" href="#id4" title="Link to this image"><span>¶</span></a></p>
@@ -781,45 +805,52 @@ in units of 32 columns.</p>
 <li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.dealloc</span></code></a>
 — free the allocation (required before the kernel exits).</p></li>
 </ol>
-<p>For more details, see <a class="reference internal" href="../../python-api/instruction-groups/tcgen05.html"><span class="doc">Script.tcgen05</span></a> and
-<a class="reference internal" href="../../programming-guides/type-system/tmemory-tensor.html"><span class="doc">Tensor Memory Tensor</span></a>.</p>
+<p>For more details, see <a class="reference internal" href="../../python-api/instruction-groups/tcgen05.html"><span class="doc">Script.tcgen05</span></a>.</p>
 </section>
 <section id="asynchronous-barriers-mbarrier">
 <h2>Asynchronous Barriers (mbarrier)<a class="headerlink" href="#asynchronous-barriers-mbarrier" title="Link to this heading"><span>¶</span></a></h2>
-<p>On Blackwell, many operations are <strong>asynchronous</strong> — an instruction can be
-issued and completed later. We need a way to know when an async operation has
-finished. This is the role of the <strong>mbarrier</strong> (memory barrier).</p>
-<p>An mbarrier tracks completion through a <strong>phase</strong> that flips between 0 and 1:</p>
+<p>In Triton, synchronization is handled implicitly. On Blackwell, many operations
+are <strong>asynchronous</strong> — the instruction returns immediately and the work
+completes in the background. This enables overlapping data movement with
+computation, but requires explicit tracking of when operations finish. This is
+the role of the <strong>mbarrier</strong> (memory barrier, see <a class="reference internal" href="../../python-api/instruction-groups/mbarrier.html"><span class="doc">Script.mbarrier</span></a>).</p>
+<p>An mbarrier is a <strong>64-bit synchronization object in shared memory</strong> that tracks
+two things:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.wait(barrier,</span> <span class="pre">phase=p)</span></code></a>
-blocks until the barrier’s current phase differs from <code class="docutils literal notranslate"><span class="pre">p</span></code>, meaning the
-tracked operations have completed.</p></li>
-<li><p>After each wait, the caller flips its local phase (<code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">^=</span> <span class="pre">1</span></code>) to prepare
-for the next round.</p></li>
+<li><p><strong>Pending arrivals</strong>: how many threads still need to signal they are done.
+Each <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.arrive</span></code></a>
+call decrements this count.</p></li>
+<li><p><strong>Phase</strong> (1 bit): flips between 0 and 1 each time a phase completes.</p></li>
 </ul>
+<div class="margin admonition note">
+<p class="admonition-title">Note</p>
+<p>mbarriers can also track <strong>asynchronous byte transactions</strong> (tx-count) for
+TMA transfers. We will introduce this in the next version.</p>
+</div>
+<p>A phase completes when all pending arrivals reach zero. At that point, the
+hardware automatically flips the phase bit and resets the counters for the next
+phase.</p>
+<p><strong>Wait</strong> checks the phase:
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.wait(barrier,</span> <span class="pre">phase=p)</span></code></a>
+blocks until the barrier’s current phase differs from <code class="docutils literal notranslate"><span class="pre">p</span></code>. When the phase has
+flipped, the tracked operations are guaranteed to have completed.</p>
+<p><strong>Why flip the phase?</strong> The same barrier is reused across loop iterations. The
+phase bit distinguishes “this iteration completed” from “the previous iteration
+completed.” After each wait, the caller flips its local phase variable
+(<code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">^=</span> <span class="pre">1</span></code>) so the next wait targets the new phase:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">0</span>               <span class="c1"># start expecting phase 0</span>
+<span class="k">for</span> <span class="o">...</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">phase</span><span class="p">)</span>  <span class="c1"># wait for current phase</span>
+    <span class="n">phase</span> <span class="o">^=</span> <span class="mi">1</span>                  <span class="c1"># next iteration waits for the other phase</span>
+</pre></div>
+</div>
 <p>In this kernel, we use an mbarrier to track when
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.mma</span></code></a>
-+
+has finished writing to tensor memory. The
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit</span></code></a>
-have finished writing to tensor memory.</p>
-<p>For more details, see <a class="reference internal" href="../../python-api/instruction-groups/mbarrier.html"><span class="doc">Script.mbarrier</span></a>.</p>
-</section>
-<section id="data-layout-k-major">
-<h2>Data Layout: K-major<a class="headerlink" href="#data-layout-k-major" title="Link to this heading"><span>¶</span></a></h2>
-<p>Blackwell tensor cores
-(<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.mma</span></code></a>)
-expect operands in shared memory in
-one of two layouts: <strong>MN-major</strong> or <strong>K-major</strong>. In this tutorial, we use
-K-major, meaning the K dimension is contiguous in memory.</p>
-<p>Since we store both A and B as K-major:</p>
-<ul class="simple">
-<li><p><strong>A</strong> has shape <code class="docutils literal notranslate"><span class="pre">[M,</span> <span class="pre">K]</span></code> — K is already the last (contiguous) dimension.</p></li>
-<li><p><strong>B</strong> has shape <code class="docutils literal notranslate"><span class="pre">[N,</span> <span class="pre">K]</span></code> — also K-major.</p></li>
-</ul>
-<p>However, <code class="docutils literal notranslate"><span class="pre">tcgen05.mma</span></code> computes <span class="math notranslate nohighlight">\(D = A \times B\)</span> and expects logical
-shapes <code class="docutils literal notranslate"><span class="pre">[M,</span> <span class="pre">K]</span></code> and <code class="docutils literal notranslate"><span class="pre">[K,</span> <span class="pre">N]</span></code>. Since our B is <code class="docutils literal notranslate"><span class="pre">[N,</span> <span class="pre">K]</span></code>, we call
-<code class="docutils literal notranslate"><span class="pre">s_b.transpose()</span></code> to present it as <code class="docutils literal notranslate"><span class="pre">[K,</span> <span class="pre">N]</span></code>. This is a <strong>view operation</strong>
-that reinterprets the layout without copying data.</p>
+instruction makes the mbarrier track completion of all prior async tcgen05
+operations — when those operations actually complete, the hardware signals the
+mbarrier by arriving on it.</p>
 </section>
 <section id="thread-groups">
 <h2>Thread Groups<a class="headerlink" href="#thread-groups" title="Link to this heading"><span>¶</span></a></h2>
@@ -850,10 +881,13 @@ warps, tilus introduces <a class="reference internal" href="../../programming-gu
 are <strong>warp-cooperative</strong> — they must be issued by exactly one warp.
 We use <a class="reference internal" href="../../python-api/generated/tilus.Script.single_warp.html#tilus.Script.single_warp" title="tilus.Script.single_warp"><code class="xref py py-meth docutils literal notranslate"><span class="pre">single_warp()</span></code></a> to express this:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
+    <span class="c1"># D = A @ B (first iter) or D = A @ B + D (subsequent iters)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
         <span class="n">s_a</span><span class="p">,</span> <span class="n">s_b</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span> <span class="n">t_acc</span><span class="p">,</span> <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span>
     <span class="p">)</span>
+    <span class="c1"># make the mbarrier track completion of prior async tcgen05 ops</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">mbarriers</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="c1"># wait until the MMA writes to tmem are complete</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">mbarriers</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">phase</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -868,30 +902,40 @@ kernel code in detail.</p>
 <code class="docutils literal notranslate"><span class="pre">__init__</span></code> method stores compile-time hyperparameters (tile sizes), and
 <code class="docutils literal notranslate"><span class="pre">__call__</span></code> describes the kernel logic. For more on the script structure, see
 <a class="reference internal" href="../../programming-guides/tilus-script.html"><span class="doc">Tilus Script</span></a>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">&#64;tilus.autotune</span></code> decorators define a search space for compile-time
+hyperparameters. Tilus benchmarks all combinations and picks the fastest
+configuration automatically. For more on autotuning, see
+<a class="reference internal" href="../../programming-guides/autotuning.html"><span class="doc">Autotuning</span></a>.</p>
 <section id="kernel-setup">
 <h3>Kernel Setup<a class="headerlink" href="#kernel-setup" title="Link to this heading"><span>¶</span></a></h3>
 <div class="literal-block-wrapper docutils container" id="id5">
 <div class="code-block-caption"><span class="caption-text">Kernel setup</span><a class="headerlink" href="#id5" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">),</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">)]</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># set the number of blocks and warps for the kernel launch</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">),</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">)]</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>
 
+<span class="c1"># compute the tile offset from the block index</span>
 <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span>
 <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">y</span>
 
+<span class="c1"># create global tensor views from raw pointers</span>
 <span class="n">g_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
 <span class="n">g_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">n_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
+
+<span class="c1"># allocate shared memory tiles for A and B</span>
 <span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">])</span>
 <span class="n">s_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">])</span>
 
-<span class="c1"># allocate a tensor in tensor memory (tmem)</span>
+<span class="c1"># allocate a tensor in tensor memory (tmem) as the MMA accumulator</span>
 <span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">])</span>
 
-<span class="c1"># allocate one barrier in shared memory</span>
+<span class="c1"># allocate one mbarrier to track MMA completion</span>
 <span class="n">mbarriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 
-<span class="c1"># use a phase to record the current phase of the barrier</span>
+<span class="c1"># mbarrier phase flips between 0 and 1 after each wait</span>
 <span class="n">phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">0</span>
 
+<span class="c1"># synchronize all threads before entering the main loop</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -900,7 +944,8 @@ kernel code in detail.</p>
 <li><p><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.blocks.html#tilus.lang.script.Attributes.blocks" title="tilus.lang.script.Attributes.blocks"><code class="xref py py-attr docutils literal notranslate"><span class="pre">self.attrs.blocks</span></code></a> sets the grid
 dimensions — <code class="docutils literal notranslate"><span class="pre">ceil(M</span> <span class="pre">/</span> <span class="pre">block_m)</span> <span class="pre">x</span> <span class="pre">ceil(N</span> <span class="pre">/</span> <span class="pre">block_n)</span></code> thread blocks.</p></li>
 <li><p><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.warps.html#tilus.lang.script.Attributes.warps" title="tilus.lang.script.Attributes.warps"><code class="xref py py-attr docutils literal notranslate"><span class="pre">self.attrs.warps</span></code></a> sets the number
-of warps per block (4 warps = 128 threads).</p></li>
+of warps per block. Here we use 4 warps (128 threads); later versions will use
+more warps to overlap loading and computing.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">offset_m</span></code> and <code class="docutils literal notranslate"><span class="pre">offset_n</span></code> are the output tile offsets, computed from the
 block index (<a class="reference internal" href="../../python-api/generated/tilus.Script.blockIdx.html#tilus.Script.blockIdx" title="tilus.Script.blockIdx"><code class="xref py py-attr docutils literal notranslate"><span class="pre">blockIdx</span></code></a>).</p></li>
 <li><p><a class="reference internal" href="../../python-api/generated/tilus.Script.global_view.html#tilus.Script.global_view" title="tilus.Script.global_view"><code class="xref py py-meth docutils literal notranslate"><span class="pre">global_view()</span></code></a> interprets the raw pointers as 2D tensors
@@ -910,9 +955,12 @@ A and B data.</p></li>
 <li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.alloc</span></code></a>
 allocates the tensor memory accumulator.</p></li>
 <li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.alloc</span></code></a>
-allocates one mbarrier with an expected arrival count of 1.</p></li>
-<li><p>The phase variable is initialized for mbarrier tracking, and
-<a class="reference internal" href="../../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a> ensures all setup is complete before the main loop.</p></li>
+allocates one mbarrier with an expected arrival count of 1 — because
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit</span></code></a>
+will perform exactly one arrival on the barrier when the MMA completes.</p></li>
+<li><p><a class="reference internal" href="../../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a> acts as a thread block barrier (like
+<code class="docutils literal notranslate"><span class="pre">__syncthreads()</span></code> in CUDA), ensuring all allocations are visible to every
+thread before entering the main loop.</p></li>
 </ul>
 </section>
 <section id="main-loop">
@@ -920,16 +968,21 @@ allocates one mbarrier with an expected arrival count of 1.</p></li>
 <div class="literal-block-wrapper docutils container" id="id6">
 <div class="code-block-caption"><span class="caption-text">Main loop</span><a class="headerlink" href="#id6" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">):</span>
+    <span class="c1"># async copy tiles from global to shared memory (legacy, non-TMA)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">])</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">copy_async</span><span class="p">(</span><span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">])</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">copy_async_wait_all</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
+    <span class="c1"># tcgen05 instructions are warp-cooperative (issued by a single warp)</span>
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
+        <span class="c1"># D = A @ B (first iter) or D = A @ B + D (subsequent iters)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
             <span class="n">s_a</span><span class="p">,</span> <span class="n">s_b</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span> <span class="n">t_acc</span><span class="p">,</span> <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span>
         <span class="p">)</span>
+        <span class="c1"># make the mbarrier track completion of prior async tcgen05 ops</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">mbarriers</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="c1"># wait until the MMA writes to tmem are complete</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">mbarriers</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">phase</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
@@ -942,45 +995,58 @@ allocates one mbarrier with an expected arrival count of 1.</p></li>
 <li><p><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async()</span></code></a> loads a <code class="docutils literal notranslate"><span class="pre">block_m</span> <span class="pre">x</span> <span class="pre">block_k</span></code> tile of A and a
 <code class="docutils literal notranslate"><span class="pre">block_n</span> <span class="pre">x</span> <span class="pre">block_k</span></code> tile of B from global to shared memory.
 <a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all" title="tilus.Script.copy_async_wait_all"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async_wait_all()</span></code></a> waits for all outstanding copies, and
-<a class="reference internal" href="../../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a> ensures all threads see the data.</p></li>
+<a class="reference internal" href="../../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a> ensures all threads see the shared memory writes
+before the MMA warp reads them.</p></li>
 <li><p>Within <a class="reference internal" href="../../python-api/generated/tilus.Script.single_warp.html#tilus.Script.single_warp" title="tilus.Script.single_warp"><code class="xref py py-meth docutils literal notranslate"><span class="pre">single_warp()</span></code></a>,
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.mma</span></code></a>
 multiplies the two tiles and accumulates into tensor memory.
-<code class="docutils literal notranslate"><span class="pre">enable_input_d=offset_k</span> <span class="pre">!=</span> <span class="pre">0</span></code> means the first iteration computes
-<span class="math notranslate nohighlight">\(D = A \times B\)</span>, and subsequent iterations compute
-<span class="math notranslate nohighlight">\(D = A \times B + D\)</span>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">enable_input_d=offset_k</span> <span class="pre">!=</span> <span class="pre">0</span></code> controls whether the existing accumulator is
+used: on the first iteration, tensor memory contains uninitialized data so we
+compute <span class="math notranslate nohighlight">\(D = A \times B\)</span>; on subsequent iterations, it holds the running
+sum from prior tiles so we compute <span class="math notranslate nohighlight">\(D = A \times B + D\)</span>.</p></li>
 <li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit</span></code></a>
-signals the mbarrier that the MMA has been submitted.
+makes the mbarrier track completion of the preceding async MMA.
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.wait</span></code></a>
-blocks until the MMA completes.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">^=</span> <span class="pre">1</span></code> prepares for the next mbarrier cycle.</p></li>
+blocks until the MMA writes to tensor memory are complete.</p></li>
+<li><p><a class="reference internal" href="../../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a> after the <code class="docutils literal notranslate"><span class="pre">single_warp</span></code> block ensures all threads
+reconverge before the next iteration.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">^=</span> <span class="pre">1</span></code> flips the local phase so the next <code class="docutils literal notranslate"><span class="pre">mbarrier.wait</span></code> targets
+the new phase of the reused barrier.</p></li>
 </ul>
 </section>
 <section id="epilogue">
 <h3>Epilogue<a class="headerlink" href="#epilogue" title="Link to this heading"><span>¶</span></a></h3>
 <div class="literal-block-wrapper docutils container" id="id7">
 <div class="code-block-caption"><span class="caption-text">Epilogue</span><a class="headerlink" href="#id7" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># load the result from tensor memory to register</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># load the result from tensor memory to registers</span>
 <span class="n">r_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">t_acc</span><span class="p">)</span>
 
+<span class="c1"># cast to float16 and store to global memory</span>
 <span class="n">g_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">c_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">store_global</span><span class="p">(</span><span class="n">g_c</span><span class="p">,</span> <span class="n">r_acc</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">float16</span><span class="p">),</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
 
-<span class="c1"># all allocated tensor memory must be deallocated</span>
+<span class="c1"># all allocated tensor memory must be deallocated before kernel exits</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">dealloc</span><span class="p">(</span><span class="n">t_acc</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<p>After the loop, we load the accumulator from tensor memory to registers via
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.load</span></code></a>,
-cast to float16, and write to global memory via
-<a class="reference internal" href="../../python-api/generated/tilus.Script.store_global.html#tilus.Script.store_global" title="tilus.Script.store_global"><code class="xref py py-meth docutils literal notranslate"><span class="pre">store_global()</span></code></a>. Finally, we deallocate the tensor memory
-with <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.dealloc</span></code></a>.</p>
+<p>After the loop,
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.load</span></code></a>
+moves the accumulator from tensor memory to registers, <code class="docutils literal notranslate"><span class="pre">.to(float16)</span></code> casts it,
+and <a class="reference internal" href="../../python-api/generated/tilus.Script.store_global.html#tilus.Script.store_global" title="tilus.Script.store_global"><code class="xref py py-meth docutils literal notranslate"><span class="pre">store_global()</span></code></a> writes the result to global memory.
+Finally, <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.dealloc</span></code></a>
+frees the tensor memory — all TMEM allocations must be explicitly deallocated
+before the kernel exits.</p>
 </section>
 </section>
 <section id="running-the-kernel">
 <h2>Running the Kernel<a class="headerlink" href="#running-the-kernel" title="Link to this heading"><span>¶</span></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">BlackwellMatmulV0()</span></code> creates a kernel template. Compilation happens on the
+first call — parameters annotated with <code class="docutils literal notranslate"><span class="pre">int</span></code> (like <code class="docutils literal notranslate"><span class="pre">n_size</span></code>, <code class="docutils literal notranslate"><span class="pre">k_size</span></code>)
+are compile-time constants, so a new value triggers JIT compilation and
+autotuning. Once compiled, subsequent calls with the same compile-time values
+dispatch directly to the GPU.</p>
 <div class="literal-block-wrapper docutils container" id="id8">
 <div class="code-block-caption"><span class="caption-text">Launch, verify, and benchmark</span><a class="headerlink" href="#id8" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">bench</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -1031,11 +1097,13 @@ with <a class="reference internal" href="../../python-api/instruction-groups/gen
 <h2>What’s Next<a class="headerlink" href="#what-s-next" title="Link to this heading"><span>¶</span></a></h2>
 <p>This kernel works but is far from optimal. The main bottleneck is the
 <strong>load path</strong>: <a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">copy_async()</span></code></a> uses the legacy async copy
-mechanism, which requires all threads to participate and does not leverage
-the hardware’s <strong>Tensor Memory Access (TMA)</strong> engine.</p>
-<p>In the next version, we replace <code class="docutils literal notranslate"><span class="pre">copy_async</span></code> with
-<strong>TMA</strong> loads, which offload address generation and data movement to a dedicated
-hardware unit, freeing up warps for computation.</p>
+mechanism (<code class="docutils literal notranslate"><span class="pre">cp.async</span></code> in PTX), where every thread issues its own small copy
+instruction. This has high instruction overhead and does not leverage dedicated
+hardware for bulk data movement.</p>
+<p>In the next version, we replace <code class="docutils literal notranslate"><span class="pre">copy_async</span></code> with <strong>TMA</strong> (Tensor Memory
+Access) loads. TMA offloads address generation and data movement to a dedicated
+hardware unit — a single TMA instruction copies an entire tile with minimal
+instruction overhead, and is issued by just one warp.</p>
 </section>
 <section id="full-source">
 <h2>Full Source<a class="headerlink" href="#full-source" title="Link to this heading"><span>¶</span></a></h2>
@@ -1094,7 +1162,6 @@ hardware unit, freeing up warps for computation.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-flow">Data Flow</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tensor-memory-tmem">Tensor Memory (TMEM)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-barriers-mbarrier">Asynchronous Barriers (mbarrier)</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-layout-k-major">Data Layout: K-major</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#thread-groups">Thread Groups</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-setup">Kernel Setup</a></li>

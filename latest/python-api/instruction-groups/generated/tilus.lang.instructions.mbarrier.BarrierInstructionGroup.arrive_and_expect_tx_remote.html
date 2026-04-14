@@ -618,15 +618,20 @@ document.write(`
 <dt class="sig sig-object py" id="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote">
 <span class="sig-prename descclassname"><span class="pre">Script.mbarrier.</span></span><span class="sig-name descname"><span class="pre">arrive_and_expect_tx_remote</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">barrier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transaction_bytes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_rank</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sem</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'release'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cluster'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/tilus/lang/instructions/mbarrier.html#BarrierInstructionGroup.arrive_and_expect_tx_remote"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="Link to this definition"><span>¶</span></a></dt>
 <dd><p>Arrive at a peer CTA’s barrier with expected async transactions.</p>
-<p>Signals an arrive-and-expect-tx on the barrier in the CTA specified by <code class="docutils literal notranslate"><span class="pre">target_rank</span></code>.
-The barrier at the same shared memory offset as the local <code class="docutils literal notranslate"><span class="pre">barrier</span></code> in the target CTA
-is signaled with arrival count 1 and tx-count increased by <code class="docutils literal notranslate"><span class="pre">transaction_bytes</span></code>.</p>
+<p>Each thread in the current thread group arrives on the barrier in the remote CTA
+specified by <code class="docutils literal notranslate"><span class="pre">target_rank</span></code>, using the same shared memory offset as the local
+<code class="docutils literal notranslate"><span class="pre">barrier</span></code>. Each thread decrements the remote barrier’s pending arrival count by 1
+and increases its tx-count by <code class="docutils literal notranslate"><span class="pre">transaction_bytes</span></code>.</p>
+<p>This is used in cluster-wide pipelines where one CTA needs to signal another CTA’s
+barrier (e.g., to indicate that data has been loaded into the remote CTA’s shared
+memory).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>barrier</strong> (<a class="reference internal" href="../../tilus-ir/register_tensor.html#tilus.ir.RegisterTensor" title="tilus.ir.RegisterTensor"><em>RegisterTensor</em></a>) – A single-element uint32 register tensor with the barrier’s shared memory address
-in the current CTA. The same offset is used for the target CTA.</p></li>
-<li><p><strong>transaction_bytes</strong> (<em>Expr</em><em> | </em><em>int</em>) – Expected async transfer size in bytes. Must evaluate to a non-negative int32.</p></li>
+in the current CTA. The barrier at the same offset in the target CTA is signaled.</p></li>
+<li><p><strong>transaction_bytes</strong> (<em>Expr</em><em> | </em><em>int</em>) – Expected async transfer size in bytes. The remote barrier’s tx-count is increased
+by this value. Must evaluate to a non-negative int32.</p></li>
 <li><p><strong>target_rank</strong> (<em>int</em>) – Rank of the target CTA in the cluster. Must be in <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">clusterSize)</span></code>.</p></li>
 <li><p><strong>sem</strong> (<em>str</em>) – Memory ordering semantics. Candidates: <code class="docutils literal notranslate"><span class="pre">'relaxed'</span></code>, <code class="docutils literal notranslate"><span class="pre">'release'</span></code>.</p></li>
 <li><p><strong>scope</strong> (<em>str</em>) – Synchronization scope. Candidates: <code class="docutils literal notranslate"><span class="pre">'cta'</span></code>, <code class="docutils literal notranslate"><span class="pre">'cluster'</span></code>.</p></li>

@@ -617,22 +617,25 @@ document.write(`
 <dl class="py method">
 <dt class="sig sig-object py" id="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait">
 <span class="sig-prename descclassname"><span class="pre">Script.mbarrier.</span></span><span class="sig-name descname"><span class="pre">wait</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">barrier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phase</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sem</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'acquire'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cta'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/tilus/lang/instructions/mbarrier.html#BarrierInstructionGroup.wait"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="Link to this definition"><span>¶</span></a></dt>
-<dd><p>Wait at a barrier.</p>
-<p>This instruction makes the threads in the current thread group wait at the specified barrier until the pending
-arrivals and tx-count of the given phase are both zero.</p>
-<p>When the barrier’s current phase is not equal to the specified <cite>phase</cite>, the threads will proceed without waiting
-since the specified phase has already finished.</p>
-<p>When the barrier’s current phase is equal to the specified <cite>phase</cite>, the threads will wait until both the pending
-arrivals and tx-count of the current phase are zero. Once these conditions are met, the barrier will switch to
-the next phase, and the threads will proceed.</p>
+<dd><p>Wait for a barrier phase to complete.</p>
+<p>All threads in the current thread group block until the barrier’s current phase
+differs from <code class="docutils literal notranslate"><span class="pre">phase</span></code>. This means the phase has completed — all pending arrivals
+and tx-count have reached zero, the hardware has flipped the phase bit, and it is
+safe to read data produced in that phase.</p>
+<p>If the barrier’s current phase already differs from <code class="docutils literal notranslate"><span class="pre">phase</span></code> (i.e., the phase has
+already completed), the threads proceed immediately without blocking.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">sem='acquire'</span></code>, all writes made visible by arrive operations (with release
+semantics) on this barrier in the completed phase are guaranteed visible to the
+waiting threads.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>barrier</strong> (<a class="reference internal" href="../../tilus-ir/register_tensor.html#tilus.ir.RegisterTensor" title="tilus.ir.RegisterTensor"><em>RegisterTensor</em></a>) – The barrier to wait on. It must be a register tensor with one uint32 element representing the address of the barrier in the local shared memory.</p></li>
-<li><p><strong>phase</strong> (<em>Expr</em><em> | </em><a class="reference internal" href="../../tilus-ir/register_tensor.html#tilus.ir.RegisterTensor" title="tilus.ir.RegisterTensor"><em>RegisterTensor</em></a><em> | </em><em>int</em>) – The phase value to wait for. It must be evaluated to either 0 or 1. It can also be a register tensor with single
-element representing the phase value.</p></li>
-<li><p><strong>sem</strong> (<em>str</em>) – The memory ordering semantics for the wait operation. Candidates: ‘acquire’, ‘relaxed’.</p></li>
-<li><p><strong>scope</strong> (<em>str</em>) – The synchronization scope for the wait operation. Candidates: ‘cta’, ‘cluster’.</p></li>
+<li><p><strong>barrier</strong> (<a class="reference internal" href="../../tilus-ir/register_tensor.html#tilus.ir.RegisterTensor" title="tilus.ir.RegisterTensor"><em>RegisterTensor</em></a>) – A single-element uint32 register tensor holding the barrier’s shared memory address.</p></li>
+<li><p><strong>phase</strong> (<em>Expr</em><em> | </em><a class="reference internal" href="../../tilus-ir/register_tensor.html#tilus.ir.RegisterTensor" title="tilus.ir.RegisterTensor"><em>RegisterTensor</em></a><em> | </em><em>int</em>) – The phase to wait for completion of. Must be 0 or 1. Can also be a single-element
+register tensor.</p></li>
+<li><p><strong>sem</strong> (<em>str</em>) – Memory ordering semantics. <code class="docutils literal notranslate"><span class="pre">'acquire'</span></code> ensures writes from the completed phase
+are visible; <code class="docutils literal notranslate"><span class="pre">'relaxed'</span></code> provides no ordering. Candidates: <code class="docutils literal notranslate"><span class="pre">'acquire'</span></code>, <code class="docutils literal notranslate"><span class="pre">'relaxed'</span></code>.</p></li>
+<li><p><strong>scope</strong> (<em>str</em>) – Synchronization scope. Candidates: <code class="docutils literal notranslate"><span class="pre">'cta'</span></code>, <code class="docutils literal notranslate"><span class="pre">'cluster'</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>

@@ -618,15 +618,21 @@ document.write(`
 <dt class="sig sig-object py" id="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive">
 <span class="sig-prename descclassname"><span class="pre">Script.mbarrier.</span></span><span class="sig-name descname"><span class="pre">arrive</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">barrier</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sem</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'release'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cta'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/tilus/lang/instructions/mbarrier.html#BarrierInstructionGroup.arrive"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="Link to this definition"><span>¶</span></a></dt>
 <dd><p>Arrive at a barrier.</p>
-<p>Each thread in the current thread group decreases the pending arrivals of the given barrier by <cite>count</cite>.</p>
+<p>Each thread in the current thread group decrements the barrier’s pending arrival count
+by <code class="docutils literal notranslate"><span class="pre">count</span></code>. When pending arrivals (and tx-count) both reach zero, the hardware flips
+the phase and resets the counters for the next phase.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">sem='release'</span></code>, all prior memory writes by the arriving thread are guaranteed
+visible to any thread that later completes a successful <code class="docutils literal notranslate"><span class="pre">wait</span></code> with acquire semantics
+on this barrier.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>barrier</strong> (<a class="reference internal" href="../../tilus-ir/register_tensor.html#tilus.ir.RegisterTensor" title="tilus.ir.RegisterTensor"><em>RegisterTensor</em></a>) – A register tensor with one uint32 element representing the address of the barrier in the local shared memory.</p></li>
-<li><p><strong>count</strong> (<em>Expr</em><em> | </em><em>int</em>) – The number of arrivals contributed by each thread in the current thread group. It must be evaluated to a positive int32.
-By default, it is 1.</p></li>
-<li><p><strong>sem</strong> (<em>str</em>) – The memory ordering semantics for the arrive operation. Candidates: ‘relaxed’, ‘release’.</p></li>
-<li><p><strong>scope</strong> (<em>str</em>) – The syncrhonization scope for the arrive operation. Candidates: ‘cta’, ‘cluster’.</p></li>
+<li><p><strong>barrier</strong> (<a class="reference internal" href="../../tilus-ir/register_tensor.html#tilus.ir.RegisterTensor" title="tilus.ir.RegisterTensor"><em>RegisterTensor</em></a>) – A single-element uint32 register tensor holding the barrier’s shared memory address.</p></li>
+<li><p><strong>count</strong> (<em>Expr</em><em> | </em><em>int</em>) – The number of arrivals contributed by each thread. Must evaluate to a positive int32.
+Default is 1.</p></li>
+<li><p><strong>sem</strong> (<em>str</em>) – Memory ordering semantics. <code class="docutils literal notranslate"><span class="pre">'release'</span></code> ensures prior writes are visible to waiters;
+<code class="docutils literal notranslate"><span class="pre">'relaxed'</span></code> provides no ordering guarantees. Candidates: <code class="docutils literal notranslate"><span class="pre">'relaxed'</span></code>, <code class="docutils literal notranslate"><span class="pre">'release'</span></code>.</p></li>
+<li><p><strong>scope</strong> (<em>str</em>) – Synchronization scope. Candidates: <code class="docutils literal notranslate"><span class="pre">'cta'</span></code>, <code class="docutils literal notranslate"><span class="pre">'cluster'</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>

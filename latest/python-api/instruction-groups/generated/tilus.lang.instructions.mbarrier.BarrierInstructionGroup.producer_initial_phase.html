@@ -617,7 +617,10 @@ document.write(`
 <dl class="py attribute">
 <dt class="sig sig-object py" id="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase">
 <span class="sig-prename descclassname"><span class="pre">Script.mbarrier.</span></span><span class="sig-name descname"><span class="pre">producer_initial_phase</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase" title="Link to this definition"><span>¶</span></a></dt>
-<dd></dd></dl>
+<dd><p>Initial phase value for the producer in a producer-consumer pipeline.
+The producer starts by waiting for the barrier to leave this phase (i.e., waiting for the
+consumer to free the slot), so it is initialized to <code class="docutils literal notranslate"><span class="pre">1</span></code>.</p>
+</dd></dl>
 
 </section>
 

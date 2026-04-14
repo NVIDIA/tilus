@@ -16,11 +16,11 @@
   <!-- A: highlighted tile -->
   <rect x="80" y="60" width="45" height="50" rx="2" fill="#fce4b8" stroke="#e8a020" stroke-width="2"/>
   <!-- A: block_m label (left of tile) -->
-  <text x="68" y="90" text-anchor="end" font-size="11" fill="#8a5d00">block_m</text>
+  <text x="75" y="90" text-anchor="end" font-size="11" fill="#8a5d00">block_m</text>
   <!-- A: block_k label (top of tile) -->
   <text x="102" y="55" text-anchor="middle" font-size="11" fill="#8a5d00">block_k</text>
   <!-- A dimension labels -->
-  <text x="62" y="165" text-anchor="middle" font-size="12" fill="#666" transform="rotate(-90,62,165)">M</text>
+  <text x="69" y="165" text-anchor="middle" font-size="12" fill="#666" transform="rotate(-90,69,165)">M</text>
   <text x="160" y="275" text-anchor="middle" font-size="12" fill="#666">K</text>
 
   <!-- Matrix B^T (K x N) -->
@@ -31,11 +31,11 @@
   <!-- B^T: highlighted tile -->
   <rect x="310" y="60" width="50" height="45" rx="2" fill="#d4edda" stroke="#28a745" stroke-width="2"/>
   <!-- B^T: block_k label (left of tile) -->
-  <text x="298" y="87" text-anchor="end" font-size="11" fill="#155724">block_k</text>
+  <text x="305" y="87" text-anchor="end" font-size="11" fill="#155724">block_k</text>
   <!-- B^T: block_n label (top of tile) -->
   <text x="335" y="55" text-anchor="middle" font-size="11" fill="#155724">block_n</text>
   <!-- B^T dimension labels -->
-  <text x="292" y="140" text-anchor="middle" font-size="12" fill="#666" transform="rotate(-90,292,140)">K</text>
+  <text x="299" y="140" text-anchor="middle" font-size="12" fill="#666" transform="rotate(-90,299,140)">K</text>
   <text x="410" y="225" text-anchor="middle" font-size="12" fill="#666">N</text>
 
   <!-- Matrix C (M x N) -->
@@ -51,11 +51,11 @@
   <!-- C: highlighted tile -->
   <rect x="580" y="60" width="50" height="50" rx="2" fill="#f8d7da" stroke="#dc3545" stroke-width="2"/>
   <!-- C: block_m label (left of tile) -->
-  <text x="568" y="90" text-anchor="end" font-size="11" fill="#721c24">block_m</text>
+  <text x="575" y="90" text-anchor="end" font-size="11" fill="#721c24">block_m</text>
   <!-- C: block_n label (top of tile) -->
   <text x="605" y="55" text-anchor="middle" font-size="11" fill="#721c24">block_n</text>
   <!-- C dimension labels -->
-  <text x="562" y="165" text-anchor="middle" font-size="12" fill="#666" transform="rotate(-90,562,165)">M</text>
+  <text x="569" y="165" text-anchor="middle" font-size="12" fill="#666" transform="rotate(-90,569,165)">M</text>
   <text x="680" y="275" text-anchor="middle" font-size="12" fill="#666">N</text>
 
   <!-- Annotation: each thread block computes one tile -->

@@ -600,7 +600,15 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.lang.instructions.mbarrier.BarrierInstructionGroup"><code class="docutils literal notranslate"><span class="pre">BarrierInstructionGroup</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-an-mbarrier">What is an mbarrier?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#state-mbarrier">State: mbarrier</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#arrive-and-wait">Arrive and Wait</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-phases">Why Phases?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transaction-tracking-tx-count">Transaction Tracking (tx-count)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#usage-in-tilus">Usage in tilus</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instructions">Instructions</a><ul class="nav section-nav flex-column">
+</ul>
+</li>
 </ul>
             </nav>
         </div>
@@ -614,26 +622,200 @@ document.write(`
                   
   <section id="script-mbarrier">
 <h1>Script.mbarrier<a class="headerlink" href="#script-mbarrier" title="Link to this heading"><span>¶</span></a></h1>
-<div class="py class docutils container">
-<p>Memory barrier (mbarrier) instructions for synchronizing asynchronous operations.</p>
-<p>An mbarrier is a 64-bit synchronization primitive in shared memory that tracks two counts:
-<strong>pending arrivals</strong> and <strong>pending transaction bytes (tx-count)</strong>. A barrier transitions to the
-next phase when both counts reach zero.</p>
-<p>Mbarriers coordinate producer-consumer patterns in pipelined GPU kernels. The typical workflow is:</p>
+<section id="what-is-an-mbarrier">
+<h2>What is an mbarrier?<a class="headerlink" href="#what-is-an-mbarrier" title="Link to this heading"><span>¶</span></a></h2>
+<p>An <strong>mbarrier</strong> (memory barrier) is a 64-bit synchronization object that lives in
+<strong>shared memory</strong>. It is the primary mechanism on Hopper and Blackwell GPUs for
+tracking the completion of asynchronous operations — such as tensor core MMA and
+TMA data transfers.</p>
+<p>Unlike a traditional barrier (<code class="docutils literal notranslate"><span class="pre">__syncthreads()</span></code> in CUDA) which simply blocks
+until all threads arrive, an mbarrier can track both <strong>thread arrivals</strong> and
+<strong>asynchronous hardware operations</strong> (like TMA transfers) completing in the
+background.</p>
+</section>
+<section id="state-mbarrier">
+<h2>State: mbarrier<a class="headerlink" href="#state-mbarrier" title="Link to this heading"><span>¶</span></a></h2>
+<p>An mbarrier stores the following state in its 64 bits:</p>
+<figure class="align-center" id="id1">
+<a class="reference internal image-reference" href="../../_images/mbarrier_state.svg"><img alt="../../_images/mbarrier_state.svg" src="../../_images/mbarrier_state.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">The internal state of an mbarrier object.</span><a class="headerlink" href="#id1" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
+<ul class="simple">
+<li><p><strong>phase</strong> (1 bit): the current phase of the barrier, either 0 or 1. Initialized to 0.</p></li>
+<li><p><strong>pending arrivals</strong>: the number of arrivals still expected before this phase
+completes. Decremented by each
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive()</span></code></a> call (and its variants <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>,
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast()</span></code></a>, <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code></a>).</p></li>
+<li><p><strong>pending tx-count</strong>: the number of bytes of asynchronous transactions still
+outstanding. Set by
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>
+and decremented automatically by the hardware as async operations (e.g., TMA
+transfers) complete.</p></li>
+<li><p><strong>expected arrivals</strong>: the arrival count for the <em>next</em> phase (used to reset
+pending arrivals when the phase flips).</p></li>
+</ul>
+<p>A phase completes when <strong>both</strong> conditions are met:</p>
 <ol class="arabic simple">
-<li><p><strong>Allocate</strong> barriers with <code class="docutils literal notranslate"><span class="pre">alloc()</span></code>, specifying expected arrival counts per stage.</p></li>
-<li><p><strong>Producers</strong> call <code class="docutils literal notranslate"><span class="pre">arrive()</span></code> or <code class="docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code> to signal progress and declare
-expected async data transfers (e.g., TMA copies). The TMA engine automatically decrements
-the tx-count as transfers complete.</p></li>
-<li><p><strong>Consumers</strong> call <code class="docutils literal notranslate"><span class="pre">wait()</span></code> to block until the barrier’s current phase finishes (both
-pending arrivals and tx-count reach zero).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pending</span> <span class="pre">arrivals</span> <span class="pre">=</span> <span class="pre">0</span></code> — all participating threads have arrived.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pending</span> <span class="pre">tx-count</span> <span class="pre">=</span> <span class="pre">0</span></code> — all tracked async transactions have completed.</p></li>
 </ol>
-<p>The barrier alternates between phase 0 and phase 1. Use <code class="docutils literal notranslate"><span class="pre">producer_initial_phase</span></code> and
-<code class="docutils literal notranslate"><span class="pre">consumer_initial_phase</span></code> as starting phase values for multi-stage pipelines.</p>
-<p>For cluster-wide synchronization, <code class="docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast()</span></code> signals barriers across
-multiple CTAs, and <code class="docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code> signals a specific peer CTA’s barrier.</p>
+<p>When both conditions are satisfied, the hardware automatically:</p>
+<ul class="simple">
+<li><p>Flips the phase bit (0 → 1 or 1 → 0).</p></li>
+<li><p>Resets the pending arrivals to the expected arrival count.</p></li>
+<li><p>Resets the pending tx-count to 0.</p></li>
+<li><p>Wakes any threads waiting on the old phase.</p></li>
+</ul>
+</section>
+<section id="arrive-and-wait">
+<h2>Arrive and Wait<a class="headerlink" href="#arrive-and-wait" title="Link to this heading"><span>¶</span></a></h2>
+<p>The two fundamental operations on an mbarrier are <strong>arrive</strong> and <strong>wait</strong>:</p>
+<p><strong>Arrive</strong></p>
+<p>At the hardware level, a single thread executing an <a class="reference external" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#parallel-synchronization-and-communication-instructions-mbarrier-arrive">mbarrier.arrive</a>
+instruction decrements the barrier’s pending arrival count by a specified amount
+(default 1). When the pending arrival count (and tx-count) reach zero, the
+hardware flips the phase.</p>
+<p>In tilus, <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive()</span></code></a> is a <strong>block-level instruction</strong>: every thread in the
+current thread group signals an arrival. For example, if the current thread group
+has 32 threads and each arrives with count=1, the barrier’s pending arrivals are
+decremented by 32 in total. <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a> and
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code></a> work the same way — each thread in the
+group both arrives and adds to the expected transaction byte count.</p>
+<p>To have only a single thread arrive (e.g., to avoid decrementing the count
+multiple times), wrap the call in <a class="reference internal" href="../generated/tilus.Script.single_thread.html#tilus.Script.single_thread" title="tilus.Script.single_thread"><code class="xref py py-meth docutils literal notranslate"><span class="pre">single_thread()</span></code></a>.</p>
+<p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast()</span></code></a> behaves differently: instead of every
+thread arriving on the same barrier, one thread is <strong>elected per target CTA</strong> in
+the <code class="docutils literal notranslate"><span class="pre">multicast_mask</span></code>. Each elected thread arrives on the barrier at the same
+shared memory offset in its assigned CTA. This requires at least 16 threads in
+the current thread group. The net effect is that each target CTA’s barrier
+receives exactly one arrival with the specified transaction bytes.</p>
+<p><strong>Wait</strong></p>
+<p>At the hardware level, a thread executing <a class="reference external" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait">mbarrier.try_wait</a> with a phase value
+<code class="docutils literal notranslate"><span class="pre">p</span></code> blocks until the barrier’s current phase differs from <code class="docutils literal notranslate"><span class="pre">p</span></code>. When the
+phase has flipped, all arrivals and transactions for that phase are guaranteed
+complete, and it is safe to read the produced data.</p>
+<p>In tilus, <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">wait()</span></code></a> causes <strong>all threads in the current thread group</strong> to
+wait on the specified barrier and phase. The threads proceed together once the
+phase completes.</p>
+</section>
+<section id="why-phases">
+<h2>Why Phases?<a class="headerlink" href="#why-phases" title="Link to this heading"><span>¶</span></a></h2>
+<p>In high-performance kernels, the same mbarrier is <strong>reused across loop
+iterations</strong> to avoid allocating a separate barrier for each iteration. The
+phase bit is the minimal state that distinguishes “this iteration’s completion”
+from “the previous iteration’s completion.”</p>
+<figure class="align-center" id="id2">
+<a class="reference internal image-reference" href="../../_images/mbarrier_phase_cycle.svg"><img alt="../../_images/mbarrier_phase_cycle.svg" src="../../_images/mbarrier_phase_cycle.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">The mbarrier phase cycle. The same barrier alternates between phase 0 and
+phase 1 across iterations.</span><a class="headerlink" href="#id2" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
+<p>The caller maintains a <strong>local phase variable</strong> that tracks which phase it
+expects to complete next:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">0</span>           <span class="c1"># start expecting phase 0</span>
+
+<span class="k">for</span> <span class="o">...</span><span class="p">:</span>
+    <span class="c1"># ... do work, arrive ...</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">phase</span><span class="p">)</span>   <span class="c1"># wait for current phase</span>
+    <span class="n">phase</span> <span class="o">^=</span> <span class="mi">1</span>              <span class="c1"># flip: next iteration waits for the other phase</span>
+</pre></div>
 </div>
-<p class="rubric">Instructions</p>
+<p>After <code class="docutils literal notranslate"><span class="pre">wait</span></code> returns, the barrier has already flipped to the next phase. By
+flipping the local <code class="docutils literal notranslate"><span class="pre">phase</span></code> variable (<code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">^=</span> <span class="pre">1</span></code>), the caller ensures the
+next <code class="docutils literal notranslate"><span class="pre">wait</span></code> targets the correct phase.</p>
+</section>
+<section id="transaction-tracking-tx-count">
+<h2>Transaction Tracking (tx-count)<a class="headerlink" href="#transaction-tracking-tx-count" title="Link to this heading"><span>¶</span></a></h2>
+<p>For asynchronous data transfers (e.g., TMA loads), the mbarrier can also track
+how many <strong>bytes</strong> of async work must complete before the phase is done. This is
+the <strong>tx-count</strong> mechanism:</p>
+<ol class="arabic simple">
+<li><p>A thread calls
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>
+to both arrive and declare how many bytes of async transactions are expected.
+This increments the pending tx-count.</p></li>
+<li><p>When an async operation (e.g., <a class="reference internal" href="generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html#tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared" title="tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.global_to_shared</span></code></a>) completes, the
+hardware automatically decrements the pending tx-count by the number of bytes
+transferred.</p></li>
+<li><p>The phase completes only when both pending arrivals <strong>and</strong> pending tx-count
+reach zero.</p></li>
+</ol>
+<p>This decouples <strong>producers</strong> (who launch async work and arrive) from
+<strong>consumers</strong> (who wait for the data). The consumer does not need to know the
+details of the async operations — it simply waits on the mbarrier phase.</p>
+</section>
+<section id="usage-in-tilus">
+<h2>Usage in tilus<a class="headerlink" href="#usage-in-tilus" title="Link to this heading"><span>¶</span></a></h2>
+<p>The typical workflow for mbarriers in a pipelined kernel is:</p>
+<ol class="arabic simple">
+<li><p><strong>Allocate</strong> barriers with <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">alloc()</span></code></a>, specifying
+expected arrival counts per pipeline stage.</p></li>
+<li><p><strong>Producers</strong> call <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive()</span></code></a> or
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a> to signal progress and
+declare expected async data transfers. The TMA engine automatically decrements
+the tx-count as transfers complete.</p></li>
+<li><p><strong>Consumers</strong> call <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">wait()</span></code></a> to block until the
+barrier’s current phase finishes.</p></li>
+</ol>
+<p>Use <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase"><code class="xref py py-attr docutils literal notranslate"><span class="pre">producer_initial_phase</span></code></a> (<code class="docutils literal notranslate"><span class="pre">1</span></code>) and
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase"><code class="xref py py-attr docutils literal notranslate"><span class="pre">consumer_initial_phase</span></code></a> (<code class="docutils literal notranslate"><span class="pre">0</span></code>) as starting phase values
+for multi-stage producer-consumer pipelines.</p>
+<p><strong>Same-thread arrive and wait</strong> — all threads produce and then wait:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>  <span class="c1"># 1 arrival expected per phase</span>
+<span class="n">phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">0</span>                           <span class="c1"># start expecting phase 0</span>
+
+<span class="k">for</span> <span class="o">...</span><span class="p">:</span>
+    <span class="c1"># signal work done, can be other instructions that will</span>
+    <span class="c1"># trigger arrival: tcgen05.commit, etc.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">barriers</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c1"># wait for phase completion</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">barriers</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">phase</span><span class="p">)</span>
+
+    <span class="c1"># flip for next iteration</span>
+    <span class="n">phase</span> <span class="o">^=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p><strong>Separate producer and consumer warps</strong> — one warp loads data and arrives,
+another warp waits and computes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># two barrier sets: one tracks &quot;data ready&quot;, the other tracks &quot;slot free&quot;</span>
+<span class="n">full_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>    <span class="c1"># signaled when data is ready</span>
+<span class="n">empty_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>   <span class="c1"># signaled when slot is free</span>
+
+<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="c1"># producer warp: waits for empty slot, loads data, signals full</span>
+    <span class="n">producer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">producer_initial_phase</span>  <span class="c1"># 1</span>
+    <span class="k">for</span> <span class="o">...</span><span class="p">:</span>
+        <span class="c1"># wait for slot to be free</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">empty_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">producer_phase</span><span class="p">)</span>
+        <span class="n">producer_phase</span> <span class="o">^=</span> <span class="mi">1</span>
+        <span class="c1"># ... load data into shared memory ...</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">full_barrier</span><span class="p">)</span>  <span class="c1"># signal data is ready</span>
+
+<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="c1"># consumer warp: waits for full data, computes, signals empty</span>
+    <span class="n">consumer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">consumer_initial_phase</span>  <span class="c1"># 0</span>
+    <span class="k">for</span> <span class="o">...</span><span class="p">:</span>
+        <span class="c1"># wait for data to be ready</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">full_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">consumer_phase</span><span class="p">)</span>
+        <span class="n">consumer_phase</span> <span class="o">^=</span> <span class="mi">1</span>
+        <span class="c1"># ... compute on shared memory data ...</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">empty_barrier</span><span class="p">)</span>  <span class="c1"># signal slot is free</span>
+</pre></div>
+</div>
+<p>For cluster-wide synchronization,
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast()</span></code></a> signals barriers
+across multiple CTAs in the cluster, and
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code></a> signals a specific
+peer CTA’s barrier.</p>
+</section>
+<section id="instructions">
+<h2>Instructions<a class="headerlink" href="#instructions" title="Link to this heading"><span>¶</span></a></h2>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">alloc</span></code></a>(counts)</p></td>
@@ -643,7 +825,7 @@ multiple CTAs, and <code class="docutils literal notranslate"><span class="pre">
 <td><p>Arrive at a barrier.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive_and_expect_tx</span></code></a>(barrier, transaction_bytes)</p></td>
-<td><p>Arrive at a barrier with expected asynchronous memory transactions.</p></td>
+<td><p>Arrive at a barrier and declare expected asynchronous transaction bytes.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast</span></code></a>(barrier, ...)</p></td>
 <td><p>Arrive at barriers across multiple CTAs with expected async transactions.</p></td>
@@ -652,7 +834,7 @@ multiple CTAs, and <code class="docutils literal notranslate"><span class="pre">
 <td><p>Arrive at a peer CTA's barrier with expected async transactions.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-obj docutils literal notranslate"><span class="pre">wait</span></code></a>(barrier, phase[, sem, scope])</p></td>
-<td><p>Wait at a barrier.</p></td>
+<td><p>Wait for a barrier phase to complete.</p></td>
 </tr>
 </tbody>
 </table>
@@ -661,14 +843,15 @@ multiple CTAs, and <code class="docutils literal notranslate"><span class="pre">
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">producer_initial_phase</span></code></a></p></td>
-<td><p></p></td>
+<td><p>Initial phase value for the producer in a producer-consumer pipeline.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">consumer_initial_phase</span></code></a></p></td>
-<td><p></p></td>
+<td><p>Initial phase value for the consumer in a producer-consumer pipeline.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
+</section>
 </section>
 
 
@@ -716,7 +899,15 @@ multiple CTAs, and <code class="docutils literal notranslate"><span class="pre">
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.lang.instructions.mbarrier.BarrierInstructionGroup"><code class="docutils literal notranslate"><span class="pre">BarrierInstructionGroup</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-an-mbarrier">What is an mbarrier?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#state-mbarrier">State: mbarrier</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#arrive-and-wait">Arrive and Wait</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-phases">Why Phases?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transaction-tracking-tx-count">Transaction Tracking (tx-count)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#usage-in-tilus">Usage in tilus</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instructions">Instructions</a><ul class="nav section-nav flex-column">
+</ul>
+</li>
 </ul>
   </nav></div>
 

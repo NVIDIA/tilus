@@ -921,7 +921,7 @@ kernels, particularly with TMA and TCGEN05 async operations. See <a class="refer
 <td><p>Arrive at a barrier.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive_and_expect_tx</span></code></a>(barrier, transaction_bytes)</p></td>
-<td><p>Arrive at a barrier with expected asynchronous memory transactions.</p></td>
+<td><p>Arrive at a barrier and declare expected asynchronous transaction bytes.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast</span></code></a>(barrier, ...)</p></td>
 <td><p>Arrive at barriers across multiple CTAs with expected async transactions.</p></td>
@@ -930,7 +930,7 @@ kernels, particularly with TMA and TCGEN05 async operations. See <a class="refer
 <td><p>Arrive at a peer CTA's barrier with expected async transactions.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-obj docutils literal notranslate"><span class="pre">wait</span></code></a>(barrier, phase[, sem, scope])</p></td>
-<td><p>Wait at a barrier.</p></td>
+<td><p>Wait for a barrier phase to complete.</p></td>
 </tr>
 </tbody>
 </table>
