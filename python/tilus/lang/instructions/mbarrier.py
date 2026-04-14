@@ -23,39 +23,34 @@ from .root import InstructionGroup
 class BarrierInstructionGroup(InstructionGroup):
     """Memory barrier (mbarrier) instructions for synchronizing asynchronous operations.
 
-    An mbarrier is a 64-bit synchronization primitive in shared memory that tracks two counts:
-    **pending arrivals** and **pending transaction bytes (tx-count)**. A barrier transitions to the
-    next phase when both counts reach zero.
-
-    Mbarriers coordinate producer-consumer patterns in pipelined GPU kernels. The typical workflow is:
-
-    1. **Allocate** barriers with ``alloc()``, specifying expected arrival counts per stage.
-    2. **Producers** call ``arrive()`` or ``arrive_and_expect_tx()`` to signal progress and declare
-       expected async data transfers (e.g., TMA copies). The TMA engine automatically decrements
-       the tx-count as transfers complete.
-    3. **Consumers** call ``wait()`` to block until the barrier's current phase finishes (both
-       pending arrivals and tx-count reach zero).
-
-    The barrier alternates between phase 0 and phase 1. Use ``producer_initial_phase`` and
-    ``consumer_initial_phase`` as starting phase values for multi-stage pipelines.
-
-    For cluster-wide synchronization, ``arrive_and_expect_tx_multicast()`` signals barriers across
-    multiple CTAs, and ``arrive_and_expect_tx_remote()`` signals a specific peer CTA's barrier.
+    See :doc:`/python-api/instruction-groups/mbarrier` for a detailed guide on how mbarriers work.
     """
 
+    #: Initial phase value for the producer in a producer-consumer pipeline.
+    #: The producer starts by waiting for the barrier to leave this phase (i.e., waiting for the
+    #: consumer to free the slot), so it is initialized to ``1``.
     producer_initial_phase = 1
+
+    #: Initial phase value for the consumer in a producer-consumer pipeline.
+    #: The consumer starts by waiting for the barrier to leave this phase (i.e., waiting for the
+    #: producer to fill the slot), so it is initialized to ``0`` (the barrier's initial phase).
     consumer_initial_phase = 0
 
     def alloc(self, counts: Sequence[Expr | int] | Expr | int) -> RegisterTensor:
         """Allocate and initialize one or more mbarriers in shared memory.
 
-        Each barrier is initialized with phase 0, the specified expected arrival count, and
-        tx-count of 0. When a single value is provided, one barrier is allocated; when a
-        sequence is provided, multiple barriers are allocated with the corresponding counts.
+        Each barrier is a 64-bit object in shared memory, initialized with:
+
+        - ``phase = 0``
+        - ``pending_arrivals = counts[i]`` (the expected arrival count)
+        - ``expected_arrivals = counts[i]`` (used to reset pending_arrivals on phase flip)
+        - ``tx-count = 0``
+
+        A single value allocates one barrier; a sequence allocates multiple barriers.
 
         Parameters
         ----------
-        counts: Sequence[Expr | int] | Expr | int, optional
+        counts: Sequence[Expr | int] | Expr | int
             Expected arrival counts for the barriers. Each count must evaluate to a positive
             int32. A single value allocates one barrier; a sequence allocates multiple.
 
@@ -86,19 +81,26 @@ class BarrierInstructionGroup(InstructionGroup):
     ) -> None:
         """Arrive at a barrier.
 
-        Each thread in the current thread group decreases the pending arrivals of the given barrier by `count`.
+        Each thread in the current thread group decrements the barrier's pending arrival count
+        by ``count``. When pending arrivals (and tx-count) both reach zero, the hardware flips
+        the phase and resets the counters for the next phase.
+
+        With ``sem='release'``, all prior memory writes by the arriving thread are guaranteed
+        visible to any thread that later completes a successful ``wait`` with acquire semantics
+        on this barrier.
 
         Parameters
         ----------
         barrier: RegisterTensor
-            A register tensor with one uint32 element representing the address of the barrier in the local shared memory.
+            A single-element uint32 register tensor holding the barrier's shared memory address.
         count: Expr | int
-            The number of arrivals contributed by each thread in the current thread group. It must be evaluated to a positive int32.
-            By default, it is 1.
+            The number of arrivals contributed by each thread. Must evaluate to a positive int32.
+            Default is 1.
         sem: str
-            The memory ordering semantics for the arrive operation. Candidates: 'relaxed', 'release'.
+            Memory ordering semantics. ``'release'`` ensures prior writes are visible to waiters;
+            ``'relaxed'`` provides no ordering guarantees. Candidates: ``'relaxed'``, ``'release'``.
         scope: str
-            The syncrhonization scope for the arrive operation. Candidates: 'cta', 'cluster'.
+            Synchronization scope. Candidates: ``'cta'``, ``'cluster'``.
 
         Notes
         -----
@@ -123,23 +125,33 @@ class BarrierInstructionGroup(InstructionGroup):
         sem: str = "release",
         scope: str = "cta",
     ) -> None:
-        """Arrive at a barrier with expected asynchronous memory transactions.
+        """Arrive at a barrier and declare expected asynchronous transaction bytes.
 
-        Each thread in the current thread group decreases the pending arrivals of the given barrier by 1, and increases
-        the barrier's pending transaction byte count (tx-count) by `transaction_bytes`.
+        Each thread in the current thread group performs two updates on the barrier:
+
+        1. Decrements the pending arrival count by 1.
+        2. Increases the pending tx-count by ``transaction_bytes``.
+
+        The tx-count tracks asynchronous data transfers (e.g., TMA copies). When an async
+        operation tied to this barrier completes, the hardware automatically decrements the
+        tx-count by the number of bytes transferred. The phase completes only when both
+        pending arrivals and tx-count reach zero.
+
+        Typically used with :meth:`~tilus.Script.single_thread` so that only one thread
+        sets the tx-count expectation, while the TMA engine performs the actual transfer.
 
         Parameters
         ----------
         barrier: RegisterTensor
-            A register tensor with one uint32 element representing the address of the barrier in the local shared memory.
+            A single-element uint32 register tensor holding the barrier's shared memory address.
         transaction_bytes: Expr | int
-            The number of bytes expected to be delivered by asynchronous memory transactions (e.g., TMA copies) to this
-            barrier. The barrier's tx-count will be increased by this value on arrival and decreased as the async
-            transactions complete. It must be evaluated to a non-negative int32.
+            The number of bytes expected from async transactions (e.g., TMA copies). The
+            barrier's tx-count is increased by this value; it is automatically decreased by
+            the hardware as the transactions complete. Must evaluate to a non-negative int32.
         sem: str
-            The memory ordering semantics for the arrive operation. Candidates: 'relaxed', 'release'.
+            Memory ordering semantics. Candidates: ``'relaxed'``, ``'release'``.
         scope: str
-            The syncrhonization scope for the arrive operation. Candidates: 'cta', 'cluster'.
+            Synchronization scope. Candidates: ``'cta'``, ``'cluster'``.
 
         Notes
         -----
@@ -164,29 +176,32 @@ class BarrierInstructionGroup(InstructionGroup):
         sem: str = "acquire",
         scope: str = "cta",
     ) -> None:
-        """Wait at a barrier.
+        """Wait for a barrier phase to complete.
 
-        This instruction makes the threads in the current thread group wait at the specified barrier until the pending
-        arrivals and tx-count of the given phase are both zero.
+        All threads in the current thread group block until the barrier's current phase
+        differs from ``phase``. This means the phase has completed --- all pending arrivals
+        and tx-count have reached zero, the hardware has flipped the phase bit, and it is
+        safe to read data produced in that phase.
 
-        When the barrier's current phase is not equal to the specified `phase`, the threads will proceed without waiting
-        since the specified phase has already finished.
+        If the barrier's current phase already differs from ``phase`` (i.e., the phase has
+        already completed), the threads proceed immediately without blocking.
 
-        When the barrier's current phase is equal to the specified `phase`, the threads will wait until both the pending
-        arrivals and tx-count of the current phase are zero. Once these conditions are met, the barrier will switch to
-        the next phase, and the threads will proceed.
+        With ``sem='acquire'``, all writes made visible by arrive operations (with release
+        semantics) on this barrier in the completed phase are guaranteed visible to the
+        waiting threads.
 
         Parameters
         ----------
         barrier: RegisterTensor
-            The barrier to wait on. It must be a register tensor with one uint32 element representing the address of the barrier in the local shared memory.
+            A single-element uint32 register tensor holding the barrier's shared memory address.
         phase: Expr | RegisterTensor | int
-            The phase value to wait for. It must be evaluated to either 0 or 1. It can also be a register tensor with single
-            element representing the phase value.
+            The phase to wait for completion of. Must be 0 or 1. Can also be a single-element
+            register tensor.
         sem: str
-            The memory ordering semantics for the wait operation. Candidates: 'acquire', 'relaxed'.
+            Memory ordering semantics. ``'acquire'`` ensures writes from the completed phase
+            are visible; ``'relaxed'`` provides no ordering. Candidates: ``'acquire'``, ``'relaxed'``.
         scope: str
-            The synchronization scope for the wait operation. Candidates: 'cta', 'cluster'.
+            Synchronization scope. Candidates: ``'cta'``, ``'cluster'``.
 
         Notes
         -----
@@ -214,10 +229,11 @@ class BarrierInstructionGroup(InstructionGroup):
     ) -> None:
         """Arrive at barriers across multiple CTAs with expected async transactions.
 
-        Signals an arrive-and-expect-tx on the barriers at the same shared memory offset in each
-        CTA specified by ``multicast_mask``. The arrival count is 1 and the tx-count is increased
-        by ``transaction_bytes`` on each signaled barrier. One thread is elected per CTA to perform
-        the operation.
+        Unlike :meth:`arrive` and :meth:`arrive_and_expect_tx` where every thread in the group
+        arrives on the same barrier, this instruction elects **one thread per target CTA** in
+        ``multicast_mask``. Each elected thread arrives on the barrier at the same shared memory
+        offset in its assigned CTA. The arrival count is 1 and the tx-count is increased by
+        ``transaction_bytes`` on each signaled barrier.
 
         Parameters
         ----------
@@ -262,17 +278,23 @@ class BarrierInstructionGroup(InstructionGroup):
     ) -> None:
         """Arrive at a peer CTA's barrier with expected async transactions.
 
-        Signals an arrive-and-expect-tx on the barrier in the CTA specified by ``target_rank``.
-        The barrier at the same shared memory offset as the local ``barrier`` in the target CTA
-        is signaled with arrival count 1 and tx-count increased by ``transaction_bytes``.
+        Each thread in the current thread group arrives on the barrier in the remote CTA
+        specified by ``target_rank``, using the same shared memory offset as the local
+        ``barrier``. Each thread decrements the remote barrier's pending arrival count by 1
+        and increases its tx-count by ``transaction_bytes``.
+
+        This is used in cluster-wide pipelines where one CTA needs to signal another CTA's
+        barrier (e.g., to indicate that data has been loaded into the remote CTA's shared
+        memory).
 
         Parameters
         ----------
         barrier: RegisterTensor
             A single-element uint32 register tensor with the barrier's shared memory address
-            in the current CTA. The same offset is used for the target CTA.
+            in the current CTA. The barrier at the same offset in the target CTA is signaled.
         transaction_bytes: Expr | int
-            Expected async transfer size in bytes. Must evaluate to a non-negative int32.
+            Expected async transfer size in bytes. The remote barrier's tx-count is increased
+            by this value. Must evaluate to a non-negative int32.
         target_rank: int
             Rank of the target CTA in the cluster. Must be in ``[0, clusterSize)``.
         sem: str

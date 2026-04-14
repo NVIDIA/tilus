@@ -8,6 +8,12 @@ Script.tcgen05
    :no-members:
    :exclude-members: __init__, __new__
 
+.. figure:: figures/tmem_layout.svg
+   :width: 90%
+   :align: center
+
+   Tensor Memory layout: 128 lanes x 512 columns, each cell 32 bits.
+
 .. rubric:: Instructions
 
 .. currentmodule:: tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup

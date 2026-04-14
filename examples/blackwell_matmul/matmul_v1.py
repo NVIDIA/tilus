@@ -39,23 +39,23 @@ class BlackwellMatmulV1(tilus.Script):
         s_a = self.shared_tensor(dtype=float16, shape=[self.block_m, self.block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[self.block_n, self.block_k])
 
-        # allocate a tensor in tensor memory (tmem)
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
-        # allocate barriers
+        # allocate two barriers: one for TMA completion, one for MMA completion
         tma_barrier, mma_barrier = self.mbarrier.alloc(counts=[1, 1]).tolist()
 
-        # use a phase to record the current phase of the barrier
         phase: uint32 = 0
 
         self.sync()
 
         for offset_k in range(0, k_size, self.block_k):
             with self.single_warp():
+                # single_thread: only one thread signals the expected transaction bytes
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
                         tma_barrier, transaction_bytes=s_a.nbytes + s_b.nbytes
                     )
+                # TMA: hardware-accelerated async copy from global to shared memory
                 self.tma.global_to_shared(
                     src=g_a,
                     dst=s_a,
@@ -68,23 +68,23 @@ class BlackwellMatmulV1(tilus.Script):
                     offsets=[offset_n, offset_k],
                     mbarrier=tma_barrier,
                 )
+                # wait for TMA transfers to complete
                 self.mbarrier.wait(tma_barrier, phase=phase)
+
                 self.tcgen05.mma(
                     s_a, s_b.transpose(), t_acc, enable_input_d=offset_k != 0
                 )
                 self.tcgen05.commit(mbarrier=mma_barrier)
                 self.mbarrier.wait(mma_barrier, phase=phase)
-            self.sync()
 
+            self.sync()
             phase ^= 1
 
-        # load the result from tensor memory to register
         r_acc = self.tcgen05.load(t_acc)
 
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
         self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
 
-        # all allocated tensor memory must be deallocated
         self.sync()
         self.tcgen05.dealloc(t_acc)
 
