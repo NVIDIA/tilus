@@ -1,0 +1,199 @@
+.. _tutorial_blackwell_matmul_v3:
+
+3. Warp Specialization
+======================
+
+In :doc:`V2 <v2>`, each iteration issues one MMA and waits for it to complete
+(via ``tcgen05.commit`` + ``mbarrier.wait``) before issuing the next. The tensor
+core MMA pipeline sees only one operation at a time --- it goes idle between
+consecutive MMAs while the warp handles TMA and synchronization.
+
+To keep the MMA pipeline busy, we want **multiple MMAs in flight**: issue the
+next MMA as soon as its input data is ready, without waiting for the previous
+MMA to finish writing its results. This is achieved through **warp
+specialization** --- assigning TMA and MMA to **separate warps**, each running
+its own loop. The MMA warp can issue MMA after MMA without interruption, while
+the TMA warp independently keeps shared memory filled. The two warps synchronize
+only through mbarriers, allowing multiple in-flight MMA and TMA operations
+simultaneously.
+
+
+The Full Kernel
+---------------
+
+.. literalinclude:: ../../../../examples/blackwell_matmul/matmul_v3.py
+   :language: python
+   :start-at: @tilus.autotune
+   :end-at: self.tcgen05.dealloc(t_acc)
+   :caption: BlackwellMatmulV3 --- full kernel
+
+
+What Changed from V2
+--------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 40 40
+
+   * -
+     - V2
+     - V3
+   * - **Warp structure**
+     - Single warp does both TMA and MMA
+     - TMA warp + MMA warp (warp specialization)
+   * - **Barriers**
+     - TMA barriers + 1 MMA barrier
+     - ``full_barriers`` + ``empty_barriers`` (producer-consumer)
+   * - **Parallelism**
+     - TMA and MMA overlap across iterations
+     - TMA and MMA run **truly in parallel** on separate warps
+   * - **In-flight MMA**
+     - 1 (wait after each MMA)
+     - Multiple (MMA warp issues next MMA without waiting for TMA)
+   * - **Prefill**
+     - Explicit prefill loop
+     - Implicit: TMA warp runs ahead of MMA warp
+
+
+Warp Specialization
+-------------------
+
+.. |rarr| unicode:: U+2192
+
+In V2, a single warp handles both TMA and MMA. Each iteration looks like: issue
+TMA |rarr| wait for TMA |rarr| issue MMA |rarr| **wait for MMA** |rarr| repeat.
+The ``tcgen05.commit`` + ``mbarrier.wait`` after each MMA means the tensor core
+pipeline sees at most one MMA at a time. Between consecutive MMAs, the pipeline
+goes idle while the warp handles synchronization, TMA issuing, and TMA waiting.
+
+With warp specialization, we assign TMA and MMA to **separate warps**, each
+running its own loop:
+
+- **TMA warp** (threads 0--31): issues TMA loads back-to-back. Before each load,
+  it only waits on ``empty_barriers`` to ensure the shared memory slot is free.
+- **MMA warp** (threads 32--63): issues MMA operations back-to-back. Before each
+  MMA, it only waits on ``full_barriers`` to ensure the input data has arrived.
+  Crucially, it does **not** wait for the previous MMA to complete --- it issues
+  ``tcgen05.commit(mbarrier=empty_barriers[stage])`` which returns immediately
+  and makes the barrier track the MMA's completion in the background. When the
+  MMA actually finishes, the hardware will signal the barrier, freeing the stage
+  for the TMA warp. Meanwhile, the MMA warp has already moved on to the next
+  iteration. This allows **multiple MMAs to be in flight** in the tensor core
+  pipeline.
+
+The result: as long as TMA delivers data fast enough, the MMA warp keeps the
+tensor core pipeline fully occupied with no idle gaps between operations.
+
+
+Producer-Consumer Barriers
+--------------------------
+
+V2 used TMA barriers and a single MMA barrier. V3 replaces them with a
+**producer-consumer** barrier pair, as described in the
+:doc:`mbarrier guide </python-api/instruction-groups/mbarrier>`:
+
+- ``full_barriers``: signaled when TMA has filled a stage (data ready).
+  The MMA warp waits on these.
+- ``empty_barriers``: signaled when MMA has consumed a stage (slot free).
+  The TMA warp waits on these.
+
+.. code-block:: python
+
+   full_barriers = self.mbarrier.alloc(counts=[1] * self.stages)
+   empty_barriers = self.mbarrier.alloc(counts=[1] * self.stages)
+
+The initial phases reflect the starting state:
+
+- ``empty_phases`` are initialized to ``1``
+  (:attr:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase`):
+  all stages start empty, so the TMA warp can begin filling immediately.
+- ``full_phases`` are initialized to ``0``
+  (:attr:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase`):
+  no stages are full yet, so the MMA warp blocks until the first TMA completes.
+
+
+Flush Barrier
+-------------
+
+After the MMA loop ends, we need to ensure all in-flight MMAs have completed
+before reading the accumulator. This is done with a **flush barrier**:
+
+.. literalinclude:: ../../../../examples/blackwell_matmul/matmul_v3.py
+   :language: python
+   :start-at: # drain: wait for all in-flight MMA
+   :end-at: self.mbarrier.wait(flush_barrier
+   :dedent: 12
+
+This extra ``tcgen05.commit`` makes the ``flush_barrier`` track all prior
+uncommitted MMA operations. Once the barrier completes, it is safe to read
+from tensor memory.
+
+
+Walkthrough
+-----------
+
+TMA Warp (Producer)
+~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../../../../examples/blackwell_matmul/matmul_v3.py
+   :language: python
+   :start-at: # TMA warp (producer)
+   :end-before: # MMA warp (consumer)
+   :dedent: 8
+   :caption: TMA warp
+
+The TMA warp runs a loop over all K-tiles:
+
+- :meth:`mbarrier.wait <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait>`
+  on ``empty_barriers[stage]`` blocks until the MMA warp has freed this stage.
+- :meth:`mbarrier.arrive_and_expect_tx <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx>`
+  on ``full_barriers[stage]`` declares the expected TMA bytes.
+- Two :meth:`tma.global_to_shared <tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared>`
+  calls load the A and B tiles.
+- The stage index advances modulo ``stages``.
+
+Note there is no explicit prefill loop as in V2: the TMA warp simply starts
+running and naturally gets ahead of the MMA warp (which blocks until the first
+``full_barrier`` is signaled).
+
+
+MMA Warp (Consumer)
+~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../../../../examples/blackwell_matmul/matmul_v3.py
+   :language: python
+   :start-at: # MMA warp (consumer)
+   :end-before: self.sync()
+   :dedent: 8
+   :caption: MMA warp
+
+The MMA warp runs a matching loop:
+
+- :meth:`mbarrier.wait <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait>`
+  on ``full_barriers[stage]`` blocks until TMA data has arrived.
+- :meth:`tcgen05.mma <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
+  computes on the loaded tiles.
+- :meth:`tcgen05.commit <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
+  on ``empty_barriers[stage]`` signals that this stage is now free for the TMA
+  warp to reuse.
+- After the loop, the flush barrier ensures all MMA writes to tensor memory are
+  complete.
+
+
+What's Next
+-----------
+
+V3 achieves true overlap between TMA and MMA through warp specialization.
+However, the code still manages the pipeline state (stages, barriers, phases)
+inline, which becomes increasingly complex as we add more features.
+
+In the next version, we refactor the pipeline logic into reusable **helper
+classes** (``Pipeline``, ``LoadWorker``, ``MmaWorker``) using ``tilus.Class``,
+and add a TMA-based **epilogue** for writing results back to global memory.
+
+
+Full Source
+-----------
+
+The complete example file is located at
+`examples/blackwell_matmul/matmul_v3.py <https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v3.py>`__.

@@ -757,6 +757,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
         elif isinstance(lhs, (list, tuple)) and isinstance(rhs, (list, tuple)):
             assert isinstance(expr.op, ast.Add)
             return list(lhs) + list(rhs)
+        elif isinstance(lhs, list) and isinstance(rhs, int) and isinstance(expr.op, ast.Mult):
+            return lhs * rhs
         elif isinstance(lhs, (ir.Expr, float, int)) and isinstance(rhs, (ir.Expr, float, int)):
             if type(expr.op) in op_dict:
                 return op_dict[type(expr.op)](lhs, rhs)
