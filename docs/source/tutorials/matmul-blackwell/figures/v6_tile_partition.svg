@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="15 5 720 240" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+
+  <!-- Title -->
+  <text x="375" y="24" text-anchor="middle" font-weight="700" font-size="14" fill="#333">2-CTA Tile Partitioning (256 × 256, block_k = 64)</text>
+
+  <!-- ===== Matrix A (left) ===== -->
+  <text x="70" y="52" text-anchor="middle" font-weight="700" font-size="12" fill="#333">A (256 × 64)</text>
+
+  <!-- CTA 0: top half -->
+  <rect x="30" y="60" width="80" height="80" rx="2" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="70" y="95" text-anchor="middle" font-size="10" fill="#1565c0" font-weight="600">CTA 0</text>
+  <text x="70" y="110" text-anchor="middle" font-size="8" fill="#888">128 × 64</text>
+
+  <!-- CTA 1: bottom half -->
+  <rect x="30" y="140" width="80" height="80" rx="2" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="70" y="175" text-anchor="middle" font-size="10" fill="#e65100" font-weight="600">CTA 1</text>
+  <text x="70" y="190" text-anchor="middle" font-size="8" fill="#888">128 × 64</text>
+
+  <!-- Dimension labels for A -->
+  <text x="22" y="140" text-anchor="middle" font-size="9" fill="#555" transform="rotate(-90,22,140)">256 rows (M)</text>
+  <text x="70" y="232" text-anchor="middle" font-size="9" fill="#555">64 cols (K)</text>
+
+  <!-- ===== × symbol ===== -->
+  <text x="140" y="145" text-anchor="middle" font-size="18" fill="#333">×</text>
+
+  <!-- ===== Matrix B (center) ===== -->
+  <text x="250" y="52" text-anchor="middle" font-weight="700" font-size="12" fill="#333">B (64 × 256)</text>
+
+  <!-- CTA 0: left half -->
+  <rect x="170" y="60" width="80" height="55" rx="2" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="210" y="85" text-anchor="middle" font-size="10" fill="#1565c0" font-weight="600">CTA 0</text>
+  <text x="210" y="100" text-anchor="middle" font-size="8" fill="#888">64 × 128</text>
+
+  <!-- CTA 1: right half -->
+  <rect x="250" y="60" width="80" height="55" rx="2" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="290" y="85" text-anchor="middle" font-size="10" fill="#e65100" font-weight="600">CTA 1</text>
+  <text x="290" y="100" text-anchor="middle" font-size="8" fill="#888">64 × 128</text>
+
+  <!-- Dimension labels for B -->
+  <text x="162" y="88" text-anchor="end" font-size="9" fill="#555">64 rows (K)</text>
+  <text x="250" y="128" text-anchor="middle" font-size="9" fill="#555">256 cols (N)</text>
+
+  <!-- ===== = symbol ===== -->
+  <text x="360" y="145" text-anchor="middle" font-size="18" fill="#333">=</text>
+
+  <!-- ===== Matrix C (right) ===== -->
+  <text x="530" y="52" text-anchor="middle" font-weight="700" font-size="12" fill="#333">C (256 × 256)</text>
+
+  <!-- CTA 0: top half -->
+  <rect x="430" y="60" width="200" height="80" rx="2" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="530" y="95" text-anchor="middle" font-size="10" fill="#1565c0" font-weight="600">CTA 0 tensor memory</text>
+  <text x="530" y="110" text-anchor="middle" font-size="8" fill="#888">128 × 256</text>
+
+  <!-- CTA 1: bottom half -->
+  <rect x="430" y="140" width="200" height="80" rx="2" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="530" y="175" text-anchor="middle" font-size="10" fill="#e65100" font-weight="600">CTA 1 tensor memory</text>
+  <text x="530" y="190" text-anchor="middle" font-size="8" fill="#888">128 × 256</text>
+
+  <!-- Dimension labels for C -->
+  <text x="422" y="140" text-anchor="middle" font-size="9" fill="#555" transform="rotate(-90,422,140)">256 rows (M)</text>
+  <text x="530" y="232" text-anchor="middle" font-size="9" fill="#555">256 cols (N)</text>
+
+  <!-- Legend -->
+  <rect x="170" y="232" width="12" height="10" rx="2" fill="#e3f2fd" stroke="#1565c0" stroke-width="0.8"/>
+  <text x="188" y="241" font-size="9" fill="#555">CTA 0 (even rank)</text>
+  <rect x="310" y="232" width="12" height="10" rx="2" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
+  <text x="328" y="241" font-size="9" fill="#555">CTA 1 (odd rank)</text>
+</svg>
