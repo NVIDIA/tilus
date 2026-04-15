@@ -25,6 +25,32 @@ The Full Kernel
    :caption: BlackwellMatmulV4 --- full kernel (including Pipeline class)
 
 
+What Changed from V3
+--------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 40 40
+
+   * -
+     - V3
+     - V4
+   * - **Grid layout**
+     - 2D grid (column-major)
+     - 1D grid with swizzled tile rasterization for L2 locality
+   * - **Barrier management**
+     - Manual barriers, phases, and stage indices
+     - ``Pipeline`` class (``tilus.Class``) encapsulates all bookkeeping
+   * - **Epilogue**
+     - ``store_global``: direct register-to-global writes
+     - TMA epilogue: tmem |rarr| registers |rarr| shared |rarr| global (via TMA)
+   * - **Integer division**
+     - Standard ``//`` and ``%``
+     - ``fast_divmod`` for grid-constant divisors
+
+.. |rarr| unicode:: U+2192
+
+
 Tile Rasterization
 ------------------
 
