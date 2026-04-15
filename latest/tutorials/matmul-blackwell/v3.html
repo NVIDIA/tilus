@@ -48,7 +48,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-blackwell/v3';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="1. Overview" href="../../programming-guides/overview.html" />
+    <link rel="next" title="4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue" href="v4.html" />
     <link rel="prev" title="2. Multi-Stage Software Pipelining" href="v2.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -173,6 +173,7 @@
 <li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v2.html">2. Multi-Stage Software Pipelining</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v4.html">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</a></li>
 </ul>
 </details></li>
 </ul>
@@ -351,6 +352,7 @@
 </details></li>
 </ul>
 </details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../python-api/tilus-class.html">tilus.Class</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-ir/__index__.html">tilus.ir</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/datatype.html">tilus.ir.DataType</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/pointer.html">tilus.ir.PointerType</a></li>
@@ -975,9 +977,10 @@ complete.</p></li>
 <p>V3 achieves true overlap between TMA and MMA through warp specialization.
 However, the code still manages the pipeline state (stages, barriers, phases)
 inline, which becomes increasingly complex as we add more features.</p>
-<p>In the next version, we refactor the pipeline logic into reusable <strong>helper
-classes</strong> (<code class="docutils literal notranslate"><span class="pre">Pipeline</span></code>, <code class="docutils literal notranslate"><span class="pre">LoadWorker</span></code>, <code class="docutils literal notranslate"><span class="pre">MmaWorker</span></code>) using <code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code>,
-and add a TMA-based <strong>epilogue</strong> for writing results back to global memory.</p>
+<p>In <a class="reference internal" href="v4.html"><span class="doc">the next version</span></a>, we refactor the pipeline logic into a reusable
+<code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class using <code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code>, add <strong>tile rasterization</strong> for better
+L2 cache locality, and replace the direct <code class="docutils literal notranslate"><span class="pre">store_global</span></code> epilogue with a
+<strong>TMA-based epilogue</strong>.</p>
 </section>
 <section id="full-source">
 <h2>Full Source<a class="headerlink" href="#full-source" title="Link to this heading"><span>¶</span></a></h2>
@@ -1007,11 +1010,11 @@ and add a TMA-based <strong>epilogue</strong> for writing results back to global
       </div>
     </a>
     <a class="right-next"
-       href="../../programming-guides/overview.html"
+       href="v4.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">1. </span>Overview</p>
+        <p class="prev-next-title">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

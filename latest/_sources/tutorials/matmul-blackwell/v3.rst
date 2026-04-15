@@ -187,9 +187,10 @@ V3 achieves true overlap between TMA and MMA through warp specialization.
 However, the code still manages the pipeline state (stages, barriers, phases)
 inline, which becomes increasingly complex as we add more features.
 
-In the next version, we refactor the pipeline logic into reusable **helper
-classes** (``Pipeline``, ``LoadWorker``, ``MmaWorker``) using ``tilus.Class``,
-and add a TMA-based **epilogue** for writing results back to global memory.
+In :doc:`the next version <v4>`, we refactor the pipeline logic into a reusable
+``Pipeline`` class using ``tilus.Class``, add **tile rasterization** for better
+L2 cache locality, and replace the direct ``store_global`` epilogue with a
+**TMA-based epilogue**.
 
 
 Full Source
