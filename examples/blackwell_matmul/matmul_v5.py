@@ -12,7 +12,7 @@ from tilus.utils import benchmark_func, cdiv
 tilus.option.cache_dir("./cache")
 
 
-class Pipeline(tilus.Class):
+class Pipeline(tilus.Class):  # same as V4
     def __init__(
         self,
         num_stages: int,
@@ -69,19 +69,6 @@ class Pipeline(tilus.Class):
 @tilus.autotune("mma_stages", [1, 2])
 @tilus.autotune("swizzle_size", [4, 8])
 class BlackwellMatmulV5(tilus.Script):
-    """Blackwell matmul with CLC persistent kernel and pipelined epilogue.
-
-    New optimizations over V4:
-    - CLC (Cluster Launch Control): persistent kernel — each CTA processes
-      multiple tiles via hardware scheduling, avoiding kernel launch overhead
-    - Pipelined epilogue: MMA results flow through mma_pipe to the epilogue
-      warp group, overlapping epilogue writes with MMA of the next tile
-    - Two-level pipeline: separate tma_pipe (load -> MMA) and mma_pipe
-      (MMA -> epilogue) with independent stage counts
-    - Warp specialization: 4 dedicated roles (TMA, MMA, scheduler, epilogue)
-      using 8 warps instead of 4
-    """
-
     def __init__(
         self,
         block_m: int,
@@ -125,6 +112,7 @@ class BlackwellMatmulV5(tilus.Script):
         """Consume the CLC response: read the next tile assignment from shared memory."""
         pipe.consumer_acquire()
         response = s_clc_response[pipe.consumer_stage]
+        # decode the 16-byte CLC response: (is_valid, blockIdx)
         is_valid, new_blockIdx = self.clc.query_response(response)
         self.mbarrier.arrive_and_expect_tx(
             pipe.consumer_barrier(),
@@ -163,25 +151,28 @@ class BlackwellMatmulV5(tilus.Script):
 
         s_a = self.shared_tensor(dtype=float16, shape=[tma_stages, block_m, block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n, block_k])
+        # multi-stage accumulator: allows MMA and epilogue to overlap via mma_pipe
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[mma_stages, block_m, block_n])
 
+        # 16-byte buffer for CLC responses (cancel result + blockIdx)
         s_clc_response = self.shared_tensor(dtype=int32, shape=[clc_stages, 4])
 
         tma_pipe = Pipeline(tma_stages)
-        mma_pipe = Pipeline(
-            mma_stages, consumer_arrive_count=128
-        )  # 4 warps (epilogue warps)
-        clc_pipe = Pipeline(clc_stages, consumer_arrive_count=224)  # 7 warps * 1 block
+        # mma_pipe: connects MMA warp (producer) to epilogue warp group (consumer)
+        mma_pipe = Pipeline(mma_stages, consumer_arrive_count=128)  # 4 epilogue warps
+        # clc_pipe: scheduler warp distributes tile assignments to all 7 other warps
+        clc_pipe = Pipeline(clc_stages, consumer_arrive_count=224)  # 7 warps × 32 threads
 
         self.sync()
 
         with self.single_warp(0):  # tma worker (gmem -> smem)
+            # first tile: use the CTA's original blockIdx
             m_block_0, n_block_0 = self.compute_block_coord(
                 self.blockIdx.x, num_m_blocks, num_n_blocks
             )
             offset_m = m_block_0 * block_m
             offset_n = n_block_0 * block_n
-            while True:
+            while True:  # persistent loop: process multiple tiles per CTA
                 for offset_k in range(0, k_size, block_k):
                     tma_pipe.producer_acquire()
                     with self.single_thread():
@@ -203,9 +194,11 @@ class BlackwellMatmulV5(tilus.Script):
                     )
                     tma_pipe.producer_advance()
 
+                # query CLC for next tile; break if no more tiles
                 is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
                 if not is_valid:
                     break
+                # subsequent tiles: use the cancelled cluster's blockIdx
                 m_block_0, n_block_0 = self.compute_block_coord(
                     new_blockIdx.x, num_m_blocks, num_n_blocks
                 )
@@ -214,6 +207,7 @@ class BlackwellMatmulV5(tilus.Script):
 
         with self.single_warp(1):  # mma worker (smem -> tmem)
             while True:
+                # wait for an empty accumulator slot in mma_pipe
                 mma_pipe.producer_acquire()
                 for offset_k in range(0, k_size, block_k):
                     tma_pipe.consumer_acquire()
@@ -225,6 +219,7 @@ class BlackwellMatmulV5(tilus.Script):
                     )
                     self.tcgen05.commit(mbarrier=tma_pipe.consumer_barrier())
                     tma_pipe.consumer_advance()
+                # track MMA completion on mma_pipe barrier; signals epilogue when done
                 self.tcgen05.commit(mbarrier=mma_pipe.producer_barrier())
                 mma_pipe.producer_advance()
 
@@ -232,14 +227,16 @@ class BlackwellMatmulV5(tilus.Script):
                 if not is_valid:
                     break
 
-        with self.single_warp(2):  # scheduler
+        with self.single_warp(2):  # scheduler: requests next tile from CLC hardware
             while True:
                 clc_pipe.producer_acquire()
                 with self.single_thread():
+                    # CLC response is 16 bytes, tracked via mbarrier tx-count
                     self.mbarrier.arrive_and_expect_tx(
                         clc_pipe.producer_barrier(),
                         transaction_bytes=16,
                     )
+                # cancel a pending cluster and steal its blockIdx
                 self.clc.try_cancel(
                     s_clc_response[clc_pipe.producer_stage],
                     mbarrier=clc_pipe.producer_barrier(),
@@ -251,6 +248,7 @@ class BlackwellMatmulV5(tilus.Script):
                 if not is_valid:
                     break
 
+        # dedicated epilogue warp group: runs in parallel with MMA
         with self.warp_group(warp_begin=4, num_warps=4):  # epilogue (tmem -> gmem)
             s_c = self.shared_tensor(dtype=float16, shape=[block_m, e_block_n])
             m_block_e, n_block_e = self.compute_block_coord(
@@ -284,6 +282,7 @@ class BlackwellMatmulV5(tilus.Script):
                         self.tma.wait_group(n=0, read=True)
                     self.sync()
 
+                # signal accumulator consumed; frees the slot for MMA warp
                 self.mbarrier.arrive(mma_pipe.consumer_barrier())
                 mma_pipe.consumer_advance()
 
