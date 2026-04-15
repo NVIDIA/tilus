@@ -13,12 +13,6 @@ tilus.option.cache_dir("./cache")
 
 
 class Pipeline(tilus.Class):
-    """Manages a multi-stage producer-consumer pipeline using mbarriers.
-
-    - empty_barriers: signaled by consumer ("slot consumed"), producer waits on these
-    - full_barriers: signaled by producer ("slot filled"), consumer waits on these
-    """
-
     def __init__(
         self,
         num_stages: int,
@@ -132,12 +126,11 @@ class BlackwellMatmulV5(tilus.Script):
         pipe.consumer_acquire()
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
-        self.mbarrier.arrive_and_expect_tx_remote(
+        self.mbarrier.arrive_and_expect_tx(
             pipe.consumer_barrier(),
             transaction_bytes=0,
-            target_rank=0,
             sem="relaxed",
-            scope="cluster",
+            scope="cta",
         )
         pipe.consumer_advance()
         return is_valid, new_blockIdx
@@ -162,7 +155,6 @@ class BlackwellMatmulV5(tilus.Script):
         num_m_blocks = cdiv(m_size, block_m)
         num_n_blocks = cdiv(n_size, block_n)
         self.attrs.blocks = [num_m_blocks * num_n_blocks, 1]
-        self.attrs.cluster_blocks = 1
         self.attrs.warps = 8
 
         g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
@@ -181,7 +173,7 @@ class BlackwellMatmulV5(tilus.Script):
         )  # 4 warps (epilogue warps)
         clc_pipe = Pipeline(clc_stages, consumer_arrive_count=224)  # 7 warps * 1 block
 
-        self.cluster.sync()
+        self.sync()
 
         with self.single_warp(0):  # tma worker (gmem -> smem)
             m_block_0, n_block_0 = self.compute_block_coord(
@@ -305,7 +297,7 @@ class BlackwellMatmulV5(tilus.Script):
                 offset_n_c = n_block_e * block_n
 
         # all allocated tensor memory must be deallocated
-        self.cluster.sync()
+        self.sync()
         self.tcgen05.dealloc(t_acc)
 
 
