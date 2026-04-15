@@ -52,4 +52,5 @@ Additional features include automatic tuning, caching, and a Pythonic interface 
    python-api/tilus-option
    python-api/tilus-target
    python-api/tilus-script
+   python-api/tilus-class
    python-api/tilus-ir/__index__

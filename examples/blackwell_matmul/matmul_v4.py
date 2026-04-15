@@ -13,12 +13,6 @@ tilus.option.cache_dir("./cache")
 
 
 class Pipeline(tilus.Class):
-    """Manages a multi-stage producer-consumer pipeline using mbarriers.
-
-    - empty_barriers: signaled by consumer ("slot consumed"), producer waits on these
-    - full_barriers: signaled by producer ("slot filled"), consumer waits on these
-    """
-
     def __init__(
         self,
         num_stages: int,
@@ -38,6 +32,7 @@ class Pipeline(tilus.Class):
         self.consumer_phase: uint32 = self.mbarrier.consumer_initial_phase
 
     def producer_acquire(self):
+        # wait until the current stage is free (consumer has finished with it)
         self.mbarrier.wait(
             barrier=self.empty_barriers[self.producer_stage],
             phase=self.producer_phase,
@@ -46,13 +41,16 @@ class Pipeline(tilus.Class):
         )
 
     def producer_barrier(self) -> RegisterTensor:
+        # return the barrier to signal when the producer has filled this stage
         return self.full_barriers[self.producer_stage]
 
     def producer_advance(self):
+        # advance to the next stage; flip phase when wrapping around
         self.producer_stage = (self.producer_stage + 1) % self.num_stages
         self.producer_phase = self.producer_phase ^ (self.producer_stage == 0)
 
     def consumer_acquire(self):
+        # wait until the current stage is filled (producer has loaded data)
         self.mbarrier.wait(
             barrier=self.full_barriers[self.consumer_stage],
             phase=self.consumer_phase,
@@ -61,9 +59,11 @@ class Pipeline(tilus.Class):
         )
 
     def consumer_barrier(self) -> RegisterTensor:
+        # return the barrier to signal when the consumer has consumed this stage
         return self.empty_barriers[self.consumer_stage]
 
     def consumer_advance(self):
+        # advance to the next stage; flip phase when wrapping around
         self.consumer_stage = (self.consumer_stage + 1) % self.num_stages
         self.consumer_phase = self.consumer_phase ^ (self.consumer_stage == 0)
 
@@ -73,14 +73,6 @@ class Pipeline(tilus.Class):
 @tilus.autotune("stages", [2, 3, 4])
 @tilus.autotune("swizzle_size", [4, 8])
 class BlackwellMatmulV4(tilus.Script):
-    """Blackwell matmul with Pipeline abstraction, TMA epilogue, and L2 swizzle.
-
-    New optimizations over V3:
-    - Pipeline class for clean producer-consumer barrier management
-    - TMA epilogue: store results via shared memory + TMA (instead of direct store_global)
-    - L2 swizzle: reorder tile assignments for better L2 cache locality
-    """
-
     def __init__(
         self,
         block_m: int,
@@ -144,10 +136,11 @@ class BlackwellMatmulV4(tilus.Script):
 
         num_m_blocks = cdiv(m_size, block_m)
         num_n_blocks = cdiv(n_size, block_n)
-        self.attrs.blocks = [num_m_blocks * num_n_blocks, 1]
+        # 1D grid: tile rasterization maps linear index to 2D coordinates
+        self.attrs.blocks = num_m_blocks * num_n_blocks
         self.attrs.warps = 4
 
-        # L2 swizzle: map 1D block index to 2D tile coordinates
+        # tile rasterization: swizzle for better L2 cache reuse of B columns
         m_block, n_block = self.compute_block_coord(
             self.blockIdx.x, num_m_blocks, num_n_blocks
         )
@@ -161,10 +154,10 @@ class BlackwellMatmulV4(tilus.Script):
         s_b = self.shared_tensor(dtype=float16, shape=[stages, block_n, block_k])
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[block_m, block_n])
 
+        # Pipeline class encapsulates barrier/phase/stage management from V3
         tma_pipe = Pipeline(stages)
         flush_barrier = self.mbarrier.alloc(1)
 
-        # TMA warp: load tiles from global to shared memory
         with self.thread_group(thread_begin=0, num_threads=32):
             for offset_k in self.range(0, k_size, block_k, unroll=stages):
                 tma_pipe.producer_acquire()
@@ -188,7 +181,6 @@ class BlackwellMatmulV4(tilus.Script):
                 )
                 tma_pipe.producer_advance()
 
-        # MMA warp: compute matrix multiply-accumulate
         with self.thread_group(thread_begin=32, num_threads=32):
             for offset_k in self.range(0, k_size, block_k, unroll=stages):
                 tma_pipe.consumer_acquire()
@@ -206,9 +198,10 @@ class BlackwellMatmulV4(tilus.Script):
 
         self.sync()
 
-        # Epilogue: store result via TMA (tmem -> register -> shared -> global)
+        # TMA epilogue: tmem -> register -> shared -> global (via TMA)
         s_c = self.shared_tensor(dtype=float16, shape=[block_m, e_block_n])
         for e_offset_n in range(0, block_n, e_block_n):
+            # slice a e_block_n-wide column from the accumulator
             t_acc_slice = self.tcgen05.slice(
                 t_acc,
                 offsets=[0, e_offset_n],
@@ -218,9 +211,11 @@ class BlackwellMatmulV4(tilus.Script):
             r_acc = self.tcgen05.load(t_acc_slice)
             self.tcgen05.wait_load()
             self.store_shared(s_c, r_acc.to(float16))
+            # fence: make generic-proxy writes visible to async-proxy (TMA)
             self.fence.proxy_async(space="shared")
             self.sync()
             with self.single_warp():
+                # TMA bulk store from shared to global
                 self.tma.shared_to_global(
                     s_c,
                     g_c,
@@ -231,7 +226,6 @@ class BlackwellMatmulV4(tilus.Script):
                 self.tma.wait_group(n=0, read=True)
             self.sync()
 
-        # all allocated tensor memory must be deallocated
         self.sync()
         self.tcgen05.dealloc(t_acc)
 
