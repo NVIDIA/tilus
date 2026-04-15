@@ -12,13 +12,7 @@ from tilus.utils import benchmark_func, cdiv
 tilus.option.cache_dir("./cache")
 
 
-class Pipeline(tilus.Class):
-    """Manages a multi-stage producer-consumer pipeline using mbarriers.
-
-    - empty_barriers: signaled by consumer ("slot consumed"), producer waits on these
-    - full_barriers: signaled by producer ("slot filled"), consumer waits on these
-    """
-
+class Pipeline(tilus.Class):  # same as V4/V5
     def __init__(
         self,
         num_stages: int,
@@ -75,16 +69,6 @@ class Pipeline(tilus.Class):
 @tilus.autotune("mma_stages", [2])
 @tilus.autotune("swizzle_size", [4, 8, 16])
 class BlackwellMatmulV6(tilus.Script):
-    """Blackwell matmul with 2-CTA cluster and distributed MMA.
-
-    New optimizations over V5:
-    - 2-CTA cluster: two CTAs cooperate on a larger tile (block_m x block_n)
-      - Each CTA loads half the data (block_m/2 rows of A, block_n/2 cols of B)
-      - MMA with cta_group=2: TCGEN05 reads both CTAs' shared memory
-      - block_m doubles (256 vs 128) since work is split across 2 CTAs
-    - CLC with multicast: scheduler multicasts tile assignments to both CTAs
-    """
-
     def __init__(
         self,
         block_m: int,
@@ -129,6 +113,7 @@ class BlackwellMatmulV6(tilus.Script):
         pipe.consumer_acquire()
         response = s_clc_response[pipe.consumer_stage]
         is_valid, new_blockIdx = self.clc.query_response(response)
+        # arrive on CTA 0's barrier remotely (cluster-scoped)
         self.mbarrier.arrive_and_expect_tx_remote(
             pipe.consumer_barrier(),
             transaction_bytes=0,
@@ -158,6 +143,7 @@ class BlackwellMatmulV6(tilus.Script):
 
         num_m_blocks = cdiv(m_size, block_m)
         num_n_blocks = cdiv(n_size, block_n)
+        # 2-CTA cluster: two CTAs cooperate on each output tile
         self.attrs.blocks = num_m_blocks * num_n_blocks * 2, 1
         self.attrs.cluster_blocks = 2
         self.attrs.warps = 8
@@ -166,8 +152,10 @@ class BlackwellMatmulV6(tilus.Script):
         g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
 
+        # each CTA holds half: CTA 0 loads top rows of A, CTA 1 loads bottom rows
         s_a = self.shared_tensor(dtype=float16, shape=[tma_stages, block_m // 2, block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n // 2, block_k])
+        # cta_group=2: distributed MMA reads shared memory from both CTAs
         t_acc = self.tcgen05.alloc(
             dtype=float32, shape=[mma_stages, block_m // 2, block_n], cta_group=2
         )
@@ -175,13 +163,11 @@ class BlackwellMatmulV6(tilus.Script):
         s_clc_response = self.shared_tensor(dtype=int32, shape=[clc_stages, 4])
 
         tma_pipe = Pipeline(tma_stages)
-        mma_pipe = Pipeline(
-            mma_stages, consumer_arrive_count=128
-        )  # 4 warps (epilogue warps)
-        clc_pipe = Pipeline(
-            clc_stages, consumer_arrive_count=224 * 2
-        )  # 7 warps * 2 blocks
+        mma_pipe = Pipeline(mma_stages, consumer_arrive_count=128)
+        # 7 warps × 32 threads × 2 CTAs = 448: both CTAs' warps consume CLC responses
+        clc_pipe = Pipeline(clc_stages, consumer_arrive_count=224 * 2)
 
+        # each CTA's rank (0 or 1) within the 2-CTA cluster
         cta_rank = self.cluster.blockRank
 
         self.cluster.sync()
@@ -203,6 +189,7 @@ class BlackwellMatmulV6(tilus.Script):
                                 mbarrier, transaction_bytes
                             )
                     else:
+                        # CTA 1 maps to CTA 0's barrier (shared across cluster)
                         mbarrier = self.cluster.map_shared_addr(mbarrier, target_rank=0)
                     self.tma.global_to_shared(
                         src=g_a,
@@ -231,7 +218,7 @@ class BlackwellMatmulV6(tilus.Script):
 
         with self.single_warp(1):  # mma worker (smem -> tmem)
             while True:
-                if cta_rank == 0:
+                if cta_rank == 0:  # only CTA 0 issues MMA (reads both CTAs' smem)
                     mma_pipe.producer_acquire()
                     for offset_k in range(0, k_size, block_k):
                         tma_pipe.consumer_acquire()
@@ -242,6 +229,7 @@ class BlackwellMatmulV6(tilus.Script):
                             enable_input_d=offset_k != 0,
                             cta_group=2,
                         )
+                        # multicast commit: signal tma_pipe barriers on both CTAs
                         self.tcgen05.commit(
                             mbarrier=tma_pipe.consumer_barrier(),
                             cta_group=2,
@@ -261,8 +249,9 @@ class BlackwellMatmulV6(tilus.Script):
 
         with self.single_warp(2):  # scheduler
             while True:
-                if cta_rank == 0:
+                if cta_rank == 0:  # only CTA 0 runs the scheduler
                     clc_pipe.producer_acquire()
+                    # multicast: CLC response delivered to both CTAs' shared memory
                     self.mbarrier.arrive_and_expect_tx_multicast(
                         clc_pipe.producer_barrier(),
                         transaction_bytes=16,
