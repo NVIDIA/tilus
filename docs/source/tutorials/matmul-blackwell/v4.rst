@@ -7,7 +7,7 @@
 This version adds three improvements:
 
 1. **Tile rasterization** --- reorder tile assignments so that consecutive thread
-   blocks process tiles that share B columns, improving L2 cache reuse.  
+   blocks process tiles that share B columns, improving L2 cache reuse.
 2. **Pipeline abstraction** --- encapsulate the producer-consumer barrier logic
    from V3 into a reusable ``Pipeline`` class using ``tilus.Class``, making it
    easy to add more pipelines as the kernel grows (e.g., separate TMA and MMA
