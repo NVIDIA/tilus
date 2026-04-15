@@ -12,6 +12,7 @@
     "python.analysis.supportDocstringTemplate": true,
     "autoDocstring.docstringFormat": "numpy",
     "files.watcherExclude": {
-        "**/cache/**": true
+        "**/cache/**": true,
+        "**/.cache/**": true,
     },
 }
