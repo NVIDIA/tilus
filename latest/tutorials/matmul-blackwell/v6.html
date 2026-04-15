@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>5. CLC Persistent Kernel and Pipelined Epilogue &#8212; tilus  documentation</title>
+    <title>6. 2-CTA Cluster &#8212; tilus  documentation</title>
   
   
   
@@ -45,11 +45,11 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-blackwell/v5';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-blackwell/v6';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="6. 2-CTA Cluster" href="v6.html" />
-    <link rel="prev" title="4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue" href="v4.html" />
+    <link rel="next" title="1. Overview" href="../../programming-guides/overview.html" />
+    <link rel="prev" title="5. CLC Persistent Kernel and Pipelined Epilogue" href="v5.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -174,8 +174,8 @@
 <li class="toctree-l2"><a class="reference internal" href="v2.html">2. Multi-Stage Software Pipelining</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v4.html">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v6.html">6. 2-CTA Cluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">6. 2-CTA Cluster</a></li>
 </ul>
 </details></li>
 </ul>
@@ -513,7 +513,7 @@
       
       
       
-      <li><a href="../../_sources/tutorials/matmul-blackwell/v5.rst" target="_blank"
+      <li><a href="../../_sources/tutorials/matmul-blackwell/v6.rst" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -597,7 +597,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>5. CLC Persistent Kernel and Pipelined Epilogue</h1>
+    <h1>6. 2-CTA Cluster</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -608,18 +608,14 @@ document.write(`
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-full-kernel">The Full Kernel</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v4">What Changed from V4</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#clc-persistent-kernel">CLC Persistent Kernel</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-clc-provides">What CLC Provides</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#clc-in-the-kernel">CLC in the Kernel</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#persistent-loop-structure">Persistent Loop Structure</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipelined-epilogue">Pipelined Epilogue</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-overview">Pipeline Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v5">What Changed from V5</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tile-partitioning">Tile Partitioning</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cta-mma-cta-group-2">2-CTA MMA (<code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code>)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cluster-barrier-management">Cluster Barrier Management</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#setup">Setup</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-warp">TMA Warp</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mma-warp">MMA Warp</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
@@ -635,49 +631,28 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="clc-persistent-kernel-and-pipelined-epilogue">
-<span id="tutorial-blackwell-matmul-v5"></span><h1>5. CLC Persistent Kernel and Pipelined Epilogue<a class="headerlink" href="#clc-persistent-kernel-and-pipelined-epilogue" title="Link to this heading"><span>¶</span></a></h1>
-<p>Our goal throughout this tutorial series has been to keep the tensor core
-pipeline busy. V4 does this well <em>within</em> a single tile — TMA and MMA run on
-separate warps, and multiple MMAs are in flight. But zoom out to the full
-kernel, and the tensor core is idle for significant stretches.</p>
-<p>Each CTA has a <strong>prologue</strong> (allocate register file, shared memory, and tensor
-memory; initialize pipelines and barriers) and an <strong>epilogue</strong> (read the
-accumulator from tensor memory and write the result to global memory). Both sit
-on the critical path, and the tensor core does nothing during either phase.
-Making matters worse, efficient tensor core utilization requires large tile
-sizes, which means we typically launch only <strong>one CTA per SM</strong> — there is no
-other CTA on the same SM to fill the gap while the first one is setting up or
-writing back.</p>
-<p>The question is: <strong>how do we keep the tensor core pipeline busy while moving
-the prologue and epilogue off the critical path?</strong></p>
-<p>Blackwell introduces <strong>Cluster Launch Control (CLC)</strong>, a hardware mechanism that
-lets a running CTA <strong>cancel</strong> an unscheduled thread block cluster and take over
-its work. The kernel launches the full grid (one cluster per output tile), but
-instead of each CTA computing one tile and exiting, a CTA that finishes its MMA
-computation can immediately cancel a pending cluster, obtain the cancelled
-cluster’s <code class="docutils literal notranslate"><span class="pre">blockIdx</span></code>, and start computing the next tile — all without
-tearing down and reallocating resources. The prologue cost is paid once; every
-subsequent tile reuses the already-allocated register file, shared memory, and
-tensor memory. As a bonus, CLC naturally load-balances across SMs: faster SMs
-cancel more clusters and process more tiles, avoiding the tail effect when the
-grid is not evenly divisible by the number of SMs.</p>
-<p>CLC also solves the epilogue problem. Because the CTA stays alive across tiles,
-we can hand the epilogue to a dedicated warp group that writes tile N’s results
-to global memory while the MMA warp has already moved on to tile N+1’s
-computation. The tensor core never stalls waiting for the epilogue to finish.</p>
-<p>This tutorial covers the two optimizations in turn:</p>
-<ol class="arabic simple">
-<li><p><strong>CLC persistent kernel</strong> — how to use Blackwell’s cluster launch control
-to cancel a pending cluster, obtain the next tile assignment, and loop.</p></li>
-<li><p><strong>Pipelined epilogue</strong> — how to add a dedicated epilogue warp group so that
-epilogue and MMA overlap across tiles.</p></li>
-</ol>
+  <section id="cta-cluster">
+<span id="tutorial-blackwell-matmul-v6"></span><h1>6. 2-CTA Cluster<a class="headerlink" href="#cta-cluster" title="Link to this heading"><span>¶</span></a></h1>
+<p>V5 is a persistent kernel with a pipelined epilogue, but each CTA works alone
+— it loads the full A and B tiles into its own shared memory, and its tensor
+core computes the full output tile.</p>
+<p>To push performance further, we want <strong>larger tiles</strong>: a bigger output tile
+means more compute per tile, better amortization of pipeline overhead, and
+higher tensor core utilization. But shared memory per SM is limited — we
+cannot simply double the tile size and expect the data to fit.</p>
+<p>Blackwell solves this with <strong>2-CTA clusters</strong>: two CTAs on adjacent SMs
+cooperate on a single larger output tile. Each CTA loads only <strong>half</strong> of the
+input data into its own shared memory, and the tensor core hardware reads from
+<strong>both CTAs’ shared memory</strong> via distributed shared memory (DSMEM). The result:
+double the tile size with the same shared memory budget per SM.</p>
+<p>In V6, the output tile grows from 128 × 256 to <strong>256 × 256</strong>, and the kernel
+uses <code class="docutils literal notranslate"><span class="pre">self.attrs.cluster_blocks=2</span></code>. This tutorial explains how the data is partitioned,
+how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
 <section id="the-full-kernel">
 <h2>The Full Kernel<a class="headerlink" href="#the-full-kernel" title="Link to this heading"><span>¶</span></a></h2>
 <div class="literal-block-wrapper docutils container" id="id1">
-<div class="code-block-caption"><span class="caption-text">BlackwellMatmulV5 — full kernel (including Pipeline class)</span><a class="headerlink" href="#id1" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Pipeline</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Class</span><span class="p">):</span>  <span class="c1"># same as V4</span>
+<div class="code-block-caption"><span class="caption-text">BlackwellMatmulV6 — full kernel (including Pipeline class)</span><a class="headerlink" href="#id1" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Pipeline</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Class</span><span class="p">):</span>  <span class="c1"># same as V4/V5</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">num_stages</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -727,13 +702,13 @@ epilogue and MMA overlap across tiles.</p></li>
         <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span> <span class="o">^</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
 
 
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_m&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">128</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_n, e_block_n&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">]])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;tma_stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;mma_stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;swizzle_size&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">BlackwellMatmulV5</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_m&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">256</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_n, e_block_n&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">32</span><span class="p">]])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">64</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;tma_stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;mma_stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;swizzle_size&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">16</span><span class="p">])</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BlackwellMatmulV6</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">block_m</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -777,13 +752,14 @@ epilogue and MMA overlap across tiles.</p></li>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Consume the CLC response: read the next tile assignment from shared memory.&quot;&quot;&quot;</span>
         <span class="n">pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
         <span class="n">response</span> <span class="o">=</span> <span class="n">s_clc_response</span><span class="p">[</span><span class="n">pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span>
-        <span class="c1"># decode the 16-byte CLC response: (is_valid, blockIdx)</span>
         <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clc</span><span class="o">.</span><span class="n">query_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+        <span class="c1"># arrive on CTA 0&#39;s barrier remotely (cluster-scoped)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx_remote</span><span class="p">(</span>
             <span class="n">pipe</span><span class="o">.</span><span class="n">consumer_barrier</span><span class="p">(),</span>
             <span class="n">transaction_bytes</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">target_rank</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cluster&quot;</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span>
@@ -807,119 +783,139 @@ epilogue and MMA overlap across tiles.</p></li>
 
         <span class="n">num_m_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="n">block_m</span><span class="p">)</span>
         <span class="n">num_n_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="n">block_n</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="n">num_m_blocks</span> <span class="o">*</span> <span class="n">num_n_blocks</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># 2-CTA cluster: two CTAs cooperate on each output tile</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="n">num_m_blocks</span> <span class="o">*</span> <span class="n">num_n_blocks</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">cluster_blocks</span> <span class="o">=</span> <span class="mi">2</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">8</span>
 
         <span class="n">g_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
         <span class="n">g_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">n_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
         <span class="n">g_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">c_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
 
-        <span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">tma_stages</span><span class="p">,</span> <span class="n">block_m</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
-        <span class="n">s_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">tma_stages</span><span class="p">,</span> <span class="n">block_n</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
-        <span class="c1"># multi-stage accumulator: allows MMA and epilogue to overlap via mma_pipe</span>
-        <span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
+        <span class="c1"># each CTA holds half: CTA 0 loads top rows of A, CTA 1 loads bottom rows</span>
+        <span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">tma_stages</span><span class="p">,</span> <span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+        <span class="n">s_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">tma_stages</span><span class="p">,</span> <span class="n">block_n</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+        <span class="c1"># cta_group=2: distributed MMA reads shared memory from both CTAs</span>
+        <span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">block_n</span><span class="p">],</span> <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span>
+        <span class="p">)</span>
 
-        <span class="c1"># 16-byte buffer for CLC responses (cancel result + blockIdx)</span>
         <span class="n">s_clc_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">int32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">clc_stages</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
 
         <span class="n">tma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">tma_stages</span><span class="p">)</span>
-        <span class="c1"># mma_pipe: connects MMA warp (producer) to epilogue warp group (consumer)</span>
-        <span class="n">mma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>  <span class="c1"># 4 epilogue warps</span>
-        <span class="c1"># clc_pipe: scheduler warp distributes tile assignments to all 7 other warps</span>
-        <span class="n">clc_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">clc_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">224</span><span class="p">)</span>  <span class="c1"># 7 warps × 32 threads</span>
+        <span class="n">mma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
+        <span class="c1"># 7 warps × 32 threads × 2 CTAs = 448: both CTAs&#39; warps consume CLC responses</span>
+        <span class="n">clc_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">clc_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">224</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="c1"># each CTA&#39;s rank (0 or 1) within the 2-CTA cluster</span>
+        <span class="n">cta_rank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">blockRank</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>  <span class="c1"># tma worker (gmem -&gt; smem)</span>
-            <span class="c1"># first tile: use the CTA&#39;s original blockIdx</span>
             <span class="n">m_block_0</span><span class="p">,</span> <span class="n">n_block_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
             <span class="p">)</span>
-            <span class="n">offset_m</span> <span class="o">=</span> <span class="n">m_block_0</span> <span class="o">*</span> <span class="n">block_m</span>
-            <span class="n">offset_n</span> <span class="o">=</span> <span class="n">n_block_0</span> <span class="o">*</span> <span class="n">block_n</span>
-            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>  <span class="c1"># persistent loop: process multiple tiles per CTA</span>
+            <span class="n">offset_m_a</span> <span class="o">=</span> <span class="p">(</span><span class="n">m_block_0</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">cta_rank</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">offset_n_b</span> <span class="o">=</span> <span class="n">n_block_0</span> <span class="o">*</span> <span class="n">block_n</span> <span class="o">+</span> <span class="n">cta_rank</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_n</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">):</span>
                     <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
-                    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
-                            <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                            <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
-                        <span class="p">)</span>
+                    <span class="n">mbarrier</span> <span class="o">=</span> <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+                            <span class="n">transaction_bytes</span> <span class="o">=</span> <span class="p">(</span><span class="n">s_a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+                                <span class="n">mbarrier</span><span class="p">,</span> <span class="n">transaction_bytes</span>
+                            <span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># CTA 1 maps to CTA 0&#39;s barrier (shared across cluster)</span>
+                        <span class="n">mbarrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">map_shared_addr</span><span class="p">(</span><span class="n">mbarrier</span><span class="p">,</span> <span class="n">target_rank</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
                         <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
                         <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
-                        <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                        <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                        <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m_a</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                        <span class="n">mbarrier</span><span class="o">=</span><span class="n">mbarrier</span><span class="p">,</span>
+                        <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
                     <span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
                         <span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span>
                         <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
-                        <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                        <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                        <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n_b</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                        <span class="n">mbarrier</span><span class="o">=</span><span class="n">mbarrier</span><span class="p">,</span>
+                        <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
                     <span class="p">)</span>
                     <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
 
-                <span class="c1"># query CLC for next tile; break if no more tiles</span>
                 <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_clc_response</span><span class="p">(</span><span class="n">s_clc_response</span><span class="p">,</span> <span class="n">clc_pipe</span><span class="p">)</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid</span><span class="p">:</span>
                     <span class="k">break</span>
-                <span class="c1"># subsequent tiles: use the cancelled cluster&#39;s blockIdx</span>
                 <span class="n">m_block_0</span><span class="p">,</span> <span class="n">n_block_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span>
-                    <span class="n">new_blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
+                    <span class="n">new_blockIdx</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
                 <span class="p">)</span>
-                <span class="n">offset_m</span> <span class="o">=</span> <span class="n">m_block_0</span> <span class="o">*</span> <span class="n">block_m</span>
-                <span class="n">offset_n</span> <span class="o">=</span> <span class="n">n_block_0</span> <span class="o">*</span> <span class="n">block_n</span>
+                <span class="n">offset_m_a</span> <span class="o">=</span> <span class="p">(</span><span class="n">m_block_0</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">cta_rank</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="n">offset_n_b</span> <span class="o">=</span> <span class="n">n_block_0</span> <span class="o">*</span> <span class="n">block_n</span> <span class="o">+</span> <span class="n">cta_rank</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_n</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
 
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>  <span class="c1"># mma worker (smem -&gt; tmem)</span>
             <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-                <span class="c1"># wait for an empty accumulator slot in mma_pipe</span>
-                <span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
-                <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">):</span>
-                    <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
-                        <span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">],</span>
-                        <span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
-                        <span class="n">t_acc</span><span class="p">[</span><span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
-                        <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># only CTA 0 issues MMA (reads both CTAs&#39; smem)</span>
+                    <span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">):</span>
+                        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
+                            <span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">],</span>
+                            <span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+                            <span class="n">t_acc</span><span class="p">[</span><span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
+                            <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+                            <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="c1"># multicast commit: signal tma_pipe barriers on both CTAs</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+                            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_barrier</span><span class="p">(),</span>
+                            <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                            <span class="n">multicast_mask</span><span class="o">=</span><span class="mb">0b11</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+                        <span class="n">mbarrier</span><span class="o">=</span><span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                        <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                        <span class="n">multicast_mask</span><span class="o">=</span><span class="mb">0b11</span><span class="p">,</span>
                     <span class="p">)</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_barrier</span><span class="p">())</span>
-                    <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
-                <span class="c1"># track MMA completion on mma_pipe barrier; signals epilogue when done</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">())</span>
-                <span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
+                    <span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
 
                 <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_clc_response</span><span class="p">(</span><span class="n">s_clc_response</span><span class="p">,</span> <span class="n">clc_pipe</span><span class="p">)</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid</span><span class="p">:</span>
                     <span class="k">break</span>
 
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>  <span class="c1"># scheduler: requests next tile from CLC hardware</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>  <span class="c1"># scheduler</span>
             <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-                <span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
-                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-                    <span class="c1"># CLC response is 16 bytes, tracked via mbarrier tx-count</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+                <span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># only CTA 0 runs the scheduler</span>
+                    <span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
+                    <span class="c1"># multicast: CLC response delivered to both CTAs&#39; shared memory</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx_multicast</span><span class="p">(</span>
                         <span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
                         <span class="n">transaction_bytes</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+                        <span class="n">multicast_mask</span><span class="o">=</span><span class="mb">0b11</span><span class="p">,</span>
+                        <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+                        <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cluster&quot;</span><span class="p">,</span>
                     <span class="p">)</span>
-                <span class="c1"># cancel a pending cluster and steal its blockIdx</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">clc</span><span class="o">.</span><span class="n">try_cancel</span><span class="p">(</span>
-                    <span class="n">s_clc_response</span><span class="p">[</span><span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
-                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                    <span class="n">multicast</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="p">)</span>
-                <span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">clc</span><span class="o">.</span><span class="n">try_cancel</span><span class="p">(</span>
+                        <span class="n">s_clc_response</span><span class="p">[</span><span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
+                        <span class="n">mbarrier</span><span class="o">=</span><span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                        <span class="n">multicast</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
 
                 <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_clc_response</span><span class="p">(</span><span class="n">s_clc_response</span><span class="p">,</span> <span class="n">clc_pipe</span><span class="p">)</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid</span><span class="p">:</span>
                     <span class="k">break</span>
 
-        <span class="c1"># dedicated epilogue warp group: runs in parallel with MMA</span>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">warp_group</span><span class="p">(</span><span class="n">warp_begin</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">num_warps</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>  <span class="c1"># epilogue (tmem -&gt; gmem)</span>
-            <span class="n">s_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">])</span>
+            <span class="n">s_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">])</span>
             <span class="n">m_block_e</span><span class="p">,</span> <span class="n">n_block_e</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
             <span class="p">)</span>
-            <span class="n">offset_m_c</span> <span class="o">=</span> <span class="n">m_block_e</span> <span class="o">*</span> <span class="n">block_m</span>
+            <span class="n">offset_m_c</span> <span class="o">=</span> <span class="p">(</span><span class="n">m_block_e</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">cta_rank</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
             <span class="n">offset_n_c</span> <span class="o">=</span> <span class="n">n_block_e</span> <span class="o">*</span> <span class="n">block_n</span>
             <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
                 <span class="n">mma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
@@ -928,7 +924,7 @@ epilogue and MMA overlap across tiles.</p></li>
                     <span class="n">t_acc_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span>
                         <span class="n">t_acc</span><span class="p">[</span><span class="n">mma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">],</span>
                         <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">e_offset_n</span><span class="p">],</span>
-                        <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">],</span>
+                        <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">],</span>
                         <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
                     <span class="p">)</span>
                     <span class="n">r_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">t_acc_slice</span><span class="p">)</span>
@@ -947,7 +943,6 @@ epilogue and MMA overlap across tiles.</p></li>
                         <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">read</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
-                <span class="c1"># signal accumulator consumed; frees the slot for MMA warp</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">mma_pipe</span><span class="o">.</span><span class="n">consumer_barrier</span><span class="p">())</span>
                 <span class="n">mma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
 
@@ -955,20 +950,20 @@ epilogue and MMA overlap across tiles.</p></li>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid</span><span class="p">:</span>
                     <span class="k">break</span>
                 <span class="n">m_block_e</span><span class="p">,</span> <span class="n">n_block_e</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span>
-                    <span class="n">new_blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
+                    <span class="n">new_blockIdx</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
                 <span class="p">)</span>
-                <span class="n">offset_m_c</span> <span class="o">=</span> <span class="n">m_block_e</span> <span class="o">*</span> <span class="n">block_m</span>
+                <span class="n">offset_m_c</span> <span class="o">=</span> <span class="p">(</span><span class="n">m_block_e</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">cta_rank</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
                 <span class="n">offset_n_c</span> <span class="o">=</span> <span class="n">n_block_e</span> <span class="o">*</span> <span class="n">block_n</span>
 
         <span class="c1"># all allocated tensor memory must be deallocated</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">dealloc</span><span class="p">(</span><span class="n">t_acc</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 </section>
-<section id="what-changed-from-v4">
-<h2>What Changed from V4<a class="headerlink" href="#what-changed-from-v4" title="Link to this heading"><span>¶</span></a></h2>
+<section id="what-changed-from-v5">
+<h2>What Changed from V5<a class="headerlink" href="#what-changed-from-v5" title="Link to this heading"><span>¶</span></a></h2>
 <div class="pst-scrollable-table-container"><table class="table">
 <colgroup>
 <col style="width: 15.8%" />
@@ -977,395 +972,326 @@ epilogue and MMA overlap across tiles.</p></li>
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"></th>
-<th class="head"><p>V4</p></th>
 <th class="head"><p>V5</p></th>
+<th class="head"><p>V6</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><strong>Tile scheduling</strong></p></td>
-<td><p>1 CTA = 1 tile (non-persistent)</p></td>
-<td><p>CLC persistent: each CTA processes multiple tiles</p></td>
+<tr class="row-even"><td><p><strong>Cluster size</strong></p></td>
+<td><p>1 CTA</p></td>
+<td><p>2-CTA cluster (<code class="docutils literal notranslate"><span class="pre">cluster_blocks=2</span></code>)</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Warp roles</strong></p></td>
-<td><p>TMA (warp 0) + MMA (warp 1), 4 warps total</p></td>
-<td><p>TMA + MMA + Scheduler + Epilogue, 8 warps total</p></td>
+<tr class="row-odd"><td><p><strong>Tile size</strong></p></td>
+<td><p>128 × 256</p></td>
+<td><p>256 × 256 (doubled M)</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>Epilogue</strong></p></td>
-<td><p>Sequential after <code class="docutils literal notranslate"><span class="pre">sync()</span></code>, all warps participate</p></td>
-<td><p>Dedicated warp group (warps 4–7), runs in parallel with MMA</p></td>
+<tr class="row-even"><td><p><strong>Shared memory per CTA</strong></p></td>
+<td><p>Full tile: <code class="docutils literal notranslate"><span class="pre">[block_m,</span> <span class="pre">block_k]</span></code> and <code class="docutils literal notranslate"><span class="pre">[block_n,</span> <span class="pre">block_k]</span></code></p></td>
+<td><p>Half tile: <code class="docutils literal notranslate"><span class="pre">[block_m/2,</span> <span class="pre">block_k]</span></code> and <code class="docutils literal notranslate"><span class="pre">[block_n/2,</span> <span class="pre">block_k]</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Pipelines</strong></p></td>
-<td><p>1: <code class="docutils literal notranslate"><span class="pre">tma_pipe</span></code> (TMA → MMA) + flush barrier</p></td>
-<td><p>3: <code class="docutils literal notranslate"><span class="pre">tma_pipe</span></code> + <code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code> (MMA → epilogue) + <code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code></p></td>
+<tr class="row-odd"><td><p><strong>MMA</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cta_group=1</span></code> (implicit): single CTA’s shared memory</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code>: reads both CTAs’ shared memory via DSMEM</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>Accumulator</strong></p></td>
-<td><p>Single: <code class="docutils literal notranslate"><span class="pre">[block_m,</span> <span class="pre">block_n]</span></code></p></td>
-<td><p>Multi-stage: <code class="docutils literal notranslate"><span class="pre">[mma_stages,</span> <span class="pre">block_m,</span> <span class="pre">block_n]</span></code></p></td>
+<tr class="row-even"><td><p><strong>Who issues MMA</strong></p></td>
+<td><p>MMA warp on every CTA</p></td>
+<td><p>MMA warp on <strong>CTA 0 only</strong></p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Autotuning</strong></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">stages</span></code> (shared for TMA pipeline)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">tma_stages</span></code> + <code class="docutils literal notranslate"><span class="pre">mma_stages</span></code> (independent)</p></td>
+<tr class="row-odd"><td><p><strong>CLC</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">try_cancel(multicast=False)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">try_cancel(multicast=True)</span></code>: response multicast to both CTAs</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Barrier scope</strong></p></td>
+<td><p>CTA-local</p></td>
+<td><p>Cluster-scoped: <code class="docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote</span></code>, <code class="docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast</span></code></p></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
-<section id="clc-persistent-kernel">
-<h2>CLC Persistent Kernel<a class="headerlink" href="#clc-persistent-kernel" title="Link to this heading"><span>¶</span></a></h2>
-<section id="what-clc-provides">
-<h3>What CLC Provides<a class="headerlink" href="#what-clc-provides" title="Link to this heading"><span>¶</span></a></h3>
-<p>Traditionally, persistent kernels use a software work queue (e.g., an atomic
-counter in global memory) to assign tiles. This works but adds contention on the
-atomic and requires careful ordering to maintain cache locality.</p>
-<p><strong>Cluster Launch Control (CLC)</strong> is a Blackwell hardware feature that provides a
-hardware-managed work queue. The programming model is elegant:</p>
+<section id="tile-partitioning">
+<h2>Tile Partitioning<a class="headerlink" href="#tile-partitioning" title="Link to this heading"><span>¶</span></a></h2>
+<p>The cluster computes a <strong>256 × 256</strong> output tile (<code class="docutils literal notranslate"><span class="pre">block_m</span> <span class="pre">×</span> <span class="pre">block_n</span></code>). Note
+that these dimensions are the cluster-level tile size; each CTA is responsible
+for only half. The three matrices are partitioned as follows:</p>
 <ul class="simple">
-<li><p>The kernel is launched with the <strong>full grid size</strong> (one CTA per tile), just
-like a non-persistent kernel.</p></li>
-<li><p>The hardware scheduler starts launching CTAs as usual. But at any point, a
-running CTA can <strong>cancel</strong> a not-yet-launched CTA and steal its <code class="docutils literal notranslate"><span class="pre">blockIdx</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">clc.try_cancel</span></code> is an async operation: it sends a cancellation request to
-the hardware and writes a 16-byte response into shared memory, tracked by an
-mbarrier (the same tx-count mechanism as TMA).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">clc.query_response</span></code> decodes the response: <code class="docutils literal notranslate"><span class="pre">(is_valid,</span> <span class="pre">new_blockIdx)</span></code>.
-If <code class="docutils literal notranslate"><span class="pre">is_valid</span></code> is True, the CTA processes the stolen tile. If False, all
-tiles have been processed (or a higher-priority kernel needs the SM), and the
-CTA should exit.</p></li>
+<li><p><strong>A</strong> (256 × K): split by <strong>rows</strong>. CTA 0 loads the top 128 rows, CTA 1
+loads the bottom 128 rows. Each CTA stores its half in local shared memory.</p></li>
+<li><p><strong>B</strong> (K × 256): split by <strong>columns</strong>. CTA 0 loads the left 128 columns,
+CTA 1 loads the right 128 columns. Each CTA stores its half in local shared
+memory.</p></li>
+<li><p><strong>C</strong> (256 × 256): split by <strong>rows</strong> (same as A). CTA 0 owns rows 0–127
+in its tensor memory, CTA 1 owns rows 128–255.</p></li>
 </ul>
-<p>This gives the best of both worlds: the grid size reflects the problem size
-(so the hardware knows the total work), while the execution is persistent and
-load-balanced.</p>
-</section>
-<section id="clc-in-the-kernel">
-<h3>CLC in the Kernel<a class="headerlink" href="#clc-in-the-kernel" title="Link to this heading"><span>¶</span></a></h3>
-<p>The CLC mechanism uses a dedicated <strong>scheduler warp</strong> (warp 2) and a
-<code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code> pipeline to distribute tile assignments to all other warps.</p>
-<p>The scheduler warp is the <strong>producer</strong> of <code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code>:</p>
-<div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-text">Scheduler warp (CLC producer)</span><a class="headerlink" href="#id2" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>  <span class="c1"># scheduler: requests next tile from CLC hardware</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-            <span class="c1"># CLC response is 16 bytes, tracked via mbarrier tx-count</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
-                <span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                <span class="n">transaction_bytes</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
-            <span class="p">)</span>
-        <span class="c1"># cancel a pending cluster and steal its blockIdx</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">clc</span><span class="o">.</span><span class="n">try_cancel</span><span class="p">(</span>
-            <span class="n">s_clc_response</span><span class="p">[</span><span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
-            <span class="n">mbarrier</span><span class="o">=</span><span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-            <span class="n">multicast</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
-
-        <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_clc_response</span><span class="p">(</span><span class="n">s_clc_response</span><span class="p">,</span> <span class="n">clc_pipe</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid</span><span class="p">:</span>
-            <span class="k">break</span>
-</pre></div>
-</div>
-</div>
-<p>Each iteration:</p>
-<ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">clc_pipe.producer_acquire()</span></code> waits for the current slot to be empty
-(initially all slots are empty, so the first iteration proceeds immediately).</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>
-declares that 16 bytes will arrive on the barrier — this is the size of the
-CLC response that <code class="docutils literal notranslate"><span class="pre">try_cancel</span></code> will write to shared memory.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">clc.try_cancel</span></code></a>
-sends the cancellation request to the CLC hardware. The hardware writes the
-16-byte response to <code class="docutils literal notranslate"><span class="pre">s_clc_response</span></code> and signals the barrier.</p></li>
-<li><p>The scheduler itself also consumes the response (via <code class="docutils literal notranslate"><span class="pre">query_clc_response</span></code>)
-to learn whether to continue or exit.</p></li>
-</ol>
-<p>Every other warp is a <strong>consumer</strong> of <code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code>:</p>
-<div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">query_clc_response</span></code> — consuming the CLC response</span><a class="headerlink" href="#id3" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">query_clc_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s_clc_response</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span> <span class="n">pipe</span><span class="p">:</span> <span class="n">Pipeline</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Consume the CLC response: read the next tile assignment from shared memory.&quot;&quot;&quot;</span>
-    <span class="n">pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
-    <span class="n">response</span> <span class="o">=</span> <span class="n">s_clc_response</span><span class="p">[</span><span class="n">pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span>
-    <span class="c1"># decode the 16-byte CLC response: (is_valid, blockIdx)</span>
-    <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clc</span><span class="o">.</span><span class="n">query_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
-        <span class="n">pipe</span><span class="o">.</span><span class="n">consumer_barrier</span><span class="p">(),</span>
-        <span class="n">transaction_bytes</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-        <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
-    <span class="p">)</span>
-    <span class="n">pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span>
-</pre></div>
-</div>
-</div>
-<p>When any other warp (TMA, MMA, or epilogue) needs to know whether there is
-another tile to process and what its block index is, it calls
-<code class="docutils literal notranslate"><span class="pre">query_clc_response</span></code>. Inside this helper:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">consumer_acquire</span></code> waits for the current <code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code> slot to be filled —
-i.e., the scheduler has produced a CLC response.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response"><code class="xref py py-meth docutils literal notranslate"><span class="pre">clc.query_response</span></code></a>
-decodes the response to extract <code class="docutils literal notranslate"><span class="pre">(is_valid,</span> <span class="pre">new_blockIdx)</span></code>.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>
-on the consumer barrier signals that this warp has finished reading. Once all
-consumers have signaled, the scheduler is free to reuse this slot for the next
-query.</p></li>
-</ul>
-<p>Every warp that reads the CLC response is a consumer of <code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code> — this
-includes the scheduler itself (which needs the result to decide whether to
-exit). The consumers and their thread counts are:</p>
-<div class="pst-scrollable-table-container"><table class="table">
-<colgroup>
-<col style="width: 33.3%" />
-<col style="width: 33.3%" />
-<col style="width: 33.3%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Consumer warp(s)</p></th>
-<th class="head"><p>Threads</p></th>
-<th class="head"><p>Role</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>0</p></td>
-<td><p>32</p></td>
-<td><p>TMA</p></td>
-</tr>
-<tr class="row-odd"><td><p>1</p></td>
-<td><p>32</p></td>
-<td><p>MMA</p></td>
-</tr>
-<tr class="row-even"><td><p>2</p></td>
-<td><p>32</p></td>
-<td><p>Scheduler (also producer)</p></td>
-</tr>
-<tr class="row-odd"><td><p>4, 5, 6, 7</p></td>
-<td><p>128</p></td>
-<td><p>Epilogue</p></td>
-</tr>
-<tr class="row-even"><td><p><strong>Total</strong></p></td>
-<td><p><strong>224</strong></p></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Hence <code class="docutils literal notranslate"><span class="pre">consumer_arrive_count=224</span></code>: all 224 threads must arrive before the
-scheduler can reuse the response buffer slot.</p>
-</section>
-<section id="persistent-loop-structure">
-<h3>Persistent Loop Structure<a class="headerlink" href="#persistent-loop-structure" title="Link to this heading"><span>¶</span></a></h3>
-<p>Each thread group runs a <code class="docutils literal notranslate"><span class="pre">while</span> <span class="pre">True</span></code> loop. The first tile comes from
-<code class="docutils literal notranslate"><span class="pre">blockIdx.x</span></code> (the CTA’s original assignment). Subsequent tiles come from CLC:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># First tile: use the CTA&#39;s original blockIdx</span>
-<span class="n">m_block</span><span class="p">,</span> <span class="n">n_block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
-<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-    <span class="c1"># ... process tile (TMA loads / MMA / epilogue) ...</span>
-
-    <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_clc_response</span><span class="p">(</span><span class="n">s_clc_response</span><span class="p">,</span> <span class="n">clc_pipe</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid</span><span class="p">:</span>
-        <span class="k">break</span>  <span class="c1"># no more tiles, exit</span>
-
-    <span class="c1"># Next tile: use the stolen blockIdx</span>
-    <span class="n">m_block</span><span class="p">,</span> <span class="n">n_block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span><span class="n">new_blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="pipelined-epilogue">
-<h2>Pipelined Epilogue<a class="headerlink" href="#pipelined-epilogue" title="Link to this heading"><span>¶</span></a></h2>
-<p>In V4, the epilogue runs <strong>after</strong> the MMA loop. All warps join a <code class="docutils literal notranslate"><span class="pre">sync()</span></code>
-barrier, then every thread participates in the epilogue: load from tensor
-memory, cast, store to shared memory, TMA to global memory. During this time,
-the tensor core pipeline sits idle — there is no MMA work to do because the
-epilogue is blocking all warps. In a persistent kernel, this matters even more:
-the epilogue of tile N and the MMA of tile N+1 could overlap, but V4’s
-sequential design prevents this.</p>
-<p>V5 solves this by moving the epilogue to a <strong>dedicated warp group</strong> (warps
-4–7) that runs concurrently with the MMA warp. A second pipeline
-(<code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code>) connects the MMA warp to the epilogue: after the MMA warp
-finishes one tile’s K-loop, it signals <code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code>; the epilogue warp group
-waits on <code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code>, reads the accumulator from tensor memory, and writes the
-result to global memory — all while the MMA warp has already moved on to the
-next tile.</p>
-<p>To support this overlap, the accumulator in tensor memory is now multi-stage:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
-</pre></div>
-</div>
-<p>With <code class="docutils literal notranslate"><span class="pre">mma_stages=2</span></code>, the MMA warp writes into <code class="docutils literal notranslate"><span class="pre">t_acc[1]</span></code> while the epilogue
-reads from <code class="docutils literal notranslate"><span class="pre">t_acc[0]</span></code> — the same ring-buffer idea as <code class="docutils literal notranslate"><span class="pre">tma_pipe</span></code>, but
-applied to tensor memory.</p>
-</section>
-<section id="pipeline-overview">
-<h2>Pipeline Overview<a class="headerlink" href="#pipeline-overview" title="Link to this heading"><span>¶</span></a></h2>
-<p>V5 uses <strong>three pipelines</strong> to connect four warp roles. Each pipeline is an
-instance of the same <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class from V4, but with different buffer
-types and arrive counts:</p>
-<div class="pst-scrollable-table-container"><table class="table">
-<colgroup>
-<col style="width: 15.0%" />
-<col style="width: 15.0%" />
-<col style="width: 15.0%" />
-<col style="width: 20.0%" />
-<col style="width: 35.0%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Pipeline</p></th>
-<th class="head"><p>Producer</p></th>
-<th class="head"><p>Consumer</p></th>
-<th class="head"><p>Buffer</p></th>
-<th class="head"><p>Purpose</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tma_pipe</span></code></p></td>
-<td><p>TMA (warp 0)</p></td>
-<td><p>MMA (warp 1)</p></td>
-<td><p>shared memory (<code class="docutils literal notranslate"><span class="pre">tma_stages</span></code> slots)</p></td>
-<td><p>Feed A, B tiles to MMA (per K-tile)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code></p></td>
-<td><p>MMA (warp 1)</p></td>
-<td><p>Epilogue (warps 4–7)</p></td>
-<td><p>tensor memory (<code class="docutils literal notranslate"><span class="pre">mma_stages</span></code> slots)</p></td>
-<td><p>Feed accumulator to epilogue (per output tile)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code></p></td>
-<td><p>Scheduler (warp 2)</p></td>
-<td><p>All 7 warps (224 threads)</p></td>
-<td><p>shared memory (1 slot, 16-byte response)</p></td>
-<td><p>Distribute next tile assignment</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>The MMA warp sits at the center: it consumes from <code class="docutils literal notranslate"><span class="pre">tma_pipe</span></code> and produces
-into <code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code>, bridging the data flow from global memory all the way to the
-output.</p>
-<figure class="align-center" id="id4">
-<a class="reference internal image-reference" href="../../_images/v5_two_level_pipeline.svg"><img alt="../../_images/v5_two_level_pipeline.svg" src="../../_images/v5_two_level_pipeline.svg" style="width: 100%;" />
+<figure class="align-center" id="id2">
+<a class="reference internal image-reference" href="../../_images/v6_tile_partition.svg"><img alt="../../_images/v6_tile_partition.svg" src="../../_images/v6_tile_partition.svg" style="width: 100%;" />
 </a>
 <figcaption>
-<p><span class="caption-text">Three pipelines connecting four warp roles, shown with
-<code class="docutils literal notranslate"><span class="pre">tma_stages=4</span></code> and <code class="docutils literal notranslate"><span class="pre">mma_stages=2</span></code> (both are autotuned).</span><a class="headerlink" href="#id4" title="Link to this image"><span>¶</span></a></p>
+<p><span class="caption-text">Data partitioning for a 256 × 256 output tile with <code class="docutils literal notranslate"><span class="pre">block_k=64</span></code>.
+Each CTA holds half of A (by rows) and half of B (by columns) in shared
+memory.</span><a class="headerlink" href="#id2" title="Link to this image"><span>¶</span></a></p>
 </figcaption>
 </figure>
-<p>All four roles run concurrently in <code class="docutils literal notranslate"><span class="pre">while</span> <span class="pre">True</span></code> loops, communicating only
-through pipelines. Each role independently queries <code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code> to learn when
-to exit.</p>
+<p>The key insight is the <strong>B sharing</strong>. To compute <code class="docutils literal notranslate"><span class="pre">C</span> <span class="pre">=</span> <span class="pre">A</span> <span class="pre">×</span> <span class="pre">B</span></code>, every row of A
+must be multiplied against the <em>full</em> B tile. In a single-CTA kernel, each CTA
+would need all of B in its shared memory. With a 2-CTA cluster, the tensor core
+on each SM reads its local half of B and receives the other half from the peer
+SM over an internal link (DSMEM). Each CTA only needs to load and store <strong>half
+of B</strong> in shared memory, yet both CTAs compute against the full B tile. This
+effectively halves the shared memory bandwidth pressure for B.</p>
+<p>How does the hardware know to read B from both CTAs? That is what
+<code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code> tells the MMA instruction.</p>
+</section>
+<section id="cta-mma-cta-group-2">
+<h2>2-CTA MMA (<code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code>)<a class="headerlink" href="#cta-mma-cta-group-2" title="Link to this heading"><span>¶</span></a></h2>
+<p>In V5, each CTA independently allocates tensor memory and issues MMA
+instructions against its own shared memory. In V6, passing <code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code>
+tells the tensor core to operate across both CTAs in the cluster:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Allocation: cta_group=2 is required when MMA uses cta_group=2</span>
+<span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span>
+    <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">block_n</span><span class="p">],</span> <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span>
+<span class="p">)</span>
+
+<span class="c1"># MMA: the CTA pair collaborates on this MMA when cta_group=2</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span> <span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span> <span class="n">t_acc</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                  <span class="n">enable_input_d</span><span class="o">=...</span><span class="p">,</span> <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>With <code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code>:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.alloc</span></code></a>
+allocates tensor memory on each CTA locally. The <code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code> flag is
+required when the accumulator will be used with 2-CTA MMA.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.mma</span></code></a>
+is issued by <strong>a single warp from either CTA</strong> in the pair. The hardware
+reads A from the issuing CTA’s shared memory and B from <strong>both CTAs’ shared
+memory</strong> (via DSMEM), then writes results to both CTAs’ tensor memory. In this
+kernel, we choose CTA 0 as the issuer.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit</span></code></a>
+with <code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code> and <code class="docutils literal notranslate"><span class="pre">multicast_mask=0b11</span></code> signals barriers on <strong>both</strong>
+CTAs when the MMA completes.</p></li>
+</ul>
+<p>Because only CTA 0 issues MMA, the MMA warp on CTA 1 is idle during the
+K-loop. CTA 1’s MMA warp only participates in consuming CLC responses.</p>
+<p>With two CTAs sharing the same pipeline, barrier operations can no longer be
+CTA-local — they need cluster scope.</p>
+</section>
+<section id="cluster-barrier-management">
+<h2>Cluster Barrier Management<a class="headerlink" href="#cluster-barrier-management" title="Link to this heading"><span>¶</span></a></h2>
+<p>The main changes from V5:</p>
+<p><strong>TMA barriers</strong>: CTA 0 owns the <code class="docutils literal notranslate"><span class="pre">tma_pipe</span></code> barriers. CTA 1 maps to CTA 0’s
+barrier address using
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cluster.map_shared_addr</span></code></a>:</p>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">TMA barrier management: CTA 0 owns, CTA 1 maps remotely</span><a class="headerlink" href="#id3" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mbarrier</span> <span class="o">=</span> <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">()</span>
+<span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+        <span class="n">transaction_bytes</span> <span class="o">=</span> <span class="p">(</span><span class="n">s_a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+            <span class="n">mbarrier</span><span class="p">,</span> <span class="n">transaction_bytes</span>
+        <span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="c1"># CTA 1 maps to CTA 0&#39;s barrier (shared across cluster)</span>
+    <span class="n">mbarrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">map_shared_addr</span><span class="p">(</span><span class="n">mbarrier</span><span class="p">,</span> <span class="n">target_rank</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+    <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
+    <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
+    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m_a</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+    <span class="n">mbarrier</span><span class="o">=</span><span class="n">mbarrier</span><span class="p">,</span>
+    <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</pre></div>
+</div>
+</div>
+<p>CTA 0 declares the expected bytes via
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>
+(both CTAs’ loads combined: <code class="docutils literal notranslate"><span class="pre">(s_a.nbytes</span> <span class="pre">+</span> <span class="pre">s_b.nbytes)</span> <span class="pre">*</span> <span class="pre">2</span></code>). CTA 1 maps the
+barrier address to CTA 0’s shared memory, so both CTAs’
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html#tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared" title="tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.global_to_shared</span></code></a>
+loads signal the same barrier.</p>
+<p><strong>CLC barriers</strong>: the scheduler only runs on CTA 0. It uses
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast()</span></code></a>
+to declare expected bytes on <strong>both CTAs’ barriers</strong> simultaneously. The CLC
+response is multicast to both CTAs via
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">clc.try_cancel(multicast=True)</span></code></a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>CLC cancels an entire <strong>cluster</strong>, not a single CTA. The returned
+<code class="docutils literal notranslate"><span class="pre">blockIdx</span></code> is the index of the <strong>first block</strong> in the cancelled cluster.
+That is why the kernel uses <code class="docutils literal notranslate"><span class="pre">blockIdx.x</span> <span class="pre">//</span> <span class="pre">2</span></code> to compute tile coordinates
+— two consecutive block indices belong to the same cluster and map to the
+same output tile.</p>
+</div>
+<p><strong>Consumer arrivals</strong>: when consuming CLC responses, each CTA arrives on
+CTA 0’s barrier remotely using
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code></a>
+with <code class="docutils literal notranslate"><span class="pre">target_rank=0</span></code> and <code class="docutils literal notranslate"><span class="pre">scope=&quot;cluster&quot;</span></code>.</p>
 </section>
 <section id="walkthrough">
 <h2>Walkthrough<a class="headerlink" href="#walkthrough" title="Link to this heading"><span>¶</span></a></h2>
+<p>With the partitioning, MMA, and barrier changes in mind, let us walk through
+the kernel code.</p>
 <section id="setup">
 <h3>Setup<a class="headerlink" href="#setup" title="Link to this heading"><span>¶</span></a></h3>
-<div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-text">Kernel setup</span><a class="headerlink" href="#id5" title="Link to this code"><span>¶</span></a></div>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">Kernel setup</span><a class="headerlink" href="#id4" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">num_m_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="n">block_m</span><span class="p">)</span>
 <span class="n">num_n_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="n">block_n</span><span class="p">)</span>
-<span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="n">num_m_blocks</span> <span class="o">*</span> <span class="n">num_n_blocks</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+<span class="c1"># 2-CTA cluster: two CTAs cooperate on each output tile</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="n">num_m_blocks</span> <span class="o">*</span> <span class="n">num_n_blocks</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">cluster_blocks</span> <span class="o">=</span> <span class="mi">2</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">8</span>
 
 <span class="n">g_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
 <span class="n">g_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">n_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
 <span class="n">g_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">c_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
 
-<span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">tma_stages</span><span class="p">,</span> <span class="n">block_m</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
-<span class="n">s_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">tma_stages</span><span class="p">,</span> <span class="n">block_n</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
-<span class="c1"># multi-stage accumulator: allows MMA and epilogue to overlap via mma_pipe</span>
-<span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
+<span class="c1"># each CTA holds half: CTA 0 loads top rows of A, CTA 1 loads bottom rows</span>
+<span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">tma_stages</span><span class="p">,</span> <span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+<span class="n">s_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">tma_stages</span><span class="p">,</span> <span class="n">block_n</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+<span class="c1"># cta_group=2: distributed MMA reads shared memory from both CTAs</span>
+<span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span>
+    <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">block_n</span><span class="p">],</span> <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span>
+<span class="p">)</span>
 
-<span class="c1"># 16-byte buffer for CLC responses (cancel result + blockIdx)</span>
 <span class="n">s_clc_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">int32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">clc_stages</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
 
 <span class="n">tma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">tma_stages</span><span class="p">)</span>
-<span class="c1"># mma_pipe: connects MMA warp (producer) to epilogue warp group (consumer)</span>
-<span class="n">mma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>  <span class="c1"># 4 epilogue warps</span>
-<span class="c1"># clc_pipe: scheduler warp distributes tile assignments to all 7 other warps</span>
-<span class="n">clc_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">clc_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">224</span><span class="p">)</span>  <span class="c1"># 7 warps × 32 threads</span>
+<span class="n">mma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
+<span class="c1"># 7 warps × 32 threads × 2 CTAs = 448: both CTAs&#39; warps consume CLC responses</span>
+<span class="n">clc_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">clc_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">224</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
 
-<span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+<span class="c1"># each CTA&#39;s rank (0 or 1) within the 2-CTA cluster</span>
+<span class="n">cta_rank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">blockRank</span>
+
+<span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
-<p>Key differences from V4:</p>
+<p>Key differences from V5:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">warps</span> <span class="pre">=</span> <span class="pre">8</span></code> (was 4).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">t_acc</span></code> has an <code class="docutils literal notranslate"><span class="pre">mma_stages</span></code> dimension for the MMA pipeline.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">s_clc_response</span></code> is a small shared memory buffer (16 bytes per stage) for
-CLC responses.</p></li>
-<li><p>Three pipelines are created: <code class="docutils literal notranslate"><span class="pre">tma_pipe</span></code>, <code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code>, and <code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code> has <code class="docutils literal notranslate"><span class="pre">consumer_arrive_count=128</span></code> (4 epilogue warps × 32
-threads).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code> has <code class="docutils literal notranslate"><span class="pre">consumer_arrive_count=224</span></code> (7 consumer warps × 32
-threads).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">blocks</span> <span class="pre">=</span> <span class="pre">num_m_blocks</span> <span class="pre">*</span> <span class="pre">num_n_blocks</span> <span class="pre">*</span> <span class="pre">2</span></code>: two CTAs per output tile.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cluster_blocks</span> <span class="pre">=</span> <span class="pre">2</span></code>: declares the 2-CTA cluster.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">s_a</span></code> and <code class="docutils literal notranslate"><span class="pre">s_b</span></code> are half-sized (<code class="docutils literal notranslate"><span class="pre">block_m</span> <span class="pre">//</span> <span class="pre">2</span></code>, <code class="docutils literal notranslate"><span class="pre">block_n</span> <span class="pre">//</span> <span class="pre">2</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">t_acc</span></code> uses <code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code> for distributed tensor memory.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code> has <code class="docutils literal notranslate"><span class="pre">consumer_arrive_count</span> <span class="pre">=</span> <span class="pre">224</span> <span class="pre">*</span> <span class="pre">2</span></code> (both CTAs’ warps).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cta_rank</span> <span class="pre">=</span> <span class="pre">self.cluster.blockRank</span></code> identifies each CTA’s role.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cluster.sync()</span></code></a>
+replaces <code class="xref py py-meth docutils literal notranslate"><span class="pre">self.sync()</span></code> at kernel boundaries.</p></li>
 </ul>
 </section>
 <section id="tma-warp">
 <h3>TMA Warp<a class="headerlink" href="#tma-warp" title="Link to this heading"><span>¶</span></a></h3>
-<div class="literal-block-wrapper docutils container" id="id6">
-<div class="code-block-caption"><span class="caption-text">TMA warp</span><a class="headerlink" href="#id6" title="Link to this code"><span>¶</span></a></div>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">TMA warp</span><a class="headerlink" href="#id5" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>  <span class="c1"># tma worker (gmem -&gt; smem)</span>
-    <span class="c1"># first tile: use the CTA&#39;s original blockIdx</span>
     <span class="n">m_block_0</span><span class="p">,</span> <span class="n">n_block_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
     <span class="p">)</span>
-    <span class="n">offset_m</span> <span class="o">=</span> <span class="n">m_block_0</span> <span class="o">*</span> <span class="n">block_m</span>
-    <span class="n">offset_n</span> <span class="o">=</span> <span class="n">n_block_0</span> <span class="o">*</span> <span class="n">block_n</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>  <span class="c1"># persistent loop: process multiple tiles per CTA</span>
+    <span class="n">offset_m_a</span> <span class="o">=</span> <span class="p">(</span><span class="n">m_block_0</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">cta_rank</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">offset_n_b</span> <span class="o">=</span> <span class="n">n_block_0</span> <span class="o">*</span> <span class="n">block_n</span> <span class="o">+</span> <span class="n">cta_rank</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_n</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">):</span>
             <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
-            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
-                    <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                    <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
-                <span class="p">)</span>
+            <span class="n">mbarrier</span> <span class="o">=</span> <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+                    <span class="n">transaction_bytes</span> <span class="o">=</span> <span class="p">(</span><span class="n">s_a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+                        <span class="n">mbarrier</span><span class="p">,</span> <span class="n">transaction_bytes</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># CTA 1 maps to CTA 0&#39;s barrier (shared across cluster)</span>
+                <span class="n">mbarrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">map_shared_addr</span><span class="p">(</span><span class="n">mbarrier</span><span class="p">,</span> <span class="n">target_rank</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
                 <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
                 <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
-                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m_a</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                <span class="n">mbarrier</span><span class="o">=</span><span class="n">mbarrier</span><span class="p">,</span>
+                <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
                 <span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span>
                 <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
-                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n_b</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                <span class="n">mbarrier</span><span class="o">=</span><span class="n">mbarrier</span><span class="p">,</span>
+                <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
 
-        <span class="c1"># query CLC for next tile; break if no more tiles</span>
         <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_clc_response</span><span class="p">(</span><span class="n">s_clc_response</span><span class="p">,</span> <span class="n">clc_pipe</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid</span><span class="p">:</span>
             <span class="k">break</span>
-        <span class="c1"># subsequent tiles: use the cancelled cluster&#39;s blockIdx</span>
         <span class="n">m_block_0</span><span class="p">,</span> <span class="n">n_block_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span>
-            <span class="n">new_blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
+            <span class="n">new_blockIdx</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
         <span class="p">)</span>
-        <span class="n">offset_m</span> <span class="o">=</span> <span class="n">m_block_0</span> <span class="o">*</span> <span class="n">block_m</span>
-        <span class="n">offset_n</span> <span class="o">=</span> <span class="n">n_block_0</span> <span class="o">*</span> <span class="n">block_n</span>
+        <span class="n">offset_m_a</span> <span class="o">=</span> <span class="p">(</span><span class="n">m_block_0</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">cta_rank</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">offset_n_b</span> <span class="o">=</span> <span class="n">n_block_0</span> <span class="o">*</span> <span class="n">block_n</span> <span class="o">+</span> <span class="n">cta_rank</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_n</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
 
 </pre></div>
 </div>
 </div>
-<p>The TMA warp runs the same K-loop as V4, but inside a <code class="docutils literal notranslate"><span class="pre">while</span> <span class="pre">True</span></code> loop.
-After completing one tile’s loads, it queries CLC for the next tile and updates
-the offsets.</p>
+<p>Each CTA’s TMA warp loads its own half of the data. The offset computation uses
+<code class="docutils literal notranslate"><span class="pre">cta_rank</span></code> to select the correct rows of A and columns of B. Both CTAs’ TMA
+loads signal CTA 0’s barrier (CTA 1 maps the barrier address remotely).</p>
+</section>
+<section id="mma-warp">
+<h3>MMA Warp<a class="headerlink" href="#mma-warp" title="Link to this heading"><span>¶</span></a></h3>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text">MMA warp</span><a class="headerlink" href="#id6" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>  <span class="c1"># mma worker (smem -&gt; tmem)</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># only CTA 0 issues MMA (reads both CTAs&#39; smem)</span>
+            <span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">):</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
+                    <span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">],</span>
+                    <span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+                    <span class="n">t_acc</span><span class="p">[</span><span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
+                    <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="c1"># multicast commit: signal tma_pipe barriers on both CTAs</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_barrier</span><span class="p">(),</span>
+                    <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                    <span class="n">multicast_mask</span><span class="o">=</span><span class="mb">0b11</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+                <span class="n">mbarrier</span><span class="o">=</span><span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                <span class="n">cta_group</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                <span class="n">multicast_mask</span><span class="o">=</span><span class="mb">0b11</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
+
+        <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query_clc_response</span><span class="p">(</span><span class="n">s_clc_response</span><span class="p">,</span> <span class="n">clc_pipe</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid</span><span class="p">:</span>
+            <span class="k">break</span>
+
+</pre></div>
+</div>
+</div>
+<p>Only CTA 0 issues MMA (guarded by <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">cta_rank</span> <span class="pre">==</span> <span class="pre">0</span></code>). The
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit</span></code></a>
+calls use <code class="docutils literal notranslate"><span class="pre">cta_group=2,</span> <span class="pre">multicast_mask=0b11</span></code> to signal barriers on both CTAs.
+CTA 1’s MMA warp skips the K-loop and only consumes CLC responses.</p>
 </section>
 </section>
 <section id="what-s-next">
 <h2>What’s Next<a class="headerlink" href="#what-s-next" title="Link to this heading"><span>¶</span></a></h2>
-<p>V5 runs multiple tiles per CTA with dynamic scheduling and overlaps the epilogue
-with MMA computation. However, it uses a single CTA — all shared memory
-accesses are local.</p>
-<p>In <a class="reference internal" href="v6.html"><span class="doc">the next version</span></a>, we introduce <strong>2-CTA clusters</strong> that enable
-<strong>distributed shared memory</strong> and <strong>distributed MMA</strong>, allowing the tensor core
-to read from both CTAs’ shared memory and doubling the effective tile size.</p>
+<p>V6 completes the tutorial series. Starting from a minimal single-warp kernel
+(V0), we progressively added TMA loads (V1), software pipelining (V2), warp
+specialization (V3), tile rasterization and a pipeline abstraction (V4), CLC
+persistent scheduling with a pipelined epilogue (V5), and finally 2-CTA
+clusters with distributed MMA (V6). Together, these optimizations bring the
+kernel to vendor-library-level performance on NVIDIA Blackwell GPUs.</p>
 </section>
 <section id="full-source">
 <h2>Full Source<a class="headerlink" href="#full-source" title="Link to this heading"><span>¶</span></a></h2>
 <p>The complete example file is located at
-<a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v5.py">examples/blackwell_matmul/matmul_v5.py</a>.</p>
+<a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v6.py">examples/blackwell_matmul/matmul_v6.py</a>.</p>
 </section>
 </section>
 
@@ -1381,20 +1307,20 @@ to read from both CTAs’ shared memory and doubling the effective tile size.</p
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="v4.html"
+       href="v5.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</p>
+        <p class="prev-next-title">5. CLC Persistent Kernel and Pipelined Epilogue</p>
       </div>
     </a>
     <a class="right-next"
-       href="v6.html"
+       href="../../programming-guides/overview.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">6. 2-CTA Cluster</p>
+        <p class="prev-next-title"><span class="section-number">1. </span>Overview</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1415,18 +1341,14 @@ to read from both CTAs’ shared memory and doubling the effective tile size.</p
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-full-kernel">The Full Kernel</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v4">What Changed from V4</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#clc-persistent-kernel">CLC Persistent Kernel</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-clc-provides">What CLC Provides</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#clc-in-the-kernel">CLC in the Kernel</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#persistent-loop-structure">Persistent Loop Structure</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipelined-epilogue">Pipelined Epilogue</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-overview">Pipeline Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v5">What Changed from V5</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tile-partitioning">Tile Partitioning</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cta-mma-cta-group-2">2-CTA MMA (<code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code>)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cluster-barrier-management">Cluster Barrier Management</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#setup">Setup</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-warp">TMA Warp</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mma-warp">MMA Warp</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>

@@ -345,9 +345,9 @@ V5 runs multiple tiles per CTA with dynamic scheduling and overlaps the epilogue
 with MMA computation. However, it uses a single CTA --- all shared memory
 accesses are local.
 
-In the next version, we introduce **2-CTA clusters** that enable **distributed
-shared memory** and **multicast TMA**, allowing a single TMA load to populate
-shared memory across both CTAs simultaneously.
+In :doc:`the next version <v6>`, we introduce **2-CTA clusters** that enable
+**distributed shared memory** and **distributed MMA**, allowing the tensor core
+to read from both CTAs' shared memory and doubling the effective tile size.
 
 
 Full Source
