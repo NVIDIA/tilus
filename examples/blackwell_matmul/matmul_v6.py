@@ -1,24 +1,35 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+
+import time
+
 import pandas
 import tilus
 import torch
-from tilus import float16, float32, int32, uint32
-from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor
+from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
 
 
 class Pipeline(tilus.Class):
+    """Manages a multi-stage producer-consumer pipeline using mbarriers.
+
+    - empty_barriers: signaled by consumer ("slot consumed"), producer waits on these
+    - full_barriers: signaled by producer ("slot filled"), consumer waits on these
+    """
+
     def __init__(
-        self, num_stages: int, producer_arrive_count: int, consumer_arrive_count: int
+        self,
+        num_stages: int,
+        producer_arrive_count: int = 1,
+        consumer_arrive_count: int = 1,
     ):
         self.num_stages: int = num_stages
-        self.full_barriers = self.mbarrier.alloc(
+        self.empty_barriers = self.mbarrier.alloc(
             [consumer_arrive_count for _ in range(num_stages)]
         )
-        self.empty_barriers = self.mbarrier.alloc(
+        self.full_barriers = self.mbarrier.alloc(
             [producer_arrive_count for _ in range(num_stages)]
         )
         self.producer_stage: int32 = 0
@@ -28,172 +39,105 @@ class Pipeline(tilus.Class):
 
     def producer_acquire(self):
         self.mbarrier.wait(
-            barrier=self.full_barriers[self.producer_stage], phase=self.producer_phase
+            barrier=self.empty_barriers[self.producer_stage],
+            phase=self.producer_phase,
+            sem="relaxed",
+            scope="cta",
         )
+
+    def producer_barrier(self) -> RegisterTensor:
+        return self.full_barriers[self.producer_stage]
 
     def producer_advance(self):
         self.producer_stage = (self.producer_stage + 1) % self.num_stages
         self.producer_phase = self.producer_phase ^ (self.producer_stage == 0)
 
-    def producer_release_barrier(self) -> RegisterTensor:
-        return self.empty_barriers[self.producer_stage]
-
     def consumer_acquire(self):
         self.mbarrier.wait(
-            barrier=self.empty_barriers[self.consumer_stage], phase=self.consumer_phase
+            barrier=self.full_barriers[self.consumer_stage],
+            phase=self.consumer_phase,
+            sem="relaxed",
+            scope="cta",
         )
+
+    def consumer_barrier(self) -> RegisterTensor:
+        return self.empty_barriers[self.consumer_stage]
 
     def consumer_advance(self):
         self.consumer_stage = (self.consumer_stage + 1) % self.num_stages
         self.consumer_phase = self.consumer_phase ^ (self.consumer_stage == 0)
 
-    def consumer_release_barrier(self) -> RegisterTensor:
-        return self.full_barriers[self.consumer_stage]
 
+@tilus.autotune("block_m", [256])
+@tilus.autotune("block_n, e_block_n", [[256, 16], [256, 32]])
+@tilus.autotune("block_k", [64])
+@tilus.autotune("tma_stages", [5, 6])
+@tilus.autotune("mma_stages", [2])
+@tilus.autotune("swizzle_size", [4, 8, 16])
+class BlackwellMatmulV6(tilus.Script):
+    """Blackwell matmul with 2-CTA cluster and distributed MMA.
 
-class Params(tilus.Class):
+    New optimizations over V5:
+    - 2-CTA cluster: two CTAs cooperate on a larger tile (block_m x block_n)
+      - Each CTA loads half the data (block_m/2 rows of A, block_n/2 cols of B)
+      - MMA with cta_group=2: TCGEN05 reads both CTAs' shared memory
+      - block_m doubles (256 vs 128) since work is split across 2 CTAs
+    - CLC with multicast: scheduler multicasts tile assignments to both CTAs
+    """
+
     def __init__(
         self,
-        m_size: int32,
-        n_size: int,
-        k_size: int,
         block_m: int,
         block_n: int,
         block_k: int,
-        g_a: GlobalTensor,
-        g_b: GlobalTensor,
-        g_c: GlobalTensor,
-    ):
-        self.m_size: int32 = m_size
-        self.n_size: int = n_size
-        self.k_size: int = k_size
-        self.block_m: int = block_m
-        self.block_n: int = block_n
-        self.block_k: int = block_k
-        self.g_a: GlobalTensor = g_a
-        self.g_b: GlobalTensor = g_b
-        self.g_c: GlobalTensor = g_c
-
-
-class LoadPipeline(Pipeline):
-    def __init__(
-        self,
-        num_stages: int,
-        params: Params,
-    ):
-        super().__init__(
-            num_stages=num_stages, producer_arrive_count=1, consumer_arrive_count=1
-        )
-        block_m, block_n, block_k = params.block_m, params.block_n, params.block_k
-        self.params: Params = params
-        self.s_a = self.shared_tensor(
-            dtype=float16, shape=[num_stages, block_m // 2, block_k]
-        )
-        self.s_b = self.shared_tensor(
-            dtype=float16, shape=[num_stages, block_n // 2, block_k]
-        )
-
-
-class LoadWorker(tilus.Class):
-    def __init__(self, pipe: LoadPipeline, params: Params):
-        self.pipe: LoadPipeline = pipe
-        self.params: Params = params
-
-    def async_run(self):
-        pipe, params = self.pipe, self.params
-        s_a: SharedTensor = pipe.s_a
-        s_b: SharedTensor = pipe.s_b
-        num_stages: int = pipe.num_stages
-        k_size, block_k = params.k_size, params.block_k
-        cta_rank = self.cluster.blockRank
-        offset_m = self.blockIdx.x * (params.block_m // 2)
-        offset_n = self.blockIdx.y * params.block_n + cta_rank * (params.block_n // 2)
-
-        with self.thread_group(thread_begin=0, num_threads=32):
-            for offset_k in self.range(0, k_size, block_k, unroll=num_stages):
-                self.pipe.producer_acquire()
-                mbarrier = pipe.producer_release_barrier()
-                if cta_rank == 0:
-                    with self.single_thread():
-                        # the mbarrier on CTA0 will track the completion of both CTAs' loading
-                        transaction_bytes = (s_a[0].nbytes + s_b[0].nbytes) * 2
-                        self.mbarrier.arrive_and_expect_tx(mbarrier, transaction_bytes)
-                else:
-                    # get the mbarrier address in the CTA0 to signal
-                    mbarrier = self.cluster.map_shared_addr(mbarrier, target_rank=0)
-                self.tma.global_to_shared(
-                    src=params.g_a,
-                    dst=s_a[pipe.producer_stage],
-                    offsets=[offset_m, offset_k],
-                    mbarrier=mbarrier,
-                    cta_group=2,
-                )
-                self.tma.global_to_shared(
-                    src=params.g_b,
-                    dst=s_b[pipe.producer_stage],
-                    offsets=[offset_n, offset_k],
-                    mbarrier=mbarrier,
-                    cta_group=2,
-                )
-                pipe.producer_advance()
-
-
-class MmaWorker(tilus.Class):
-    def __init__(self, pipe: LoadPipeline, params: Params):
-        self.pipe: LoadPipeline = pipe
-        self.params: Params = params
-        self.t_acc = self.tcgen05.alloc(
-            dtype=float32,
-            shape=[params.block_m // 2, params.block_n],
-            cta_group=2,
-        )
-        self.flush_barrier = self.mbarrier.alloc(1)
-
-    def async_run(self):
-        pipe = self.pipe
-        s_a, s_b = pipe.s_a, pipe.s_b
-        num_stages: int = pipe.num_stages
-        cta_rank = self.cluster.blockRank
-        if cta_rank == 0:
-            with self.thread_group(thread_begin=32, num_threads=32):
-                for offset_k in self.range(
-                    0, self.params.k_size, self.params.block_k, unroll=num_stages
-                ):
-                    pipe.consumer_acquire()
-                    self.tcgen05.mma(
-                        s_a[pipe.consumer_stage],
-                        s_b[pipe.consumer_stage].transpose(),
-                        self.t_acc,
-                        enable_input_d=offset_k != 0,
-                        cta_group=2,
-                    )
-                    self.tcgen05.commit(
-                        mbarrier=pipe.consumer_release_barrier(),
-                        cta_group=2,
-                        multicast_mask=0b11,
-                    )
-                    pipe.consumer_advance()
-                self.tcgen05.commit(
-                    mbarrier=self.flush_barrier, cta_group=2, multicast_mask=0b11
-                )
-        self.mbarrier.wait(self.flush_barrier, phase=0)
-
-
-@tilus.autotune(
-    "block_m, block_n, e_block_n", [[256, 64, 16], [256, 128, 16], [256, 256, 16]]
-)
-@tilus.autotune("block_k", [16, 32, 64])
-@tilus.autotune("stages", [2, 3, 4, 5, 6])
-class BlackwellMatmulV6(tilus.Script):
-    def __init__(
-        self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int
+        tma_stages: int,
+        mma_stages: int,
+        e_block_n: int,
+        swizzle_size: int,
     ):
         super().__init__()
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
-        self.stages = stages
         self.e_block_n = e_block_n
+        self.tma_stages = tma_stages
+        self.mma_stages = mma_stages
+        self.swizzle_size = swizzle_size
+        self.clc_stages = 1
+
+    def compute_block_coord(
+        self, linear_idx: int32, num_m_blocks: int32, num_n_blocks: int
+    ):
+        swizzle_size = self.swizzle_size
+        tiles_per_group = num_m_blocks * swizzle_size
+        group_idx, in_group_idx = self.fast_divmod(linear_idx, tiles_per_group)
+        first_n = group_idx * swizzle_size
+        m_block: int32 = 0
+        n_block: int32 = 0
+        remainder = num_n_blocks - num_n_blocks // swizzle_size * swizzle_size
+        last_group_width = remainder if remainder > 0 else swizzle_size
+        if first_n + swizzle_size <= num_n_blocks:
+            m_block, r = self.fast_divmod(in_group_idx, swizzle_size)
+            n_block = first_n + r
+        else:
+            m_block, r = self.fast_divmod(in_group_idx, last_group_width)
+            n_block = first_n + r
+        return m_block, n_block
+
+    def query_clc_response(self, s_clc_response: SharedTensor, pipe: Pipeline):
+        """Consume the CLC response: read the next tile assignment from shared memory."""
+        pipe.consumer_acquire()
+        response = s_clc_response[pipe.consumer_stage]
+        is_valid, new_blockIdx = self.clc.query_response(response)
+        self.mbarrier.arrive_and_expect_tx_remote(
+            pipe.consumer_barrier(),
+            transaction_bytes=0,
+            target_rank=0,
+            sem="relaxed",
+            scope="cluster",
+        )
+        pipe.consumer_advance()
+        return is_valid, new_blockIdx
 
     def __call__(
         self,
@@ -204,85 +148,187 @@ class BlackwellMatmulV6(tilus.Script):
         b_ptr: ~float16,
         c_ptr: ~float16,
     ):
-        """
-        Each CTA provides its own slice of A, B, and D.
-        CTA0 = CTA with last bit of cluster rank = 0
-        CTA1 = CTA with last bit of cluster rank = 1
+        block_m = self.block_m
+        block_n = self.block_n
+        block_k = self.block_k
+        e_block_n = self.e_block_n
+        tma_stages = self.tma_stages
+        mma_stages = self.mma_stages
+        clc_stages = self.clc_stages
 
-                            Input B (K, N)
-                          ┌───────┬───────┐
-                          │  b0   │  b1   │
-                          │(K,N/2)│(K,N/2)│
-                          │[CTA0] │[CTA1] │
-                          └───────┴───────┘
-        ┌──────────────┐  ┌───────────────┐
-        │  a0 (M/2, K) │  │  d0 (M/2, N)  │
-        │  [CTA0]      │  │  [CTA0]       │
-        ├──────────────┤  ├───────────────┤
-        │  a1 (M/2, K) │  │  d1 (M/2, N)  │
-        │  [CTA1]      │  │  [CTA1]       │
-        └──────────────┘  └───────────────┘
-         Input A (M, K)     Output D (M, N)
-        """
-        self.attrs.blocks = [cdiv(m_size, self.block_m) * 2, cdiv(n_size, self.block_n)]
-        self.attrs.cluster_blocks = [2, 1]
-        self.attrs.warps = 4
+        num_m_blocks = cdiv(m_size, block_m)
+        num_n_blocks = cdiv(n_size, block_n)
+        self.attrs.blocks = num_m_blocks * num_n_blocks * 2, 1
+        self.attrs.cluster_blocks = 2
+        self.attrs.warps = 8
 
-        params = Params(
-            m_size=m_size,
-            n_size=n_size,
-            k_size=k_size,
-            block_m=self.block_m,
-            block_n=self.block_n,
-            block_k=self.block_k,
-            g_a=self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size]),
-            g_b=self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size]),
-            g_c=self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size]),
+        g_a = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
+        g_b = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
+        g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
+
+        s_a = self.shared_tensor(dtype=float16, shape=[tma_stages, block_m // 2, block_k])
+        s_b = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n // 2, block_k])
+        t_acc = self.tcgen05.alloc(
+            dtype=float32, shape=[mma_stages, block_m // 2, block_n], cta_group=2
         )
 
-        pipe = LoadPipeline(num_stages=self.stages, params=params)
-        load_worker = LoadWorker(pipe, params)
-        mma_worker = MmaWorker(pipe, params)
+        s_clc_response = self.shared_tensor(dtype=int32, shape=[clc_stages, 4])
 
-        # producer
-        load_worker.async_run()
+        tma_pipe = Pipeline(tma_stages)
+        mma_pipe = Pipeline(
+            mma_stages, consumer_arrive_count=128
+        )  # 4 warps (epilogue warps)
+        clc_pipe = Pipeline(
+            clc_stages, consumer_arrive_count=224 * 2
+        )  # 7 warps * 2 blocks
 
-        # consumer
-        mma_worker.async_run()
+        cta_rank = self.cluster.blockRank
 
-        self.sync()
+        self.cluster.sync()
 
-        # store the result back to global memory
-        offset_m: int32 = (self.block_m // 2) * self.blockIdx.x
-        offset_n: int32 = self.block_n * self.blockIdx.y
-        s_c = self.shared_tensor(dtype=float16, shape=[self.block_m // 2, self.e_block_n])
-
-        for e_offset_n in range(0, self.block_n, self.e_block_n):
-            t_acc = self.tcgen05.slice(
-                mma_worker.t_acc,
-                offsets=[0, e_offset_n],
-                shape=[self.block_m // 2, self.e_block_n],
-                dims=[0, 1],
+        with self.single_warp(0):  # tma worker (gmem -> smem)
+            m_block_0, n_block_0 = self.compute_block_coord(
+                self.blockIdx.x // 2, num_m_blocks, num_n_blocks
             )
-            r_acc = self.tcgen05.load(t_acc)
-            self.tcgen05.wait_load()
-            self.store_shared(s_c, r_acc.to(float16))
-            self.fence.proxy_async()
-            self.sync()
-            with self.single_warp():
-                self.tma.shared_to_global(
-                    s_c,
-                    params.g_c,
-                    offsets=[offset_m, offset_n + e_offset_n],
-                    dims=[0, 1],
+            offset_m_a = (m_block_0 * 2 + cta_rank) * (block_m // 2)
+            offset_n_b = n_block_0 * block_n + cta_rank * (block_n // 2)
+            while True:
+                for offset_k in range(0, k_size, block_k):
+                    tma_pipe.producer_acquire()
+                    mbarrier = tma_pipe.producer_barrier()
+                    if cta_rank == 0:
+                        with self.single_thread():
+                            transaction_bytes = (s_a[0].nbytes + s_b[0].nbytes) * 2
+                            self.mbarrier.arrive_and_expect_tx(
+                                mbarrier, transaction_bytes
+                            )
+                    else:
+                        mbarrier = self.cluster.map_shared_addr(mbarrier, target_rank=0)
+                    self.tma.global_to_shared(
+                        src=g_a,
+                        dst=s_a[tma_pipe.producer_stage],
+                        offsets=[offset_m_a, offset_k],
+                        mbarrier=mbarrier,
+                        cta_group=2,
+                    )
+                    self.tma.global_to_shared(
+                        src=g_b,
+                        dst=s_b[tma_pipe.producer_stage],
+                        offsets=[offset_n_b, offset_k],
+                        mbarrier=mbarrier,
+                        cta_group=2,
+                    )
+                    tma_pipe.producer_advance()
+
+                is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
+                if not is_valid:
+                    break
+                m_block_0, n_block_0 = self.compute_block_coord(
+                    new_blockIdx.x // 2, num_m_blocks, num_n_blocks
                 )
-                self.tma.commit_group()
-                self.tma.wait_group(n=0)
-            self.sync()
+                offset_m_a = (m_block_0 * 2 + cta_rank) * (block_m // 2)
+                offset_n_b = n_block_0 * block_n + cta_rank * (block_n // 2)
+
+        with self.single_warp(1):  # mma worker (smem -> tmem)
+            while True:
+                if cta_rank == 0:
+                    mma_pipe.producer_acquire()
+                    for offset_k in range(0, k_size, block_k):
+                        tma_pipe.consumer_acquire()
+                        self.tcgen05.mma(
+                            s_a[tma_pipe.consumer_stage],
+                            s_b[tma_pipe.consumer_stage].transpose(),
+                            t_acc[mma_pipe.producer_stage],
+                            enable_input_d=offset_k != 0,
+                            cta_group=2,
+                        )
+                        self.tcgen05.commit(
+                            mbarrier=tma_pipe.consumer_barrier(),
+                            cta_group=2,
+                            multicast_mask=0b11,
+                        )
+                        tma_pipe.consumer_advance()
+                    self.tcgen05.commit(
+                        mbarrier=mma_pipe.producer_barrier(),
+                        cta_group=2,
+                        multicast_mask=0b11,
+                    )
+                    mma_pipe.producer_advance()
+
+                is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
+                if not is_valid:
+                    break
+
+        with self.single_warp(2):  # scheduler
+            while True:
+                if cta_rank == 0:
+                    clc_pipe.producer_acquire()
+                    self.mbarrier.arrive_and_expect_tx_multicast(
+                        clc_pipe.producer_barrier(),
+                        transaction_bytes=16,
+                        multicast_mask=0b11,
+                        sem="relaxed",
+                        scope="cluster",
+                    )
+                    self.clc.try_cancel(
+                        s_clc_response[clc_pipe.producer_stage],
+                        mbarrier=clc_pipe.producer_barrier(),
+                        multicast=True,
+                    )
+                    clc_pipe.producer_advance()
+
+                is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
+                if not is_valid:
+                    break
+
+        with self.warp_group(warp_begin=4, num_warps=4):  # epilogue (tmem -> gmem)
+            s_c = self.shared_tensor(dtype=float16, shape=[block_m // 2, e_block_n])
+            m_block_e, n_block_e = self.compute_block_coord(
+                self.blockIdx.x // 2, num_m_blocks, num_n_blocks
+            )
+            offset_m_c = (m_block_e * 2 + cta_rank) * (block_m // 2)
+            offset_n_c = n_block_e * block_n
+            while True:
+                mma_pipe.consumer_acquire()
+
+                for e_offset_n in range(0, block_n, e_block_n):
+                    t_acc_slice = self.tcgen05.slice(
+                        t_acc[mma_pipe.consumer_stage],
+                        offsets=[0, e_offset_n],
+                        shape=[block_m // 2, e_block_n],
+                        dims=[0, 1],
+                    )
+                    r_acc = self.tcgen05.load(t_acc_slice)
+                    self.tcgen05.wait_load()
+                    self.store_shared(s_c, r_acc.to(float16))
+                    self.fence.proxy_async(space="shared")
+                    self.sync()
+                    with self.single_warp():
+                        self.tma.shared_to_global(
+                            s_c,
+                            g_c,
+                            offsets=[offset_m_c, offset_n_c + e_offset_n],
+                            dims=[0, 1],
+                        )
+                        self.tma.commit_group()
+                        self.tma.wait_group(n=0, read=True)
+                    self.sync()
+
+                self.mbarrier.arrive(mma_pipe.consumer_barrier())
+                mma_pipe.consumer_advance()
+
+                is_valid, new_blockIdx = self.query_clc_response(s_clc_response, clc_pipe)
+                if not is_valid:
+                    break
+                m_block_e, n_block_e = self.compute_block_coord(
+                    new_blockIdx.x // 2, num_m_blocks, num_n_blocks
+                )
+                offset_m_c = (m_block_e * 2 + cta_rank) * (block_m // 2)
+                offset_n_c = n_block_e * block_n
 
         # all allocated tensor memory must be deallocated
         self.cluster.sync()
-        self.tcgen05.dealloc(mma_worker.t_acc)
+        self.tcgen05.dealloc(t_acc)
 
 
 def main(bench=True):
@@ -316,6 +362,7 @@ def main(bench=True):
                 latency = benchmark_func(func, warmup=5, repeat=100)
                 tflops = 2 * m_size * n_size * k_size / latency * 1e-9
                 rows.append([m_size, n_size, k_size, name, latency, tflops])
+                time.sleep(3)  # sleep 3s to cool down the GPU between runs
 
     if bench:
         df = pandas.DataFrame(rows, columns=headers)

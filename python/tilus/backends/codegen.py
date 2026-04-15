@@ -192,15 +192,23 @@ class FunctionCodegen(IRFunctor):
             raise RuntimeError("Function analysis is required for code generation")
         self._function = func
 
+        current_target = get_current_target()
+        if current_target.supports(nvgpu_sm90):
+            cluster_blocks = self._function.metadata.cluster_blocks
+        else:
+            if self._function.metadata.cluster_blocks != (1, 1, 1):
+                raise RuntimeError(
+                    f"Target {current_target} does not support cluster blocks, but function {func.name} has cluster blocks {self._function.metadata.cluster_blocks}"
+                )
+            cluster_blocks = None
+
         # create function builders for both device and host side
         self._builder = FunctionBuilder(
             name=func.name + "_kernel",
             kind="cuda_kernel" if get_current_target().is_nvgpu() else "hip_kernel",
             label="",
             grid_dim=self._function.metadata.grid_blocks,
-            cluster_dim=self._function.metadata.cluster_blocks
-            if self._function.metadata.cluster_blocks != (1, 1, 1)
-            else None,
+            cluster_dim=cluster_blocks,
             block_dim=func.metadata.num_warps * 32,
             dynamic_smem_bytes=None,
             min_blocks=None,

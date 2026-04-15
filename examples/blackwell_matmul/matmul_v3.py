@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import time
+
 import pandas
 import tilus
 import torch
@@ -59,7 +61,12 @@ class BlackwellMatmulV3(tilus.Script):
             empty_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=1)
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
                 # wait for the MMA warp to free this stage
-                self.mbarrier.wait(empty_barriers[stage], phase=empty_phases[stage])
+                self.mbarrier.wait(
+                    empty_barriers[stage],
+                    phase=empty_phases[stage],
+                    sem="relaxed",
+                    scope="cta",
+                )
                 empty_phases[stage] ^= 1
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
@@ -87,7 +94,12 @@ class BlackwellMatmulV3(tilus.Script):
             stage: int32 = 0
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
                 # wait for the TMA warp to fill this stage
-                self.mbarrier.wait(full_barriers[stage], phase=full_phases[stage])
+                self.mbarrier.wait(
+                    full_barriers[stage],
+                    phase=full_phases[stage],
+                    sem="relaxed",
+                    scope="cta",
+                )
                 full_phases[stage] ^= 1
                 self.tcgen05.mma(
                     s_a[stage],
@@ -146,6 +158,7 @@ def main(bench=True):
                 latency = benchmark_func(func, warmup=5, repeat=100)
                 tflops = 2 * m_size * n_size * k_size / latency * 1e-9
                 rows.append([m_size, n_size, k_size, name, latency, tflops])
+                time.sleep(3)  # sleep 3s to cool down the GPU between runs
 
     if bench:
         df = pandas.DataFrame(rows, columns=headers)
