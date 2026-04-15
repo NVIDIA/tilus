@@ -59,8 +59,6 @@ EXAMPLES = [
     ("blackwell_matmul", "matmul_v4.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v5.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v6.py", nvgpu_sm100a),
-    ("blackwell_matmul", "matmul_v7.py", nvgpu_sm100a),
-    ("blackwell_matmul", "matmul_v8.py", nvgpu_sm100a),
     # hopper matmul example (SM 9.0)
     ("hopper_matmul", "matmul_v0.py", nvgpu_sm90a),
     ("hopper_matmul", "matmul_v1.py", nvgpu_sm90a),

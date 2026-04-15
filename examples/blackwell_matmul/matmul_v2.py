@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import time
+
 import pandas
 import tilus
 import torch
@@ -106,7 +108,10 @@ class BlackwellMatmulV2(tilus.Script):
                 )
                 # wait for the current stage's TMA data to arrive
                 self.mbarrier.wait(
-                    tma_barriers[current_stage], phase=tma_phases[current_stage].item()
+                    tma_barriers[current_stage],
+                    phase=tma_phases[current_stage].item(),
+                    sem="relaxed",
+                    scope="cta",
                 )
                 # compute on the current stage
                 self.tcgen05.mma(
@@ -116,7 +121,9 @@ class BlackwellMatmulV2(tilus.Script):
                     enable_input_d=offset_k != 0,
                 )
                 self.tcgen05.commit(mbarrier=mma_barrier)
-                self.mbarrier.wait(mma_barrier, phase=mma_phase)
+                self.mbarrier.wait(
+                    mma_barrier, phase=mma_phase, sem="relaxed", scope="cta"
+                )
 
             # advance stage indices (ring buffer)
             tma_phases[current_stage] ^= 1
@@ -165,6 +172,7 @@ def main(bench=True):
                 latency = benchmark_func(func, warmup=5, repeat=100)
                 tflops = 2 * m_size * n_size * k_size / latency * 1e-9
                 rows.append([m_size, n_size, k_size, name, latency, tflops])
+                time.sleep(3)  # sleep 3s to cool down the GPU between runs
 
     if bench:
         df = pandas.DataFrame(rows, columns=headers)
