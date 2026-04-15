@@ -737,7 +737,10 @@ loaded stage. This overlaps load and compute, significantly improving utilizatio
                 <span class="p">)</span>
                 <span class="c1"># wait for the current stage&#39;s TMA data to arrive</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
-                    <span class="n">tma_barriers</span><span class="p">[</span><span class="n">current_stage</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+                    <span class="n">tma_barriers</span><span class="p">[</span><span class="n">current_stage</span><span class="p">],</span>
+                    <span class="n">phase</span><span class="o">=</span><span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span>
+                    <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+                    <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="c1"># compute on the current stage</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
@@ -747,7 +750,9 @@ loaded stage. This overlaps load and compute, significantly improving utilizatio
                     <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">mma_barrier</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">mma_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">mma_phase</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+                    <span class="n">mma_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">mma_phase</span><span class="p">,</span> <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span>
+                <span class="p">)</span>
 
             <span class="c1"># advance stage indices (ring buffer)</span>
             <span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span> <span class="o">^=</span> <span class="mi">1</span>
@@ -945,7 +950,10 @@ requests before entering the main loop.</p>
         <span class="p">)</span>
         <span class="c1"># wait for the current stage&#39;s TMA data to arrive</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
-            <span class="n">tma_barriers</span><span class="p">[</span><span class="n">current_stage</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+            <span class="n">tma_barriers</span><span class="p">[</span><span class="n">current_stage</span><span class="p">],</span>
+            <span class="n">phase</span><span class="o">=</span><span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="c1"># compute on the current stage</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
@@ -955,7 +963,9 @@ requests before entering the main loop.</p>
             <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">mma_barrier</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">mma_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">mma_phase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+            <span class="n">mma_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">mma_phase</span><span class="p">,</span> <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span>
+        <span class="p">)</span>
 
     <span class="c1"># advance stage indices (ring buffer)</span>
     <span class="n">tma_phases</span><span class="p">[</span><span class="n">current_stage</span><span class="p">]</span> <span class="o">^=</span> <span class="mi">1</span>
