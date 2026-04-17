@@ -31,6 +31,7 @@
     <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=eba8b062" />
     <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="_static/custom.css?v=38aa6179" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
@@ -169,10 +170,10 @@
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/matmul-blackwell/v1.html">1. TMA Loads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tutorials/matmul-blackwell/v2.html">2. Multi-Stage Software Pipelining</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tutorials/matmul-blackwell/v3.html">3. Warp Specialization</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/matmul-blackwell/v4.html">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/matmul-blackwell/v4.html">4. Tile Rasterization and Pipeline Abstraction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tutorials/matmul-blackwell/v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tutorials/matmul-blackwell/v6.html">6. 2-CTA Cluster</a></li>
 </ul>
@@ -906,12 +907,16 @@ document.write(`
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python-api/tilus-ir/datatype.html#tilus.ir.DataType.name">name (tilus.ir.DataType property)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python-api/tilus-ir/datatype.html#tilus.ir.DataType.nbits">nbits (tilus.ir.DataType property)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python-api/tilus-ir/datatype.html#tilus.ir.DataType.nbytes">nbytes (tilus.ir.DataType property)</a>
+
+      <ul>
+        <li><a href="python-api/tilus-ir/shared_tensor.html#tilus.ir.SharedTensor.nbytes">(tilus.ir.SharedTensor property)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 

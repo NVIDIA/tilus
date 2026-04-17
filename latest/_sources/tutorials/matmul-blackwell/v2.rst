@@ -13,6 +13,10 @@ stages before entering the main loop. In each iteration of the main loop, the TM
 loads data for a future iteration while the MMA processes data from a previously
 loaded stage. This overlaps load and compute, significantly improving utilization.
 
+If you have used Triton, this is similar to Triton's ``num_stages`` parameter ---
+but here you control the pipelining explicitly: allocating per-stage buffers,
+issuing prefill loads, and managing phase tracking yourself.
+
 
 The Full Kernel
 ---------------
@@ -42,13 +46,16 @@ What Changed from V1
      - 1 barrier **per stage**
    * - **Phase tracking**
      - Single ``phase`` variable
-     - Per-stage ``tma_phases`` register tensor
+     - Per-role ``tma_phase`` with XOR-on-wrap
    * - **Loop structure**
      - Load then compute, serial
      - Prefill stages, then overlap load and compute
    * - **New parameter**
      - ---
      - ``stages`` (autotuned: 2, 3, or 4)
+   * - **New instructions**
+     -
+     - :meth:`~tilus.Script.range` (loop with unroll hint)
 
 
 Software Pipelining
@@ -94,29 +101,34 @@ Each stage ``s_a[i]`` / ``s_b[i]`` is an independent buffer. TMA writes to one
 stage while MMA reads from another, without conflicts.
 
 
-Per-Stage Barriers and Phases
------------------------------
+Per-Stage Barriers and Phase Tracking
+-------------------------------------
 
 Each stage has its own mbarrier to track TMA completion independently:
 
 .. code-block:: python
 
    tma_barriers = self.mbarrier.alloc(counts=[1 for _ in range(self.stages)])
-   tma_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=0)
+   tma_phase: uint32 = 0
+   mma_phase: uint32 = 0
 
-Since the same stage is reused every ``stages`` iterations, each stage's barrier
-goes through its own phase cycle. The ``tma_phases`` register tensor stores the
-current expected phase for each stage's barrier.
+Instead of tracking a separate phase for each stage's barrier, we use a single
+**per-role** phase variable. After each iteration, the stage index advances
+through the ring buffer. When the stage index wraps back to 0 (completing a full
+cycle through all stages), the phase flips via XOR:
+
+.. code-block:: python
+
+   current_stage = (current_stage + 1) % self.stages
+   tma_phase ^= (current_stage == 0)   # flip when wrapping to stage 0
+
+This works because each barrier sees one ``wait`` per cycle through the ring
+buffer. After a full cycle (``stages`` iterations), every barrier has been waited
+on once, and the next wait on the same barrier needs the opposite phase. The XOR
+flips the phase exactly at that point.
 
 The MMA barrier remains a single barrier (as in V1) since MMA operations are
-still serialized.
-
-.. note::
-
-   :meth:`~tilus.Script.register_tensor` allocates a register tensor with a
-   given shape and initial value. Here ``tma_phases`` is a vector of ``stages``
-   uint32 values, all initialized to 0. Use ``.item()`` to extract a scalar
-   from a single-element slice (e.g., ``tma_phases[current_stage].item()``).
+still serialized. Its phase flips every iteration (``mma_phase ^= 1``).
 
 
 Loop Unrolling
@@ -129,8 +141,11 @@ The main loop uses :meth:`self.range() <tilus.Script.range>` with
 
    for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
 
-This instructs the compiler to unroll the loop body by the number of stages. Loop
-unrolling is important for pipelined kernels because the stage index
+Both Python's ``range()`` and :meth:`~tilus.Script.range` are lowered to the
+same loop statement internally. The difference is that ``self.range`` provides
+additional control --- here the ``unroll`` hint instructs the compiler to unroll
+the loop body by the number of stages. Loop unrolling is important for pipelined
+kernels because the stage index
 (``current_stage``, ``preload_stage``) cycles modulo ``stages`` --- with
 unrolling, the compiler can resolve these indices to constants, eliminating
 modular arithmetic and enabling more efficient code generation.
@@ -168,35 +183,49 @@ Main Loop
 In each iteration:
 
 - **Preload** (into ``preload_stage``):
-  :meth:`mbarrier.arrive_and_expect_tx <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx>`
-  and :meth:`tma.global_to_shared <tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared>`
+  :meth:`mbarrier.arrive_and_expect_tx() <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx>`
+  and :meth:`tma.global_to_shared() <tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared>`
   issue TMA loads for a future K-tile into the next free stage. This runs
   asynchronously --- the TMA engine works in the background.
 
 - **Wait** (on ``current_stage``):
-  :meth:`mbarrier.wait <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait>`
+  :meth:`mbarrier.wait() <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait>`
   blocks until the current stage's TMA data has arrived. The phase comes from
-  ``tma_phases[current_stage]``.
+  the per-role ``tma_phase`` variable.
 
 - **Compute** (from ``current_stage``):
-  :meth:`tcgen05.mma <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
+  :meth:`tcgen05.mma() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
   reads ``s_a[current_stage]`` and ``s_b[current_stage]``, accumulating into the
   tensor memory accumulator.
 
 After the MMA,
-:meth:`tcgen05.commit <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
-and :meth:`mbarrier.wait <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait>`
+:meth:`tcgen05.commit() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
+and :meth:`mbarrier.wait() <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait>`
 on the MMA barrier ensure the MMA completes before the next iteration.
 
-Finally, the stage indices advance modulo ``stages``:
+Finally, the stage indices advance modulo ``stages``, and the per-role phase
+flips when the stage wraps back to 0:
 
 .. code-block:: python
 
-   tma_phases[current_stage] ^= 1                     # flip phase for this stage
-   mma_phase ^= 1
    preload_stage = (preload_stage + 1) % self.stages   # next free stage
    current_stage = (current_stage + 1) % self.stages   # next stage to consume
+   tma_phase ^= (current_stage == 0)                   # flip phase on wrap
+   mma_phase ^= 1
 
+
+Performance
+-----------
+
+Multi-stage pipelining overlaps TMA loads with MMA compute, more than
+doubling throughput compared to V1.
+The complete source is at :github:`examples/blackwell_matmul/matmul_v2.py`.
+
+.. plot:: tutorials/matmul-blackwell/plots/plot_v2.py
+
+   Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+   from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+   utilization (96.6%).
 
 What's Next
 -----------
@@ -212,10 +241,3 @@ MMA warp can issue its next MMA immediately after the previous one without
 waiting for the TMA warp, and vice versa. This enables true parallelism between
 TMA and MMA, with the two warps progressing independently and synchronizing only
 through mbarriers.
-
-
-Full Source
------------
-
-The complete example file is located at
-`examples/blackwell_matmul/matmul_v2.py <https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v2.py>`__.

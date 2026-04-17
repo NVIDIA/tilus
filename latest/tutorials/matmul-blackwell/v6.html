@@ -32,6 +32,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
     <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=38aa6179" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
@@ -170,10 +171,10 @@
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="__init__.html">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="v0.html">0. A Minimal Blackwell Matmul</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads and TMA Epilogue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v2.html">2. Multi-Stage Software Pipelining</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v4.html">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v4.html">4. Tile Rasterization and Pipeline Abstraction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">6. 2-CTA Cluster</a></li>
 </ul>
@@ -618,8 +619,8 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mma-warp">MMA Warp</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#full-source">Full Source</a></li>
 </ul>
             </nav>
         </div>
@@ -1005,6 +1006,13 @@ how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
 <td><p>CTA-local</p></td>
 <td><p>Cluster-scoped: <code class="docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote</span></code>, <code class="docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast</span></code></p></td>
 </tr>
+<tr class="row-odd"><td><p><strong>New instructions</strong></p></td>
+<td></td>
+<td><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr"><code class="xref py py-meth docutils literal notranslate"><span class="pre">map_shared_addr()</span></code></a>,
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code></a>,
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast()</span></code></a>,
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a></p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1036,7 +1044,13 @@ memory.</span><a class="headerlink" href="#id2" title="Link to this image"><span
 must be multiplied against the <em>full</em> B tile. In a single-CTA kernel, each CTA
 would need all of B in its shared memory. With a 2-CTA cluster, the tensor core
 on each SM reads its local half of B and receives the other half from the peer
-SM over an internal link (DSMEM). Each CTA only needs to load and store <strong>half
+SM via <strong>Distributed Shared Memory (DSMEM)</strong>.</p>
+<p>DSMEM is a Blackwell hardware feature that allows one SM to directly read
+another SM’s shared memory within a cluster, without going through global
+memory. The hardware manages the cross-SM data transfer transparently — from
+the tensor core’s perspective, it simply reads B from two shared memory
+addresses, one local and one remote.</p>
+<p>Each CTA only needs to load and store <strong>half
 of B</strong> in shared memory, yet both CTAs compute against the full B tile. This
 effectively halves the shared memory bandwidth pressure for B.</p>
 <p>How does the hardware know to read B from both CTAs? That is what
@@ -1059,29 +1073,36 @@ tells the tensor core to operate across both CTAs in the cluster:</p>
 </div>
 <p>With <code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code>:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.alloc</span></code></a>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.alloc()</span></code></a>
 allocates tensor memory on each CTA locally. The <code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code> flag is
 required when the accumulator will be used with 2-CTA MMA.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.mma</span></code></a>
-is issued by <strong>a single warp from either CTA</strong> in the pair. The hardware
-reads A from the issuing CTA’s shared memory and B from <strong>both CTAs’ shared
-memory</strong> (via DSMEM), then writes results to both CTAs’ tensor memory. In this
-kernel, we choose CTA 0 as the issuer.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit</span></code></a>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.mma()</span></code></a>
+is issued by <strong>a single warp from either CTA</strong> in the pair. The tensor core
+reads both A and B distributed across <strong>both CTAs’ shared memory</strong> (via DSMEM),
+and writes results to both CTAs’ tensor memory. In this kernel, we choose CTA 0
+as the issuer.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit()</span></code></a>
 with <code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code> and <code class="docutils literal notranslate"><span class="pre">multicast_mask=0b11</span></code> signals barriers on <strong>both</strong>
 CTAs when the MMA completes.</p></li>
 </ul>
-<p>Because only CTA 0 issues MMA, the MMA warp on CTA 1 is idle during the
-K-loop. CTA 1’s MMA warp only participates in consuming CLC responses.</p>
+<p>Because only CTA 0 issues MMA, CTA 1’s MMA warp is idle during the K-loop and
+only participates in consuming CLC responses. With <code class="docutils literal notranslate"><span class="pre">cta_group=2</span></code>, a single
+warp from either CTA issues the MMA instruction, and the tensor core reads both
+A and B distributed across both CTAs’ shared memory. The single MMA produces
+results for both CTAs’ tensor memory.</p>
 <p>With two CTAs sharing the same pipeline, barrier operations can no longer be
 CTA-local — they need cluster scope.</p>
 </section>
 <section id="cluster-barrier-management">
 <h2>Cluster Barrier Management<a class="headerlink" href="#cluster-barrier-management" title="Link to this heading"><span>¶</span></a></h2>
 <p>The main changes from V5:</p>
-<p><strong>TMA barriers</strong>: CTA 0 owns the <code class="docutils literal notranslate"><span class="pre">tma_pipe</span></code> barriers. CTA 1 maps to CTA 0’s
-barrier address using
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cluster.map_shared_addr</span></code></a>:</p>
+<p><strong>TMA barriers</strong>: CTA 0 owns the <code class="docutils literal notranslate"><span class="pre">tma_pipe</span></code> barriers. CTA 1 needs to arrive
+on the same barrier so that CTA 0 knows when <em>both</em> CTAs’ TMA loads have
+completed. To do this, CTA 1 translates CTA 0’s barrier address into a
+cluster-visible address using
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr" title="tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cluster.map_shared_addr()</span></code></a>.
+This instruction takes a local shared memory address and returns the equivalent
+address on another CTA’s SM, allowing cross-CTA barrier operations:</p>
 <div class="literal-block-wrapper docutils container" id="id3">
 <div class="code-block-caption"><span class="caption-text">TMA barrier management: CTA 0 owns, CTA 1 maps remotely</span><a class="headerlink" href="#id3" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mbarrier</span> <span class="o">=</span> <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">()</span>
@@ -1107,13 +1128,16 @@ barrier address using
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>
 (both CTAs’ loads combined: <code class="docutils literal notranslate"><span class="pre">(s_a.nbytes</span> <span class="pre">+</span> <span class="pre">s_b.nbytes)</span> <span class="pre">*</span> <span class="pre">2</span></code>). CTA 1 maps the
 barrier address to CTA 0’s shared memory, so both CTAs’
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html#tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared" title="tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.global_to_shared</span></code></a>
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html#tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared" title="tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.global_to_shared()</span></code></a>
 loads signal the same barrier.</p>
 <p><strong>CLC barriers</strong>: the scheduler only runs on CTA 0. It uses
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast()</span></code></a>
-to declare expected bytes on <strong>both CTAs’ barriers</strong> simultaneously. The CLC
-response is multicast to both CTAs via
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">clc.try_cancel(multicast=True)</span></code></a>.</p>
+to declare expected bytes on the barriers at the same local shared memory offset
+across both CTAs simultaneously — more efficient than arriving on each CTA’s
+barrier separately. The CLC response is multicast to both CTAs via
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">clc.try_cancel(multicast=True)</span></code></a>,
+which writes the 16-byte response to the same local shared memory offset on both
+CTAs in a single operation.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>CLC cancels an entire <strong>cluster</strong>, not a single CTA. The returned
@@ -1125,7 +1149,8 @@ same output tile.</p>
 <p><strong>Consumer arrivals</strong>: when consuming CLC responses, each CTA arrives on
 CTA 0’s barrier remotely using
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code></a>
-with <code class="docutils literal notranslate"><span class="pre">target_rank=0</span></code> and <code class="docutils literal notranslate"><span class="pre">scope=&quot;cluster&quot;</span></code>.</p>
+with <code class="docutils literal notranslate"><span class="pre">target_rank=0</span></code> and <code class="docutils literal notranslate"><span class="pre">scope=&quot;cluster&quot;</span></code>. This instruction arrives on a
+barrier at the same local shared memory offset in the target CTA.</p>
 </section>
 <section id="walkthrough">
 <h2>Walkthrough<a class="headerlink" href="#walkthrough" title="Link to this heading"><span>¶</span></a></h2>
@@ -1274,10 +1299,24 @@ loads signal CTA 0’s barrier (CTA 1 maps the barrier address remotely).</p>
 </div>
 </div>
 <p>Only CTA 0 issues MMA (guarded by <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">cta_rank</span> <span class="pre">==</span> <span class="pre">0</span></code>). The
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit</span></code></a>
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit()</span></code></a>
 calls use <code class="docutils literal notranslate"><span class="pre">cta_group=2,</span> <span class="pre">multicast_mask=0b11</span></code> to signal barriers on both CTAs.
 CTA 1’s MMA warp skips the K-loop and only consumes CLC responses.</p>
 </section>
+</section>
+<section id="performance">
+<h2>Performance<a class="headerlink" href="#performance" title="Link to this heading"><span>¶</span></a></h2>
+<p>2-CTA clusters double the effective tile size via distributed MMA, matching
+cuBLAS performance at ~1610 TFLOPS (~96% tensor core utilization).
+The complete source is at <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v6.py"><i class="fab fa-github"></i> examples/blackwell_matmul/matmul_v6.py</a>.</p>
+<figure class="align-default" id="id7">
+<img alt="../../_images/plot_v6.svg" class="plot-directive" src="../../_images/plot_v6.svg" />
+<figcaption>
+<p><span class="caption-text">Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+utilization (96.6%).</span><a class="headerlink" href="#id7" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
 </section>
 <section id="what-s-next">
 <h2>What’s Next<a class="headerlink" href="#what-s-next" title="Link to this heading"><span>¶</span></a></h2>
@@ -1287,11 +1326,6 @@ specialization (V3), tile rasterization and a pipeline abstraction (V4), CLC
 persistent scheduling with a pipelined epilogue (V5), and finally 2-CTA
 clusters with distributed MMA (V6). Together, these optimizations bring the
 kernel to vendor-library-level performance on NVIDIA Blackwell GPUs.</p>
-</section>
-<section id="full-source">
-<h2>Full Source<a class="headerlink" href="#full-source" title="Link to this heading"><span>¶</span></a></h2>
-<p>The complete example file is located at
-<a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v6.py">examples/blackwell_matmul/matmul_v6.py</a>.</p>
 </section>
 </section>
 
@@ -1351,8 +1385,8 @@ kernel to vendor-library-level performance on NVIDIA Blackwell GPUs.</p>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mma-warp">MMA Warp</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#full-source">Full Source</a></li>
 </ul>
   </nav></div>
 

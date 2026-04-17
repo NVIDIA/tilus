@@ -32,6 +32,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
     <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=38aa6179" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
@@ -49,7 +50,7 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="6. 2-CTA Cluster" href="v6.html" />
-    <link rel="prev" title="4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue" href="v4.html" />
+    <link rel="prev" title="4. Tile Rasterization and Pipeline Abstraction" href="v4.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -170,10 +171,10 @@
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="__init__.html">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="v0.html">0. A Minimal Blackwell Matmul</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads and TMA Epilogue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v2.html">2. Multi-Stage Software Pipelining</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v4.html">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v4.html">4. Tile Rasterization and Pipeline Abstraction</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v6.html">6. 2-CTA Cluster</a></li>
 </ul>
@@ -622,8 +623,8 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-warp">TMA Warp</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#full-source">Full Source</a></li>
 </ul>
             </nav>
         </div>
@@ -1006,6 +1007,14 @@ epilogue and MMA overlap across tiles.</p></li>
 <td><p><code class="docutils literal notranslate"><span class="pre">stages</span></code> (shared for TMA pipeline)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tma_stages</span></code> + <code class="docutils literal notranslate"><span class="pre">mma_stages</span></code> (independent)</p></td>
 </tr>
+<tr class="row-even"><td><p><strong>New instructions</strong></p></td>
+<td></td>
+<td><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">try_cancel()</span></code></a>,
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response"><code class="xref py py-meth docutils literal notranslate"><span class="pre">query_response()</span></code></a>,
+<a class="reference internal" href="../../python-api/generated/tilus.Script.warp_group.html#tilus.Script.warp_group" title="tilus.Script.warp_group"><code class="xref py py-meth docutils literal notranslate"><span class="pre">warp_group()</span></code></a>,
+<a class="reference internal" href="../../python-api/generated/tilus.Script.single_warp.html#tilus.Script.single_warp" title="tilus.Script.single_warp"><code class="xref py py-meth docutils literal notranslate"><span class="pre">single_warp()</span></code></a> (with warp index),
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive()</span></code></a></p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1073,7 +1082,7 @@ load-balanced.</p>
 <li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>
 declares that 16 bytes will arrive on the barrier — this is the size of the
 CLC response that <code class="docutils literal notranslate"><span class="pre">try_cancel</span></code> will write to shared memory.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">clc.try_cancel</span></code></a>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">clc.try_cancel()</span></code></a>
 sends the cancellation request to the CLC hardware. The hardware writes the
 16-byte response to <code class="docutils literal notranslate"><span class="pre">s_clc_response</span></code> and signals the barrier.</p></li>
 <li><p>The scheduler itself also consumes the response (via <code class="docutils literal notranslate"><span class="pre">query_clc_response</span></code>)
@@ -1105,7 +1114,7 @@ another tile to process and what its block index is, it calls
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">consumer_acquire</span></code> waits for the current <code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code> slot to be filled —
 i.e., the scheduler has produced a CLC response.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response"><code class="xref py py-meth docutils literal notranslate"><span class="pre">clc.query_response</span></code></a>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html#tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response" title="tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response"><code class="xref py py-meth docutils literal notranslate"><span class="pre">clc.query_response()</span></code></a>
 decodes the response to extract <code class="docutils literal notranslate"><span class="pre">(is_valid,</span> <span class="pre">new_blockIdx)</span></code>.</p></li>
 <li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>
 on the consumer barrier signals that this warp has finished reading. Once all
@@ -1290,7 +1299,10 @@ to exit.</p>
 </div>
 <p>Key differences from V4:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">warps</span> <span class="pre">=</span> <span class="pre">8</span></code> (was 4).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">warps</span> <span class="pre">=</span> <span class="pre">8</span></code> (was 4). The four warp roles are: TMA (warp 0), MMA (warp 1),
+scheduler (warp 2), and epilogue (warps 4–7). Warp 3 is intentionally unused
+— it acts as a gap between the single-warp roles and the 4-warp epilogue
+group, whose warps must be contiguous starting at a warp-group-aligned index.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">t_acc</span></code> has an <code class="docutils literal notranslate"><span class="pre">mma_stages</span></code> dimension for the MMA pipeline.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">s_clc_response</span></code> is a small shared memory buffer (16 bytes per stage) for
 CLC responses.</p></li>
@@ -1298,7 +1310,9 @@ CLC responses.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code> has <code class="docutils literal notranslate"><span class="pre">consumer_arrive_count=128</span></code> (4 epilogue warps × 32
 threads).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">clc_pipe</span></code> has <code class="docutils literal notranslate"><span class="pre">consumer_arrive_count=224</span></code> (7 consumer warps × 32
-threads).</p></li>
+threads) and only 1 stage: the scheduler produces one response at a time, and
+all 224 consumer threads must drain it before the next cancellation request can
+be issued.</p></li>
 </ul>
 </section>
 <section id="tma-warp">
@@ -1353,6 +1367,20 @@ After completing one tile’s loads, it queries CLC for the next tile and update
 the offsets.</p>
 </section>
 </section>
+<section id="performance">
+<h2>Performance<a class="headerlink" href="#performance" title="Link to this heading"><span>¶</span></a></h2>
+<p>CLC persistent scheduling eliminates per-tile prologue/epilogue overhead,
+and the pipelined epilogue overlaps write-back with MMA computation.
+The complete source is at <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v5.py"><i class="fab fa-github"></i> examples/blackwell_matmul/matmul_v5.py</a>.</p>
+<figure class="align-default" id="id7">
+<img alt="../../_images/plot_v5.svg" class="plot-directive" src="../../_images/plot_v5.svg" />
+<figcaption>
+<p><span class="caption-text">Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+utilization (96.6%).</span><a class="headerlink" href="#id7" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
+</section>
 <section id="what-s-next">
 <h2>What’s Next<a class="headerlink" href="#what-s-next" title="Link to this heading"><span>¶</span></a></h2>
 <p>V5 runs multiple tiles per CTA with dynamic scheduling and overlaps the epilogue
@@ -1361,11 +1389,6 @@ accesses are local.</p>
 <p>In <a class="reference internal" href="v6.html"><span class="doc">the next version</span></a>, we introduce <strong>2-CTA clusters</strong> that enable
 <strong>distributed shared memory</strong> and <strong>distributed MMA</strong>, allowing the tensor core
 to read from both CTAs’ shared memory and doubling the effective tile size.</p>
-</section>
-<section id="full-source">
-<h2>Full Source<a class="headerlink" href="#full-source" title="Link to this heading"><span>¶</span></a></h2>
-<p>The complete example file is located at
-<a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v5.py">examples/blackwell_matmul/matmul_v5.py</a>.</p>
 </section>
 </section>
 
@@ -1386,7 +1409,7 @@ to read from both CTAs’ shared memory and doubling the effective tile size.</p
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</p>
+        <p class="prev-next-title">4. Tile Rasterization and Pipeline Abstraction</p>
       </div>
     </a>
     <a class="right-next"
@@ -1429,8 +1452,8 @@ to read from both CTAs’ shared memory and doubling the effective tile size.</p
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-warp">TMA Warp</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#full-source">Full Source</a></li>
 </ul>
   </nav></div>
 

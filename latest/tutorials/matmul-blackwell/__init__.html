@@ -32,6 +32,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
     <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=38aa6179" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
@@ -171,10 +172,10 @@
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="v0.html">0. A Minimal Blackwell Matmul</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads and TMA Epilogue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v2.html">2. Multi-Stage Software Pipelining</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v4.html">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v4.html">4. Tile Rasterization and Pipeline Abstraction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v6.html">6. 2-CTA Cluster</a></li>
 </ul>
@@ -613,18 +614,28 @@ document.write(`
   <section id="matmul-blackwell">
 <h1>Matmul (Blackwell)<a class="headerlink" href="#matmul-blackwell" title="Link to this heading"><span>¶</span></a></h1>
 <p>This tutorial shows how to implement a high-performance matrix multiplication kernel
-(C = A x B<sup>T</sup>) targeting <strong>NVIDIA Blackwell GPUs</strong> using <strong>tilus</strong>.</p>
+(C = A x B<sup>T</sup>) targeting <strong>NVIDIA Blackwell GPUs</strong> using <strong>Tilus</strong>.</p>
 <p>Starting from a minimal working kernel, each version introduces one new Blackwell feature
 or optimization technique. By the final version, the kernel reaches vendor-library-level
-performance.</p>
+performance. The figure below shows the progression: V0 starts at ~491 TFLOPS with a
+minimal kernel, and each optimization closes the gap to cuBLAS, with V6 matching it at
+~1610 TFLOPS. All kernels and the benchmark script to reproduce the result can be found at <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/"><i class="fab fa-github"></i> examples/blackwell_matmul/</a>.</p>
+<figure class="align-default" id="id1">
+<img alt="../../_images/plot_all.svg" class="plot-directive" src="../../_images/plot_all.svg" />
+<figcaption>
+<p><span class="caption-text">Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+utilization (96.6%).</span><a class="headerlink" href="#id1" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
 <div class="toctree-wrapper compound">
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Versions</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="v0.html">0. A Minimal Blackwell Matmul</a></li>
-<li class="toctree-l1"><a class="reference internal" href="v1.html">1. TMA Loads</a></li>
+<li class="toctree-l1"><a class="reference internal" href="v1.html">1. TMA Loads and TMA Epilogue</a></li>
 <li class="toctree-l1"><a class="reference internal" href="v2.html">2. Multi-Stage Software Pipelining</a></li>
 <li class="toctree-l1"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
-<li class="toctree-l1"><a class="reference internal" href="v4.html">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</a></li>
+<li class="toctree-l1"><a class="reference internal" href="v4.html">4. Tile Rasterization and Pipeline Abstraction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
 <li class="toctree-l1"><a class="reference internal" href="v6.html">6. 2-CTA Cluster</a></li>
 </ul>

@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue &#8212; tilus  documentation</title>
+    <title>4. Tile Rasterization and Pipeline Abstraction &#8212; tilus  documentation</title>
   
   
   
@@ -32,6 +32,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
     <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=38aa6179" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
@@ -170,10 +171,10 @@
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="__init__.html">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="v0.html">0. A Minimal Blackwell Matmul</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads and TMA Epilogue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v2.html">2. Multi-Stage Software Pipelining</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">4. Tile Rasterization and Pipeline Abstraction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v6.html">6. 2-CTA Cluster</a></li>
 </ul>
@@ -597,7 +598,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue</h1>
+    <h1>4. Tile Rasterization and Pipeline Abstraction</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -615,14 +616,13 @@ document.write(`
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-abstraction">Pipeline Abstraction</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-epilogue">TMA Epilogue</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#setup">Setup</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-and-mma-warps">TMA and MMA Warps</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#full-source">Full Source</a></li>
 </ul>
             </nav>
         </div>
@@ -634,10 +634,10 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="tile-rasterization-pipeline-abstraction-and-tma-epilogue">
-<span id="tutorial-blackwell-matmul-v4"></span><h1>4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue<a class="headerlink" href="#tile-rasterization-pipeline-abstraction-and-tma-epilogue" title="Link to this heading"><span>¶</span></a></h1>
+  <section id="tile-rasterization-and-pipeline-abstraction">
+<span id="tutorial-blackwell-matmul-v4"></span><h1>4. Tile Rasterization and Pipeline Abstraction<a class="headerlink" href="#tile-rasterization-and-pipeline-abstraction" title="Link to this heading"><span>¶</span></a></h1>
 <p><a class="reference internal" href="v3.html"><span class="doc">V3</span></a> introduced warp specialization with separate TMA and MMA warps.
-This version adds three improvements:</p>
+This version adds two improvements:</p>
 <ol class="arabic simple">
 <li><p><strong>Tile rasterization</strong> — reorder tile assignments so that consecutive thread
 blocks process tiles that share B columns, improving L2 cache reuse.</p></li>
@@ -645,8 +645,6 @@ blocks process tiles that share B columns, improving L2 cache reuse.</p></li>
 from V3 into a reusable <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class using <code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code>, making it
 easy to add more pipelines as the kernel grows (e.g., separate TMA and MMA
 pipelines in later versions).</p></li>
-<li><p><strong>TMA epilogue</strong> — store results back to global memory via shared memory and
-TMA, instead of the direct <code class="docutils literal notranslate"><span class="pre">store_global</span></code> used in previous versions.</p></li>
 </ol>
 <section id="the-full-kernel">
 <h2>The Full Kernel<a class="headerlink" href="#the-full-kernel" title="Link to this heading"><span>¶</span></a></h2>
@@ -708,10 +706,12 @@ TMA, instead of the direct <code class="docutils literal notranslate"><span clas
         <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span> <span class="o">^</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
 
 
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_m, block_n, e_block_n&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">]])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span>
+    <span class="s2">&quot;block_m, block_n, e_block_n&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">]]</span>
+<span class="p">)</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">])</span>
 <span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;swizzle_size&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;swizzle_size&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">BlackwellMatmulV4</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -895,13 +895,13 @@ TMA, instead of the direct <code class="docutils literal notranslate"><span clas
 <td><p>Manual barriers, phases, and stage indices</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class (<code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code>) encapsulates all bookkeeping</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>Epilogue</strong></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">store_global</span></code>: direct register-to-global writes</p></td>
-<td><p>TMA epilogue: tmem → registers → shared → global (via TMA)</p></td>
-</tr>
-<tr class="row-odd"><td><p><strong>Integer division</strong></p></td>
+<tr class="row-even"><td><p><strong>Integer division</strong></p></td>
 <td><p>Standard <code class="docutils literal notranslate"><span class="pre">//</span></code> and <code class="docutils literal notranslate"><span class="pre">%</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">fast_divmod</span></code> for grid-constant divisors</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>New instructions</strong></p></td>
+<td></td>
+<td><p><a class="reference internal" href="../../python-api/generated/tilus.Script.fast_divmod.html#tilus.Script.fast_divmod" title="tilus.Script.fast_divmod"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fast_divmod()</span></code></a>, <code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code></p></td>
 </tr>
 </tbody>
 </table>
@@ -1082,7 +1082,7 @@ slot’s full/empty mbarrier has completed.</span><a class="headerlink" href="#i
 </figure>
 <p>In V3, we managed all this state manually (barriers, phases, stage indices). The
 <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class below encapsulates the bookkeeping into a clean API. Note that
-this is not a built-in part of tilus — it is constructed from existing
+this is not a built-in part of Tilus; it is constructed from existing
 instructions (<code class="docutils literal notranslate"><span class="pre">mbarrier.alloc</span></code>, <code class="docutils literal notranslate"><span class="pre">mbarrier.wait</span></code>, etc.) as a user-level
 helper. You can always manage the mbarriers manually as in V3 if you prefer.</p>
 <div class="literal-block-wrapper docutils container" id="id6">
@@ -1148,7 +1148,7 @@ helper. You can always manage the mbarriers manually as in V3 if you prefer.</p>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class inherits from <code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code>, which works like
 <a class="reference internal" href="../../python-api/tilus-script.html#tilus.Script" title="tilus.Script"><code class="xref py py-class docutils literal notranslate"><span class="pre">Script</span></code></a> but for helper objects that are not kernels themselves.
-It can allocate barriers, shared tensors, and use all tilus instructions.</p>
+It can allocate barriers, shared tensors, and use all Tilus instructions.</p>
 <p>The usage in the kernel becomes straightforward:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">stages</span><span class="p">)</span>
 
@@ -1167,110 +1167,14 @@ It can allocate barriers, shared tensors, and use all tilus instructions.</p>
 <p>This pattern is reusable: later versions add a second pipeline (<code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code>)
 between the MMA and epilogue stages, using the same <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class.</p>
 </section>
-<section id="tma-epilogue">
-<h2>TMA Epilogue<a class="headerlink" href="#tma-epilogue" title="Link to this heading"><span>¶</span></a></h2>
-<p>In V0–V3, the epilogue used <a class="reference internal" href="../../python-api/generated/tilus.Script.store_global.html#tilus.Script.store_global" title="tilus.Script.store_global"><code class="xref py py-meth docutils literal notranslate"><span class="pre">store_global()</span></code></a> to write
-results directly from registers to global memory. This is simple but not
-optimal: each thread stores a small piece, generating many small memory
-transactions.</p>
-<p>V4 uses a <strong>TMA epilogue</strong> that routes data through shared memory for a bulk
-TMA store. However, the full accumulator (<code class="docutils literal notranslate"><span class="pre">block_m</span> <span class="pre">×</span> <span class="pre">block_n</span></code>, e.g.,
-128 × 256 in fp32) is too large to load into registers or shared memory all at
-once — it would consume too many registers and too much shared memory. Instead,
-we <strong>slice</strong> the accumulator into narrow column strips of width <code class="docutils literal notranslate"><span class="pre">e_block_n</span></code>
-(e.g., 16, where the <code class="docutils literal notranslate"><span class="pre">e_</span></code> prefix stands for “epilogue”) and process one strip
-at a time:</p>
-<figure class="align-center" id="id7">
-<a class="reference internal image-reference" href="../../_images/v4_tma_epilogue.svg"><img alt="../../_images/v4_tma_epilogue.svg" src="../../_images/v4_tma_epilogue.svg" style="width: 100%;" />
-</a>
-<figcaption>
-<p><span class="caption-text">Dataflow for one epilogue slice: tensor memory → registers (with cast to
-fp16) → shared memory → global memory (via TMA). Only a <code class="docutils literal notranslate"><span class="pre">block_m</span> <span class="pre">×</span>
-<span class="pre">e_block_n</span></code> slice passes through registers and shared memory at a time.</span><a class="headerlink" href="#id7" title="Link to this image"><span>¶</span></a></p>
-</figcaption>
-</figure>
-<p>For each strip, the instruction sequence is:</p>
-<ol class="arabic simple">
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.slice</span></code></a>
-extracts an <code class="docutils literal notranslate"><span class="pre">e_block_n</span></code>-wide slice of the accumulator in tensor memory.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.load</span></code></a>
-moves the slice to registers, and
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.wait_load</span></code></a>
-waits for the load to complete.</p></li>
-<li><p><a class="reference internal" href="../../python-api/generated/tilus.Script.store_shared.html#tilus.Script.store_shared" title="tilus.Script.store_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">store_shared()</span></code></a> writes the cast result to a shared memory
-buffer.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html#tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async" title="tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fence.proxy_async</span></code></a> ensures the shared memory writes are
-visible to the TMA engine.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html#tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global" title="tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.shared_to_global</span></code></a>
-issues a bulk TMA transfer from shared to global memory.</p></li>
-<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html#tilus.lang.instructions.tma.TmaInstructionGroup.commit_group" title="tilus.lang.instructions.tma.TmaInstructionGroup.commit_group"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.commit_group</span></code></a>
-commits the pending TMA operations into a group, and
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html#tilus.lang.instructions.tma.TmaInstructionGroup.wait_group" title="tilus.lang.instructions.tma.TmaInstructionGroup.wait_group"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.wait_group(n=0,</span> <span class="pre">read=True)</span></code></a>
-waits for the group to complete. The <code class="docutils literal notranslate"><span class="pre">read=True</span></code> flag means we only wait
-for the TMA engine to finish <strong>reading from shared memory</strong> (so shared memory
-can be reused for the next slice), without waiting for the writes to global
-memory to be fully visible — since no subsequent instruction reads the
-global output.</p></li>
-</ol>
-<p>The epilogue loops over N-dimension slices of width <code class="docutils literal notranslate"><span class="pre">e_block_n</span></code>:</p>
-<div class="literal-block-wrapper docutils container" id="id8">
-<div class="code-block-caption"><span class="caption-text">TMA epilogue</span><a class="headerlink" href="#id8" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># TMA epilogue: tmem -&gt; register -&gt; shared -&gt; global (via TMA)</span>
-<span class="n">s_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">])</span>
-<span class="k">for</span> <span class="n">e_offset_n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">block_n</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">):</span>
-    <span class="c1"># slice a e_block_n-wide column from the accumulator</span>
-    <span class="n">t_acc_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span>
-        <span class="n">t_acc</span><span class="p">,</span>
-        <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">e_offset_n</span><span class="p">],</span>
-        <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">],</span>
-        <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
-    <span class="p">)</span>
-    <span class="n">r_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">t_acc_slice</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">wait_load</span><span class="p">()</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">s_c</span><span class="p">,</span> <span class="n">r_acc</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">float16</span><span class="p">))</span>
-    <span class="c1"># fence: make generic-proxy writes visible to async-proxy (TMA)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">fence</span><span class="o">.</span><span class="n">proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="s2">&quot;shared&quot;</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
-        <span class="c1"># TMA bulk store from shared to global</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">shared_to_global</span><span class="p">(</span>
-            <span class="n">s_c</span><span class="p">,</span>
-            <span class="n">g_c</span><span class="p">,</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span> <span class="o">+</span> <span class="n">e_offset_n</span><span class="p">],</span>
-            <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">read</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-
-<span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-</pre></div>
-</div>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p><strong>TMA completion mechanisms differ by direction.</strong> Global-to-shared TMA
-(used in V1–V4 for loading) tracks completion via <strong>mbarrier tx-count</strong>.
-Shared-to-global TMA (used here in the epilogue) uses a different mechanism:
-<strong>commit_group + wait_group</strong>, similar to the legacy <code class="docutils literal notranslate"><span class="pre">cp.async</span></code> pattern.
-See <a class="reference external" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#data-movement-and-conversion-instructions-asynchronous-copy-completion-mechanisms">async copy completion mechanisms</a>
-and <a class="reference external" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#data-movement-and-conversion-instructions-cp-async-bulk">cp.async.bulk</a>
-in the PTX documentation.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">fence.proxy_async(space=&quot;shared&quot;)</span></code> before the TMA store is required
-because <code class="docutils literal notranslate"><span class="pre">store_shared</span></code> writes via the <strong>generic proxy</strong>, while
-<code class="docutils literal notranslate"><span class="pre">tma.shared_to_global</span></code> reads via the <strong>async proxy</strong>. The fence ensures
-the generic proxy writes are visible to the async proxy. See
-<a class="reference internal" href="../../python-api/instruction-groups/fence.html"><span class="doc">Script.fence</span></a> for details.</p>
-</div>
-</section>
 <section id="walkthrough">
 <h2>Walkthrough<a class="headerlink" href="#walkthrough" title="Link to this heading"><span>¶</span></a></h2>
 <p>The kernel structure is the same as V3 (TMA warp + MMA warp), but now using
-the <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class and the new epilogue.</p>
+the <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class. The epilogue is unchanged from V1.</p>
 <section id="setup">
 <h3>Setup<a class="headerlink" href="#setup" title="Link to this heading"><span>¶</span></a></h3>
-<div class="literal-block-wrapper docutils container" id="id9">
-<div class="code-block-caption"><span class="caption-text">Kernel setup</span><a class="headerlink" href="#id9" title="Link to this code"><span>¶</span></a></div>
+<div class="literal-block-wrapper docutils container" id="id7">
+<div class="code-block-caption"><span class="caption-text">Kernel setup</span><a class="headerlink" href="#id7" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">num_m_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="n">block_m</span><span class="p">)</span>
 <span class="n">num_n_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="n">block_n</span><span class="p">)</span>
 <span class="c1"># 1D grid: tile rasterization maps linear index to 2D coordinates</span>
@@ -1302,13 +1206,12 @@ the <code class="docutils literal notranslate"><span class="pre">Pipeline</span>
 <li><p>The grid is 1D: <code class="docutils literal notranslate"><span class="pre">blocks</span> <span class="pre">=</span> <span class="pre">num_m_blocks</span> <span class="pre">*</span> <span class="pre">num_n_blocks</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">compute_block_coord</span></code> maps the linear index to swizzled (m, n) coordinates.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Pipeline(stages)</span></code> replaces manual barrier/phase/stage management.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">e_block_n</span></code> controls the epilogue slice width (autotuned).</p></li>
 </ul>
 </section>
 <section id="tma-and-mma-warps">
 <h3>TMA and MMA Warps<a class="headerlink" href="#tma-and-mma-warps" title="Link to this heading"><span>¶</span></a></h3>
-<div class="literal-block-wrapper docutils container" id="id10">
-<div class="code-block-caption"><span class="caption-text">TMA warp and MMA warp</span><a class="headerlink" href="#id10" title="Link to this code"><span>¶</span></a></div>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-text">TMA warp and MMA warp</span><a class="headerlink" href="#id8" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
     <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="n">stages</span><span class="p">):</span>
         <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
@@ -1355,6 +1258,20 @@ warp, and <code class="docutils literal notranslate"><span class="pre">consumer_
 for the MMA warp.</p>
 </section>
 </section>
+<section id="performance">
+<h2>Performance<a class="headerlink" href="#performance" title="Link to this heading"><span>¶</span></a></h2>
+<p>Tile rasterization improves L2 cache reuse for B tiles, and the Pipeline
+abstraction simplifies the code without sacrificing performance.
+The complete source is at <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v4.py"><i class="fab fa-github"></i> examples/blackwell_matmul/matmul_v4.py</a>.</p>
+<figure class="align-default" id="id9">
+<img alt="../../_images/plot_v4.svg" class="plot-directive" src="../../_images/plot_v4.svg" />
+<figcaption>
+<p><span class="caption-text">Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+utilization (96.6%).</span><a class="headerlink" href="#id9" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
+</section>
 <section id="what-s-next">
 <h2>What’s Next<a class="headerlink" href="#what-s-next" title="Link to this heading"><span>¶</span></a></h2>
 <p>V4 is a well-optimized single-CTA kernel. To push performance further, we need
@@ -1363,11 +1280,6 @@ to look beyond the single thread block.</p>
 kernels — each CTA processes multiple output tiles dynamically via hardware
 scheduling, avoiding kernel launch overhead. We also add a <strong>pipelined
 epilogue</strong> and expand to <strong>4 warp roles</strong> (TMA, MMA, scheduler, epilogue).</p>
-</section>
-<section id="full-source">
-<h2>Full Source<a class="headerlink" href="#full-source" title="Link to this heading"><span>¶</span></a></h2>
-<p>The complete example file is located at
-<a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v4.py">examples/blackwell_matmul/matmul_v4.py</a>.</p>
 </section>
 </section>
 
@@ -1424,14 +1336,13 @@ epilogue</strong> and expand to <strong>4 warp roles</strong> (TMA, MMA, schedul
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-abstraction">Pipeline Abstraction</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-epilogue">TMA Epilogue</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#setup">Setup</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-and-mma-warps">TMA and MMA Warps</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#full-source">Full Source</a></li>
 </ul>
   </nav></div>
 
