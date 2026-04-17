@@ -23,7 +23,7 @@ from tilus.hidet.utils import initialize
 @initialize()
 def register_functions():
     from tilus.hidet.lang import asm, attrs, script  # pylint: disable=import-outside-toplevel
-    from tilus.hidet.lang.types import int32
+    from tilus.hidet.lang.types import int32, uint32
 
     @no_type_check
     @script
@@ -34,10 +34,39 @@ def register_functions():
         asm("popc.b32 %0, %1;", outputs=[ret], inputs=[a])
         return ret
 
-    funcs = [cuda_popc]
+    @no_type_check
+    @script
+    def cuda_umulhi(a: uint32, b: uint32) -> uint32:
+        """Unsigned 32-bit multiply-high: returns the upper 32 bits of a * b."""
+        attrs.func_kind = "cuda_internal"
+
+        ret: uint32 = 0
+        asm("mul.hi.u32 %0, %1, %2;", outputs=[ret], inputs=[a, b])
+        return ret
+
+    funcs = [cuda_popc, cuda_umulhi]
     for func in funcs:
         assert isinstance(func, Function)
         register_primitive_function(name=func.name, func_or_type=func)
+
+
+def umulhi(a: Expr, b: Expr) -> Expr:
+    """
+    Unsigned 32-bit multiply-high: returns the upper 32 bits of a * b.
+
+    Parameters
+    ----------
+    a: Expr
+        The first uint32 operand.
+    b: Expr
+        The second uint32 operand.
+
+    Returns
+    -------
+    ret: Expr
+        The upper 32 bits of the unsigned 64-bit product.
+    """
+    return call_primitive_func("cuda_umulhi", args=[a, b])
 
 
 def popc(a: Expr) -> Expr:

@@ -54,6 +54,7 @@ from .generic import (
     ModInst,
     MulInst,
     PermuteSharedInst,
+    Philox4x32Inst,
     PrintTensorInst,
     ReduceInst,
     RepeatInst,

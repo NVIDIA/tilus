@@ -34,6 +34,7 @@ from .inference_rules.load_shared import (
 from .inference_rules.mapa import MapSharedAddrRule
 from .inference_rules.mbarrier import AllocBarrierRule
 from .inference_rules.mma_dot import MmaDotRule
+from .inference_rules.philox import Philox4x32InferenceRule
 from .inference_rules.reduce import ReduceRule
 from .inference_rules.reshape_shared import ReshapeSharedRule
 from .inference_rules.slice_register import SliceAssignRule, SliceRegisterRule
@@ -58,6 +59,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [WgmmaMmaSSRule],
     [Tcgen05LoadRule, Tcgen05StoreRule],
     [Tcgen05CopyRule],
+    [Philox4x32InferenceRule],
     [BinaryRule, UnaryRule],
     [LoadGlobalRule],
     [ReduceRule],

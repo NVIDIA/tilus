@@ -41,6 +41,7 @@ from tilus.ir.instructions.generic import (
     LoadGlobalInst,
     LoadSharedInst,
     PermuteSharedInst,
+    Philox4x32Inst,
     ReduceInst,
     RepeatInst,
     RepeatInterleaveInst,
@@ -88,6 +89,8 @@ FUNCTIONAL_INST_TYPES: tuple[Type[Instruction], ...] = (
     # TMemory views
     Tcgen05SliceInst,
     Tcgen05ViewInst,
+    # Random number generation
+    Philox4x32Inst,
     # Other pure ops
     DotInst,
     SimtDotInst,
