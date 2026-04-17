@@ -93,15 +93,33 @@ support NumPy-style broadcasting.
    abs
    add
    clip
+   cos
    exp
    exp2
    log
    maximum
    round
    rsqrt
+   sin
    sqrt
    square
    where
+
+
+Random Number Generation
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Generate pseudo-random numbers using the Philox-4x32-10 counter-based PRNG. Given a seed (uint64
+scalar) and an offset tensor (uint32), each element produces independent random values.
+``randint4x`` is the most efficient entry point, returning all four Philox outputs per invocation.
+``rand`` and ``randn`` build on top to provide uniform and normal distributions respectively.
+
+.. autosummary::
+
+   rand
+   randint
+   randint4x
+   randn
 
 
 Reduction

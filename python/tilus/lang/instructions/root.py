@@ -1118,6 +1118,58 @@ class RootInstructionGroup(InstructionGroup):
         """
         return self._builder.log(x, out=out)
 
+    def sin(
+        self,
+        x: RegisterTensor,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        """Compute the element-wise sine.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            Input tensor (in radians).
+        out: RegisterTensor, optional
+            Output tensor. If not provided, a new tensor is allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        """
+        return self._builder.sin(x, out=out)
+
+    def cos(
+        self,
+        x: RegisterTensor,
+        *,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        """Compute the element-wise cosine.
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            Input tensor (in radians).
+        out: RegisterTensor, optional
+            Output tensor. If not provided, a new tensor is allocated.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            Tensor with the same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        """
+        return self._builder.cos(x, out=out)
+
     def round(
         self,
         x: RegisterTensor,
@@ -1846,3 +1898,135 @@ class RootInstructionGroup(InstructionGroup):
             q = fastdiv(a, b)
             r = a - q * b
             return q, r
+
+    # random number generation
+
+    def randint4x(
+        self,
+        seed: Expr | int,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> tuple[RegisterTensor, RegisterTensor, RegisterTensor, RegisterTensor]:
+        """Generate four blocks of random int32 using Philox-4x32 PRNG.
+
+        Given a seed scalar and an offset register tensor, returns four register tensors
+        of random uint32 values. This is the most efficient entry point to Tilus's
+        Philox pseudo-random number generator.
+
+        Parameters
+        ----------
+        seed: Expr | int
+            The seed for generating random numbers (uint64 scalar).
+        offset: RegisterTensor
+            The offsets to generate random numbers for (uint32).
+        n_rounds: int
+            Number of Philox rounds (default 10).
+
+        Returns
+        -------
+        r0, r1, r2, r3: tuple[RegisterTensor, RegisterTensor, RegisterTensor, RegisterTensor]
+            Four register tensors of random uint32 values with the same shape as ``offset``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        """
+        seed = as_expr(seed)
+        return self._builder.randint4x(seed=seed, offset=offset, n_rounds=n_rounds)
+
+    def randint(
+        self,
+        seed: Expr | int,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        """Generate a block of random int32 using Philox-4x32 PRNG.
+
+        Given a seed scalar and an offset register tensor, returns a single register tensor
+        of random uint32 values.
+
+        Parameters
+        ----------
+        seed: Expr | int
+            The seed for generating random numbers (uint64 scalar).
+        offset: RegisterTensor
+            The offsets to generate random numbers for (uint32).
+        n_rounds: int
+            Number of Philox rounds (default 10).
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A register tensor of random uint32 values with the same shape as ``offset``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        """
+        seed = as_expr(seed)
+        return self._builder.randint(seed=seed, offset=offset, n_rounds=n_rounds)
+
+    def rand(
+        self,
+        seed: Expr | int,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        """Generate a block of random float32 in U(0, 1) using Philox-4x32 PRNG.
+
+        Given a seed scalar and an offset register tensor, returns a register tensor
+        of random float32 values uniformly distributed in [0, 1).
+
+        Parameters
+        ----------
+        seed: Expr | int
+            The seed for generating random numbers (uint64 scalar).
+        offset: RegisterTensor
+            The offsets to generate random numbers for (uint32).
+        n_rounds: int
+            Number of Philox rounds (default 10).
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A register tensor of random float32 values in [0, 1) with the same shape as ``offset``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        """
+        seed = as_expr(seed)
+        return self._builder.rand(seed=seed, offset=offset, n_rounds=n_rounds)
+
+    def randn(
+        self,
+        seed: Expr | int,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        """Generate a block of random float32 in N(0, 1) using Philox-4x32 PRNG.
+
+        Given a seed scalar and an offset register tensor, returns a register tensor
+        of random float32 values following a standard normal distribution, using the
+        Box-Muller transform.
+
+        Parameters
+        ----------
+        seed: Expr | int
+            The seed for generating random numbers (uint64 scalar).
+        offset: RegisterTensor
+            The offsets to generate random numbers for (uint32).
+        n_rounds: int
+            Number of Philox rounds (default 10).
+
+        Returns
+        -------
+        ret: RegisterTensor
+            A register tensor of random float32 values ~ N(0, 1) with the same shape as ``offset``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        """
+        seed = as_expr(seed)
+        return self._builder.randn(seed=seed, offset=offset, n_rounds=n_rounds)

@@ -98,6 +98,7 @@ from tilus.ir.instructions.generic import (
     ModInst,
     MulInst,
     PermuteSharedInst,
+    Philox4x32Inst,
     PrintTensorInst,
     ReduceInst,
     RepeatInst,
@@ -980,6 +981,12 @@ class StmtBuilder(StmtBuilderCore):
     def log(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.log(arg), out=out)
 
+    def sin(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.sin(arg), out=out)
+
+    def cos(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.cos(arg), out=out)
+
     def logical_not(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: LogicalNot(arg), out=out)
 
@@ -1018,6 +1025,107 @@ class StmtBuilder(StmtBuilderCore):
         )
         self.append(inst)
         return inst.register_output
+
+    # random number generation
+
+    def philox4x32(
+        self,
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        inst = Philox4x32Inst.create(seed=seed, offset=offset, n_rounds=n_rounds)
+        self.append(inst)
+        return inst.register_output
+
+    def randint4x(
+        self,
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> tuple[RegisterTensor, RegisterTensor, RegisterTensor, RegisterTensor]:
+        philox_out = self.philox4x32(seed=seed, offset=offset, n_rounds=n_rounds)
+        # Philox output shape is [4, *offset.shape]. Slice along dim 0 to extract each component.
+        # offsets has one entry per source dim; dims lists which source dims the output maps to.
+        zero_offsets = [as_expr(0)] * len(offset.shape)
+        slice_dims = list(range(1, 1 + len(offset.shape)))
+        r0 = self.slice_register(
+            philox_out, offsets=[as_expr(0)] + zero_offsets, slice_dims=slice_dims, slice_shape=list(offset.shape)
+        )
+        r1 = self.slice_register(
+            philox_out, offsets=[as_expr(1)] + zero_offsets, slice_dims=slice_dims, slice_shape=list(offset.shape)
+        )
+        r2 = self.slice_register(
+            philox_out, offsets=[as_expr(2)] + zero_offsets, slice_dims=slice_dims, slice_shape=list(offset.shape)
+        )
+        r3 = self.slice_register(
+            philox_out, offsets=[as_expr(3)] + zero_offsets, slice_dims=slice_dims, slice_shape=list(offset.shape)
+        )
+        return r0, r1, r2, r3
+
+    def randint(
+        self,
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        r0, _, _, _ = self.randint4x(seed=seed, offset=offset, n_rounds=n_rounds)
+        return r0
+
+    def _uint32_to_uniform_float(self, x: RegisterTensor) -> RegisterTensor:
+        """Convert a uint32 register tensor to uniform float32 in [0, 1)."""
+        from tilus.hidet.ir.dtypes import float32
+
+        x_i32 = self.cast(x, dtype=int32)
+        neg = self.elementwise_binary(
+            x_i32,
+            self.allocate_register(dtype=int32, shape=x.shape, f_init=lambda _: int32.constant(0)),
+            f_compute=lambda a, b: LessThan(a, b),
+        )
+        neg_x = self.neg(x_i32)
+        one = self.allocate_register(dtype=int32, shape=x.shape, f_init=lambda _: int32.constant(1))
+        neg_x_minus_1 = self.sub(neg_x, one)
+        folded = self.where(neg, neg_x_minus_1, x_i32)
+        folded_f32 = self.cast(folded, dtype=float32)
+        scale = self.allocate_register(
+            dtype=float32, shape=x.shape, f_init=lambda _: float32.constant(4.6566127342e-10)
+        )
+        return self.mul(folded_f32, scale)
+
+    def rand(
+        self,
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        raw = self.randint(seed=seed, offset=offset, n_rounds=n_rounds)
+        return self._uint32_to_uniform_float(raw)
+
+    def randn(
+        self,
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        from tilus.hidet.ir.dtypes import float32
+
+        r0, r1, _, _ = self.randint4x(seed=seed, offset=offset, n_rounds=n_rounds)
+        u1 = self._uint32_to_uniform_float(r0)
+        u2 = self._uint32_to_uniform_float(r1)
+        # Clamp u1 to avoid log(0)
+        eps = self.allocate_register(dtype=float32, shape=offset.shape, f_init=lambda _: float32.constant(1.0e-7))
+        u1 = self.maximum(u1, eps)
+        # Box-Muller transform
+        two_pi = self.allocate_register(
+            dtype=float32, shape=offset.shape, f_init=lambda _: float32.constant(6.283185307179586)
+        )
+        neg_two = self.allocate_register(dtype=float32, shape=offset.shape, f_init=lambda _: float32.constant(-2.0))
+        theta = self.mul(two_pi, u2)
+        log_u1 = self.log(u1)
+        scaled = self.mul(neg_two, log_u1)
+        r = self.sqrt(scaled)
+        cos_theta = self.cos(theta)
+        return self.mul(r, cos_theta)
 
     # shared value operations
 

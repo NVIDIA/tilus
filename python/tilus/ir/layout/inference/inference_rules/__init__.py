@@ -23,6 +23,7 @@ from . import (
     load_shared,
     mbarrier,
     mma_dot,
+    philox,
     reduce,
     reshape_shared,
     slice_register,

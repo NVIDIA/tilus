@@ -590,3 +590,28 @@ class NopInst(Instruction):
     @staticmethod
     def create() -> NopInst:
         return NopInst(output=None, inputs=())
+
+
+@dataclass(frozen=True, eq=False)
+class Philox4x32Inst(Instruction):
+    """Philox-4x32 counter-based PRNG instruction.
+
+    Given a seed (uint64 scalar) and an offset register tensor (uint32),
+    produces an output register tensor with shape [4, *offset.shape] of dtype uint32,
+    containing four independent streams of random uint32 values.
+    """
+
+    seed: Expr
+    n_rounds: int
+
+    @staticmethod
+    def create(
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> Philox4x32Inst:
+        from tilus.hidet.ir.dtypes import uint32
+
+        assert offset.dtype == uint32, f"offset must be uint32, got {offset.dtype}"
+        output = RegisterTensor.create(dtype=uint32, shape=(4, *offset.shape))
+        return Philox4x32Inst(output=output, inputs=(offset,), seed=seed, n_rounds=n_rounds)

@@ -67,6 +67,7 @@ Instructions
    assign
    cast
    clip
+   cos
    copy_async
    copy_async_commit_group
    copy_async_wait_all
@@ -88,6 +89,10 @@ Instructions
    min
    print_tensor
    printf
+   rand
+   randint
+   randint4x
+   randn
    register_tensor
    release_semaphore
    repeat
@@ -96,6 +101,7 @@ Instructions
    round
    rsqrt
    shared_tensor
+   sin
    sqrt
    square
    squeeze

@@ -23,6 +23,7 @@ from . import (
     elementwise,
     gmem,
     ldst,
+    random,
     reduce,
     regs,
     shared_ldst,
