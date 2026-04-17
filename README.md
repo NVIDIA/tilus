@@ -1,5 +1,5 @@
 # Tilus: A Tile-Level GPU Kernel Programming Language
-[Documentation](https://nvidia.github.io/tilus/index.html) | [Paper](https://arxiv.org/abs/2504.12984)
+[Documentation](https://nvidia.github.io/tilus/index.html) | [Tutorials](https://nvidia.github.io/tilus/stable/tutorials/matmul-blackwell/__init__.html) | [Paper](https://arxiv.org/abs/2504.12984)
 
 **Tilus** is a powerful research domain-specific language (DSL) for GPU programming that offers:
 
@@ -11,9 +11,10 @@ It also includes automatic tuning, caching, and a Pythonic interface for ease of
 
 Tilus is pronounced as tie-lus, /ˈtaɪləs/.
 
-## Status
+## News
 
-Tilus supports Ampere architecture, and we are actively working on support for Hopper/Blackwell GPUs (see the [roadmap](https://github.com/NVIDIA/tilus/issues/49)).
+* **[2025/07] Tilus v0.2.0** — Blackwell and Hopper GPU support, with [step-by-step Blackwell matmul tutorials](https://nvidia.github.io/tilus/stable/tutorials/matmul-blackwell/__init__.html) that build a high-performance kernel reaching vendor library (cuBLAS) level performance. See the [release notes](https://github.com/NVIDIA/tilus/releases/tag/v0.2.0).
+* **[2025/04] Tilus v0.1.0** — Initial release with Ampere support.
 
 ## Getting Started
 
@@ -31,11 +32,9 @@ pip install tilus
 
 ### Usage
 
-To get started, refer to the [tutorials](https://nvidia.github.io/tilus/getting-started/tutorials/__init__.html) to learn how to program kernels with Tilus.
+To get started, follow the [Blackwell matmul tutorials](https://nvidia.github.io/tilus/stable/tutorials/matmul-blackwell/__init__.html) to learn how to build a high-performance GPU kernel step by step with Tilus.
 
-You can also check more [examples](https://github.com/NVIDIA/tilus/tree/main/examples) of using Tilus.
-
-You can learn more on different topics in the [programming guide](https://nvidia.github.io/tilus/programming-guides/overview.html).
+You can also check more [examples](https://github.com/NVIDIA/tilus/tree/main/examples) and learn about different topics in the [programming guide](https://nvidia.github.io/tilus/stable/programming-guides/overview.html).
 
 ## Research
 This project is based on the following research paper:
