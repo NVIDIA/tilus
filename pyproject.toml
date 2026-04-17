@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 license = "Apache-2.0"
 keywords = ["GPU", "Compiler", "CUDA", "hidet", "tensor", "torch"]
 authors = [
-    { name = "Hidet Team" }
+    { name = "Tilus Team" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
