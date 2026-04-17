@@ -249,6 +249,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.assign.html">Script.assign</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.cast.html">Script.cast</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.clip.html">Script.clip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.cos.html">Script.cos</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
@@ -270,6 +271,10 @@
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.min.html">Script.min</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.print_tensor.html">Script.print_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.printf.html">Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.rand.html">Script.rand</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.randint.html">Script.randint</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.randint4x.html">Script.randint4x</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.randn.html">Script.randn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.register_tensor.html">Script.register_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.repeat.html">Script.repeat</a></li>
@@ -278,6 +283,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.square.html">Script.square</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
@@ -614,11 +620,12 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-copy-sm80">4.1.3. Asynchronous Copy (SM80+)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-algebra">4.1.4. Linear Algebra</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#elementwise-arithmetic">4.1.5. Elementwise Arithmetic</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.1.6. Reduction</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.7. Transform</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.8. Synchronization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#atomic-and-semaphore">4.1.9. Atomic and Semaphore</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.10. Miscellaneous</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#random-number-generation">4.1.6. Random Number Generation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.1.7. Reduction</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.8. Transform</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.9. Synchronization</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#atomic-and-semaphore">4.1.10. Atomic and Semaphore</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.11. Miscellaneous</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instruction-groups">4.2. Instruction Groups</a><ul class="nav section-nav flex-column">
@@ -763,23 +770,29 @@ support NumPy-style broadcasting.</p>
 <tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.clip.html#tilus.Script.clip" title="tilus.Script.clip"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clip</span></code></a>(x, min, max, *[, out])</p></td>
 <td><p>Clip element values to the range [min, max].</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.exp.html#tilus.Script.exp" title="tilus.Script.exp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp</span></code></a>(x, *[, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.cos.html#tilus.Script.cos" title="tilus.Script.cos"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cos</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the element-wise cosine.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.exp.html#tilus.Script.exp" title="tilus.Script.exp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise natural exponential (e^x).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.exp2.html#tilus.Script.exp2" title="tilus.Script.exp2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp2</span></code></a>(x, *[, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.exp2.html#tilus.Script.exp2" title="tilus.Script.exp2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp2</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise base-2 exponential (2^x).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.log.html#tilus.Script.log" title="tilus.Script.log"><code class="xref py py-obj docutils literal notranslate"><span class="pre">log</span></code></a>(x, *[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.log.html#tilus.Script.log" title="tilus.Script.log"><code class="xref py py-obj docutils literal notranslate"><span class="pre">log</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise natural logarithm (ln x).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.maximum.html#tilus.Script.maximum" title="tilus.Script.maximum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">maximum</span></code></a>(lhs, rhs[, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.maximum.html#tilus.Script.maximum" title="tilus.Script.maximum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">maximum</span></code></a>(lhs, rhs[, out])</p></td>
 <td><p>Element-wise maximum with broadcasting.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.round.html#tilus.Script.round" title="tilus.Script.round"><code class="xref py py-obj docutils literal notranslate"><span class="pre">round</span></code></a>(x, *[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.round.html#tilus.Script.round" title="tilus.Script.round"><code class="xref py py-obj docutils literal notranslate"><span class="pre">round</span></code></a>(x, *[, out])</p></td>
 <td><p>Round each element to the nearest integer (round-to-nearest-even).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.rsqrt.html#tilus.Script.rsqrt" title="tilus.Script.rsqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rsqrt</span></code></a>(x, *[, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.rsqrt.html#tilus.Script.rsqrt" title="tilus.Script.rsqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rsqrt</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise reciprocal square root (1/sqrt(x)).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.sin.html#tilus.Script.sin" title="tilus.Script.sin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sin</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the element-wise sine.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.sqrt.html#tilus.Script.sqrt" title="tilus.Script.sqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sqrt</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise square root.</p></td>
@@ -794,8 +807,32 @@ support NumPy-style broadcasting.</p>
 </table>
 </div>
 </section>
+<section id="random-number-generation">
+<h3><span class="section-number">4.1.6. </span>Random Number Generation<a class="headerlink" href="#random-number-generation" title="Link to this heading"><span>¶</span></a></h3>
+<p>Generate pseudo-random numbers using the Philox-4x32-10 counter-based PRNG. Given a seed (uint64
+scalar) and an offset tensor (uint32), each element produces independent random values.
+<code class="docutils literal notranslate"><span class="pre">randint4x</span></code> is the most efficient entry point, returning all four Philox outputs per invocation.
+<code class="docutils literal notranslate"><span class="pre">rand</span></code> and <code class="docutils literal notranslate"><span class="pre">randn</span></code> build on top to provide uniform and normal distributions respectively.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.rand.html#tilus.Script.rand" title="tilus.Script.rand"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rand</span></code></a>(seed, offset[, n_rounds])</p></td>
+<td><p>Generate a block of random float32 in U(0, 1) using Philox-4x32 PRNG.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.randint.html#tilus.Script.randint" title="tilus.Script.randint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">randint</span></code></a>(seed, offset[, n_rounds])</p></td>
+<td><p>Generate a block of random int32 using Philox-4x32 PRNG.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.randint4x.html#tilus.Script.randint4x" title="tilus.Script.randint4x"><code class="xref py py-obj docutils literal notranslate"><span class="pre">randint4x</span></code></a>(seed, offset[, n_rounds])</p></td>
+<td><p>Generate four blocks of random int32 using Philox-4x32 PRNG.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.randn.html#tilus.Script.randn" title="tilus.Script.randn"><code class="xref py py-obj docutils literal notranslate"><span class="pre">randn</span></code></a>(seed, offset[, n_rounds])</p></td>
+<td><p>Generate a block of random float32 in N(0, 1) using Philox-4x32 PRNG.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="reduction">
-<h3><span class="section-number">4.1.6. </span>Reduction<a class="headerlink" href="#reduction" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.7. </span>Reduction<a class="headerlink" href="#reduction" title="Link to this heading"><span>¶</span></a></h3>
 <p>Reduce a register tensor along one or more dimensions. Each reduction supports <code class="docutils literal notranslate"><span class="pre">dim</span></code> to specify
 which dimensions to reduce, <code class="docutils literal notranslate"><span class="pre">keepdim</span></code> to preserve the reduced dimension with size 1, and <code class="docutils literal notranslate"><span class="pre">out</span></code>
 for in-place output.</p>
@@ -821,7 +858,7 @@ for in-place output.</p>
 </div>
 </section>
 <section id="transform">
-<h3><span class="section-number">4.1.7. </span>Transform<a class="headerlink" href="#transform" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.8. </span>Transform<a class="headerlink" href="#transform" title="Link to this heading"><span>¶</span></a></h3>
 <p>Reshape, reinterpret, or rearrange register tensor data without changing the underlying values.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
@@ -854,7 +891,7 @@ for in-place output.</p>
 </div>
 </section>
 <section id="synchronization">
-<h3><span class="section-number">4.1.8. </span>Synchronization<a class="headerlink" href="#synchronization" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.9. </span>Synchronization<a class="headerlink" href="#synchronization" title="Link to this heading"><span>¶</span></a></h3>
 <p>Synchronize threads within a block or across a cluster. <code class="docutils literal notranslate"><span class="pre">sync</span></code> is the block-level barrier
 (equivalent to <code class="docutils literal notranslate"><span class="pre">__syncthreads()</span></code>). For cluster-wide synchronization, use <code class="docutils literal notranslate"><span class="pre">self.cluster.sync()</span></code>.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
@@ -867,7 +904,7 @@ for in-place output.</p>
 </div>
 </section>
 <section id="atomic-and-semaphore">
-<h3><span class="section-number">4.1.9. </span>Atomic and Semaphore<a class="headerlink" href="#atomic-and-semaphore" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.10. </span>Atomic and Semaphore<a class="headerlink" href="#atomic-and-semaphore" title="Link to this heading"><span>¶</span></a></h3>
 <p>Inter-block synchronization using global memory semaphores. <code class="docutils literal notranslate"><span class="pre">lock_semaphore</span></code> spins until the
 semaphore reaches a target value; <code class="docutils literal notranslate"><span class="pre">release_semaphore</span></code> sets it to signal other blocks. Both
 must be called from a single thread (<code class="docutils literal notranslate"><span class="pre">self.single_thread()</span></code>).</p>
@@ -884,7 +921,7 @@ must be called from a single thread (<code class="docutils literal notranslate">
 </div>
 </section>
 <section id="miscellaneous">
-<h3><span class="section-number">4.1.10. </span>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.11. </span>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Link to this heading"><span>¶</span></a></h3>
 <p>Compiler hints, debugging aids, and layout annotations.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
@@ -1151,11 +1188,12 @@ take over the canceled cluster’s work. See <a class="reference internal" href=
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#asynchronous-copy-sm80">4.1.3. Asynchronous Copy (SM80+)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#linear-algebra">4.1.4. Linear Algebra</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#elementwise-arithmetic">4.1.5. Elementwise Arithmetic</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.1.6. Reduction</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.7. Transform</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.8. Synchronization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#atomic-and-semaphore">4.1.9. Atomic and Semaphore</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.10. Miscellaneous</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#random-number-generation">4.1.6. Random Number Generation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.1.7. Reduction</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.8. Transform</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.9. Synchronization</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#atomic-and-semaphore">4.1.10. Atomic and Semaphore</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.11. Miscellaneous</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instruction-groups">4.2. Instruction Groups</a><ul class="nav section-nav flex-column">

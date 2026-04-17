@@ -249,6 +249,7 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.assign.html">Script.assign</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.cast.html">Script.cast</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.clip.html">Script.clip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.cos.html">Script.cos</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
@@ -270,6 +271,10 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.min.html">Script.min</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.print_tensor.html">Script.print_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.printf.html">Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.rand.html">Script.rand</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.randint.html">Script.randint</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.randint4x.html">Script.randint4x</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.randn.html">Script.randn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.register_tensor.html">Script.register_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.repeat.html">Script.repeat</a></li>
@@ -278,6 +283,7 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.square.html">Script.square</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
@@ -733,92 +739,110 @@ including memory accesses, computations, and any other operations that need to b
 <tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.clip.html#tilus.Script.clip" title="tilus.Script.clip"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clip</span></code></a>(x, min, max, *[, out])</p></td>
 <td><p>Clip element values to the range [min, max].</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async</span></code></a>(src, dst, offsets[, dims, evict, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.cos.html#tilus.Script.cos" title="tilus.Script.cos"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cos</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the element-wise cosine.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.copy_async.html#tilus.Script.copy_async" title="tilus.Script.copy_async"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async</span></code></a>(src, dst, offsets[, dims, evict, ...])</p></td>
 <td><p>Asynchronously copy a tile from global memory to shared memory.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.copy_async_commit_group.html#tilus.Script.copy_async_commit_group" title="tilus.Script.copy_async_commit_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_commit_group</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.copy_async_commit_group.html#tilus.Script.copy_async_commit_group" title="tilus.Script.copy_async_commit_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_commit_group</span></code></a>()</p></td>
 <td><p>Commit async copies into a group.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all" title="tilus.Script.copy_async_wait_all"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_wait_all</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all" title="tilus.Script.copy_async_wait_all"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_wait_all</span></code></a>()</p></td>
 <td><p>Wait for all copy_async instructions to complete.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.copy_async_wait_group.html#tilus.Script.copy_async_wait_group" title="tilus.Script.copy_async_wait_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_wait_group</span></code></a>(n)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.copy_async_wait_group.html#tilus.Script.copy_async_wait_group" title="tilus.Script.copy_async_wait_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_wait_group</span></code></a>(n)</p></td>
 <td><p>Wait the completion of asynchronous copy groups.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.dot.html#tilus.Script.dot" title="tilus.Script.dot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dot</span></code></a>(a, b[, c, acc_dtype, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.dot.html#tilus.Script.dot" title="tilus.Script.dot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dot</span></code></a>(a, b[, c, acc_dtype, out])</p></td>
 <td><p>Dot product.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.exp.html#tilus.Script.exp" title="tilus.Script.exp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp</span></code></a>(x, *[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.exp.html#tilus.Script.exp" title="tilus.Script.exp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise natural exponential (e^x).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.exp2.html#tilus.Script.exp2" title="tilus.Script.exp2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp2</span></code></a>(x, *[, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.exp2.html#tilus.Script.exp2" title="tilus.Script.exp2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exp2</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise base-2 exponential (2^x).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.fast_divmod.html#tilus.Script.fast_divmod" title="tilus.Script.fast_divmod"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fast_divmod</span></code></a>(a, b)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.fast_divmod.html#tilus.Script.fast_divmod" title="tilus.Script.fast_divmod"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fast_divmod</span></code></a>(a, b)</p></td>
 <td><p>Fast integer division and modulo using precomputed magic multiplier.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.flatten.html#tilus.Script.flatten" title="tilus.Script.flatten"><code class="xref py py-obj docutils literal notranslate"><span class="pre">flatten</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.flatten.html#tilus.Script.flatten" title="tilus.Script.flatten"><code class="xref py py-obj docutils literal notranslate"><span class="pre">flatten</span></code></a>()</p></td>
 <td><p>Flatten a register tensor into a 1-D tensor.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.free_shared.html#tilus.Script.free_shared" title="tilus.Script.free_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">free_shared</span></code></a>(tensor)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.free_shared.html#tilus.Script.free_shared" title="tilus.Script.free_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">free_shared</span></code></a>(tensor)</p></td>
 <td><p>Free a shared tensor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.global_tensor.html#tilus.Script.global_tensor" title="tilus.Script.global_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_tensor</span></code></a>(dtype, shape, *[, layout])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.global_tensor.html#tilus.Script.global_tensor" title="tilus.Script.global_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_tensor</span></code></a>(dtype, shape, *[, layout])</p></td>
 <td><p>Allocate a global tensor.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.global_view.html#tilus.Script.global_view" title="tilus.Script.global_view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_view</span></code></a>(ptr, *, dtype, shape[, strides])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.global_view.html#tilus.Script.global_view" title="tilus.Script.global_view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">global_view</span></code></a>(ptr, *, dtype, shape[, strides])</p></td>
 <td><p>Create a global tensor view.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.load_global.html#tilus.Script.load_global" title="tilus.Script.load_global"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_global</span></code></a>(src, /, *, offsets, shape[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.load_global.html#tilus.Script.load_global" title="tilus.Script.load_global"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_global</span></code></a>(src, /, *, offsets, shape[, ...])</p></td>
 <td><p>Load a slice of global tensor into a register tensor.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.load_shared.html#tilus.Script.load_shared" title="tilus.Script.load_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_shared</span></code></a>(src, *[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.load_shared.html#tilus.Script.load_shared" title="tilus.Script.load_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_shared</span></code></a>(src, *[, out])</p></td>
 <td><p>Load a shared tensor into a register tensor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.lock_semaphore.html#tilus.Script.lock_semaphore" title="tilus.Script.lock_semaphore"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lock_semaphore</span></code></a>(semaphore, value)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.lock_semaphore.html#tilus.Script.lock_semaphore" title="tilus.Script.lock_semaphore"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lock_semaphore</span></code></a>(semaphore, value)</p></td>
 <td><p>Lock semaphore with a specified value.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.log.html#tilus.Script.log" title="tilus.Script.log"><code class="xref py py-obj docutils literal notranslate"><span class="pre">log</span></code></a>(x, *[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.log.html#tilus.Script.log" title="tilus.Script.log"><code class="xref py py-obj docutils literal notranslate"><span class="pre">log</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise natural logarithm (ln x).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.max.html#tilus.Script.max" title="tilus.Script.max"><code class="xref py py-obj docutils literal notranslate"><span class="pre">max</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.max.html#tilus.Script.max" title="tilus.Script.max"><code class="xref py py-obj docutils literal notranslate"><span class="pre">max</span></code></a>(x, *[, dim, keepdim, out])</p></td>
 <td><p>Compute the maximum along the specified dimension(s).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.maximum.html#tilus.Script.maximum" title="tilus.Script.maximum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">maximum</span></code></a>(lhs, rhs[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.maximum.html#tilus.Script.maximum" title="tilus.Script.maximum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">maximum</span></code></a>(lhs, rhs[, out])</p></td>
 <td><p>Element-wise maximum with broadcasting.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.min.html#tilus.Script.min" title="tilus.Script.min"><code class="xref py py-obj docutils literal notranslate"><span class="pre">min</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.min.html#tilus.Script.min" title="tilus.Script.min"><code class="xref py py-obj docutils literal notranslate"><span class="pre">min</span></code></a>(x, *[, dim, keepdim, out])</p></td>
 <td><p>Compute the minimum along the specified dimension(s).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.print_tensor.html#tilus.Script.print_tensor" title="tilus.Script.print_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">print_tensor</span></code></a>(msg, tensor[, fmt])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.print_tensor.html#tilus.Script.print_tensor" title="tilus.Script.print_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">print_tensor</span></code></a>(msg, tensor[, fmt])</p></td>
 <td><p>Print a tensor with a message.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.printf.html#tilus.Script.printf" title="tilus.Script.printf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">printf</span></code></a>(fstring, *args)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.printf.html#tilus.Script.printf" title="tilus.Script.printf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">printf</span></code></a>(fstring, *args)</p></td>
 <td><p>Print a formatted string.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.register_tensor.html#tilus.Script.register_tensor" title="tilus.Script.register_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register_tensor</span></code></a>(*, dtype, shape[, init])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.rand.html#tilus.Script.rand" title="tilus.Script.rand"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rand</span></code></a>(seed, offset[, n_rounds])</p></td>
+<td><p>Generate a block of random float32 in U(0, 1) using Philox-4x32 PRNG.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.randint.html#tilus.Script.randint" title="tilus.Script.randint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">randint</span></code></a>(seed, offset[, n_rounds])</p></td>
+<td><p>Generate a block of random int32 using Philox-4x32 PRNG.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.randint4x.html#tilus.Script.randint4x" title="tilus.Script.randint4x"><code class="xref py py-obj docutils literal notranslate"><span class="pre">randint4x</span></code></a>(seed, offset[, n_rounds])</p></td>
+<td><p>Generate four blocks of random int32 using Philox-4x32 PRNG.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.randn.html#tilus.Script.randn" title="tilus.Script.randn"><code class="xref py py-obj docutils literal notranslate"><span class="pre">randn</span></code></a>(seed, offset[, n_rounds])</p></td>
+<td><p>Generate a block of random float32 in N(0, 1) using Philox-4x32 PRNG.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.register_tensor.html#tilus.Script.register_tensor" title="tilus.Script.register_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register_tensor</span></code></a>(*, dtype, shape[, init])</p></td>
 <td><p>Create a register tensor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.release_semaphore.html#tilus.Script.release_semaphore" title="tilus.Script.release_semaphore"><code class="xref py py-obj docutils literal notranslate"><span class="pre">release_semaphore</span></code></a>(semaphore, value)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.release_semaphore.html#tilus.Script.release_semaphore" title="tilus.Script.release_semaphore"><code class="xref py py-obj docutils literal notranslate"><span class="pre">release_semaphore</span></code></a>(semaphore, value)</p></td>
 <td><p>Release semaphore with a specified value.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.repeat.html#tilus.Script.repeat" title="tilus.Script.repeat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">repeat</span></code></a>(x, repeats, *[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.repeat.html#tilus.Script.repeat" title="tilus.Script.repeat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">repeat</span></code></a>(x, repeats, *[, out])</p></td>
 <td><p>Repeat elements of a register tensor along its dimensions.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.repeat_interleave.html#tilus.Script.repeat_interleave" title="tilus.Script.repeat_interleave"><code class="xref py py-obj docutils literal notranslate"><span class="pre">repeat_interleave</span></code></a>(x, repeats, *[, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.repeat_interleave.html#tilus.Script.repeat_interleave" title="tilus.Script.repeat_interleave"><code class="xref py py-obj docutils literal notranslate"><span class="pre">repeat_interleave</span></code></a>(x, repeats, *[, out])</p></td>
 <td><p>Repeat elements of a register tensor along its dimensions.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.reshape_shared.html#tilus.Script.reshape_shared" title="tilus.Script.reshape_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reshape_shared</span></code></a>(tensor, shape)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.reshape_shared.html#tilus.Script.reshape_shared" title="tilus.Script.reshape_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reshape_shared</span></code></a>(tensor, shape)</p></td>
 <td><p>Reshape a shared tensor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.round.html#tilus.Script.round" title="tilus.Script.round"><code class="xref py py-obj docutils literal notranslate"><span class="pre">round</span></code></a>(x, *[, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.round.html#tilus.Script.round" title="tilus.Script.round"><code class="xref py py-obj docutils literal notranslate"><span class="pre">round</span></code></a>(x, *[, out])</p></td>
 <td><p>Round each element to the nearest integer (round-to-nearest-even).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.rsqrt.html#tilus.Script.rsqrt" title="tilus.Script.rsqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rsqrt</span></code></a>(x, *[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.rsqrt.html#tilus.Script.rsqrt" title="tilus.Script.rsqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rsqrt</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise reciprocal square root (1/sqrt(x)).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.shared_tensor.html#tilus.Script.shared_tensor" title="tilus.Script.shared_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shared_tensor</span></code></a>(*, dtype, shape)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.shared_tensor.html#tilus.Script.shared_tensor" title="tilus.Script.shared_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shared_tensor</span></code></a>(*, dtype, shape)</p></td>
 <td><p>Allocate a shared tensor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.sin.html#tilus.Script.sin" title="tilus.Script.sin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sin</span></code></a>(x, *[, out])</p></td>
+<td><p>Compute the element-wise sine.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.sqrt.html#tilus.Script.sqrt" title="tilus.Script.sqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sqrt</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise square root.</p></td>

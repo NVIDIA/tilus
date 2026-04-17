@@ -248,6 +248,7 @@
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.assign.html">Script.assign</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.cast.html">Script.cast</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.clip.html">Script.clip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.cos.html">Script.cos</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
@@ -269,6 +270,10 @@
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.min.html">Script.min</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.print_tensor.html">Script.print_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.printf.html">Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.rand.html">Script.rand</a></li>
+<li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.randint.html">Script.randint</a></li>
+<li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.randint4x.html">Script.randint4x</a></li>
+<li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.randn.html">Script.randn</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.register_tensor.html">Script.register_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.repeat.html">Script.repeat</a></li>
@@ -277,6 +282,7 @@
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.square.html">Script.square</a></li>
 <li class="toctree-l2"><a class="reference internal" href="python-api/generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
@@ -715,10 +721,10 @@ document.write(`
       </ul></li>
       <li><a href="python-api/tilus-ir/generated/tilus.ir.layout.ops.compose.html#tilus.ir.layout.ops.compose">compose() (in module tilus.ir.layout.ops)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python-api/tilus-ir/generated/tilus.ir.layout.ops.concat.html#tilus.ir.layout.ops.concat">concat() (in module tilus.ir.layout.ops)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python-api/tilus-ir/datatype.html#tilus.ir.DataType.constant">constant() (tilus.ir.DataType method)</a>
 </li>
       <li><a href="python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase">consumer_initial_phase (tilus.lang.instructions.mbarrier.BarrierInstructionGroup attribute)</a>
@@ -732,6 +738,8 @@ document.write(`
       <li><a href="python-api/generated/tilus.Script.copy_async_wait_all.html#tilus.Script.copy_async_wait_all">copy_async_wait_all() (tilus.Script method)</a>
 </li>
       <li><a href="python-api/generated/tilus.Script.copy_async_wait_group.html#tilus.Script.copy_async_wait_group">copy_async_wait_group() (tilus.Script method)</a>
+</li>
+      <li><a href="python-api/generated/tilus.Script.cos.html#tilus.Script.cos">cos() (tilus.Script method)</a>
 </li>
       <li><a href="python-api/tilus-ir/global_layout.html#tilus.ir.GlobalLayout.create">create() (tilus.ir.GlobalLayout static method)</a>
 
@@ -977,6 +985,14 @@ document.write(`
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python-api/generated/tilus.Script.rand.html#tilus.Script.rand">rand() (tilus.Script method)</a>
+</li>
+      <li><a href="python-api/generated/tilus.Script.randint.html#tilus.Script.randint">randint() (tilus.Script method)</a>
+</li>
+      <li><a href="python-api/generated/tilus.Script.randint4x.html#tilus.Script.randint4x">randint4x() (tilus.Script method)</a>
+</li>
+      <li><a href="python-api/generated/tilus.Script.randn.html#tilus.Script.randn">randn() (tilus.Script method)</a>
+</li>
       <li><a href="python-api/generated/tilus.Script.range.html#tilus.Script.range">range() (tilus.Script method)</a>
 </li>
       <li><a href="python-api/tilus-ir/generated/tilus.ir.layout.ops.reduce.html#tilus.ir.layout.ops.reduce">reduce() (in module tilus.ir.layout.ops)</a>
@@ -987,12 +1003,12 @@ document.write(`
 </li>
       <li><a href="python-api/tilus-ir/register_layout.html#tilus.ir.RegisterLayout">RegisterLayout (class in tilus.ir)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python-api/tilus-ir/register_tensor.html#tilus.ir.RegisterTensor">RegisterTensor (class in tilus.ir)</a>
 </li>
       <li><a href="python-api/generated/tilus.Script.release_semaphore.html#tilus.Script.release_semaphore">release_semaphore() (tilus.Script method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit">relinquish_alloc_permit() (tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup method)</a>
 </li>
       <li><a href="python-api/generated/tilus.Script.repeat.html#tilus.Script.repeat">repeat() (tilus.Script method)</a>
@@ -1046,6 +1062,8 @@ document.write(`
       <li><a href="python-api/tilus-ir/shared_layout.html#tilus.ir.SharedLayout">SharedLayout (class in tilus.ir)</a>
 </li>
       <li><a href="python-api/tilus-ir/shared_tensor.html#tilus.ir.SharedTensor">SharedTensor (class in tilus.ir)</a>
+</li>
+      <li><a href="python-api/generated/tilus.Script.sin.html#tilus.Script.sin">sin() (tilus.Script method)</a>
 </li>
       <li><a href="python-api/generated/tilus.Script.single_thread.html#tilus.Script.single_thread">single_thread() (tilus.Script method)</a>
 </li>
