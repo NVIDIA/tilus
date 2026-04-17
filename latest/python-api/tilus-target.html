@@ -609,6 +609,7 @@ document.write(`
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#predefined-targets">Predefined Targets</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#feature-suffixes">Feature Suffixes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#usage">Usage</a></li>
 </ul>
             </nav>
@@ -623,8 +624,9 @@ document.write(`
                   
   <section id="tilus-target">
 <h1>tilus.target<a class="headerlink" href="#tilus-target" title="Link to this heading"><span>¶</span></a></h1>
-<p>Tilus automatically detects the GPU at runtime and selects the appropriate compilation target.
-You can query or override the target using the functions below.</p>
+<p>Tilus automatically detects the GPU at runtime and selects the most capable
+compilation target for the installed hardware. You can query or override the
+target using the functions below.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.target.get_current_target.html#tilus.target.get_current_target" title="tilus.target.get_current_target"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tilus.target.get_current_target</span></code></a>()</p></td>
@@ -638,12 +640,13 @@ You can query or override the target using the functions below.</p>
 </div>
 <section id="predefined-targets">
 <h2>Predefined Targets<a class="headerlink" href="#predefined-targets" title="Link to this heading"><span>¶</span></a></h2>
-<p>Each target represents a GPU architecture with its compute capability and feature suffix.
-Tilus uses these to determine which instructions and optimizations are available.</p>
+<p>Each target represents a GPU architecture with its compute capability and
+feature suffix. Tilus uses these to determine which instructions and
+optimizations are available.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <colgroup>
-<col style="width: 35.7%" />
-<col style="width: 21.4%" />
+<col style="width: 42.9%" />
+<col style="width: 14.3%" />
 <col style="width: 42.9%" />
 </colgroup>
 <thead>
@@ -673,35 +676,72 @@ Tilus uses these to determine which instructions and optimizations are available
 <td><p>8.9</p></td>
 <td><p>L4, L40, RTX 4090</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nvgpu_sm90</span></code> / <code class="docutils literal notranslate"><span class="pre">nvgpu_sm90a</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nvgpu_sm90</span></code> / <code class="docutils literal notranslate"><span class="pre">sm90a</span></code></p></td>
 <td><p>9.0</p></td>
 <td><p>H100, H200</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nvgpu_sm100</span></code> / <code class="docutils literal notranslate"><span class="pre">nvgpu_sm100a</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nvgpu_sm100</span></code> / <code class="docutils literal notranslate"><span class="pre">sm100f</span></code> / <code class="docutils literal notranslate"><span class="pre">sm100a</span></code></p></td>
 <td><p>10.0</p></td>
 <td><p>B200, GB200</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nvgpu_sm103</span></code> / <code class="docutils literal notranslate"><span class="pre">sm103f</span></code> / <code class="docutils literal notranslate"><span class="pre">sm103a</span></code></p></td>
+<td><p>10.3</p></td>
+<td><p>GB300</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nvgpu_sm120</span></code> / <code class="docutils literal notranslate"><span class="pre">sm120f</span></code> / <code class="docutils literal notranslate"><span class="pre">sm120a</span></code></p></td>
+<td><p>12.0</p></td>
+<td><p>RTX 5080, RTX 5090</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p><strong>Feature suffixes:</strong></p>
+</section>
+<section id="feature-suffixes">
+<h2>Feature Suffixes<a class="headerlink" href="#feature-suffixes" title="Link to this heading"><span>¶</span></a></h2>
+<p>Starting with SM 9.0, NVIDIA targets can carry a <strong>feature suffix</strong> that
+controls which architecture-conditional features are enabled. Understanding
+the suffixes is important when writing kernels that use advanced hardware
+features (e.g., Tensor Memory, tcgen05 MMA, TMA).</p>
+<p><strong>No suffix:</strong>
+The base architecture (e.g., <code class="docutils literal notranslate"><span class="pre">sm_100</span></code>). Only instructions guaranteed on
+<em>every</em> chip with that compute capability are available. Use this when you
+only need baseline capabilities and want maximum hardware compatibility.</p>
+<p><strong>`a` (architecture-specific):</strong>
+The full-featured variant for that exact architecture (e.g., <code class="docutils literal notranslate"><span class="pre">sm_100a</span></code>).
+Enables all architecture-conditional features, such as Tensor Memory
+allocation modes, tcgen05 Tensor Core operations, and special TMA behaviors.
+Use this when you want every available hardware feature and are targeting a
+specific GPU.</p>
+<p><strong>`f` (family-portable):</strong>
+The family-profile variant (e.g., <code class="docutils literal notranslate"><span class="pre">sm_100f</span></code>). Enables features that are
+portable across all implementations within the same SM family. A feature
+supported on <code class="docutils literal notranslate"><span class="pre">sm_100f</span></code> is guaranteed on any chip in the <code class="docutils literal notranslate"><span class="pre">sm_100</span></code> family
+that advertises <code class="docutils literal notranslate"><span class="pre">f</span></code>-level support. Use this when you want advanced features
+with portability across family variants.</p>
+<p>The compatibility relationship is:</p>
 <ul class="simple">
-<li><p>No suffix: base architecture (instructions available on all chips with that SM version)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">a</span></code>: architecture-specific (e.g., <code class="docutils literal notranslate"><span class="pre">sm_90a</span></code> for Hopper-only features like WGMMA)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">f</span></code>: family variant</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sm_100a</span></code> supports everything in <code class="docutils literal notranslate"><span class="pre">sm_100f</span></code> and <code class="docutils literal notranslate"><span class="pre">sm_100</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sm_100f</span></code> supports everything in <code class="docutils literal notranslate"><span class="pre">sm_100</span></code>, but not <code class="docutils literal notranslate"><span class="pre">sm_100a</span></code>-only features.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sm_100</span></code> supports only baseline features.</p></li>
 </ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When Tilus auto-detects the target, it picks the most capable variant
+available: <code class="docutils literal notranslate"><span class="pre">a</span></code> first, then <code class="docutils literal notranslate"><span class="pre">f</span></code>, then the base. For example, on a B200
+GPU (SM 10.0), Tilus selects <code class="docutils literal notranslate"><span class="pre">nvgpu_sm100a</span></code>.</p>
+</div>
 </section>
 <section id="usage">
 <h2>Usage<a class="headerlink" href="#usage" title="Link to this heading"><span>¶</span></a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">tilus</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.target</span><span class="w"> </span><span class="kn">import</span> <span class="n">set_current_target</span><span class="p">,</span> <span class="n">nvgpu_sm90a</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.target</span><span class="w"> </span><span class="kn">import</span> <span class="n">set_current_target</span><span class="p">,</span> <span class="n">nvgpu_sm100a</span>
 
 <span class="c1"># Query the auto-detected target</span>
 <span class="n">target</span> <span class="o">=</span> <span class="n">tilus</span><span class="o">.</span><span class="n">get_current_target</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>  <span class="c1"># e.g., nvgpu/sm90a</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>  <span class="c1"># e.g., nvgpu/sm100a</span>
 
 <span class="c1"># Override the target (e.g., for cross-compilation)</span>
-<span class="n">set_current_target</span><span class="p">(</span><span class="n">nvgpu_sm90a</span><span class="p">)</span>
+<span class="n">set_current_target</span><span class="p">(</span><span class="n">nvgpu_sm100a</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -753,6 +793,7 @@ Tilus uses these to determine which instructions and optimizations are available
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#predefined-targets">Predefined Targets</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#feature-suffixes">Feature Suffixes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#usage">Usage</a></li>
 </ul>
   </nav></div>

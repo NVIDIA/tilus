@@ -647,6 +647,11 @@ versions), but it establishes the foundation for everything that follows.</p>
 <h2>The Full Kernel<a class="headerlink" href="#the-full-kernel" title="Link to this heading"><span>¶</span></a></h2>
 <p>Before diving into the details, here is the complete kernel so you can see the
 big picture. We will explain each part in the sections that follow.</p>
+<div class="margin admonition hint">
+<p class="admonition-title">Hint</p>
+<p>To view the generated CUDA source code, check the cache directory.
+See <a class="reference internal" href="../../programming-guides/cache.html"><span class="doc">Cache</span></a> for details.</p>
+</div>
 <div class="literal-block-wrapper docutils container" id="id1">
 <div class="code-block-caption"><span class="caption-text">BlackwellMatmulV0 — full kernel</span><a class="headerlink" href="#id1" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_m, block_n&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">]])</span>

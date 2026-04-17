@@ -1250,11 +1250,46 @@ document.write(`
 <a class="viewcode-back" href="../../../python-api/tilus-ir/tmemory_tensor.html#tilus.ir.TMemoryTensor">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eq</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">TMemoryTensor</span><span class="p">(</span><span class="n">Tensor</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A tensor that resides in tensor memory (TMEM).</span>
+
+<span class="sd">    Tensor memory is a dedicated on-chip memory available on Blackwell (SM 10.0+) GPUs, private to the SM&#39;s tensor</span>
+<span class="sd">    cores. It is organized as a 2D structure of lanes (rows) and columns, with each cell being 32 bits. The number</span>
+<span class="sd">    of lanes (``shape[-2]``) must be 32, 64, or 128.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dtype: DataType</span>
+<span class="sd">        The data type of the tensor elements.</span>
+<span class="sd">    shape: tuple[int, ...]</span>
+<span class="sd">        The shape of the tensor. Must have at least 2 dimensions. The second-to-last dimension (lanes) must be</span>
+<span class="sd">        32, 64, or 128.</span>
+<span class="sd">    optional_layout: TMemoryLayout, optional</span>
+<span class="sd">        The layout of the tensor, which is optional. When not provided, the layout will be automatically inferred</span>
+<span class="sd">        with compiler pass.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
     <span class="n">optional_layout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TMemoryLayout</span><span class="p">]</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span><span class="n">dtype</span><span class="p">:</span> <span class="n">DataType</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">optional_layout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TMemoryLayout</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TMemoryTensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a TMemoryTensor with the given dtype, shape, and optional layout.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        dtype: DataType</span>
+<span class="sd">            The data type of the tensor elements.</span>
+<span class="sd">        shape: Sequence[int]</span>
+<span class="sd">            The shape of the tensor. Must have at least 2 dimensions, with the second-to-last</span>
+<span class="sd">            dimension (lanes) being 32, 64, or 128.</span>
+<span class="sd">        optional_layout: TMemoryLayout, optional</span>
+<span class="sd">            The layout of the tensor. If not provided, the layout will be inferred later.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ret: TMemoryTensor</span>
+<span class="sd">            The created TMemoryTensor instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;TMemoryTensor requires at least 2 dimensions, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)))</span>
         <span class="k">if</span> <span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">):</span>
@@ -1267,14 +1302,45 @@ document.write(`
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">layout</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TMemoryLayout</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the layout of the TMemoryTensor.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ret: TMemoryLayout</span>
+<span class="sd">            The layout of the TMemoryTensor.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the TMemoryTensor does not have a layout defined.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_layout</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;TMemoryTensor does not have a layout defined.&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_layout</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">has_layout</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the TMemoryTensor has a layout defined.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ret: bool</span>
+<span class="sd">            True if the TMemoryTensor has a layout defined, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">optional_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">with_layout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layout</span><span class="p">:</span> <span class="n">TMemoryLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TMemoryTensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new TMemoryTensor with the given layout.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        layout: TMemoryLayout</span>
+<span class="sd">            The layout to be used for the new TMemoryTensor.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ret: TMemoryTensor</span>
+<span class="sd">            A new TMemoryTensor instance with the specified layout.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">same_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Shape mismatch: provided shape </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> does not match layout shape </span><span class="si">{</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optional_layout</span><span class="o">=</span><span class="n">layout</span><span class="p">)</span>

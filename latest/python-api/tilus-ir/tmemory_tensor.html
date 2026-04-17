@@ -608,7 +608,13 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor.dtype"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor.dtype</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor.shape"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor.shape</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor.optional_layout"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor.optional_layout</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor.layout"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor.layout</span></code></a></li>
+</ul>
+</li>
 </ul>
             </nav>
         </div>
@@ -625,7 +631,62 @@ document.write(`
 <dl class="py class">
 <dt class="sig sig-object py" id="tilus.ir.tensor.TMemoryTensor">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">tilus.ir.tensor.</span></span><span class="sig-name descname"><span class="pre">TMemoryTensor</span></span><a class="reference internal" href="../../_modules/tilus/ir/tensor.html#TMemoryTensor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tilus.ir.tensor.TMemoryTensor" title="Link to this definition"><span>¶</span></a></dt>
-<dd><p>TMemoryTensor(dtype: ‘DataType’, shape: ‘tuple[int, …]’, optional_layout: ‘Optional[TMemoryLayout]’)</p>
+<dd><p>A tensor that resides in tensor memory (TMEM).</p>
+<p>Tensor memory is a dedicated on-chip memory available on Blackwell (SM 10.0+) GPUs, private to the SM’s tensor
+cores. It is organized as a 2D structure of lanes (rows) and columns, with each cell being 32 bits. The number
+of lanes (<code class="docutils literal notranslate"><span class="pre">shape[-2]</span></code>) must be 32, 64, or 128.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="tilus.ir.tensor.TMemoryTensor.dtype">
+<span class="sig-name descname"><span class="pre">dtype</span></span><a class="headerlink" href="#tilus.ir.tensor.TMemoryTensor.dtype" title="Link to this definition"><span>¶</span></a></dt>
+<dd><p>The data type of the tensor elements.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="datatype.html#tilus.ir.DataType" title="tilus.ir.DataType">DataType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="tilus.ir.tensor.TMemoryTensor.shape">
+<span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#tilus.ir.tensor.TMemoryTensor.shape" title="Link to this definition"><span>¶</span></a></dt>
+<dd><p>The shape of the tensor. Must have at least 2 dimensions. The second-to-last dimension (lanes) must be
+32, 64, or 128.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int, …]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="tilus.ir.tensor.TMemoryTensor.optional_layout">
+<span class="sig-name descname"><span class="pre">optional_layout</span></span><a class="headerlink" href="#tilus.ir.tensor.TMemoryTensor.optional_layout" title="Link to this definition"><span>¶</span></a></dt>
+<dd><p>The layout of the tensor, which is optional. When not provided, the layout will be automatically inferred
+with compiler pass.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>TMemoryLayout, optional</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="tilus.ir.tensor.TMemoryTensor.layout">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">layout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">TMemoryLayout</span></em><a class="headerlink" href="#tilus.ir.tensor.TMemoryTensor.layout" title="Link to this definition"><span>¶</span></a></dt>
+<dd><p>Get the layout of the TMemoryTensor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ret</strong> – The layout of the TMemoryTensor.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>TMemoryLayout</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If the TMemoryTensor does not have a layout defined.</p>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 </section>
@@ -675,7 +736,13 @@ document.write(`
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor.dtype"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor.dtype</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor.shape"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor.shape</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor.optional_layout"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor.optional_layout</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tilus.ir.tensor.TMemoryTensor.layout"><code class="docutils literal notranslate"><span class="pre">TMemoryTensor.layout</span></code></a></li>
+</ul>
+</li>
 </ul>
   </nav></div>
 
