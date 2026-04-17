@@ -657,11 +657,46 @@ class SharedTensor(Tensor):
 
 @dataclass(frozen=True, eq=False)
 class TMemoryTensor(Tensor):
+    """A tensor that resides in tensor memory (TMEM).
+
+    Tensor memory is a dedicated on-chip memory available on Blackwell (SM 10.0+) GPUs, private to the SM's tensor
+    cores. It is organized as a 2D structure of lanes (rows) and columns, with each cell being 32 bits. The number
+    of lanes (``shape[-2]``) must be 32, 64, or 128.
+
+    Attributes
+    ----------
+    dtype: DataType
+        The data type of the tensor elements.
+    shape: tuple[int, ...]
+        The shape of the tensor. Must have at least 2 dimensions. The second-to-last dimension (lanes) must be
+        32, 64, or 128.
+    optional_layout: TMemoryLayout, optional
+        The layout of the tensor, which is optional. When not provided, the layout will be automatically inferred
+        with compiler pass.
+    """
+
     shape: tuple[int, ...]
     optional_layout: Optional[TMemoryLayout]
 
     @staticmethod
     def create(dtype: DataType, shape: Sequence[int], optional_layout: Optional[TMemoryLayout] = None) -> TMemoryTensor:
+        """Create a TMemoryTensor with the given dtype, shape, and optional layout.
+
+        Parameters
+        ----------
+        dtype: DataType
+            The data type of the tensor elements.
+        shape: Sequence[int]
+            The shape of the tensor. Must have at least 2 dimensions, with the second-to-last
+            dimension (lanes) being 32, 64, or 128.
+        optional_layout: TMemoryLayout, optional
+            The layout of the tensor. If not provided, the layout will be inferred later.
+
+        Returns
+        -------
+        ret: TMemoryTensor
+            The created TMemoryTensor instance.
+        """
         if len(shape) < 2:
             raise ValueError("TMemoryTensor requires at least 2 dimensions, got {}".format(len(shape)))
         if shape[-2] not in (32, 64, 128):
@@ -674,14 +709,45 @@ class TMemoryTensor(Tensor):
 
     @property
     def layout(self) -> TMemoryLayout:
+        """Get the layout of the TMemoryTensor.
+
+        Returns
+        -------
+        ret: TMemoryLayout
+            The layout of the TMemoryTensor.
+
+        Raises
+        ------
+        ValueError
+            If the TMemoryTensor does not have a layout defined.
+        """
         if self.optional_layout is None:
             raise ValueError("TMemoryTensor does not have a layout defined.")
         return self.optional_layout
 
     def has_layout(self) -> bool:
+        """Check if the TMemoryTensor has a layout defined.
+
+        Returns
+        -------
+        ret: bool
+            True if the TMemoryTensor has a layout defined, False otherwise.
+        """
         return self.optional_layout is not None
 
     def with_layout(self, layout: TMemoryLayout) -> TMemoryTensor:
+        """Create a new TMemoryTensor with the given layout.
+
+        Parameters
+        ----------
+        layout: TMemoryLayout
+            The layout to be used for the new TMemoryTensor.
+
+        Returns
+        -------
+        ret: TMemoryTensor
+            A new TMemoryTensor instance with the specified layout.
+        """
         if not same_list(self.shape, layout.shape):
             raise ValueError(f"Shape mismatch: provided shape {self.shape} does not match layout shape {layout.shape}.")
         return dataclasses.replace(self, optional_layout=layout)

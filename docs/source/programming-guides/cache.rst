@@ -1,72 +1,87 @@
 Cache
 =====
 
-Tilus caches the results of compilation to speed up subsequent calls to the same tilus script. By default, tilus stores
-the cache under the **default cache directory**: ``~/.cache/tilus``.
+Tilus caches compiled kernels so that subsequent calls to the same script skip
+compilation. By default, the cache is stored under ``.cache/`` in the root of
+the current Git repository. If Tilus is used outside a Git repository, the
+default falls back to ``~/.cache/tilus``.
 
-You can change the cache directory by calling the :py:func:`tilus.option.cache_dir`
-function.
+You can override the cache directory with :func:`tilus.option.cache_dir`:
 
-Get the generated CUDA kernel
------------------------------
+.. code-block:: python
 
-A convenient way to get the generated CUDA kernel is to change the cache directory of tilus to the current working directory:
+    import tilus
+    tilus.option.cache_dir('./my-cache')
+
+The cache directory can be safely deleted at any time --- Tilus will simply
+recompile on the next run.
+
+
+Viewing the Generated CUDA Kernel
+----------------------------------
+
+To inspect the generated CUDA source for a kernel, set the cache directory and
+run your program:
 
 .. code-block:: python
 
     import tilus
     tilus.option.cache_dir('./cache')
 
-    <your program>
+    # ... your program ...
 
-This will store the generated CUDA kernel in the ``./cache`` directory, and you can find the generated cuda kernels.
+After execution, the generated CUDA source can be found at::
 
-If you are interested in the compilation process, you can also enable the debug mode to dump the
-intermediate representations (IRs) via the :py:func:`tilus.option.debug.dump_ir` function.
+    cache/programs/<program-hash>/module/source.cu
+
+
+Dumping Intermediate Representations
+------------------------------------
+
+To inspect the intermediate representations (IRs) produced during compilation,
+enable :func:`tilus.option.debug.dump_ir`:
 
 .. code-block:: python
 
     import tilus
-
     tilus.option.cache_dir('./cache')
-    tilus.option.debug.dump_ir(True)
+    tilus.option.debug.dump_ir()
 
-    <your program>
+    # ... your program ...
+
+This writes the IR after each compiler pass into the cache directory:
+
+- ``cache/programs/<program-hash>/ir/`` --- Tilus IR after each pass
+- ``cache/programs/<program-hash>/module/ir/`` --- Hidet IR after each pass
+
 
 Cache Structure
 ---------------
 
-The cache directory contains the following structure (only show the important parts):
+::
 
-- **cache/**
+    cache/
+    ├── scripts/                              # one entry per tilus script
+    │   └── <script-name>/                    # class name, in snake_case
+    │       └── <script-hash>/
+    │           ├── programs/
+    │           │   ├── 0 -> ../../programs/…  # symlink to the 1st schedule
+    │           │   ├── 1 -> ../../programs/…  # symlink to the 2nd schedule
+    │           │   └── ...
+    │           └── dispatch_table.txt         # maps dynamic input sizes to programs
+    │
+    └── programs/                             # one entry per compiled program
+        └── <program-hash>/                   # hex256 hash of program.txt + options.txt
+            ├── program.txt                   # human-readable Tilus program
+            ├── options.txt                   # compilation options
+            ├── ir/                           # Tilus IR dumps (when dump_ir is enabled)
+            └── module/
+                ├── ir/                       # Hidet IR dumps (when dump_ir is enabled)
+                ├── source.cu                 # generated CUDA source
+                ├── compile.sh                # nvcc compilation command
+                └── lib.so                    # compiled shared library
 
-  - **scripts/**: compilation results for all tilus scripts
-
-    - **<script-name>/**: name of your tilus script class, converted to snake case
-
-      - **<script-hash>/**
-
-        - **programs/**: programs for each schedule
-
-          - **0** a soft link to a program directory for the **first** schedule
-          - **1** a soft link to a program directory for the **second** schedule
-          - ...
-
-        - **dispatch_table.txt** dispatch table from dynamic input size to program id
-
-  - **programs/** compilation results for all tilus programs, each corresponds to a schedule of a tilus script
-
-    - **<program-hash>/**  hex256 hash of the program.txt and options.txt in the directory
-
-      - **ir/** IRs, when dump_ir is enabled
-      - **module/**
-
-        - **ir/**  IRs, when dump_ir is enabled
-        - **compile.sh**  the bash script to compile the source.cu into lib.so
-        - **source.cu**   the source code of the compiled CUDA kernel
-        - **lib.so**  the shared library with the compiled CUDA kernel
-
-      - **program.txt** the program text, which is a human-readable representation of the tilus program
-      - **options.txt** the options used to compile the program
-
-    - ...
+A **script** is a kernel template with a tuning space. Each **program** is a
+concrete instantiation of a script with a specific schedule (tile sizes,
+pipeline depths, etc.). The ``dispatch_table.txt`` records which program to
+use for each combination of dynamic input sizes.

@@ -18,6 +18,12 @@ The Full Kernel
 Before diving into the details, here is the complete kernel so you can see the
 big picture. We will explain each part in the sections that follow.
 
+.. hint::
+   :class: margin
+
+   To view the generated CUDA source code, check the cache directory.
+   See :doc:`/programming-guides/cache` for details.
+
 .. literalinclude:: ../../../../examples/blackwell_matmul/matmul_v0.py
    :language: python
    :start-at: @tilus.autotune
