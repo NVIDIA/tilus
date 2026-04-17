@@ -3,6 +3,11 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os as _os
+import sys as _sys
+
+_sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), "_ext"))
+
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -26,7 +31,17 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx_copybutton",
     "autodocsumm",
+    "matplotlib.sphinxext.plot_directive",
+    "github_link",
 ]
+
+github_link_base_url = "https://github.com/NVIDIA/tilus/blob/main"
+
+plot_include_source = False
+plot_html_show_source_link = False
+plot_html_show_formats = False
+plot_formats = [("svg", 150)]
+plot_basedir = _os.path.dirname(_os.path.abspath(__file__))
 
 autodoc_typehints = "description"
 autoclass_content = "class"

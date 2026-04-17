@@ -1,5 +1,8 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+
+import time
+
 import pandas
 import tilus
 import torch
@@ -119,6 +122,7 @@ def main(bench=True):
                 latency = benchmark_func(func, warmup=5, repeat=100)
                 tflops = 2 * m_size * n_size * k_size / latency * 1e-9
                 rows.append([m_size, n_size, k_size, name, latency, tflops])
+                time.sleep(3)  # sleep 3s to cool down the GPU between runs
 
     if bench:
         df = pandas.DataFrame(rows, columns=headers)

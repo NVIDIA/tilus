@@ -12,16 +12,21 @@ from tilus.utils import benchmark_func, cdiv
 tilus.option.cache_dir("./cache")
 
 
-@tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
+@tilus.autotune(
+    "block_m, block_n, e_block_n", [[128, 64, 16], [128, 128, 16], [128, 256, 16]]
+)
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmulV2(tilus.Script):
-    def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
+    def __init__(
+        self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int
+    ):
         super().__init__()
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
         self.stages = stages
+        self.e_block_n = e_block_n
 
     def __call__(
         self,
@@ -50,11 +55,11 @@ class BlackwellMatmulV2(tilus.Script):
 
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
-        # one TMA barrier per stage; each tracks its own phase independently
+        # one TMA barrier per stage
         tma_barriers = self.mbarrier.alloc(counts=[1 for _ in range(self.stages)])
         mma_barrier = self.mbarrier.alloc(counts=1)
-        # per-stage phase tracking via register tensor
-        tma_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=0)
+        # per-role phase: tracks the expected phase for the next wait
+        tma_phase: uint32 = 0
         mma_phase: uint32 = 0
 
         # prefill: issue TMA loads for the first (stages - 1) tiles without waiting
@@ -109,7 +114,7 @@ class BlackwellMatmulV2(tilus.Script):
                 # wait for the current stage's TMA data to arrive
                 self.mbarrier.wait(
                     tma_barriers[current_stage],
-                    phase=tma_phases[current_stage].item(),
+                    phase=tma_phase,
                     sem="relaxed",
                     scope="cta",
                 )
@@ -125,17 +130,38 @@ class BlackwellMatmulV2(tilus.Script):
                     mma_barrier, phase=mma_phase, sem="relaxed", scope="cta"
                 )
 
-            # advance stage indices (ring buffer)
-            tma_phases[current_stage] ^= 1
-            mma_phase ^= 1
+            # advance stage indices (ring buffer); flip phase when wrapping to stage 0
             preload_stage = (preload_stage + 1) % self.stages
             current_stage = (current_stage + 1) % self.stages
+            tma_phase ^= current_stage == 0
+            mma_phase ^= 1
             self.sync()
 
-        r_acc = self.tcgen05.load(t_acc)
-
+        # TMA epilogue: tmem -> register -> shared -> global (via TMA)
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
-        self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
+        s_c = self.shared_tensor(dtype=float16, shape=[self.block_m, self.e_block_n])
+        for e_offset_n in range(0, self.block_n, self.e_block_n):
+            t_acc_slice = self.tcgen05.slice(
+                t_acc,
+                offsets=[0, e_offset_n],
+                shape=[self.block_m, self.e_block_n],
+                dims=[0, 1],
+            )
+            r_acc = self.tcgen05.load(t_acc_slice)
+            self.tcgen05.wait_load()
+            self.store_shared(s_c, r_acc.to(float16))
+            self.fence.proxy_async(space="shared")
+            self.sync()
+            with self.single_warp():
+                self.tma.shared_to_global(
+                    s_c,
+                    g_c,
+                    offsets=[offset_m, offset_n + e_offset_n],
+                    dims=[0, 1],
+                )
+                self.tma.commit_group()
+                self.tma.wait_group(n=0, read=True)
+            self.sync()
 
         self.sync()
         self.tcgen05.dealloc(t_acc)

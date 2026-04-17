@@ -615,6 +615,7 @@ class SharedTensor(Tensor):
 
     @property
     def nbytes(self) -> int:
+        """The total size of the tensor in bytes (``size * dtype_bytes``)."""
         return nbytes_from_nbits(self.size * self.dtype.nbits)
 
     @property

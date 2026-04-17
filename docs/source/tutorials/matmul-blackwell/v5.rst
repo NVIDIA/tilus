@@ -83,6 +83,13 @@ What Changed from V4
    * - **Autotuning**
      - ``stages`` (shared for TMA pipeline)
      - ``tma_stages`` + ``mma_stages`` (independent)
+   * - **New instructions**
+     -
+     - :meth:`~tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel`,
+       :meth:`~tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response`,
+       :meth:`~tilus.Script.warp_group`,
+       :meth:`~tilus.Script.single_warp` (with warp index),
+       :meth:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive`
 
 .. |rarr| unicode:: U+2192
 
@@ -139,7 +146,7 @@ Each iteration:
 2. :meth:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx`
    declares that 16 bytes will arrive on the barrier --- this is the size of the
    CLC response that ``try_cancel`` will write to shared memory.
-3. :meth:`clc.try_cancel <tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel>`
+3. :meth:`clc.try_cancel() <tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel>`
    sends the cancellation request to the CLC hardware. The hardware writes the
    16-byte response to ``s_clc_response`` and signals the barrier.
 4. The scheduler itself also consumes the response (via ``query_clc_response``)
@@ -160,7 +167,7 @@ another tile to process and what its block index is, it calls
 
 - ``consumer_acquire`` waits for the current ``clc_pipe`` slot to be filled ---
   i.e., the scheduler has produced a CLC response.
-- :meth:`clc.query_response <tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response>`
+- :meth:`clc.query_response() <tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response>`
   decodes the response to extract ``(is_valid, new_blockIdx)``.
 - :meth:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx`
   on the consumer barrier signals that this warp has finished reading. Once all
@@ -312,7 +319,10 @@ Setup
 
 Key differences from V4:
 
-- ``warps = 8`` (was 4).
+- ``warps = 8`` (was 4). The four warp roles are: TMA (warp 0), MMA (warp 1),
+  scheduler (warp 2), and epilogue (warps 4--7). Warp 3 is intentionally unused
+  --- it acts as a gap between the single-warp roles and the 4-warp epilogue
+  group, whose warps must be contiguous starting at a warp-group-aligned index.
 - ``t_acc`` has an ``mma_stages`` dimension for the MMA pipeline.
 - ``s_clc_response`` is a small shared memory buffer (16 bytes per stage) for
   CLC responses.
@@ -320,7 +330,9 @@ Key differences from V4:
 - ``mma_pipe`` has ``consumer_arrive_count=128`` (4 epilogue warps × 32
   threads).
 - ``clc_pipe`` has ``consumer_arrive_count=224`` (7 consumer warps × 32
-  threads).
+  threads) and only 1 stage: the scheduler produces one response at a time, and
+  all 224 consumer threads must drain it before the next cancellation request can
+  be issued.
 
 
 TMA Warp
@@ -338,6 +350,19 @@ After completing one tile's loads, it queries CLC for the next tile and updates
 the offsets.
 
 
+Performance
+-----------
+
+CLC persistent scheduling eliminates per-tile prologue/epilogue overhead,
+and the pipelined epilogue overlaps write-back with MMA computation.
+The complete source is at :github:`examples/blackwell_matmul/matmul_v5.py`.
+
+.. plot:: tutorials/matmul-blackwell/plots/plot_v5.py
+
+   Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+   from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+   utilization (96.6%).
+
 What's Next
 -----------
 
@@ -348,10 +373,3 @@ accesses are local.
 In :doc:`the next version <v6>`, we introduce **2-CTA clusters** that enable
 **distributed shared memory** and **distributed MMA**, allowing the tensor core
 to read from both CTAs' shared memory and doubling the effective tile size.
-
-
-Full Source
------------
-
-The complete example file is located at
-`examples/blackwell_matmul/matmul_v5.py <https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v5.py>`__.

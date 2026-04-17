@@ -12,16 +12,21 @@ from tilus.utils import benchmark_func, cdiv
 tilus.option.cache_dir("./cache")
 
 
-@tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
+@tilus.autotune(
+    "block_m, block_n, e_block_n", [[128, 64, 16], [128, 128, 16], [128, 256, 16]]
+)
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmulV3(tilus.Script):
-    def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
+    def __init__(
+        self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int
+    ):
         super().__init__()
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
         self.stages = stages
+        self.e_block_n = e_block_n
 
     def __call__(
         self,
@@ -49,25 +54,25 @@ class BlackwellMatmulV3(tilus.Script):
 
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
-        # full_barriers: signaled when data is ready (TMA done)
+        # full_barriers: signaled when TMA has filled the stage (data ready)
         full_barriers = self.mbarrier.alloc(counts=[1] * self.stages)
-        # empty_barriers: signaled when slot is free (MMA done)
+        # empty_barriers: signaled when MMA has consumed the stage (slot free)
         empty_barriers = self.mbarrier.alloc(counts=[1] * self.stages)
 
         # TMA warp (producer): loads tiles from global to shared memory
         with self.thread_group(thread_begin=0, num_threads=32):
             stage: int32 = 0
-            # init=1: all stages start empty (ready to be filled)
-            empty_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=1)
+            # phase=1: mbarrier starts at phase 0, so waiting for phase 1
+            # passes immediately (slot is empty, ready to fill)
+            producer_phase: uint32 = 1
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
                 # wait for the MMA warp to free this stage
                 self.mbarrier.wait(
                     empty_barriers[stage],
-                    phase=empty_phases[stage],
+                    phase=producer_phase,
                     sem="relaxed",
                     scope="cta",
                 )
-                empty_phases[stage] ^= 1
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
                         full_barriers[stage],
@@ -85,31 +90,35 @@ class BlackwellMatmulV3(tilus.Script):
                     offsets=[offset_n, offset_k],
                     mbarrier=full_barriers[stage],
                 )
+                # advance stage; flip phase when wrapping to stage 0
                 stage = (stage + 1) % self.stages
+                producer_phase ^= stage == 0
 
         # MMA warp (consumer): computes on tiles loaded by the TMA warp
         with self.thread_group(thread_begin=32, num_threads=32):
-            # init=0: no stages are full yet (waiting for TMA)
-            full_phases = self.register_tensor(dtype=uint32, shape=[self.stages], init=0)
+            # phase=0: mbarrier starts at phase 0, so waiting for phase 0
+            # blocks until the producer signals (slot is not yet filled)
+            consumer_phase: uint32 = 0
             stage: int32 = 0
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
                 # wait for the TMA warp to fill this stage
                 self.mbarrier.wait(
                     full_barriers[stage],
-                    phase=full_phases[stage],
+                    phase=consumer_phase,
                     sem="relaxed",
                     scope="cta",
                 )
-                full_phases[stage] ^= 1
                 self.tcgen05.mma(
                     s_a[stage],
                     s_b[stage].transpose(),
                     t_acc,
                     enable_input_d=offset_k != 0,
                 )
-                # commit signals empty_barriers: frees this stage for TMA reuse
+                # commit signals empty_barriers: marks this stage as consumed
                 self.tcgen05.commit(mbarrier=empty_barriers[stage])
+                # advance stage; flip phase when wrapping to stage 0
                 stage = (stage + 1) % self.stages
+                consumer_phase ^= stage == 0
 
             # drain: wait for all in-flight MMA to finish
             flush_barrier = self.mbarrier.alloc(1)
@@ -118,10 +127,31 @@ class BlackwellMatmulV3(tilus.Script):
 
         self.sync()
 
-        r_acc = self.tcgen05.load(t_acc)
-
+        # TMA epilogue: tmem -> register -> shared -> global (via TMA)
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
-        self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
+        s_c = self.shared_tensor(dtype=float16, shape=[self.block_m, self.e_block_n])
+        for e_offset_n in range(0, self.block_n, self.e_block_n):
+            t_acc_slice = self.tcgen05.slice(
+                t_acc,
+                offsets=[0, e_offset_n],
+                shape=[self.block_m, self.e_block_n],
+                dims=[0, 1],
+            )
+            r_acc = self.tcgen05.load(t_acc_slice)
+            self.tcgen05.wait_load()
+            self.store_shared(s_c, r_acc.to(float16))
+            self.fence.proxy_async(space="shared")
+            self.sync()
+            with self.single_warp():
+                self.tma.shared_to_global(
+                    s_c,
+                    g_c,
+                    offsets=[offset_m, offset_n + e_offset_n],
+                    dims=[0, 1],
+                )
+                self.tma.commit_group()
+                self.tma.wait_group(n=0, read=True)
+            self.sync()
 
         self.sync()
         self.tcgen05.dealloc(t_acc)

@@ -8,8 +8,8 @@ on Blackwell GPUs. It introduces two key Blackwell features:
 **Tensor Memory and 5th-generation Tensor Cores** (:doc:`tcgen05 </python-api/instruction-groups/tcgen05>`)
 and **asynchronous barriers** (:doc:`mbarrier </python-api/instruction-groups/mbarrier>`).
 
-The kernel is not yet fast --- we will optimize it step by step in later
-versions --- but it establishes the foundation for everything that follows.
+The kernel is not yet fast (we will optimize it step by step in later
+versions), but it establishes the foundation for everything that follows.
 
 
 The Full Kernel
@@ -48,16 +48,18 @@ C. The K dimension is iterated in chunks of ``block_k``.
    shared memory layouts: MN-major or K-major. This tutorial uses K-major (K is
    the contiguous dimension), so A is ``[M, K]`` and B is ``[N, K]``.
    ``tcgen05.mma`` expects logical shapes ``[M, K]`` and ``[K, N]``, which is why
-   we call ``s_b.transpose()`` --- a view operation that reinterprets the layout
+   we call ``s_b.transpose()``, a view operation that reinterprets the layout
    without copying data.
 
 
 Data Flow
 ---------
 
-Unlike Triton where shared memory is managed automatically, tilus gives explicit
-control over data placement --- this is necessary to use Blackwell hardware
-features like TMA and tcgen05. The kernel moves data through four memory levels:
+Triton also uses Blackwell hardware features like TMA and tcgen05, but manages
+them automatically through compiler passes. Tilus opens the black box: you
+control memory placement, data movement, and synchronization directly, which is
+necessary for achieving peak performance. The kernel moves data through four
+memory levels:
 
 .. figure:: figures/v0_data_flow.svg
    :width: 100%
@@ -72,10 +74,10 @@ features like TMA and tcgen05. The kernel moves data through four memory levels:
    legacy async copy mechanism (Ampere-era); we will replace it with the
    hardware **TMA** engine in the next version.
 2. **Shared** |rarr| **Tensor Memory**:
-   :meth:`tcgen05.mma <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
+   :meth:`tcgen05.mma() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
    reads operands from shared memory and accumulates the result in tensor memory.
 3. **Tensor Memory** |rarr| **Register**:
-   :meth:`tcgen05.load <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load>`
+   :meth:`tcgen05.load() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load>`
    moves the accumulated result from tensor memory to registers.
 4. **Register** |rarr| **Global**: :meth:`~tilus.Script.store_global` writes the
    final result back to global memory.
@@ -88,30 +90,32 @@ On pre-Blackwell architectures, MMA results are accumulated in the register
 file, which creates two problems: the accumulator tiles consume a large number of
 registers per thread (e.g., 128 registers just for one Hopper GMMA N=256 result),
 and the MMA traffic monopolizes register file bandwidth, stalling other work.
-Blackwell introduces **Tensor Memory** --- a dedicated on-chip memory private to
+Blackwell introduces **Tensor Memory**, a dedicated on-chip memory private to
 the SM's tensor cores. By moving the accumulator into TMEM, the register file is
 freed for epilogue and load instructions to run concurrently with the tensor
-cores.
+cores. If you have used Triton, tensor memory replaces Triton's implicit
+register-based accumulation; here you manage the allocation and lifecycle
+explicitly.
 
 Tensor Memory is organized as a 2D structure of **128 lanes** (rows) and
 **512 columns** per CTA, with each cell being 32 bits. Memory is allocated
 in units of 32 columns.
 
 .. figure:: /python-api/instruction-groups/figures/tmem_layout.svg
-   :width: 80%
+   :width: 88%
    :align: center
 
    Tensor Memory layout: 128 lanes x 512 columns, each cell 32 bits.
 
-In tilus, the lifecycle of a tensor memory allocation is:
+In Tilus, the lifecycle of a tensor memory allocation is:
 
-1. :meth:`tcgen05.alloc <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc>`
+1. :meth:`tcgen05.alloc() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc>`
    --- allocate a :class:`~tilus.ir.tensor.TMemoryTensor` in tensor memory.
-2. :meth:`tcgen05.mma <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
+2. :meth:`tcgen05.mma() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
    --- use it as the accumulator in MMA operations.
-3. :meth:`tcgen05.load <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load>`
+3. :meth:`tcgen05.load() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load>`
    --- read the result out to a :class:`~tilus.ir.tensor.RegisterTensor`.
-4. :meth:`tcgen05.dealloc <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc>`
+4. :meth:`tcgen05.dealloc() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc>`
    --- free the allocation (required before the kernel exits).
 
 For more details, see :doc:`/python-api/instruction-groups/tcgen05`.
@@ -121,16 +125,22 @@ Asynchronous Barriers (mbarrier)
 --------------------------------
 
 In Triton, synchronization is handled implicitly. On Blackwell, many operations
-are **asynchronous** --- the instruction returns immediately and the work
+are **asynchronous**: the instruction returns immediately and the work
 completes in the background. This enables overlapping data movement with
 computation, but requires explicit tracking of when operations finish. This is
 the role of the **mbarrier** (memory barrier, see :doc:`/python-api/instruction-groups/mbarrier`).
+
+.. figure:: /python-api/instruction-groups/figures/mbarrier_state.svg
+   :width: 88%
+   :align: center
+
+   An mbarrier tracks pending arrivals and a phase bit.
 
 An mbarrier is a **64-bit synchronization object in shared memory** that tracks
 two things:
 
 - **Pending arrivals**: how many threads still need to signal they are done.
-  Each :meth:`mbarrier.arrive <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive>`
+  Each :meth:`mbarrier.arrive() <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive>`
   call decrements this count.
 - **Phase** (1 bit): flips between 0 and 1 each time a phase completes.
 
@@ -158,27 +168,32 @@ completed." After each wait, the caller flips its local phase variable
 
    phase: uint32 = 0               # start expecting phase 0
    for ...:
+       ...                          # do async work
+       # arrive on the barrier (e.g., via tcgen05.commit)
+       ...
        self.mbarrier.wait(barrier, phase=phase)  # wait for current phase
        phase ^= 1                  # next iteration waits for the other phase
 
 In this kernel, we use an mbarrier to track when
-:meth:`tcgen05.mma <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
-has finished writing to tensor memory. The
-:meth:`tcgen05.commit <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
-instruction makes the mbarrier track completion of all prior async tcgen05
-operations --- when those operations actually complete, the hardware signals the
-mbarrier by arriving on it.
+:meth:`tcgen05.mma() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
+has finished writing to tensor memory.
+:meth:`tcgen05.commit() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
+groups all prior async tcgen05 operations issued by the current warp
+(such as :meth:`tcgen05.mma() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
+and :meth:`tcgen05.copy() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy>`)
+and signals one arrival (arrival count = 1) on the given mbarrier when those
+operations complete.
 
 
 Thread Groups
 -------------
 
-By default, every instruction in tilus specifies a cooperative execution by the
-**entire thread block**, similar to `Triton <https://triton-lang.org/>`_.
-However, efficient matrix multiplication kernels on Hopper and Blackwell
-architectures require different warps to perform different jobs and collaborate
-with each other asynchronously. To assign different sub-programs to different
-warps, tilus introduces :doc:`thread groups </programming-guides/thread-group>`.
+By default, every instruction in a Tilus kernel operates on the **entire thread
+block**: the ``__call__`` body defines the behavior of all threads in the block
+collectively. However, efficient matrix multiplication kernels on Hopper and
+Blackwell architectures require different warps to perform different jobs and
+collaborate with each other asynchronously. To narrow the execution scope to a
+subset of threads, Tilus provides :doc:`thread groups </programming-guides/thread-group>`.
 
 A thread group selects a subset of threads within the block using
 :meth:`~tilus.Script.thread_group`. For example:
@@ -198,11 +213,18 @@ Tilus also provides shortcuts for common patterns:
 :meth:`~tilus.Script.single_warp` for one warp (32 threads), and
 :meth:`~tilus.Script.warp_group` for multiple warps.
 
-In this kernel, Blackwell tensor core instructions
-(:meth:`tcgen05.mma <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`,
-:meth:`tcgen05.commit <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`)
-are **warp-cooperative** --- they must be issued by exactly one warp.
-We use :meth:`~tilus.Script.single_warp` to express this:
+Note that Tilus does not expose ``threadIdx`` to the user. There is no way to
+write ``if threadIdx.x < 32`` in a Tilus program. Instead, use
+:meth:`~tilus.Script.thread_group` and its shortcuts to narrow the execution
+scope.
+
+Every Tilus instruction has a requirement on the thread group it can execute in.
+Some instructions work in any thread group, while others require a single thread,
+a single warp, or a warp group. In this kernel,
+:meth:`tcgen05.mma() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>` and
+:meth:`tcgen05.commit() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
+require the thread group to be a single warp. We use
+:meth:`~tilus.Script.single_warp` to narrow the execution scope:
 
 .. literalinclude:: ../../../../examples/blackwell_matmul/matmul_v0.py
    :language: python
@@ -216,11 +238,11 @@ For more details, see :doc:`/programming-guides/thread-group`.
 Walkthrough
 -----------
 
-With the key Blackwell features covered above --- tensor memory, asynchronous
-barriers, K-major data layout, and thread groups --- let us now walk through the
+With the key Blackwell features covered above (tensor memory, asynchronous
+barriers, and thread groups), let us now walk through the
 kernel code in detail.
 
-A tilus kernel is defined as a subclass of :class:`~tilus.Script`. The
+A Tilus kernel is defined as a subclass of :class:`~tilus.Script`. The
 ``__init__`` method stores compile-time hyperparameters (tile sizes), and
 ``__call__`` describes the kernel logic. For more on the script structure, see
 :doc:`/programming-guides/tilus-script`.
@@ -242,25 +264,31 @@ Kernel Setup
    :caption: Kernel setup
 
 - :attr:`self.attrs.blocks <tilus.lang.script.Attributes.blocks>` sets the grid
-  dimensions --- ``ceil(M / block_m) x ceil(N / block_n)`` thread blocks.
+  dimensions: ``ceil(M / block_m) x ceil(N / block_n)`` thread blocks.
 - :attr:`self.attrs.warps <tilus.lang.script.Attributes.warps>` sets the number
-  of warps per block. Here we use 4 warps (128 threads); later versions will use
-  more warps to overlap loading and computing.
+  of warps per block. Here we use 4 warps (128 threads). Tensor memory has 128
+  lanes, and :meth:`tcgen05.load() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load>`
+  maps each thread to one lane: warp 0 covers
+  lanes 0--31, warp 1 covers lanes 32--63, and so on. Four warps are needed to
+  cover all 128 lanes and load the complete accumulator tile. Later versions will
+  use more warps to overlap loading and computing.
 - ``offset_m`` and ``offset_n`` are the output tile offsets, computed from the
   block index (:attr:`~tilus.Script.blockIdx`).
-- :meth:`~tilus.Script.global_view` interprets the raw pointers as 2D tensors
-  with the given dtype and shape.
+- :meth:`~tilus.Script.global_view` interprets the raw pointers as 2D global
+  memory tensors with the given dtype and shape.
 - :meth:`~tilus.Script.shared_tensor` allocates shared memory tiles for staging
   A and B data.
-- :meth:`tcgen05.alloc <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc>`
+- :meth:`tcgen05.alloc() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc>`
   allocates the tensor memory accumulator.
-- :meth:`mbarrier.alloc <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc>`
-  allocates one mbarrier with an expected arrival count of 1 --- because
-  :meth:`tcgen05.commit <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
+- :meth:`mbarrier.alloc() <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc>`
+  allocates one mbarrier with an expected arrival count of 1, because
+  :meth:`tcgen05.commit() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
   will perform exactly one arrival on the barrier when the MMA completes.
-- :meth:`~tilus.Script.sync` acts as a thread block barrier (like
-  ``__syncthreads()`` in CUDA), ensuring all allocations are visible to every
-  thread before entering the main loop.
+- :meth:`~tilus.Script.sync` ensures all preceding instructions (such as barrier
+  and shared memory allocations) have completed before execution proceeds. Without
+  it, subsequent instructions could execute concurrently with the allocations,
+  leading to use of uninitialized resources. This is lowered to
+  ``__syncthreads()`` in CUDA.
 
 
 Main Loop
@@ -280,16 +308,19 @@ In each iteration:
   :meth:`~tilus.Script.copy_async_wait_all` waits for all outstanding copies, and
   :meth:`~tilus.Script.sync` ensures all threads see the shared memory writes
   before the MMA warp reads them.
-- Within :meth:`~tilus.Script.single_warp`,
-  :meth:`tcgen05.mma <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
+- :meth:`~tilus.Script.single_warp` narrows the execution scope to one warp.
+  :meth:`tcgen05.mma() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
   multiplies the two tiles and accumulates into tensor memory.
-  ``enable_input_d=offset_k != 0`` controls whether the existing accumulator is
-  used: on the first iteration, tensor memory contains uninitialized data so we
-  compute :math:`D = A \times B`; on subsequent iterations, it holds the running
-  sum from prior tiles so we compute :math:`D = A \times B + D`.
-- :meth:`tcgen05.commit <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
-  makes the mbarrier track completion of the preceding async MMA.
-  :meth:`mbarrier.wait <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait>`
+  ``enable_input_d=offset_k != 0`` controls whether the existing accumulator
+  value is used as an addend. The MMA computes :math:`D = A \times B + D` when
+  enabled, or :math:`D = A \times B` when disabled. On the first K-iteration
+  (``offset_k == 0``), tensor memory contains uninitialized data, so we disable
+  the addend. On subsequent iterations, the accumulator holds the running sum
+  from prior tiles, so we enable it to accumulate.
+- :meth:`tcgen05.commit() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
+  groups all prior async tcgen05 operations issued by the current warp and
+  signals one arrival on the mbarrier when they complete.
+  :meth:`mbarrier.wait() <tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait>`
   blocks until the MMA writes to tensor memory are complete.
 - :meth:`~tilus.Script.sync` after the ``single_warp`` block ensures all threads
   reconverge before the next iteration.
@@ -308,11 +339,11 @@ Epilogue
    :caption: Epilogue
 
 After the loop,
-:meth:`tcgen05.load <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load>`
+:meth:`tcgen05.load() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load>`
 moves the accumulator from tensor memory to registers, ``.to(float16)`` casts it,
 and :meth:`~tilus.Script.store_global` writes the result to global memory.
-Finally, :meth:`tcgen05.dealloc <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc>`
-frees the tensor memory --- all TMEM allocations must be explicitly deallocated
+Finally, :meth:`tcgen05.dealloc() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc>`
+frees the tensor memory. All TMEM allocations must be explicitly deallocated
 before the kernel exits.
 
 
@@ -320,16 +351,43 @@ Running the Kernel
 ------------------
 
 ``BlackwellMatmulV0()`` creates a kernel template. Compilation happens on the
-first call --- parameters annotated with ``int`` (like ``n_size``, ``k_size``)
-are compile-time constants, so a new value triggers JIT compilation and
-autotuning. Once compiled, subsequent calls with the same compile-time values
-dispatch directly to the GPU.
+first call.
+
+Note the two different integer annotations in the function signature:
+
+- ``int32`` (e.g., ``m_size: int32``): a **runtime** parameter. The value is
+  passed to the GPU kernel as an argument and can change between calls without
+  recompilation.
+- ``int`` (e.g., ``n_size: int``, ``k_size: int``): a **compile-time
+  constant**. The value is baked into the generated CUDA code, so a new value
+  triggers JIT recompilation and autotuning.
+
+Making ``n_size`` and ``k_size`` compile-time constants allows the compiler to
+specialize the kernel (e.g., unroll loops, compute constant addresses). For more
+details, see :doc:`/programming-guides/tilus-script`.
+
+Once compiled, subsequent calls with the same compile-time values dispatch
+directly to the GPU.
 
 .. literalinclude:: ../../../../examples/blackwell_matmul/matmul_v0.py
    :language: python
    :start-at: def main
    :end-at: kernel_regex
    :caption: Launch, verify, and benchmark
+
+
+Performance
+-----------
+
+This minimal kernel achieves ~491 TFLOPS. The main bottleneck is the legacy
+``cp.async`` load path, which generates high instruction overhead.
+The complete source is at :github:`examples/blackwell_matmul/matmul_v0.py`.
+
+.. plot:: tutorials/matmul-blackwell/plots/plot_v0.py
+
+   Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+   from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+   utilization (96.6%).
 
 
 What's Next
@@ -343,12 +401,5 @@ hardware for bulk data movement.
 
 In :doc:`the next version <v1>`, we replace ``copy_async`` with **TMA** (Tensor
 Memory Access) loads. TMA offloads address generation and data movement to a
-dedicated hardware unit --- a single TMA instruction copies an entire tile with
+dedicated hardware unit. A single TMA instruction copies an entire tile with
 minimal instruction overhead, and is issued by just one warp.
-
-
-Full Source
------------
-
-The complete example file is located at
-`examples/blackwell_matmul/matmul_v0.py <https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v0.py>`__.

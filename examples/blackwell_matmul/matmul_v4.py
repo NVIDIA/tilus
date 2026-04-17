@@ -68,10 +68,12 @@ class Pipeline(tilus.Class):
         self.consumer_phase = self.consumer_phase ^ (self.consumer_stage == 0)
 
 
-@tilus.autotune("block_m, block_n, e_block_n", [[128, 128, 16], [128, 256, 16]])
-@tilus.autotune("block_k", [32, 64])
+@tilus.autotune(
+    "block_m, block_n, e_block_n", [[128, 64, 16], [128, 128, 16], [128, 256, 16]]
+)
+@tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
-@tilus.autotune("swizzle_size", [4, 8])
+@tilus.autotune("swizzle_size", [1, 4, 8])
 class BlackwellMatmulV4(tilus.Script):
     def __init__(
         self,
