@@ -1,0 +1,958 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>1. Use Shared Memory &#8212; tilus  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/custom.css?v=38aa6179" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-ampere/matmul/matmul_v1';</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="2. Auto-tuning" href="matmul_v2.html" />
+    <link rel="prev" title="0. Naive Matmul" href="matmul_v0.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">tilus  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started/install.html">Installation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../__init__.html">Matmul (Ampere)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="matmul_v0.html">0. Naive Matmul</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">1. Use Shared Memory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v2.html">2. Auto-tuning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v3.html">3. Async Copy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v4.html">4. Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matmul_v5.html">5. Split-K</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v4.html">4. Tile Rasterization and Pipeline Abstraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v6.html">6. 2-CTA Cluster</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Programming Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../programming-guides/overview.html">1. Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../programming-guides/tilus-script.html">2. Tilus Script</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../programming-guides/type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/data-types.html">3.1. Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/pointer-types.html">3.2. Pointer Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/register-tensor.html">3.3. Register Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/tmemory-tensor.html">3.5. Tensor Memory Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/type-system/global-tensor.html">3.6. Global Tensor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../programming-guides/instructions.html">4. Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../programming-guides/control-flow.html">5. Control Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../programming-guides/thread-group.html">6. Thread Group</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../programming-guides/cache.html">7. Cache</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../programming-guides/autotuning.html">8. Autotuning</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../programming-guides/layout-system/__init__.html">9. Layout System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/layout-system/global-layout.html">9.1. Global Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/layout-system/shared-layout.html">9.2. Shared Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/layout-system/register-layout.html">9.3. Register Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../programming-guides/layout-system/layout-inference.html">9.4. Automatic Layout Inference</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/latest/_static/layout-demo/index.html">Layout Demo</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../python-api/tilus.html">tilus</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.autotune.html">tilus.autotune</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../python-api/tilus-option.html">tilus.option</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.option.cache_dir.html">tilus.option.cache_dir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.option.parallel_workers.html">tilus.option.parallel_workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.option.debug.dump_ir.html">tilus.option.debug.dump_ir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.option.debug.disable_ptxas_opt.html">tilus.option.debug.disable_ptxas_opt</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../python-api/tilus-target.html">tilus.target</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.target.get_current_target.html">tilus.target.get_current_target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.target.set_current_target.html">tilus.target.set_current_target</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../python-api/tilus-script.html">tilus.Script</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.blockIdx.html">Script.blockIdx</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.gridDim.html">Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.current_num_threads.html">Script.current_num_threads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.current_thread_begin.html">Script.current_thread_begin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.current_thread_end.html">Script.current_thread_end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.assume.html">Script.assume</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.range.html">Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.single_thread.html">Script.single_thread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.single_warp.html">Script.single_warp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.static_assert.html">Script.static_assert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.thread_group.html">Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.warp_group.html">Script.warp_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.abs.html">Script.abs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.add.html">Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.all.html">Script.all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.annotate_layout.html">Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.any.html">Script.any</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.assign.html">Script.assign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.cast.html">Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.clip.html">Script.clip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.dot.html">Script.dot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.exp.html">Script.exp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.exp2.html">Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.fast_divmod.html">Script.fast_divmod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.flatten.html">Script.flatten</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.free_shared.html">Script.free_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.global_tensor.html">Script.global_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.global_view.html">Script.global_view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.load_global.html">Script.load_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.load_shared.html">Script.load_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.lock_semaphore.html">Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.log.html">Script.log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.max.html">Script.max</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.maximum.html">Script.maximum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.min.html">Script.min</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.print_tensor.html">Script.print_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.printf.html">Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.register_tensor.html">Script.register_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.repeat.html">Script.repeat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.repeat_interleave.html">Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.round.html">Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.square.html">Script.square</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.store_global.html">Script.store_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.store_shared.html">Script.store_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.sum.html">Script.sum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.sync.html">Script.sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.transpose.html">Script.transpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.unsqueeze.html">Script.unsqueeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.view.html">Script.view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/generated/tilus.Script.where.html">Script.where</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/instruction-groups/mbarrier.html">Script.mbarrier</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html">Script.mbarrier.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html">Script.mbarrier.arrive</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html">Script.mbarrier.arrive_and_expect_tx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html">Script.mbarrier.arrive_and_expect_tx_multicast</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html">Script.mbarrier.arrive_and_expect_tx_remote</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html">Script.mbarrier.wait</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html">Script.mbarrier.producer_initial_phase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html">Script.mbarrier.consumer_initial_phase</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/instruction-groups/fence.html">Script.fence</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html">Script.fence.proxy_async</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html">Script.fence.proxy_async_release</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/instruction-groups/tma.html">Script.tma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html">Script.tma.global_to_shared</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html">Script.tma.shared_to_global</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html">Script.tma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html">Script.tma.wait_group</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/instruction-groups/tcgen05.html">Script.tcgen05</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html">Script.tcgen05.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html">Script.tcgen05.dealloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html">Script.tcgen05.slice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html">Script.tcgen05.view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html">Script.tcgen05.relinquish_alloc_permit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html">Script.tcgen05.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html">Script.tcgen05.store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html">Script.tcgen05.wait_load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html">Script.tcgen05.wait_store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html">Script.tcgen05.commit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html">Script.tcgen05.copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html">Script.tcgen05.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/instruction-groups/clc.html">Script.clc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html">Script.clc.try_cancel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html">Script.clc.query_response</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/instruction-groups/cluster.html">Script.cluster</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html">Script.cluster.sync</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html">Script.cluster.map_shared_addr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx.html">Script.cluster.blockIdx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank.html">Script.cluster.blockRank</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim.html">Script.cluster.clusterDim</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/instruction-groups/wgmma.html">Script.wgmma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html">Script.wgmma.fence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html">Script.wgmma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html">Script.wgmma.wait_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html">Script.wgmma.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/attrs.html">Script.attrs</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/generated/tilus.lang.script.Attributes.blocks.html">Script.attrs.blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/generated/tilus.lang.script.Attributes.cluster_blocks.html">Script.attrs.cluster_blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/generated/tilus.lang.script.Attributes.warps.html">Script.attrs.warps</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../python-api/tilus-class.html">tilus.Class</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../python-api/tilus-ir/__index__.html">tilus.ir</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/datatype.html">tilus.ir.DataType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/pointer.html">tilus.ir.PointerType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/tensor.html">tilus.ir.Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/register_tensor.html">tilus.ir.RegisterTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/tmemory_tensor.html">tilus.ir.TMemoryTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../python-api/tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html">tilus.ir.layout.ops.auto_local_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_local.html">tilus.ir.layout.ops.column_local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_spatial.html">tilus.ir.layout.ops.column_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.compose.html">tilus.ir.layout.ops.compose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.concat.html">tilus.ir.layout.ops.concat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.divide.html">tilus.ir.layout.ops.divide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.flatten.html">tilus.ir.layout.ops.flatten</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.local.html">tilus.ir.layout.ops.local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.permute.html">tilus.ir.layout.ops.permute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reduce.html">tilus.ir.layout.ops.reduce</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.register_layout.html">tilus.ir.layout.ops.register_layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reshape.html">tilus.ir.layout.ops.reshape</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.spatial.html">tilus.ir.layout.ops.spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.squeeze.html">tilus.ir.layout.ops.squeeze</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.unsqueeze.html">tilus.ir.layout.ops.unsqueeze</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/tilus-ir/shared_layout.html">tilus.ir.SharedLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_row_major.html">tilus.ir.layout.ops.shared_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_column_major.html">tilus.ir.layout.ops.shared_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_compose.html">tilus.ir.layout.ops.shared_compose</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../python-api/tilus-ir/global_layout.html">tilus.ir.GlobalLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.global_row_major.html">tilus.ir.layout.global_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.global_column_major.html">tilus.ir.layout.global_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.global_strides.html">tilus.ir.layout.global_strides</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../python-api/tilus-ir/generated/tilus.ir.layout.global_compose.html">tilus.ir.layout.global_compose</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item"><script>
+(function() {
+  var pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  var baseUrl = '';
+  var currentVersion = '';
+  var relPageParts = [];
+
+  if (pathParts.length >= 2) {
+    baseUrl = '/' + pathParts[0];
+    currentVersion = pathParts[1];
+    relPageParts = pathParts.slice(2);
+  }
+
+  fetch(baseUrl + '/versions.json')
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('not found');
+      return resp.json();
+    })
+    .then(function(versions) {
+      var headerButtons = document.querySelector('.article-header-buttons');
+      if (!headerButtons) return;
+
+      headerButtons.style.display = 'flex';
+      headerButtons.style.alignItems = 'center';
+
+      var select = document.createElement('select');
+      select.title = 'Switch version';
+      select.style.cssText = 'padding: 0.15rem 0.4rem; border-radius: 4px; border: 1px solid var(--pst-color-border); background: var(--pst-color-background); color: var(--pst-color-text-base); font-size: var(--pst-sidebar-font-size); cursor: pointer; appearance: auto; margin-right: 0.5rem; height: 2.25em;';
+
+      versions.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.slug;
+        opt.textContent = v.label;
+        if (v.slug === currentVersion) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      select.addEventListener('change', function() {
+        var relPage = relPageParts.join('/') || 'index.html';
+        window.location.href = baseUrl + '/' + select.value + '/' + relPage;
+      });
+
+      headerButtons.insertBefore(select, headerButtons.firstChild);
+    })
+    .catch(function() {});
+})();
+</script></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/NVIDIA/tilus" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="Source repository"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../../_sources/tutorials/matmul-ampere/matmul/matmul_v1.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>1. Use Shared Memory</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-shared-memory-helps">Why shared memory helps</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-implementation">Kernel implementation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#shared-memory-tiles">Shared memory tiles</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#why-two-synchronizations">Why two synchronizations?</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-instructions">New instructions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#launching-the-kernel">Launching the kernel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#full-source">Full source</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="use-shared-memory">
+<h1>1. Use Shared Memory<a class="headerlink" href="#use-shared-memory" title="Link to this heading"><span>¶</span></a></h1>
+<p>In the <a class="reference internal" href="matmul_v0.html"><span class="doc">previous tutorial</span></a>, every thread block loaded its tiles of
+<strong>A</strong> and <strong>B</strong> directly from global memory into registers. Global memory has high
+latency, so a natural next step is to stage the data through <strong>shared memory</strong> –
+a small, fast on-chip scratchpad that is visible to all threads in the same block.</p>
+<section id="why-shared-memory-helps">
+<h2>Why shared memory helps<a class="headerlink" href="#why-shared-memory-helps" title="Link to this heading"><span>¶</span></a></h2>
+<p>Shared memory is much faster than global memory (on the order of 100x lower
+latency). By first copying a tile from global memory into shared memory, all
+threads in the block can then read from the shared copy at high bandwidth. This
+is especially beneficial when the same data is read multiple times by different
+threads, as is the case in matrix multiplication where every element of a tile
+participates in multiple multiply-accumulate operations.</p>
+<p>The data flow for each iteration of the inner loop becomes:</p>
+<ol class="arabic simple">
+<li><p><strong>Load</strong> tiles from global memory into register tensors.</p></li>
+<li><p><strong>Store</strong> those register tensors into shared memory (<code class="docutils literal notranslate"><span class="pre">store_shared</span></code>).</p></li>
+<li><p><strong>Synchronize</strong> all threads so the shared data is fully written.</p></li>
+<li><p><strong>Load</strong> from shared memory back into registers (<code class="docutils literal notranslate"><span class="pre">load_shared</span></code>).</p></li>
+<li><p><strong>Compute</strong> the dot product.</p></li>
+<li><p><strong>Synchronize</strong> again before the next iteration overwrites shared memory.</p></li>
+</ol>
+</section>
+<section id="kernel-implementation">
+<h2>Kernel implementation<a class="headerlink" href="#kernel-implementation" title="Link to this heading"><span>¶</span></a></h2>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">MatmulV1 – matrix multiplication with shared memory</span><a class="headerlink" href="#id1" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MatmulV1</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_warps</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">block_m</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">block_n</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">block_k</span><span class="o">=</span><span class="mi">16</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_warps</span> <span class="o">=</span> <span class="n">num_warps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">=</span> <span class="n">block_m</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">=</span> <span class="n">block_n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span> <span class="o">=</span> <span class="n">block_k</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">m_size</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
+        <span class="n">n_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">k_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">a_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
+        <span class="n">b_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
+        <span class="n">c_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">),</span>
+            <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">),</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_warps</span>
+
+        <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span>
+        <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">y</span>
+
+        <span class="n">ga</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
+        <span class="n">gb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">k_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
+
+        <span class="c1"># allocate shared memory for the tiles for A and B</span>
+        <span class="n">sa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">])</span>
+        <span class="n">sb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">])</span>
+
+        <span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mf">0.0</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">):</span>
+            <span class="c1"># load a tile of A matrix from global memory to shared memory</span>
+            <span class="n">lda</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_global</span><span class="p">(</span>
+                <span class="n">ga</span><span class="p">,</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">],</span>
+            <span class="p">)</span>
+
+            <span class="c1"># store the loaded tile in shared memory</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">,</span> <span class="n">lda</span><span class="p">)</span>
+
+            <span class="c1"># load a tile of B matrix from global memory to shared memory</span>
+            <span class="n">ldb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_global</span><span class="p">(</span>
+                <span class="n">gb</span><span class="p">,</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_k</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">],</span>
+                <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">],</span>
+            <span class="p">)</span>
+
+            <span class="c1"># store the loaded tile in shared memory</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sb</span><span class="p">,</span> <span class="n">ldb</span><span class="p">)</span>
+
+            <span class="c1"># synchronize threads to ensure all have stored their data in shared memory</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+            <span class="c1"># load the tiles from shared memory to registers</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">)</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sb</span><span class="p">)</span>
+
+            <span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">acc</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">free_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">free_shared</span><span class="p">(</span><span class="n">sb</span><span class="p">)</span>
+
+        <span class="n">casted_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">)</span>
+        <span class="n">gc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">c_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">store_global</span><span class="p">(</span><span class="n">gc</span><span class="p">,</span> <span class="n">casted_acc</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
+
+</pre></div>
+</div>
+</div>
+<p>The kernel follows the same overall structure as <code class="docutils literal notranslate"><span class="pre">MatmulV0</span></code>, with two key
+additions: shared memory tiles and explicit synchronization.</p>
+<section id="shared-memory-tiles">
+<h3>Shared memory tiles<a class="headerlink" href="#shared-memory-tiles" title="Link to this heading"><span>¶</span></a></h3>
+<p>At the top of the <code class="docutils literal notranslate"><span class="pre">__call__</span></code> method we allocate two shared tensors, <code class="docutils literal notranslate"><span class="pre">sa</span></code> and
+<code class="docutils literal notranslate"><span class="pre">sb</span></code>, to hold the current tiles of A and B respectively:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">])</span>
+<span class="n">sb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Inside the loop, data flows through shared memory before reaching the
+accumulator:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># global -&gt; registers -&gt; shared memory</span>
+<span class="n">lda</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_global</span><span class="p">(</span><span class="n">ga</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">])</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">,</span> <span class="n">lda</span><span class="p">)</span>
+
+<span class="c1"># ... same for B ...</span>
+
+<span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>  <span class="c1"># ensure all stores to shared memory are visible</span>
+
+<span class="c1"># shared memory -&gt; registers</span>
+<span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">)</span>
+<span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_shared</span><span class="p">(</span><span class="n">sb</span><span class="p">)</span>
+
+<span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">acc</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>  <span class="c1"># ensure dot is done before next iteration overwrites shared</span>
+</pre></div>
+</div>
+<p>At the end, both shared tensors are freed so their memory can be reused:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">free_shared</span><span class="p">(</span><span class="n">sa</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">free_shared</span><span class="p">(</span><span class="n">sb</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="why-two-synchronizations">
+<h3>Why two synchronizations?<a class="headerlink" href="#why-two-synchronizations" title="Link to this heading"><span>¶</span></a></h3>
+<p>Both <code class="docutils literal notranslate"><span class="pre">self.sync()</span></code> calls are necessary because <code class="docutils literal notranslate"><span class="pre">sa</span></code> and <code class="docutils literal notranslate"><span class="pre">sb</span></code> are reused
+across loop iterations:</p>
+<ul class="simple">
+<li><p>The <strong>first sync</strong> (after <code class="docutils literal notranslate"><span class="pre">store_shared</span></code>) guarantees that every thread has
+finished writing its portion of the tile into shared memory before any thread
+tries to read from it via <code class="docutils literal notranslate"><span class="pre">load_shared</span></code>.</p></li>
+<li><p>The <strong>second sync</strong> (after <code class="docutils literal notranslate"><span class="pre">dot</span></code>) guarantees that the dot product has
+finished reading from shared memory before the next iteration overwrites it
+with new data.</p></li>
+</ul>
+<p>Omitting either synchronization leads to a data race.</p>
+</section>
+</section>
+<section id="new-instructions">
+<h2>New instructions<a class="headerlink" href="#new-instructions" title="Link to this heading"><span>¶</span></a></h2>
+<p>This example introduces five new <a class="reference internal" href="../../../python-api/tilus-script.html#tilus.Script" title="tilus.Script"><code class="xref py py-class docutils literal notranslate"><span class="pre">Script</span></code></a> methods compared to
+<code class="docutils literal notranslate"><span class="pre">MatmulV0</span></code>:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.shared_tensor.html#tilus.Script.shared_tensor" title="tilus.Script.shared_tensor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">shared_tensor()</span></code></a> – allocate a shared-memory tensor with a given dtype
+and shape.</p></li>
+<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.store_shared.html#tilus.Script.store_shared" title="tilus.Script.store_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">store_shared()</span></code></a> – copy a register tensor into a shared tensor.</p></li>
+<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.load_shared.html#tilus.Script.load_shared" title="tilus.Script.load_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_shared()</span></code></a> – copy a shared tensor into a new register tensor.</p></li>
+<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.free_shared.html#tilus.Script.free_shared" title="tilus.Script.free_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">free_shared()</span></code></a> – release the shared memory so it can be reused. Every
+allocation must be freed before the kernel ends.</p></li>
+<li><p><a class="reference internal" href="../../../python-api/generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sync()</span></code></a> – synchronize all threads in the thread block (equivalent to
+<code class="docutils literal notranslate"><span class="pre">__syncthreads()</span></code> in CUDA C).</p></li>
+</ul>
+</section>
+<section id="launching-the-kernel">
+<h2>Launching the kernel<a class="headerlink" href="#launching-the-kernel" title="Link to this heading"><span>¶</span></a></h2>
+<p>The launch code is identical in structure to the previous version – create an
+instance, prepare tensors, and call the script:</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">Benchmarking MatmulV1</span><a class="headerlink" href="#id2" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span> <span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;latency (ms)&quot;</span><span class="p">,</span> <span class="s2">&quot;tflops&quot;</span><span class="p">]</span>
+    <span class="n">workloads</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">[</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">],</span>
+    <span class="p">]</span>
+
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">workloads</span><span class="p">:</span>
+        <span class="n">matmul</span> <span class="o">=</span> <span class="n">MatmulV1</span><span class="p">()</span>
+
+        <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="n">c_actual</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+        <span class="n">c_expect</span> <span class="o">=</span> <span class="n">a</span> <span class="o">@</span> <span class="n">b</span>
+        <span class="n">matmul</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c_actual</span><span class="p">)</span>
+
+        <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">synchronize</span><span class="p">()</span>
+
+        <span class="c1"># check correctness</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_close</span><span class="p">(</span><span class="n">c_expect</span><span class="p">,</span> <span class="n">c_actual</span><span class="p">)</span>
+
+        <span class="c1"># benchmark</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">func</span> <span class="ow">in</span> <span class="p">[</span>
+            <span class="p">(</span><span class="s2">&quot;torch&quot;</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">c_expect</span><span class="p">)),</span>
+            <span class="p">(</span><span class="s2">&quot;tilus&quot;</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">matmul</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c_actual</span><span class="p">)),</span>
+        <span class="p">]:</span>
+            <span class="n">latency</span> <span class="o">=</span> <span class="n">benchmark_func</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">warmup</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">repeat</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+            <span class="n">tflops</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">n</span> <span class="o">*</span> <span class="n">k</span> <span class="o">/</span> <span class="n">latency</span> <span class="o">*</span> <span class="mf">1e-9</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">latency</span><span class="p">,</span> <span class="n">tflops</span><span class="p">])</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pandas</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="full-source">
+<h2>Full source<a class="headerlink" href="#full-source" title="Link to this heading"><span>¶</span></a></h2>
+<p>The complete example is available at
+<a class="reference download internal" download="" href="../../../_downloads/5a6d01ca33ba60a9d9365c42e3e9123b/matmul_v1.py"><code class="xref download docutils literal notranslate"><span class="pre">examples/matmul/matmul_v1.py</span></code></a>.</p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="matmul_v0.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">0. Naive Matmul</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="matmul_v2.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">2. Auto-tuning</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-shared-memory-helps">Why shared memory helps</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-implementation">Kernel implementation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#shared-memory-tiles">Shared memory tiles</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#why-two-synchronizations">Why two synchronizations?</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-instructions">New instructions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#launching-the-kernel">Launching the kernel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#full-source">Full source</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By NVIDIA
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025-2026, NVIDIA.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

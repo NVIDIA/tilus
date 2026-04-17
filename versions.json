@@ -2,5 +2,13 @@
   {
     "slug": "latest",
     "label": "latest"
+  },
+  {
+    "slug": "stable",
+    "label": "v0.2.0 (Stable)"
+  },
+  {
+    "slug": "v0.2.0",
+    "label": "v0.2.0"
   }
 ]

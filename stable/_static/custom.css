@@ -1,0 +1,5 @@
+/* Avoid the uncessary scrollbar on the primiary sidebar
+   See: https://github.com/executablebooks/sphinx-book-theme/issues/732 */
+#rtd-footer-container {
+    margin: 0px !important;
+}

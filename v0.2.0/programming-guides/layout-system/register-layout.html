@@ -1,0 +1,1112 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>9.3. Register Layout &#8212; tilus  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=38aa6179" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'programming-guides/layout-system/register-layout';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="9.4. Automatic Layout Inference" href="layout-inference.html" />
+    <link rel="prev" title="9.2. Shared Layout" href="shared-layout.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">tilus  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../getting-started/install.html">Installation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../tutorials/matmul-ampere/__init__.html">Matmul (Ampere)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v0.html">0. Naive Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v1.html">1. Use Shared Memory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v2.html">2. Auto-tuning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v3.html">3. Async Copy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v4.html">4. Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v4.html">4. Tile Rasterization and Pipeline Abstraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v6.html">6. 2-CTA Cluster</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Programming Guides</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">1. Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tilus-script.html">2. Tilus Script</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../type-system/data-types.html">3.1. Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../type-system/pointer-types.html">3.2. Pointer Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../type-system/register-tensor.html">3.3. Register Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../type-system/tmemory-tensor.html">3.5. Tensor Memory Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../type-system/global-tensor.html">3.6. Global Tensor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../instructions.html">4. Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../control-flow.html">5. Control Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../thread-group.html">6. Thread Group</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cache.html">7. Cache</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../autotuning.html">8. Autotuning</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="__init__.html">9. Layout System</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="global-layout.html">9.1. Global Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="shared-layout.html">9.2. Shared Layout</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">9.3. Register Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="layout-inference.html">9.4. Automatic Layout Inference</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/latest/_static/layout-demo/index.html">Layout Demo</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus.html">tilus</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.autotune.html">tilus.autotune</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-option.html">tilus.option</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.cache_dir.html">tilus.option.cache_dir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.parallel_workers.html">tilus.option.parallel_workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.debug.dump_ir.html">tilus.option.debug.dump_ir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.debug.disable_ptxas_opt.html">tilus.option.debug.disable_ptxas_opt</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-target.html">tilus.target</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.target.get_current_target.html">tilus.target.get_current_target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.target.set_current_target.html">tilus.target.set_current_target</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-script.html">tilus.Script</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.blockIdx.html">Script.blockIdx</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.gridDim.html">Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.current_num_threads.html">Script.current_num_threads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.current_thread_begin.html">Script.current_thread_begin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.current_thread_end.html">Script.current_thread_end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.assume.html">Script.assume</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.range.html">Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.single_thread.html">Script.single_thread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.single_warp.html">Script.single_warp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.static_assert.html">Script.static_assert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.thread_group.html">Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.warp_group.html">Script.warp_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.abs.html">Script.abs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.add.html">Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.all.html">Script.all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.annotate_layout.html">Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.any.html">Script.any</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.assign.html">Script.assign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.cast.html">Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.clip.html">Script.clip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.dot.html">Script.dot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.exp.html">Script.exp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.exp2.html">Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.fast_divmod.html">Script.fast_divmod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.flatten.html">Script.flatten</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.free_shared.html">Script.free_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.global_tensor.html">Script.global_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.global_view.html">Script.global_view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.load_global.html">Script.load_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.load_shared.html">Script.load_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.lock_semaphore.html">Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.log.html">Script.log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.max.html">Script.max</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.maximum.html">Script.maximum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.min.html">Script.min</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.print_tensor.html">Script.print_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.printf.html">Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.register_tensor.html">Script.register_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.repeat.html">Script.repeat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.repeat_interleave.html">Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.round.html">Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.square.html">Script.square</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.store_global.html">Script.store_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.store_shared.html">Script.store_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sum.html">Script.sum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sync.html">Script.sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.transpose.html">Script.transpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.unsqueeze.html">Script.unsqueeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.view.html">Script.view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.where.html">Script.where</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/mbarrier.html">Script.mbarrier</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html">Script.mbarrier.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html">Script.mbarrier.arrive</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html">Script.mbarrier.arrive_and_expect_tx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html">Script.mbarrier.arrive_and_expect_tx_multicast</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html">Script.mbarrier.arrive_and_expect_tx_remote</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html">Script.mbarrier.wait</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html">Script.mbarrier.producer_initial_phase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html">Script.mbarrier.consumer_initial_phase</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/fence.html">Script.fence</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html">Script.fence.proxy_async</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html">Script.fence.proxy_async_release</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/tma.html">Script.tma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html">Script.tma.global_to_shared</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html">Script.tma.shared_to_global</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html">Script.tma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html">Script.tma.wait_group</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/tcgen05.html">Script.tcgen05</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html">Script.tcgen05.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html">Script.tcgen05.dealloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html">Script.tcgen05.slice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html">Script.tcgen05.view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html">Script.tcgen05.relinquish_alloc_permit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html">Script.tcgen05.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html">Script.tcgen05.store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html">Script.tcgen05.wait_load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html">Script.tcgen05.wait_store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html">Script.tcgen05.commit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html">Script.tcgen05.copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html">Script.tcgen05.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/clc.html">Script.clc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html">Script.clc.try_cancel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html">Script.clc.query_response</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/cluster.html">Script.cluster</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html">Script.cluster.sync</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html">Script.cluster.map_shared_addr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx.html">Script.cluster.blockIdx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank.html">Script.cluster.blockRank</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim.html">Script.cluster.clusterDim</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/wgmma.html">Script.wgmma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html">Script.wgmma.fence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html">Script.wgmma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html">Script.wgmma.wait_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html">Script.wgmma.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/attrs.html">Script.attrs</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.blocks.html">Script.attrs.blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.cluster_blocks.html">Script.attrs.cluster_blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.warps.html">Script.attrs.warps</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../python-api/tilus-class.html">tilus.Class</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-ir/__index__.html">tilus.ir</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/datatype.html">tilus.ir.DataType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/pointer.html">tilus.ir.PointerType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/tensor.html">tilus.ir.Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/register_tensor.html">tilus.ir.RegisterTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/tmemory_tensor.html">tilus.ir.TMemoryTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html">tilus.ir.layout.ops.auto_local_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_local.html">tilus.ir.layout.ops.column_local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_spatial.html">tilus.ir.layout.ops.column_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.compose.html">tilus.ir.layout.ops.compose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.concat.html">tilus.ir.layout.ops.concat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.divide.html">tilus.ir.layout.ops.divide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.flatten.html">tilus.ir.layout.ops.flatten</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.local.html">tilus.ir.layout.ops.local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.permute.html">tilus.ir.layout.ops.permute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reduce.html">tilus.ir.layout.ops.reduce</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.register_layout.html">tilus.ir.layout.ops.register_layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reshape.html">tilus.ir.layout.ops.reshape</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.spatial.html">tilus.ir.layout.ops.spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.squeeze.html">tilus.ir.layout.ops.squeeze</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.unsqueeze.html">tilus.ir.layout.ops.unsqueeze</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/tilus-ir/shared_layout.html">tilus.ir.SharedLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_row_major.html">tilus.ir.layout.ops.shared_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_column_major.html">tilus.ir.layout.ops.shared_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_compose.html">tilus.ir.layout.ops.shared_compose</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/tilus-ir/global_layout.html">tilus.ir.GlobalLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_row_major.html">tilus.ir.layout.global_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_column_major.html">tilus.ir.layout.global_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_strides.html">tilus.ir.layout.global_strides</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_compose.html">tilus.ir.layout.global_compose</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item"><script>
+(function() {
+  var pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  var baseUrl = '';
+  var currentVersion = '';
+  var relPageParts = [];
+
+  if (pathParts.length >= 2) {
+    baseUrl = '/' + pathParts[0];
+    currentVersion = pathParts[1];
+    relPageParts = pathParts.slice(2);
+  }
+
+  fetch(baseUrl + '/versions.json')
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('not found');
+      return resp.json();
+    })
+    .then(function(versions) {
+      var headerButtons = document.querySelector('.article-header-buttons');
+      if (!headerButtons) return;
+
+      headerButtons.style.display = 'flex';
+      headerButtons.style.alignItems = 'center';
+
+      var select = document.createElement('select');
+      select.title = 'Switch version';
+      select.style.cssText = 'padding: 0.15rem 0.4rem; border-radius: 4px; border: 1px solid var(--pst-color-border); background: var(--pst-color-background); color: var(--pst-color-text-base); font-size: var(--pst-sidebar-font-size); cursor: pointer; appearance: auto; margin-right: 0.5rem; height: 2.25em;';
+
+      versions.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.slug;
+        opt.textContent = v.label;
+        if (v.slug === currentVersion) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      select.addEventListener('change', function() {
+        var relPage = relPageParts.join('/') || 'index.html';
+        window.location.href = baseUrl + '/' + select.value + '/' + relPage;
+      });
+
+      headerButtons.insertBefore(select, headerButtons.firstChild);
+    })
+    .catch(function() {});
+})();
+</script></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/NVIDIA/tilus" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="Source repository"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/programming-guides/layout-system/register-layout.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Register Layout</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-started">9.3.1. Getting Started</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#layout-composition">9.3.2. Layout Composition</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#represent-tensor-core-layouts">9.3.3. Represent Tensor Core Layouts</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multiple-threads-hold-the-same-element">9.3.4. Multiple Threads Hold the Same Element</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unified-layout-representation">9.3.5. Unified Layout Representation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mapping-process">9.3.5.1. Mapping Process</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#replicated-spatial-modes">9.3.5.2. Replicated Spatial Modes</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#operations-on-layouts">9.3.6. Operations on Layouts</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#layout-creation">9.3.6.1. Layout Creation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#layout-transformation">9.3.6.2. Layout Transformation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">9.3.6.3. Layout Composition</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#other-operations">9.3.6.4. Other Operations</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="register-layout">
+<h1><span class="section-number">9.3. </span>Register Layout<a class="headerlink" href="#register-layout" title="Link to this heading"><span>¶</span></a></h1>
+<p>A Register Layout (i.e., <a class="reference internal" href="../../python-api/tilus-ir/register_layout.html#tilus.ir.RegisterLayout" title="tilus.ir.RegisterLayout"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegisterLayout</span></code></a>) is a layout that defines how the elements of a register
+tensor are stored among the local registers of all threads in the entire thread block. The key difference between global/shared
+layouts and register layout is that shared layout is a <strong>distributed layout</strong>.</p>
+<p>In global/shared layout, the layout defines how to get the position of an element in the global/shared memory. However,
+for register layout, the layout defines which thread(s) are storing the element and the position of the element in the
+local register memory of the thread(s).</p>
+<p>Formally, a register layout could be defined as a mapping from (thread_id, local_id) to the logical index of the element
+in the tensor:</p>
+<div class="math notranslate nohighlight">
+\[\text{layout} : (\text{thread_id}, \text{local_id}) \mapsto \text{index}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\text{thread_id}\in \mathbb{N}\)</span> is the ID of the thread in the thread block, <span class="math notranslate nohighlight">\(\text{local_id} \in \mathbb{N}\)</span>
+is the ID of the element in the thread local storage, and <span class="math notranslate nohighlight">\(\text{index} \in \mathbb{N}^d\)</span> is the logical index
+of the element in the $d$-dimension tensor. We can also equivalently view the register layout as a mapping from
+the logical index to the (thread_id, local_id) pairs.</p>
+<section id="getting-started">
+<h2><span class="section-number">9.3.1. </span>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"><span>¶</span></a></h2>
+<p>We begin with some simple register layout.</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout</span><span class="w"> </span><span class="kn">import</span> <span class="n">spatial</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">visualize_layout</span>
+</pre></div>
+</div>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">local</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
+<span class="go">RegisterLayout(shape=[3, 4], mode_shape=[3, 4], spatial_modes=[], local_modes=[0, 1])</span>
+<span class="go">┌──────┬──────┬───────┬───────┐</span>
+<span class="go">│ 0: 0 │ 0: 1 │ 0: 2  │ 0: 3  │</span>
+<span class="go">├──────┼──────┼───────┼───────┤</span>
+<span class="go">│ 0: 4 │ 0: 5 │ 0: 6  │ 0: 7  │</span>
+<span class="go">├──────┼──────┼───────┼───────┤</span>
+<span class="go">│ 0: 8 │ 0: 9 │ 0: 10 │ 0: 11 │</span>
+<span class="go">└──────┴──────┴───────┴───────┘</span>
+</pre></div>
+</div>
+<p>Each entry <code class="docutils literal notranslate"><span class="pre">t</span> <span class="pre">:</span> <span class="pre">i</span></code> in the above layout represents that the element is stored in thread <code class="docutils literal notranslate"><span class="pre">t</span></code> at local index <code class="docutils literal notranslate"><span class="pre">i</span></code>.
+The above layout is a simple layout that maps each element in the grid (3, 4) to a single thread (thread_id=0), and
+the elements are stored in a row-major order in the local storage of the thread.</p>
+<p>We have a spatial layout that maps the elements to multiple threads.</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">spatial</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)))</span>
+<span class="go">RegisterLayout(shape=[3, 2], mode_shape=[3, 2], spatial_modes=[0, 1], local_modes=[])</span>
+<span class="go">┌──────┬──────┐</span>
+<span class="go">│ 0: 0 │ 1: 0 │</span>
+<span class="go">├──────┼──────┤</span>
+<span class="go">│ 2: 0 │ 3: 0 │</span>
+<span class="go">├──────┼──────┤</span>
+<span class="go">│ 4: 0 │ 5: 0 │</span>
+<span class="go">└──────┴──────┘</span>
+</pre></div>
+</div>
+<p>Above layout is a spatial layout that maps the elements to 6 threads, where each thread holds a single element.</p>
+<p>There are some attributes inside the <code class="docutils literal notranslate"><span class="pre">RegisterLayout(...)</span></code> object that uniquely defines the layout shown in the
+grid diagram.</p>
+</section>
+<section id="layout-composition">
+<h2><span class="section-number">9.3.2. </span>Layout Composition<a class="headerlink" href="#layout-composition" title="Link to this heading"><span>¶</span></a></h2>
+<p>We can <cite>compose</cite> two layouts together to create complex layouts. The intuitive idea of composition is that we can
+replace each element in one layout with a tensor with another layout. For example, if each element in the <code class="docutils literal notranslate"><span class="pre">local(3,</span> <span class="pre">4)</span></code>
+layout is replaced with a tensor with the <code class="docutils literal notranslate"><span class="pre">spatial(2,</span> <span class="pre">3)</span></code> layout, we can get a new layout with shape <code class="docutils literal notranslate"><span class="pre">(3</span> <span class="pre">*</span> <span class="pre">2,</span> <span class="pre">4</span> <span class="pre">*</span> <span class="pre">3)</span></code>.</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">local</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">spatial</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+<span class="go">RegisterLayout(shape=[6, 12], mode_shape=[3, 2, 4, 3], spatial_modes=[1, 3], local_modes=[0, 2])</span>
+<span class="go">┌──────┬──────┬──────┬──────┬──────┬──────┬───────┬───────┬───────┬───────┬───────┬───────┐</span>
+<span class="go">│ 0: 0 │ 1: 0 │ 2: 0 │ 0: 1 │ 1: 1 │ 2: 1 │ 0: 2  │ 1: 2  │ 2: 2  │ 0: 3  │ 1: 3  │ 2: 3  │</span>
+<span class="go">├──────┼──────┼──────┼──────┼──────┼──────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 3: 0 │ 4: 0 │ 5: 0 │ 3: 1 │ 4: 1 │ 5: 1 │ 3: 2  │ 4: 2  │ 5: 2  │ 3: 3  │ 4: 3  │ 5: 3  │</span>
+<span class="go">├──────┼──────┼──────┼──────┼──────┼──────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 0: 4 │ 1: 4 │ 2: 4 │ 0: 5 │ 1: 5 │ 2: 5 │ 0: 6  │ 1: 6  │ 2: 6  │ 0: 7  │ 1: 7  │ 2: 7  │</span>
+<span class="go">├──────┼──────┼──────┼──────┼──────┼──────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 3: 4 │ 4: 4 │ 5: 4 │ 3: 5 │ 4: 5 │ 5: 5 │ 3: 6  │ 4: 6  │ 5: 6  │ 3: 7  │ 4: 7  │ 5: 7  │</span>
+<span class="go">├──────┼──────┼──────┼──────┼──────┼──────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 0: 8 │ 1: 8 │ 2: 8 │ 0: 9 │ 1: 9 │ 2: 9 │ 0: 10 │ 1: 10 │ 2: 10 │ 0: 11 │ 1: 11 │ 2: 11 │</span>
+<span class="go">├──────┼──────┼──────┼──────┼──────┼──────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 3: 8 │ 4: 8 │ 5: 8 │ 3: 9 │ 4: 9 │ 5: 9 │ 3: 10 │ 4: 10 │ 5: 10 │ 3: 11 │ 4: 11 │ 5: 11 │</span>
+<span class="go">└──────┴──────┴──────┴──────┴──────┴──────┴───────┴───────┴───────┴───────┴───────┴───────┘</span>
+</pre></div>
+</div>
+<p>In above code sample, we use <code class="docutils literal notranslate"><span class="pre">local(3,</span> <span class="pre">4).spatial(2,</span> <span class="pre">3)</span></code> to represent the composition of the two layouts: <code class="docutils literal notranslate"><span class="pre">local(3,</span> <span class="pre">4)</span></code> and <code class="docutils literal notranslate"><span class="pre">spatial(2,</span> <span class="pre">3)</span></code>.
+The composition is an operation over two layouts and returns a new layout that combines the two layouts together.
+The composition operation is associative, meaning that $(a * b) * c = a * (b * c)$, where $*$ is the composition operation and $a$, $b$, and $c$ are layouts.
+The composition operation is not commutative, meaning that $a * b neq b * a$ in general.</p>
+<p>For example, if we compose the <code class="docutils literal notranslate"><span class="pre">spatial(2,</span> <span class="pre">3)</span></code> layout with the <code class="docutils literal notranslate"><span class="pre">local(3,</span> <span class="pre">4)</span></code> layout, we can get a different layout:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">spatial</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">local</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
+<span class="go">RegisterLayout(shape=[6, 12], mode_shape=[2, 3, 3, 4], spatial_modes=[0, 2], local_modes=[1, 3])</span>
+<span class="go">┌──────┬──────┬───────┬───────┬──────┬──────┬───────┬───────┬──────┬──────┬───────┬───────┐</span>
+<span class="go">│ 0: 0 │ 0: 1 │ 0: 2  │ 0: 3  │ 1: 0 │ 1: 1 │ 1: 2  │ 1: 3  │ 2: 0 │ 2: 1 │ 2: 2  │ 2: 3  │</span>
+<span class="go">├──────┼──────┼───────┼───────┼──────┼──────┼───────┼───────┼──────┼──────┼───────┼───────┤</span>
+<span class="go">│ 0: 4 │ 0: 5 │ 0: 6  │ 0: 7  │ 1: 4 │ 1: 5 │ 1: 6  │ 1: 7  │ 2: 4 │ 2: 5 │ 2: 6  │ 2: 7  │</span>
+<span class="go">├──────┼──────┼───────┼───────┼──────┼──────┼───────┼───────┼──────┼──────┼───────┼───────┤</span>
+<span class="go">│ 0: 8 │ 0: 9 │ 0: 10 │ 0: 11 │ 1: 8 │ 1: 9 │ 1: 10 │ 1: 11 │ 2: 8 │ 2: 9 │ 2: 10 │ 2: 11 │</span>
+<span class="go">├──────┼──────┼───────┼───────┼──────┼──────┼───────┼───────┼──────┼──────┼───────┼───────┤</span>
+<span class="go">│ 3: 0 │ 3: 1 │ 3: 2  │ 3: 3  │ 4: 0 │ 4: 1 │ 4: 2  │ 4: 3  │ 5: 0 │ 5: 1 │ 5: 2  │ 5: 3  │</span>
+<span class="go">├──────┼──────┼───────┼───────┼──────┼──────┼───────┼───────┼──────┼──────┼───────┼───────┤</span>
+<span class="go">│ 3: 4 │ 3: 5 │ 3: 6  │ 3: 7  │ 4: 4 │ 4: 5 │ 4: 6  │ 4: 7  │ 5: 4 │ 5: 5 │ 5: 6  │ 5: 7  │</span>
+<span class="go">├──────┼──────┼───────┼───────┼──────┼──────┼───────┼───────┼──────┼──────┼───────┼───────┤</span>
+<span class="go">│ 3: 8 │ 3: 9 │ 3: 10 │ 3: 11 │ 4: 8 │ 4: 9 │ 4: 10 │ 4: 11 │ 5: 8 │ 5: 9 │ 5: 10 │ 5: 11 │</span>
+<span class="go">└──────┴──────┴───────┴───────┴──────┴──────┴───────┴───────┴──────┴──────┴───────┴───────┘</span>
+</pre></div>
+</div>
+</section>
+<section id="represent-tensor-core-layouts">
+<h2><span class="section-number">9.3.3. </span>Represent Tensor Core Layouts<a class="headerlink" href="#represent-tensor-core-layouts" title="Link to this heading"><span>¶</span></a></h2>
+<p>All layouts shown in the the documentation for PTX MMA instructions are actually register layouts and can be
+represented using tilus’s layout system.</p>
+<p>The layout for operand C of <code class="docutils literal notranslate"><span class="pre">mma.sync.aligned.m16n8k8</span> <span class="pre">f16,</span> <span class="pre">f16,</span> <span class="pre">f16,</span> <span class="pre">f16</span></code> (<a class="reference external" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#mma-1688-c-f16-f32">Figure 77</a> of PTX manual):</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">layout</span> <span class="o">=</span> <span class="n">repeat</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">spatial</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">))</span>
+<span class="go">RegisterLayout(shape=[16, 8], mode_shape=[2, 8, 4, 2], spatial_modes=[1, 2], local_modes=[0, 3])</span>
+<span class="go">┌───────┬───────┬───────┬───────┬───────┬───────┬───────┬───────┐</span>
+<span class="go">│ 0: 0  │ 0: 1  │ 1: 0  │ 1: 1  │ 2: 0  │ 2: 1  │ 3: 0  │ 3: 1  │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 4: 0  │ 4: 1  │ 5: 0  │ 5: 1  │ 6: 0  │ 6: 1  │ 7: 0  │ 7: 1  │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 8: 0  │ 8: 1  │ 9: 0  │ 9: 1  │ 10: 0 │ 10: 1 │ 11: 0 │ 11: 1 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 12: 0 │ 12: 1 │ 13: 0 │ 13: 1 │ 14: 0 │ 14: 1 │ 15: 0 │ 15: 1 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 16: 0 │ 16: 1 │ 17: 0 │ 17: 1 │ 18: 0 │ 18: 1 │ 19: 0 │ 19: 1 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 20: 0 │ 20: 1 │ 21: 0 │ 21: 1 │ 22: 0 │ 22: 1 │ 23: 0 │ 23: 1 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 24: 0 │ 24: 1 │ 25: 0 │ 25: 1 │ 26: 0 │ 26: 1 │ 27: 0 │ 27: 1 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 28: 0 │ 28: 1 │ 29: 0 │ 29: 1 │ 30: 0 │ 30: 1 │ 31: 0 │ 31: 1 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 0: 2  │ 0: 3  │ 1: 2  │ 1: 3  │ 2: 2  │ 2: 3  │ 3: 2  │ 3: 3  │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 4: 2  │ 4: 3  │ 5: 2  │ 5: 3  │ 6: 2  │ 6: 3  │ 7: 2  │ 7: 3  │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 8: 2  │ 8: 3  │ 9: 2  │ 9: 3  │ 10: 2 │ 10: 3 │ 11: 2 │ 11: 3 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 12: 2 │ 12: 3 │ 13: 2 │ 13: 3 │ 14: 2 │ 14: 3 │ 15: 2 │ 15: 3 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 16: 2 │ 16: 3 │ 17: 2 │ 17: 3 │ 18: 2 │ 18: 3 │ 19: 2 │ 19: 3 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 20: 2 │ 20: 3 │ 21: 2 │ 21: 3 │ 22: 2 │ 22: 3 │ 23: 2 │ 23: 3 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 24: 2 │ 24: 3 │ 25: 2 │ 25: 3 │ 26: 2 │ 26: 3 │ 27: 2 │ 27: 3 │</span>
+<span class="go">├───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┤</span>
+<span class="go">│ 28: 2 │ 28: 3 │ 29: 2 │ 29: 3 │ 30: 2 │ 30: 3 │ 31: 2 │ 31: 3 │</span>
+<span class="go">└───────┴───────┴───────┴───────┴───────┴───────┴───────┴───────┘</span>
+</pre></div>
+</div>
+<p>We only give one example here. You can explore more layouts in the <a class="reference external" href="https://nvidia.github.io/tilus/_static/layout-demo/index.html">Interactive Layout Demo</a>.</p>
+</section>
+<section id="multiple-threads-hold-the-same-element">
+<h2><span class="section-number">9.3.4. </span>Multiple Threads Hold the Same Element<a class="headerlink" href="#multiple-threads-hold-the-same-element" title="Link to this heading"><span>¶</span></a></h2>
+<p>In GPU programming, it is common to have some elements replicated in multiple threads. This is necessary if some
+operation requires multiple threads to access the same element. Our layout system supports this feature by allowing
+multiple threads to hold the same element in the register layout. The following example shows how to create a layout
+where each element is held by two threads:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout</span><span class="w"> </span><span class="kn">import</span> <span class="n">reduce</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">spatial</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
+<span class="go">RegisterLayout(shape=[3, 4], mode_shape=[3, 4], spatial_modes=[0, 1], local_modes=[])</span>
+<span class="go">┌──────┬──────┬───────┬───────┐</span>
+<span class="go">│ 0: 0 │ 1: 0 │ 2: 0  │ 3: 0  │</span>
+<span class="go">├──────┼──────┼───────┼───────┤</span>
+<span class="go">│ 4: 0 │ 5: 0 │ 6: 0  │ 7: 0  │</span>
+<span class="go">├──────┼──────┼───────┼───────┤</span>
+<span class="go">│ 8: 0 │ 9: 0 │ 10: 0 │ 11: 0 │</span>
+<span class="go">└──────┴──────┴───────┴───────┘</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">reduce</span><span class="p">(</span><span class="n">spatial</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span>
+<span class="go">RegisterLayout(shape=[4], mode_shape=[4], spatial_modes=[-3, 0], local_modes=[])</span>
+<span class="go">┌──────────────┬──────────────┬───────────────┬───────────────┐</span>
+<span class="go">│ [0, 4, 8]: 0 │ [1, 5, 9]: 0 │ [2, 6, 10]: 0 │ [3, 7, 11]: 0 │</span>
+<span class="go">└──────────────┴──────────────┴───────────────┴───────────────┘</span>
+</pre></div>
+</div>
+<p>If we perform a reduce operation over the dimension 0 on the <code class="docutils literal notranslate"><span class="pre">spatial(3,</span> <span class="pre">4)</span></code> layout, we can get a new layout
+where each element is held by multiple threads. The new layout has a shape of <code class="docutils literal notranslate"><span class="pre">[4]</span></code>, and each element is replicated
+in three threads. For example, the element at index <code class="docutils literal notranslate"><span class="pre">0</span></code> is held by threads <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">4</span></code>, and <code class="docutils literal notranslate"><span class="pre">8</span></code>.</p>
+</section>
+<section id="unified-layout-representation">
+<h2><span class="section-number">9.3.5. </span>Unified Layout Representation<a class="headerlink" href="#unified-layout-representation" title="Link to this heading"><span>¶</span></a></h2>
+<p>In above examples, besides the grid diagram, we also show the attributes of the layout in the <code class="docutils literal notranslate"><span class="pre">RegisterLayout(...)</span></code> object.
+Those attributes defined the layout in a unified way. Each register layout has the following four attributes:</p>
+<ul class="simple">
+<li><p><strong>shape</strong>: the shape of the layout, which must match the shape of the tensor that the layout is applied to.</p></li>
+<li><p><strong>mode_shape</strong>: the size of each <cite>mode</cite>.</p></li>
+<li><p><strong>spatial_modes</strong>: the modes for the parallel workers.</p></li>
+<li><p><strong>local_modes</strong>: the modes for the local storage of each thread.</p></li>
+</ul>
+<p>There is an important concept called <strong>mode</strong> in the layout. We adopt the terminology from Graphene/Cute. Given a
+shape of a tensor, we can (optionally) split each dimension into multiple sub-dimensions, and each sub-dimension is called a <strong>mode</strong>.</p>
+<p>For example, if we have a tensor with shape <code class="docutils literal notranslate"><span class="pre">[3,</span> <span class="pre">4]</span></code>, we can split the second dimension into two modes of size 2 and 2 and keep the first dimension as a single mode of size 3.
+Then the mode shape of the tensor is <code class="docutils literal notranslate"><span class="pre">[3,</span> <span class="pre">2,</span> <span class="pre">2]</span></code>.
+Take another example, if we have a tensor with shape <code class="docutils literal notranslate"><span class="pre">[12,</span> <span class="pre">1,</span> <span class="pre">6]</span></code>, we can split the first dimension into two modes of size 3 and 4,
+the second dimension into a single mode of size 1, and the third dimension into two modes of size 2 and 3.
+Then the mode shape of the tensor is <code class="docutils literal notranslate"><span class="pre">[3,</span> <span class="pre">4,</span> <span class="pre">1,</span> <span class="pre">2,</span> <span class="pre">3]</span></code>.
+Since the modes with size 1 are redundant (we can always insert arbitrary number of 1s in the mode shape), we prune all the modes with size 1, and the mode shape of the tensor is <code class="docutils literal notranslate"><span class="pre">[3,</span> <span class="pre">4,</span> <span class="pre">2,</span> <span class="pre">3]</span></code>.</p>
+<p>Given a shape and a mode shape, we can distribute the modes into two categories: <strong>spatial modes</strong> and <strong>local modes</strong>.
+The spatial modes are the modes that are distributed among the parallel workers, while the local modes are the modes that are stored in the local array of each thread.
+We use the <code class="docutils literal notranslate"><span class="pre">spatial_modes</span></code> and <code class="docutils literal notranslate"><span class="pre">local_modes</span></code> attributes to represent the spatial modes and local modes, respectively.</p>
+<p>The order of the modes in the <code class="docutils literal notranslate"><span class="pre">spatial_modes</span></code> and <code class="docutils literal notranslate"><span class="pre">local_modes</span></code> attributes matters.</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout</span><span class="w"> </span><span class="kn">import</span> <span class="n">column_local</span><span class="p">,</span> <span class="n">column_spatial</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">local</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+<span class="go">RegisterLayout(shape=[2, 3], mode_shape=[2, 3], spatial_modes=[], local_modes=[0, 1])</span>
+<span class="go">┌──────┬──────┬──────┐</span>
+<span class="go">│ 0: 0 │ 0: 1 │ 0: 2 │</span>
+<span class="go">├──────┼──────┼──────┤</span>
+<span class="go">│ 0: 3 │ 0: 4 │ 0: 5 │</span>
+<span class="go">└──────┴──────┴──────┘</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">column_local</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+<span class="go">RegisterLayout(shape=[2, 3], mode_shape=[2, 3], spatial_modes=[], local_modes=[1, 0])</span>
+<span class="go">┌──────┬──────┬──────┐</span>
+<span class="go">│ 0: 0 │ 0: 2 │ 0: 4 │</span>
+<span class="go">├──────┼──────┼──────┤</span>
+<span class="go">│ 0: 1 │ 0: 3 │ 0: 5 │</span>
+<span class="go">└──────┴──────┴──────┘</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">spatial</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+<span class="go">RegisterLayout(shape=[2, 3], mode_shape=[2, 3], spatial_modes=[0, 1], local_modes=[])</span>
+<span class="go">┌──────┬──────┬──────┐</span>
+<span class="go">│ 0: 0 │ 1: 0 │ 2: 0 │</span>
+<span class="go">├──────┼──────┼──────┤</span>
+<span class="go">│ 3: 0 │ 4: 0 │ 5: 0 │</span>
+<span class="go">└──────┴──────┴──────┘</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">visualize_layout</span><span class="p">(</span><span class="n">column_spatial</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+<span class="go">RegisterLayout(shape=[2, 3], mode_shape=[2, 3], spatial_modes=[1, 0], local_modes=[])</span>
+<span class="go">┌──────┬──────┬──────┐</span>
+<span class="go">│ 0: 0 │ 2: 0 │ 4: 0 │</span>
+<span class="go">├──────┼──────┼──────┤</span>
+<span class="go">│ 1: 0 │ 3: 0 │ 5: 0 │</span>
+<span class="go">└──────┴──────┴──────┘</span>
+</pre></div>
+</div>
+<div class="margin admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Think what happens if we allow one mode to be assigned to both spatial and local modes.</p>
+</div>
+<p>We do not allow one mode to be assigned to both spatial and local modes.</p>
+<section id="mapping-process">
+<h3><span class="section-number">9.3.5.1. </span>Mapping Process<a class="headerlink" href="#mapping-process" title="Link to this heading"><span>¶</span></a></h3>
+<p>I will use a simple example to illustrate how the mapping process works. Given a layout with the following attributes:</p>
+<ul class="simple">
+<li><p>shape: [4, 6]</p></li>
+<li><p>mode_shape: [2, 2, 3, 2]</p></li>
+<li><p>spatial_modes: [0, 2]</p></li>
+<li><p>local_modes: [3, 1]</p></li>
+</ul>
+<p>Given an index (i, j) in the tensor, we hope to find the corresponding (thread_id, local_id) pair(s).
+We first need to compute the index for the modes (i.e., the sub-dimensions) in the mode shape:</p>
+<ul class="simple">
+<li><p>mode_index: [i // 2, i % 2, j // 2, j % 2]</p></li>
+</ul>
+<p>Then, we distribute the modes into spatial and local modes according to the layout attributes:</p>
+<ul class="simple">
+<li><p>spatial_index: [mode_index[0], mode_index[2]] ([i // 2, j // 2])</p></li>
+<li><p>spatial_shape: [mode_shape[0], mode_shape[2]] ([2, 3])</p></li>
+<li><p>local_index: [mode_index[3], mode_index[1]] ([j % 2, i % 2])</p></li>
+<li><p>local_shape: [mode_shape[3], mode_shape[1]] ([2, 2])</p></li>
+</ul>
+<p>Next, we compute the thread_id and local_id:</p>
+<ul class="simple">
+<li><p>thread_id = spatial_index[0] * spatial_shape[1] + spatial_index[1]</p></li>
+<li><p>local_id = local_index[0] * local_shape[1] + local_index[1]</p></li>
+</ul>
+<p>Thus, we know that the element at index (i, j) is stored in</p>
+<ul class="simple">
+<li><p>thread_id: (i // 2) * 3 + (j // 2)</p></li>
+<li><p>local_id: (j % 2) * 2 + (i % 2)</p></li>
+</ul>
+</section>
+<section id="replicated-spatial-modes">
+<h3><span class="section-number">9.3.5.2. </span>Replicated Spatial Modes<a class="headerlink" href="#replicated-spatial-modes" title="Link to this heading"><span>¶</span></a></h3>
+<p>We might store the same element in multiple threads. There are two kinds of spatial modes:</p>
+<ul class="simple">
+<li><p><strong>normal spatial modes</strong>: the modes from the tensor sub-dimensions.</p></li>
+<li><p><strong>replicated modes</strong>: the modes that representing a replication.</p></li>
+</ul>
+<p>The reduce(spatial(3, 4), dims=[0]) operation creates a layout with <code class="docutils literal notranslate"><span class="pre">spatial_modes=[-3,</span> <span class="pre">0]</span></code>, and the <code class="docutils literal notranslate"><span class="pre">-3</span></code> means that
+we have a replication of 3. See the reduce example above for what “replication” means.</p>
+</section>
+</section>
+<section id="operations-on-layouts">
+<h2><span class="section-number">9.3.6. </span>Operations on Layouts<a class="headerlink" href="#operations-on-layouts" title="Link to this heading"><span>¶</span></a></h2>
+<p>We can treat layouts as a special kind of tensors, where each element in the layout is a list of (thread_id, local_id) pairs, representing the
+locations with the element. We have a list of operations that can be performed on layouts to transform the layouts. All of them are defined
+under the <code class="xref py py-mod docutils literal notranslate"><span class="pre">tilus.ir.layout</span></code> module. Here is a list of the operations:</p>
+<section id="layout-creation">
+<h3><span class="section-number">9.3.6.1. </span>Layout Creation<a class="headerlink" href="#layout-creation" title="Link to this heading"><span>¶</span></a></h3>
+<p>We can directly use <code class="xref py py-func docutils literal notranslate"><span class="pre">tilus.ir.layout.register_layout()</span></code> to create a register layout by specifying <code class="docutils literal notranslate"><span class="pre">shape</span></code>, <code class="docutils literal notranslate"><span class="pre">mode_shape</span></code>, <code class="docutils literal notranslate"><span class="pre">spatial_modes</span></code>, and <code class="docutils literal notranslate"><span class="pre">local_modes</span></code>.
+We can also create a layout using the following functions.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.spatial.html#tilus.ir.layout.ops.spatial" title="tilus.ir.layout.ops.spatial"><code class="xref py py-obj docutils literal notranslate"><span class="pre">spatial</span></code></a>(*shape[, ranks])</p></td>
+<td><p>Create a spatial layout.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.local.html#tilus.ir.layout.ops.local" title="tilus.ir.layout.ops.local"><code class="xref py py-obj docutils literal notranslate"><span class="pre">local</span></code></a>(*shape[, ranks])</p></td>
+<td><p>Create a local layout.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_spatial.html#tilus.ir.layout.ops.column_spatial" title="tilus.ir.layout.ops.column_spatial"><code class="xref py py-obj docutils literal notranslate"><span class="pre">column_spatial</span></code></a>(*shape)</p></td>
+<td><p>Create a spatial layout in column-major order.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_local.html#tilus.ir.layout.ops.column_local" title="tilus.ir.layout.ops.column_local"><code class="xref py py-obj docutils literal notranslate"><span class="pre">column_local</span></code></a>(*shape)</p></td>
+<td><p>Create a local layout in column-major order.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html#tilus.ir.layout.ops.auto_local_spatial" title="tilus.ir.layout.ops.auto_local_spatial"><code class="xref py py-obj docutils literal notranslate"><span class="pre">auto_local_spatial</span></code></a>(num_threads, shape)</p></td>
+<td><p>Create a local(...).spatial(...) layout.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="layout-transformation">
+<h3><span class="section-number">9.3.6.2. </span>Layout Transformation<a class="headerlink" href="#layout-transformation" title="Link to this heading"><span>¶</span></a></h3>
+<p>We can transform one layout to another layout using the following functions. These functions does not change the number of threads and the number of elements per thread, but change the tensor shape and how we map the elements to threads/local elements.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.squeeze.html#tilus.ir.layout.ops.squeeze" title="tilus.ir.layout.ops.squeeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">squeeze</span></code></a>(layout, dims)</p></td>
+<td><p>Squeeze the layout over the given dimensions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.unsqueeze.html#tilus.ir.layout.ops.unsqueeze" title="tilus.ir.layout.ops.unsqueeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unsqueeze</span></code></a>(layout, dims)</p></td>
+<td><p>Unsqueeze the layout over the given dimensions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.permute.html#tilus.ir.layout.ops.permute" title="tilus.ir.layout.ops.permute"><code class="xref py py-obj docutils literal notranslate"><span class="pre">permute</span></code></a>(layout, dims)</p></td>
+<td><p>Permute the dimensions of the layout.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reshape.html#tilus.ir.layout.ops.reshape" title="tilus.ir.layout.ops.reshape"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reshape</span></code></a>(layout, shape)</p></td>
+<td><p>Reshape the layout to the given shape.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.flatten.html#tilus.ir.layout.ops.flatten" title="tilus.ir.layout.ops.flatten"><code class="xref py py-obj docutils literal notranslate"><span class="pre">flatten</span></code></a>(layout[, start_dim, end_dim])</p></td>
+<td><p>Flatten the layout over the dimensions between start_dim and end_dim, inclusive.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id1">
+<h3><span class="section-number">9.3.6.3. </span>Layout Composition<a class="headerlink" href="#id1" title="Link to this heading"><span>¶</span></a></h3>
+<p>We can compose two layouts together to create a new layout using the following functions. The two functions are
+different in terms of the composition method.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.concat.html#tilus.ir.layout.ops.concat" title="tilus.ir.layout.ops.concat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">concat</span></code></a>(lhs, rhs)</p></td>
+<td><p>Concatenate two layouts.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.compose.html#tilus.ir.layout.ops.compose" title="tilus.ir.layout.ops.compose"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compose</span></code></a>(outer, inner)</p></td>
+<td><p>Compose two layouts together.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="other-operations">
+<h3><span class="section-number">9.3.6.4. </span>Other Operations<a class="headerlink" href="#other-operations" title="Link to this heading"><span>¶</span></a></h3>
+<p>We can also perform some other operations on layouts, such as:</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.divide.html#tilus.ir.layout.ops.divide" title="tilus.ir.layout.ops.divide"><code class="xref py py-obj docutils literal notranslate"><span class="pre">divide</span></code></a>(lhs, rhs)</p></td>
+<td><p>Divide two layouts.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reduce.html#tilus.ir.layout.ops.reduce" title="tilus.ir.layout.ops.reduce"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reduce</span></code></a>(layout, dims, *[, keepdims])</p></td>
+<td><p>Reduce the layout over the given dimensions.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="shared-layout.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">9.2. </span>Shared Layout</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="layout-inference.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">9.4. </span>Automatic Layout Inference</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-started">9.3.1. Getting Started</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#layout-composition">9.3.2. Layout Composition</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#represent-tensor-core-layouts">9.3.3. Represent Tensor Core Layouts</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multiple-threads-hold-the-same-element">9.3.4. Multiple Threads Hold the Same Element</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unified-layout-representation">9.3.5. Unified Layout Representation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mapping-process">9.3.5.1. Mapping Process</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#replicated-spatial-modes">9.3.5.2. Replicated Spatial Modes</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#operations-on-layouts">9.3.6. Operations on Layouts</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#layout-creation">9.3.6.1. Layout Creation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#layout-transformation">9.3.6.2. Layout Transformation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">9.3.6.3. Layout Composition</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#other-operations">9.3.6.4. Other Operations</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By NVIDIA
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025-2026, NVIDIA.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

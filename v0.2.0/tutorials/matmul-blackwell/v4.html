@@ -1,0 +1,1400 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>4. Tile Rasterization and Pipeline Abstraction &#8212; tilus  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=38aa6179" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-blackwell/v4';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="5. CLC Persistent Kernel and Pipelined Epilogue" href="v5.html" />
+    <link rel="prev" title="3. Warp Specialization" href="v3.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">tilus  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../getting-started/install.html">Installation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../matmul-ampere/__init__.html">Matmul (Ampere)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v0.html">0. Naive Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v1.html">1. Use Shared Memory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v2.html">2. Auto-tuning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v3.html">3. Async Copy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v4.html">4. Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="__init__.html">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="v0.html">0. A Minimal Blackwell Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads and TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">4. Tile Rasterization and Pipeline Abstraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v6.html">6. 2-CTA Cluster</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Programming Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/overview.html">1. Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/tilus-script.html">2. Tilus Script</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../programming-guides/type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/data-types.html">3.1. Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/pointer-types.html">3.2. Pointer Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/register-tensor.html">3.3. Register Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/tmemory-tensor.html">3.5. Tensor Memory Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/global-tensor.html">3.6. Global Tensor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/instructions.html">4. Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/control-flow.html">5. Control Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/thread-group.html">6. Thread Group</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/cache.html">7. Cache</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/autotuning.html">8. Autotuning</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../programming-guides/layout-system/__init__.html">9. Layout System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/global-layout.html">9.1. Global Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/shared-layout.html">9.2. Shared Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/register-layout.html">9.3. Register Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/layout-inference.html">9.4. Automatic Layout Inference</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/latest/_static/layout-demo/index.html">Layout Demo</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus.html">tilus</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.autotune.html">tilus.autotune</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-option.html">tilus.option</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.cache_dir.html">tilus.option.cache_dir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.parallel_workers.html">tilus.option.parallel_workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.debug.dump_ir.html">tilus.option.debug.dump_ir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.debug.disable_ptxas_opt.html">tilus.option.debug.disable_ptxas_opt</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-target.html">tilus.target</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.target.get_current_target.html">tilus.target.get_current_target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.target.set_current_target.html">tilus.target.set_current_target</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-script.html">tilus.Script</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.blockIdx.html">Script.blockIdx</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.gridDim.html">Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.current_num_threads.html">Script.current_num_threads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.current_thread_begin.html">Script.current_thread_begin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.current_thread_end.html">Script.current_thread_end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.assume.html">Script.assume</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.range.html">Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.single_thread.html">Script.single_thread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.single_warp.html">Script.single_warp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.static_assert.html">Script.static_assert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.thread_group.html">Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.warp_group.html">Script.warp_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.abs.html">Script.abs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.add.html">Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.all.html">Script.all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.annotate_layout.html">Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.any.html">Script.any</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.assign.html">Script.assign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.cast.html">Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.clip.html">Script.clip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.dot.html">Script.dot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.exp.html">Script.exp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.exp2.html">Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.fast_divmod.html">Script.fast_divmod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.flatten.html">Script.flatten</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.free_shared.html">Script.free_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.global_tensor.html">Script.global_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.global_view.html">Script.global_view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.load_global.html">Script.load_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.load_shared.html">Script.load_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.lock_semaphore.html">Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.log.html">Script.log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.max.html">Script.max</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.maximum.html">Script.maximum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.min.html">Script.min</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.print_tensor.html">Script.print_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.printf.html">Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.register_tensor.html">Script.register_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.repeat.html">Script.repeat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.repeat_interleave.html">Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.round.html">Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.square.html">Script.square</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.store_global.html">Script.store_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.store_shared.html">Script.store_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sum.html">Script.sum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sync.html">Script.sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.transpose.html">Script.transpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.unsqueeze.html">Script.unsqueeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.view.html">Script.view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.where.html">Script.where</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/mbarrier.html">Script.mbarrier</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html">Script.mbarrier.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html">Script.mbarrier.arrive</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html">Script.mbarrier.arrive_and_expect_tx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html">Script.mbarrier.arrive_and_expect_tx_multicast</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html">Script.mbarrier.arrive_and_expect_tx_remote</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html">Script.mbarrier.wait</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html">Script.mbarrier.producer_initial_phase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html">Script.mbarrier.consumer_initial_phase</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/fence.html">Script.fence</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html">Script.fence.proxy_async</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html">Script.fence.proxy_async_release</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/tma.html">Script.tma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html">Script.tma.global_to_shared</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html">Script.tma.shared_to_global</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html">Script.tma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html">Script.tma.wait_group</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/tcgen05.html">Script.tcgen05</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html">Script.tcgen05.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html">Script.tcgen05.dealloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html">Script.tcgen05.slice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html">Script.tcgen05.view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html">Script.tcgen05.relinquish_alloc_permit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html">Script.tcgen05.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html">Script.tcgen05.store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html">Script.tcgen05.wait_load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html">Script.tcgen05.wait_store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html">Script.tcgen05.commit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html">Script.tcgen05.copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html">Script.tcgen05.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/clc.html">Script.clc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html">Script.clc.try_cancel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html">Script.clc.query_response</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/cluster.html">Script.cluster</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html">Script.cluster.sync</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html">Script.cluster.map_shared_addr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx.html">Script.cluster.blockIdx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank.html">Script.cluster.blockRank</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim.html">Script.cluster.clusterDim</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/wgmma.html">Script.wgmma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html">Script.wgmma.fence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html">Script.wgmma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html">Script.wgmma.wait_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html">Script.wgmma.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/attrs.html">Script.attrs</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.blocks.html">Script.attrs.blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.cluster_blocks.html">Script.attrs.cluster_blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.warps.html">Script.attrs.warps</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../python-api/tilus-class.html">tilus.Class</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-ir/__index__.html">tilus.ir</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/datatype.html">tilus.ir.DataType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/pointer.html">tilus.ir.PointerType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/tensor.html">tilus.ir.Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/register_tensor.html">tilus.ir.RegisterTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/tmemory_tensor.html">tilus.ir.TMemoryTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html">tilus.ir.layout.ops.auto_local_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_local.html">tilus.ir.layout.ops.column_local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_spatial.html">tilus.ir.layout.ops.column_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.compose.html">tilus.ir.layout.ops.compose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.concat.html">tilus.ir.layout.ops.concat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.divide.html">tilus.ir.layout.ops.divide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.flatten.html">tilus.ir.layout.ops.flatten</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.local.html">tilus.ir.layout.ops.local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.permute.html">tilus.ir.layout.ops.permute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reduce.html">tilus.ir.layout.ops.reduce</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.register_layout.html">tilus.ir.layout.ops.register_layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reshape.html">tilus.ir.layout.ops.reshape</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.spatial.html">tilus.ir.layout.ops.spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.squeeze.html">tilus.ir.layout.ops.squeeze</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.unsqueeze.html">tilus.ir.layout.ops.unsqueeze</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/tilus-ir/shared_layout.html">tilus.ir.SharedLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_row_major.html">tilus.ir.layout.ops.shared_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_column_major.html">tilus.ir.layout.ops.shared_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_compose.html">tilus.ir.layout.ops.shared_compose</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/tilus-ir/global_layout.html">tilus.ir.GlobalLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_row_major.html">tilus.ir.layout.global_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_column_major.html">tilus.ir.layout.global_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_strides.html">tilus.ir.layout.global_strides</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_compose.html">tilus.ir.layout.global_compose</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item"><script>
+(function() {
+  var pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  var baseUrl = '';
+  var currentVersion = '';
+  var relPageParts = [];
+
+  if (pathParts.length >= 2) {
+    baseUrl = '/' + pathParts[0];
+    currentVersion = pathParts[1];
+    relPageParts = pathParts.slice(2);
+  }
+
+  fetch(baseUrl + '/versions.json')
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('not found');
+      return resp.json();
+    })
+    .then(function(versions) {
+      var headerButtons = document.querySelector('.article-header-buttons');
+      if (!headerButtons) return;
+
+      headerButtons.style.display = 'flex';
+      headerButtons.style.alignItems = 'center';
+
+      var select = document.createElement('select');
+      select.title = 'Switch version';
+      select.style.cssText = 'padding: 0.15rem 0.4rem; border-radius: 4px; border: 1px solid var(--pst-color-border); background: var(--pst-color-background); color: var(--pst-color-text-base); font-size: var(--pst-sidebar-font-size); cursor: pointer; appearance: auto; margin-right: 0.5rem; height: 2.25em;';
+
+      versions.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.slug;
+        opt.textContent = v.label;
+        if (v.slug === currentVersion) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      select.addEventListener('change', function() {
+        var relPage = relPageParts.join('/') || 'index.html';
+        window.location.href = baseUrl + '/' + select.value + '/' + relPage;
+      });
+
+      headerButtons.insertBefore(select, headerButtons.firstChild);
+    })
+    .catch(function() {});
+})();
+</script></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/NVIDIA/tilus" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="Source repository"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/tutorials/matmul-blackwell/v4.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>4. Tile Rasterization and Pipeline Abstraction</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-full-kernel">The Full Kernel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v3">What Changed from V3</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tile-rasterization">Tile Rasterization</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#formulation">Formulation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation">Implementation</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-abstraction">Pipeline Abstraction</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#setup">Setup</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-and-mma-warps">TMA and MMA Warps</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="tile-rasterization-and-pipeline-abstraction">
+<span id="tutorial-blackwell-matmul-v4"></span><h1>4. Tile Rasterization and Pipeline Abstraction<a class="headerlink" href="#tile-rasterization-and-pipeline-abstraction" title="Link to this heading"><span>¶</span></a></h1>
+<p><a class="reference internal" href="v3.html"><span class="doc">V3</span></a> introduced warp specialization with separate TMA and MMA warps.
+This version adds two improvements:</p>
+<ol class="arabic simple">
+<li><p><strong>Tile rasterization</strong> — reorder tile assignments so that consecutive thread
+blocks process tiles that share B columns, improving L2 cache reuse.</p></li>
+<li><p><strong>Pipeline abstraction</strong> — encapsulate the producer-consumer barrier logic
+from V3 into a reusable <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class using <code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code>, making it
+easy to add more pipelines as the kernel grows (e.g., separate TMA and MMA
+pipelines in later versions).</p></li>
+</ol>
+<section id="the-full-kernel">
+<h2>The Full Kernel<a class="headerlink" href="#the-full-kernel" title="Link to this heading"><span>¶</span></a></h2>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">BlackwellMatmulV4 — full kernel (including Pipeline class)</span><a class="headerlink" href="#id1" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Pipeline</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Class</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">num_stages</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">producer_arrive_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">consumer_arrive_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">num_stages</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">empty_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">consumer_arrive_count</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_stages</span><span class="p">)]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">full_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">producer_arrive_count</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_stages</span><span class="p">)]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">producer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">producer_initial_phase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">consumer_initial_phase</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">producer_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># wait until the current stage is free (consumer has finished with it)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+            <span class="n">barrier</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">empty_barriers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
+            <span class="n">phase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_phase</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">producer_barrier</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterTensor</span><span class="p">:</span>
+        <span class="c1"># return the barrier to signal when the producer has filled this stage</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_barriers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">producer_advance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># advance to the next stage; flip phase when wrapping around</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">producer_phase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">producer_phase</span> <span class="o">^</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">consumer_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># wait until the current stage is filled (producer has loaded data)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+            <span class="n">barrier</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">full_barriers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">],</span>
+            <span class="n">phase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">consumer_barrier</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterTensor</span><span class="p">:</span>
+        <span class="c1"># return the barrier to signal when the consumer has consumed this stage</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty_barriers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">consumer_advance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># advance to the next stage; flip phase when wrapping around</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span> <span class="o">^</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span>
+    <span class="s2">&quot;block_m, block_n, e_block_n&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">]]</span>
+<span class="p">)</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;swizzle_size&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BlackwellMatmulV4</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">block_m</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">block_n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">block_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">stages</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">e_block_n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">swizzle_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">=</span> <span class="n">block_m</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">=</span> <span class="n">block_n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span> <span class="o">=</span> <span class="n">block_k</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stages</span> <span class="o">=</span> <span class="n">stages</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">e_block_n</span> <span class="o">=</span> <span class="n">e_block_n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">swizzle_size</span> <span class="o">=</span> <span class="n">swizzle_size</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_block_coord</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">linear_idx</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Map a 1D linear block index to 2D (m_block, n_block) with swizzle grouping.</span>
+
+<span class="sd">        Tiles within a swizzle group share N-columns, improving L2 cache reuse</span>
+<span class="sd">        for the B matrix.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">swizzle_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">swizzle_size</span>
+        <span class="n">tiles_per_group</span> <span class="o">=</span> <span class="n">num_m_blocks</span> <span class="o">*</span> <span class="n">swizzle_size</span>
+        <span class="n">group_idx</span><span class="p">,</span> <span class="n">in_group_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fast_divmod</span><span class="p">(</span><span class="n">linear_idx</span><span class="p">,</span> <span class="n">tiles_per_group</span><span class="p">)</span>
+        <span class="n">first_n</span> <span class="o">=</span> <span class="n">group_idx</span> <span class="o">*</span> <span class="n">swizzle_size</span>
+        <span class="n">m_block</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">n_block</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># When num_n_blocks is divisible by swizzle_size, all groups are full and</span>
+        <span class="c1"># last_group_width is never used. Use swizzle_size as a safe fallback to</span>
+        <span class="c1"># avoid division-by-zero in the precompute.</span>
+        <span class="n">remainder</span> <span class="o">=</span> <span class="n">num_n_blocks</span> <span class="o">-</span> <span class="n">num_n_blocks</span> <span class="o">//</span> <span class="n">swizzle_size</span> <span class="o">*</span> <span class="n">swizzle_size</span>
+        <span class="n">last_group_width</span> <span class="o">=</span> <span class="n">remainder</span> <span class="k">if</span> <span class="n">remainder</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">swizzle_size</span>
+        <span class="k">if</span> <span class="n">first_n</span> <span class="o">+</span> <span class="n">swizzle_size</span> <span class="o">&lt;=</span> <span class="n">num_n_blocks</span><span class="p">:</span>
+            <span class="c1"># Full group: swizzle_size is a compile-time constant</span>
+            <span class="n">m_block</span><span class="p">,</span> <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fast_divmod</span><span class="p">(</span><span class="n">in_group_idx</span><span class="p">,</span> <span class="n">swizzle_size</span><span class="p">)</span>
+            <span class="n">n_block</span> <span class="o">=</span> <span class="n">first_n</span> <span class="o">+</span> <span class="n">r</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Last group: divisor is num_n_blocks % swizzle_size, which is grid-constant</span>
+            <span class="n">m_block</span><span class="p">,</span> <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fast_divmod</span><span class="p">(</span><span class="n">in_group_idx</span><span class="p">,</span> <span class="n">last_group_width</span><span class="p">)</span>
+            <span class="n">n_block</span> <span class="o">=</span> <span class="n">first_n</span> <span class="o">+</span> <span class="n">r</span>
+        <span class="k">return</span> <span class="n">m_block</span><span class="p">,</span> <span class="n">n_block</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">m_size</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
+        <span class="n">n_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">k_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">a_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
+        <span class="n">b_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
+        <span class="n">c_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">block_m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span>
+        <span class="n">block_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span>
+        <span class="n">block_k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span>
+        <span class="n">stages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
+        <span class="n">e_block_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">e_block_n</span>
+
+        <span class="n">num_m_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="n">block_m</span><span class="p">)</span>
+        <span class="n">num_n_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="n">block_n</span><span class="p">)</span>
+        <span class="c1"># 1D grid: tile rasterization maps linear index to 2D coordinates</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="n">num_m_blocks</span> <span class="o">*</span> <span class="n">num_n_blocks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>
+
+        <span class="c1"># tile rasterization: swizzle for better L2 cache reuse of B columns</span>
+        <span class="n">m_block</span><span class="p">,</span> <span class="n">n_block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
+        <span class="p">)</span>
+        <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">m_block</span> <span class="o">*</span> <span class="n">block_m</span>
+        <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">n_block</span> <span class="o">*</span> <span class="n">block_n</span>
+
+        <span class="n">g_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
+        <span class="n">g_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">n_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
+        <span class="n">g_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">c_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
+        <span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">stages</span><span class="p">,</span> <span class="n">block_m</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+        <span class="n">s_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">stages</span><span class="p">,</span> <span class="n">block_n</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+        <span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
+
+        <span class="c1"># Pipeline class encapsulates barrier/phase/stage management from V3</span>
+        <span class="n">tma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">stages</span><span class="p">)</span>
+        <span class="n">flush_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="n">stages</span><span class="p">):</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+                        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                        <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
+                        <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+                    <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
+                    <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
+                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+                    <span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span>
+                    <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
+                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                <span class="p">)</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="n">stages</span><span class="p">):</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
+                    <span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">],</span>
+                    <span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+                    <span class="n">t_acc</span><span class="p">,</span>
+                    <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_barrier</span><span class="p">())</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">flush_barrier</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">flush_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+        <span class="c1"># TMA epilogue: tmem -&gt; register -&gt; shared -&gt; global (via TMA)</span>
+        <span class="n">s_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">e_offset_n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">block_n</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">):</span>
+            <span class="c1"># slice a e_block_n-wide column from the accumulator</span>
+            <span class="n">t_acc_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span>
+                <span class="n">t_acc</span><span class="p">,</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">e_offset_n</span><span class="p">],</span>
+                <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">],</span>
+                <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">r_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">t_acc_slice</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">wait_load</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">s_c</span><span class="p">,</span> <span class="n">r_acc</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">float16</span><span class="p">))</span>
+            <span class="c1"># fence: make generic-proxy writes visible to async-proxy (TMA)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fence</span><span class="o">.</span><span class="n">proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="s2">&quot;shared&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
+                <span class="c1"># TMA bulk store from shared to global</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">shared_to_global</span><span class="p">(</span>
+                    <span class="n">s_c</span><span class="p">,</span>
+                    <span class="n">g_c</span><span class="p">,</span>
+                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span> <span class="o">+</span> <span class="n">e_offset_n</span><span class="p">],</span>
+                    <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">read</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">dealloc</span><span class="p">(</span><span class="n">t_acc</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="what-changed-from-v3">
+<h2>What Changed from V3<a class="headerlink" href="#what-changed-from-v3" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 15.8%" />
+<col style="width: 42.1%" />
+<col style="width: 42.1%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"></th>
+<th class="head"><p>V3</p></th>
+<th class="head"><p>V4</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Grid layout</strong></p></td>
+<td><p>2D grid (column-major)</p></td>
+<td><p>1D grid with swizzled tile rasterization for L2 locality</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Barrier management</strong></p></td>
+<td><p>Manual barriers, phases, and stage indices</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class (<code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code>) encapsulates all bookkeeping</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Integer division</strong></p></td>
+<td><p>Standard <code class="docutils literal notranslate"><span class="pre">//</span></code> and <code class="docutils literal notranslate"><span class="pre">%</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fast_divmod</span></code> for grid-constant divisors</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>New instructions</strong></p></td>
+<td></td>
+<td><p><a class="reference internal" href="../../python-api/generated/tilus.Script.fast_divmod.html#tilus.Script.fast_divmod" title="tilus.Script.fast_divmod"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fast_divmod()</span></code></a>, <code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="tile-rasterization">
+<h2>Tile Rasterization<a class="headerlink" href="#tile-rasterization" title="Link to this heading"><span>¶</span></a></h2>
+<p>In matmul, each output tile (m, n) needs a row-strip of A (row <code class="docutils literal notranslate"><span class="pre">m</span></code>) and a
+column-strip of B (column <code class="docutils literal notranslate"><span class="pre">n</span></code>). A rows are unique per tile, but B columns are
+<strong>shared across all tiles in the same N-column</strong>. This means B data loaded by
+one tile can be reused by other tiles that share the same N-column — if the
+data is still in L2 cache.</p>
+<p>The question is: <strong>how do we order the tiles so that the GPU’s L2 cache is used
+effectively?</strong> The key idea is to minimize the <strong>working set</strong> — the number
+of distinct A rows and B columns that must be in L2 simultaneously for the
+currently active thread blocks.</p>
+<figure class="align-center" id="id2">
+<a class="reference internal image-reference" href="../../_images/v4_tile_rasterization.svg"><img alt="../../_images/v4_tile_rasterization.svg" src="../../_images/v4_tile_rasterization.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">An 8 × 8 tile grid with a wave of 16 active blocks (blue cells).
+Orange bars on the left mark active A rows; blue bars on top mark active B
+columns. Swizzle achieves a smaller L2 working set (8 vs 10 tiles) for the
+same number of active blocks.</span><a class="headerlink" href="#id2" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
+<p><strong>A concrete example.</strong> Consider an 8 × 8 grid of tiles with
+<code class="docutils literal notranslate"><span class="pre">block_m</span> <span class="pre">=</span> <span class="pre">block_n</span> <span class="pre">=</span> <span class="pre">128</span></code> and K = 8192. Each A row-strip and each B
+column-strip is 128 × 8192 in fp16 = <strong>2 MB</strong>.</p>
+<p>Suppose the GPU can run 16 thread blocks concurrently (one <em>wave</em>). With
+<strong>column-major</strong> ordering (the naive 2D grid from V3), <code class="docutils literal notranslate"><span class="pre">blockIdx.x</span></code> walks
+down M first, so the 16 active blocks fill columns 0 and 1 completely (8 rows
+each). As shown in the figure:</p>
+<ul class="simple">
+<li><p><strong>Active A rows</strong>: 8 (all rows touched). Working set: <strong>8 × 2 MB = 16 MB</strong>.</p></li>
+<li><p><strong>Active B columns</strong>: 2 (cols 0–1). Working set: <strong>2 × 2 MB = 4 MB</strong>.</p></li>
+<li><p><strong>Total L2 working set: 20 MB</strong> (10 unique tiles).</p></li>
+</ul>
+<p>With <strong>swizzled</strong> ordering (<code class="docutils literal notranslate"><span class="pre">swizzle_size</span> <span class="pre">=</span> <span class="pre">4</span></code>), the same 16 blocks are
+mapped to rows 0–3 of columns 0–3 — a compact 4 × 4 square in the
+top-left of the grid:</p>
+<ul class="simple">
+<li><p><strong>Active A rows</strong>: 4 (rows 0–3 only). Working set: <strong>4 × 2 MB = 8 MB</strong>.</p></li>
+<li><p><strong>Active B columns</strong>: 4 (cols 0–3). Working set: <strong>4 × 2 MB = 8 MB</strong>.</p></li>
+<li><p><strong>Total L2 working set: 16 MB</strong> (8 unique tiles) — <strong>20% smaller</strong>.</p></li>
+</ul>
+<p>The reduction comes from balancing A and B: column-major packs all 8 rows into
+2 columns (8 + 2 = 10 tiles), while swizzle distributes the same 16 blocks
+across 4 rows and 4 columns (4 + 4 = 8 tiles). Fewer unique tiles in L2 means
+higher hit rates and less off-chip memory traffic.</p>
+<section id="formulation">
+<h3>Formulation<a class="headerlink" href="#formulation" title="Link to this heading"><span>¶</span></a></h3>
+<p>Given a grid of <code class="docutils literal notranslate"><span class="pre">num_m_blocks</span></code> × <code class="docutils literal notranslate"><span class="pre">num_n_blocks</span></code> tiles and a
+<code class="docutils literal notranslate"><span class="pre">swizzle_size</span></code>, the swizzled mapping works as follows:</p>
+<ol class="arabic simple">
+<li><p>Divide the N-columns into groups of <code class="docutils literal notranslate"><span class="pre">swizzle_size</span></code>:
+group <code class="docutils literal notranslate"><span class="pre">group_idx</span></code> covers columns
+<code class="docutils literal notranslate"><span class="pre">[group_idx</span> <span class="pre">*</span> <span class="pre">swizzle_size,</span> <span class="pre">group_idx</span> <span class="pre">*</span> <span class="pre">swizzle_size</span> <span class="pre">+</span> <span class="pre">swizzle_size)</span></code>.</p></li>
+<li><p>Within each group, the tile shape is <code class="docutils literal notranslate"><span class="pre">[num_m_blocks,</span> <span class="pre">swizzle_size]</span></code>, and
+tiles are assigned in <strong>row-major</strong> order:
+<code class="docutils literal notranslate"><span class="pre">(m_block=0,</span> <span class="pre">n_block=0),</span> <span class="pre">(m_block=0,</span> <span class="pre">n_block=1),</span> <span class="pre">...,</span>
+<span class="pre">(m_block=1,</span> <span class="pre">n_block=0),</span> <span class="pre">...</span></code></p></li>
+</ol>
+<p>This makes consecutive thread blocks touch nearby rows and columns, producing a
+more compact active region in the grid. The <code class="docutils literal notranslate"><span class="pre">swizzle_size</span></code> controls the
+trade-off between A and B working sets: a larger value keeps more B columns
+active (increasing B working set) but fewer A rows active (decreasing A working
+set). The optimal value depends on the problem size and L2 cache capacity, so
+it is autotuned.</p>
+</section>
+<section id="implementation">
+<h3>Implementation<a class="headerlink" href="#implementation" title="Link to this heading"><span>¶</span></a></h3>
+<p>The grid is launched as 1D, and <code class="docutils literal notranslate"><span class="pre">compute_block_coord</span></code> remaps each
+<code class="docutils literal notranslate"><span class="pre">blockIdx.x</span></code> to the swizzled (m, n) coordinates:</p>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">1D grid launch with swizzled tile coordinates</span><a class="headerlink" href="#id3" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">num_m_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="n">block_m</span><span class="p">)</span>
+<span class="n">num_n_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="n">block_n</span><span class="p">)</span>
+<span class="c1"># 1D grid: tile rasterization maps linear index to 2D coordinates</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="n">num_m_blocks</span> <span class="o">*</span> <span class="n">num_n_blocks</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>
+
+<span class="c1"># tile rasterization: swizzle for better L2 cache reuse of B columns</span>
+<span class="n">m_block</span><span class="p">,</span> <span class="n">n_block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
+<span class="p">)</span>
+<span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">m_block</span> <span class="o">*</span> <span class="n">block_m</span>
+<span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">n_block</span> <span class="o">*</span> <span class="n">block_n</span>
+</pre></div>
+</div>
+</div>
+<p>The mapping logic:</p>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">Tile rasterization with swizzle grouping</span><a class="headerlink" href="#id4" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">compute_block_coord</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">linear_idx</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map a 1D linear block index to 2D (m_block, n_block) with swizzle grouping.</span>
+
+<span class="sd">    Tiles within a swizzle group share N-columns, improving L2 cache reuse</span>
+<span class="sd">    for the B matrix.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">swizzle_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">swizzle_size</span>
+    <span class="n">tiles_per_group</span> <span class="o">=</span> <span class="n">num_m_blocks</span> <span class="o">*</span> <span class="n">swizzle_size</span>
+    <span class="n">group_idx</span><span class="p">,</span> <span class="n">in_group_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fast_divmod</span><span class="p">(</span><span class="n">linear_idx</span><span class="p">,</span> <span class="n">tiles_per_group</span><span class="p">)</span>
+    <span class="n">first_n</span> <span class="o">=</span> <span class="n">group_idx</span> <span class="o">*</span> <span class="n">swizzle_size</span>
+    <span class="n">m_block</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">n_block</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># When num_n_blocks is divisible by swizzle_size, all groups are full and</span>
+    <span class="c1"># last_group_width is never used. Use swizzle_size as a safe fallback to</span>
+    <span class="c1"># avoid division-by-zero in the precompute.</span>
+    <span class="n">remainder</span> <span class="o">=</span> <span class="n">num_n_blocks</span> <span class="o">-</span> <span class="n">num_n_blocks</span> <span class="o">//</span> <span class="n">swizzle_size</span> <span class="o">*</span> <span class="n">swizzle_size</span>
+    <span class="n">last_group_width</span> <span class="o">=</span> <span class="n">remainder</span> <span class="k">if</span> <span class="n">remainder</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">swizzle_size</span>
+    <span class="k">if</span> <span class="n">first_n</span> <span class="o">+</span> <span class="n">swizzle_size</span> <span class="o">&lt;=</span> <span class="n">num_n_blocks</span><span class="p">:</span>
+        <span class="c1"># Full group: swizzle_size is a compile-time constant</span>
+        <span class="n">m_block</span><span class="p">,</span> <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fast_divmod</span><span class="p">(</span><span class="n">in_group_idx</span><span class="p">,</span> <span class="n">swizzle_size</span><span class="p">)</span>
+        <span class="n">n_block</span> <span class="o">=</span> <span class="n">first_n</span> <span class="o">+</span> <span class="n">r</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Last group: divisor is num_n_blocks % swizzle_size, which is grid-constant</span>
+        <span class="n">m_block</span><span class="p">,</span> <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fast_divmod</span><span class="p">(</span><span class="n">in_group_idx</span><span class="p">,</span> <span class="n">last_group_width</span><span class="p">)</span>
+        <span class="n">n_block</span> <span class="o">=</span> <span class="n">first_n</span> <span class="o">+</span> <span class="n">r</span>
+    <span class="k">return</span> <span class="n">m_block</span><span class="p">,</span> <span class="n">n_block</span>
+</pre></div>
+</div>
+</div>
+<p>When <code class="docutils literal notranslate"><span class="pre">num_n_blocks</span></code> is not divisible by <code class="docutils literal notranslate"><span class="pre">swizzle_size</span></code>, the last group has
+fewer than <code class="docutils literal notranslate"><span class="pre">swizzle_size</span></code> columns. The code handles this by computing
+<code class="docutils literal notranslate"><span class="pre">last_group_width</span></code> (the remainder) and using it as the divisor for tiles in
+the last group, ensuring correct (m_block, n_block) mapping.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>Integer division and modulo are expensive on GPUs. When the divisor is a
+compile-time constant (like <code class="docutils literal notranslate"><span class="pre">swizzle_size</span></code>), the compiler converts division
+into a mul + shift automatically, so normal <code class="docutils literal notranslate"><span class="pre">//</span></code> and <code class="docutils literal notranslate"><span class="pre">%</span></code> are fine. For
+non-constant divisors, the NVIDIA compiler falls back to floating-point
+arithmetic with int-to-float and float-to-int conversions, which is slow.
+For <strong>grid-constant</strong> divisors (like <code class="docutils literal notranslate"><span class="pre">tiles_per_group</span></code>, which is the same
+for all thread blocks but not known at compile time),
+<a class="reference internal" href="../../python-api/generated/tilus.Script.fast_divmod.html#tilus.Script.fast_divmod" title="tilus.Script.fast_divmod"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fast_divmod()</span></code></a> implements the fast divmod algorithm using
+integer mul + shift, precomputing the magic number once per grid launch.</p>
+</div>
+</section>
+</section>
+<section id="pipeline-abstraction">
+<h2>Pipeline Abstraction<a class="headerlink" href="#pipeline-abstraction" title="Link to this heading"><span>¶</span></a></h2>
+<p>On Blackwell, mbarriers are the fundamental mechanism for tracking completion of
+asynchronous work, and shared memory (or tensor memory) serves as the buffer for
+data in transit. When the producer and consumer operate at different speeds —
+which is always the case in practice — we need a <strong>pipeline</strong> to decouple them.</p>
+<p>A pipeline has three components:</p>
+<ol class="arabic simple">
+<li><p><strong>Producer</strong> — generates data and writes it into a buffer slot when one is
+available.</p></li>
+<li><p><strong>Consumer</strong> — reads data from a buffer slot when one is filled.</p></li>
+<li><p><strong>Ring buffer</strong> — a fixed number of slots (<code class="docutils literal notranslate"><span class="pre">stages</span></code>) that the producer and
+consumer cycle through independently.</p></li>
+</ol>
+<p>Each slot has two mbarriers:</p>
+<ul class="simple">
+<li><p><strong>full_barrier</strong> — signaled when the producer has filled the slot. The
+consumer waits on this.</p></li>
+<li><p><strong>empty_barrier</strong> — signaled when the consumer has consumed the slot. The
+producer waits on this.</p></li>
+</ul>
+<p>The producer and consumer each maintain a <strong>stage pointer</strong> (which slot they are
+currently working on) and a <strong>phase variable</strong> (for the mbarrier of their current
+slot). Both advance through the ring buffer independently, synchronized only by
+the mbarrier signals.</p>
+<figure class="align-center" id="id5">
+<a class="reference internal image-reference" href="../../_images/v4_pipeline_class.svg"><img alt="../../_images/v4_pipeline_class.svg" src="../../_images/v4_pipeline_class.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">The Pipeline with 5 stages. The producer is filling slot 3; the consumer is
+consuming slot 1. Slots 2 is full (waiting to be consumed); slots 0 and 4
+are empty (waiting to be filled). The ✓/✗ marks indicate whether each
+slot’s full/empty mbarrier has completed.</span><a class="headerlink" href="#id5" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
+<p>In V3, we managed all this state manually (barriers, phases, stage indices). The
+<code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class below encapsulates the bookkeeping into a clean API. Note that
+this is not a built-in part of Tilus; it is constructed from existing
+instructions (<code class="docutils literal notranslate"><span class="pre">mbarrier.alloc</span></code>, <code class="docutils literal notranslate"><span class="pre">mbarrier.wait</span></code>, etc.) as a user-level
+helper. You can always manage the mbarriers manually as in V3 if you prefer.</p>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text">Pipeline class</span><a class="headerlink" href="#id6" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Pipeline</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Class</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">num_stages</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">producer_arrive_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">consumer_arrive_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">num_stages</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">empty_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">consumer_arrive_count</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_stages</span><span class="p">)]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">full_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">producer_arrive_count</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_stages</span><span class="p">)]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">producer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">producer_initial_phase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">consumer_initial_phase</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">producer_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># wait until the current stage is free (consumer has finished with it)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+            <span class="n">barrier</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">empty_barriers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
+            <span class="n">phase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_phase</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">producer_barrier</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterTensor</span><span class="p">:</span>
+        <span class="c1"># return the barrier to signal when the producer has filled this stage</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_barriers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">producer_advance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># advance to the next stage; flip phase when wrapping around</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">producer_phase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">producer_phase</span> <span class="o">^</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">consumer_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># wait until the current stage is filled (producer has loaded data)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+            <span class="n">barrier</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">full_barriers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">],</span>
+            <span class="n">phase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">consumer_barrier</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterTensor</span><span class="p">:</span>
+        <span class="c1"># return the barrier to signal when the consumer has consumed this stage</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty_barriers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">consumer_advance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># advance to the next stage; flip phase when wrapping around</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span> <span class="o">^</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+
+</pre></div>
+</div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class inherits from <code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code>, which works like
+<a class="reference internal" href="../../python-api/tilus-script.html#tilus.Script" title="tilus.Script"><code class="xref py py-class docutils literal notranslate"><span class="pre">Script</span></code></a> but for helper objects that are not kernels themselves.
+It can allocate barriers, shared tensors, and use all Tilus instructions.</p>
+<p>The usage in the kernel becomes straightforward:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">stages</span><span class="p">)</span>
+
+<span class="c1"># TMA warp (producer)</span>
+<span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>          <span class="c1"># wait for empty slot</span>
+<span class="c1"># ... issue TMA loads with tma_pipe.producer_barrier() ...</span>
+<span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>          <span class="c1"># move to next stage</span>
+
+<span class="c1"># MMA warp (consumer)</span>
+<span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>          <span class="c1"># wait for filled slot</span>
+<span class="c1"># ... issue MMA ...</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_barrier</span><span class="p">())</span>  <span class="c1"># signal slot consumed</span>
+<span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>          <span class="c1"># move to next stage</span>
+</pre></div>
+</div>
+<p>This pattern is reusable: later versions add a second pipeline (<code class="docutils literal notranslate"><span class="pre">mma_pipe</span></code>)
+between the MMA and epilogue stages, using the same <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class.</p>
+</section>
+<section id="walkthrough">
+<h2>Walkthrough<a class="headerlink" href="#walkthrough" title="Link to this heading"><span>¶</span></a></h2>
+<p>The kernel structure is the same as V3 (TMA warp + MMA warp), but now using
+the <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class. The epilogue is unchanged from V1.</p>
+<section id="setup">
+<h3>Setup<a class="headerlink" href="#setup" title="Link to this heading"><span>¶</span></a></h3>
+<div class="literal-block-wrapper docutils container" id="id7">
+<div class="code-block-caption"><span class="caption-text">Kernel setup</span><a class="headerlink" href="#id7" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">num_m_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="n">block_m</span><span class="p">)</span>
+<span class="n">num_n_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="n">block_n</span><span class="p">)</span>
+<span class="c1"># 1D grid: tile rasterization maps linear index to 2D coordinates</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="n">num_m_blocks</span> <span class="o">*</span> <span class="n">num_n_blocks</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>
+
+<span class="c1"># tile rasterization: swizzle for better L2 cache reuse of B columns</span>
+<span class="n">m_block</span><span class="p">,</span> <span class="n">n_block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
+<span class="p">)</span>
+<span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">m_block</span> <span class="o">*</span> <span class="n">block_m</span>
+<span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">n_block</span> <span class="o">*</span> <span class="n">block_n</span>
+
+<span class="n">g_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
+<span class="n">g_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">n_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
+<span class="n">g_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">c_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
+<span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">stages</span><span class="p">,</span> <span class="n">block_m</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+<span class="n">s_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">stages</span><span class="p">,</span> <span class="n">block_n</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+<span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
+
+<span class="c1"># Pipeline class encapsulates barrier/phase/stage management from V3</span>
+<span class="n">tma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">stages</span><span class="p">)</span>
+<span class="n">flush_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Key differences from V3:</p>
+<ul class="simple">
+<li><p>The grid is 1D: <code class="docutils literal notranslate"><span class="pre">blocks</span> <span class="pre">=</span> <span class="pre">num_m_blocks</span> <span class="pre">*</span> <span class="pre">num_n_blocks</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">compute_block_coord</span></code> maps the linear index to swizzled (m, n) coordinates.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Pipeline(stages)</span></code> replaces manual barrier/phase/stage management.</p></li>
+</ul>
+</section>
+<section id="tma-and-mma-warps">
+<h3>TMA and MMA Warps<a class="headerlink" href="#tma-and-mma-warps" title="Link to this heading"><span>¶</span></a></h3>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-text">TMA warp and MMA warp</span><a class="headerlink" href="#id8" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="n">stages</span><span class="p">):</span>
+        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
+                <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+            <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
+            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+            <span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
+            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+        <span class="p">)</span>
+        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
+
+<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="n">stages</span><span class="p">):</span>
+        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
+            <span class="n">s_a</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">],</span>
+            <span class="n">s_b</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+            <span class="n">t_acc</span><span class="p">,</span>
+            <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_barrier</span><span class="p">())</span>
+        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">flush_barrier</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">flush_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>The logic is identical to V3, but expressed through the Pipeline API:
+<code class="docutils literal notranslate"><span class="pre">producer_acquire</span></code> / <code class="docutils literal notranslate"><span class="pre">producer_barrier</span></code> / <code class="docutils literal notranslate"><span class="pre">producer_advance</span></code> for the TMA
+warp, and <code class="docutils literal notranslate"><span class="pre">consumer_acquire</span></code> / <code class="docutils literal notranslate"><span class="pre">consumer_barrier</span></code> / <code class="docutils literal notranslate"><span class="pre">consumer_advance</span></code>
+for the MMA warp.</p>
+</section>
+</section>
+<section id="performance">
+<h2>Performance<a class="headerlink" href="#performance" title="Link to this heading"><span>¶</span></a></h2>
+<p>Tile rasterization improves L2 cache reuse for B tiles, and the Pipeline
+abstraction simplifies the code without sacrificing performance.
+The complete source is at <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v4.py"><i class="fab fa-github"></i> examples/blackwell_matmul/matmul_v4.py</a>.</p>
+<figure class="align-default" id="id9">
+<img alt="../../_images/plot_v4.svg" class="plot-directive" src="../../_images/plot_v4.svg" />
+<figcaption>
+<p><span class="caption-text">Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+utilization (96.6%).</span><a class="headerlink" href="#id9" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="what-s-next">
+<h2>What’s Next<a class="headerlink" href="#what-s-next" title="Link to this heading"><span>¶</span></a></h2>
+<p>V4 is a well-optimized single-CTA kernel. To push performance further, we need
+to look beyond the single thread block.</p>
+<p>In the next version, we introduce <strong>CLC</strong> (Cluster Launch Control) for persistent
+kernels — each CTA processes multiple output tiles dynamically via hardware
+scheduling, avoiding kernel launch overhead. We also add a <strong>pipelined
+epilogue</strong> and expand to <strong>4 warp roles</strong> (TMA, MMA, scheduler, epilogue).</p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="v3.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">3. Warp Specialization</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="v5.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">5. CLC Persistent Kernel and Pipelined Epilogue</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-full-kernel">The Full Kernel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v3">What Changed from V3</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tile-rasterization">Tile Rasterization</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#formulation">Formulation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation">Implementation</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-abstraction">Pipeline Abstraction</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#setup">Setup</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-and-mma-warps">TMA and MMA Warps</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By NVIDIA
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025-2026, NVIDIA.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

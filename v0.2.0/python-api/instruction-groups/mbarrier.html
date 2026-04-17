@@ -1,0 +1,973 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Script.mbarrier &#8212; tilus  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=38aa6179" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'python-api/instruction-groups/mbarrier';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Script.mbarrier.alloc" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html" />
+    <link rel="prev" title="Script.where" href="../generated/tilus.Script.where.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">tilus  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../getting-started/install.html">Installation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../tutorials/matmul-ampere/__init__.html">Matmul (Ampere)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v0.html">0. Naive Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v1.html">1. Use Shared Memory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v2.html">2. Auto-tuning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v3.html">3. Async Copy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v4.html">4. Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v4.html">4. Tile Rasterization and Pipeline Abstraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v6.html">6. 2-CTA Cluster</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Programming Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/overview.html">1. Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/tilus-script.html">2. Tilus Script</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../programming-guides/type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/data-types.html">3.1. Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/pointer-types.html">3.2. Pointer Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/register-tensor.html">3.3. Register Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/tmemory-tensor.html">3.5. Tensor Memory Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/global-tensor.html">3.6. Global Tensor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/instructions.html">4. Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/control-flow.html">5. Control Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/thread-group.html">6. Thread Group</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/cache.html">7. Cache</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/autotuning.html">8. Autotuning</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../programming-guides/layout-system/__init__.html">9. Layout System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/global-layout.html">9.1. Global Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/shared-layout.html">9.2. Shared Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/register-layout.html">9.3. Register Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/layout-inference.html">9.4. Automatic Layout Inference</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/latest/_static/layout-demo/index.html">Layout Demo</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../tilus.html">tilus</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.autotune.html">tilus.autotune</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../tilus-option.html">tilus.option</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.option.cache_dir.html">tilus.option.cache_dir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.option.parallel_workers.html">tilus.option.parallel_workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.option.debug.dump_ir.html">tilus.option.debug.dump_ir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.option.debug.disable_ptxas_opt.html">tilus.option.debug.disable_ptxas_opt</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../tilus-target.html">tilus.target</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.target.get_current_target.html">tilus.target.get_current_target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.target.set_current_target.html">tilus.target.set_current_target</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../tilus-script.html">tilus.Script</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.blockIdx.html">Script.blockIdx</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.gridDim.html">Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.current_num_threads.html">Script.current_num_threads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.current_thread_begin.html">Script.current_thread_begin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.current_thread_end.html">Script.current_thread_end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.assume.html">Script.assume</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.range.html">Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.single_thread.html">Script.single_thread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.single_warp.html">Script.single_warp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.static_assert.html">Script.static_assert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.thread_group.html">Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.warp_group.html">Script.warp_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.abs.html">Script.abs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.add.html">Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.all.html">Script.all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.annotate_layout.html">Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.any.html">Script.any</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.assign.html">Script.assign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.cast.html">Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.clip.html">Script.clip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.dot.html">Script.dot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.exp.html">Script.exp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.exp2.html">Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.fast_divmod.html">Script.fast_divmod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.flatten.html">Script.flatten</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.free_shared.html">Script.free_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.global_tensor.html">Script.global_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.global_view.html">Script.global_view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.load_global.html">Script.load_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.load_shared.html">Script.load_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.lock_semaphore.html">Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.log.html">Script.log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.max.html">Script.max</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.maximum.html">Script.maximum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.min.html">Script.min</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.print_tensor.html">Script.print_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.printf.html">Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.register_tensor.html">Script.register_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.repeat.html">Script.repeat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.repeat_interleave.html">Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.round.html">Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.square.html">Script.square</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.store_global.html">Script.store_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.store_shared.html">Script.store_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.sum.html">Script.sum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.sync.html">Script.sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.transpose.html">Script.transpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.unsqueeze.html">Script.unsqueeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.view.html">Script.view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/tilus.Script.where.html">Script.where</a></li>
+<li class="toctree-l2 current active has-children"><a class="current reference internal" href="#">Script.mbarrier</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html">Script.mbarrier.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html">Script.mbarrier.arrive</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html">Script.mbarrier.arrive_and_expect_tx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html">Script.mbarrier.arrive_and_expect_tx_multicast</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html">Script.mbarrier.arrive_and_expect_tx_remote</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html">Script.mbarrier.wait</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html">Script.mbarrier.producer_initial_phase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html">Script.mbarrier.consumer_initial_phase</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="fence.html">Script.fence</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html">Script.fence.proxy_async</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html">Script.fence.proxy_async_release</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="tma.html">Script.tma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html">Script.tma.global_to_shared</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html">Script.tma.shared_to_global</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html">Script.tma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html">Script.tma.wait_group</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="tcgen05.html">Script.tcgen05</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html">Script.tcgen05.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html">Script.tcgen05.dealloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html">Script.tcgen05.slice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html">Script.tcgen05.view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html">Script.tcgen05.relinquish_alloc_permit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html">Script.tcgen05.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html">Script.tcgen05.store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html">Script.tcgen05.wait_load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html">Script.tcgen05.wait_store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html">Script.tcgen05.commit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html">Script.tcgen05.copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html">Script.tcgen05.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="clc.html">Script.clc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html">Script.clc.try_cancel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html">Script.clc.query_response</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="cluster.html">Script.cluster</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html">Script.cluster.sync</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html">Script.cluster.map_shared_addr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx.html">Script.cluster.blockIdx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank.html">Script.cluster.blockRank</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim.html">Script.cluster.clusterDim</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="wgmma.html">Script.wgmma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html">Script.wgmma.fence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html">Script.wgmma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html">Script.wgmma.wait_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html">Script.wgmma.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../attrs.html">Script.attrs</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../generated/tilus.lang.script.Attributes.blocks.html">Script.attrs.blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/tilus.lang.script.Attributes.cluster_blocks.html">Script.attrs.cluster_blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../generated/tilus.lang.script.Attributes.warps.html">Script.attrs.warps</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../tilus-class.html">tilus.Class</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../tilus-ir/__index__.html">tilus.ir</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tilus-ir/datatype.html">tilus.ir.DataType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tilus-ir/pointer.html">tilus.ir.PointerType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tilus-ir/tensor.html">tilus.ir.Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tilus-ir/register_tensor.html">tilus.ir.RegisterTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tilus-ir/tmemory_tensor.html">tilus.ir.TMemoryTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html">tilus.ir.layout.ops.auto_local_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.column_local.html">tilus.ir.layout.ops.column_local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.column_spatial.html">tilus.ir.layout.ops.column_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.compose.html">tilus.ir.layout.ops.compose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.concat.html">tilus.ir.layout.ops.concat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.divide.html">tilus.ir.layout.ops.divide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.flatten.html">tilus.ir.layout.ops.flatten</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.local.html">tilus.ir.layout.ops.local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.permute.html">tilus.ir.layout.ops.permute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.reduce.html">tilus.ir.layout.ops.reduce</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.register_layout.html">tilus.ir.layout.ops.register_layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.reshape.html">tilus.ir.layout.ops.reshape</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.spatial.html">tilus.ir.layout.ops.spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.squeeze.html">tilus.ir.layout.ops.squeeze</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.unsqueeze.html">tilus.ir.layout.ops.unsqueeze</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../tilus-ir/shared_layout.html">tilus.ir.SharedLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.shared_row_major.html">tilus.ir.layout.ops.shared_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.shared_column_major.html">tilus.ir.layout.ops.shared_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.ops.shared_compose.html">tilus.ir.layout.ops.shared_compose</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../tilus-ir/global_layout.html">tilus.ir.GlobalLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.global_row_major.html">tilus.ir.layout.global_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.global_column_major.html">tilus.ir.layout.global_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.global_strides.html">tilus.ir.layout.global_strides</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tilus-ir/generated/tilus.ir.layout.global_compose.html">tilus.ir.layout.global_compose</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item"><script>
+(function() {
+  var pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  var baseUrl = '';
+  var currentVersion = '';
+  var relPageParts = [];
+
+  if (pathParts.length >= 2) {
+    baseUrl = '/' + pathParts[0];
+    currentVersion = pathParts[1];
+    relPageParts = pathParts.slice(2);
+  }
+
+  fetch(baseUrl + '/versions.json')
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('not found');
+      return resp.json();
+    })
+    .then(function(versions) {
+      var headerButtons = document.querySelector('.article-header-buttons');
+      if (!headerButtons) return;
+
+      headerButtons.style.display = 'flex';
+      headerButtons.style.alignItems = 'center';
+
+      var select = document.createElement('select');
+      select.title = 'Switch version';
+      select.style.cssText = 'padding: 0.15rem 0.4rem; border-radius: 4px; border: 1px solid var(--pst-color-border); background: var(--pst-color-background); color: var(--pst-color-text-base); font-size: var(--pst-sidebar-font-size); cursor: pointer; appearance: auto; margin-right: 0.5rem; height: 2.25em;';
+
+      versions.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.slug;
+        opt.textContent = v.label;
+        if (v.slug === currentVersion) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      select.addEventListener('change', function() {
+        var relPage = relPageParts.join('/') || 'index.html';
+        window.location.href = baseUrl + '/' + select.value + '/' + relPage;
+      });
+
+      headerButtons.insertBefore(select, headerButtons.firstChild);
+    })
+    .catch(function() {});
+})();
+</script></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/NVIDIA/tilus" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="Source repository"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/python-api/instruction-groups/mbarrier.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Script.mbarrier</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-an-mbarrier">What is an mbarrier?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#state-mbarrier">State: mbarrier</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#arrive-and-wait">Arrive and Wait</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-phases">Why Phases?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transaction-tracking-tx-count">Transaction Tracking (tx-count)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#usage-in-tilus">Usage in tilus</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instructions">Instructions</a><ul class="nav section-nav flex-column">
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="script-mbarrier">
+<h1>Script.mbarrier<a class="headerlink" href="#script-mbarrier" title="Link to this heading"><span>¶</span></a></h1>
+<section id="what-is-an-mbarrier">
+<h2>What is an mbarrier?<a class="headerlink" href="#what-is-an-mbarrier" title="Link to this heading"><span>¶</span></a></h2>
+<p>An <strong>mbarrier</strong> (memory barrier) is a 64-bit synchronization object that lives in
+<strong>shared memory</strong>. It is the primary mechanism on Hopper and Blackwell GPUs for
+tracking the completion of asynchronous operations — such as tensor core MMA and
+TMA data transfers.</p>
+<p>Unlike a traditional barrier (<code class="docutils literal notranslate"><span class="pre">__syncthreads()</span></code> in CUDA) which simply blocks
+until all threads arrive, an mbarrier can track both <strong>thread arrivals</strong> and
+<strong>asynchronous hardware operations</strong> (like TMA transfers) completing in the
+background.</p>
+</section>
+<section id="state-mbarrier">
+<h2>State: mbarrier<a class="headerlink" href="#state-mbarrier" title="Link to this heading"><span>¶</span></a></h2>
+<p>An mbarrier stores the following state in its 64 bits:</p>
+<figure class="align-center" id="id1">
+<a class="reference internal image-reference" href="../../_images/mbarrier_state.svg"><img alt="../../_images/mbarrier_state.svg" src="../../_images/mbarrier_state.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">The internal state of an mbarrier object.</span><a class="headerlink" href="#id1" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
+<ul class="simple">
+<li><p><strong>phase</strong> (1 bit): the current phase of the barrier, either 0 or 1. Initialized to 0.</p></li>
+<li><p><strong>pending arrivals</strong>: the number of arrivals still expected before this phase
+completes. Decremented by each
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive()</span></code></a> call (and its variants <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>,
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast()</span></code></a>, <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code></a>).</p></li>
+<li><p><strong>pending tx-count</strong>: the number of bytes of asynchronous transactions still
+outstanding. Set by
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>
+and decremented automatically by the hardware as async operations (e.g., TMA
+transfers) complete.</p></li>
+<li><p><strong>expected arrivals</strong>: the arrival count for the <em>next</em> phase (used to reset
+pending arrivals when the phase flips).</p></li>
+</ul>
+<p>A phase completes when <strong>both</strong> conditions are met:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pending</span> <span class="pre">arrivals</span> <span class="pre">=</span> <span class="pre">0</span></code> — all participating threads have arrived.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pending</span> <span class="pre">tx-count</span> <span class="pre">=</span> <span class="pre">0</span></code> — all tracked async transactions have completed.</p></li>
+</ol>
+<p>When both conditions are satisfied, the hardware automatically:</p>
+<ul class="simple">
+<li><p>Flips the phase bit (0 → 1 or 1 → 0).</p></li>
+<li><p>Resets the pending arrivals to the expected arrival count.</p></li>
+<li><p>Resets the pending tx-count to 0.</p></li>
+<li><p>Wakes any threads waiting on the old phase.</p></li>
+</ul>
+</section>
+<section id="arrive-and-wait">
+<h2>Arrive and Wait<a class="headerlink" href="#arrive-and-wait" title="Link to this heading"><span>¶</span></a></h2>
+<p>The two fundamental operations on an mbarrier are <strong>arrive</strong> and <strong>wait</strong>:</p>
+<p><strong>Arrive</strong></p>
+<p>At the hardware level, a single thread executing an <a class="reference external" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#parallel-synchronization-and-communication-instructions-mbarrier-arrive">mbarrier.arrive</a>
+instruction decrements the barrier’s pending arrival count by a specified amount
+(default 1). When the pending arrival count (and tx-count) reach zero, the
+hardware flips the phase.</p>
+<p>In tilus, <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive()</span></code></a> is a <strong>block-level instruction</strong>: every thread in the
+current thread group signals an arrival. For example, if the current thread group
+has 32 threads and each arrives with count=1, the barrier’s pending arrivals are
+decremented by 32 in total. <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a> and
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code></a> work the same way — each thread in the
+group both arrives and adds to the expected transaction byte count.</p>
+<p>To have only a single thread arrive (e.g., to avoid decrementing the count
+multiple times), wrap the call in <a class="reference internal" href="../generated/tilus.Script.single_thread.html#tilus.Script.single_thread" title="tilus.Script.single_thread"><code class="xref py py-meth docutils literal notranslate"><span class="pre">single_thread()</span></code></a>.</p>
+<p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast()</span></code></a> behaves differently: instead of every
+thread arriving on the same barrier, one thread is <strong>elected per target CTA</strong> in
+the <code class="docutils literal notranslate"><span class="pre">multicast_mask</span></code>. Each elected thread arrives on the barrier at the same
+shared memory offset in its assigned CTA. This requires at least 16 threads in
+the current thread group. The net effect is that each target CTA’s barrier
+receives exactly one arrival with the specified transaction bytes.</p>
+<p><strong>Wait</strong></p>
+<p>At the hardware level, a thread executing <a class="reference external" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait">mbarrier.try_wait</a> with a phase value
+<code class="docutils literal notranslate"><span class="pre">p</span></code> blocks until the barrier’s current phase differs from <code class="docutils literal notranslate"><span class="pre">p</span></code>. When the
+phase has flipped, all arrivals and transactions for that phase are guaranteed
+complete, and it is safe to read the produced data.</p>
+<p>In tilus, <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">wait()</span></code></a> causes <strong>all threads in the current thread group</strong> to
+wait on the specified barrier and phase. The threads proceed together once the
+phase completes.</p>
+</section>
+<section id="why-phases">
+<h2>Why Phases?<a class="headerlink" href="#why-phases" title="Link to this heading"><span>¶</span></a></h2>
+<p>In high-performance kernels, the same mbarrier is <strong>reused across loop
+iterations</strong> to avoid allocating a separate barrier for each iteration. The
+phase bit is the minimal state that distinguishes “this iteration’s completion”
+from “the previous iteration’s completion.”</p>
+<figure class="align-center" id="id2">
+<a class="reference internal image-reference" href="../../_images/mbarrier_phase_cycle.svg"><img alt="../../_images/mbarrier_phase_cycle.svg" src="../../_images/mbarrier_phase_cycle.svg" style="width: 100%;" />
+</a>
+<figcaption>
+<p><span class="caption-text">The mbarrier phase cycle. The same barrier alternates between phase 0 and
+phase 1 across iterations.</span><a class="headerlink" href="#id2" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
+<p>The caller maintains a <strong>local phase variable</strong> that tracks which phase it
+expects to complete next:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">0</span>           <span class="c1"># start expecting phase 0</span>
+
+<span class="k">for</span> <span class="o">...</span><span class="p">:</span>
+    <span class="c1"># ... do work, arrive ...</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">phase</span><span class="p">)</span>   <span class="c1"># wait for current phase</span>
+    <span class="n">phase</span> <span class="o">^=</span> <span class="mi">1</span>              <span class="c1"># flip: next iteration waits for the other phase</span>
+</pre></div>
+</div>
+<p>After <code class="docutils literal notranslate"><span class="pre">wait</span></code> returns, the barrier has already flipped to the next phase. By
+flipping the local <code class="docutils literal notranslate"><span class="pre">phase</span></code> variable (<code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">^=</span> <span class="pre">1</span></code>), the caller ensures the
+next <code class="docutils literal notranslate"><span class="pre">wait</span></code> targets the correct phase.</p>
+</section>
+<section id="transaction-tracking-tx-count">
+<h2>Transaction Tracking (tx-count)<a class="headerlink" href="#transaction-tracking-tx-count" title="Link to this heading"><span>¶</span></a></h2>
+<p>For asynchronous data transfers (e.g., TMA loads), the mbarrier can also track
+how many <strong>bytes</strong> of async work must complete before the phase is done. This is
+the <strong>tx-count</strong> mechanism:</p>
+<ol class="arabic simple">
+<li><p>A thread calls
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a>
+to both arrive and declare how many bytes of async transactions are expected.
+This increments the pending tx-count.</p></li>
+<li><p>When an async operation (e.g., <a class="reference internal" href="generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html#tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared" title="tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.global_to_shared</span></code></a>) completes, the
+hardware automatically decrements the pending tx-count by the number of bytes
+transferred.</p></li>
+<li><p>The phase completes only when both pending arrivals <strong>and</strong> pending tx-count
+reach zero.</p></li>
+</ol>
+<p>This decouples <strong>producers</strong> (who launch async work and arrive) from
+<strong>consumers</strong> (who wait for the data). The consumer does not need to know the
+details of the async operations — it simply waits on the mbarrier phase.</p>
+</section>
+<section id="usage-in-tilus">
+<h2>Usage in tilus<a class="headerlink" href="#usage-in-tilus" title="Link to this heading"><span>¶</span></a></h2>
+<p>The typical workflow for mbarriers in a pipelined kernel is:</p>
+<ol class="arabic simple">
+<li><p><strong>Allocate</strong> barriers with <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">alloc()</span></code></a>, specifying
+expected arrival counts per pipeline stage.</p></li>
+<li><p><strong>Producers</strong> call <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive()</span></code></a> or
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx()</span></code></a> to signal progress and
+declare expected async data transfers. The TMA engine automatically decrements
+the tx-count as transfers complete.</p></li>
+<li><p><strong>Consumers</strong> call <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">wait()</span></code></a> to block until the
+barrier’s current phase finishes.</p></li>
+</ol>
+<p>Use <a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase"><code class="xref py py-attr docutils literal notranslate"><span class="pre">producer_initial_phase</span></code></a> (<code class="docutils literal notranslate"><span class="pre">1</span></code>) and
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase"><code class="xref py py-attr docutils literal notranslate"><span class="pre">consumer_initial_phase</span></code></a> (<code class="docutils literal notranslate"><span class="pre">0</span></code>) as starting phase values
+for multi-stage producer-consumer pipelines.</p>
+<p><strong>Same-thread arrive and wait</strong> — all threads produce and then wait:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>  <span class="c1"># 1 arrival expected per phase</span>
+<span class="n">phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">0</span>                           <span class="c1"># start expecting phase 0</span>
+
+<span class="k">for</span> <span class="o">...</span><span class="p">:</span>
+    <span class="c1"># signal work done, can be other instructions that will</span>
+    <span class="c1"># trigger arrival: tcgen05.commit, etc.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">barriers</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c1"># wait for phase completion</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">barriers</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="n">phase</span><span class="p">)</span>
+
+    <span class="c1"># flip for next iteration</span>
+    <span class="n">phase</span> <span class="o">^=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p><strong>Separate producer and consumer warps</strong> — one warp loads data and arrives,
+another warp waits and computes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># two barrier sets: one tracks &quot;data ready&quot;, the other tracks &quot;slot free&quot;</span>
+<span class="n">full_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>    <span class="c1"># signaled when data is ready</span>
+<span class="n">empty_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>   <span class="c1"># signaled when slot is free</span>
+
+<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="c1"># producer warp: waits for empty slot, loads data, signals full</span>
+    <span class="n">producer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">producer_initial_phase</span>  <span class="c1"># 1</span>
+    <span class="k">for</span> <span class="o">...</span><span class="p">:</span>
+        <span class="c1"># wait for slot to be free</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">empty_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">producer_phase</span><span class="p">)</span>
+        <span class="n">producer_phase</span> <span class="o">^=</span> <span class="mi">1</span>
+        <span class="c1"># ... load data into shared memory ...</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">full_barrier</span><span class="p">)</span>  <span class="c1"># signal data is ready</span>
+
+<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="c1"># consumer warp: waits for full data, computes, signals empty</span>
+    <span class="n">consumer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">consumer_initial_phase</span>  <span class="c1"># 0</span>
+    <span class="k">for</span> <span class="o">...</span><span class="p">:</span>
+        <span class="c1"># wait for data to be ready</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">full_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">consumer_phase</span><span class="p">)</span>
+        <span class="n">consumer_phase</span> <span class="o">^=</span> <span class="mi">1</span>
+        <span class="c1"># ... compute on shared memory data ...</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">empty_barrier</span><span class="p">)</span>  <span class="c1"># signal slot is free</span>
+</pre></div>
+</div>
+<p>For cluster-wide synchronization,
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast()</span></code></a> signals barriers
+across multiple CTAs in the cluster, and
+<a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code></a> signals a specific
+peer CTA’s barrier.</p>
+</section>
+<section id="instructions">
+<h2>Instructions<a class="headerlink" href="#instructions" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">alloc</span></code></a>(counts)</p></td>
+<td><p>Allocate and initialize one or more mbarriers in shared memory.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive</span></code></a>(barrier[, count, sem, scope])</p></td>
+<td><p>Arrive at a barrier.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive_and_expect_tx</span></code></a>(barrier, transaction_bytes)</p></td>
+<td><p>Arrive at a barrier and declare expected asynchronous transaction bytes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive_and_expect_tx_multicast</span></code></a>(barrier, ...)</p></td>
+<td><p>Arrive at barriers across multiple CTAs with expected async transactions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote</span></code></a>(barrier, ...[, ...])</p></td>
+<td><p>Arrive at a peer CTA's barrier with expected async transactions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-obj docutils literal notranslate"><span class="pre">wait</span></code></a>(barrier, phase[, sem, scope])</p></td>
+<td><p>Wait for a barrier phase to complete.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Attributes</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">producer_initial_phase</span></code></a></p></td>
+<td><p>Initial phase value for the producer in a producer-consumer pipeline.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">consumer_initial_phase</span></code></a></p></td>
+<td><p>Initial phase value for the consumer in a producer-consumer pipeline.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../generated/tilus.Script.where.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Script.where</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Script.mbarrier.alloc</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-an-mbarrier">What is an mbarrier?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#state-mbarrier">State: mbarrier</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#arrive-and-wait">Arrive and Wait</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#why-phases">Why Phases?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transaction-tracking-tx-count">Transaction Tracking (tx-count)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#usage-in-tilus">Usage in tilus</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instructions">Instructions</a><ul class="nav section-nav flex-column">
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By NVIDIA
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025-2026, NVIDIA.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 155" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="arr-e" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- TMEM: full accumulator -->
+  <rect x="20" y="25" width="120" height="90" rx="4" fill="#fff3cd" stroke="#ffc107" stroke-width="1.5"/>
+  <text x="80" y="65" text-anchor="middle" font-size="10" fill="#856404">t_acc</text>
+  <!-- Highlight slice -->
+  <rect x="22" y="27" width="38" height="86" rx="2" fill="#ffe082" stroke="#ffa000" stroke-width="1.5"/>
+  <!-- e_block_n bracket at top -->
+  <line x1="22" y1="18" x2="60" y2="18" stroke="#e65100" stroke-width="1"/>
+  <line x1="22" y1="15" x2="22" y2="21" stroke="#e65100" stroke-width="1"/>
+  <line x1="60" y1="15" x2="60" y2="21" stroke="#e65100" stroke-width="1"/>
+  <text x="41" y="12" text-anchor="middle" font-size="8" fill="#e65100">e_block_n</text>
+  <!-- Size label below -->
+  <text x="80" y="130" text-anchor="middle" font-size="9" fill="#888">block_m × block_n</text>
+
+  <!-- Arrow: slice+load+cast -->
+  <line x1="142" y1="70" x2="228" y2="70" stroke="#555" stroke-width="1.2" marker-end="url(#arr-e)"/>
+  <text x="185" y="62" text-anchor="middle" font-size="8" fill="#666">slice + load + cast</text>
+
+  <!-- Registers: narrow slice-sized -->
+  <rect x="230" y="27" width="38" height="86" rx="4" fill="#f8d7da" stroke="#dc3545" stroke-width="1.5"/>
+  <text x="249" y="68" text-anchor="middle" font-size="9" fill="#721c24">r_acc</text>
+  <text x="249" y="80" text-anchor="middle" font-size="7" fill="#888">(fp16)</text>
+  <!-- Size label below -->
+  <text x="249" y="130" text-anchor="middle" font-size="8" fill="#888">block_m ×</text>
+  <text x="249" y="141" text-anchor="middle" font-size="8" fill="#888">e_block_n</text>
+
+  <!-- Arrow: store_shared -->
+  <line x1="270" y1="70" x2="358" y2="70" stroke="#555" stroke-width="1.2" marker-end="url(#arr-e)"/>
+  <text x="314" y="62" text-anchor="middle" font-size="8" fill="#666">store_shared</text>
+
+  <!-- Shared memory: narrow slice-sized -->
+  <rect x="360" y="27" width="38" height="86" rx="4" fill="#d4edda" stroke="#28a745" stroke-width="1.5"/>
+  <text x="379" y="68" text-anchor="middle" font-size="9" fill="#155724">s_c</text>
+  <text x="379" y="80" text-anchor="middle" font-size="7" fill="#888">(fp16)</text>
+  <!-- Size label below -->
+  <text x="379" y="130" text-anchor="middle" font-size="8" fill="#888">block_m ×</text>
+  <text x="379" y="141" text-anchor="middle" font-size="8" fill="#888">e_block_n</text>
+
+  <!-- Arrow: fence + TMA -->
+  <line x1="400" y1="70" x2="498" y2="70" stroke="#555" stroke-width="1.2" marker-end="url(#arr-e)"/>
+  <text x="449" y="62" text-anchor="middle" font-size="8" fill="#666">fence + TMA</text>
+
+  <!-- Global memory -->
+  <rect x="500" y="25" width="120" height="90" rx="4" fill="#e8f0fe" stroke="#4a86c8" stroke-width="1.5"/>
+  <text x="560" y="65" text-anchor="middle" font-size="10" fill="#2a5fa5">g_c</text>
+  <!-- Highlight written slice -->
+  <rect x="502" y="27" width="38" height="86" rx="2" fill="#bbdefb" stroke="#64b5f6" stroke-width="1.5"/>
+  <!-- Size label below -->
+  <text x="560" y="130" text-anchor="middle" font-size="9" fill="#888">M × N</text>
+</svg>

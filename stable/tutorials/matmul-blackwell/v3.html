@@ -1,0 +1,1168 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>3. Warp Specialization &#8212; tilus  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=38aa6179" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-blackwell/v3';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="4. Tile Rasterization and Pipeline Abstraction" href="v4.html" />
+    <link rel="prev" title="2. Multi-Stage Software Pipelining" href="v2.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">tilus  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../getting-started/install.html">Installation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../matmul-ampere/__init__.html">Matmul (Ampere)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v0.html">0. Naive Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v1.html">1. Use Shared Memory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v2.html">2. Auto-tuning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v3.html">3. Async Copy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v4.html">4. Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="__init__.html">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="v0.html">0. A Minimal Blackwell Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads and TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v4.html">4. Tile Rasterization and Pipeline Abstraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v6.html">6. 2-CTA Cluster</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Programming Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/overview.html">1. Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/tilus-script.html">2. Tilus Script</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../programming-guides/type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/data-types.html">3.1. Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/pointer-types.html">3.2. Pointer Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/register-tensor.html">3.3. Register Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/tmemory-tensor.html">3.5. Tensor Memory Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/type-system/global-tensor.html">3.6. Global Tensor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/instructions.html">4. Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/control-flow.html">5. Control Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/thread-group.html">6. Thread Group</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/cache.html">7. Cache</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming-guides/autotuning.html">8. Autotuning</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../programming-guides/layout-system/__init__.html">9. Layout System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/global-layout.html">9.1. Global Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/shared-layout.html">9.2. Shared Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/register-layout.html">9.3. Register Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../programming-guides/layout-system/layout-inference.html">9.4. Automatic Layout Inference</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/latest/_static/layout-demo/index.html">Layout Demo</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus.html">tilus</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.autotune.html">tilus.autotune</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-option.html">tilus.option</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.cache_dir.html">tilus.option.cache_dir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.parallel_workers.html">tilus.option.parallel_workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.debug.dump_ir.html">tilus.option.debug.dump_ir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.option.debug.disable_ptxas_opt.html">tilus.option.debug.disable_ptxas_opt</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-target.html">tilus.target</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.target.get_current_target.html">tilus.target.get_current_target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.target.set_current_target.html">tilus.target.set_current_target</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-script.html">tilus.Script</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.blockIdx.html">Script.blockIdx</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.gridDim.html">Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.current_num_threads.html">Script.current_num_threads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.current_thread_begin.html">Script.current_thread_begin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.current_thread_end.html">Script.current_thread_end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.assume.html">Script.assume</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.range.html">Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.single_thread.html">Script.single_thread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.single_warp.html">Script.single_warp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.static_assert.html">Script.static_assert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.thread_group.html">Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.warp_group.html">Script.warp_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.abs.html">Script.abs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.add.html">Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.all.html">Script.all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.annotate_layout.html">Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.any.html">Script.any</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.assign.html">Script.assign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.cast.html">Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.clip.html">Script.clip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.dot.html">Script.dot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.exp.html">Script.exp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.exp2.html">Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.fast_divmod.html">Script.fast_divmod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.flatten.html">Script.flatten</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.free_shared.html">Script.free_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.global_tensor.html">Script.global_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.global_view.html">Script.global_view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.load_global.html">Script.load_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.load_shared.html">Script.load_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.lock_semaphore.html">Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.log.html">Script.log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.max.html">Script.max</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.maximum.html">Script.maximum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.min.html">Script.min</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.print_tensor.html">Script.print_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.printf.html">Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.register_tensor.html">Script.register_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.repeat.html">Script.repeat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.repeat_interleave.html">Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.round.html">Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.square.html">Script.square</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.store_global.html">Script.store_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.store_shared.html">Script.store_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sum.html">Script.sum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sync.html">Script.sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.transpose.html">Script.transpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.unsqueeze.html">Script.unsqueeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.view.html">Script.view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.where.html">Script.where</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/mbarrier.html">Script.mbarrier</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html">Script.mbarrier.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html">Script.mbarrier.arrive</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html">Script.mbarrier.arrive_and_expect_tx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html">Script.mbarrier.arrive_and_expect_tx_multicast</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html">Script.mbarrier.arrive_and_expect_tx_remote</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html">Script.mbarrier.wait</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html">Script.mbarrier.producer_initial_phase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html">Script.mbarrier.consumer_initial_phase</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/fence.html">Script.fence</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html">Script.fence.proxy_async</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html">Script.fence.proxy_async_release</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/tma.html">Script.tma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html">Script.tma.global_to_shared</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html">Script.tma.shared_to_global</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html">Script.tma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html">Script.tma.wait_group</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/tcgen05.html">Script.tcgen05</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html">Script.tcgen05.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html">Script.tcgen05.dealloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html">Script.tcgen05.slice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html">Script.tcgen05.view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html">Script.tcgen05.relinquish_alloc_permit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html">Script.tcgen05.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html">Script.tcgen05.store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html">Script.tcgen05.wait_load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html">Script.tcgen05.wait_store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html">Script.tcgen05.commit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html">Script.tcgen05.copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html">Script.tcgen05.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/clc.html">Script.clc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html">Script.clc.try_cancel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html">Script.clc.query_response</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/cluster.html">Script.cluster</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html">Script.cluster.sync</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html">Script.cluster.map_shared_addr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx.html">Script.cluster.blockIdx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank.html">Script.cluster.blockRank</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim.html">Script.cluster.clusterDim</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/instruction-groups/wgmma.html">Script.wgmma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html">Script.wgmma.fence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html">Script.wgmma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html">Script.wgmma.wait_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html">Script.wgmma.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/attrs.html">Script.attrs</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.blocks.html">Script.attrs.blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.cluster_blocks.html">Script.attrs.cluster_blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/generated/tilus.lang.script.Attributes.warps.html">Script.attrs.warps</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../python-api/tilus-class.html">tilus.Class</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../python-api/tilus-ir/__index__.html">tilus.ir</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/datatype.html">tilus.ir.DataType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/pointer.html">tilus.ir.PointerType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/tensor.html">tilus.ir.Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/register_tensor.html">tilus.ir.RegisterTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/tmemory_tensor.html">tilus.ir.TMemoryTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html">tilus.ir.layout.ops.auto_local_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_local.html">tilus.ir.layout.ops.column_local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_spatial.html">tilus.ir.layout.ops.column_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.compose.html">tilus.ir.layout.ops.compose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.concat.html">tilus.ir.layout.ops.concat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.divide.html">tilus.ir.layout.ops.divide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.flatten.html">tilus.ir.layout.ops.flatten</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.local.html">tilus.ir.layout.ops.local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.permute.html">tilus.ir.layout.ops.permute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reduce.html">tilus.ir.layout.ops.reduce</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.register_layout.html">tilus.ir.layout.ops.register_layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reshape.html">tilus.ir.layout.ops.reshape</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.spatial.html">tilus.ir.layout.ops.spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.squeeze.html">tilus.ir.layout.ops.squeeze</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.unsqueeze.html">tilus.ir.layout.ops.unsqueeze</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/tilus-ir/shared_layout.html">tilus.ir.SharedLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_row_major.html">tilus.ir.layout.ops.shared_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_column_major.html">tilus.ir.layout.ops.shared_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_compose.html">tilus.ir.layout.ops.shared_compose</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../python-api/tilus-ir/global_layout.html">tilus.ir.GlobalLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_row_major.html">tilus.ir.layout.global_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_column_major.html">tilus.ir.layout.global_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_strides.html">tilus.ir.layout.global_strides</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../python-api/tilus-ir/generated/tilus.ir.layout.global_compose.html">tilus.ir.layout.global_compose</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item"><script>
+(function() {
+  var pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  var baseUrl = '';
+  var currentVersion = '';
+  var relPageParts = [];
+
+  if (pathParts.length >= 2) {
+    baseUrl = '/' + pathParts[0];
+    currentVersion = pathParts[1];
+    relPageParts = pathParts.slice(2);
+  }
+
+  fetch(baseUrl + '/versions.json')
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('not found');
+      return resp.json();
+    })
+    .then(function(versions) {
+      var headerButtons = document.querySelector('.article-header-buttons');
+      if (!headerButtons) return;
+
+      headerButtons.style.display = 'flex';
+      headerButtons.style.alignItems = 'center';
+
+      var select = document.createElement('select');
+      select.title = 'Switch version';
+      select.style.cssText = 'padding: 0.15rem 0.4rem; border-radius: 4px; border: 1px solid var(--pst-color-border); background: var(--pst-color-background); color: var(--pst-color-text-base); font-size: var(--pst-sidebar-font-size); cursor: pointer; appearance: auto; margin-right: 0.5rem; height: 2.25em;';
+
+      versions.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.slug;
+        opt.textContent = v.label;
+        if (v.slug === currentVersion) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      select.addEventListener('change', function() {
+        var relPage = relPageParts.join('/') || 'index.html';
+        window.location.href = baseUrl + '/' + select.value + '/' + relPage;
+      });
+
+      headerButtons.insertBefore(select, headerButtons.firstChild);
+    })
+    .catch(function() {});
+})();
+</script></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/NVIDIA/tilus" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="Source repository"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/tutorials/matmul-blackwell/v3.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>3. Warp Specialization</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-full-kernel">The Full Kernel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v2">What Changed from V2</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">Warp Specialization</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#producer-consumer-barriers">Producer-Consumer Barriers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#flush-barrier">Flush Barrier</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-warp-producer">TMA Warp (Producer)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mma-warp-consumer">MMA Warp (Consumer)</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="warp-specialization">
+<span id="tutorial-blackwell-matmul-v3"></span><h1>3. Warp Specialization<a class="headerlink" href="#warp-specialization" title="Link to this heading"><span>¶</span></a></h1>
+<p>In <a class="reference internal" href="v2.html"><span class="doc">V2</span></a>, each iteration issues one MMA and waits for it to complete
+(via <code class="docutils literal notranslate"><span class="pre">tcgen05.commit</span></code> + <code class="docutils literal notranslate"><span class="pre">mbarrier.wait</span></code>) before issuing the next. The tensor
+core MMA pipeline sees only one operation at a time — it goes idle between
+consecutive MMAs while the warp handles TMA and synchronization.</p>
+<p>To keep the MMA pipeline busy, we want <strong>multiple MMAs in flight</strong>: issue the
+next MMA as soon as its input data is ready, without waiting for the previous
+MMA to finish writing its results. This is achieved through <strong>warp
+specialization</strong> — assigning TMA and MMA to <strong>separate warps</strong>, each running
+its own loop. The MMA warp can issue MMA after MMA without interruption, while
+the TMA warp independently keeps shared memory filled. The two warps synchronize
+only through mbarriers, allowing multiple in-flight MMA and TMA operations
+simultaneously.</p>
+<p>Triton also performs warp specialization internally, but as a compiler pass
+with no user-level control. In Tilus, you explicitly assign different roles to
+different warps and define how they communicate.</p>
+<section id="the-full-kernel">
+<h2>The Full Kernel<a class="headerlink" href="#the-full-kernel" title="Link to this heading"><span>¶</span></a></h2>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">BlackwellMatmulV3 — full kernel</span><a class="headerlink" href="#id2" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span>
+    <span class="s2">&quot;block_m, block_n, e_block_n&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">]]</span>
+<span class="p">)</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BlackwellMatmulV3</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">block_m</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">block_n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">block_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">stages</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">=</span> <span class="n">block_m</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">=</span> <span class="n">block_n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span> <span class="o">=</span> <span class="n">block_k</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stages</span> <span class="o">=</span> <span class="n">stages</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">e_block_n</span> <span class="o">=</span> <span class="n">e_block_n</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">m_size</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
+        <span class="n">n_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">k_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">a_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
+        <span class="n">b_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
+        <span class="n">c_ptr</span><span class="p">:</span> <span class="o">~</span><span class="n">float16</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">),</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">4</span>
+
+        <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span>
+        <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">y</span>
+
+        <span class="n">g_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
+        <span class="n">g_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">n_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
+        <span class="n">s_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">s_b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="n">t_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">])</span>
+
+        <span class="c1"># full_barriers: signaled when TMA has filled the stage (data ready)</span>
+        <span class="n">full_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">)</span>
+        <span class="c1"># empty_barriers: signaled when MMA has consumed the stage (slot free)</span>
+        <span class="n">empty_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">)</span>
+
+        <span class="c1"># TMA warp (producer): loads tiles from global to shared memory</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+            <span class="n">stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="c1"># phase=1: mbarrier starts at phase 0, so waiting for phase 1</span>
+            <span class="c1"># passes immediately (slot is empty, ready to fill)</span>
+            <span class="n">producer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
+                <span class="c1"># wait for the MMA warp to free this stage</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+                    <span class="n">empty_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                    <span class="n">phase</span><span class="o">=</span><span class="n">producer_phase</span><span class="p">,</span>
+                    <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+                    <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+                        <span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                        <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+                    <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
+                    <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+                    <span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span>
+                    <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                <span class="p">)</span>
+                <span class="c1"># advance stage; flip phase when wrapping to stage 0</span>
+                <span class="n">stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
+                <span class="n">producer_phase</span> <span class="o">^=</span> <span class="n">stage</span> <span class="o">==</span> <span class="mi">0</span>
+
+        <span class="c1"># MMA warp (consumer): computes on tiles loaded by the TMA warp</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+            <span class="c1"># phase=0: mbarrier starts at phase 0, so waiting for phase 0</span>
+            <span class="c1"># blocks until the producer signals (slot is not yet filled)</span>
+            <span class="n">consumer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
+                <span class="c1"># wait for the TMA warp to fill this stage</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+                    <span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                    <span class="n">phase</span><span class="o">=</span><span class="n">consumer_phase</span><span class="p">,</span>
+                    <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+                    <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
+                    <span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                    <span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+                    <span class="n">t_acc</span><span class="p">,</span>
+                    <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="c1"># commit signals empty_barriers: marks this stage as consumed</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">empty_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">])</span>
+                <span class="c1"># advance stage; flip phase when wrapping to stage 0</span>
+                <span class="n">stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
+                <span class="n">consumer_phase</span> <span class="o">^=</span> <span class="n">stage</span> <span class="o">==</span> <span class="mi">0</span>
+
+            <span class="c1"># drain: wait for all in-flight MMA to finish</span>
+            <span class="n">flush_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">flush_barrier</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">flush_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+        <span class="c1"># TMA epilogue: tmem -&gt; register -&gt; shared -&gt; global (via TMA)</span>
+        <span class="n">g_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">c_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
+        <span class="n">s_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">e_block_n</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">e_offset_n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">e_block_n</span><span class="p">):</span>
+            <span class="n">t_acc_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span>
+                <span class="n">t_acc</span><span class="p">,</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">e_offset_n</span><span class="p">],</span>
+                <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">e_block_n</span><span class="p">],</span>
+                <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">r_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">t_acc_slice</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">wait_load</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">s_c</span><span class="p">,</span> <span class="n">r_acc</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">float16</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fence</span><span class="o">.</span><span class="n">proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="s2">&quot;shared&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">shared_to_global</span><span class="p">(</span>
+                    <span class="n">s_c</span><span class="p">,</span>
+                    <span class="n">g_c</span><span class="p">,</span>
+                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span> <span class="o">+</span> <span class="n">e_offset_n</span><span class="p">],</span>
+                    <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">read</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">dealloc</span><span class="p">(</span><span class="n">t_acc</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="what-changed-from-v2">
+<h2>What Changed from V2<a class="headerlink" href="#what-changed-from-v2" title="Link to this heading"><span>¶</span></a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 15.8%" />
+<col style="width: 42.1%" />
+<col style="width: 42.1%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"></th>
+<th class="head"><p>V2</p></th>
+<th class="head"><p>V3</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Warp structure</strong></p></td>
+<td><p>Single warp does both TMA and MMA</p></td>
+<td><p>TMA warp + MMA warp (warp specialization)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Barriers</strong></p></td>
+<td><p>TMA barriers + 1 MMA barrier</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">full_barriers</span></code> + <code class="docutils literal notranslate"><span class="pre">empty_barriers</span></code> (producer-consumer)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Parallelism</strong></p></td>
+<td><p>TMA and MMA overlap across iterations</p></td>
+<td><p>TMA and MMA run <strong>truly in parallel</strong> on separate warps</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>In-flight MMA</strong></p></td>
+<td><p>1 (wait after each MMA)</p></td>
+<td><p>Multiple (MMA warp issues next MMA without waiting for TMA)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Prefill</strong></p></td>
+<td><p>Explicit prefill loop</p></td>
+<td><p>Implicit: TMA warp runs ahead of MMA warp</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>New instructions</strong></p></td>
+<td></td>
+<td><p><a class="reference internal" href="../../python-api/generated/tilus.Script.thread_group.html#tilus.Script.thread_group" title="tilus.Script.thread_group"><code class="xref py py-meth docutils literal notranslate"><span class="pre">thread_group()</span></code></a>,
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">commit()</span></code></a> (with consumer mbarrier)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id1">
+<h2>Warp Specialization<a class="headerlink" href="#id1" title="Link to this heading"><span>¶</span></a></h2>
+<p>In V2, a single warp handles both TMA and MMA. Each iteration looks like: issue
+TMA → wait for TMA → issue MMA → <strong>wait for MMA</strong> → repeat.
+The <code class="docutils literal notranslate"><span class="pre">tcgen05.commit</span></code> + <code class="docutils literal notranslate"><span class="pre">mbarrier.wait</span></code> after each MMA means the tensor core
+pipeline sees at most one MMA at a time. Between consecutive MMAs, the pipeline
+goes idle while the warp handles synchronization, TMA issuing, and TMA waiting.</p>
+<p>With warp specialization, we assign TMA and MMA to <strong>separate warps</strong>, each
+running its own loop:</p>
+<ul class="simple">
+<li><p><strong>TMA warp</strong> (threads 0–31): issues TMA loads back-to-back. Before each load,
+it only waits on <code class="docutils literal notranslate"><span class="pre">empty_barriers</span></code> to ensure the shared memory slot is free.</p></li>
+<li><p><strong>MMA warp</strong> (threads 32–63): issues MMA operations back-to-back. Before each
+MMA, it only waits on <code class="docutils literal notranslate"><span class="pre">full_barriers</span></code> to ensure the input data has arrived.
+Crucially, it does <strong>not</strong> wait for the previous MMA to complete — it issues
+<code class="docutils literal notranslate"><span class="pre">tcgen05.commit(mbarrier=empty_barriers[stage])</span></code> which returns immediately
+and makes the barrier track the MMA’s completion in the background. When the
+MMA actually finishes, the hardware will signal the barrier, freeing the stage
+for the TMA warp. Meanwhile, the MMA warp has already moved on to the next
+iteration. This allows <strong>multiple MMAs to be in flight</strong> in the tensor core
+pipeline.</p></li>
+</ul>
+<p>The result: as long as TMA delivers data fast enough, the MMA warp keeps the
+tensor core pipeline fully occupied with no idle gaps between operations.</p>
+</section>
+<section id="producer-consumer-barriers">
+<h2>Producer-Consumer Barriers<a class="headerlink" href="#producer-consumer-barriers" title="Link to this heading"><span>¶</span></a></h2>
+<p>V2 used TMA barriers and a single MMA barrier. V3 replaces them with a
+<strong>producer-consumer</strong> barrier pair, as described in the
+<a class="reference internal" href="../../python-api/instruction-groups/mbarrier.html"><span class="doc">mbarrier guide</span></a>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">full_barriers</span></code>: signaled when TMA has filled a stage (data ready).
+The MMA warp (consumer) waits on these.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">empty_barriers</span></code>: signaled when MMA has consumed a stage (slot free).
+The TMA warp (producer) waits on these.</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">full_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">)</span>
+<span class="n">empty_barriers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">counts</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Each role tracks a single per-role phase variable (as in V2’s XOR-on-wrap
+pattern). The <strong>initial values</strong> are critical:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">producer_phase</span> <span class="pre">=</span> <span class="pre">1</span></code>: all mbarriers start at hardware phase 0. The producer
+waits with expected phase 1, which does <strong>not</strong> match the barrier’s current
+phase — so the wait passes immediately. This is correct: all stages start
+empty, so the TMA warp can begin filling right away without blocking.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">consumer_phase</span> <span class="pre">=</span> <span class="pre">0</span></code>: the consumer waits with expected phase 0, which
+<strong>matches</strong> the barrier’s current phase — so the wait blocks until the
+producer signals. This is correct: no stages are full yet, so the MMA warp
+must wait for the first TMA load to complete.</p></li>
+</ul>
+<p>As in V2, the phase flips via XOR when the stage index wraps back to 0
+(<code class="docutils literal notranslate"><span class="pre">producer_phase</span> <span class="pre">^=</span> <span class="pre">(stage</span> <span class="pre">==</span> <span class="pre">0)</span></code>), tracking the alternating barrier phases
+across ring buffer cycles.</p>
+</section>
+<section id="flush-barrier">
+<h2>Flush Barrier<a class="headerlink" href="#flush-barrier" title="Link to this heading"><span>¶</span></a></h2>
+<p>In V2, we waited for each MMA individually (<code class="docutils literal notranslate"><span class="pre">tcgen05.commit</span></code> + <code class="docutils literal notranslate"><span class="pre">mbarrier.wait</span></code>
+after every iteration), so no MMA was ever in flight when the loop ended. In V3,
+the MMA warp issues <code class="docutils literal notranslate"><span class="pre">tcgen05.commit</span></code> without waiting — multiple MMAs can be
+in flight simultaneously. After the loop ends, we need to ensure all in-flight
+MMAs have completed before reading the accumulator. This is done with a <strong>flush
+barrier</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># drain: wait for all in-flight MMA to finish</span>
+<span class="n">flush_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">flush_barrier</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">flush_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This extra <code class="docutils literal notranslate"><span class="pre">tcgen05.commit</span></code> makes the <code class="docutils literal notranslate"><span class="pre">flush_barrier</span></code> track all prior
+uncommitted MMA operations. Once the barrier completes, it is safe to read
+from tensor memory.</p>
+</section>
+<section id="walkthrough">
+<h2>Walkthrough<a class="headerlink" href="#walkthrough" title="Link to this heading"><span>¶</span></a></h2>
+<section id="tma-warp-producer">
+<h3>TMA Warp (Producer)<a class="headerlink" href="#tma-warp-producer" title="Link to this heading"><span>¶</span></a></h3>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">TMA warp</span><a class="headerlink" href="#id3" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># TMA warp (producer): loads tiles from global to shared memory</span>
+<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="n">stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># phase=1: mbarrier starts at phase 0, so waiting for phase 1</span>
+    <span class="c1"># passes immediately (slot is empty, ready to fill)</span>
+    <span class="n">producer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
+        <span class="c1"># wait for the MMA warp to free this stage</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+            <span class="n">empty_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+            <span class="n">phase</span><span class="o">=</span><span class="n">producer_phase</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+                <span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+                <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span> <span class="o">+</span> <span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+            <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+            <span class="n">mbarrier</span><span class="o">=</span><span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+            <span class="n">src</span><span class="o">=</span><span class="n">g_b</span><span class="p">,</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+            <span class="n">mbarrier</span><span class="o">=</span><span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="c1"># advance stage; flip phase when wrapping to stage 0</span>
+        <span class="n">stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
+        <span class="n">producer_phase</span> <span class="o">^=</span> <span class="n">stage</span> <span class="o">==</span> <span class="mi">0</span>
+
+</pre></div>
+</div>
+</div>
+<p>The TMA warp runs a loop over all K-tiles:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.wait()</span></code></a>
+on <code class="docutils literal notranslate"><span class="pre">empty_barriers[stage]</span></code> blocks until the MMA warp has freed this stage.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.arrive_and_expect_tx()</span></code></a>
+on <code class="docutils literal notranslate"><span class="pre">full_barriers[stage]</span></code> declares the expected TMA bytes.</p></li>
+<li><p>Two <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html#tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared" title="tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.global_to_shared()</span></code></a>
+calls load the A and B tiles.</p></li>
+<li><p>The stage index advances modulo <code class="docutils literal notranslate"><span class="pre">stages</span></code>; the phase flips when wrapping.</p></li>
+</ul>
+<p>Note there is no explicit prefill loop as in V2: the TMA warp simply starts
+running and naturally gets ahead of the MMA warp. This works because
+<code class="docutils literal notranslate"><span class="pre">producer_phase</span></code> starts at 1, which doesn’t match the barrier’s initial phase
+(0), so the producer’s first wait passes immediately for all stages.</p>
+</section>
+<section id="mma-warp-consumer">
+<h3>MMA Warp (Consumer)<a class="headerlink" href="#mma-warp-consumer" title="Link to this heading"><span>¶</span></a></h3>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">MMA warp</span><a class="headerlink" href="#id4" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># MMA warp (consumer): computes on tiles loaded by the TMA warp</span>
+<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+    <span class="c1"># phase=0: mbarrier starts at phase 0, so waiting for phase 0</span>
+    <span class="c1"># blocks until the producer signals (slot is not yet filled)</span>
+    <span class="n">consumer_phase</span><span class="p">:</span> <span class="n">uint32</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">stage</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">):</span>
+        <span class="c1"># wait for the TMA warp to fill this stage</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+            <span class="n">full_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+            <span class="n">phase</span><span class="o">=</span><span class="n">consumer_phase</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
+            <span class="n">s_a</span><span class="p">[</span><span class="n">stage</span><span class="p">],</span>
+            <span class="n">s_b</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+            <span class="n">t_acc</span><span class="p">,</span>
+            <span class="n">enable_input_d</span><span class="o">=</span><span class="n">offset_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># commit signals empty_barriers: marks this stage as consumed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">empty_barriers</span><span class="p">[</span><span class="n">stage</span><span class="p">])</span>
+        <span class="c1"># advance stage; flip phase when wrapping to stage 0</span>
+        <span class="n">stage</span> <span class="o">=</span> <span class="p">(</span><span class="n">stage</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">stages</span>
+        <span class="n">consumer_phase</span> <span class="o">^=</span> <span class="n">stage</span> <span class="o">==</span> <span class="mi">0</span>
+
+    <span class="c1"># drain: wait for all in-flight MMA to finish</span>
+    <span class="n">flush_barrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">flush_barrier</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">flush_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+</pre></div>
+</div>
+</div>
+<p>The MMA warp runs a matching loop:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mbarrier.wait()</span></code></a>
+on <code class="docutils literal notranslate"><span class="pre">full_barriers[stage]</span></code> blocks until TMA data has arrived.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.mma()</span></code></a>
+computes on the loaded tiles.</p></li>
+<li><p><a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit" title="tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tcgen05.commit()</span></code></a>
+on <code class="docutils literal notranslate"><span class="pre">empty_barriers[stage]</span></code> signals that this stage is now free for the TMA
+warp to reuse.</p></li>
+<li><p>The stage index advances modulo <code class="docutils literal notranslate"><span class="pre">stages</span></code>; the phase flips when wrapping.</p></li>
+<li><p>After the loop, the flush barrier ensures all MMA writes to tensor memory are
+complete.</p></li>
+</ul>
+</section>
+</section>
+<section id="performance">
+<h2>Performance<a class="headerlink" href="#performance" title="Link to this heading"><span>¶</span></a></h2>
+<p>Warp specialization allows multiple MMAs to be in flight simultaneously,
+pushing tensor core utilization to ~79%.
+The complete source is at <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v3.py"><i class="fab fa-github"></i> examples/blackwell_matmul/matmul_v3.py</a>.</p>
+<figure class="align-default" id="id5">
+<img alt="../../_images/plot_v3.svg" class="plot-directive" src="../../_images/plot_v3.svg" />
+<figcaption>
+<p><span class="caption-text">Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+utilization (96.6%).</span><a class="headerlink" href="#id5" title="Link to this image"><span>¶</span></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="what-s-next">
+<h2>What’s Next<a class="headerlink" href="#what-s-next" title="Link to this heading"><span>¶</span></a></h2>
+<p>V3 achieves true overlap between TMA and MMA through warp specialization.
+However, the code still manages the pipeline state (stages, barriers, phases)
+inline, which becomes increasingly complex as we add more features.</p>
+<p>In <a class="reference internal" href="v4.html"><span class="doc">the next version</span></a>, we refactor the pipeline logic into a reusable
+<code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class using <code class="docutils literal notranslate"><span class="pre">tilus.Class</span></code>, and add <strong>tile rasterization</strong> for
+better L2 cache locality.</p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="v2.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">2. Multi-Stage Software Pipelining</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="v4.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">4. Tile Rasterization and Pipeline Abstraction</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-full-kernel">The Full Kernel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v2">What Changed from V2</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">Warp Specialization</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#producer-consumer-barriers">Producer-Consumer Barriers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#flush-barrier">Flush Barrier</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tma-warp-producer">TMA Warp (Producer)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mma-warp-consumer">MMA Warp (Consumer)</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-next">What’s Next</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By NVIDIA
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025-2026, NVIDIA.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
