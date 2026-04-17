@@ -8,7 +8,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "tilus"
-copyright = "2025, NVIDIA"
+copyright = "2025-2026, NVIDIA"
 author = "NVIDIA"
 
 # -- General configuration ---------------------------------------------------
