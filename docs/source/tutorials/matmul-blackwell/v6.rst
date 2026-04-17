@@ -64,6 +64,12 @@ What Changed from V5
    * - **Barrier scope**
      - CTA-local
      - Cluster-scoped: ``arrive_and_expect_tx_remote``, ``arrive_and_expect_tx_multicast``
+   * - **New instructions**
+     -
+     - :meth:`~tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr`,
+       :meth:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote`,
+       :meth:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast`,
+       :meth:`~tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync`
 
 .. |rarr| unicode:: U+2192
 
@@ -95,7 +101,15 @@ The key insight is the **B sharing**. To compute ``C = A × B``, every row of A
 must be multiplied against the *full* B tile. In a single-CTA kernel, each CTA
 would need all of B in its shared memory. With a 2-CTA cluster, the tensor core
 on each SM reads its local half of B and receives the other half from the peer
-SM over an internal link (DSMEM). Each CTA only needs to load and store **half
+SM via **Distributed Shared Memory (DSMEM)**.
+
+DSMEM is a Blackwell hardware feature that allows one SM to directly read
+another SM's shared memory within a cluster, without going through global
+memory. The hardware manages the cross-SM data transfer transparently --- from
+the tensor core's perspective, it simply reads B from two shared memory
+addresses, one local and one remote.
+
+Each CTA only needs to load and store **half
 of B** in shared memory, yet both CTAs compute against the full B tile. This
 effectively halves the shared memory bandwidth pressure for B.
 
@@ -123,20 +137,23 @@ tells the tensor core to operate across both CTAs in the cluster:
 
 With ``cta_group=2``:
 
-- :meth:`tcgen05.alloc <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc>`
+- :meth:`tcgen05.alloc() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc>`
   allocates tensor memory on each CTA locally. The ``cta_group=2`` flag is
   required when the accumulator will be used with 2-CTA MMA.
-- :meth:`tcgen05.mma <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
-  is issued by **a single warp from either CTA** in the pair. The hardware
-  reads A from the issuing CTA's shared memory and B from **both CTAs' shared
-  memory** (via DSMEM), then writes results to both CTAs' tensor memory. In this
-  kernel, we choose CTA 0 as the issuer.
-- :meth:`tcgen05.commit <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
+- :meth:`tcgen05.mma() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma>`
+  is issued by **a single warp from either CTA** in the pair. The tensor core
+  reads both A and B distributed across **both CTAs' shared memory** (via DSMEM),
+  and writes results to both CTAs' tensor memory. In this kernel, we choose CTA 0
+  as the issuer.
+- :meth:`tcgen05.commit() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
   with ``cta_group=2`` and ``multicast_mask=0b11`` signals barriers on **both**
   CTAs when the MMA completes.
 
-Because only CTA 0 issues MMA, the MMA warp on CTA 1 is idle during the
-K-loop. CTA 1's MMA warp only participates in consuming CLC responses.
+Because only CTA 0 issues MMA, CTA 1's MMA warp is idle during the K-loop and
+only participates in consuming CLC responses. With ``cta_group=2``, a single
+warp from either CTA issues the MMA instruction, and the tensor core reads both
+A and B distributed across both CTAs' shared memory. The single MMA produces
+results for both CTAs' tensor memory.
 
 With two CTAs sharing the same pipeline, barrier operations can no longer be
 CTA-local --- they need cluster scope.
@@ -147,9 +164,13 @@ Cluster Barrier Management
 
 The main changes from V5:
 
-**TMA barriers**: CTA 0 owns the ``tma_pipe`` barriers. CTA 1 maps to CTA 0's
-barrier address using
-:meth:`cluster.map_shared_addr <tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr>`:
+**TMA barriers**: CTA 0 owns the ``tma_pipe`` barriers. CTA 1 needs to arrive
+on the same barrier so that CTA 0 knows when *both* CTAs' TMA loads have
+completed. To do this, CTA 1 translates CTA 0's barrier address into a
+cluster-visible address using
+:meth:`cluster.map_shared_addr() <tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr>`.
+This instruction takes a local shared memory address and returns the equivalent
+address on another CTA's SM, allowing cross-CTA barrier operations:
 
 .. literalinclude:: ../../../../examples/blackwell_matmul/matmul_v6.py
    :language: python
@@ -162,14 +183,17 @@ CTA 0 declares the expected bytes via
 :meth:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx`
 (both CTAs' loads combined: ``(s_a.nbytes + s_b.nbytes) * 2``). CTA 1 maps the
 barrier address to CTA 0's shared memory, so both CTAs'
-:meth:`tma.global_to_shared <tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared>`
+:meth:`tma.global_to_shared() <tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared>`
 loads signal the same barrier.
 
 **CLC barriers**: the scheduler only runs on CTA 0. It uses
 :meth:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast`
-to declare expected bytes on **both CTAs' barriers** simultaneously. The CLC
-response is multicast to both CTAs via
-:meth:`clc.try_cancel(multicast=True) <tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel>`.
+to declare expected bytes on the barriers at the same local shared memory offset
+across both CTAs simultaneously --- more efficient than arriving on each CTA's
+barrier separately. The CLC response is multicast to both CTAs via
+:meth:`clc.try_cancel(multicast=True) <tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel>`,
+which writes the 16-byte response to the same local shared memory offset on both
+CTAs in a single operation.
 
 .. note::
 
@@ -182,7 +206,8 @@ response is multicast to both CTAs via
 **Consumer arrivals**: when consuming CLC responses, each CTA arrives on
 CTA 0's barrier remotely using
 :meth:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote`
-with ``target_rank=0`` and ``scope="cluster"``.
+with ``target_rank=0`` and ``scope="cluster"``. This instruction arrives on a
+barrier at the same local shared memory offset in the target CTA.
 
 
 Walkthrough
@@ -239,10 +264,23 @@ MMA Warp
    :caption: MMA warp
 
 Only CTA 0 issues MMA (guarded by ``if cta_rank == 0``). The
-:meth:`tcgen05.commit <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
+:meth:`tcgen05.commit() <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit>`
 calls use ``cta_group=2, multicast_mask=0b11`` to signal barriers on both CTAs.
 CTA 1's MMA warp skips the K-loop and only consumes CLC responses.
 
+
+Performance
+-----------
+
+2-CTA clusters double the effective tile size via distributed MMA, matching
+cuBLAS performance at ~1610 TFLOPS (~96% tensor core utilization).
+The complete source is at :github:`examples/blackwell_matmul/matmul_v6.py`.
+
+.. plot:: tutorials/matmul-blackwell/plots/plot_v6.py
+
+   Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+   from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+   utilization (96.6%).
 
 What's Next
 -----------
@@ -253,10 +291,3 @@ specialization (V3), tile rasterization and a pipeline abstraction (V4), CLC
 persistent scheduling with a pipelined epilogue (V5), and finally 2-CTA
 clusters with distributed MMA (V6). Together, these optimizations bring the
 kernel to vendor-library-level performance on NVIDIA Blackwell GPUs.
-
-
-Full Source
------------
-
-The complete example file is located at
-`examples/blackwell_matmul/matmul_v6.py <https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v6.py>`__.

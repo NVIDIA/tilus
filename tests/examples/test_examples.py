@@ -76,6 +76,8 @@ IGNORED_SCRIPTS = [
     ("flash_attention_decode", "torch_kernel.py"),
     ("flash_attention_decode", "triton_kernel.py"),
     ("flash_attention_decode", "tilus_kernel.py"),
+    # Benchmark utilities
+    ("blackwell_matmul", "benchmark.py"),
 ]
 
 

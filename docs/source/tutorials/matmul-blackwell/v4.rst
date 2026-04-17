@@ -1,10 +1,10 @@
 .. _tutorial_blackwell_matmul_v4:
 
-4. Tile Rasterization, Pipeline Abstraction, and TMA Epilogue
-=============================================================
+4. Tile Rasterization and Pipeline Abstraction
+===============================================
 
 :doc:`V3 <v3>` introduced warp specialization with separate TMA and MMA warps.
-This version adds three improvements:
+This version adds two improvements:
 
 1. **Tile rasterization** --- reorder tile assignments so that consecutive thread
    blocks process tiles that share B columns, improving L2 cache reuse.
@@ -12,8 +12,6 @@ This version adds three improvements:
    from V3 into a reusable ``Pipeline`` class using ``tilus.Class``, making it
    easy to add more pipelines as the kernel grows (e.g., separate TMA and MMA
    pipelines in later versions).
-3. **TMA epilogue** --- store results back to global memory via shared memory and
-   TMA, instead of the direct ``store_global`` used in previous versions.
 
 The Full Kernel
 ---------------
@@ -41,14 +39,12 @@ What Changed from V3
    * - **Barrier management**
      - Manual barriers, phases, and stage indices
      - ``Pipeline`` class (``tilus.Class``) encapsulates all bookkeeping
-   * - **Epilogue**
-     - ``store_global``: direct register-to-global writes
-     - TMA epilogue: tmem |rarr| registers |rarr| shared |rarr| global (via TMA)
    * - **Integer division**
      - Standard ``//`` and ``%``
      - ``fast_divmod`` for grid-constant divisors
-
-.. |rarr| unicode:: U+2192
+   * - **New instructions**
+     -
+     - :meth:`~tilus.Script.fast_divmod`, ``tilus.Class``
 
 
 Tile Rasterization
@@ -203,7 +199,7 @@ the mbarrier signals.
 
 In V3, we managed all this state manually (barriers, phases, stage indices). The
 ``Pipeline`` class below encapsulates the bookkeeping into a clean API. Note that
-this is not a built-in part of tilus --- it is constructed from existing
+this is not a built-in part of Tilus; it is constructed from existing
 instructions (``mbarrier.alloc``, ``mbarrier.wait``, etc.) as a user-level
 helper. You can always manage the mbarriers manually as in V3 if you prefer.
 
@@ -215,7 +211,7 @@ helper. You can always manage the mbarriers manually as in V3 if you prefer.
 
 The ``Pipeline`` class inherits from ``tilus.Class``, which works like
 :class:`~tilus.Script` but for helper objects that are not kernels themselves.
-It can allocate barriers, shared tensors, and use all tilus instructions.
+It can allocate barriers, shared tensors, and use all Tilus instructions.
 
 The usage in the kernel becomes straightforward:
 
@@ -238,84 +234,11 @@ This pattern is reusable: later versions add a second pipeline (``mma_pipe``)
 between the MMA and epilogue stages, using the same ``Pipeline`` class.
 
 
-TMA Epilogue
-------------
-
-In V0--V3, the epilogue used :meth:`~tilus.Script.store_global` to write
-results directly from registers to global memory. This is simple but not
-optimal: each thread stores a small piece, generating many small memory
-transactions.
-
-V4 uses a **TMA epilogue** that routes data through shared memory for a bulk
-TMA store. However, the full accumulator (``block_m × block_n``, e.g.,
-128 × 256 in fp32) is too large to load into registers or shared memory all at
-once --- it would consume too many registers and too much shared memory. Instead,
-we **slice** the accumulator into narrow column strips of width ``e_block_n``
-(e.g., 16, where the ``e_`` prefix stands for "epilogue") and process one strip
-at a time:
-
-.. figure:: figures/v4_tma_epilogue.svg
-   :width: 100%
-   :align: center
-
-   Dataflow for one epilogue slice: tensor memory → registers (with cast to
-   fp16) → shared memory → global memory (via TMA). Only a ``block_m ×
-   e_block_n`` slice passes through registers and shared memory at a time.
-
-For each strip, the instruction sequence is:
-
-1. :meth:`tcgen05.slice <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice>`
-   extracts an ``e_block_n``-wide slice of the accumulator in tensor memory.
-2. :meth:`tcgen05.load <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load>`
-   moves the slice to registers, and
-   :meth:`tcgen05.wait_load <tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load>`
-   waits for the load to complete.
-3. :meth:`~tilus.Script.store_shared` writes the cast result to a shared memory
-   buffer.
-4. :meth:`fence.proxy_async <tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async>` ensures the shared memory writes are
-   visible to the TMA engine.
-5. :meth:`tma.shared_to_global <tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global>`
-   issues a bulk TMA transfer from shared to global memory.
-6. :meth:`tma.commit_group <tilus.lang.instructions.tma.TmaInstructionGroup.commit_group>`
-   commits the pending TMA operations into a group, and
-   :meth:`tma.wait_group(n=0, read=True) <tilus.lang.instructions.tma.TmaInstructionGroup.wait_group>`
-   waits for the group to complete. The ``read=True`` flag means we only wait
-   for the TMA engine to finish **reading from shared memory** (so shared memory
-   can be reused for the next slice), without waiting for the writes to global
-   memory to be fully visible --- since no subsequent instruction reads the
-   global output.
-
-The epilogue loops over N-dimension slices of width ``e_block_n``:
-
-.. literalinclude:: ../../../../examples/blackwell_matmul/matmul_v4.py
-   :language: python
-   :start-at: # TMA epilogue
-   :end-before: self.tcgen05.dealloc
-   :dedent: 8
-   :caption: TMA epilogue
-
-.. note::
-
-   **TMA completion mechanisms differ by direction.** Global-to-shared TMA
-   (used in V1--V4 for loading) tracks completion via **mbarrier tx-count**.
-   Shared-to-global TMA (used here in the epilogue) uses a different mechanism:
-   **commit_group + wait_group**, similar to the legacy ``cp.async`` pattern.
-   See `async copy completion mechanisms <https://docs.nvidia.com/cuda/parallel-thread-execution/#data-movement-and-conversion-instructions-asynchronous-copy-completion-mechanisms>`__
-   and `cp.async.bulk <https://docs.nvidia.com/cuda/parallel-thread-execution/#data-movement-and-conversion-instructions-cp-async-bulk>`__
-   in the PTX documentation.
-
-   The ``fence.proxy_async(space="shared")`` before the TMA store is required
-   because ``store_shared`` writes via the **generic proxy**, while
-   ``tma.shared_to_global`` reads via the **async proxy**. The fence ensures
-   the generic proxy writes are visible to the async proxy. See
-   :doc:`/python-api/instruction-groups/fence` for details.
-
-
 Walkthrough
 -----------
 
 The kernel structure is the same as V3 (TMA warp + MMA warp), but now using
-the ``Pipeline`` class and the new epilogue.
+the ``Pipeline`` class. The epilogue is unchanged from V1.
 
 Setup
 ~~~~~
@@ -332,7 +255,6 @@ Key differences from V3:
 - The grid is 1D: ``blocks = num_m_blocks * num_n_blocks``.
 - ``compute_block_coord`` maps the linear index to swizzled (m, n) coordinates.
 - ``Pipeline(stages)`` replaces manual barrier/phase/stage management.
-- ``e_block_n`` controls the epilogue slice width (autotuned).
 
 
 TMA and MMA Warps
@@ -351,6 +273,19 @@ warp, and ``consumer_acquire`` / ``consumer_barrier`` / ``consumer_advance``
 for the MMA warp.
 
 
+Performance
+-----------
+
+Tile rasterization improves L2 cache reuse for B tiles, and the Pipeline
+abstraction simplifies the code without sacrificing performance.
+The complete source is at :github:`examples/blackwell_matmul/matmul_v4.py`.
+
+.. plot:: tutorials/matmul-blackwell/plots/plot_v4.py
+
+   Blackwell matmul performance on B200 (M=N=K=8192, fp16). TFLOPS derived
+   from NCU profiling. Peak TFLOPS estimated from cuBLAS tensor core
+   utilization (96.6%).
+
 What's Next
 -----------
 
@@ -361,10 +296,3 @@ In the next version, we introduce **CLC** (Cluster Launch Control) for persisten
 kernels --- each CTA processes multiple output tiles dynamically via hardware
 scheduling, avoiding kernel launch overhead. We also add a **pipelined
 epilogue** and expand to **4 warp roles** (TMA, MMA, scheduler, epilogue).
-
-
-Full Source
------------
-
-The complete example file is located at
-`examples/blackwell_matmul/matmul_v4.py <https://github.com/NVIDIA/tilus/blob/main/examples/blackwell_matmul/matmul_v4.py>`__.
