@@ -15,8 +15,8 @@
 # pylint: disable=subprocess-run-check
 import argparse
 import importlib
+import json
 import os
-import pickle
 import shutil
 import subprocess
 import sys
@@ -30,9 +30,10 @@ _sanitizer_template = """
 """.replace("\n", " ").strip()
 
 
-def _sanitizer_run_func(script_path, func_name, args_pickled_path):
-    with open(args_pickled_path, "rb") as f:
-        args, kwargs = pickle.load(f)
+def _sanitizer_run_func(script_path, func_name, args_json_path):
+    with open(args_json_path, "r") as f:
+        data = json.load(f)
+    args, kwargs = data["args"], data["kwargs"]
 
     # remove the dir path of the current script from sys.path to avoid module overriding
     sys.path = [path for path in sys.path if not path.startswith(os.path.dirname(__file__))]
@@ -117,33 +118,39 @@ def sanitizer_run(func, *args, **kwargs):
     report_path = report_path_template.format(idx)
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
 
-    # dump args
-    with tempfile.NamedTemporaryFile("wb", suffix=".pkl", delete=False) as f:
+    # serialize args as JSON
+    try:
+        args_json = json.dumps({"args": list(args), "kwargs": kwargs})
+    except (TypeError, ValueError) as e:
+        raise TypeError(
+            f"Cannot JSON-serialize the function arguments for sanitizer. "
+            f"All arguments must be JSON-serializable (no tensors, custom objects, etc.): {e}"
+        ) from e
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         args_path: str = f.name
-        pickle.dump((args, kwargs), f)
-        f.close()
+        f.write(args_json)
 
-        command = _sanitizer_template.format(
-            sanitizer_path=sanitizer_get_path(),
-            report_path=report_path,
-            python_executable=sys.executable,
-            python_script=__file__,
-            args="{} {} {}".format(script_path, func_name, args_path),
-        )
-        command = " ".join(command.split())
-        print("Running command: ")
-        print(command)
-        subprocess.run(command, shell=True)
-        with open(report_path, "r") as f:  # type: ignore[assignment]
-            print(f.read())
-        print("Sanitizer report is saved in: {}".format(report_path))
+    command = _sanitizer_template.format(
+        sanitizer_path=sanitizer_get_path(),
+        report_path=report_path,
+        python_executable=sys.executable,
+        python_script=__file__,
+        args="{} {} {}".format(script_path, func_name, args_path),
+    )
+    command = " ".join(command.split())
+    print("Running command: ")
+    print(command)
+    subprocess.run(command, shell=True)
+    with open(report_path, "r") as f:  # type: ignore[assignment]
+        print(f.read())
+    print("Sanitizer report is saved in: {}".format(report_path))
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("script_path", type=str, help="the script path to the user's given func")
     parser.add_argument("func", type=str, help="the function to be checked")
-    parser.add_argument("args", type=str, help="the arguments to be passed to the function (path to the pickled file)")
+    parser.add_argument("args", type=str, help="the arguments to be passed to the function (path to the JSON file)")
     args = parser.parse_args()
     _sanitizer_run_func(args.script_path, args.func, args.args)
 

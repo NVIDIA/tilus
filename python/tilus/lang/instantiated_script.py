@@ -19,7 +19,6 @@ import inspect
 import json
 import logging
 import os
-import pickle
 import shutil
 import traceback
 from itertools import product
@@ -526,7 +525,13 @@ class JitInstance:
     @staticmethod
     def _create_link(link_path: Path, target_path: Path) -> None:
         relative_path = relative_to_with_walk_up(link_path.parent, target=target_path)
-        os.symlink(relative_path, link_path)
+        try:
+            os.symlink(relative_path, link_path)
+        except FileExistsError:
+            # Symlink already exists (e.g., from a previous run with a stale dispatch table).
+            # Replace it to ensure it points to the correct target.
+            os.remove(link_path)
+            os.symlink(relative_path, link_path)
 
     def _build_programs(self):
         # build the programs in parallel
@@ -699,16 +704,18 @@ class JitInstance:
         return self.compiled_programs[self.dispatch_table[tuning_key]]
 
     def load_dispatch_table(self):
-        table_path = self.cache_dir / "dispatch_table.pickle"
+        table_path = self.cache_dir / "dispatch_table.json"
         if table_path.exists():
-            with open(table_path, "rb") as f:
-                self.dispatch_table = pickle.load(f)
+            with open(table_path, "r") as f:
+                entries = json.load(f)
+            self.dispatch_table = {tuple(key): value for key, value in entries}
 
     def dump_dispatch_table(self):
-        table_path = self.cache_dir / "dispatch_table.pickle"
+        table_path = self.cache_dir / "dispatch_table.json"
         table_txt_path = self.cache_dir / "dispatch_table.txt"
-        with open(table_path, "wb") as f:
-            pickle.dump(self.dispatch_table, f)
+        entries = [[list(key), value] for key, value in self.dispatch_table.items()]
+        with open(table_path, "w") as f:
+            json.dump(entries, f)
         headers = []
         for idx in self.call_params.tuning_params:
             headers.append(self.call_params.param_names[idx])
