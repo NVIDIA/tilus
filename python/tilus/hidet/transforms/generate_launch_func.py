@@ -65,31 +65,30 @@ def add_launch_func(ir_module: IRModule, kernel_func: Function):
         if kernel_func.kind == "cuda_kernel":
             from tilus.hidet.lang.cuda import set_kernel_max_dynamic_smem_bytes
 
-            shared_memory_bytes: Expr = rewrite(
-                simplify(kernel_func.get_attr("cuda.dynamic_smem_bytes", int32(0))), param_remap
-            )
+            dsb = kernel_func.attrs.dynamic_smem_bytes
+            shared_memory_bytes: Expr = rewrite(simplify(dsb if dsb is not None else int32(0)), param_remap)
             with fb.if_then(shared_memory_bytes > 48 * 1024):
                 fb += set_kernel_max_dynamic_smem_bytes(func_var, shared_memory_bytes)
+            cluster_dim = kernel_func.attrs.cluster_dim if kernel_func.attrs.cluster_dim is not None else 1
             fb += LaunchKernelStmt(
                 func_var,
                 params,
-                grid_dim=rewrite(_normalize_dim3(kernel_func.get_attr("cuda.grid_dim")), param_remap),
-                cluster_dim=rewrite(_normalize_dim3(kernel_func.get_attr("cuda.cluster_dim", default=1)), param_remap),
-                block_dim=rewrite(_normalize_dim3(kernel_func.get_attr("cuda.block_dim")), param_remap),
+                grid_dim=rewrite(_normalize_dim3(kernel_func.attrs.grid_dim), param_remap),
+                cluster_dim=rewrite(_normalize_dim3(cluster_dim), param_remap),
+                block_dim=rewrite(_normalize_dim3(kernel_func.attrs.block_dim), param_remap),
                 shared_mem=shared_memory_bytes,
                 target="cuda",
             )
         elif kernel_func.kind == "hip_kernel":
-            shared_memory_bytes: Expr = rewrite(
-                simplify(kernel_func.get_attr("hip.dynamic_smem_bytes", int32(0))), param_remap
-            )
+            dsb = kernel_func.attrs.dynamic_smem_bytes
+            shared_memory_bytes: Expr = rewrite(simplify(dsb if dsb is not None else int32(0)), param_remap)
 
             fb += LaunchKernelStmt(
                 func_var,
                 params,
-                grid_dim=rewrite(_normalize_dim3(kernel_func.get_attr("hip.grid_dim")), param_remap),
+                grid_dim=rewrite(_normalize_dim3(kernel_func.attrs.grid_dim), param_remap),
                 cluster_dim=(int32.one, int32.one, int32.one),
-                block_dim=rewrite(_normalize_dim3(kernel_func.get_attr("hip.block_dim")), param_remap),
+                block_dim=rewrite(_normalize_dim3(kernel_func.attrs.block_dim), param_remap),
                 shared_mem=shared_memory_bytes,
                 target="hip",
             )

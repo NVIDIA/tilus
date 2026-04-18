@@ -40,7 +40,6 @@ from tilus.hidet.ir.expr import (
     Dereference,
     Div,
     Equal,
-    FloorDiv,
     IfThenElse,
     LeftShift,
     LessEqual,
@@ -116,9 +115,6 @@ class ExprHash(ExprFunctor, TypeFunctor, BaseFunctor):
 
     def visit_Mod(self, e: Mod):
         return self(e.a) + self(e.b) + hash(Mod)
-
-    def visit_FloorDiv(self, e: FloorDiv):
-        return self(e.a) + self(e.b) + hash(FloorDiv)
 
     def visit_Neg(self, e: Neg):
         return self(e.a) + hash(Neg)

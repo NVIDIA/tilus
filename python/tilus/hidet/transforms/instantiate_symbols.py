@@ -103,7 +103,7 @@ class InstantiateSymbolsRewriter(IRRewriter):
             params = self.visit(func.params)
             body = self.visit(func.body)
             ret_type = self.visit(func.ret_type)
-            attrs = self.visit(func.attrs)
+            attrs = func.attrs.map(self.visit)
 
             if func.kind == "public":
                 # SymbolVar is not used in tilus — this path should never be reached.

@@ -12,21 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-import string
-from typing import Dict, List, Union
+from __future__ import annotations
 
-from tilus.hidet.ir.expr import Call, Var
+import dataclasses
+import string
+from typing import Any, Callable, List, Optional, Tuple, Union
+
+from tilus.hidet.ir.expr import Call, Expr, Var
 from tilus.hidet.ir.node import Node
 from tilus.hidet.ir.stmt import Stmt
 from tilus.hidet.ir.type import BaseType
@@ -40,32 +32,62 @@ def check_func_name(name: str):
             raise ValueError("Cannot use {} in function name".format(repr(c)))
 
 
-class Function(Node):
-    """
-    Valid Attrs:
-        'kind': str,
-            the kind of this function.
-                - 'cuda_internal': this is a cuda device function, can only be called by cuda function
-                - 'cuda_kernel': this is a cuda kernel function
-                - 'cpu_kernel': this is a cpu kernel function
-                - 'cpu_internal': this is a cpu function but not a kernel
-                - 'public': this is a packed function that wraps kernel function(s)
-        'cuda.grid_dim': Union[int, List[int]]
-            the grid dimension in cuda launch configuration
-        'cuda.cluster_dim': Union[int, List[int]]
-            the cluster dimension in cuda launch configuration
-        'cuda.block_dim': Union[int, List[int]]
-            the block dimension in cuda launch configuration
-        'cuda.dynamic_smem_bytes': int
-            the dynamic shared memory in cuda launch configuration
-        'cuda.min_blocks': int
-            the minimal number of thread blocks in launch bound of cuda kernel function
+Dim3Like = Union[int, Expr, Tuple[Union[int, Expr], ...], List[Union[int, Expr]]]
+
+
+@dataclasses.dataclass(frozen=True)
+class FuncAttrs:
+    """Typed attributes attached to a :class:`Function`.
+
+    The launch-configuration fields (``grid_dim``, ``cluster_dim``, ``block_dim``,
+    ``dynamic_smem_bytes``, ``min_blocks``) are only meaningful when the owning
+    function's ``kind`` is ``"cuda_kernel"`` or ``"hip_kernel"``. The device is
+    determined by ``Function.kind``; there is no separate per-device prefix.
     """
 
-    def __init__(self, name: str, params, body, ret_type, kind: str, attrs=None):
+    grid_dim: Optional[Dim3Like] = None
+    cluster_dim: Optional[Dim3Like] = None
+    block_dim: Optional[Dim3Like] = None
+    dynamic_smem_bytes: Union[int, Expr, None] = None
+    min_blocks: Optional[int] = None
+
+    def replace(self, **kwargs: Any) -> FuncAttrs:
+        """Return a copy of this FuncAttrs with the given fields replaced."""
+        return dataclasses.replace(self, **kwargs)
+
+    def map(self, fn: Callable[[Any], Any]) -> FuncAttrs:
+        """Return a new FuncAttrs with ``fn`` applied to every non-None field.
+
+        Identity-preserving: if ``fn`` returns the same object for every field
+        (``fn(value) is value``), ``self`` is returned unchanged. This is
+        required by fixed-point rewriters that loop until the IR stops
+        changing — producing a fresh FuncAttrs on every no-op pass would
+        cause the loop to never converge.
+        """
+        changes = {}
+        changed = False
+        for f in dataclasses.fields(self):
+            value = getattr(self, f.name)
+            if value is None:
+                continue
+            new_value = fn(value)
+            if new_value is not value:
+                changes[f.name] = new_value
+                changed = True
+        return dataclasses.replace(self, **changes) if changed else self
+
+
+class Function(Node):
+    def __init__(
+        self,
+        name: str,
+        params: List[Var],
+        body: Stmt,
+        ret_type: BaseType,
+        kind: str,
+        attrs: Optional[FuncAttrs] = None,
+    ):
         check_func_name(name)
-        self.name: str = name
-        self.kind: str = kind
         assert isinstance(kind, str) and kind in [
             "cuda_kernel",
             "cuda_internal",
@@ -75,41 +97,12 @@ class Function(Node):
             "cpu_internal",
             "public",
         ]
+        self.name: str = name
+        self.kind: str = kind
         self.params: List[Var] = params
         self.body: Stmt = body
         self.ret_type: BaseType = ret_type
-        # self.extern_vars: List[Var] = extern_vars if extern_vars else []
-        self.attrs: Dict[str, Union[int, float, str, Node]] = attrs if attrs else {}
+        self.attrs: FuncAttrs = attrs if attrs is not None else FuncAttrs()
 
     def __call__(self, *args, **kwargs) -> Call:
         raise ValueError("Can only call script function in another script function, or lower it to execute.")
-
-    def get_attr(self, attr_name, default=None, allow_missing=False):
-        """
-        Get attribute of this function.
-
-        When default is not None or allow_missing is True, this function will return the default value (in case
-        default is not None) or None (in case default is None) when the attribute is not found. Otherwise,
-        this function will raise a KeyError.
-
-        Parameters
-        ----------
-        attr_name: str
-            The name of attribute
-
-        default: Any, optional
-            The default value of attribute
-
-        allow_missing: bool, default False
-
-        Returns
-        -------
-        attr_value: Any
-            The value of attribute
-        """
-        if attr_name in self.attrs:
-            return self.attrs[attr_name]
-        if default is not None or allow_missing:
-            return default
-        else:
-            raise KeyError("Attribute {} is not found in function {}".format(attr_name, self.name))

@@ -618,24 +618,41 @@ class PythonToHidetTranslator(PythonAstFunctor):
                         raise HidetProgramError(self, func_def.returns, "Expect a type of function return value.")
 
             # get function attributes
-            func_attrs: Dict[str, Any] = scope.attributes.copy()
-            if "func_kind" in func_attrs:
-                func_kind = func_attrs["func_kind"]
-            elif "cuda.grid_dim" in func_attrs or "cuda.block_dim" in func_attrs:
-                if not all(name in func_attrs for name in ["cuda.grid_dim", "cuda.block_dim"]):
+            raw_attrs: Dict[str, Any] = scope.attributes.copy()
+            if "func_kind" in raw_attrs:
+                func_kind = raw_attrs["func_kind"]
+            elif "cuda.grid_dim" in raw_attrs or "cuda.block_dim" in raw_attrs:
+                if not all(name in raw_attrs for name in ["cuda.grid_dim", "cuda.block_dim"]):
                     raise HidetProgramError(
                         self, func_def, "CUDA kernel expects to have both attrs.cuda.grid_dim and attrs.cuda.block_dim."
                     )
                 func_kind = "cuda_kernel"
-            elif "hip.grid_dim" in func_attrs or "hip.block_dim" in func_attrs:
-                if not all(name in func_attrs for name in ["hip.grid_dim", "hip.block_dim"]):
+            elif "hip.grid_dim" in raw_attrs or "hip.block_dim" in raw_attrs:
+                if not all(name in raw_attrs for name in ["hip.grid_dim", "hip.block_dim"]):
                     raise HidetProgramError(
                         self, func_def, "HIP kernel expects to have both attrs.hip.grid_dim and attrs.hip.block_dim."
                     )
                 func_kind = "hip_kernel"
             else:
                 func_kind = "cuda_internal"
-            func_name = func_attrs.get("func_name", func_def.name)
+            func_name = raw_attrs.get("func_name", func_def.name)
+
+            # translate DSL attribute keys (device-prefixed) into a FuncAttrs.
+            # The device is determined by func_kind; cuda.* and hip.* keys map
+            # to the same FuncAttrs fields.
+            def _pick(*keys):
+                for k in keys:
+                    if k in raw_attrs:
+                        return raw_attrs[k]
+                return None
+
+            func_attrs = ir.FuncAttrs(
+                grid_dim=_pick("cuda.grid_dim", "hip.grid_dim"),
+                cluster_dim=_pick("cuda.cluster_dim"),
+                block_dim=_pick("cuda.block_dim", "hip.block_dim"),
+                dynamic_smem_bytes=_pick("cuda.dynamic_smem_bytes", "hip.dynamic_smem_bytes"),
+                min_blocks=_pick("cuda.min_blocks", "hip.min_blocks"),
+            )
 
         return ir.Function(
             name=func_name,
@@ -1110,20 +1127,18 @@ class PythonToHidetTranslator(PythonAstFunctor):
             if func.kind in ["cuda_kernel", "hip_kernel"]:
                 from tilus.hidet.ir.tools import collect, rewrite
 
-                used_params: list[Var] = []
-                attr_names = [  # we allow these attributes to use the parameters
-                    "cuda.grid_dim",
-                    "cuda.cluster_dim",
-                    "cuda.block_dim",
-                    "hip.grid_dim",
-                    "hip.block_dim",
-                    "cuda.dynamic_smem_bytes",
-                    "hip.dynamic_smem_bytes",
+                launch_fields = [
+                    func.attrs.grid_dim,
+                    func.attrs.cluster_dim,
+                    func.attrs.block_dim,
+                    func.attrs.dynamic_smem_bytes,
                 ]
-                for name in attr_names:
-                    if name in func.attrs:
-                        used_vars = collect(func.attrs[name], Var)
-                        used_params.extend([var for var in used_vars if var not in used_params and var in func.params])
+                used_params: list[Var] = []
+                for value in launch_fields:
+                    if value is None:
+                        continue
+                    used_vars = collect(value, Var)
+                    used_params.extend([var for var in used_vars if var not in used_params and var in func.params])
                 param2arg = {param: arg for param, arg in zip(func.params, args)}
                 rewrite_map = {param: param2arg[param] for param in used_params}
 
@@ -1131,19 +1146,27 @@ class PythonToHidetTranslator(PythonAstFunctor):
                     return ir.stmt.launch_kernel(
                         func_var=func_var,
                         args=args,
-                        grid_dim=rewrite(func.attrs["cuda.grid_dim"], rewrite_map),
-                        cluster_dim=rewrite(func.attrs.get("cuda.cluster_dim", 1), rewrite_map),
-                        block_dim=rewrite(func.attrs["cuda.block_dim"], rewrite_map),
-                        shared_mem=rewrite(func.attrs.get("cuda.dynamic_smem_bytes", 0), rewrite_map),
+                        grid_dim=rewrite(func.attrs.grid_dim, rewrite_map),
+                        cluster_dim=rewrite(
+                            func.attrs.cluster_dim if func.attrs.cluster_dim is not None else 1, rewrite_map
+                        ),
+                        block_dim=rewrite(func.attrs.block_dim, rewrite_map),
+                        shared_mem=rewrite(
+                            func.attrs.dynamic_smem_bytes if func.attrs.dynamic_smem_bytes is not None else 0,
+                            rewrite_map,
+                        ),
                         target="cuda",
                     )
                 else:
                     return ir.stmt.launch_kernel(
                         func_var=func_var,
                         args=args,
-                        grid_dim=rewrite(func.attrs["hip.grid_dim"], rewrite_map),
-                        block_dim=rewrite(func.attrs["hip.block_dim"], rewrite_map),
-                        shared_mem=rewrite(func.attrs.get("hip.dynamic_smem_bytes", 0), rewrite_map),
+                        grid_dim=rewrite(func.attrs.grid_dim, rewrite_map),
+                        block_dim=rewrite(func.attrs.block_dim, rewrite_map),
+                        shared_mem=rewrite(
+                            func.attrs.dynamic_smem_bytes if func.attrs.dynamic_smem_bytes is not None else 0,
+                            rewrite_map,
+                        ),
                         target="hip",
                     )
             else:

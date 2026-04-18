@@ -300,9 +300,7 @@ class TensorPointerType(BaseType):
 
     @staticmethod
     def from_tensor_type(tp: TensorType) -> TensorPointerType:
-        tpt = object.__new__(TensorPointerType)
-        tpt.tensor_type = tp
-        return tpt
+        return TensorPointerType(tp)
 
 
 class ArrayType(BaseType):

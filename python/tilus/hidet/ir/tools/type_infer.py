@@ -40,7 +40,6 @@ from tilus.hidet.ir.expr import (
     Dereference,
     Div,
     Equal,
-    FloorDiv,
     IfThenElse,
     LeftShift,
     LessEqual,
@@ -240,9 +239,6 @@ class TypeInfer(IRFunctor):
         return self.visit_Binary(e)
 
     def visit_Mod(self, e: Mod):
-        return self.visit_Binary(e)
-
-    def visit_FloorDiv(self, e: FloorDiv):
         return self.visit_Binary(e)
 
     def visit_LessThan(self, e: LessThan):

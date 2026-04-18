@@ -217,13 +217,6 @@ class Expr(Node):
 
     __hash__ = object.__hash__  # use default hash function
 
-    def read(self, items, protected=True):
-        te = self[items]
-        if not isinstance(te, TensorElement):
-            raise ValueError("expect element indexing, but got slicing.")
-        te.protected = protected
-        return te
-
     def write(self, items, value, protected=True):
         from tilus.hidet.ir.stmt import BufferStoreStmt
 
@@ -394,12 +387,6 @@ class Multiply(BinaryExpr):
 class Div(BinaryExpr):
     def __init__(self, a, b):
         super().__init__(a, b)
-
-
-class FloorDiv(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
-        raise ValueError("FloorDiv is not supported in hidet by design from now on.")
 
 
 class Mod(BinaryExpr):
@@ -606,11 +593,9 @@ class Reference(Expr):
 
 
 class Var(Expr):
-    id_clock = 0
-
     def __init__(self, hint: Optional[str], type: BaseType, name: Optional[str] = None):
         """
-        A variable may have a hint, name, and id.
+        A variable may have a hint and/or a name.
 
         self.hint is used to determine the name in codegen. Different vars may have the
         same hint. If two vars have the same hint such as 'x', the final name would be like 'x1', 'x2'.
@@ -618,22 +603,10 @@ class Var(Expr):
         self.name is used to store the name of the variables that will be used directly in codegen, such as
         "threadIdx.x". The field self.name and self.hint are used exclusively. If self.name is not None,
         self.hint will be ignored, otherwise, self.hint will be used to determine the name in codegen.
-
-        self.id is used to track the allocation of Var object in python, which is only used to help us to distinguish
-        different Var in python debugger.
         """
         self.hint: Optional[str] = hint
         self.name: Optional[str] = name
         self.type: Union[BaseType, TensorType, TensorPointerType, FuncType] = type
-        self.id: int = self.new_id()
-
-    @staticmethod
-    def new_id():
-        return 0
-
-    @staticmethod
-    def reset_id_counter():
-        Var.id_clock = 0
 
 
 class SymbolVar(Var):

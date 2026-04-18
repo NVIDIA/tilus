@@ -58,9 +58,10 @@ class PropagateLaunchBoundPass(FunctionPass):
 
     def process_func(self, func: Function) -> Function:
         if func.kind == "cuda_internal":
-            attrs = func.attrs.copy()
-            attrs["cuda.block_dim"] = self.kernel_function.attrs["cuda.block_dim"]
-            attrs["cuda.grid_dim"] = self.kernel_function.attrs["cuda.grid_dim"]
+            attrs = func.attrs.replace(
+                block_dim=self.kernel_function.attrs.block_dim,
+                grid_dim=self.kernel_function.attrs.grid_dim,
+            )
             func = Function(
                 name=func.name, params=func.params, body=func.body, ret_type=func.ret_type, kind=func.kind, attrs=attrs
             )

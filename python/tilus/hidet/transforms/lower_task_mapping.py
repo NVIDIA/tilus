@@ -130,7 +130,7 @@ class LowerTaskMappingPass(Pass):
     def process_module(self, ir_module: IRModule) -> IRModule:
         for func in ir_module.functions.values():
             if func.kind == "cuda_kernel":
-                self.block_dim = func.attrs["cuda.block_dim"]
+                self.block_dim = func.attrs.block_dim
         return super().process_module(ir_module)
 
     def process_func(self, func: Function) -> Function:

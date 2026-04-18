@@ -162,6 +162,6 @@ class SharedMemoryAllocationContext(BaseEmitContext):
 
         # set the dynamic shared memory size
         if target.is_nvgpu():
-            self.codegen.builder.extend_attrs({"cuda.dynamic_smem_bytes": maximum_allocated})
+            self.codegen.builder.update_attrs(dynamic_smem_bytes=maximum_allocated)
         else:
             raise NotImplementedError()
