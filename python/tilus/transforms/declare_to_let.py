@@ -28,8 +28,7 @@ Convert DeclareStmt with initialized value to LetStmt when possible.
 
 The declared variable should satisfy the following conditions to be converted:
     1. has never been modified with AssignStmt statement, and
-    2. has never been addressed with Address expression, and
-    3. has never been referenced with Reference expression, and.
+    2. has never been addressed with Address expression.
 
 This pass is adopted from the pass with the same name from Hidet.
 """
@@ -37,7 +36,7 @@ This pass is adopted from the pass with the same name from Hidet.
 from collections import defaultdict
 from typing import Dict
 
-from tilus.hidet.ir.expr import Address, Expr, Reference, Var
+from tilus.hidet.ir.expr import Address, Expr, Var
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.stmt import AssignStmt, DeclareStmt, LetStmt, SeqStmt, Stmt
@@ -51,7 +50,7 @@ class DeclareToLetRewriter(IRRewriter):
         self.assigns: Dict[Var, int] = defaultdict(int)
 
     def rewrite(self, func: Function) -> Function:
-        for potential_usage in collect(func, (DeclareStmt, AssignStmt, Address, Reference)):
+        for potential_usage in collect(func, (DeclareStmt, AssignStmt, Address)):
             if isinstance(potential_usage, Stmt):
                 stmt = potential_usage
                 if isinstance(stmt, DeclareStmt):
@@ -64,9 +63,6 @@ class DeclareToLetRewriter(IRRewriter):
             elif isinstance(potential_usage, Expr):
                 expr = potential_usage
                 if isinstance(expr, Address):
-                    if isinstance(expr.expr, Var):
-                        self.assigns[expr.expr] += 1
-                elif isinstance(expr, Reference):
                     if isinstance(expr.expr, Var):
                         self.assigns[expr.expr] += 1
                 else:

@@ -30,7 +30,7 @@ from typing import Any, List, Optional, Sequence, Tuple, Union
 
 from tilus.hidet.ir.expr import Constant, Expr, Var, convert
 from tilus.hidet.ir.node import Node
-from tilus.hidet.ir.type import DataType, PointerType, ReferenceType, TensorPointerType
+from tilus.hidet.ir.type import DataType, PointerType, TensorPointerType
 
 try:
     from tilus.hidet.ir.compute import TensorNode
@@ -387,9 +387,6 @@ def asm(
     def get_register_type(expr: Expr) -> str:
         expr = convert(expr)
         expr_type = infer_type(expr)
-
-        if isinstance(expr_type, ReferenceType):
-            expr_type = expr_type.base_type
 
         if isinstance(expr_type, DataType):
             if isinstance(expr, Constant):

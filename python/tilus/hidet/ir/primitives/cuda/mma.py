@@ -346,7 +346,10 @@ def resolve_ldmatrix_func_name(num: int, shared_space_addr: bool = False, trans=
 
 @initialize()
 def register_ldmatrix_instructions():
-    from tilus.hidet.lang import attrs, ref_u32, script, u32, void_p
+    from tilus.hidet.ir.expr import deref
+    from tilus.hidet.lang import attrs, script, u32, void_p
+
+    u32_p = ~u32
 
     for num in [1, 2, 4]:
         for trans in [False, True]:
@@ -362,10 +365,10 @@ def register_ldmatrix_instructions():
                     template = "{inst_name} {{%0}}, [%1];".format(inst_name=inst_name)
 
                     @script
-                    def cuda_ldmatrix(reg0: ref_u32, smem: smem_type):
+                    def cuda_ldmatrix(reg0: u32_p, smem: smem_type):
                         attrs.func_name = func_name
                         attrs.func_kind = "cuda_internal"
-                        asm(template, outputs=[reg0], inputs=[smem], is_volatile=True)
+                        asm(template, outputs=[deref(reg0)], inputs=[smem], is_volatile=True)
 
                     assert isinstance(cuda_ldmatrix, Function)
                     register_primitive_function(cuda_ldmatrix.name, cuda_ldmatrix)
@@ -374,10 +377,10 @@ def register_ldmatrix_instructions():
                     template = "{inst_name} {{%0, %1}}, [%2];".format(inst_name=inst_name)
 
                     @script
-                    def cuda_ldmatrix(reg0: ref_u32, reg1: ref_u32, smem: smem_type):
+                    def cuda_ldmatrix(reg0: u32_p, reg1: u32_p, smem: smem_type):
                         attrs.func_name = func_name
                         attrs.func_kind = "cuda_internal"
-                        asm(template, outputs=[reg0, reg1], inputs=[smem], is_volatile=True)
+                        asm(template, outputs=[deref(reg0), deref(reg1)], inputs=[smem], is_volatile=True)
 
                     assert isinstance(cuda_ldmatrix, Function)
                     register_primitive_function(cuda_ldmatrix.name, cuda_ldmatrix)
@@ -385,10 +388,15 @@ def register_ldmatrix_instructions():
                     template = "{inst_name} {{%0, %1, %2, %3}}, [%4];".format(inst_name=inst_name)
 
                     @script
-                    def cuda_ldmatrix(reg0: ref_u32, reg1: ref_u32, reg2: ref_u32, reg3: ref_u32, smem: smem_type):
+                    def cuda_ldmatrix(reg0: u32_p, reg1: u32_p, reg2: u32_p, reg3: u32_p, smem: smem_type):
                         attrs.func_name = func_name
                         attrs.func_kind = "cuda_internal"
-                        asm(template, outputs=[reg0, reg1, reg2, reg3], inputs=[smem], is_volatile=True)
+                        asm(
+                            template,
+                            outputs=[deref(reg0), deref(reg1), deref(reg2), deref(reg3)],
+                            inputs=[smem],
+                            is_volatile=True,
+                        )
 
                     assert isinstance(cuda_ldmatrix, Function)
                     register_primitive_function(cuda_ldmatrix.name, cuda_ldmatrix)

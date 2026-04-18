@@ -14,14 +14,13 @@
 # limitations under the License.
 from typing import Dict, Sequence
 
-from tilus.hidet.ir.expr import Expr, TensorElement, TensorSlice, Var, convert, tensor_element
+from tilus.hidet.ir.expr import Expr, TensorElement, Var, convert, tensor_element
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.stmt import BufferStoreStmt, DeclareStmt
 from tilus.hidet.ir.tools import TypeInfer, simplify
 from tilus.hidet.ir.type import (
-    ArrayType,
     FuncType,
     PointerType,
     TensorPointerType,
@@ -92,8 +91,6 @@ class FlattenTensorAccessRewriter(IRRewriter):
             return e.type.tensor_type.shape
         elif isinstance(e_type, PointerType):
             return [convert(0)]
-        elif isinstance(e_type, ArrayType):
-            return [convert(0)]
         else:
             raise ValueError("Can not infer shape from '{}' (expression {})".format(type(e), e))
 
@@ -139,9 +136,6 @@ class FlattenTensorAccessRewriter(IRRewriter):
             )
         global_index = _row_major_index(shape, indices)
         return BufferStoreStmt(var, [global_index], value)
-
-    def visit_TensorSlice(self, e: TensorSlice):
-        raise ValueError("there should not be any tensor slice after flattening tensor slice. got\n{}".format(e))
 
 
 class FlattenTensorIndexPass(Pass):

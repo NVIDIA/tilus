@@ -37,8 +37,8 @@ from tilus.hidet.ir.primitives.cuda.funcs import call_cuda
 from tilus.hidet.ir.primitives.func import register_primitive_function
 from tilus.hidet.ir.stmt import asm
 from tilus.hidet.ir.tools import infer_type
-from tilus.hidet.ir.type import PointerType, ReferenceType, data_type
-from tilus.hidet.lang import attrs, ref_u32, script, u64, uint64
+from tilus.hidet.ir.type import PointerType, data_type
+from tilus.hidet.lang import attrs, script, u64, uint64
 from tilus.hidet.utils import initialize
 
 NUM_THREADS = 128  # num threads per warp group
@@ -461,17 +461,21 @@ def register_wgmma_wait_group():
 
 @initialize()
 def register_wgmma_fence_operand():
-    ref_f32 = ReferenceType(data_type("f32"))
+    from tilus.hidet.ir.expr import deref
 
-    for dtype in [ref_u32, ref_f32]:
-        func_name = f"cuda_wgmma_fence_operand_{dtype.base_type.short_name}"
+    u32_dtype = data_type("u32")
+    f32_dtype = data_type("f32")
+
+    for base_dtype in [u32_dtype, f32_dtype]:
+        func_name = f"cuda_wgmma_fence_operand_{base_dtype.short_name}"
+        ptr_type = PointerType(base_type=base_dtype)
 
         @script
-        def cuda_wgmma_fence_operand(reg: dtype):
+        def cuda_wgmma_fence_operand(reg_p: ptr_type):
             attrs.func_name = func_name
             attrs.func_kind = "cuda_internal"
             template = ""
-            asm(template=template, output_inputs=[reg], is_volatile=True, memory_fence=True)
+            asm(template=template, output_inputs=[deref(reg_p)], is_volatile=True, memory_fence=True)
 
         register_primitive_function(name=cuda_wgmma_fence_operand.name, func_or_type=cuda_wgmma_fence_operand)
 
@@ -492,9 +496,11 @@ def wgmma_wait_group(N: Expr):
     return call_cuda(func_name=name, args=[])
 
 
-def wgmma_fence_operand(reg: Expr):
-    name = "wgmma_fence_operand_{}".format(infer_type(reg).short_name)
-    return call_cuda(func_name=name, args=[reg])
+def wgmma_fence_operand(reg_p: Expr):
+    reg_p_type = infer_type(reg_p)
+    assert isinstance(reg_p_type, PointerType), "wgmma_fence_operand expects a pointer"
+    name = "wgmma_fence_operand_{}".format(reg_p_type.base_type.short_name)
+    return call_cuda(func_name=name, args=[reg_p])
 
 
 # https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#matrix-descriptor-format

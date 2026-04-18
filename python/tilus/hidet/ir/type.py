@@ -47,14 +47,6 @@ class BaseType(Node):
         else:
             raise ValueError("Can not recognize type {}".format(self))
 
-    def __getitem__(self, item):
-        if isinstance(item, (tuple, list)):
-            if len(item) == 1:
-                item = item[0]
-            else:
-                raise ValueError("Currently, only support 1-d array, but got {}".format(item))
-        return array_type(self, int(item))
-
     def is_void(self):
         return isinstance(self, VoidType)
 
@@ -286,12 +278,6 @@ class PointerType(BaseType):
             raise ValueError("Can not convert {} to {}".format(x, self))
 
 
-class ReferenceType(BaseType):
-    def __init__(self, base_type):
-        super().__init__()
-        self.base_type = base_type
-
-
 class TensorPointerType(BaseType):
     def __init__(self, ttype: TensorType):
         """
@@ -302,16 +288,6 @@ class TensorPointerType(BaseType):
     @staticmethod
     def from_tensor_type(tp: TensorType) -> TensorPointerType:
         return TensorPointerType(tp)
-
-
-class ArrayType(BaseType):
-    def __init__(self, base_type, size: int):
-        super().__init__()
-        self.base_type: BaseType = base_type
-        self.size: int = size
-
-        assert isinstance(base_type, BaseType) and not isinstance(base_type, (ArrayType, TensorType))
-        assert isinstance(size, int) and size >= 0
 
 
 TypeLike = Union[str, BaseType]
@@ -385,10 +361,6 @@ def tensor_type(dtype, shape: Sequence[Union[int, Expr]]):
     assert isinstance(shape, (list, tuple))
     shape = convert(shape)
     return TensorType(dtype, shape)
-
-
-def array_type(base_type: BaseType, size: int):
-    return ArrayType(base_type, size)
 
 
 def pointer_type(base_type):
@@ -478,8 +450,6 @@ def type_equal(lhs: BaseType, rhs: BaseType) -> bool:
             if not type_equal(a, b):
                 return False
         return True
-    elif isinstance(lhs, ReferenceType) and isinstance(rhs, ReferenceType):
-        return type_equal(lhs.base_type, rhs.base_type)
     elif isinstance(lhs, OpaqueType) and isinstance(rhs, OpaqueType):
         return lhs.cpp_name == rhs.cpp_name
     else:

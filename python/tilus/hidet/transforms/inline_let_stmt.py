@@ -32,7 +32,7 @@ from tilus.hidet.ir.functors import IRRewriter, IRVisitor
 from tilus.hidet.ir.primitives import blockIdx, threadIdx
 from tilus.hidet.ir.stmt import LetStmt, Stmt
 from tilus.hidet.ir.tools import collect
-from tilus.hidet.ir.type import ArrayType, FuncType, TensorPointerType, TensorType
+from tilus.hidet.ir.type import FuncType, TensorPointerType, TensorType
 from tilus.hidet.transforms.base import FunctionPass, Pass, RepeatFunctionPass
 from tilus.hidet.utils import same_list
 
@@ -102,7 +102,7 @@ class NaiveLetStmtInlineRewriter(IRRewriter):
                     return ExprHash().hash(tt_type) == ExprHash().hash(tt_type2)
                 return True
             elif isinstance(expr, Constant):
-                return not isinstance(expr.type, (TensorType, ArrayType))
+                return not isinstance(expr.type, TensorType)
             else:
                 return False
         elif isinstance(expr, Var) and expr in self.var2value:
@@ -110,7 +110,7 @@ class NaiveLetStmtInlineRewriter(IRRewriter):
             return True
         elif isinstance(expr, Constant):
             # let v1 = constant
-            return not isinstance(expr.type, (TensorType, ArrayType))
+            return not isinstance(expr.type, TensorType)
         elif isinstance(expr, (Add, Sub)) and (
             (isinstance(expr.a, Constant) and expr.b in self.var2value)
             or (isinstance(expr.b, Constant) and expr.a in self.var2value)

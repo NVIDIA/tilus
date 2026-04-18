@@ -52,11 +52,9 @@ from tilus.hidet.ir.expr import (
     Multiply,
     Neg,
     NotEqual,
-    Reference,
     RightShift,
     Sub,
     TensorElement,
-    TensorSlice,
     Var,
     cast,
 )
@@ -109,8 +107,6 @@ class ExprFunctor(BaseFunctor):
             return self.visit_RightShift(node)
         elif isinstance(node, TensorElement):
             return self.visit_TensorElement(node)
-        elif isinstance(node, TensorSlice):
-            return self.visit_TensorSlice(node)
         elif isinstance(node, IfThenElse):
             return self.visit_IfThenElse(node)
         elif isinstance(node, Call):
@@ -125,8 +121,6 @@ class ExprFunctor(BaseFunctor):
             return self.visit_Dereference(node)
         elif isinstance(node, Address):
             return self.visit_Address(node)
-        elif isinstance(node, Reference):
-            return self.visit_Reference(node)
         elif isinstance(node, PlaceholderExpr):
             return self.visit_PlaceholderExpr(node)
         else:
@@ -192,9 +186,6 @@ class ExprFunctor(BaseFunctor):
     def visit_TensorElement(self, e: TensorElement):
         raise NotImplementedError()
 
-    def visit_TensorSlice(self, e: TensorSlice):
-        raise NotImplementedError()
-
     def visit_IfThenElse(self, e: IfThenElse):
         raise NotImplementedError()
 
@@ -205,9 +196,6 @@ class ExprFunctor(BaseFunctor):
         raise NotImplementedError()
 
     def visit_Address(self, e: Address):
-        raise NotImplementedError()
-
-    def visit_Reference(self, e: Reference):
         raise NotImplementedError()
 
     def visit_Call(self, e: Call):
@@ -305,13 +293,6 @@ class ExprVisitor(ExprFunctor, BaseVisitor):
         for idx in e.indices:
             self.visit(idx)
 
-    def visit_TensorSlice(self, e: TensorSlice):
-        self.visit(e.base)
-        for idx, start, end in zip(e.starts, e.indices, e.ends):
-            for obj in [idx, start, end]:
-                if obj is not None:
-                    self.visit(obj)
-
     def visit_IfThenElse(self, e: IfThenElse):
         self.visit(e.cond)
         self.visit(e.then_expr)
@@ -341,9 +322,6 @@ class ExprVisitor(ExprFunctor, BaseVisitor):
         self.visit(e.expr)
 
     def visit_Address(self, e: Address):
-        self.visit(e.expr)
-
-    def visit_Reference(self, e: Reference):
         self.visit(e.expr)
 
     def visit_PlaceholderExpr(self, e: PlaceholderExpr):
@@ -449,16 +427,6 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
         else:
             return TensorElement(base, indices, e.protected)
 
-    def visit_TensorSlice(self, e: TensorSlice):
-        base = self(e.base)
-        indices = tuple(self(idx) if idx is not None else None for idx in e.indices)
-        starts = tuple(self(start) if start is not None else None for start in e.starts)
-        ends = tuple(self(end) if end is not None else None for end in e.ends)
-        if base is e.base and same_list(indices, e.indices) and same_list(starts, e.starts) and same_list(ends, e.ends):
-            return e
-        else:
-            return TensorSlice(base, indices, starts, ends)
-
     def visit_IfThenElse(self, e: IfThenElse):
         cond = self(e.cond)
         then_expr = self(e.then_expr)
@@ -488,13 +456,6 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
             return e
         else:
             return Address(expr)
-
-    def visit_Reference(self, e: Reference):
-        expr = self(e.expr)
-        if expr is e.expr:
-            return e
-        else:
-            return Reference(expr)
 
     def visit_Call(self, e: Call):
         func_var = self(e.func_var)

@@ -38,7 +38,6 @@ from tilus.hidet.ir.dtypes import IntegerType, boolean, int32, int64, promote_ty
 from .dtypes import default_float_dtype, default_int_dtype
 from .node import Node
 from .type import (
-    ArrayType,
     BaseType,
     DataType,
     FuncType,
@@ -174,28 +173,10 @@ class Expr(Node):
     def __getitem__(self, items):
         if not isinstance(items, (tuple, list)):
             items = [items]
-        indices = []
-        starts = []
-        ends = []
         for item in items:
             if isinstance(item, slice):
-                indices.append(None)
-                starts.append(item.start)
-                ends.append(item.stop)
-                assert item.step is None, "do not support step slice"
-            else:
-                indices.append(item)
-                starts.append(None)
-                ends.append(None)
-        rank = tensor_rank(self)
-        if len(items) < rank or any(i is None for i in indices):
-            while len(indices) < rank:
-                indices.append(None)
-                starts.append(None)
-                ends.append(None)
-            return tensor_slice(base=self, indices=indices, starts=starts, ends=ends)
-        else:
-            return tensor_element(base=self, indices=indices)
+                raise ValueError("Tensor slicing is not supported in hidet IR; use explicit indices.")
+        return tensor_element(base=self, indices=list(items))
 
     def __setitem__(self, key, value):
         raise ValueError()
@@ -434,27 +415,6 @@ class TensorElement(Expr):
             assert isinstance(idx, Expr)
 
 
-class TensorSlice(Expr):
-    def __init__(self, base, indices, starts, ends):
-        # a[3, 4:, :5, :] will be represented by
-        # base: a
-        # indices: [3, None, None, None]
-        # starts: [None, 4, None, None]
-        # ends: [None, None, 5, None]
-        self.base: Expr = base
-        self.indices: Tuple[Optional[Expr], ...] = indices
-        self.starts: Tuple[Optional[Expr], ...] = starts
-        self.ends: Tuple[Optional[Expr], ...] = ends
-
-        assert isinstance(indices, tuple) and isinstance(starts, tuple) and isinstance(ends, tuple)
-        for idx in indices:
-            assert idx is None or isinstance(idx, Expr)
-        for start in starts:
-            assert start is None or isinstance(start, Expr)
-        for end in ends:
-            assert end is None or isinstance(end, Expr)
-
-
 class Call(Expr):
     def __init__(self, func_var, args):
         self.func_var: Var = func_var
@@ -584,13 +544,6 @@ class Address(Expr):
         assert isinstance(expr, Expr)
 
 
-class Reference(Expr):
-    def __init__(self, expr: Expr):
-        self.expr: Expr = expr
-
-        assert isinstance(expr, Expr)
-
-
 class Var(Expr):
     def __init__(self, name: Optional[str], type: BaseType):
         """
@@ -620,20 +573,6 @@ class Var(Expr):
         self.type: Union[BaseType, TensorType, TensorPointerType, FuncType] = type
 
 
-# the following are used as type hints
-# if a primitive function expect an int8 expression, we should use ExprInt8 instead of Expr
-# to explicit tell the reader that this function expect an int8 expression
-# but this is not enforced by the type system of python
-# ExprInt8 should be read as "expression with int8 type"
-# Usage example:
-#
-#   def cuda_i64_to_f16(a: ExprInt64) -> ExprFloat16:
-#       ...
-# Above function expects an int64 expression and returns a float16 value.
-
-ExprInt8 = ExprInt16 = ExprInt32 = ExprInt64 = Expr
-ExprUInt8 = ExprUInt16 = ExprUInt32 = ExprUInt64 = Expr
-ExprFloat16 = ExprFloat32 = ExprFloat64 = ExprBFloat16 = ExprTFloat32 = Expr
 Int = Union[int, Expr]
 
 """
@@ -778,69 +717,6 @@ def if_then_else(
             return else_expr
     else:
         return IfThenElse(cond, then_expr, else_expr)
-
-
-def tensor_rank(v: Expr) -> int:
-    try:
-        from tilus.hidet.ir.compute import TensorNode
-    except ImportError:
-        TensorNode = None
-
-    if isinstance(v, Var):
-        if isinstance(v.type, TensorType):
-            return len(v.type.shape)
-        elif isinstance(v.type, TensorPointerType):
-            return len(v.type.tensor_type.shape)
-        elif isinstance(v.type, PointerType):
-            return 1
-        elif isinstance(v.type, ArrayType):
-            return 1
-        else:
-            raise ValueError(v)
-    elif isinstance(v, TensorSlice):
-        return sum(1 if i is None else 0 for i in v.indices)
-    elif TensorNode is not None and isinstance(v, TensorNode):
-        return len(v.type.shape)
-    elif isinstance(v, Constant) and isinstance(v.type, TensorType):
-        return len(v.type.shape)
-    elif isinstance(v, Cast) and isinstance(v.target_type, PointerType):
-        return 1
-    else:
-        raise ValueError('Can not infer the tensor rank of "{}"'.format(v))
-
-
-def tensor_slice(
-    base: Expr, indices: Sequence[Optional[Int]], starts: Sequence[Optional[Int]], ends: Sequence[Optional[Int]]
-) -> TensorSlice:
-    """
-    Create a tensor slice expression.
-
-    Parameters
-    ----------
-    base: Expr
-        The base tensor expression.
-
-    indices: Sequence[Optional[Int]]
-        The indices of the tensor slice.
-
-    starts: Sequence[Optional[Int]]
-        The start indices of the tensor slice.
-
-    ends: Sequence[Optional[Int]]
-        The end indices of the tensor slice.
-
-    Returns
-    -------
-    ret: TensorSlice
-        The tensor slice expression.
-    """
-    if len(indices) != len(starts) or len(indices) != len(ends):
-        raise ValueError("The length of indices, starts and ends should be the same.")
-
-    indices = tuple(convert(i) for i in indices)
-    starts = tuple(convert(i) for i in starts)
-    ends = tuple(convert(i) for i in ends)
-    return TensorSlice(base, indices, starts, ends)
 
 
 def tensor_element(base: Expr, indices: Sequence[Int], protected=False):

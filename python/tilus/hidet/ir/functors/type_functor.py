@@ -25,12 +25,10 @@
 # limitations under the License.
 # pylint: disable=bad-staticmethod-argument
 from tilus.hidet.ir.type import (
-    ArrayType,
     DataType,
     FuncType,
     OpaqueType,
     PointerType,
-    ReferenceType,
     StringType,
     TensorPointerType,
     TensorType,
@@ -51,12 +49,8 @@ class TypeFunctor(BaseFunctor):
             return self.visit_PointerType(node)
         elif isinstance(node, TensorPointerType):
             return self.visit_TensorPointerType(node)
-        elif isinstance(node, ReferenceType):
-            return self.visit_ReferenceType(node)
         elif isinstance(node, StringType):
             return self.visit_StringType(node)
-        elif isinstance(node, ArrayType):
-            return self.visit_ArrayType(node)
         elif isinstance(node, VoidType):
             return self.visit_VoidType(node)
         elif isinstance(node, FuncType):
@@ -72,16 +66,10 @@ class TypeFunctor(BaseFunctor):
     def visit_TensorType(self, t: TensorType):
         raise NotImplementedError()
 
-    def visit_ArrayType(self, t: ArrayType):
-        raise NotImplementedError()
-
     def visit_PointerType(self, t: PointerType):
         raise NotImplementedError()
 
     def visit_TensorPointerType(self, t: TensorPointerType):
-        raise NotImplementedError()
-
-    def visit_ReferenceType(self, t: ReferenceType):
         raise NotImplementedError()
 
     def visit_StringType(self, t: StringType):
@@ -105,17 +93,11 @@ class TypeVisitor(TypeFunctor, BaseVisitor):
         self.visit(t.dtype)
         self.visit(t.shape)
 
-    def visit_ArrayType(self, t: ArrayType):
-        self.visit(t.base_type)
-
     def visit_PointerType(self, t: PointerType):
         self.visit(t.base_type)
 
     def visit_TensorPointerType(self, t: TensorPointerType):
         self.visit(t.tensor_type)
-
-    def visit_ReferenceType(self, t: ReferenceType):
-        self.visit(t.base_type)
 
     def visit_StringType(self, t: StringType):
         pass
@@ -144,13 +126,6 @@ class TypeRewriter(TypeFunctor, BaseRewriter):
         else:
             return TensorType(dtype, shape)
 
-    def visit_ArrayType(self, t: ArrayType):
-        base_type = self.visit(t.base_type)
-        if base_type == t.base_type:
-            return t
-        else:
-            return ArrayType(base_type, t.size)
-
     def visit_PointerType(self, t: PointerType):
         base_type = self.visit(t.base_type)
         if base_type == t.base_type:
@@ -164,13 +139,6 @@ class TypeRewriter(TypeFunctor, BaseRewriter):
             return t
         else:
             return TensorPointerType(tensor_type)
-
-    def visit_ReferenceType(self, t: ReferenceType):
-        base_type = self.visit(t.base_type)
-        if base_type == t.base_type:
-            return t
-        else:
-            return ReferenceType(base_type)
 
     def visit_StringType(self, t: StringType):
         return t
