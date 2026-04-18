@@ -124,7 +124,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     from tilus.hidet.transforms.expand_let_expr import expand_let_expr_pass
     from tilus.hidet.transforms.explicit_unroll import explicit_unroll_pass
     from tilus.hidet.transforms.flatten_tensor_index import flatten_tensor_index_pass
-    from tilus.hidet.transforms.flatten_tensor_slice import flatten_tensor_slice_pass
     from tilus.hidet.transforms.generate_launch_func import generate_launch_func_pass
     from tilus.hidet.transforms.hoist_loop_invariants import hoist_loop_invariants_pass
     from tilus.hidet.transforms.import_primitive_functions import import_primitive_functions_pass
@@ -153,7 +152,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         generate_launch_func_pass(),
         lower_fast_div_pass(),
         propagate_launch_bound_pass(),
-        flatten_tensor_slice_pass(),
         flatten_tensor_index_pass(),
         declare_to_let_pass(),
         rule_based_simplify_pass(),  # make ir more readable

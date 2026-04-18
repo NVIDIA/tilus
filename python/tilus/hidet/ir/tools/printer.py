@@ -51,11 +51,9 @@ from tilus.hidet.ir.expr import (
     Multiply,
     Neg,
     NotEqual,
-    Reference,
     RightShift,
     Sub,
     TensorElement,
-    TensorSlice,
     Var,
 )
 from tilus.hidet.ir.func import Function
@@ -81,12 +79,10 @@ from tilus.hidet.ir.stmt import (
     WhileStmt,
 )
 from tilus.hidet.ir.type import (
-    ArrayType,
     DataType,
     FuncType,
     OpaqueType,
     PointerType,
-    ReferenceType,
     StringType,
     TensorPointerType,
     TensorType,
@@ -340,21 +336,6 @@ class IRPrinter(IRFunctor):
             doc = self(e.base) + "[" + self(e.indices) + "]"
         return doc
 
-    def visit_TensorSlice(self, e: TensorSlice):
-        subscriptions = []
-        for index, start, end in zip(e.indices, e.starts, e.ends):
-            if index is not None:
-                subscriptions.append(self(index))
-            else:
-                doc = Doc()
-                if start is not None:
-                    doc += self(start)
-                doc += ":"
-                if end is not None:
-                    doc += self(end)
-                subscriptions.append(doc)
-        return self(e.base) + "[" + doc_join(subscriptions, ", ") + "]"
-
     def visit_IfThenElse(self, e: IfThenElse):
         return "(" + self(e.cond) + " ? " + self(e.then_expr) + " : " + self(e.else_expr) + ")"
 
@@ -377,9 +358,6 @@ class IRPrinter(IRFunctor):
 
     def visit_Cast(self, e: Cast):
         return Text("cast(") + self(e.target_type) + ", " + self(e.expr) + ")"
-
-    def visit_Reference(self, e: Reference):
-        return Text("Ref(") + self(e.expr) + ")"
 
     def visit_Dereference(self, e: Dereference):
         return Text("*") + self(e.expr)
@@ -561,9 +539,6 @@ class IRPrinter(IRFunctor):
     def visit_TensorType(self, t: TensorType):
         return Text("tensor(") + self._tensor_type(t) + ")"
 
-    def visit_ArrayType(self, t: ArrayType):
-        return Text("array(") + self(t.base_type) + ", size=" + self(t.size) + ")"
-
     def visit_StringType(self, t: StringType):
         return Text("char*")
 
@@ -576,9 +551,6 @@ class IRPrinter(IRFunctor):
 
     def visit_TensorPointerType(self, t: TensorPointerType):
         return Text("tensor_pointer(") + self._tensor_type(t.tensor_type) + ")"
-
-    def visit_ReferenceType(self, t: ReferenceType):
-        return Text("ReferenceType(") + self(t.base_type) + ")"
 
     def visit_VoidType(self, t: VoidType):
         return Text("VoidType")

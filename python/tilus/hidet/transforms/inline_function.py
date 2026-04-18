@@ -31,7 +31,7 @@ from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.stmt import DeclareStmt, EvaluateStmt, ReturnStmt, SeqStmt, Stmt
 from tilus.hidet.ir.tools import collect, rewrite
-from tilus.hidet.ir.type import ReferenceType, TensorType
+from tilus.hidet.ir.type import TensorType
 from tilus.hidet.ir.utils.call_graph import CallGraph, CallGraphNode
 from tilus.hidet.transforms.base import Pass
 
@@ -50,7 +50,7 @@ class InlineFunctionRewriter(IRRewriter):
         Currently, we only inline functions that
         1. have no return value
         2. have no return statement
-        3. have no reference type and tensor type arguments
+        3. have no tensor type arguments
 
         Parameters
         ----------
@@ -69,7 +69,7 @@ class InlineFunctionRewriter(IRRewriter):
             ret = False
         elif callee.kind in ["public", "cpu_kernel", "cuda_kernel"]:
             ret = False
-        elif any(isinstance(arg.type, (ReferenceType, TensorType)) for arg in callee.params):
+        elif any(isinstance(arg.type, TensorType) for arg in callee.params):
             ret = False
         elif len(collect(callee.body, ReturnStmt)) > 0:
             ret = False

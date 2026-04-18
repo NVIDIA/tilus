@@ -39,7 +39,6 @@ from .declare_to_let import declare_to_let_pass
 from .expand_let_expr import expand_let_expr_pass
 from .explicit_unroll import explicit_unroll_pass
 from .flatten_tensor_index import flatten_tensor_index_pass
-from .flatten_tensor_slice import flatten_tensor_slice_pass
 from .generate_launch_func import generate_launch_func_pass
 from .hoist_loop_invariants import hoist_loop_invariants_pass
 from .import_primitive_functions import import_primitive_functions_pass

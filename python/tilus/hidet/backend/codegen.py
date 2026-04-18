@@ -32,11 +32,9 @@ from tilus.hidet.ir.expr import (
     Multiply,
     Neg,
     NotEqual,
-    Reference,
     RightShift,
     Sub,
     TensorElement,
-    TensorSlice,
     Var,
     convert,
 )
@@ -64,12 +62,10 @@ from tilus.hidet.ir.stmt import (
 )
 from tilus.hidet.ir.target import Target
 from tilus.hidet.ir.type import (
-    ArrayType,
     DataType,
     FuncType,
     OpaqueType,
     PointerType,
-    ReferenceType,
     StringType,
     TensorPointerType,
     TensorType,
@@ -220,19 +216,10 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
             dtype = v_type.tensor_type.dtype
             base_type_doc = self(dtype)
             return base_type_doc + " *" + " __restrict__ " + name_doc
-        elif isinstance(v_type, ReferenceType):
-            if isinstance(v_type.base_type, DataType):
-                base_type_doc = self(v_type.base_type)
-                return base_type_doc + " &" + name_doc
-            else:
-                raise NotImplementedError()
         elif isinstance(v_type, TensorType):
             dtype = v_type.dtype
             base_type_doc = self(dtype)
             return base_type_doc + " *" + " __restrict__ " + name_doc
-        elif isinstance(v_type, ArrayType):
-            base_type_doc = self(v_type.base_type)
-            return base_type_doc + " " + name_doc + "[" + self(v_type.size) + "]"
         elif isinstance(v_type, OpaqueType):
             dtype_doc = self(v_type)
             return dtype_doc + " " + name_doc
@@ -268,14 +255,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
             return_type_doc = self(v_type.ret_type)
             args_doc = doc_join([self(param_type) for param_type in v_type.param_types], sep=", ")
             return return_type_doc + " (*" + name_doc + ")(" + args_doc + ")"
-        elif isinstance(v_type, ArrayType):
-            if isinstance(v_type.base_type, FuncType):
-                return_type_doc = self(v_type.base_type.ret_type)
-                args_doc = doc_join([self(param_type) for param_type in v_type.base_type.param_types], sep=", ")
-                return return_type_doc + " (*" + name_doc + "[" + self(v_type.size) + "])(" + args_doc + ")"
-            else:
-                base_type_doc = self(v_type.base_type)
-                return base_type_doc + " " + name_doc + "[" + self(v_type.size) + "]"
         elif isinstance(v_type, OpaqueType):
             dtype_doc = self(v_type)
             return dtype_doc + " " + name_doc
@@ -498,9 +477,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
 
     def visit_Address(self, e: Address):
         return Text("(&") + self.visit(e.expr) + ")"
-
-    def visit_Reference(self, e: Reference):
-        raise ValueError()
 
     def visit_Dereference(self, e: Dereference):
         return Text("*") + self(e.expr)
@@ -784,17 +760,11 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
     def visit_TensorType(self, t: TensorType):
         raise ValueError()
 
-    def visit_ArrayType(self, t: ArrayType):
-        raise ValueError()
-
     def visit_PointerType(self, t: PointerType):
         return self(t.base_type) + Text("*")
 
     def visit_TensorPointerType(self, t: TensorPointerType):
         return self(t.tensor_type.dtype) + Text("*")
-
-    def visit_ReferenceType(self, t: ReferenceType):
-        raise ValueError()
 
     def visit_VoidType(self, t: VoidType):
         return Text("void")
@@ -811,9 +781,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
         return doc_join(t.modifiers, " ") + Text((" " if len(t.modifiers) > 0 else "") + f"{t.cpp_name}")
 
     # the following expressions should not remain to codegen
-    def visit_TensorSlice(self, e: TensorSlice):
-        raise ValueError()
-
     def visit_ScalarNode(self, e: ScalarNode):
         raise ValueError()
 
@@ -962,19 +929,10 @@ class UpdatedCUDACodeGen(CUDACodegen):
             dtype = v_type.tensor_type.dtype
             base_type_doc = self(dtype)
             return base_type_doc + " *" + restrict_item + name_doc
-        elif isinstance(v_type, ReferenceType):
-            if isinstance(v_type.base_type, DataType):
-                base_type_doc = self(v_type.base_type)
-                return base_type_doc + " &" + name_doc
-            else:
-                raise NotImplementedError()
         elif isinstance(v_type, TensorType):
             dtype = v_type.dtype
             base_type_doc = self(dtype)
             return base_type_doc + " *" + restrict_item + name_doc
-        elif isinstance(v_type, ArrayType):
-            base_type_doc = self(v_type.base_type)
-            return base_type_doc + " " + name_doc + "[" + self(v_type.size) + "]"
         elif isinstance(v_type, OpaqueType):
             dtype_doc = self(v_type)
             if v_type.cpp_name == "CUtensorMap":

@@ -26,7 +26,7 @@
 from typing import Callable, Tuple
 
 from tilus.hidet.ir.dtypes import float16, float32, int16, int64
-from tilus.hidet.ir.expr import Expr, ExprFloat16, ExprInt16, ExprInt64
+from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.primitives.func import call_primitive_func, primitive_func_pool, register_primitive_function
 from tilus.hidet.ir.primitives.math import MathFunctionSet, register_math_function_set
@@ -39,11 +39,11 @@ def register_float16_primitives():
     register_primitive_function("cuda_i64_to_f16", FuncType([int64], float16), codegen_name="__ll2half_rn")
 
 
-def cuda_i64_to_f16(a: ExprInt64) -> ExprFloat16:
+def cuda_i64_to_f16(a: Expr) -> Expr:
     return call_primitive_func("cuda_i64_to_f16", [a])
 
 
-def reinterpret_f16_as_u16(a: ExprFloat16) -> ExprInt16:
+def reinterpret_f16_as_u16(a: Expr) -> Expr:
     """
     Reinterpret a float16 as an int16.
 
@@ -59,12 +59,12 @@ def reinterpret_f16_as_u16(a: ExprFloat16) -> ExprInt16:
 
     Parameters
     ----------
-    a: ExprFloat16
+    a: Expr
         The float16 to reinterpret.
 
     Returns
     -------
-    ret: ExprInt16
+    ret: Expr
         The int16 expression that reinterpret the memory of float16 input data.
     """
     from tilus.hidet.ir.expr import address, cast, deref
