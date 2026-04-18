@@ -22,4 +22,3 @@ from tilus.hidet.ir.dtypes import (
     uint32,
     uint64,
 )
-from tilus.hidet.ir.expr import symbol_var

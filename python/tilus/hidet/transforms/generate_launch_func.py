@@ -56,7 +56,7 @@ def _rewrite_dim3(dim3: Tuple[Expr, Expr, Expr], param2arg: Dict[Expr, Expr]) ->
 
 def add_launch_func(ir_module: IRModule, kernel_func: Function):
     with FunctionBuilder(name="launch", kind="public") as fb:
-        params = [Var(param.hint, param.type) for param in kernel_func.params]
+        params = [Var(param.name, param.type) for param in kernel_func.params]
         param_remap = {a: b for a, b in zip(kernel_func.params, params)}
         fb.extend_params(params)
 

@@ -52,7 +52,6 @@ from tilus.hidet.ir.expr import (
     NotEqual,
     RightShift,
     Sub,
-    SymbolVar,
     Var,
     cast,
     constant,
@@ -71,9 +70,8 @@ from tilus.hidet.utils import same_list
 
 
 class Simplifier(StmtRewriter, ExprRewriter, LayoutRewriter, BaseRewriter):
-    def __init__(self, instantiate_symbols: bool = False, skip_node_types: Optional[Sequence[Type[Expr]]] = None):
+    def __init__(self, skip_node_types: Optional[Sequence[Type[Expr]]] = None):
         super().__init__()
-        self.instantiate_symbols = instantiate_symbols
         self.skip_node_types = skip_node_types
 
     def visit(self, node: Union[Node, Tuple, List, Dict[str, Any], str, int, float]):
@@ -268,19 +266,9 @@ class Simplifier(StmtRewriter, ExprRewriter, LayoutRewriter, BaseRewriter):
             else:
                 return IfThenElse(cond, then_expr, else_expr)
 
-    def visit_Var(self, e: Var):
-        if isinstance(e, SymbolVar) and self.instantiate_symbols:
-            from tilus.hidet.ffi import runtime_api
-
-            return int32(runtime_api.get_symbol_value(e.name))
-        else:
-            return super().visit_Var(e)
-
-
 def simplify(
     node: Union[Stmt, Expr, int, float, list, tuple],
     *,
-    instantiate_symbols=False,
     repeat_limit=10,
     enable_rules=False,
     skip_node_types: Optional[Sequence[Type[Expr]]] = None,
@@ -288,7 +276,7 @@ def simplify(
     if isinstance(node, (int, float)):
         return node
 
-    simplifier = Simplifier(instantiate_symbols, skip_node_types)
+    simplifier = Simplifier(skip_node_types)
     for _ in range(repeat_limit):
         old_node = node
         node = simplifier(node)
@@ -304,10 +292,10 @@ def simplify(
     return node
 
 
-def simplify_to_int(node: Union[Expr, int], *, instantiate_symbols=False, repeat_limit=10) -> int:
+def simplify_to_int(node: Union[Expr, int], *, repeat_limit=10) -> int:
     if isinstance(node, int):
         return node
-    node = simplify(node, instantiate_symbols=instantiate_symbols, repeat_limit=repeat_limit)
+    node = simplify(node, repeat_limit=repeat_limit)
     if not (isinstance(node, Constant) and node.type.is_integer()):
         raise ValueError(f"Can not simplify expression {node} to an integer")
     return node.value

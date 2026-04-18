@@ -20,7 +20,7 @@ from tilus.hidet.ir import Add, AssignStmt, BufferStoreStmt, Cast, DeclareStmt, 
 from tilus.hidet.ir.builders import StmtBuilder
 from tilus.hidet.ir.dtypes import boolean, float32, int32, int64, uint8, uint16, uint32
 from tilus.hidet.ir.dtypes.integer_subbyte import IntegerSubbyteType
-from tilus.hidet.ir.expr import Address, Call, Constant, Dereference, Expr, SymbolVar, TensorElement, Var, cast, var
+from tilus.hidet.ir.expr import Address, Call, Constant, Dereference, Expr, TensorElement, Var, cast, var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
 from tilus.hidet.ir.layout import row_major
@@ -139,13 +139,6 @@ class AddressingAnalyzer(IRVisitor):
             if is_addressable(param):
                 self.buf2addr[param] = Addressing(
                     base=param, type=get_base_type(param.type), scope=DeclareScope.Global, offset=int32.zero
-                )
-
-        symbol_vars = collect(func.body, SymbolVar)
-        for symbol_var in symbol_vars:
-            if is_addressable(symbol_var):
-                self.buf2addr[symbol_var] = Addressing(
-                    base=symbol_var, type=get_base_type(symbol_var.type), scope=DeclareScope.Global, offset=int32.zero
                 )
 
         return super().visit_Function(func)
@@ -373,20 +366,20 @@ class LowerSubbyteTypeRewriter(IRRewriter):
             nbits = ttype.shape[0] * ttype.dtype.nbits
             new_shape = [(nbits + 7) // 8]
             new_ttype = TensorType(dtype=uint8, shape=new_shape, layout=row_major(*new_shape))
-            new_var = var(v.hint, new_ttype)
-            bit_offset_var = var(v.hint + "_bo", int32)
+            new_var = var(v.name, new_ttype)
+            bit_offset_var = var(v.name + "_bo", int32)
         elif isinstance(v.type, TensorPointerType) and is_subbyte(get_base_type(v.type)):
             ttype = v.type.tensor_type
             assert len(ttype.shape) == 1
             nbits = ttype.shape[0] * ttype.dtype.nbits
             new_shape = [(nbits + 7) // 8]
             new_tptype = TensorPointerType(TensorType(dtype=uint8, shape=new_shape, layout=row_major(*new_shape)))
-            new_var = var(v.hint, new_tptype)
-            bit_offset_var = var(v.hint + "_bo", int32)
+            new_var = var(v.name, new_tptype)
+            bit_offset_var = var(v.name + "_bo", int32)
         elif isinstance(v.type, PointerType) and is_subbyte(get_base_type(v.type)):
             new_type = ~uint8
-            new_var = var(v.hint, new_type)
-            bit_offset_var = var(v.hint + "_bo", int32)
+            new_var = var(v.name, new_type)
+            bit_offset_var = var(v.name + "_bo", int32)
         elif isinstance(v.type, DataType) and is_subbyte(v.type):
             raise NotImplementedError()
         else:

@@ -174,6 +174,7 @@ class IRPrinter(IRFunctor):
     def __init__(self):
         super().__init__(use_memo=False)
         self.namer = Namer()
+        self.namer.seed_global_symbols()
         self.attributes: Dict[str, str] = {}
         self.ir_module: Optional[IRModule] = None
 
@@ -267,6 +268,7 @@ class IRPrinter(IRFunctor):
     def visit_IRModule(self, ir_module: IRModule):
         doc = Doc()
         self.ir_module = ir_module
+        self.namer.seed_global_symbols(ir_module)
 
         for linking_lib in ir_module.linking_libs:
             doc += Text("link lib: ") + linking_lib + NewLine()
@@ -371,7 +373,7 @@ class IRPrinter(IRFunctor):
 
     def visit_Call(self, e: Call):
         doc = Doc()
-        func_name = e.func_var.name if e.func_var.name else e.func_var.hint
+        func_name = e.func_var.name
         # name
         doc += func_name
         # launch

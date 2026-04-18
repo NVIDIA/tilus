@@ -26,10 +26,10 @@ from tilus.target import get_current_target
 
 class GlobalMemoryAllocationContext(BaseEmitContext):
     def __post_init__(self):
-        self.gmem_base_ptr: Var = Var(hint="gmem", type=~uint8)
+        self.gmem_base_ptr: Var = Var(name="gmem", type=~uint8)
         self.gmem_allocated: Optional[Expr] = None
 
-        self.gmem_clean_base_ptr: Var = Var(hint="gmem_clean", type=~uint8)
+        self.gmem_clean_base_ptr: Var = Var(name="gmem_clean", type=~uint8)
         self.gmem_clean_allocated: Optional[Expr] = None
 
     def allocate_global_memory(self, nbytes: Expr | int, clean: bool) -> Expr:

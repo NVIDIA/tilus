@@ -359,10 +359,10 @@ class StmtBuilderCore:
         stmt = ReturnStmt()
         self._stack[-1].append(stmt)
 
-    def declare(self, type: BaseType, init: Optional[Expr | float | int] = None, hint: Optional[str] = None) -> Var:
-        if hint is not None:
-            hint = "v"
-        var = Var(hint, type=type)
+    def declare(self, type: BaseType, init: Optional[Expr | float | int] = None, name: Optional[str] = None) -> Var:
+        if name is not None:
+            name = "v"
+        var = Var(name, type=type)
         self.append(DeclareStmt(var, as_expr(init) if init is not None else None))
         return var
 

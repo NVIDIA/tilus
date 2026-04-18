@@ -55,7 +55,6 @@ from tilus.hidet.ir.expr import (
     Reference,
     RightShift,
     Sub,
-    SymbolVar,
     TensorElement,
     TensorSlice,
     Var,
@@ -519,8 +518,7 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
         if tp == e.type:
             return e
         else:
-            assert not isinstance(tp, SymbolVar)
-            return Var(e.hint, tp, e.name)
+            return Var(e.name, tp)
 
     def visit_Constant(self, e: Constant):
         return e

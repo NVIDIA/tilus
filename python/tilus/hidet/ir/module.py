@@ -79,7 +79,7 @@ class IRModule(Node):
         if name not in self.global_vars:
             func = self.functions[name]
             if isinstance(func, Function):
-                self.global_vars[name] = Var(hint=None, type=FuncType.from_func(func), name=name)
+                self.global_vars[name] = Var(name=name, type=FuncType.from_func(func))
             else:
                 raise ValueError()
 

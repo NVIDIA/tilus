@@ -26,7 +26,7 @@
 from typing import Callable, Dict, List, Optional, Tuple
 
 from tilus.hidet.ir import AssignStmt, DeclareStmt, ForMappingStmt, IRModule, Let, WhileStmt
-from tilus.hidet.ir.expr import Add, Constant, Div, Expr, Mod, Multiply, SymbolVar, Var
+from tilus.hidet.ir.expr import Add, Constant, Div, Expr, Mod, Multiply, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
 from tilus.hidet.ir.primitives.cuda.vars import blockDim, blockIdx, gridDim, threadIdx
@@ -145,8 +145,6 @@ class DepthAnalyzer(IRVisitor):
         super().visit_LetStmt(stmt)
 
     def visit_Var(self, e: Var):
-        if isinstance(e, SymbolVar):
-            self.var2depth[e] = 1
         super().visit_Var(e)
 
     def visit_AssignStmt(self, stmt: AssignStmt):

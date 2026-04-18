@@ -68,6 +68,7 @@ from tilus.hidet.ir.builders import StmtBuilder
 from tilus.hidet.ir.expr import BitwiseXor, Expr
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
+from tilus.hidet.ir.primitives.vars import is_primitive_variable
 from tilus.hidet.ir.stmt import ForStmt, Stmt
 from tilus.hidet.ir.tools import TypeInfer
 from tilus.hidet.ir.tools.hasher import ExprHash, HashSum
@@ -229,7 +230,7 @@ class AffineExprAnalyzer(IRVisitor):
     def visit_Var(self, e: Var) -> None:
         if e in self.expr2affine:
             return
-        if e in self.loop_invariant_vars or e.name is not None:
+        if e in self.loop_invariant_vars or is_primitive_variable(e):
             self.expr2affine[e] = AffineExpr(invariant_expr=OptionalExpr(e))
         elif e is self.loop_var:
             self.expr2affine[e] = AffineExpr(coefficient=OptionalExpr(int32.one))
@@ -331,7 +332,7 @@ class AffineToRecurrenceRewriter(IRRewriter):
                     ).expr
                     hashsum = self.hasher(hash_expr)
                     if hashsum not in self.affine_exprs:
-                        expr_var = Var(hint="affine_expr", type=self.type_infer(expr))
+                        expr_var = Var(name="affine_expr", type=self.type_infer(expr))
                         self.affine_exprs[hashsum] = (expr_var, affine_expr)
                     expr_var = self.affine_exprs[hashsum][0]
                     ret = expr_var
