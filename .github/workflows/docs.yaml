@@ -118,5 +118,10 @@ jobs:
           # Commit and push
           git add -A
           git diff --cached --quiet && echo "No changes to deploy" && exit 0
-          git commit -m "Deploy docs: $VERSION_DIR ($(date -u +%Y-%m-%d))"
+          MSG="Deploy docs: $VERSION_DIR ($(date -u +%Y-%m-%d))"
+          PR_NUM=$(git log -1 --pretty=%s "$GITHUB_SHA" | grep -oE '#[0-9]+' | head -n 1 || true)
+          if [[ -n "$PR_NUM" ]]; then
+            MSG="$MSG $PR_NUM"
+          fi
+          git commit -m "$MSG"
           git push origin gh-pages
