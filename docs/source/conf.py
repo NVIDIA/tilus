@@ -43,6 +43,28 @@ plot_html_show_formats = False
 plot_formats = [("svg", 150)]
 plot_basedir = _os.path.dirname(_os.path.abspath(__file__))
 
+# Make SVG output from plot_directive byte-for-byte reproducible:
+#   1. svg.hashsalt fixes the randomized element IDs (id="me6246c896a" etc.)
+#   2. The Figure.savefig patch below strips the <dc:date> timestamp that
+#      Matplotlib's SVG backend otherwise embeds on every build.
+plot_rcparams = {"svg.hashsalt": "tilus-docs"}
+plot_apply_rcparams = True
+
+from matplotlib.figure import Figure as _Figure  # noqa: E402
+
+_orig_savefig = _Figure.savefig
+
+
+def _stable_svg_savefig(self, fname, *args, **kwargs):
+    if str(fname).endswith(".svg"):
+        metadata = dict(kwargs.pop("metadata", {}) or {})
+        metadata.setdefault("Date", None)
+        kwargs["metadata"] = metadata
+    return _orig_savefig(self, fname, *args, **kwargs)
+
+
+_Figure.savefig = _stable_svg_savefig
+
 autodoc_typehints = "description"
 autoclass_content = "class"
 autodoc_class_signature = "separated"
