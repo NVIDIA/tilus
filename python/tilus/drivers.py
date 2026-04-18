@@ -27,7 +27,6 @@ import tilus.option
 from tilus.backends.codegen import generate_ir_module
 from tilus.hidet.backend.build import compile_source
 from tilus.hidet.backend.codegen import codegen
-from tilus.hidet.drivers.build_module import write_function_types
 from tilus.hidet.ir.module import IRModule
 from tilus.ir.prog import Program
 from tilus.ir.tools import verify
@@ -276,10 +275,7 @@ def build_ir_module(ir_module: IRModule, output_dir: str) -> str:
     src_path = output_path / "source.cu"
     codegen(ir_module, src_out_path=str(src_path), target="cuda")
 
-    # 3. save the function types to func_types.pickle
-    write_function_types(ir_module=ir_module, output_dir=output_dir)
-
-    # 4. compile the low-level code
+    # 3. compile the low-level code
     lib_path = output_path / "lib.so"
     target = tilus.target.get_current_target()
     compile_source(source_file=str(src_path), output_library_file=str(lib_path), target=target)

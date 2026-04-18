@@ -16,8 +16,8 @@
 import argparse
 import importlib
 import inspect
+import json
 import os
-import pickle
 import shutil
 import subprocess
 import sys
@@ -52,7 +52,7 @@ class ProfilerReport:
 class Profiler:
     """Base class for NVIDIA profiler wrappers (ncu, nsys).
 
-    Handles binary resolution, report path management, argument pickling,
+    Handles binary resolution, report path management, argument serialization,
     and subprocess invocation with a tool-specific command template.
 
     The command template should use these placeholders:
@@ -98,10 +98,17 @@ class Profiler:
         report_path = report_template.format(idx)
         os.makedirs(os.path.dirname(report_path), exist_ok=True)
 
-        # pickle function arguments
-        with tempfile.NamedTemporaryFile(mode="wb", suffix=".pkl", delete=False) as f:
+        # serialize function arguments as JSON
+        try:
+            args_json = json.dumps({"args": list(func_args), "kwargs": func_kwargs})
+        except (TypeError, ValueError) as e:
+            raise TypeError(
+                f"Cannot JSON-serialize the function arguments for profiling. "
+                f"All arguments must be JSON-serializable (no tensors, custom objects, etc.): {e}"
+            ) from e
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             args_path = f.name
-            pickle.dump((func_args, func_kwargs), f)
+            f.write(args_json)
 
         template_kwargs = {
             "profiler_path": resolve_binary(self.binary_name),
@@ -124,10 +131,11 @@ class Profiler:
         return ProfilerReport(report_path, self.ui_binary_name)
 
 
-def run_profiled_func(script_path: str, func_name: str, args_pickled_path: str) -> None:
+def run_profiled_func(script_path: str, func_name: str, args_json_path: str) -> None:
     """Entry point for the subprocess: import the target module and call the function."""
-    with open(args_pickled_path, "rb") as f:
-        args, kwargs = pickle.load(f)
+    with open(args_json_path, "r") as f:
+        data = json.load(f)
+    args, kwargs = data["args"], data["kwargs"]
 
     # remove the dir path of the current script from sys.path to avoid module overriding
     sys.path = [path for path in sys.path if not path.startswith(os.path.dirname(__file__))]
