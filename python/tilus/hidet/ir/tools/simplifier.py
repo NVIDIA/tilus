@@ -266,6 +266,7 @@ class Simplifier(StmtRewriter, ExprRewriter, LayoutRewriter, BaseRewriter):
             else:
                 return IfThenElse(cond, then_expr, else_expr)
 
+
 def simplify(
     node: Union[Stmt, Expr, int, float, list, tuple],
     *,
