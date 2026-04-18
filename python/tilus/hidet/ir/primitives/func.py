@@ -37,21 +37,19 @@ class PrimitiveFunctionRegistry:
         codegen_name: str,
         func_type: FuncType,
         function: Optional[Function] = None,
-        generic: bool = False,
     ):
         self.var = Var(name=name, type=func_type)
         self.name: str = name
         self.codegen_name: str = codegen_name
         self.func_type: FuncType = func_type
         self.function: Optional[Function] = function
-        self.generic: bool = generic
 
 
 class PrimitiveFunctionPool:
     def __init__(self):
         self.name2func: Dict[str, PrimitiveFunctionRegistry] = {}
 
-    def register(self, name: str, func_or_type: Union[Function, FuncType], codegen_name: Optional[str], generic: bool):
+    def register(self, name: str, func_or_type: Union[Function, FuncType], codegen_name: Optional[str]):
         if isinstance(func_or_type, Function):
             if func_or_type.name != name:
                 raise ValueError("The function name must be consistent, got {} and {}.".format(name, func_or_type.name))
@@ -64,13 +62,12 @@ class PrimitiveFunctionPool:
                 codegen_name=codegen_name,
                 func_type=FuncType.from_func(func_or_type),
                 function=func_or_type,
-                generic=generic,
             )
         elif isinstance(func_or_type, FuncType):
             if codegen_name is None:
                 codegen_name = name
             registry = PrimitiveFunctionRegistry(
-                name=name, codegen_name=codegen_name, func_type=func_or_type, function=None, generic=generic
+                name=name, codegen_name=codegen_name, func_type=func_or_type, function=None
             )
         else:
             raise TypeError(
@@ -124,7 +121,7 @@ def registered_primitive_functions() -> List[str]:
 
 
 def register_primitive_function(
-    name: str, func_or_type: Union[Function, FuncType], codegen_name: Optional[str] = None, generic=False
+    name: str, func_or_type: Union[Function, FuncType], codegen_name: Optional[str] = None
 ) -> PrimitiveFunctionRegistry:
     """
     Register a primitive function.
@@ -141,24 +138,19 @@ def register_primitive_function(
     codegen_name: Optional[str]
         The name used in code generation. When None is given, the 'name' parameter will be used.
 
-    generic: bool
-        Whether this function is a generic function. A generic function will be lowered to a concrete primitive
-        function according to the calling arguments' type.
-
     Returns
     -------
     ret: PrimitiveFunctionRegistry
         The entry of registered primitive function.
     """
-    return primitive_func_pool.register(name, func_or_type, codegen_name, generic)
+    return primitive_func_pool.register(name, func_or_type, codegen_name)
 
 
 def call_primitive_func(func_name, args: List[Expr]) -> Call:
     entry = primitive_func_pool.lookup_by_name(func_name)
-    if entry.func_type.param_types is not None:
-        if len(entry.func_type.param_types) != len(args):
-            raise ValueError(
-                "The number of arguments does not match the number of parameters of function {}, "
-                "got {} and expect {}.".format(func_name, len(args), len(entry.func_type.param_types))
-            )
+    if len(entry.func_type.param_types) != len(args):
+        raise ValueError(
+            "The number of arguments does not match the number of parameters of function {}, "
+            "got {} and expect {}.".format(func_name, len(args), len(entry.func_type.param_types))
+        )
     return call(entry.var, args)

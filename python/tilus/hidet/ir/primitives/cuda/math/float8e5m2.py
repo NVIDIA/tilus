@@ -23,6 +23,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from tilus.hidet.ir.dtypes import float8_e5m2
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import primitive_func_pool, register_primitive_function
 from tilus.hidet.ir.primitives.math import MathFunctionSet, register_math_function_set
@@ -61,7 +62,7 @@ class CUDAFloat8e5m2MathFunctionSet(MathFunctionSet):
             register_primitive_function(
                 name="cuda_float8e5m2_{}".format(name),
                 codegen_name=codegen_name,
-                func_or_type=FuncType(param_types=["float8_e5m2"] * num_args, ret_type="float8_e5m2"),
+                func_or_type=FuncType(param_types=[float8_e5m2] * num_args, ret_type=float8_e5m2),
             )
 
     def call(self, name: str, *args) -> Expr:

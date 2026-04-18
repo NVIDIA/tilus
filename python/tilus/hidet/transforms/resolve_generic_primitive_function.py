@@ -12,89 +12,33 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-from typing import List, Optional, Tuple
+"""
+Insert implicit casts into binary expressions whose operands have different dtypes.
 
-from tilus.hidet.ir.expr import BinaryExpr, Call, Expr, cast
+Historically this pass also lowered `generic_*` primitive function calls to device/dtype-specific
+variants. Now that primitives are registered with concrete types and dispatched at call-site,
+only the binary implicit-cast rewriting remains.
+"""
+
+from typing import List
+
+from tilus.hidet.ir.expr import BinaryExpr, Expr, cast
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
-from tilus.hidet.ir.primitives import is_primitive_function, lookup_primitive_function
-from tilus.hidet.ir.primitives.math import registered_math_function_sets
-from tilus.hidet.ir.tools import TypeInfer, infer_type
+from tilus.hidet.ir.tools import TypeInfer
 from tilus.hidet.ir.type import DataType
+from tilus.hidet.ir.utils.type_utils import numeric_promotion_for_all
 from tilus.hidet.transforms.base import FunctionPass
-from tilus.hidet.utils.py import green
 
 
-def resolve_dtype(arg_dtypes: List[DataType]) -> DataType:
-    import tilus.hidet.ir.primitives.math
-
-    return tilus.hidet.ir.primitives.math.type_infer_func(arg_dtypes)
+def _cast_args(args: List[Expr], arg_dtypes: List[DataType], target_dtype: DataType) -> List[Expr]:
+    return [a if d.name == target_dtype.name else cast(a, target_dtype) for a, d in zip(args, arg_dtypes)]
 
 
-def cast_args(args: List[Expr], arg_dtypes: List[DataType], target_dtype: DataType) -> List[Expr]:
-    casted_args = []
-    for arg, arg_dtype in zip(args, arg_dtypes):
-        if arg_dtype.name != target_dtype.name:
-            casted_args.append(cast(arg, target_dtype))
-        else:
-            casted_args.append(arg)
-    return casted_args
-
-
-class ResolveGenericPrimitiveFuncRewriter(IRRewriter):
-    def __init__(self, device: str):
+class InsertImplicitBinaryCastRewriter(IRRewriter):
+    def __init__(self):
         super().__init__()
         self.type_infer = TypeInfer()
-        self.device: str = device
-
-    def visit_Call(self, e: Call):
-        if is_primitive_function(e.func_var.name):
-            entry = lookup_primitive_function(e.func_var.name)
-            if entry.generic:
-                args = [self(arg) for arg in e.args]
-                arg_types = [infer_type(arg) for arg in args]
-                if any(not isinstance(arg_type, DataType) for arg_type in arg_types):
-                    raise ValueError(
-                        'Cannot resolve generic primitive function "{}" for arguments:'.format(e.func_var.name)
-                        + " args: {}  types: {}".format(args, arg_types)
-                    )
-                resolved_dtype: DataType = resolve_dtype(arg_types)
-                names = entry.name.split("_")  # such as 'generic_exp'
-                generic = names[0]
-                func_name = "_".join(names[1:])
-                assert generic == "generic"
-                dtype: str = resolved_dtype.name
-                key: Tuple[str, str] = (self.device, dtype)
-                if key not in registered_math_function_sets:
-                    msg = "Can not dispatch generic primitive function {} to device {} and dtype {}.\n".format(
-                        green(entry.name), green(self.device), green(dtype)
-                    )
-                    msg += "Registered math function sets: {}".format(list(registered_math_function_sets.keys())) + "\n"
-                    raise NotImplementedError(msg)
-                else:
-                    func_set = registered_math_function_sets[key]
-                    assert hasattr(func_set, func_name)
-                    func = getattr(func_set, func_name)
-                    try:
-                        return func(*args)
-                    except NotImplementedError as err:
-                        msg = "Math function {} for {} data has not been implemented for device {}".format(
-                            green(e.func_var.name.replace("generic_", "")), green(dtype), green(self.device)
-                        )
-                        raise NotImplementedError(msg) from err
-
-        return IRRewriter.visit_Call(self, e)
 
     def visit_Binary(self, e: BinaryExpr):
         lhs = self.visit(e.a)
@@ -102,8 +46,8 @@ class ResolveGenericPrimitiveFuncRewriter(IRRewriter):
         lhs_dtype = self.type_infer(lhs)
         rhs_dtype = self.type_infer(rhs)
         if isinstance(lhs_dtype, DataType) and isinstance(rhs_dtype, DataType) and lhs_dtype.name != rhs_dtype.name:
-            dtype = resolve_dtype([lhs_dtype, rhs_dtype])
-            lhs, rhs = cast_args([lhs, rhs], [lhs_dtype, rhs_dtype], dtype)
+            target = numeric_promotion_for_all(lhs_dtype, rhs_dtype)
+            lhs, rhs = _cast_args([lhs, rhs], [lhs_dtype, rhs_dtype], target)
             if lhs is e.a and rhs is e.b:
                 return e
             else:
@@ -113,22 +57,8 @@ class ResolveGenericPrimitiveFuncRewriter(IRRewriter):
 
 
 class ResolveGenericPrimitiveFuncPass(FunctionPass):
-    def __init__(self):
-        super().__init__()
-        self.device: Optional[str] = None
-
     def process_func(self, func: Function) -> Function:
-        func_kind_to_device = {
-            "cuda_kernel": "cuda",
-            "cuda_internal": "cuda",
-            "hip_kernel": "hip",
-            "hip_internal": "hip",
-            "cpu_kernel": "cpu",
-            "cpu_internal": "cpu",
-            "public": "cpu",
-        }
-        self.device = func_kind_to_device[func.kind]
-        rewriter = ResolveGenericPrimitiveFuncRewriter(self.device)
+        rewriter = InsertImplicitBinaryCastRewriter()
         return rewriter.visit(func)
 
 

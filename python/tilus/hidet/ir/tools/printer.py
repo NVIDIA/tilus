@@ -556,10 +556,7 @@ class IRPrinter(IRFunctor):
         return Text("VoidType")
 
     def visit_FuncType(self, t: FuncType):
-        if t.type_infer_func is not None:
-            return Text("FuncType[type_infer_func]")
-        else:
-            return Text("FuncType(params={}, ret={})".format(self(t.param_types), self(t.ret_type)))
+        return Text("FuncType(params={}, ret={})".format(self(t.param_types), self(t.ret_type)))
 
     def visit_OpaqueType(self, t: OpaqueType):
         return Text(f"OpaqueType({t.cpp_name})")

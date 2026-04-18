@@ -321,8 +321,9 @@ class TypeInfer(IRFunctor):
                     func_var, func_type
                 )
             )
-        args_type = [self(arg) for arg in e.args]
-        return func_type.ret_type_on(args_type)
+        for arg in e.args:
+            self(arg)
+        return func_type.ret_type
 
     def visit_Cast(self, e: Cast):
         return e.target_type

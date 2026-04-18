@@ -25,6 +25,7 @@
 # limitations under the License.
 from typing import Union
 
+from tilus.hidet.ir.dtypes import int32
 from tilus.hidet.ir.expr import Call, Expr
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.primitives.func import call_primitive_func, is_primitive_function, register_primitive_function
@@ -36,12 +37,13 @@ from tilus.hidet.utils import initialize
 
 @initialize()
 def register_primitive_functions():
+    void_t = VoidType()
     functions = [
-        ("cuda_syncthreads", "__syncthreads", FuncType([], VoidType())),
-        ("cuda_syncthreads_count", "__syncthreads_count", FuncType(["int32"], "int32")),
-        ("cuda_syncthreads_and", "__syncthreads_and", FuncType(["int32"], "int32")),
-        ("cuda_syncthreads_or", "__syncthreads_or", FuncType(["int32"], "int32")),
-        ("cuda_syncwarp", "__syncwarp", FuncType([], VoidType())),
+        ("cuda_syncthreads", "__syncthreads", FuncType([], void_t)),
+        ("cuda_syncthreads_count", "__syncthreads_count", FuncType([int32], int32)),
+        ("cuda_syncthreads_and", "__syncthreads_and", FuncType([int32], int32)),
+        ("cuda_syncthreads_or", "__syncthreads_or", FuncType([int32], int32)),
+        ("cuda_syncwarp", "__syncwarp", FuncType([], void_t)),
     ]
     for name, codegen_name, func_type in functions:
         register_primitive_function(name=name, func_or_type=func_type, codegen_name=codegen_name)
