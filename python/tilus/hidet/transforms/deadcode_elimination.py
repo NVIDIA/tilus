@@ -23,7 +23,6 @@ from tilus.hidet.ir import (
     Constant,
     DeclareStmt,
     Div,
-    FloorDiv,
     LogicalNot,
     Multiply,
     SeqStmt,
@@ -97,9 +96,6 @@ class DeadcodeAnalyzer(IRVisitor):
         self.visit_binary(e)
 
     def visit_Div(self, e: Div) -> None:
-        self.visit_binary(e)
-
-    def visit_FloorDiv(self, e: FloorDiv) -> None:
         self.visit_binary(e)
 
     def visit_BitwiseAnd(self, e: BitwiseAnd) -> None:

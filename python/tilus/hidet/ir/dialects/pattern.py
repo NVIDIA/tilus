@@ -36,7 +36,6 @@ from tilus.hidet.ir.expr import (
     Div,
     Equal,
     Expr,
-    FloorDiv,
     IfThenElse,
     LessEqual,
     LessThan,
@@ -160,7 +159,7 @@ class PatternMatcher:
     def match_dispatch(self, pattern: Expr, target: Expr):
         if isinstance(pattern, (Add, Multiply, BitwiseXor, LogicalAnd, LogicalOr)):
             self.match_CommutativeBinary(pattern, target)
-        elif isinstance(pattern, (Sub, Div, Mod, BitwiseXor, FloorDiv, LessThan, Equal, LessEqual)):
+        elif isinstance(pattern, (Sub, Div, Mod, BitwiseXor, LessThan, Equal, LessEqual)):
             self.match_Binary(pattern, target)
         elif isinstance(pattern, PlaceholderExpr):
             self.match_PlaceholderExpr(pattern, target)

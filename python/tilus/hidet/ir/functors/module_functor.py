@@ -56,7 +56,7 @@ class ModuleVisitor(ModuleFunctor, BaseVisitor):
         self.visit(func.params)
         self.visit(func.ret_type)
         self.visit(func.body)
-        self.visit(func.attrs)
+        func.attrs.map(self.visit)
 
 
 class ModuleRewriter(ModuleFunctor, BaseRewriter):
@@ -72,7 +72,7 @@ class ModuleRewriter(ModuleFunctor, BaseRewriter):
         params = self.visit(func.params)
         ret_type = self.visit(func.ret_type)
         body = self.visit(func.body)
-        attrs = self.visit(func.attrs)
+        attrs = func.attrs.map(self.visit)
         if same_list(params, func.params) and ret_type is func.ret_type and body is func.body and attrs is func.attrs:
             return func
         else:

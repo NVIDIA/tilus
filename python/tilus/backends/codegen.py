@@ -157,7 +157,9 @@ class FunctionCodegen(IRFunctor):
         """Generate the host code to launch the kernel function."""
         if kernel_func.kind == "cuda_kernel":
             func_var = Var(hint=None, type=FuncType.from_func(kernel_func), name=kernel_func.name)
-            dynamic_shared_bytes = kernel_func.get_attr("cuda.dynamic_smem_bytes", int32(0))
+            dynamic_shared_bytes = (
+                kernel_func.attrs.dynamic_smem_bytes if kernel_func.attrs.dynamic_smem_bytes is not None else int32(0)
+            )
             assert isinstance(dynamic_shared_bytes, Constant | int), (
                 "dynamic shared memory bytes must be a constant integer"
             )
@@ -173,13 +175,14 @@ class FunctionCodegen(IRFunctor):
 
             # launch the kernel
             kernel_args = list(self.host_builder.params) + list(self.extra_params)
+            cluster_dim = kernel_func.attrs.cluster_dim if kernel_func.attrs.cluster_dim is not None else 1
             self.host_builder.append(
                 LaunchKernelStmt(
                     func_var=func_var,
                     args=kernel_args,
-                    grid_dim=normalize_dim3(kernel_func.get_attr("cuda.grid_dim")),  # type: ignore
-                    cluster_dim=normalize_dim3(kernel_func.get_attr("cuda.cluster_dim", default=1)),  # type: ignore
-                    block_dim=normalize_dim3(kernel_func.get_attr("cuda.block_dim")),  # type: ignore
+                    grid_dim=normalize_dim3(kernel_func.attrs.grid_dim),  # type: ignore
+                    cluster_dim=normalize_dim3(cluster_dim),  # type: ignore
+                    block_dim=normalize_dim3(kernel_func.attrs.block_dim),  # type: ignore
                     shared_mem=int32(dynamic_shared_bytes),
                     target="cuda",
                 )
@@ -206,7 +209,6 @@ class FunctionCodegen(IRFunctor):
         self._builder = FunctionBuilder(
             name=func.name + "_kernel",
             kind="cuda_kernel" if get_current_target().is_nvgpu() else "hip_kernel",
-            label="",
             grid_dim=self._function.metadata.grid_blocks,
             cluster_dim=cluster_blocks,
             block_dim=func.metadata.num_warps * 32,
@@ -216,7 +218,6 @@ class FunctionCodegen(IRFunctor):
         self._host_builder = FunctionBuilder(
             name=func.name,
             kind="public",
-            label="",
         )
         self.builder.extend_params(list(func.params))
         self.host_builder.extend_params(list(func.params))

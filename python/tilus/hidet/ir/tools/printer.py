@@ -24,6 +24,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import contextlib
+import dataclasses
 from typing import Dict, List, Optional, Tuple, Union
 
 from tilus.hidet.ir.expr import (
@@ -39,7 +40,6 @@ from tilus.hidet.ir.expr import (
     Dereference,
     Div,
     Equal,
-    FloorDiv,
     IfThenElse,
     LeftShift,
     LessThan,
@@ -176,7 +176,6 @@ class IRPrinter(IRFunctor):
         self.namer = Namer()
         self.attributes: Dict[str, str] = {}
         self.ir_module: Optional[IRModule] = None
-        self.show_var_id = False
 
         self.scoped_vars: List[List[Var]] = []
 
@@ -252,7 +251,10 @@ class IRPrinter(IRFunctor):
         # attributes
         attr_doc = Doc()
         attrs = {"kind": func.kind}
-        attrs.update(func.attrs)
+        for f in dataclasses.fields(func.attrs):
+            value = getattr(func.attrs, f.name)
+            if value is not None:
+                attrs[f.name] = value
         for attr_name, attr_value in attrs.items():
             attr_doc += (NewLine() + "# {}: {}".format(attr_name, attr_value)).indent(4)
 
@@ -299,9 +301,6 @@ class IRPrinter(IRFunctor):
 
     def visit_Mod(self, e: Mod):
         return Text("(") + self(e.a) + " % " + self(e.b) + ")"
-
-    def visit_FloorDiv(self, e: FloorDiv):
-        return Text("(") + self(e.a) + " / " + self(e.b) + ")"
 
     def visit_Neg(self, e: Neg):
         return Text("(-") + self(e.a) + ")"
@@ -379,7 +378,7 @@ class IRPrinter(IRFunctor):
         if self.ir_module and func_name in self.ir_module.functions:
             func = self.ir_module.functions[func_name]
             if func.kind == "cuda_kernel":
-                doc += "<<<" + self(func.attrs["cuda.grid_dim"]) + ", " + self(func.attrs["cuda.block_dim"]) + ">>>"
+                doc += "<<<" + self(func.attrs.grid_dim) + ", " + self(func.attrs.block_dim) + ">>>"
         # params
         doc += "(" + self(e.args) + ")"
         return doc
@@ -400,8 +399,6 @@ class IRPrinter(IRFunctor):
         return Text("&") + self(e.expr)
 
     def visit_Var(self, e: Var):
-        if self.show_var_id:
-            return Text("{}@{}".format(self.namer.get_name(e), e.id))
         return Text(self.namer.get_name(e))
 
     def visit_Constant(self, e: Constant):

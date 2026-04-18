@@ -40,7 +40,6 @@ from tilus.hidet.ir.expr import (
     Div,
     Equal,
     Expr,
-    FloorDiv,
     IfThenElse,
     LeftShift,
     LessEqual,
@@ -81,8 +80,6 @@ class ExprFunctor(BaseFunctor):
             return self.visit_Div(node)
         elif isinstance(node, Mod):
             return self.visit_Mod(node)
-        elif isinstance(node, FloorDiv):
-            return self.visit_FloorDiv(node)
         elif isinstance(node, Neg):
             return self.visit_Neg(node)
         elif isinstance(node, LessThan):
@@ -149,9 +146,6 @@ class ExprFunctor(BaseFunctor):
         raise NotImplementedError()
 
     def visit_Mod(self, e: Mod):
-        raise NotImplementedError()
-
-    def visit_FloorDiv(self, e: FloorDiv):
         raise NotImplementedError()
 
     def visit_LessThan(self, e: LessThan):
@@ -251,10 +245,6 @@ class ExprVisitor(ExprFunctor, BaseVisitor):
         self.visit(e.b)
 
     def visit_Mod(self, e: Mod):
-        self.visit(e.a)
-        self.visit(e.b)
-
-    def visit_FloorDiv(self, e: FloorDiv):
         self.visit(e.a)
         self.visit(e.b)
 
@@ -386,9 +376,6 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
         return self.visit_Binary(e)
 
     def visit_Mod(self, e: Mod):
-        return self.visit_Binary(e)
-
-    def visit_FloorDiv(self, e: FloorDiv):
         return self.visit_Binary(e)
 
     def visit_LessThan(self, e: LessThan):

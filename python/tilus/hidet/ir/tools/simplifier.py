@@ -39,7 +39,6 @@ from tilus.hidet.ir.expr import (
     Div,
     Equal,
     Expr,
-    FloorDiv,
     IfThenElse,
     LeftShift,
     LessEqual,
@@ -106,9 +105,6 @@ class Simplifier(StmtRewriter, ExprRewriter, LayoutRewriter, BaseRewriter):
         elif isinstance(e, Mod):
             if is_one(e.b):
                 return convert(0)
-        elif isinstance(e, FloorDiv):
-            if is_one(b):
-                return a
         elif isinstance(e, (LessThan, LessEqual, Equal, NotEqual)):
             pass
         elif isinstance(e, LogicalAnd):
@@ -146,7 +142,6 @@ class Simplifier(StmtRewriter, ExprRewriter, LayoutRewriter, BaseRewriter):
                 Multiply: operator.mul,
                 Div: operator.truediv,
                 Mod: operator.mod,
-                FloorDiv: operator.floordiv,
                 LessThan: operator.lt,
                 LessEqual: operator.le,
                 Equal: operator.eq,

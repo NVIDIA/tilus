@@ -21,7 +21,6 @@ from tilus.hidet.ir.expr import (
     Dereference,
     Div,
     Equal,
-    FloorDiv,
     IfThenElse,
     LeftShift,
     LessThan,
@@ -406,9 +405,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
 
     def visit_Mod(self, e: Mod):
         return "(" + self(e.a) + " % " + self(e.b) + ")"
-
-    def visit_FloorDiv(self, e: FloorDiv):
-        return "(" + self(e.a) + " / " + self(e.b) + ")"
 
     def visit_LessThan(self, e: LessThan):
         return "(" + self(e.a) + " < " + self(e.b) + ")"
@@ -895,22 +891,22 @@ class CUDACodegen(Codegen):
 
         doc += self(func.ret_type)
 
-        if "cuda.cluster_dim" in func.attrs:
+        if func.attrs.cluster_dim is not None:
             from tilus.hidet.transforms.generate_launch_func import _normalize_dim3
 
-            cluster_dims = _normalize_dim3(func.attrs["cuda.cluster_dim"])
+            cluster_dims = _normalize_dim3(func.attrs.cluster_dim)
             doc += f" __cluster_dims__({cluster_dims[0]}, {cluster_dims[1]}, {cluster_dims[2]})"
 
             self.require_cooperative_groups = True
 
         # launch bound for grid worker
         if func.kind == "cuda_kernel":
-            block_dim = func.attrs["cuda.block_dim"]
+            block_dim = func.attrs.block_dim
             if isinstance(block_dim, list):
                 block_dim = prod(block_dim)
             if isinstance(block_dim, (Constant, int)):
-                if "cuda.min_blocks" in func.attrs:
-                    min_blocks = func.attrs["cuda.min_blocks"]
+                min_blocks = func.attrs.min_blocks
+                if min_blocks is not None:
                     if isinstance(min_blocks, (Constant, int)):
                         doc += f" __launch_bounds__({block_dim}, {min_blocks})"
                     else:
@@ -1011,22 +1007,22 @@ class UpdatedCUDACodeGen(CUDACodegen):
 
         doc += self(func.ret_type)
 
-        if "cuda.cluster_dim" in func.attrs:
+        if func.attrs.cluster_dim is not None:
             from tilus.hidet.transforms.generate_launch_func import _normalize_dim3
 
-            cluster_dims = _normalize_dim3(func.attrs["cuda.cluster_dim"])  # type: ignore
+            cluster_dims = _normalize_dim3(func.attrs.cluster_dim)
             doc += f" __cluster_dims__({cluster_dims[0]}, {cluster_dims[1]}, {cluster_dims[2]})"
 
             self.require_cooperative_groups = True
 
         # launch bound for grid worker
         if func.kind == "cuda_kernel":
-            block_dim = func.attrs["cuda.block_dim"]
+            block_dim = func.attrs.block_dim
             if isinstance(block_dim, list):
                 block_dim = prod(block_dim)
             if isinstance(block_dim, (Constant, int)):
-                if "cuda.min_blocks" in func.attrs:
-                    min_blocks = func.attrs["cuda.min_blocks"]
+                min_blocks = func.attrs.min_blocks
+                if min_blocks is not None:
                     if isinstance(min_blocks, (Constant, int)):
                         doc += f" __launch_bounds__({block_dim}, {min_blocks})"
                     else:
@@ -1143,12 +1139,12 @@ class HIPCodegen(Codegen):
 
         # launch bound for grid worker
         if func.kind == "hip_kernel":
-            block_dim = func.attrs["hip.block_dim"]
+            block_dim = func.attrs.block_dim
             if isinstance(block_dim, list):
                 block_dim = prod(block_dim)
             if isinstance(block_dim, (Constant, int)):
-                if "hip.min_blocks" in func.attrs:
-                    min_blocks = func.attrs["hip.min_blocks"]
+                min_blocks = func.attrs.min_blocks
+                if min_blocks is not None:
                     if isinstance(min_blocks, (Constant, int)):
                         # https://sep5.readthedocs.io/en/latest/Programming_Guides/HIP-GUIDE.html#device-side-dynamic-global-memory-allocation
                         doc += f" __launch_bounds__({block_dim}, {(min_blocks * block_dim) / 32})"
