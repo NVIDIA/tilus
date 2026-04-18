@@ -46,7 +46,7 @@ def rename_funcs(ir_module: IRModule, rmap: Dict[str, str]) -> IRModule:
     for func_var in func_vars:
         if func_var.name in rmap:
             if func_var.name not in name2var:
-                name2var[func_var.name] = Var(hint=None, type=func_var.type, name=rmap[func_var.name])
+                name2var[func_var.name] = Var(name=rmap[func_var.name], type=func_var.type)
             remap[func_var] = name2var[func_var.name]
 
     ir_module: IRModule = rewrite(ir_module, remap)

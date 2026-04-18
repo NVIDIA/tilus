@@ -107,7 +107,7 @@ class InlineFunctionRewriter(IRRewriter):
                 if isinstance(arg, Var) and arg.type.is_tensor():
                     remap[param] = arg
                 else:
-                    param_var = Var(param.hint, rewrite(param.type, remap, clone_internal_var=True))
+                    param_var = Var(param.name, rewrite(param.type, remap, clone_internal_var=True))
                     param_vars.append(param_var)
                     self.stmts.append(DeclareStmt(param_var, init=arg))
                     remap[param] = param_var

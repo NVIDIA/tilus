@@ -49,7 +49,7 @@ class CloneRewriter(IRRewriter):
     def process_var(self, v: Var):
         visited_v = self.visit(v)
         if visited_v is v:
-            new_var = Var(v.hint, type=v.type, name=v.name)
+            new_var = Var(v.name, type=v.type)
         else:
             new_var = visited_v
         self.memo[v] = new_var

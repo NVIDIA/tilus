@@ -156,7 +156,7 @@ class FunctionCodegen(IRFunctor):
     def launch_kernel(self, kernel_func: HidetFunction) -> None:
         """Generate the host code to launch the kernel function."""
         if kernel_func.kind == "cuda_kernel":
-            func_var = Var(hint=None, type=FuncType.from_func(kernel_func), name=kernel_func.name)
+            func_var = Var(name=kernel_func.name, type=FuncType.from_func(kernel_func))
             dynamic_shared_bytes = (
                 kernel_func.attrs.dynamic_smem_bytes if kernel_func.attrs.dynamic_smem_bytes is not None else int32(0)
             )

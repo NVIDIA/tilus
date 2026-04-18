@@ -131,7 +131,7 @@ class ScriptModuleContext:
 
     def append_function(self, function: Function):
         self.functions.append(function)
-        self.name2var[function.name] = Var(hint=None, type=FuncType.from_func(function), name=function.name)
+        self.name2var[function.name] = Var(name=function.name, type=FuncType.from_func(function))
 
     def lookup(self, name: str) -> Optional[Var]:
         if name not in self.name2var:
@@ -141,13 +141,13 @@ class ScriptModuleContext:
     def define_global_var(self, name: str, var_type: BaseType) -> Var:
         if name in self.name2var:
             raise ValueError(f"Global variable {name} is already defined.")
-        self.name2var[name] = Var(hint=None, type=var_type, name=name)
+        self.name2var[name] = Var(name=name, type=var_type)
         return self.name2var[name]
 
     def declare_extern_func(self, name: str, param_types, ret_type):
         if name in self.extern_functions:
             raise ValueError(f"Extern function {name} is already declared.")
-        self.extern_functions[name] = Var(hint=None, name=name, type=func_type(param_types, ret_type))
+        self.extern_functions[name] = Var(name=name, type=func_type(param_types, ret_type))
         return self.extern_functions[name]
 
     def ir_module(self) -> IRModule:

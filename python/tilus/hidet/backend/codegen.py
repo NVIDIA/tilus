@@ -95,6 +95,7 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
         super().__init__()
         self.ir_module: Optional[IRModule] = None
         self.namer = Namer()
+        self.namer.seed_global_symbols()
         self.type_infer = TypeInfer()
 
         self.require_immintrin = False
@@ -325,6 +326,7 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
 
     def visit_IRModule(self, module: IRModule) -> Doc:
         self.ir_module = module
+        self.namer.seed_global_symbols(module)
         doc = Doc()
 
         for name, func_var in module.extern_functions.items():
@@ -505,7 +507,7 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
         return Text("*") + self(e.expr)
 
     def visit_Call(self, e: Call):
-        func_name: str = e.func_var.name if e.func_var.name else e.func_var.hint
+        func_name: str = e.func_var.name
         assert isinstance(func_name, str)
         if func_name in self.ir_module.functions:
             func = self.ir_module.functions[func_name]
@@ -1065,6 +1067,7 @@ class UpdatedCUDACodeGen(CUDACodegen):
             raise NotImplementedError("Namespace is not supported")
 
         self.ir_module = module
+        self.namer.seed_global_symbols(module)
         doc = Doc()
 
         for name, func_var in module.extern_functions.items():

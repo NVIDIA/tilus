@@ -45,7 +45,6 @@ from .hoist_loop_invariants import hoist_loop_invariants_pass
 from .import_primitive_functions import import_primitive_functions_pass
 from .inline_function import inline_function_pass
 from .inline_let_stmt import inline_let_stmt_pass
-from .instantiate_symbols import instantiate_symbols_pass
 from .instruments import PassInstrument, ProfileInstrument, SaveIRInstrument
 from .lower_affine_to_recurence import lower_affine_to_recurrence_pass
 from .lower_integer_subbyte import lower_integer_subbyte_pass

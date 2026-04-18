@@ -33,6 +33,7 @@ from tilus.hidet.ir import AssignStmt, BinaryExpr, BitwiseAnd, Constant, ForStmt
 from tilus.hidet.ir.expr import Add, BitwiseXor, Div, Expr, LeftShift, Mod, Multiply, RightShift, Sub, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
+from tilus.hidet.ir.primitives.vars import is_primitive_variable
 from tilus.hidet.ir.stmt import Stmt
 from tilus.hidet.ir.tools import ExprHash, TypeInfer
 from tilus.hidet.ir.utils.hash_sum import HashSum
@@ -77,7 +78,7 @@ class LoopInvariantsAnalyzer(IRVisitor):
         self.invariant_count: dict[HashSum, int] = defaultdict(int)
 
     def visit_Var(self, e: Var) -> None:
-        if (e.name is not None and not isinstance(e.type, FuncType)) or e in self.loop_invariant_vars:
+        if (is_primitive_variable(e) and not isinstance(e.type, FuncType)) or e in self.loop_invariant_vars:
             self.invariants.add(e)
             self.invariant_ops[e] = 0
             self.invariant_count[self.hasher(e)] += 1

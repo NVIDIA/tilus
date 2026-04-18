@@ -130,7 +130,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     from tilus.hidet.transforms.import_primitive_functions import import_primitive_functions_pass
     from tilus.hidet.transforms.inline_function import inline_function_pass
     from tilus.hidet.transforms.inline_let_stmt import inline_let_stmt_pass
-    from tilus.hidet.transforms.instantiate_symbols import instantiate_symbols_pass
     from tilus.hidet.transforms.instruments import PassInstrument, ProfileInstrument, SaveIRInstrument
     from tilus.hidet.transforms.lower_affine_to_recurence import lower_affine_to_recurrence_pass
     from tilus.hidet.transforms.lower_fast_div import lower_fast_div_pass
@@ -169,7 +168,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         lower_integer_subbyte_pass(),
         # add_explicit_cast_pass(),
         declare_to_let_pass(),
-        instantiate_symbols_pass(),
         import_primitive_functions_pass(),
         check_launch_configuration_pass(),
         # simplification

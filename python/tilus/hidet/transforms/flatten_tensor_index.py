@@ -61,7 +61,7 @@ class FlattenTensorAccessRewriter(IRRewriter):
             if v.name in self.func2func_type:
                 func_ty = self.func2func_type[v.name]
                 if func_ty is not v.type:
-                    new_var = Var(v.hint, func_ty, v.name)
+                    new_var = Var(v.name, func_ty)
                     self.memo[v] = new_var
                     return new_var
         return super().visit_Var(v)
@@ -70,10 +70,10 @@ class FlattenTensorAccessRewriter(IRRewriter):
         for var in func.params:
             if isinstance(var.type, TensorType):
                 size = simplify(var.type.layout.size)
-                self.memo[var] = Var(var.hint, tensor_pointer_type(var.type.dtype, [size]))
+                self.memo[var] = Var(var.name, tensor_pointer_type(var.type.dtype, [size]))
             elif isinstance(var.type, TensorPointerType):
                 size = simplify(var.type.tensor_type.layout.size)
-                self.memo[var] = Var(var.hint, tensor_pointer_type(var.type.tensor_type.dtype, [size]))
+                self.memo[var] = Var(var.name, tensor_pointer_type(var.type.tensor_type.dtype, [size]))
         body = self(func.body)
         params = [self(p) for p in func.params]
         if body is func.body and all(p is p1 for p, p1 in zip(params, func.params)):
@@ -101,13 +101,13 @@ class FlattenTensorAccessRewriter(IRRewriter):
     def visit_DeclareStmt(self, stmt: DeclareStmt):
         if isinstance(stmt.var.type, TensorType):
             size = simplify(stmt.var.type.layout.size)
-            var = Var(stmt.var.hint, tensor_type(stmt.var.type.dtype, [size], row_major(size)))
+            var = Var(stmt.var.name, tensor_type(stmt.var.type.dtype, [size], row_major(size)))
             self.memo[stmt.var] = var
             init = self(stmt.init) if stmt.init is not None else None
             return DeclareStmt(var, init, is_static=stmt.is_static, scope=stmt.scope)
         elif isinstance(stmt.var.type, TensorPointerType):
             size = simplify(stmt.var.type.tensor_type.layout.size)
-            var = Var(stmt.var.hint, tensor_pointer_type(stmt.var.type.tensor_type.dtype, [size], row_major(size)))
+            var = Var(stmt.var.name, tensor_pointer_type(stmt.var.type.tensor_type.dtype, [size], row_major(size)))
             self.memo[stmt.var] = var
             init = self(stmt.init) if stmt.init is not None else None
             return DeclareStmt(var, init, is_static=stmt.is_static, scope=stmt.scope)
@@ -121,7 +121,7 @@ class FlattenTensorAccessRewriter(IRRewriter):
         if len(indices) != len(layout.shape):
             raise ValueError(
                 "Access {}-d tensor {} named {} with {}-d indices {}".format(
-                    len(layout.shape), list(layout.shape), var.hint, len(indices), list(indices)
+                    len(layout.shape), list(layout.shape), var.name, len(indices), list(indices)
                 )
             )
         global_index = layout(*indices)
@@ -135,7 +135,7 @@ class FlattenTensorAccessRewriter(IRRewriter):
         if len(layout.shape) != len(indices):
             raise ValueError(
                 "Access {}-d tensor {}{} with {}-d indices {}".format(
-                    len(layout.shape), var.hint, list(layout.shape), len(indices), list(indices)
+                    len(layout.shape), var.name, list(layout.shape), len(indices), list(indices)
                 )
             )
         global_index = layout(indices)

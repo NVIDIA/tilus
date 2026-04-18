@@ -141,7 +141,7 @@ class LaunchStmtRewriter(IRRewriter):
         precompute_stmts = []
         extra_launch_args = []
         for tmpl_stmt, tmpl_arg in zip(precompute_stmts_template, extra_launch_args_template):
-            fresh_var = Var(tmpl_arg.hint, type=tmpl_arg.type)
+            fresh_var = Var(tmpl_arg.name, type=tmpl_arg.type)
             precompute_stmts.append(DeclareStmt(fresh_var, init=rewrite(tmpl_stmt.init, param_remap)))
             extra_launch_args.append(fresh_var)
 

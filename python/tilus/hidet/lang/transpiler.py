@@ -447,7 +447,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
                         msg = "Can not define two variables with the same name in the same scope."
                         raise HidetProgramError(self, lhs, msg)
                     var_type = self.visit(type_annotation)
-                    var = Var(hint=var_name, type=var_type)
+                    var = Var(name=var_name, type=var_type)
                     self.current_scope.define_var(name=var_name, v=var)
                     self.current_scope.append(ir.DeclareStmt(var, init=rhs))
                 else:
@@ -474,7 +474,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
                             rhs = ir.convert(rhs)
                             var_type = ir.infer_type(rhs)
                             init_value = rhs
-                        var = Var(hint=var_name, type=var_type)
+                        var = Var(name=var_name, type=var_type)
                         self.current_scope.append(
                             ir.DeclareStmt(var, init=init_value, is_static=is_static, scope=scope)
                         )
@@ -587,12 +587,12 @@ class PythonToHidetTranslator(PythonAstFunctor):
 
                     if isinstance(arg_type, HidetMetaParamTypeList):
                         arg_types = [self._process_arg_type(arg, t) for t in arg_type.arg_types]
-                        param_vars = [Var(hint=arg_name, type=t) for t in arg_types]
+                        param_vars = [Var(name=arg_name, type=t) for t in arg_types]
                         func_params.extend(param_vars)
                         scope.define_host_var(arg_name, list(param_vars))
                     else:
                         arg_type: ir.BaseType = self._process_arg_type(arg, arg_type)
-                        param_var = Var(hint=arg_name, type=arg_type)
+                        param_var = Var(name=arg_name, type=arg_type)
                         func_params.append(param_var)
                         scope.define_var(arg_name, param_var)
 
@@ -943,7 +943,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
 
             with self.scope() as for_scope:
                 for var in loop_vars:
-                    for_scope.define_var(name=var.hint, v=var)
+                    for_scope.define_var(name=var.name, v=var)
                 for name, value in host_vars.items():
                     for_scope.define_host_var(name, value)
                 for s in stmt.body:
@@ -1305,7 +1305,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
                 if isinstance(bind_value, ir.Expr):
                     from tilus.hidet.ir.tools import infer_type
 
-                    bind_var = Var(hint=bind_name, type=infer_type(bind_value))
+                    bind_var = Var(name=bind_name, type=infer_type(bind_value))
                     self.current_scope.append(ir.DeclareStmt(var=bind_var, init=bind_value))
                     self.current_scope.define_var(bind_name, bind_var)
                 else:

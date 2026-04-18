@@ -50,7 +50,6 @@ from .type import (
     string_type,
     tensor_pointer_type,
     tensor_type,
-    type_equal,
 )
 
 PyScalar = Union[bool, int, float, complex, str]
@@ -593,27 +592,32 @@ class Reference(Expr):
 
 
 class Var(Expr):
-    def __init__(self, hint: Optional[str], type: BaseType, name: Optional[str] = None):
+    def __init__(self, name: Optional[str], type: BaseType):
         """
-        A variable may have a hint and/or a name.
+        A variable carries a *name* used for codegen.
 
-        self.hint is used to determine the name in codegen. Different vars may have the
-        same hint. If two vars have the same hint such as 'x', the final name would be like 'x1', 'x2'.
+        Naming semantics:
 
-        self.name is used to store the name of the variables that will be used directly in codegen, such as
-        "threadIdx.x". The field self.name and self.hint are used exclusively. If self.name is not None,
-        self.hint will be ignored, otherwise, self.hint will be used to determine the name in codegen.
+        - **Function-like vars** (primitive function references, module-level
+          function references, extern function references) have a name that is
+          *globally unique within the IRModule*. Codegen emits this name verbatim.
+
+        - **Ordinary vars inside a function** (loop indices, intermediates, user-
+          declared locals) may share a name with sibling vars. The printer /
+          codegen delegate to :class:`~tilus.hidet.utils.namer.Namer`, which
+          emits the requested name when the first occurrence is seen and
+          suffixes later duplicates (e.g. ``x``, ``x_1``, ``x_2``).
+
+        - A *None* name marks an anonymous var; the Namer then falls back to a
+          class-based default (``"v"``, ``"v_1"``, ...).
+
+        Global symbols whose name must appear verbatim (CUDA builtins such as
+        ``threadIdx.x``, primitive function references, IRModule function refs,
+        extern function refs) are pre-seeded into the Namer so they claim their
+        canonical name before any local Var can collide with them.
         """
-        self.hint: Optional[str] = hint
         self.name: Optional[str] = name
         self.type: Union[BaseType, TensorType, TensorPointerType, FuncType] = type
-
-
-class SymbolVar(Var):
-    name2symbol: Dict[str, SymbolVar] = {}
-
-    def __init__(self, name: str, dtype: DataType):
-        super().__init__(hint=None, type=dtype, name=name)
 
 
 # the following are used as type hints
@@ -705,21 +709,21 @@ def as_expr(obj: Union[float, bool, int, str, Expr]) -> Expr:
         raise ValueError(obj)
 
 
-def var(hint: str = None, dtype="int32"):
-    if isinstance(hint, str):
-        assert set(hint) <= set(string.ascii_letters + "_." + string.digits)
+def var(name: str = None, dtype="int32"):
+    if isinstance(name, str):
+        assert set(name) <= set(string.ascii_letters + "_." + string.digits)
     if isinstance(dtype, str):
         dtype = data_type(dtype)
-    return Var(hint, dtype)
+    return Var(name, dtype)
 
 
-def scalar_var(hint: str, dtype: Union[str, DataType] = "float32") -> Var:
+def scalar_var(name: str, dtype: Union[str, DataType] = "float32") -> Var:
     dtype = dtype if isinstance(dtype, DataType) else data_type(dtype)
-    return Var(hint, dtype)
+    return Var(name, dtype)
 
 
-def tensor_var(hint: str, shape=None, dtype: Union[str, DataType] = "float32", layout=None) -> Var:
-    return Var(hint, tensor_type(dtype, shape, layout))
+def tensor_var(name: str, shape=None, dtype: Union[str, DataType] = "float32", layout=None) -> Var:
+    return Var(name, tensor_type(dtype, shape, layout))
 
 
 def is_one(v: Expr) -> bool:
@@ -1028,26 +1032,6 @@ def constant_int(value: int, const_type: IntegerType) -> Constant:
         return Constant._constant_pool[(value, const_type.name)]
     else:
         return Constant(value, const_type)
-
-
-def symbol_var(name: str, dtype: Union[DataType, PointerType, str] = "int32") -> SymbolVar:
-    if isinstance(dtype, str):
-        dtype = data_type(dtype)
-    assert isinstance(dtype, (DataType, PointerType)), (
-        "symbolic variable must be with either a data type or a pointer type"
-    )
-    if name not in SymbolVar.name2symbol:
-        if not name.isidentifier():
-            raise ValueError('Invalid symbol name "{}", must be a valid identifier'.format(name))
-        SymbolVar.name2symbol[name] = SymbolVar(name, dtype)
-    else:
-        if not type_equal(SymbolVar.name2symbol[name].type, dtype):
-            raise ValueError(
-                'SymbolVar "{}" already exists with dtype {}, new dtype is {}'.format(
-                    name, SymbolVar.name2symbol[name].type, dtype
-                )
-            )
-    return SymbolVar.name2symbol[name]
 
 
 def index_vars(num_vars: int) -> List[Var]:

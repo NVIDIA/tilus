@@ -91,12 +91,12 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
         self.var2scope: Dict[Var, DeclareScope] = {}
         self.recursive_depth = 0
 
-    def auto_var(self, v: Var = None, hint: str = None, e: Expr = None):
+    def auto_var(self, v: Var = None, name: str = None, e: Expr = None):
         if v is not None:
             self.stmts.append(DeclareStmt(v))
             return v
         v_ty = self.type_infer(e)
-        v = var(hint, v_ty)
+        v = var(name, v_ty)
         self.stmts.append(DeclareStmt(v, e))
         return v
 
@@ -147,9 +147,9 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
         value_ty = self.type_infer(value)
         assert value_ty == storage_ty, f"expected {storage_ty}, but got {value_ty} (value={value})"
         mask = storage_ty.constant(dtype.bits_mask)
-        item = self.auto_var(hint="item", e=value & mask)
-        updated_mask = self.auto_var(hint="updated_mask", e=bitwise_not(storage_ty(mask << (offset_ * dtype_bits))))
-        new_bits = self.auto_var(hint="new_bits", e=storage_ty(item << (offset_ * dtype_bits)))
+        item = self.auto_var(name="item", e=value & mask)
+        updated_mask = self.auto_var(name="updated_mask", e=bitwise_not(storage_ty(mask << (offset_ * dtype_bits))))
+        new_bits = self.auto_var(name="new_bits", e=storage_ty(item << (offset_ * dtype_bits)))
 
         from tilus.hidet.ir.dtypes import u8, u16, u32
 
@@ -194,8 +194,8 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
                 self.stmts.append(sb.finish())
         else:
             assert self.var2scope[base].is_register()
-            original = self.auto_var(hint="original", e=base[idx])
-            updated = self.auto_var(hint="updated", e=(original & updated_mask) | new_bits)
+            original = self.auto_var(name="original", e=base[idx])
+            updated = self.auto_var(name="updated", e=(original & updated_mask) | new_bits)
             self.stmts.append(BufferStoreStmt(base, [idx], updated))
 
     def visit_DataType(self, t: DataType):
@@ -336,7 +336,7 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
     def visit_DeclareStmt(self, stmt: DeclareStmt):
         v_type = self.visit(stmt.var.type)
         if v_type is not stmt.var.type:
-            v = var(stmt.var.hint, v_type)
+            v = var(stmt.var.name, v_type)
             init = self.visit(stmt.init)
             self.old2new[stmt.var] = v
             if isinstance(v_type, TensorType):

@@ -39,7 +39,7 @@ class PrimitiveFunctionRegistry:
         function: Optional[Function] = None,
         generic: bool = False,
     ):
-        self.var = Var(hint=None, type=func_type, name=name)
+        self.var = Var(name=name, type=func_type)
         self.name: str = name
         self.codegen_name: str = codegen_name
         self.func_type: FuncType = func_type
@@ -82,9 +82,9 @@ class PrimitiveFunctionPool:
         return registry
 
     def lookup(self, func_var: Var) -> PrimitiveFunctionRegistry:
-        if func_var.hint not in self.name2func:
+        if func_var.name not in self.name2func:
             raise KeyError("Can not find primitive function via variable: {}.".format(func_var))
-        return self.name2func.get(func_var.hint)
+        return self.name2func[func_var.name]
 
     def lookup_by_name(self, name: str) -> PrimitiveFunctionRegistry:
         if name not in self.name2func:
