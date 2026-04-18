@@ -27,7 +27,6 @@ from typing import Generic, List, Optional, Sequence, TypeVar, Union, cast
 
 from tilus.hidet.ir.dtypes import int32
 from tilus.hidet.ir.expr import Expr, Var, convert, var
-from tilus.hidet.ir.mapping import RepeatTaskMapping, TaskMapping, repeat_map
 from tilus.hidet.ir.stmt import (
     AssertStmt,
     AssignStmt,
@@ -36,7 +35,6 @@ from tilus.hidet.ir.stmt import (
     DeclareScope,
     DeclareStmt,
     EvaluateStmt,
-    ForMappingStmt,
     ForStmt,
     ForStmtAttr,
     IfStmt,
@@ -48,7 +46,7 @@ from tilus.hidet.ir.stmt import (
 )
 from tilus.hidet.ir.type import BaseType
 
-ScopedStmt = Union[IfStmt, ForStmt, LetStmt, ForMappingStmt, WhileStmt]
+ScopedStmt = Union[IfStmt, ForStmt, LetStmt, WhileStmt]
 
 
 class StmtScope:
@@ -56,7 +54,7 @@ class StmtScope:
         if not isinstance(stmts, Sequence):
             stmts = [stmts]
 
-        assert all(isinstance(stmt, (IfStmt, ForStmt, LetStmt, ForMappingStmt, WhileStmt)) for stmt in stmts)
+        assert all(isinstance(stmt, (IfStmt, ForStmt, LetStmt, WhileStmt)) for stmt in stmts)
 
         self.sb: StmtBuilder = sb
         self.stmts: List[ScopedStmt] = list(stmts)
@@ -199,21 +197,6 @@ class StmtBuilder:
     def otherwise(self) -> OtherwiseScope:
         return OtherwiseScope(self)
 
-    def for_mapping(
-        self,
-        mapping: TaskMapping,
-        iter_names: Optional[Sequence[str]] = None,
-        worker: Optional[Union[Expr, int]] = None,
-    ) -> StmtScope:
-        if worker is None:
-            if not isinstance(mapping, RepeatTaskMapping):
-                raise ValueError("worker must be specified for non-repeat mapping")
-            worker = int32.zero
-        if iter_names is None:
-            iter_names = self._name_index_vars(len(mapping.task_shape))
-        iter_vars = [var(name) for name in iter_names]
-        return StmtScope(self, stmts=ForMappingStmt(iter_vars, mapping, worker, cast(Stmt, None)), ret=iter_vars)
-
     def for_grid(self, shape: Sequence[Union[Expr, int]]) -> StmtScope:
         iter_names = self._name_index_vars(len(shape))
         iter_vars = [var(name) for name in iter_names]
@@ -267,8 +250,6 @@ class StmtBuilder:
             else:
                 assert last_stmt.else_body is None
                 last_stmt.else_body = body
-        elif isinstance(last_stmt, ForMappingStmt):
-            last_stmt.body = body
         else:
             assert False
 

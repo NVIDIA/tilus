@@ -23,7 +23,6 @@ from tilus.hidet.ir.dtypes.integer_subbyte import IntegerSubbyteType
 from tilus.hidet.ir.expr import Address, Call, Constant, Dereference, Expr, TensorElement, Var, cast, var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
-from tilus.hidet.ir.layout import row_major
 from tilus.hidet.ir.primitives.cuda.atomic import atomic_cas
 from tilus.hidet.ir.primitives.cuda.cast import cast_subbyte_float_from_f32, cast_subbyte_float_to_f32
 from tilus.hidet.ir.primitives.cuda.subbyte import load_subbyte
@@ -365,7 +364,7 @@ class LowerSubbyteTypeRewriter(IRRewriter):
             assert len(ttype.shape) == 1
             nbits = ttype.shape[0] * ttype.dtype.nbits
             new_shape = [(nbits + 7) // 8]
-            new_ttype = TensorType(dtype=uint8, shape=new_shape, layout=row_major(*new_shape))
+            new_ttype = TensorType(dtype=uint8, shape=new_shape)
             new_var = var(v.name, new_ttype)
             bit_offset_var = var(v.name + "_bo", int32)
         elif isinstance(v.type, TensorPointerType) and is_subbyte(get_base_type(v.type)):
@@ -373,7 +372,7 @@ class LowerSubbyteTypeRewriter(IRRewriter):
             assert len(ttype.shape) == 1
             nbits = ttype.shape[0] * ttype.dtype.nbits
             new_shape = [(nbits + 7) // 8]
-            new_tptype = TensorPointerType(TensorType(dtype=uint8, shape=new_shape, layout=row_major(*new_shape)))
+            new_tptype = TensorPointerType(TensorType(dtype=uint8, shape=new_shape))
             new_var = var(v.name, new_tptype)
             bit_offset_var = var(v.name + "_bo", int32)
         elif isinstance(v.type, PointerType) and is_subbyte(get_base_type(v.type)):

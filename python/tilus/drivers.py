@@ -136,7 +136,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     from tilus.hidet.transforms.lower_integer_subbyte import lower_integer_subbyte_pass
     from tilus.hidet.transforms.lower_special_cast import lower_special_cast_pass
     from tilus.hidet.transforms.lower_subbyte_type import lower_subbyte_type_pass
-    from tilus.hidet.transforms.lower_task_mapping import lower_task_mapping_pass
     from tilus.hidet.transforms.propagate_launch_bound import propagate_launch_bound_pass
     from tilus.hidet.transforms.resolve_generic_primitive_function import resolve_primitive_func_pass
     from tilus.hidet.transforms.rule_based_simplifier import rule_based_simplify_pass
@@ -157,7 +156,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         flatten_tensor_slice_pass(),
         flatten_tensor_index_pass(),
         declare_to_let_pass(),
-        lower_task_mapping_pass(),
         rule_based_simplify_pass(),  # make ir more readable
         lower_special_cast_pass(),
         inline_function_pass(),

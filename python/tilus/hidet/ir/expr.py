@@ -722,8 +722,8 @@ def scalar_var(name: str, dtype: Union[str, DataType] = "float32") -> Var:
     return Var(name, dtype)
 
 
-def tensor_var(name: str, shape=None, dtype: Union[str, DataType] = "float32", layout=None) -> Var:
-    return Var(name, tensor_type(dtype, shape, layout))
+def tensor_var(name: str, shape, dtype: Union[str, DataType] = "float32") -> Var:
+    return Var(name, tensor_type(dtype, shape))
 
 
 def is_one(v: Expr) -> bool:
@@ -957,8 +957,8 @@ def const_tensor(value: np.ndarray) -> Constant:
     return constant(value=value, const_type=tensor_type(dtype=from_numpy_dtype(value.dtype), shape=list(value.shape)))
 
 
-def tensor_pointer_var(hint: str, shape=None, dtype: Union[str, DataType] = "float32", layout=None):
-    return Var(hint, tensor_pointer_type(dtype=dtype, shape=shape, layout=layout))
+def tensor_pointer_var(hint: str, shape, dtype: Union[str, DataType] = "float32"):
+    return Var(hint, tensor_pointer_type(dtype=dtype, shape=shape))
 
 
 def view(ptr: Expr, tp: TensorType) -> Expr:

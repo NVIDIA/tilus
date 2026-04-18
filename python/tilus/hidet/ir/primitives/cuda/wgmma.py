@@ -33,7 +33,6 @@ from typing import Dict, Tuple
 
 from tilus.hidet.ir.expr import Expr, cast
 from tilus.hidet.ir.func import Function
-from tilus.hidet.ir.mapping import TaskMapping, col_repeat, col_spatial, row_repeat, row_spatial
 from tilus.hidet.ir.primitives.cuda.funcs import call_cuda
 from tilus.hidet.ir.primitives.func import register_primitive_function
 from tilus.hidet.ir.stmt import asm
@@ -60,15 +59,13 @@ def num_regs(short_dtype: str, num_elements: int) -> int:
 
 
 class WgmmaConfig:
-    def __init__(self, m, n, k, a_input_dtype, b_input_dtype, output_dtype, a_load_map, c_store_map, required_arch):
+    def __init__(self, m, n, k, a_input_dtype, b_input_dtype, output_dtype, required_arch):
         self.m: int = m
         self.n: int = n
         self.k: int = k
         self.a_input_dtype: str = a_input_dtype
         self.b_input_dtype: str = b_input_dtype
         self.output_dtype: str = output_dtype
-        self.a_load_map: TaskMapping = a_load_map  # for register, A can be stored in registers or smem
-        self.c_store_map: TaskMapping = c_store_map
         self.a_elements: int = m * k // NUM_THREADS
         self.b_elements: int = k * n // NUM_THREADS
         self.c_elements: int = m * n // NUM_THREADS
@@ -134,14 +131,6 @@ def register_wgmma_configs():
                             a_input_dtype=input_dtype,
                             b_input_dtype=input_dtype,
                             output_dtype=output_dtype,
-                            a_load_map=row_spatial(4, 1)
-                            * col_repeat(2, 2, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
-                            c_store_map=row_spatial(4, 1)
-                            * col_repeat(2, n_values // 8, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
                             required_arch=(
                                 9,
                                 0,
@@ -165,14 +154,6 @@ def register_wgmma_configs():
                             a_input_dtype=input_dtype,
                             b_input_dtype=input_dtype,
                             output_dtype=output_dtype,
-                            a_load_map=row_spatial(4, 1)
-                            * col_repeat(2, 2, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
-                            c_store_map=row_spatial(4, 1)
-                            * col_repeat(2, n_values // 8, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
                             required_arch=(
                                 9,
                                 0,
@@ -195,14 +176,6 @@ def register_wgmma_configs():
                             a_input_dtype=input_dtype,
                             b_input_dtype=input_dtype,
                             output_dtype=output_dtype,
-                            a_load_map=col_spatial(4, 1)
-                            * col_repeat(2, 2, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 4, attrs="u+u+"),
-                            c_store_map=row_spatial(4, 1)
-                            * col_repeat(2, n_values // 8, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),
                             required_arch=(9, 0, "a"),
                         )
                     }
@@ -220,13 +193,6 @@ def register_wgmma_configs():
                             a_input_dtype=input_dtype,
                             b_input_dtype=input_dtype,
                             output_dtype=output_dtype,
-                            a_load_map=row_spatial(4, 1)
-                            * col_repeat(2, 2, attrs="u+u+")
-                            * row_spatial(8, 4),  # Calculation specified by the PTX doc
-                            c_store_map=row_spatial(4, 1)
-                            * col_repeat(2, n_values // 8, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
                             required_arch=(
                                 9,
                                 0,
@@ -250,14 +216,6 @@ def register_wgmma_configs():
                             a_input_dtype=input_dtype,
                             b_input_dtype=input_dtype,
                             output_dtype=output_dtype,
-                            a_load_map=row_spatial(4, 1)
-                            * col_repeat(2, 2, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 4, attrs="u+u+"),  # Calculation specified by the PTX doc
-                            c_store_map=row_spatial(4, 1)
-                            * col_repeat(2, n_values // 8, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
                             required_arch=(
                                 9,
                                 0,

@@ -30,8 +30,6 @@ from . import stmt
 from . import func
 from . import functors
 from . import builders
-from . import layout
-from . import mapping
 
 from .node import Node
 from .module import IRModule
@@ -46,12 +44,8 @@ from .expr import BitwiseXor, BitwiseAnd, BitwiseNot, BitwiseOr, Dereference
 from .expr import var, scalar_var, tensor_var, is_one, is_zero, convert
 from .expr import logical_and, logical_or, logical_not, equal, less_equal, less_than, not_equal
 
-from .layout import DataLayout
-
-from .mapping import TaskMapping
-
 from .stmt import Stmt, DeclareStmt, EvaluateStmt, BufferStoreStmt, AssignStmt, ForStmt, IfStmt, AssertStmt, SeqStmt
-from .stmt import LetStmt, ForMappingStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt
+from .stmt import LetStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt
 from .stmt import ForStmtAttr
 
 from .builders import FunctionBuilder, StmtBuilder

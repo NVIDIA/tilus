@@ -20,7 +20,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Sequence
 
-from tilus.hidet.ir import DeclareStmt, ForMappingStmt, ForStmt, Function, LetStmt
+from tilus.hidet.ir import DeclareStmt, ForStmt, Function, LetStmt
 from tilus.hidet.ir.expr import Constant, Expr, Var
 from tilus.hidet.ir.functors import IRVisitor
 from tilus.hidet.ir.module import IRModule
@@ -215,13 +215,6 @@ class IRVerifier(IRVisitor):
         self.visit(stmt.extent)
         with self.new_scope():
             self.define(stmt.loop_var, stmt)
-            self.visit(stmt.body)
-
-    def visit_ForTaskStmt(self, stmt: ForMappingStmt) -> None:
-        self.visit(stmt.mapping)
-        with self.new_scope():
-            for var in stmt.loop_vars:
-                self.define(var, ctx=stmt)
             self.visit(stmt.body)
 
 

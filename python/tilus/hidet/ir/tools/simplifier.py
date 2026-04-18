@@ -61,7 +61,7 @@ from tilus.hidet.ir.expr import (
     is_true,
     is_zero,
 )
-from tilus.hidet.ir.functors import BaseRewriter, ExprRewriter, LayoutRewriter, StmtRewriter
+from tilus.hidet.ir.functors import BaseRewriter, ExprRewriter, StmtRewriter
 from tilus.hidet.ir.node import Node
 from tilus.hidet.ir.stmt import ForStmt, IfStmt, SeqStmt, Stmt
 from tilus.hidet.ir.tools import rewrite
@@ -69,7 +69,7 @@ from tilus.hidet.ir.type import DataType
 from tilus.hidet.utils import same_list
 
 
-class Simplifier(StmtRewriter, ExprRewriter, LayoutRewriter, BaseRewriter):
+class Simplifier(StmtRewriter, ExprRewriter, BaseRewriter):
     def __init__(self, skip_node_types: Optional[Sequence[Type[Expr]]] = None):
         super().__init__()
         self.skip_node_types = skip_node_types

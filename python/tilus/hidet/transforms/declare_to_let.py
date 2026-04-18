@@ -38,7 +38,7 @@ from collections import defaultdict
 from enum import Enum
 from typing import Dict, List
 
-from tilus.hidet.ir import ForMappingStmt, ForStmt, SeqStmt, TensorElement, TensorType
+from tilus.hidet.ir import ForStmt, SeqStmt, TensorElement, TensorType
 from tilus.hidet.ir.expr import Address, Reference, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
@@ -86,11 +86,6 @@ class UsageAnalyzer(IRVisitor):
     def visit_ForStmt(self, stmt: ForStmt) -> None:
         super().visit_ForStmt(stmt)
         self.defined_by[stmt.loop_var] = DefinitionKind.FOR
-
-    def visit_ForTaskStmt(self, stmt: ForMappingStmt) -> None:
-        super().visit_ForTaskStmt(stmt)
-        for loop_var in stmt.loop_vars:
-            self.defined_by[loop_var] = DefinitionKind.FOR
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:
         super().visit_AssignStmt(stmt)

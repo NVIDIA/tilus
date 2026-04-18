@@ -222,7 +222,7 @@ class DataType(BaseType):
 
 
 class TensorType(BaseType):
-    def __init__(self, dtype=None, shape=None, layout=None):
+    def __init__(self, dtype=None, shape=None):
         """
         A tensor type.
 
@@ -232,23 +232,24 @@ class TensorType(BaseType):
             The data type of the tensor.
         shape: Tuple[Expr, ...]
             The shape of the tensor.
-        layout: hidet.ir.layout.DataLayout
-            The layout of the tensor.
         """
-        from tilus.hidet.ir.layout import DataLayout
-
         self.dtype: DataType = dtype
         self.shape: Tuple[Expr, ...] = shape
-        self.layout: DataLayout = layout
 
     def __invert__(self):
         return TensorPointerType.from_tensor_type(self)
 
+    @property
+    def size(self) -> Expr:
+        from tilus.hidet.utils import prod
+
+        return prod(self.shape)
+
     def storage_bytes(self) -> Expr:
         if self.dtype.is_integer_subbyte():
-            return self.layout.size * self.dtype.nbits // 8
+            return self.size * self.dtype.nbits // 8
         else:
-            return self.layout.size * self.dtype.nbytes
+            return self.size * self.dtype.nbytes
 
     def const_shape(self) -> List[int]:
         return [int(v) for v in self.shape]
@@ -356,23 +357,17 @@ class OpaqueType(BaseType):
         self.modifiers: Sequence[str] = modifiers
 
 
-def tensor_type(dtype, shape: Optional[Sequence[Union[int, Expr]]] = None, layout=None):
+def tensor_type(dtype, shape: Sequence[Union[int, Expr]]):
     """
     Construct a tensor type.
-
-    One of shape and layout must be given.
 
     Parameters
     ----------
     dtype: str or DataType
         The scalar type of this tensor.
 
-    shape: Sequence[Union[int, Expr]] or none
-        The shape of the tensor. If not given, the shape in layout will be used.
-
-    layout: hidet.ir.layout.DataLayout or none
-        The layout of the tensor. If not given, the row major layout of given shape will
-        be used.
+    shape: Sequence[Union[int, Expr]]
+        The shape of the tensor.
 
     Returns
     -------
@@ -380,28 +375,16 @@ def tensor_type(dtype, shape: Optional[Sequence[Union[int, Expr]]] = None, layou
         The constructed tensor type
     """
     from tilus.hidet.ir.expr import convert
-    from tilus.hidet.ir.layout import DataLayout, row_major
-    from tilus.hidet.ir.tools import simplify
 
     if isinstance(dtype, str):
         dtype = data_type(dtype)
     if not isinstance(dtype, DataType):
         raise ValueError('Scalar type expect a "str" or "ScalarType", but got {}'.format(type(dtype)))
-    if shape is None and layout is None:
-        raise ValueError("Tensor type must give either shape or layout")
-    elif shape is None:
-        assert isinstance(layout, DataLayout)
-        shape = layout.shape
-    elif layout is None:
-        layout = row_major(*shape)
-        if not all(isinstance(s, int) for s in shape):
-            layout = simplify(layout, enable_rules=True)
-    else:
-        assert isinstance(layout, DataLayout)
-        assert isinstance(shape, (list, tuple))
-        assert len(shape) == len(layout.shape)
+    if shape is None:
+        raise ValueError("Tensor type must give a shape")
+    assert isinstance(shape, (list, tuple))
     shape = convert(shape)
-    return TensorType(dtype, shape, layout)
+    return TensorType(dtype, shape)
 
 
 def array_type(base_type: BaseType, size: int):
@@ -412,8 +395,8 @@ def pointer_type(base_type):
     return PointerType(base_type)
 
 
-def tensor_pointer_type(dtype, shape=None, layout=None):
-    return TensorPointerType(tensor_type(dtype, shape, layout))
+def tensor_pointer_type(dtype, shape):
+    return TensorPointerType(tensor_type(dtype, shape))
 
 
 def string_type():

@@ -59,18 +59,6 @@ from tilus.hidet.ir.expr import (
     Var,
 )
 from tilus.hidet.ir.func import Function
-from tilus.hidet.ir.layout import (
-    ColumnMajorLayout,
-    ComposedLayout,
-    ConcatLayout,
-    LocalLayout,
-    PermuteLayout,
-    ReshapeLayout,
-    RowMajorLayout,
-    StridesLayout,
-    SwizzleLayout,
-)
-from tilus.hidet.ir.mapping import ComposedTaskMapping, RepeatTaskMapping, SpatialTaskMapping
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.node import Node
 from tilus.hidet.ir.stmt import (
@@ -84,7 +72,6 @@ from tilus.hidet.ir.stmt import (
     DeclareScope,
     DeclareStmt,
     EvaluateStmt,
-    ForMappingStmt,
     ForStmt,
     IfStmt,
     LaunchKernelStmt,
@@ -474,14 +461,6 @@ class IRPrinter(IRFunctor):
             doc += self(stmt.body).indent(4)
         return doc
 
-    def visit_ForTaskStmt(self, stmt: ForMappingStmt):
-        doc = NewLine() + Text("for ") + self(stmt.loop_vars) + " in " + self(stmt.mapping) + " on " + self(stmt.worker)
-        for loop_var in stmt.loop_vars:
-            self.add_scope_var(loop_var)
-        with self.scope():
-            doc += self(stmt.body).indent(4)
-        return doc
-
     def visit_WhileStmt(self, stmt: WhileStmt):
         doc = NewLine() + "while " + self(stmt.cond)
         with self.scope():
@@ -577,11 +556,6 @@ class IRPrinter(IRFunctor):
 
     def _tensor_type(self, t: TensorType):
         items = [self(t.dtype), "[" + self(t.shape) + "]"]
-        if isinstance(t.layout, RowMajorLayout) or t.layout is None:
-            # default layout, do not print
-            pass
-        else:
-            items.append(self(t.layout))
         return doc_join(items, ", ")
 
     def visit_TensorType(self, t: TensorType):
@@ -718,50 +692,6 @@ class IRPrinter(IRFunctor):
     def visit_ArgReduceCompute(self, c: ArgReduceCompute):
         items = ["[" + self(c.extent) + "]", self(c.axis) + " => " + self(c.value), str(c.reduce_operation)]
         return "arg_reduce(" + doc_join(items, ", ") + ")"
-
-    def visit_SpatialTaskMapping(self, mapping: SpatialTaskMapping):
-        items = [self(mapping.task_shape)]
-        if not same_list(mapping.ranks, list(range(len(mapping.task_shape)))):
-            items.append("ranks=[" + self(mapping.ranks) + "]")
-        return "spatial(" + doc_join(items, ", ") + ")"
-
-    def visit_RepeatTaskMapping(self, mapping: RepeatTaskMapping):
-        items = [self(mapping.task_shape)]
-        if not same_list(mapping.ranks, list(range(len(mapping.task_shape)))):
-            items.append("ranks=[" + self(mapping.ranks) + "]")
-        return "repeat(" + doc_join(items, ", ") + ")"
-
-    def visit_ComposedTaskMapping(self, mapping: ComposedTaskMapping):
-        return self(mapping.outer) + "." + self(mapping.inner)
-
-    def visit_StridesLayout(self, layout: StridesLayout):
-        if isinstance(layout, RowMajorLayout):
-            return Text("row(") + self(layout.shape) + ")"
-        elif isinstance(layout, ColumnMajorLayout):
-            return Text("column(") + self(layout.shape) + ")"
-        else:
-            return Text("strides(") + self(layout.strides) + ")"
-
-    def visit_SwizzleLayout(self, layout: SwizzleLayout):
-        items = [self(layout.base), Text("dim=") + self(layout.dim), Text("regards=") + self(layout.regards_dim)]
-        if layout.log_step != 0:
-            items.append(Text("log_step=") + self(layout.log_step))
-        return Text("swizzle(") + doc_join(items, ", ") + ")"
-
-    def visit_PermuteLayout(self, layout: PermuteLayout):
-        return Text("permute(") + self(layout.base) + ", " + self(layout.perm) + ")"
-
-    def visit_ReshapeLayout(self, layout: ReshapeLayout):
-        return Text("reshape(") + self(layout.base) + ", " + self(layout.shape) + ")"
-
-    def visit_LocalLayout(self, layout: LocalLayout):
-        return Text("local(") + self(layout.shape) + ")"
-
-    def visit_ComposedLayout(self, layout: ComposedLayout):
-        return self(layout.outer) + " * " + self(layout.inner)
-
-    def visit_ConcatLayout(self, layout: ConcatLayout):
-        return Text("concat(") + self(layout.lhs) + ", " + self(layout.rhs) + ")"
 
 
 def astext(obj: Node) -> str:

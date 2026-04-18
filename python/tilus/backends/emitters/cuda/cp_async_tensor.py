@@ -222,11 +222,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         )
 
     def declare_host_buffer(self, name: str, dtype: DataType, shape: Sequence[int]) -> Var:
-        from tilus.hidet.ir.layout import strided_layout
-
-        return self.host_builder.declare_var(
-            name=name, tp=TensorType(dtype=dtype, shape=shape, layout=strided_layout(shape=shape))
-        )
+        return self.host_builder.declare_var(name=name, tp=TensorType(dtype=dtype, shape=shape))
 
     def create_tensor_map(self, global_info: GlobalTensorInfo, shared_info: SharedTensorInfo, dtype: DataType) -> Var:
         tensor_map = self.host_builder.declare_var(name="tma_tensor_map", tp=CUtensorMapType)

@@ -50,7 +50,6 @@ from .lower_affine_to_recurence import lower_affine_to_recurrence_pass
 from .lower_integer_subbyte import lower_integer_subbyte_pass
 from .lower_special_cast import lower_special_cast_pass
 from .lower_subbyte_type import lower_subbyte_type_pass
-from .lower_task_mapping import lower_task_mapping_pass
 from .propagate_launch_bound import propagate_launch_bound_pass
 from .resolve_generic_primitive_function import resolve_primitive_func_pass
 from .rule_based_simplifier import rule_based_simplify_pass
