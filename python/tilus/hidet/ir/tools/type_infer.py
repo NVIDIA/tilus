@@ -312,8 +312,7 @@ class TypeInfer(IRFunctor):
                     end = base_type.shape[dim]
                 shape.append(end - start)
 
-        # the layout of the slice is not used
-        return tensor_pointer_type(dtype=base_type.dtype, shape=shape, layout=None)
+        return tensor_pointer_type(dtype=base_type.dtype, shape=shape)
 
     def visit_IfThenElse(self, e: IfThenElse):
         cond_type = self.visit(e.cond)
@@ -382,7 +381,7 @@ class TypeInfer(IRFunctor):
 
     def visit_GridCompute(self, c: GridCompute):
         dtype = self.visit(c.value)
-        return tensor_type(dtype, c._shape, c.layout)  # pylint: disable=protected-access
+        return tensor_type(dtype, c._shape)  # pylint: disable=protected-access
 
     def visit_ReduceCompute(self, c: ReduceCompute):
         return self.visit(c.value)

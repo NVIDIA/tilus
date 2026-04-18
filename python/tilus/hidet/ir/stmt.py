@@ -36,7 +36,6 @@ try:
     from tilus.hidet.ir.compute import TensorNode
 except ImportError:
     TensorNode = None
-from tilus.hidet.ir.mapping import TaskMapping
 
 
 # scope
@@ -270,14 +269,6 @@ class ForStmt(Stmt):
         self.extent: Expr = simplify(convert(extent))
         self.body: Optional[Stmt] = body
         self.attr: ForStmtAttr = attr if attr else ForStmtAttr.from_extent(extent)
-
-
-class ForMappingStmt(Stmt):
-    def __init__(self, loop_vars: Sequence[Var], mapping: TaskMapping, worker: Expr, body: Stmt):
-        self.loop_vars: List[Var] = list(loop_vars)
-        self.mapping: TaskMapping = mapping
-        self.worker: Expr = worker
-        self.body: Stmt = body
 
 
 class WhileStmt(Stmt):

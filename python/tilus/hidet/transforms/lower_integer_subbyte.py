@@ -205,8 +205,6 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
             return t
 
     def visit_TensorType(self, t: TensorType):
-        from tilus.hidet.ir.layout import row_major
-
         if is_integer_subbyte(t.dtype):
             shape = list(self.visit(t.shape))
             assert len(shape) == 1
@@ -216,8 +214,7 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
             dtype_bits = dtype.nbits
             divisor = storage_bits // dtype_bits
             shape[-1] = shape[-1] // divisor
-            layout = row_major(*shape)
-            return TensorType(storage_ty, shape, layout)
+            return TensorType(storage_ty, shape)
         return super().visit_TensorType(t)
 
     def visit_Var(self, v: Var):

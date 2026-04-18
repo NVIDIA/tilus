@@ -54,7 +54,6 @@ from tilus.hidet.ir.stmt import (
     DeclareScope,
     DeclareStmt,
     EvaluateStmt,
-    ForMappingStmt,
     ForStmt,
     IfStmt,
     LaunchKernelStmt,
@@ -624,9 +623,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
         body_doc = self(stmt.body)
         doc += Text("{") + body_doc.indent() + NewLine() + Text("} ")
         return doc
-
-    def visit_ForTaskStmt(self, stmt: ForMappingStmt):
-        raise ValueError("ForTaskStmt should be lowered to ForStmt in lower_task_mapping pass before code generation.")
 
     def visit_WhileStmt(self, stmt: WhileStmt):
         doc = NewLine() + Text("while (") + self(stmt.cond) + ")"

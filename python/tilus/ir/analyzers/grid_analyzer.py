@@ -40,9 +40,8 @@ from tilus.hidet.ir.expr import (
     Var,
 )
 from tilus.hidet.ir.functors import IRFunctor
-from tilus.hidet.ir.layout import is_power_of_two
 from tilus.hidet.ir.tools import collect
-from tilus.hidet.utils import gcd
+from tilus.hidet.utils import gcd, is_power_of_two
 from tilus.ir.func import Analysis
 
 logger = tilus.logging.get_logger(__name__)

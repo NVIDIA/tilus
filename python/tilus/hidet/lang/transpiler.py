@@ -316,7 +316,7 @@ class PythonAstFunctor:
         raise NotImplementedError()
 
 
-HostTypes = (ir.TaskMapping, ir.DataLayout, float, int, type(None))
+HostTypes = (float, int, type(None))
 
 
 class Scope:
@@ -424,7 +424,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
     def process_assign(self, lhs: Union[Attribute, Subscript, Name], rhs, type_annotation: Optional[ast.expr] = None):
         # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         # check the rhs value, must be an instance of allowed_types or a list of these kinds of elements.
-        host_var_types = (ir.TaskMapping, ir.DataLayout, ir.TensorSlice, ir.Function, str, list, tuple, dict)
+        host_var_types = (ir.TensorSlice, ir.Function, str, list, tuple, dict)
         allowed_types = (ir.Expr, ir.BaseType, Declaration, float, int, str, type(None))
         allowed_types += host_var_types
         assert isinstance(rhs, allowed_types) or (
@@ -455,7 +455,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
                     # during transpiling, there are two kinds of variables:
                     #   1. host variable, the variable in host language, and
                     #   2. hidet variable, the variable in hidet.
-                    # Typical host variables are like TaskMapping, DataLayout that are not scalar or tensor.
+                    # Typical host variables are those that are not scalar or tensor.
                     # We use host variable to reduce the complexity of hidet's data model.
                     if isinstance(rhs, host_var_types):
                         self.current_scope.define_host_var(var_name, rhs)
@@ -532,12 +532,12 @@ class PythonToHidetTranslator(PythonAstFunctor):
         if isinstance(arg_type, ir.BaseType):
             if isinstance(arg_type, ir.TensorType):
                 # we automatically change the tensor type of argument to a tensor pointer type.
-                arg_type = ir.tensor_pointer_type(dtype=arg_type.dtype, shape=arg_type.shape, layout=arg_type.layout)
+                arg_type = ir.tensor_pointer_type(dtype=arg_type.dtype, shape=arg_type.shape)
         elif isinstance(arg_type, Declaration):
             arg_type = arg_type.type
             if isinstance(arg_type, ir.TensorType):
                 # we automatically change the tensor type of argument to a tensor pointer type.
-                arg_type = ir.tensor_pointer_type(dtype=arg_type.dtype, shape=arg_type.shape, layout=arg_type.layout)
+                arg_type = ir.tensor_pointer_type(dtype=arg_type.dtype, shape=arg_type.shape)
         elif arg_type in [bool, int, float]:
             type_dict = {bool: ir.data_type("bool"), int: ir.data_type("int32"), float: ir.data_type("float32")}
             arg_type = type_dict[arg_type]
@@ -738,17 +738,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
     def visit_BinOp(self, expr: BinOp):
         lhs = self.visit(expr.left)
         rhs = self.visit(expr.right)
-        if isinstance(lhs, ir.DataLayout) and isinstance(rhs, ir.DataLayout):
-            if isinstance(expr.op, Mult):
-                return lhs * rhs
-            elif isinstance(expr.op, Add):
-                return lhs + rhs
-            else:
-                raise HidetProgramError(self, expr, "Hidet does not support this operation on DataLayout.")
-        elif isinstance(lhs, ir.TaskMapping) and isinstance(rhs, ir.TaskMapping):
-            assert isinstance(expr.op, Mult)
-            return lhs * rhs
-        elif isinstance(lhs, str) and isinstance(rhs, str):
+        if isinstance(lhs, str) and isinstance(rhs, str):
             assert isinstance(expr.op, Add)
             return lhs + rhs
         elif isinstance(lhs, (list, tuple)) and isinstance(rhs, (list, tuple)):

@@ -12,23 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-from typing import Dict
+from typing import Dict, Sequence
 
-from tilus.hidet.ir.expr import TensorElement, TensorSlice, Var, tensor_element
+from tilus.hidet.ir.expr import Expr, TensorElement, TensorSlice, Var, convert, tensor_element
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
-from tilus.hidet.ir.layout import DataLayout, StridesLayout, row_major
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.stmt import BufferStoreStmt, DeclareStmt
 from tilus.hidet.ir.tools import TypeInfer, simplify
@@ -44,6 +32,17 @@ from tilus.hidet.ir.type import (
 )
 from tilus.hidet.ir.utils.call_graph import CallGraph, CallGraphNode
 from tilus.hidet.transforms.base import Pass
+from tilus.hidet.utils import prod
+
+
+def _row_major_index(shape: Sequence[Expr], indices: Sequence[Expr]) -> Expr:
+    assert len(shape) == len(indices)
+    if len(shape) == 0:
+        return convert(0)
+    index: Expr = convert(indices[0])
+    for dim in range(1, len(shape)):
+        index = index * shape[dim] + indices[dim]
+    return index
 
 
 class FlattenTensorAccessRewriter(IRRewriter):
@@ -69,10 +68,10 @@ class FlattenTensorAccessRewriter(IRRewriter):
     def visit_Function(self, func: Function):
         for var in func.params:
             if isinstance(var.type, TensorType):
-                size = simplify(var.type.layout.size)
+                size = simplify(prod(var.type.shape))
                 self.memo[var] = Var(var.name, tensor_pointer_type(var.type.dtype, [size]))
             elif isinstance(var.type, TensorPointerType):
-                size = simplify(var.type.tensor_type.layout.size)
+                size = simplify(prod(var.type.tensor_type.shape))
                 self.memo[var] = Var(var.name, tensor_pointer_type(var.type.tensor_type.dtype, [size]))
         body = self(func.body)
         params = [self(p) for p in func.params]
@@ -84,30 +83,30 @@ class FlattenTensorAccessRewriter(IRRewriter):
             self.func2func_type[func.name] = func_type(param_types, func.ret_type)
             return new_func
 
-    def get_layout(self, e) -> DataLayout:
+    def get_shape(self, e) -> Sequence[Expr]:
         e_type = self.type_infer(e)
 
         if isinstance(e_type, TensorType):
-            return e.type.layout
+            return e.type.shape
         elif isinstance(e_type, TensorPointerType):
-            return e.type.tensor_type.layout
+            return e.type.tensor_type.shape
         elif isinstance(e_type, PointerType):
-            return StridesLayout(shape=[0], strides=[1])
+            return [convert(0)]
         elif isinstance(e_type, ArrayType):
-            return StridesLayout(shape=[0], strides=[1])
+            return [convert(0)]
         else:
-            raise ValueError("Can not infer layout from '{}' (expression {})".format(type(e), e))
+            raise ValueError("Can not infer shape from '{}' (expression {})".format(type(e), e))
 
     def visit_DeclareStmt(self, stmt: DeclareStmt):
         if isinstance(stmt.var.type, TensorType):
-            size = simplify(stmt.var.type.layout.size)
-            var = Var(stmt.var.name, tensor_type(stmt.var.type.dtype, [size], row_major(size)))
+            size = simplify(prod(stmt.var.type.shape))
+            var = Var(stmt.var.name, tensor_type(stmt.var.type.dtype, [size]))
             self.memo[stmt.var] = var
             init = self(stmt.init) if stmt.init is not None else None
             return DeclareStmt(var, init, is_static=stmt.is_static, scope=stmt.scope)
         elif isinstance(stmt.var.type, TensorPointerType):
-            size = simplify(stmt.var.type.tensor_type.layout.size)
-            var = Var(stmt.var.name, tensor_pointer_type(stmt.var.type.tensor_type.dtype, [size], row_major(size)))
+            size = simplify(prod(stmt.var.type.tensor_type.shape))
+            var = Var(stmt.var.name, tensor_pointer_type(stmt.var.type.tensor_type.dtype, [size]))
             self.memo[stmt.var] = var
             init = self(stmt.init) if stmt.init is not None else None
             return DeclareStmt(var, init, is_static=stmt.is_static, scope=stmt.scope)
@@ -117,28 +116,28 @@ class FlattenTensorAccessRewriter(IRRewriter):
     def visit_TensorElement(self, e: TensorElement):
         var = self(e.base)
         indices = [self(i) for i in e.indices]
-        layout = self.get_layout(e.base)
-        if len(indices) != len(layout.shape):
+        shape = self.get_shape(e.base)
+        if len(indices) != len(shape):
             raise ValueError(
                 "Access {}-d tensor {} named {} with {}-d indices {}".format(
-                    len(layout.shape), list(layout.shape), var.name, len(indices), list(indices)
+                    len(shape), list(shape), var.name, len(indices), list(indices)
                 )
             )
-        global_index = layout(*indices)
+        global_index = _row_major_index(shape, indices)
         return tensor_element(var, (global_index,))
 
     def visit_BufferStoreStmt(self, stmt: BufferStoreStmt):
         var = self(stmt.buf)
         indices = [self(i) for i in stmt.indices]
         value = self(stmt.value)
-        layout = self.get_layout(stmt.buf)
-        if len(layout.shape) != len(indices):
+        shape = self.get_shape(stmt.buf)
+        if len(shape) != len(indices):
             raise ValueError(
                 "Access {}-d tensor {}{} with {}-d indices {}".format(
-                    len(layout.shape), var.name, list(layout.shape), len(indices), list(indices)
+                    len(shape), var.name, list(shape), len(indices), list(indices)
                 )
             )
-        global_index = layout(indices)
+        global_index = _row_major_index(shape, indices)
         return BufferStoreStmt(var, [global_index], value)
 
     def visit_TensorSlice(self, e: TensorSlice):

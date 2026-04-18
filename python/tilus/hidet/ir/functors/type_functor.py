@@ -104,7 +104,6 @@ class TypeVisitor(TypeFunctor, BaseVisitor):
     def visit_TensorType(self, t: TensorType):
         self.visit(t.dtype)
         self.visit(t.shape)
-        self.visit(t.layout)
 
     def visit_ArrayType(self, t: ArrayType):
         self.visit(t.base_type)
@@ -140,11 +139,10 @@ class TypeRewriter(TypeFunctor, BaseRewriter):
     def visit_TensorType(self, t: TensorType):
         dtype = self.visit(t.dtype)
         shape = self.visit(t.shape)
-        layout = self.visit(t.layout)
-        if dtype == t.dtype and layout is t.layout and same_list(shape, t.shape):
+        if dtype == t.dtype and same_list(shape, t.shape):
             return t
         else:
-            return TensorType(dtype, shape, layout)
+            return TensorType(dtype, shape)
 
     def visit_ArrayType(self, t: ArrayType):
         base_type = self.visit(t.base_type)

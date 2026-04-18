@@ -26,7 +26,6 @@
 from typing import Optional, Sequence, Union
 
 from tilus.hidet.ir.expr import Expr, cast
-from tilus.hidet.ir.layout import DataLayout
 from tilus.hidet.ir.stmt import DeclareScope
 from tilus.hidet.ir.type import BaseType, DataType, tensor_pointer_type, tensor_type
 
@@ -50,41 +49,34 @@ class Declaration:
 
 def tensor(
     dtype: Union[DataType, str],
-    shape: Optional[Sequence[Union[Expr, int]]] = None,
-    layout: Optional[DataLayout] = None,
+    shape: Sequence[Union[Expr, int]],
     scope: Union[DeclareScope, str] = DeclareScope.Default,
     is_static: bool = False,
 ):
     if isinstance(scope, str):
         scope = DeclareScope.from_str(scope)
-    return Declaration(scope, tp=tensor_type(dtype, shape, layout), init=None, is_static=is_static)
+    return Declaration(scope, tp=tensor_type(dtype, shape), init=None, is_static=is_static)
 
 
 def tensor_pointer(
     dtype: Union[DataType, str],
-    shape: Optional[Sequence[Union[Expr, int]]] = None,
-    layout: Optional[DataLayout] = None,
+    shape: Sequence[Union[Expr, int]],
     init: Optional[Expr] = None,
 ):
-    return Declaration(scope=DeclareScope.Default, tp=tensor_pointer_type(dtype, shape, layout), init=init)
+    return Declaration(scope=DeclareScope.Default, tp=tensor_pointer_type(dtype, shape), init=init)
 
 
 def as_tensor_pointer(
     expr: Expr,
     dtype: Union[DataType, str],
-    shape: Optional[Sequence[Union[Expr, int]]] = None,
-    layout: Optional[DataLayout] = None,
+    shape: Sequence[Union[Expr, int]],
 ) -> Expr:
-    return cast(expr, tensor_pointer_type(dtype, shape, layout))
+    return cast(expr, tensor_pointer_type(dtype, shape))
 
 
-def shared_tensor(
-    dtype: Union[DataType, str], shape: Optional[Sequence[Union[Expr, int]]] = None, layout: Optional[DataLayout] = None
-):
-    return tensor(scope=DeclareScope.Shared, dtype=dtype, shape=shape, layout=layout)
+def shared_tensor(dtype: Union[DataType, str], shape: Sequence[Union[Expr, int]]):
+    return tensor(scope=DeclareScope.Shared, dtype=dtype, shape=shape)
 
 
-def register_tensor(
-    dtype: Union[DataType, str], shape: Optional[Sequence[Union[Expr, int]]] = None, layout: Optional[DataLayout] = None
-):
-    return tensor(scope=DeclareScope.Register, dtype=dtype, shape=shape, layout=layout)
+def register_tensor(dtype: Union[DataType, str], shape: Sequence[Union[Expr, int]]):
+    return tensor(scope=DeclareScope.Register, dtype=dtype, shape=shape)
