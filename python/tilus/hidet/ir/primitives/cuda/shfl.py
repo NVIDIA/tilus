@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus.hidet.ir.dtypes import bfloat16, float16, float32, float64, int32, int64, uint32, uint64
+from tilus.hidet.ir.dtypes import bfloat16, boolean, float16, float32, float64, int32, int64, uint32, uint64
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
 from tilus.hidet.ir.tools import infer_type
@@ -20,7 +20,8 @@ from tilus.hidet.ir.type import DataType, FuncType
 from tilus.hidet.utils import initialize
 
 # dtypes supported by the shfl intrinsics (signature: T __shfl*_sync(unsigned, T, int, int=warpSize))
-_shfl_dtypes = [int32, uint32, int64, uint64, float16, bfloat16, float32, float64]
+# bool is included because the reduce emitter shuffles boolean any/all values; CUDA promotes bool to int.
+_shfl_dtypes = [boolean, int32, uint32, int64, uint64, float16, bfloat16, float32, float64]
 
 
 _shfl_bases = {
