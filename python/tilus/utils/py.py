@@ -260,8 +260,6 @@ def _is_immutable(obj):
     try:
         from tilus.hidet.ir.expr import Constant
 
-        if isinstance(obj, Constant) and obj.type.is_tensor():
-            return False
         if isinstance(obj, Constant):
             return True
     except Exception:

@@ -385,8 +385,7 @@ class LowerIntegerSubbytePass(Pass):
             new_funcs[name] = self.process_func(func)
         if all(new_funcs[name] is ir_module.functions[name] for name in new_funcs):
             return ir_module
-        else:
-            return ir_module.copy().reset_funcs(new_funcs, ir_module.global_vars)
+        return ir_module.with_functions(new_funcs, ir_module.global_vars)
 
 
 def lower_integer_subbyte_pass() -> Pass:

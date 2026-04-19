@@ -54,7 +54,7 @@ def _rewrite_dim3(dim3: Tuple[Expr, Expr, Expr], param2arg: Dict[Expr, Expr]) ->
     return rewrite(dim3[0], param2arg), rewrite(dim3[1], param2arg), rewrite(dim3[2], param2arg)
 
 
-def add_launch_func(ir_module: IRModule, kernel_func: Function):
+def add_launch_func(ir_module: IRModule, kernel_func: Function) -> IRModule:
     with FunctionBuilder(name="launch", kind="public") as fb:
         params = [Var(param.name, param.type) for param in kernel_func.params]
         param_remap = {a: b for a, b in zip(kernel_func.params, params)}
@@ -98,7 +98,7 @@ def add_launch_func(ir_module: IRModule, kernel_func: Function):
             raise NotImplementedError("Unsupported function kind: {}".format(kernel_func.kind))
 
     launch: Function = fb.func
-    ir_module.add_function(launch.name, launch)
+    return ir_module.with_added_functions({launch.name: launch})
 
 
 class GenerateLaunchFuncPass(Pass):
@@ -125,11 +125,7 @@ class GenerateLaunchFuncPass(Pass):
                 kind=host_func.kind,
                 attrs=host_func.attrs,
             )
-            del ir_module.functions[old_name]
-            if old_name in ir_module.global_vars:
-                del ir_module.global_vars[old_name]
-            ir_module.add_function("launch", renamed)
-            return ir_module
+            return ir_module.with_removed_functions([old_name]).with_added_functions({"launch": renamed})
 
         # Multiple or no host functions: generate a launch function from the kernel
         kernel_functions: Dict[str, Function] = {
@@ -142,8 +138,7 @@ class GenerateLaunchFuncPass(Pass):
         if len(kernel_functions) > 1:
             raise NotImplementedError("Can only handle one kernel function in a module")
         kernel_func = next(iter(kernel_functions.values()))
-        add_launch_func(ir_module, kernel_func)
-        return ir_module
+        return add_launch_func(ir_module, kernel_func)
 
 
 def generate_launch_func(ir_module: IRModule) -> IRModule:

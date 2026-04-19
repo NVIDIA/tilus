@@ -371,9 +371,7 @@ class IRPrinter(IRFunctor):
     def visit_Constant(self, e: Constant):
         if e.value is None:
             return self("Constant(None, type=") + self(e.type) + ")"
-        if e.is_tensor():
-            return "ConstTensor({}, {})".format(e.value.shape, e.type)
-        elif e.is_string():
+        if e.is_string():
             return Text('"{}"'.format(str(e.value)))
         elif e.is_scalar():
             dtype = e.type.name

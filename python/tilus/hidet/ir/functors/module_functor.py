@@ -65,8 +65,7 @@ class ModuleRewriter(ModuleFunctor, BaseRewriter):
         functions = self.visit(module.functions)
         if same_list(global_vars, module.global_vars) and functions is module.functions:
             return module
-        else:
-            return module.copy().reset_funcs(functions, global_vars)
+        return module.with_functions(functions, global_vars)
 
     def visit_Function(self, func: Function):
         params = self.visit(func.params)
