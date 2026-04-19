@@ -46,15 +46,12 @@ def wrapper(stmt_visitor):
         # do not cache exprs between different statements, so the let expr will always generate let stmt.
         self.memo.clear()
         updated_stmt = stmt_visitor(self, stmt)
-        let_stmts = self.stmt_stack.pop()
-        if len(let_stmts) == 0:
+        pending = self.stmt_stack.pop()
+        if not pending:
             return updated_stmt
-        else:
-            bind_vars, bind_values = [], []
-            for let in let_stmts:
-                bind_vars.extend(let.bind_vars)
-                bind_values.extend(let.bind_values)
-            return LetStmt(bind_vars, bind_values, updated_stmt)
+        bind_vars = [var for var, _ in pending]
+        bind_values = [value for _, value in pending]
+        return LetStmt(bind_vars, bind_values, updated_stmt)
 
     return wrapped_visitor
 
@@ -67,7 +64,7 @@ class LetExprExpander(IRRewriter):
     def visit_Let(self, e: Let):
         var = self(e.var)
         value = self(e.value)
-        self.stmt_stack[-1].append(LetStmt(var, value))
+        self.stmt_stack[-1].append((var, value))
         return self(e.body)
 
     @wrapper
