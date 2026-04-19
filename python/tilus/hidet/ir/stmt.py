@@ -245,34 +245,36 @@ class ReturnStmt(Stmt):
 
 
 class LetStmt(Stmt):
-    def __init__(self, bind_vars, bind_values, body=None):
+    def __init__(self, bind_vars, bind_values, body: Stmt):
         if not isinstance(bind_vars, (list, tuple)):
-            bind_vars = [bind_vars]
+            bind_vars = (bind_vars,)
         if not isinstance(bind_values, (list, tuple)):
-            bind_values = [bind_values]
+            bind_values = (bind_values,)
         assert len(bind_vars) == len(bind_values)
         assert len(bind_vars) > 0
-        bind_values = [convert(bind_value) for bind_value in bind_values]
-        self.bind_vars: List[Var] = bind_vars
-        self.bind_values: List[Expr] = bind_values
-        self.body: Optional[Stmt] = body
+        assert body is not None
+        self.bind_vars: Tuple[Var, ...] = tuple(bind_vars)
+        self.bind_values: Tuple[Expr, ...] = tuple(convert(v) for v in bind_values)
+        self.body: Stmt = body
 
 
 class ForStmt(Stmt):
     DEFAULT_UNROLL_LIMIT = 32
 
-    def __init__(self, loop_var, extent, body=None, *, attr: Optional[ForStmtAttr] = None):
+    def __init__(self, loop_var, extent, body: Stmt, *, attr: Optional[ForStmtAttr] = None):
         from tilus.hidet.ir.tools import simplify  # pylint: disable=import-outside-toplevel
 
         super().__init__()
+        assert body is not None
         self.loop_var: Var = loop_var
         self.extent: Expr = simplify(convert(extent))
-        self.body: Optional[Stmt] = body
+        self.body: Stmt = body
         self.attr: ForStmtAttr = attr if attr else ForStmtAttr.from_extent(extent)
 
 
 class WhileStmt(Stmt):
     def __init__(self, cond: Expr, body: Stmt):
+        assert body is not None
         self.cond: Expr = cond
         self.body: Stmt = body
 
@@ -286,10 +288,11 @@ class ContinueStmt(Stmt):
 
 
 class IfStmt(Stmt):
-    def __init__(self, cond: Expr, then_body=None, else_body=None):
+    def __init__(self, cond: Expr, then_body: Stmt, else_body: Optional[Stmt] = None):
         super().__init__()
+        assert then_body is not None
         self.cond: Expr = convert(cond)
-        self.then_body: Optional[Stmt] = then_body
+        self.then_body: Stmt = then_body
         self.else_body: Optional[Stmt] = else_body
 
 
@@ -309,13 +312,13 @@ class AsmStmt(Stmt):
         is_volatile=False,
         memory_fence=False,
     ):
-        self.template_string = template_string
-        self.output_labels = [pr[0] for pr in outputs]
-        self.output_exprs = [pr[1] for pr in outputs]
-        self.input_labels = [pr[0] for pr in inputs]
-        self.input_exprs = [pr[1] for pr in inputs]
-        self.is_volatile = is_volatile
-        self.memory_fence = memory_fence
+        self.template_string: str = template_string
+        self.output_labels: Tuple[str, ...] = tuple(pr[0] for pr in outputs)
+        self.output_exprs: Tuple[Expr, ...] = tuple(pr[1] for pr in outputs)
+        self.input_labels: Tuple[str, ...] = tuple(pr[0] for pr in inputs)
+        self.input_exprs: Tuple[Expr, ...] = tuple(pr[1] for pr in inputs)
+        self.is_volatile: bool = is_volatile
+        self.memory_fence: bool = memory_fence
 
 
 class BlackBoxStmt(Stmt):

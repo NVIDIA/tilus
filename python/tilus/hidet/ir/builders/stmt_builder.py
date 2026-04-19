@@ -12,20 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-from typing import Generic, List, Optional, Sequence, TypeVar, Union, cast
+from dataclasses import dataclass
+from typing import Generic, List, Optional, Sequence, Tuple, TypeVar, Union, cast
 
-from tilus.hidet.ir.dtypes import int32
 from tilus.hidet.ir.expr import Expr, Var, convert, var
 from tilus.hidet.ir.stmt import (
     AssertStmt,
@@ -46,87 +35,96 @@ from tilus.hidet.ir.stmt import (
 )
 from tilus.hidet.ir.type import BaseType
 
-ScopedStmt = Union[IfStmt, ForStmt, LetStmt, WhileStmt]
+
+@dataclass
+class _Frame:
+    """An open scope in the builder. Inherit and implement :meth:`build`.
+
+    Subclasses either produce a final Stmt from the accumulated body, or participate
+    in an in-flight if/elif/else ladder handled directly by the StmtBuilder.
+    """
+
+    def build(self, body: Stmt) -> Stmt:
+        raise NotImplementedError
+
+
+@dataclass
+class _ForFrame(_Frame):
+    loop_var: Var
+    extent: Expr
+    attr: ForStmtAttr
+
+    def build(self, body: Stmt) -> ForStmt:
+        return ForStmt(self.loop_var, self.extent, body, attr=self.attr)
+
+
+@dataclass
+class _LetFrame(_Frame):
+    bind_vars: Tuple[Var, ...]
+    bind_values: Tuple[Expr, ...]
+
+    def build(self, body: Stmt) -> LetStmt:
+        return LetStmt(self.bind_vars, self.bind_values, body)
+
+
+@dataclass
+class _WhileFrame(_Frame):
+    cond: Expr
+
+    def build(self, body: Stmt) -> WhileStmt:
+        return WhileStmt(self.cond, body)
+
+
+@dataclass
+class _IfThenFrame(_Frame):
+    cond: Expr
+
+
+@dataclass
+class _ElseIfFrame(_Frame):
+    cond: Expr
+
+
+@dataclass
+class _OtherwiseFrame(_Frame):
+    pass
 
 
 class StmtScope:
-    def __init__(self, sb, stmts: Union[ScopedStmt, Sequence[ScopedStmt]], ret=None):
-        if not isinstance(stmts, Sequence):
-            stmts = [stmts]
+    """Context manager that opens one or more scopes on a :class:`StmtBuilder`."""
 
-        assert all(isinstance(stmt, (IfStmt, ForStmt, LetStmt, WhileStmt)) for stmt in stmts)
-
+    def __init__(self, sb: "StmtBuilder", frames: Sequence[_Frame], ret=None):
         self.sb: StmtBuilder = sb
-        self.stmts: List[ScopedStmt] = list(stmts)
+        self.frames: List[_Frame] = list(frames)
         self.ret = ret
 
     def __enter__(self):
-        for stmt in self.stmts:
-            self.sb.enter_body(stmt)
+        for frame in self.frames:
+            self.sb._enter_scope(frame)
         return self.ret
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        for _ in self.stmts:
-            self.sb.exit_body()
-
-
-class ElseIfScope:
-    def __init__(self, sb, stmt: IfStmt):
-        self.sb: StmtBuilder = sb
-        self.stmt: IfStmt = stmt
-
-    def __enter__(self):
-        if not isinstance(self.sb.scope_stack[-1][-1], IfStmt):
-            raise RuntimeError("else_if() must be called after if_then() or else_if()")
-
-        # put the current one into the scope stack
-        self.sb.scope_stack[-1].append(self.stmt)
-        self.sb.scope_stack.append([])
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # exit the then body of the current if statement
-        self.stmt.then_body = SeqStmt(self.sb.scope_stack.pop())
-        self.sb.scope_stack[-1].pop()
-
-        cur: IfStmt = self.sb.scope_stack[-1][-1]
-        while cur.else_body is not None:
-            if not isinstance(cur.else_body, IfStmt):
-                raise RuntimeError("else_if() must be called after if_then() or else_if()")
-            cur = cur.else_body
-
-        cur.else_body = self.stmt
-
-
-class OtherwiseScope:
-    def __init__(self, sb):
-        self.sb: StmtBuilder = sb
-
-    def __enter__(self):
-        if not isinstance(self.sb.scope_stack[-1][-1], IfStmt):
-            raise RuntimeError("otherwise() must be called after if_then() or else_if()")
-        self.sb.scope_stack.append([])
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        else_body = SeqStmt(self.sb.scope_stack.pop())
-        cur: IfStmt = self.sb.scope_stack[-1][-1]
-        while cur.else_body is not None:
-            if not isinstance(cur.else_body, IfStmt):
-                raise RuntimeError("otherwise() must be called after if_then() or else_if()")
-            cur = cur.else_body
-        cur.else_body = else_body
+        for _ in self.frames:
+            self.sb._exit_scope()
 
 
 class StmtBuilder:
+    """Build statements imperatively, but construct every IR node immutably bottom-up.
+
+    The builder maintains three parallel stacks, one entry per open scope:
+
+    - ``scope_stack[i]`` — completed sibling statements accumulated in scope ``i``.
+    - ``frame_stack[i-1]`` — description of the scope-opening statement (``_Frame``).
+      Has one fewer entry than ``scope_stack`` because the outermost scope has no frame.
+    - ``pending_if_stack[i]`` — in-flight if/elif ladder in scope ``i``. Held as an
+      ``IfStmt`` whose deepest ``else_body`` may still be ``None``; flushed when
+      any non-``else_if``/``otherwise`` stmt arrives or when the enclosing scope ends.
+    """
+
     def __init__(self):
-        # the structure of scope_stack:
-        # [
-        #    [...], # finished statements in outermost scope
-        #    [...], # finished statements in the second outermost scope
-        #    ...
-        #    [...], # finished statements in the innermost scope
-        # ]
-        # when we exit a scope, it will be wrapped into a statement and append to outer scope
-        self.scope_stack = [[]]
+        self.scope_stack: List[List[Stmt]] = [[]]
+        self.frame_stack: List[_Frame] = []
+        self.pending_if_stack: List[Optional[IfStmt]] = [None]
 
     def __iadd__(self, other: Union[Stmt, Expr, Sequence[Stmt]]):
         assert isinstance(other, (Stmt, Expr, list, tuple))
@@ -135,14 +133,13 @@ class StmtBuilder:
 
     @staticmethod
     def _name_index_vars(num_vars: int) -> List[str]:
-        predefined_names = ["i", "j", "k", "p", "q", "r", "s", "u", "v"]
-        if num_vars <= len(predefined_names):
-            iter_names = predefined_names[:num_vars]
-        else:
-            iter_names = [f"i{idx}" for idx in range(num_vars)]
-        return iter_names
+        predefined = ["i", "j", "k", "p", "q", "r", "s", "u", "v"]
+        if num_vars <= len(predefined):
+            return predefined[:num_vars]
+        return [f"i{idx}" for idx in range(num_vars)]
 
-    # singleton statements
+    # ---- singleton statements ----
+
     def declare(self, v: Var, init: Optional[Expr] = None, scope=None):
         self.append(DeclareStmt(v, init, scope=scope))
         return v
@@ -171,60 +168,63 @@ class StmtBuilder:
     def brk(self):
         self.append(BreakStmt())
 
-    # scope statements
+    def ret(self, value: Optional[Expr] = None):
+        self.append(ReturnStmt(value))
+
+    # ---- scope-opening statements ----
+
     def let(self, v: Union[str, Var], value: Union[int, Expr]) -> StmtScope:
         if isinstance(v, str):
             v = var(v)
-        return StmtScope(self, stmts=LetStmt(v, value), ret=v)
+        return StmtScope(self, frames=[_LetFrame((v,), (convert(value),))], ret=v)
 
     def lets(self, bind_vars: Sequence[Union[str, Var]], values: Sequence[Union[int, Expr]]) -> StmtScope:
         assert len(bind_vars) == len(values)
-        bind_vars = [var(v) if isinstance(v, str) else v for v in bind_vars]
-        bind_values = [convert(value) for value in values]
-        return StmtScope(self, stmts=LetStmt(bind_vars, bind_values, body=None), ret=bind_vars)
+        resolved_vars = tuple(var(v) if isinstance(v, str) else v for v in bind_vars)
+        resolved_values = tuple(convert(value) for value in values)
+        return StmtScope(self, frames=[_LetFrame(resolved_vars, resolved_values)], ret=list(resolved_vars))
 
     def for_loop(self, v: Union[str, Var], extent: Union[int, Expr], attr: str = ".") -> StmtScope:
         if isinstance(v, str):
             v = var(v)
-        return StmtScope(self, stmts=ForStmt(v, extent, attr=ForStmtAttr.parse(attr, num_loops=1)[0]), ret=v)
+        parsed_attr = ForStmtAttr.parse(attr, num_loops=1)[0]
+        return StmtScope(self, frames=[_ForFrame(v, convert(extent), parsed_attr)], ret=v)
 
     def if_then(self, cond: Union[bool, Expr]) -> StmtScope:
-        return StmtScope(self, stmts=IfStmt(cond), ret=None)
+        return StmtScope(self, frames=[_IfThenFrame(convert(cond))], ret=None)
 
-    def else_if(self, cond: Union[bool, Expr]) -> ElseIfScope:
-        return ElseIfScope(self, IfStmt(cond))
+    def else_if(self, cond: Union[bool, Expr]) -> StmtScope:
+        return StmtScope(self, frames=[_ElseIfFrame(convert(cond))], ret=None)
 
-    def otherwise(self) -> OtherwiseScope:
-        return OtherwiseScope(self)
+    def otherwise(self) -> StmtScope:
+        return StmtScope(self, frames=[_OtherwiseFrame()], ret=None)
 
     def for_grid(self, shape: Sequence[Union[Expr, int]]) -> StmtScope:
         iter_names = self._name_index_vars(len(shape))
         iter_vars = [var(name) for name in iter_names]
-        # Build nested ForStmt from outermost to innermost
-        stmts = []
-        for iv, extent in zip(iter_vars, shape):
-            stmts.append(ForStmt(iv, extent, attr=ForStmtAttr()))
-        return StmtScope(self, stmts=stmts, ret=iter_vars)
+        frames = [_ForFrame(iv, convert(extent), ForStmtAttr()) for iv, extent in zip(iter_vars, shape)]
+        return StmtScope(self, frames=frames, ret=iter_vars)
 
     def for_range(self, extent: Union[Expr, int], *, attr: Optional[Union[str, ForStmtAttr]] = None) -> StmtScope:
         iter_var = var("i")
         if isinstance(attr, str):
-            attr = ForStmtAttr.parse(attr, num_loops=1)[0]
+            attr_obj = ForStmtAttr.parse(attr, num_loops=1)[0]
+        elif isinstance(attr, ForStmtAttr):
+            attr_obj = attr
         else:
-            attr = ForStmtAttr()
-        return StmtScope(self, stmts=ForStmt(iter_var, extent, attr=attr), ret=iter_var)
+            attr_obj = ForStmtAttr()
+        return StmtScope(self, frames=[_ForFrame(iter_var, convert(extent), attr_obj)], ret=iter_var)
 
     def while_loop(self, cond: Expr) -> StmtScope:
-        return StmtScope(self, stmts=WhileStmt(cond, body=None), ret=None)
+        return StmtScope(self, frames=[_WhileFrame(convert(cond))], ret=None)
 
-    def ret(self, value: Optional[Expr] = None):
-        self.append(ReturnStmt(value))
+    # ---- core ----
 
-    # utils
     def append(self, stmt: Union[Stmt, Expr, Sequence[Stmt], None]) -> None:
         if stmt is None:
             return
         if isinstance(stmt, (Stmt, Expr)):
+            self._flush_pending_if()
             if isinstance(stmt, Expr):
                 stmt = EvaluateStmt(stmt)
             self.scope_stack[-1].append(stmt)
@@ -233,29 +233,52 @@ class StmtBuilder:
             for s in stmt:
                 self.append(s)
 
-    def enter_body(self, stmt: Union[IfStmt, ForStmt, LetStmt, WhileStmt]):
-        self.scope_stack[-1].append(stmt)
-        self.scope_stack.append([])
+    def _flush_pending_if(self) -> None:
+        pending = self.pending_if_stack[-1]
+        if pending is not None:
+            self.scope_stack[-1].append(pending)
+            self.pending_if_stack[-1] = None
 
-    def exit_body(self):
-        body = SeqStmt(self.scope_stack.pop())
-        assert len(self.scope_stack) > 0
-        last_stmt = self.scope_stack[-1][-1]
-        if isinstance(last_stmt, (ForStmt, LetStmt, WhileStmt)):
-            assert last_stmt.body is None
-            last_stmt.body = body
-        elif isinstance(last_stmt, IfStmt):
-            if last_stmt.then_body is None:
-                last_stmt.then_body = body
-            else:
-                assert last_stmt.else_body is None
-                last_stmt.else_body = body
+    def _enter_scope(self, frame: _Frame) -> None:
+        if isinstance(frame, (_ElseIfFrame, _OtherwiseFrame)):
+            if self.pending_if_stack[-1] is None:
+                raise RuntimeError(f"{type(frame).__name__[1:-5]}() must follow if_then() or else_if()")
         else:
-            assert False
+            self._flush_pending_if()
+        self.frame_stack.append(frame)
+        self.scope_stack.append([])
+        self.pending_if_stack.append(None)
 
-    def finish(self):
-        assert len(self.scope_stack) == 1
+    def _exit_scope(self) -> None:
+        self._flush_pending_if()
+        body = SeqStmt(self.scope_stack.pop())
+        self.pending_if_stack.pop()
+        frame = self.frame_stack.pop()
+        if isinstance(frame, _IfThenFrame):
+            self.pending_if_stack[-1] = IfStmt(frame.cond, body, None)
+        elif isinstance(frame, _ElseIfFrame):
+            prev = self.pending_if_stack[-1]
+            assert prev is not None  # enforced at _enter_scope
+            self.pending_if_stack[-1] = _attach_else(prev, IfStmt(frame.cond, body, None))
+        elif isinstance(frame, _OtherwiseFrame):
+            prev = self.pending_if_stack[-1]
+            assert prev is not None  # enforced at _enter_scope
+            self.pending_if_stack[-1] = _attach_else(prev, body)
+        else:
+            self.scope_stack[-1].append(frame.build(body))
+
+    def finish(self) -> SeqStmt:
+        self._flush_pending_if()
+        assert len(self.scope_stack) == 1 and not self.frame_stack, "finish() called with open scopes"
         return SeqStmt(self.scope_stack.pop())
+
+
+def _attach_else(prev_if: IfStmt, new_else: Stmt) -> IfStmt:
+    """Return a new IfStmt tree with ``new_else`` attached to the innermost ``None`` else slot."""
+    if prev_if.else_body is None:
+        return IfStmt(prev_if.cond, prev_if.then_body, new_else)
+    assert isinstance(prev_if.else_body, IfStmt), "otherwise() must be the last entry in an if-chain"
+    return IfStmt(prev_if.cond, prev_if.then_body, _attach_else(prev_if.else_body, new_else))
 
 
 T = TypeVar("T")
