@@ -96,7 +96,7 @@ class CUDAFloat16MathFunctionSet(MathFunctionSet):
             register_primitive_function(
                 name="cuda_f16_{}".format(name),
                 codegen_name=codegen_name,
-                func_or_type=FuncType(param_types=["float16"] * num_args, ret_type="float16"),
+                func_or_type=FuncType(param_types=[float16] * num_args, ret_type=float16),
             )
 
         self.register_via_delegate("min", float16, float32, min, 2)

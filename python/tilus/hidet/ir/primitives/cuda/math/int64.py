@@ -25,6 +25,7 @@
 # limitations under the License.
 from typing import Optional
 
+from tilus.hidet.ir.dtypes import int64
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import primitive_func_pool, register_primitive_function
 from tilus.hidet.ir.primitives.math import MathFunctionSet, register_math_function_set
@@ -40,7 +41,7 @@ class CUDAInt64MathFunctionSet(MathFunctionSet):
             register_primitive_function(
                 name="cuda_i64_{}".format(name),
                 codegen_name=codegen_name,
-                func_or_type=FuncType(param_types=["int64"] * num_args, ret_type="int64"),
+                func_or_type=FuncType(param_types=[int64] * num_args, ret_type=int64),
             )
 
     def call(self, name: str, *args) -> Expr:

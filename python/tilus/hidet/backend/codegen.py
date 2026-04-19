@@ -39,8 +39,10 @@ from tilus.hidet.ir.expr import (
     convert,
 )
 from tilus.hidet.ir.func import Function
+from tilus.hidet.ir.functors import ExprFunctor, ModuleFunctor, StmtFunctor, TypeFunctor
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.node import Node
+from tilus.hidet.ir.primitives import is_primitive_function, lookup_primitive_function
 from tilus.hidet.ir.stmt import (
     AsmStmt,
     AssertStmt,
@@ -61,6 +63,7 @@ from tilus.hidet.ir.stmt import (
     WhileStmt,
 )
 from tilus.hidet.ir.target import Target
+from tilus.hidet.ir.tools import TypeInfer
 from tilus.hidet.ir.type import (
     DataType,
     FuncType,
@@ -71,14 +74,6 @@ from tilus.hidet.ir.type import (
     TensorType,
     VoidType,
 )
-
-try:
-    from tilus.hidet.ir.compute import ScalarNode, TensorNode
-except ImportError:
-    TensorNode = ScalarNode = None
-from tilus.hidet.ir.functors import ExprFunctor, ModuleFunctor, StmtFunctor, TypeFunctor
-from tilus.hidet.ir.primitives import is_primitive_function, lookup_primitive_function
-from tilus.hidet.ir.tools import TypeInfer
 from tilus.hidet.ir.utils.call_graph import CallGraph
 from tilus.hidet.utils import prod
 from tilus.hidet.utils.doc import Doc, NewLine, Text, doc_join, doc_strip_parentheses
@@ -499,12 +494,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
                     f"functions in current module:\n{list(self.ir_module.functions.keys())}."
                 )
                 raise ValueError(msg)
-            if entry.generic:
-                msg = (
-                    "Please use resolve_generic_primitive_function pass to lower "
-                    "the generic primitive function {}.".format(entry.name)
-                )
-                raise ValueError(msg)
             # system-provided function, do not canonize the func name
             return entry.codegen_name + (Text("(") + doc_join([self(arg) for arg in e.args], Text(", ")) + ")")
         else:
@@ -781,12 +770,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
         return doc_join(t.modifiers, " ") + Text((" " if len(t.modifiers) > 0 else "") + f"{t.cpp_name}")
 
     # the following expressions should not remain to codegen
-    def visit_ScalarNode(self, e: ScalarNode):
-        raise ValueError()
-
-    def visit_TensorNode(self, e: TensorNode):
-        raise ValueError()
-
     def visit_PlaceholderExpr(self, e: PlaceholderExpr):
         raise ValueError()
 

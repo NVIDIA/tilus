@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Dict, Tuple
+from typing import Callable, Dict, Tuple
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.hidet.ir.dtypes import (
@@ -39,7 +39,7 @@ from tilus.hidet.ir.primitives.cuda.bfloat16 import mul_bf16x2
 from tilus.hidet.ir.primitives.cuda.half import fma_f16x2, mul_f16x2, sub_f16x2
 from tilus.hidet.ir.primitives.cuda.lop3 import lop3
 from tilus.hidet.ir.primitives.cuda.prmt import prmt
-from tilus.hidet.ir.type import BaseType, Callable, DataType, PointerType, TensorPointerType, TensorType
+from tilus.hidet.ir.type import BaseType, DataType, PointerType, TensorPointerType, TensorType
 from tilus.ir.instructions import CastInst
 from tilus.target import amdgpu_any, nvgpu_any
 from tilus.utils import cdiv

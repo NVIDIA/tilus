@@ -52,7 +52,7 @@ class CUDABFloat16MathFunctionSet(MathFunctionSet):
             register_primitive_function(
                 name="cuda_bf16_{}".format(name),
                 codegen_name=codegen_name,
-                func_or_type=FuncType(param_types=["bfloat16"] * num_args, ret_type="bfloat16"),
+                func_or_type=FuncType(param_types=[bfloat16] * num_args, ret_type=bfloat16),
             )
 
     def call(self, name: str, *args) -> Expr:

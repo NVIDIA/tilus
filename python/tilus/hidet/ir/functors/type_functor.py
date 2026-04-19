@@ -147,15 +147,12 @@ class TypeRewriter(TypeFunctor, BaseRewriter):
         return t
 
     def visit_FuncType(self, t: FuncType):
-        if t.type_infer_func is not None:
+        ret_type = self.visit(t.ret_type)
+        param_types = [self.visit(param_type) for param_type in t.param_types]
+        if ret_type == t.ret_type and same_list(param_types, t.param_types):
             return t
         else:
-            ret_type = self.visit(t.ret_type)
-            param_types = [self.visit(param_type) for param_type in t.param_types]
-            if ret_type == t.ret_type and same_list(param_types, t.param_types):
-                return t
-            else:
-                return FuncType(param_types, ret_type)
+            return FuncType(param_types, ret_type)
 
     def visit_OpaqueType(self, t: OpaqueType):
         return t

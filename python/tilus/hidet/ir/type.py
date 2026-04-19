@@ -26,7 +26,7 @@
 # pylint: disable=import-outside-toplevel
 from __future__ import annotations
 
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Any, List, Optional, Sequence, Tuple, Union
 
 from tilus.hidet.ir.node import Node
 
@@ -290,37 +290,12 @@ class TensorPointerType(BaseType):
         return TensorPointerType(tp)
 
 
-TypeLike = Union[str, BaseType]
-
-
 class FuncType(BaseType):
-    def __init__(
-        self,
-        param_types: Optional[List[TypeLike]] = None,
-        ret_type: Optional[TypeLike] = None,
-        type_infer_func: Optional[Callable] = None,  # Callable[[a number of BaseType], BaseType]
-    ):
-        self.param_types: Optional[List[BaseType]] = (
-            [self._convert_type(tp) for tp in param_types] if param_types is not None else None
-        )
-        self.ret_type: Optional[BaseType] = self._convert_type(ret_type) if ret_type is not None else None
-        self.type_infer_func: Optional[Callable[[List[BaseType]], BaseType]] = type_infer_func
-        msg = "Please provide either a static type or a type infer func"
-        assert not all(v is None for v in [ret_type, type_infer_func]), msg
-
-    def ret_type_on(self, arg_types: List[BaseType]) -> BaseType:
-        if self.ret_type is not None:
-            # todo: add type checking
-            assert isinstance(self.ret_type, BaseType)
-            return self.ret_type
-        else:
-            return self.type_infer_func(arg_types)
-
-    def _convert_type(self, tp: Union[str, BaseType]):
-        if isinstance(tp, str):
-            return data_type(tp)
-        else:
-            return tp
+    def __init__(self, param_types: List[BaseType], ret_type: BaseType):
+        assert isinstance(param_types, list) and all(isinstance(tp, BaseType) for tp in param_types)
+        assert isinstance(ret_type, BaseType)
+        self.param_types: List[BaseType] = param_types
+        self.ret_type: BaseType = ret_type
 
     @staticmethod
     def from_func(func):
@@ -440,8 +415,6 @@ def type_equal(lhs: BaseType, rhs: BaseType) -> bool:
         # do not check layout
         return True
     elif isinstance(lhs, FuncType) and isinstance(rhs, FuncType):
-        assert lhs.param_types is not None and lhs.ret_type is not None
-        assert rhs.param_types is not None and rhs.ret_type is not None
         if len(lhs.param_types) != len(rhs.param_types):
             return False
         if not type_equal(lhs.ret_type, rhs.ret_type):
