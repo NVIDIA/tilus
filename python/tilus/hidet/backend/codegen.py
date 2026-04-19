@@ -3,8 +3,6 @@
 import os
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-import numpy as np
-
 from tilus.hidet.ir import dtypes
 from tilus.hidet.ir.dialects.pattern import PlaceholderExpr
 from tilus.hidet.ir.dtypes import uint32x1, uint32x2, uint32x4
@@ -518,10 +516,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
             return Text('"{}"'.format(e.value))
         elif e.is_scalar():
             return self.scalar_literal(e.value, e.type)
-        elif e.is_tensor():
-            dtype = e.type.dtype
-            items = [self.scalar_literal(v, dtype) for v in np.array(e.value).flatten()]
-            return "{" + doc_join(items, ", ") + "}"
         elif isinstance(e.type, PointerType):
             return "(" + self(e.type) + ")" + str(int(e.value))
         else:

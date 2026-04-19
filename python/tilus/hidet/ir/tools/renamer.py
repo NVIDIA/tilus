@@ -75,5 +75,4 @@ def rename_funcs(ir_module: IRModule, rmap: Dict[str, str]) -> IRModule:
         else:
             global_vars[name] = var
 
-    ir_module.reset_funcs(functions=new_functions, global_vars=global_vars)
-    return ir_module
+    return ir_module.with_functions(functions=new_functions, global_vars=global_vars)

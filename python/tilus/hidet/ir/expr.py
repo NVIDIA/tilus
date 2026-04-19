@@ -31,8 +31,6 @@ import operator
 import string
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
-import numpy as np
-
 from tilus.hidet.ir.dtypes import IntegerType, boolean, int32, int64, promote_type, uint64
 
 from .dtypes import default_float_dtype, default_int_dtype
@@ -447,17 +445,14 @@ class Constant(Expr):
 
     def __init__(
         self,
-        value: Union[np.ndarray, float, int, complex, str],
-        const_type: Union[DataType, StringType, TensorType, PointerType],
+        value: Union[float, int, complex, str],
+        const_type: Union[DataType, StringType, PointerType],
     ):
-        self.value: Union[np.ndarray, float, int, complex, str] = value
-        self.type: Union[DataType, StringType, TensorType, PointerType] = const_type
+        self.value: Union[float, int, complex, str] = value
+        self.type: Union[DataType, StringType, PointerType] = const_type
 
     def is_scalar(self) -> bool:
         return isinstance(self.type, DataType)
-
-    def is_tensor(self) -> bool:
-        return isinstance(self.type, TensorType)
 
     def is_string(self) -> bool:
         return isinstance(self.type, StringType)
@@ -473,9 +468,6 @@ class Constant(Expr):
 
     def __complex__(self):
         return complex(self.value)
-
-    def array(self) -> np.ndarray:
-        return self.value
 
     # This speciallisation of Expr._binary is done for speedup purposes only
     # and fully equvivalent to Expr._binary by functionality
@@ -827,12 +819,6 @@ def call(func: Var, args: Sequence[Union[Expr, PyScalar]]) -> Call:
     return Call(func, args)
 
 
-def const_tensor(value: np.ndarray) -> Constant:
-    from tilus.hidet.ir.utils.type_utils import from_numpy_dtype
-
-    return constant(value=value, const_type=tensor_type(dtype=from_numpy_dtype(value.dtype), shape=list(value.shape)))
-
-
 def tensor_pointer_var(hint: str, shape, dtype: Union[str, DataType] = "float32"):
     return Var(hint, tensor_pointer_type(dtype=dtype, shape=shape))
 
@@ -880,8 +866,6 @@ def constant(value, const_type: Union[str, BaseType]) -> Constant:
             value = tuple(value)
         else:
             raise ValueError(f"Invalid data const_type {const_type}")
-    elif isinstance(const_type, TensorType):
-        value = np.array(value)
     elif isinstance(const_type, PointerType):
         value = int(value)
     elif isinstance(const_type, StringType):

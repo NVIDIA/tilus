@@ -152,8 +152,7 @@ class FlattenTensorIndexPass(Pass):
 
         if all(new_funcs[name] is ir_module.functions[name] for name in new_funcs):
             return ir_module
-        else:
-            return ir_module.copy().reset_funcs(new_funcs, ir_module.global_vars)
+        return ir_module.with_functions(new_funcs, ir_module.global_vars)
 
 
 def flatten_tensor_index_pass():
