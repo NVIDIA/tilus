@@ -1,0 +1,1499 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tilus.lang.instructions.atomic &#8212; tilus  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/custom.css?v=38aa6179" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/tilus/lang/instructions/atomic';</script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">tilus  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started/install.html">Installation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-ampere/__init__.html">Matmul (Ampere)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v0.html">0. Naive Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v1.html">1. Use Shared Memory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v2.html">2. Auto-tuning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v3.html">3. Async Copy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v4.html">4. Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v4.html">4. Tile Rasterization and Pipeline Abstraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v5.html">5. CLC Persistent Kernel and Pipelined Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v6.html">6. 2-CTA Cluster</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Programming Guides</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/overview.html">1. Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/tilus-script.html">2. Tilus Script</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../programming-guides/type-system/__init__.html">3. Type System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/data-types.html">3.1. Data Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/pointer-types.html">3.2. Pointer Types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/register-tensor.html">3.3. Register Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/shared-tensor.html">3.4. Shared Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/tmemory-tensor.html">3.5. Tensor Memory Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/type-system/global-tensor.html">3.6. Global Tensor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/instructions.html">4. Instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/control-flow.html">5. Control Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/thread-group.html">6. Thread Group</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/cache.html">7. Cache</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../programming-guides/autotuning.html">8. Autotuning</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../programming-guides/layout-system/__init__.html">9. Layout System</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/layout-system/global-layout.html">9.1. Global Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/layout-system/shared-layout.html">9.2. Shared Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/layout-system/register-layout.html">9.3. Register Layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../programming-guides/layout-system/layout-inference.html">9.4. Automatic Layout Inference</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Live Demos</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://nvidia.github.io/tilus/latest/_static/layout-demo/index.html">Layout Demo</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Python API</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus.html">tilus</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.autotune.html">tilus.autotune</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus-option.html">tilus.option</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.option.cache_dir.html">tilus.option.cache_dir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.option.parallel_workers.html">tilus.option.parallel_workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.option.debug.dump_ir.html">tilus.option.debug.dump_ir</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.option.debug.disable_ptxas_opt.html">tilus.option.debug.disable_ptxas_opt</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus-target.html">tilus.target</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.target.get_current_target.html">tilus.target.get_current_target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.target.set_current_target.html">tilus.target.set_current_target</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus-script.html">tilus.Script</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.blockIdx.html">Script.blockIdx</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.gridDim.html">Script.gridDim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.current_num_threads.html">Script.current_num_threads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.current_thread_begin.html">Script.current_thread_begin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.current_thread_end.html">Script.current_thread_end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.assume.html">Script.assume</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.range.html">Script.range</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.single_thread.html">Script.single_thread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.single_warp.html">Script.single_warp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.static_assert.html">Script.static_assert</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.thread_group.html">Script.thread_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.warp_group.html">Script.warp_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.abs.html">Script.abs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.add.html">Script.add</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.all.html">Script.all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.annotate_layout.html">Script.annotate_layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.any.html">Script.any</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.assign.html">Script.assign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.cast.html">Script.cast</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.clip.html">Script.clip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.cos.html">Script.cos</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async.html">Script.copy_async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.dot.html">Script.dot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.exp.html">Script.exp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.exp2.html">Script.exp2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.fast_divmod.html">Script.fast_divmod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.flatten.html">Script.flatten</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.free_shared.html">Script.free_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.global_tensor.html">Script.global_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.global_view.html">Script.global_view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.load_global.html">Script.load_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.load_shared.html">Script.load_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.lock_semaphore.html">Script.lock_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.log.html">Script.log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.max.html">Script.max</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.maximum.html">Script.maximum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.min.html">Script.min</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.print_tensor.html">Script.print_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.printf.html">Script.printf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.rand.html">Script.rand</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.randint.html">Script.randint</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.randint4x.html">Script.randint4x</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.randn.html">Script.randn</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.register_tensor.html">Script.register_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.release_semaphore.html">Script.release_semaphore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.repeat.html">Script.repeat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.repeat_interleave.html">Script.repeat_interleave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.round.html">Script.round</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.sin.html">Script.sin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.square.html">Script.square</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.squeeze.html">Script.squeeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.store_global.html">Script.store_global</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.store_global_scatter.html">Script.store_global_scatter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.store_shared.html">Script.store_shared</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.store_shared_scatter.html">Script.store_shared_scatter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.sum.html">Script.sum</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.sync.html">Script.sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.transpose.html">Script.transpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.unsqueeze.html">Script.unsqueeze</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.view.html">Script.view</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/generated/tilus.Script.where.html">Script.where</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/mbarrier.html">Script.mbarrier</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.alloc.html">Script.mbarrier.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive.html">Script.mbarrier.arrive</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx.html">Script.mbarrier.arrive_and_expect_tx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_multicast.html">Script.mbarrier.arrive_and_expect_tx_multicast</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html">Script.mbarrier.arrive_and_expect_tx_remote</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.wait.html">Script.mbarrier.wait</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.producer_initial_phase.html">Script.mbarrier.producer_initial_phase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.consumer_initial_phase.html">Script.mbarrier.consumer_initial_phase</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/fence.html">Script.fence</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html">Script.fence.proxy_async</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html">Script.fence.proxy_async_release</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/tma.html">Script.tma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html">Script.tma.global_to_shared</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html">Script.tma.shared_to_global</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html">Script.tma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html">Script.tma.wait_group</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/tcgen05.html">Script.tcgen05</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html">Script.tcgen05.alloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html">Script.tcgen05.dealloc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.slice.html">Script.tcgen05.slice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html">Script.tcgen05.view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html">Script.tcgen05.relinquish_alloc_permit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html">Script.tcgen05.load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html">Script.tcgen05.store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html">Script.tcgen05.wait_load</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html">Script.tcgen05.wait_store</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html">Script.tcgen05.commit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html">Script.tcgen05.copy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.mma.html">Script.tcgen05.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/clc.html">Script.clc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.try_cancel.html">Script.clc.try_cancel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.clc.ClusterLaunchControlInstructionGroup.query_response.html">Script.clc.query_response</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/cluster.html">Script.cluster</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html">Script.cluster.sync</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html">Script.cluster.map_shared_addr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockIdx.html">Script.cluster.blockIdx</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.blockRank.html">Script.cluster.blockRank</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.clusterDim.html">Script.cluster.clusterDim</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/wgmma.html">Script.wgmma</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html">Script.wgmma.fence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html">Script.wgmma.commit_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html">Script.wgmma.wait_group</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html">Script.wgmma.mma</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/instruction-groups/atomic.html">Script.atomic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_add.html">Script.atomic.shared_add</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_sub.html">Script.atomic.shared_sub</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_min.html">Script.atomic.shared_min</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_max.html">Script.atomic.shared_max</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_exch.html">Script.atomic.shared_exch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_cas.html">Script.atomic.shared_cas</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_add.html">Script.atomic.global_add</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_sub.html">Script.atomic.global_sub</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_min.html">Script.atomic.global_min</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_max.html">Script.atomic.global_max</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_exch.html">Script.atomic.global_exch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_cas.html">Script.atomic.global_cas</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_add.html">Script.atomic.shared_scatter_add</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_sub.html">Script.atomic.shared_scatter_sub</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_min.html">Script.atomic.shared_scatter_min</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_max.html">Script.atomic.shared_scatter_max</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_add.html">Script.atomic.global_scatter_add</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_sub.html">Script.atomic.global_scatter_sub</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_min.html">Script.atomic.global_scatter_min</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_max.html">Script.atomic.global_scatter_max</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/attrs.html">Script.attrs</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/generated/tilus.lang.script.Attributes.blocks.html">Script.attrs.blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/generated/tilus.lang.script.Attributes.cluster_blocks.html">Script.attrs.cluster_blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/generated/tilus.lang.script.Attributes.warps.html">Script.attrs.warps</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../python-api/tilus-class.html">tilus.Class</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../python-api/tilus-ir/__index__.html">tilus.ir</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/datatype.html">tilus.ir.DataType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/pointer.html">tilus.ir.PointerType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/tensor.html">tilus.ir.Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/register_tensor.html">tilus.ir.RegisterTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/shared_tensor.html">tilus.ir.SharedTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/tmemory_tensor.html">tilus.ir.TMemoryTensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../python-api/tilus-ir/global_tensor.html">tilus.ir.GlobalTensor</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/tilus-ir/register_layout.html">tilus.ir.RegisterLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html">tilus.ir.layout.ops.auto_local_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_local.html">tilus.ir.layout.ops.column_local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_spatial.html">tilus.ir.layout.ops.column_spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.compose.html">tilus.ir.layout.ops.compose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.concat.html">tilus.ir.layout.ops.concat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.divide.html">tilus.ir.layout.ops.divide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.flatten.html">tilus.ir.layout.ops.flatten</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.local.html">tilus.ir.layout.ops.local</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.permute.html">tilus.ir.layout.ops.permute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reduce.html">tilus.ir.layout.ops.reduce</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.register_layout.html">tilus.ir.layout.ops.register_layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reshape.html">tilus.ir.layout.ops.reshape</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.spatial.html">tilus.ir.layout.ops.spatial</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.squeeze.html">tilus.ir.layout.ops.squeeze</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.unsqueeze.html">tilus.ir.layout.ops.unsqueeze</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/tilus-ir/shared_layout.html">tilus.ir.SharedLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_row_major.html">tilus.ir.layout.ops.shared_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_column_major.html">tilus.ir.layout.ops.shared_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_compose.html">tilus.ir.layout.ops.shared_compose</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../python-api/tilus-ir/global_layout.html">tilus.ir.GlobalLayout</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_row_major.html">tilus.ir.layout.global_row_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_column_major.html">tilus.ir.layout.global_column_major</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_strides.html">tilus.ir.layout.global_strides</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_compose.html">tilus.ir.layout.global_compose</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item"><script>
+(function() {
+  var pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  var baseUrl = '';
+  var currentVersion = '';
+  var relPageParts = [];
+
+  if (pathParts.length >= 2) {
+    baseUrl = '/' + pathParts[0];
+    currentVersion = pathParts[1];
+    relPageParts = pathParts.slice(2);
+  }
+
+  fetch(baseUrl + '/versions.json')
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('not found');
+      return resp.json();
+    })
+    .then(function(versions) {
+      var headerButtons = document.querySelector('.article-header-buttons');
+      if (!headerButtons) return;
+
+      headerButtons.style.display = 'flex';
+      headerButtons.style.alignItems = 'center';
+
+      var select = document.createElement('select');
+      select.title = 'Switch version';
+      select.style.cssText = 'padding: 0.15rem 0.4rem; border-radius: 4px; border: 1px solid var(--pst-color-border); background: var(--pst-color-background); color: var(--pst-color-text-base); font-size: var(--pst-sidebar-font-size); cursor: pointer; appearance: auto; margin-right: 0.5rem; height: 2.25em;';
+
+      versions.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.slug;
+        opt.textContent = v.label;
+        if (v.slug === currentVersion) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      select.addEventListener('change', function() {
+        var relPage = relPageParts.join('/') || 'index.html';
+        window.location.href = baseUrl + '/' + select.value + '/' + relPage;
+      });
+
+      headerButtons.insertBefore(select, headerButtons.firstChild);
+    })
+    .catch(function() {});
+})();
+</script></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/NVIDIA/tilus" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="Source repository"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1></h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for tilus.lang.instructions.atomic</h1><div class="highlight"><pre>
+<span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
+<span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="sd">&quot;&quot;&quot;User-facing atomic tile operations exposed as ``self.atomic.*``.</span>
+
+<span class="sd">See :doc:`/python-api/instruction-groups/atomic` for a detailed guide on the</span>
+<span class="sd">element-wise vs. scatter forms and the ``sem`` / ``scope`` semantics.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.tensor</span><span class="w"> </span><span class="kn">import</span> <span class="n">GlobalTensor</span><span class="p">,</span> <span class="n">RegisterTensor</span><span class="p">,</span> <span class="n">SharedTensor</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">InstructionGroup</span>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/atomic.html#tilus.lang.instructions.atomic.AtomicInstructionGroup">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AtomicInstructionGroup</span><span class="p">(</span><span class="n">InstructionGroup</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tile-level atomic read-modify-write instructions.</span>
+
+<span class="sd">    Two flavours are offered. The **element-wise** form (:meth:`shared_add` and</span>
+<span class="sd">    friends) operates tile-to-tile: each lane contributes its own element of a</span>
+<span class="sd">    register tile into the matching element of a shared or global tile, under</span>
+<span class="sd">    the requested PTX ``atom.*`` operation. The **scatter** form</span>
+<span class="sd">    (:meth:`shared_scatter_add` and friends) follows ``torch.scatter_add_``</span>
+<span class="sd">    semantics --- a compile-time ``dim`` axis plus a per-lane ``indices`` tile</span>
+<span class="sd">    picks the destination offset; the non-scatter axes come from the tile&#39;s</span>
+<span class="sd">    global position.</span>
+
+<span class="sd">    The full element-wise family is ``add`` / ``sub`` / ``min`` / ``max`` /</span>
+<span class="sd">    ``exch`` / ``cas``. The scatter family drops ``exch`` and ``cas`` (their</span>
+<span class="sd">    semantics under duplicate indices are unclear) and keeps just ``add`` /</span>
+<span class="sd">    ``sub`` / ``min`` / ``max``.</span>
+
+<span class="sd">    All methods accept two optional PTX qualifiers:</span>
+
+<span class="sd">    - ``sem``: the memory-ordering qualifier. Candidates: ``&#39;relaxed&#39;``,</span>
+<span class="sd">      ``&#39;acquire&#39;``, ``&#39;release&#39;``, ``&#39;acq_rel&#39;``. Defaults to ``&#39;relaxed&#39;``.</span>
+<span class="sd">    - ``scope``: the sync-scope qualifier. Candidates: ``&#39;cta&#39;``, ``&#39;cluster&#39;``,</span>
+<span class="sd">      ``&#39;gpu&#39;``, ``&#39;sys&#39;``. Defaults to ``&#39;cta&#39;`` on shared ops and ``&#39;gpu&#39;``</span>
+<span class="sd">      on global ops.</span>
+
+<span class="sd">    And an optional ``output`` register tensor that receives the per-element</span>
+<span class="sd">    **pre-RMW** value at each target location. When no downstream code uses the</span>
+<span class="sd">    returned register, the dead-code-elimination pass rewrites the instruction</span>
+<span class="sd">    to carry ``output=None`` and codegen lowers to the destination-less</span>
+<span class="sd">    ``red.*`` PTX form --- so the return value is free when unused.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    :meth:`tilus.Script.store_shared_scatter` / :meth:`tilus.Script.store_global_scatter`</span>
+<span class="sd">        Non-atomic scatter stores that share the same ``indices`` / ``values``</span>
+<span class="sd">        contract. Use them when the scatter is guaranteed collision-free.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Element-wise atomics (shared)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="AtomicInstructionGroup.shared_add">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_add.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_add">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_add</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = dst[i] + values[i]`` atomically, on shared memory.</span>
+
+<span class="sd">        ``dst.shape`` and ``values.shape`` must be equal, and each lane contributes</span>
+<span class="sd">        its own slice of ``values`` to the matching slice of ``dst`` with no</span>
+<span class="sd">        broadcast or reduction.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        dst: SharedTensor</span>
+<span class="sd">            Destination tile in shared memory.</span>
+<span class="sd">        values: RegisterTensor</span>
+<span class="sd">            Per-lane contribution; same shape as ``dst``.</span>
+<span class="sd">        sem: str</span>
+<span class="sd">            PTX memory-ordering qualifier. Candidates: ``&#39;relaxed&#39;``, ``&#39;acquire&#39;``,</span>
+<span class="sd">            ``&#39;release&#39;``, ``&#39;acq_rel&#39;``.</span>
+<span class="sd">        scope: str</span>
+<span class="sd">            PTX sync scope. Candidates: ``&#39;cta&#39;``, ``&#39;cluster&#39;``, ``&#39;gpu&#39;``,</span>
+<span class="sd">            ``&#39;sys&#39;``.</span>
+<span class="sd">        output: RegisterTensor, optional</span>
+<span class="sd">            If provided, the per-element pre-RMW value at each location is written</span>
+<span class="sd">            into this register tile (same shape as ``dst``).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        RegisterTensor or None</span>
+<span class="sd">            The pre-RMW register tile when ``output`` is consumed downstream; ``None``</span>
+<span class="sd">            when unused (the DCE pass rewrites the instruction to the cheaper</span>
+<span class="sd">            ``red.*`` form in that case).</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.add.s32`` (or ``red.*`` when the</span>
+<span class="sd">          output is unused).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.shared_sub">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_sub.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_sub">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_sub</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = dst[i] - values[i]`` atomically, on shared memory.</span>
+
+<span class="sd">        PTX has no native ``atom.sub``; the codegen lowers this to ``atom.add``</span>
+<span class="sd">        with the negated operand. See :meth:`shared_add` for the full parameter</span>
+<span class="sd">        description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.add.s32`` with a negated input.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;sub&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.shared_min">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_min.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_min">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_min</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = min(dst[i], values[i])`` atomically, on shared memory.</span>
+
+<span class="sd">        See :meth:`shared_add` for the full parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.min.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.shared_max">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_max.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_max">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_max</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = max(dst[i], values[i])`` atomically, on shared memory.</span>
+
+<span class="sd">        See :meth:`shared_add` for the full parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.max.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.shared_exch">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_exch.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_exch">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_exch</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``old = dst[i]; dst[i] = values[i]`` atomically (exchange).</span>
+
+<span class="sd">        Unlike the arithmetic ops, ``exch`` has no ``red.*`` counterpart in PTX,</span>
+<span class="sd">        so ``output`` is effectively always bound. Callers that don&#39;t need the</span>
+<span class="sd">        old value should prefer a plain store.</span>
+
+<span class="sd">        See :meth:`shared_add` for the full parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.exch.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;exch&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.shared_cas">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_cas.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_cas">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_cas</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">compare</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise compare-and-swap on shared memory.</span>
+
+<span class="sd">        Per element: ``old = dst[i]; if (old == compare[i]) dst[i] = values[i]``,</span>
+<span class="sd">        atomically. The returned ``output`` (if bound) holds ``old``, which the</span>
+<span class="sd">        caller typically inspects to decide whether the swap succeeded.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        dst: SharedTensor</span>
+<span class="sd">            Destination tile in shared memory.</span>
+<span class="sd">        compare: RegisterTensor</span>
+<span class="sd">            Expected-old-value tile; same shape and dtype as ``dst``.</span>
+<span class="sd">        values: RegisterTensor</span>
+<span class="sd">            Tile of replacement values; same shape and dtype as ``dst``.</span>
+<span class="sd">        sem, scope, output</span>
+<span class="sd">            See :meth:`shared_add`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        RegisterTensor or None</span>
+<span class="sd">            Pre-CAS value at each element when ``output`` is consumed; ``None``</span>
+<span class="sd">            otherwise. Note that, unlike the arithmetic ops, CAS has no ``red.*``</span>
+<span class="sd">            form, so an unused output still costs a register allocation at the</span>
+<span class="sd">            PTX level.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.cas.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;cas&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+            <span class="n">compare</span><span class="o">=</span><span class="n">compare</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Element-wise atomics (global)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="AtomicInstructionGroup.global_add">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_add.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.global_add">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">global_add</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = dst[i] + values[i]`` atomically, on global memory.</span>
+
+<span class="sd">        See :meth:`shared_add` for the full parameter description; the only</span>
+<span class="sd">        difference is that ``dst`` is a :class:`~tilus.ir.GlobalTensor` and the</span>
+<span class="sd">        default scope is ``&#39;gpu&#39;`` rather than ``&#39;cta&#39;``.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.add.s32`` (or ``red.*`` when the</span>
+<span class="sd">          output is unused).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.global_sub">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_sub.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.global_sub">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">global_sub</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = dst[i] - values[i]`` atomically, on global memory.</span>
+
+<span class="sd">        Lowered to ``atom.add`` with a negated operand; see :meth:`global_add`.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.add.s32`` with a negated input.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;sub&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.global_min">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_min.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.global_min">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">global_min</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = min(dst[i], values[i])`` atomically, on global memory.</span>
+
+<span class="sd">        See :meth:`global_add` for the full parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.min.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.global_max">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_max.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.global_max">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">global_max</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = max(dst[i], values[i])`` atomically, on global memory.</span>
+
+<span class="sd">        See :meth:`global_add` for the full parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.max.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.global_exch">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_exch.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.global_exch">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">global_exch</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise atomic exchange on global memory.</span>
+
+<span class="sd">        ``old = dst[i]; dst[i] = values[i]``. See :meth:`shared_exch` for the</span>
+<span class="sd">        caveat about ``exch`` having no ``red.*`` counterpart.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.exch.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;exch&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.global_cas">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_cas.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.global_cas">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">global_cas</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="n">compare</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise compare-and-swap on global memory.</span>
+
+<span class="sd">        Per element: ``old = dst[i]; if (old == compare[i]) dst[i] = values[i]``.</span>
+<span class="sd">        See :meth:`shared_cas` for the full parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.cas.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;cas&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+            <span class="n">compare</span><span class="o">=</span><span class="n">compare</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Scatter atomics (shared)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="AtomicInstructionGroup.shared_scatter_add">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_add.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_add">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_scatter_add</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-add into a shared tile along ``dim``.</span>
+
+<span class="sd">        For each tile element *k*, performs</span>
+<span class="sd">        ``dst[..., indices[k], ...] = dst[..., indices[k], ...] + values[k]``</span>
+<span class="sd">        atomically, where ``indices`` picks positions along ``dim`` and the</span>
+<span class="sd">        non-scatter axes come from the lane&#39;s own tile position.</span>
+
+<span class="sd">        ``indices.shape == values.shape`` strictly (identical RegisterLayout);</span>
+<span class="sd">        ``dst``&#39;s non-``dim`` axes must match ``indices`` exactly. Out-of-range</span>
+<span class="sd">        index values are undefined --- there is no runtime bounds check.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        dst: SharedTensor</span>
+<span class="sd">            Destination tile in shared memory.</span>
+<span class="sd">        dim: int</span>
+<span class="sd">            Compile-time scatter axis into ``dst``.</span>
+<span class="sd">        indices: RegisterTensor</span>
+<span class="sd">            Per-lane integer indices along ``dim``.</span>
+<span class="sd">        values: RegisterTensor</span>
+<span class="sd">            Per-lane contributions; same shape and layout as ``indices``.</span>
+<span class="sd">        sem: str</span>
+<span class="sd">            PTX memory-ordering qualifier. See :class:`AtomicInstructionGroup`</span>
+<span class="sd">            for the accepted values.</span>
+<span class="sd">        scope: str</span>
+<span class="sd">            PTX sync scope. See :class:`AtomicInstructionGroup`.</span>
+<span class="sd">        output: RegisterTensor, optional</span>
+<span class="sd">            If provided, receives the per-element pre-RMW value at each</span>
+<span class="sd">            scattered location (same shape as ``indices``).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        RegisterTensor or None</span>
+<span class="sd">            Pre-RMW values when ``output`` is consumed downstream; ``None``</span>
+<span class="sd">            when unused (the DCE pass rewrites the instruction to the cheaper</span>
+<span class="sd">            ``red.*`` form).</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.add.s32`` (or ``red.*`` when the</span>
+<span class="sd">          output is unused).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared_scatter</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.shared_scatter_sub">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_sub.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_sub">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_scatter_sub</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-sub into a shared tile along ``dim``; lowered to ``atom.add`` with a negated value.</span>
+
+<span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.add.s32`` with a negated input.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared_scatter</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;sub&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.shared_scatter_min">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_min.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_min">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_scatter_min</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-min into a shared tile along ``dim``.</span>
+
+<span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.min.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared_scatter</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.shared_scatter_max">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_max.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.shared_scatter_max">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_scatter_max</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-max into a shared tile along ``dim``.</span>
+
+<span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.max.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared_scatter</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Scatter atomics (global)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="AtomicInstructionGroup.global_scatter_add">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_add.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_add">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">global_scatter_add</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-add into a global tile along ``dim``.</span>
+
+<span class="sd">        Same contract as :meth:`shared_scatter_add` but the destination is a</span>
+<span class="sd">        :class:`~tilus.ir.GlobalTensor` and the default scope is ``&#39;gpu&#39;``.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.add.s32`` (or ``red.*`` when the</span>
+<span class="sd">          output is unused).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global_scatter</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.global_scatter_sub">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_sub.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_sub">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">global_scatter_sub</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-sub into a global tile along ``dim``; lowered to ``atom.add`` with a negated value.</span>
+
+<span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.add.s32`` with a negated input.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global_scatter</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;sub&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.global_scatter_min">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_min.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_min">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">global_scatter_min</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-min into a global tile along ``dim``.</span>
+
+<span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.min.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global_scatter</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomicInstructionGroup.global_scatter_max">
+<a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_max.html#tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_max">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">global_scatter_max</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-max into a global tile along ``dim``.</span>
+
+<span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
+<span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
+<span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.max.s32``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global_scatter</span><span class="p">(</span>
+            <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
+            <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By NVIDIA
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025-2026, NVIDIA.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

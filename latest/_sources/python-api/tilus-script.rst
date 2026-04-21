@@ -106,7 +106,9 @@ Instructions
    square
    squeeze
    store_global
+   store_global_scatter
    store_shared
+   store_shared_scatter
    sum
    sync
    transpose
@@ -128,6 +130,7 @@ Instruction Groups
    instruction-groups/clc
    instruction-groups/cluster
    instruction-groups/wgmma
+   instruction-groups/atomic
 
 .. list-table::
    :widths: 20 80
@@ -146,6 +149,8 @@ Instruction Groups
      - Block cluster synchronization and shared memory access.
    * - :doc:`wgmma <instruction-groups/wgmma>`
      - Warp Group Matrix Multiply-Accumulate (Hopper) instructions.
+   * - :doc:`atomic <instruction-groups/atomic>`
+     - Tile-level atomic RMW (element-wise and scatter) on shared and global memory.
 
 
 Script Attributes
