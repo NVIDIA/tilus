@@ -12,29 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import (
-    allocate_shared,
-    assign,
-    atomic,
-    cp_async,
-    elementwise_binary,
-    elementwise_unary,
-    empty_rule,
-    ldst_global,
-    load_shared,
-    mbarrier,
-    mma_dot,
-    philox,
-    reduce,
-    reshape_shared,
-    scan,
-    scatter,
-    slice_register,
-    store_shared,
-    tcgen05,
-    transform,
-    transform_shared,
-    transpose,
-    wgmma,
-    where,
-)
+from tilus.ir.instructions import ScanInst
+from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
+
+
+@register_rule(ScanInst)
+class ScanRule(LayoutValidationRule):
+    @staticmethod
+    def validate(inst: ScanInst) -> bool:
+        """Input and output must share a single register layout (scan preserves shape + layout)."""
+        return inst.register_input.layout == inst.register_output.layout

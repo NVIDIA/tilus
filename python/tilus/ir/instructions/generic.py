@@ -516,6 +516,50 @@ class ReduceInst(Instruction):
         return ReduceInst(output=output, inputs=(x,), dim=dim, keepdim=keepdim, op=op)
 
 
+# Scan opcodes. `add`/`mul`/`max`/`min` accept any numeric dtype; the bitwise
+# variants (`and`/`or`/`xor`) require an integer dtype.
+SCAN_OPS: tuple[str, ...] = ("add", "mul", "max", "min", "and", "or", "xor")
+SCAN_BITWISE_OPS: tuple[str, ...] = ("and", "or", "xor")
+
+
+@dataclass(frozen=True, eq=False)
+class ScanInst(Instruction):
+    """Tile-level prefix scan along a single axis.
+
+    Output shape == input shape (no dim collapse, unlike reduce). The scan is
+    performed independently for each non-``dim`` coordinate; along ``dim`` the
+    result at position ``i`` is the ⊕-combination of input positions
+    ``0..i`` (inclusive) or ``0..i-1`` (exclusive), with the op's identity at
+    the boundary.
+    """
+
+    dim: int
+    op: str
+    exclusive: bool
+    VALID_OPS: ClassVar[tuple[str, ...]] = SCAN_OPS
+
+    @staticmethod
+    def create(
+        x: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        exclusive: bool,
+        output: RegisterTensor,
+    ) -> ScanInst:
+        if op not in SCAN_OPS:
+            raise InstructionError(f"scan op must be one of {SCAN_OPS}, got {op!r}")
+        if not (0 <= dim < len(x.shape)):
+            raise InstructionError(f"scan dim {dim} out of range for rank-{len(x.shape)} input")
+        if tuple(x.shape) != tuple(output.shape):
+            raise InstructionError(f"scan: input shape {list(x.shape)} != output shape {list(output.shape)}")
+        if x.dtype != output.dtype:
+            raise InstructionError(f"scan: input dtype {x.dtype.name} != output dtype {output.dtype.name}")
+        if op in SCAN_BITWISE_OPS and not x.dtype.is_integer():
+            raise InstructionError(f"scan op {op!r} requires an integer dtype, got {x.dtype.name}")
+        return ScanInst(output=output, inputs=(x,), dim=dim, op=op, exclusive=exclusive)
+
+
 @dataclass(frozen=True, eq=False)
 class ViewInst(Instruction):
     local_offset: Expr

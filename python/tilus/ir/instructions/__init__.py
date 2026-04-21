@@ -66,6 +66,7 @@ from .generic import (
     RepeatInst,
     RepeatInterleaveInst,
     ReshapeSharedInst,
+    ScanInst,
     ShuffleDownInst,
     ShuffleUpInst,
     SliceAssignInst,
