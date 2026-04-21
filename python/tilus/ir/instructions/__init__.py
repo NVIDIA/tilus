@@ -14,6 +14,12 @@
 # limitations under the License.
 from tilus.ir.inst import Instruction
 
+from .cuda.atomic import (
+    AtomicGlobalInst,
+    AtomicScatterGlobalInst,
+    AtomicScatterSharedInst,
+    AtomicSharedInst,
+)
 from .cuda.cluster_sync import ClusterSyncThreadsInst
 from .cuda.cp_async import (
     CopyAsyncCommitGroupInst,
@@ -69,7 +75,9 @@ from .generic import (
     SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
+    StoreGlobalScatterInst,
     StoreSharedInst,
+    StoreSharedScatterInst,
     SubInst,
     SyncReduceThreadsInst,
     SyncThreadsInst,

@@ -86,3 +86,7 @@ Call `tilus.option.debug.dump_ir()` before running the kernel. The IR after each
 ## Testing After Refactors
 
 After a large refactor, first run `tests/kernels/matmul/test_matmul_v2.py` as a smoke test before running the full suite — the full suite is slow. Fix any matmul_v2 failures first, then expand to more tests.
+
+## Before Committing
+
+Run `pre-commit run --all` to apply the project's linters/formatters and fix any pre-commit issues before creating the commit. Re-stage any files the hooks modify, then commit.

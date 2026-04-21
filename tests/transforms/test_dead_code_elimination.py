@@ -20,17 +20,26 @@ from tilus.hidet.ir.expr import Var, as_expr
 from tilus.hidet.ir.primitives.cuda.vars import blockIdx
 from tilus.hidet.ir.type import PointerType
 from tilus.ir.func import Function, Metadata
+from tilus.ir.instructions.cuda.atomic import (
+    AtomicGlobalInst,
+    AtomicScatterGlobalInst,
+    AtomicScatterSharedInst,
+    AtomicSharedInst,
+)
 from tilus.ir.instructions.generic import (
     AddInst,
     AllocateRegisterInst,
+    AllocateSharedInst,
     CastInst,
+    GlobalViewInst,
     MulInst,
     StoreGlobalGenericInst,
     SyncThreadsInst,
 )
+from tilus.ir.layout import global_row_major
 from tilus.ir.prog import Program
 from tilus.ir.stmt import InstStmt, SeqStmt
-from tilus.ir.tensor import RegisterTensor
+from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor
 from tilus.ir.tools.instruction_collector import collect_instructions
 from tilus.transforms.dead_code_elimination import dead_code_elimination_pass
 
@@ -219,6 +228,116 @@ def test_diamond_dependency():
 
     assert _count_insts(opt_prog, AddInst) == 2
     assert _count_insts(opt_prog, MulInst) == 1
+
+
+# ---------------------------------------------------------------------------
+# Atomic / scatter DCE behavior
+# ---------------------------------------------------------------------------
+#
+# Atomic instructions are side-effecting (the RMW must happen) but their
+# ``output`` register is optional. DCE must NEVER drop the instruction itself,
+# only rewrite ``output=None`` when the returned pre-RMW register is unused.
+
+
+def _smem(shape=(4,), dtype=float32) -> tuple[AllocateSharedInst, SharedTensor]:
+    out = SharedTensor.create(dtype=dtype, shape=shape)
+    return AllocateSharedInst.create(output=out), out
+
+
+def _gmem(shape=(4,), dtype=float32) -> tuple[GlobalViewInst, GlobalTensor]:
+    out = GlobalTensor.create(dtype=dtype, layout=global_row_major(*shape))
+    p = Var("p", PointerType(dtype))
+    return GlobalViewInst.create(output=out, ptr=p), out
+
+
+def test_atomic_shared_unused_output_is_nulled_not_eliminated():
+    """DCE must keep the atomic RMW but null its unused output register."""
+    alloc_a, a = _alloc(shape=(4,), dtype=float32)  # values
+    alloc_s, s = _smem(shape=(4,))
+    old = RegisterTensor.create(dtype=float32, shape=(4,))
+    atomic = AtomicSharedInst.create(dst=s, values=a, op="add", output=old)
+
+    prog = _make_program([alloc_a, alloc_s, atomic])
+    opt_prog = dead_code_elimination_pass()(prog)
+
+    # The atomic itself must survive; its output must be nulled.
+    assert _count_insts(opt_prog, AtomicSharedInst) == 1
+    opt_func = list(opt_prog.functions.values())[0]
+    [new_atomic] = [i for i in collect_instructions(opt_func) if isinstance(i, AtomicSharedInst)]
+    assert new_atomic.output is None
+
+
+def test_atomic_shared_used_output_is_preserved():
+    """When the output is consumed downstream, it must be kept as-is."""
+    alloc_a, a = _alloc(shape=(4,), dtype=float32)
+    alloc_s, s = _smem(shape=(4,))
+    old = RegisterTensor.create(dtype=float32, shape=(4,))
+    atomic = AtomicSharedInst.create(dst=s, values=a, op="add", output=old)
+    store = _store(old)
+
+    prog = _make_program([alloc_a, alloc_s, atomic, store])
+    opt_prog = dead_code_elimination_pass()(prog)
+
+    [new_atomic] = [
+        i for i in collect_instructions(list(opt_prog.functions.values())[0]) if isinstance(i, AtomicSharedInst)
+    ]
+    assert new_atomic.output is old
+
+
+def test_atomic_global_unused_output_is_nulled():
+    alloc_a, a = _alloc(shape=(4,), dtype=float32)
+    view, g = _gmem(shape=(4,))
+    old = RegisterTensor.create(dtype=float32, shape=(4,))
+    atomic = AtomicGlobalInst.create(dst=g, values=a, op="max", output=old)
+
+    prog = _make_program([alloc_a, view, atomic])
+    opt_prog = dead_code_elimination_pass()(prog)
+
+    assert _count_insts(opt_prog, AtomicGlobalInst) == 1
+    [new_atomic] = [
+        i for i in collect_instructions(list(opt_prog.functions.values())[0]) if isinstance(i, AtomicGlobalInst)
+    ]
+    assert new_atomic.output is None
+
+
+def test_atomic_scatter_unused_output_is_nulled():
+    alloc_idx, idx = _alloc(shape=(4,), dtype=float32)  # dtype placeholder
+    # Use int32 for indices/values, float32 placeholder unused here
+    idx2 = RegisterTensor.create(dtype=float32, shape=(4,))
+    alloc_idx2 = AllocateRegisterInst.create(output=idx2, f_init=lambda _: float32.zero)
+    values = RegisterTensor.create(dtype=float32, shape=(4,))
+    alloc_values = AllocateRegisterInst.create(output=values, f_init=lambda _: float32.zero)
+    alloc_s, s = _smem(shape=(16,))
+    old = RegisterTensor.create(dtype=float32, shape=(4,))
+    scatter = AtomicScatterSharedInst.create(dst=s, indices=idx2, values=values, dim=0, op="add", output=old)
+
+    prog = _make_program([alloc_idx2, alloc_values, alloc_s, scatter])
+    opt_prog = dead_code_elimination_pass()(prog)
+
+    assert _count_insts(opt_prog, AtomicScatterSharedInst) == 1
+    [new_scatter] = [
+        i for i in collect_instructions(list(opt_prog.functions.values())[0]) if isinstance(i, AtomicScatterSharedInst)
+    ]
+    assert new_scatter.output is None
+
+
+def test_atomic_scatter_global_unused_output_is_nulled():
+    idx = RegisterTensor.create(dtype=float32, shape=(4,))
+    alloc_idx = AllocateRegisterInst.create(output=idx, f_init=lambda _: float32.zero)
+    values = RegisterTensor.create(dtype=float32, shape=(4,))
+    alloc_values = AllocateRegisterInst.create(output=values, f_init=lambda _: float32.zero)
+    view, g = _gmem(shape=(16,))
+    old = RegisterTensor.create(dtype=float32, shape=(4,))
+    scatter = AtomicScatterGlobalInst.create(dst=g, indices=idx, values=values, dim=0, op="min", output=old)
+
+    prog = _make_program([alloc_idx, alloc_values, view, scatter])
+    opt_prog = dead_code_elimination_pass()(prog)
+
+    assert _count_insts(opt_prog, AtomicScatterGlobalInst) == 1
+    [new_scatter] = [
+        i for i in collect_instructions(list(opt_prog.functions.values())[0]) if isinstance(i, AtomicScatterGlobalInst)
+    ]
+    assert new_scatter.output is None
 
 
 if __name__ == "__main__":

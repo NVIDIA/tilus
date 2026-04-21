@@ -15,6 +15,7 @@
 from . import (
     allocate_shared,
     assign,
+    atomic,
     cp_async,
     elementwise_binary,
     elementwise_unary,
@@ -26,6 +27,7 @@ from . import (
     philox,
     reduce,
     reshape_shared,
+    scatter,
     slice_register,
     store_shared,
     tcgen05,

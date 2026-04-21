@@ -16,6 +16,7 @@
 from . import (
     allocate,
     assign,
+    atomic,
     cast,
     control,
     cuda,
@@ -26,6 +27,7 @@ from . import (
     random,
     reduce,
     regs,
+    scatter_ldst,
     shared_ldst,
     shuffle,
     smem,

@@ -24,6 +24,12 @@ from tilus.hidet.ir.type import BaseType, DataType
 from tilus.hidet.ir.utils import broadcast_shapes, can_broadcast
 from tilus.hidet.utils import prod, same_list
 from tilus.ir.inst import Instruction, InstructionError
+from tilus.ir.instructions.cuda.atomic import (
+    AtomicGlobalInst,
+    AtomicScatterGlobalInst,
+    AtomicScatterSharedInst,
+    AtomicSharedInst,
+)
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
 from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
 from tilus.ir.instructions.cuda.cp_async import (
@@ -111,7 +117,9 @@ from tilus.ir.instructions.generic import (
     SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
+    StoreGlobalScatterInst,
     StoreSharedInst,
+    StoreSharedScatterInst,
     SubInst,
     SyncReduceThreadsInst,
     SyncThreadsInst,
@@ -1185,6 +1193,17 @@ class StmtBuilder(StmtBuilderCore):
         inst = StoreSharedInst.create(dst=dst, src=src)
         self.append(inst)
 
+    def store_shared_scatter(
+        self,
+        dst: SharedTensor,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+        *,
+        dim: int,
+    ) -> None:
+        inst = StoreSharedScatterInst.create(dst=dst, indices=indices, values=values, dim=dim)
+        self.append(inst)
+
     # global memory operations
     def global_view(self, ptr: Expr, dtype: DataType, layout: GlobalLayout) -> GlobalTensor:
         inst = GlobalViewInst.create(output=GlobalTensor.create(dtype=dtype, layout=layout), ptr=ptr)
@@ -1227,6 +1246,17 @@ class StmtBuilder(StmtBuilderCore):
         inst = StoreGlobalInst.create(dst=dst, x=src, offsets=[as_expr(ofs) for ofs in offsets], dims=dims)
         self.append(inst)
 
+    def store_global_scatter(
+        self,
+        dst: GlobalTensor,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+        *,
+        dim: int,
+    ) -> None:
+        inst = StoreGlobalScatterInst.create(dst=dst, indices=indices, values=values, dim=dim)
+        self.append(inst)
+
     def store_global_generic(
         self,
         x: RegisterTensor,
@@ -1254,6 +1284,115 @@ class StmtBuilder(StmtBuilderCore):
         inst = LoadGlobalGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
         self.append(inst)
         return inst.register_output
+
+    # atomic operations
+    def atomic_shared(
+        self,
+        dst: SharedTensor,
+        values: RegisterTensor,
+        *,
+        op: str,
+        sem: str = "relaxed",
+        scope: str = "cta",
+        output: Optional[RegisterTensor] = None,
+        compare: Optional[RegisterTensor] = None,
+    ) -> Optional[RegisterTensor]:
+        if output is None:
+            output = RegisterTensor.create(dtype=dst.dtype, shape=dst.shape, optional_layout=values.optional_layout)
+        inst = AtomicSharedInst.create(
+            dst=dst,
+            values=values,
+            op=op,
+            sem=sem,
+            scope=scope,
+            output=output,
+            compare=compare,
+        )
+        self.append(inst)
+        return inst.register_output if inst.output is not None else None
+
+    def atomic_global(
+        self,
+        dst: GlobalTensor,
+        values: RegisterTensor,
+        *,
+        op: str,
+        sem: str = "relaxed",
+        scope: str = "gpu",
+        output: Optional[RegisterTensor] = None,
+        compare: Optional[RegisterTensor] = None,
+    ) -> Optional[RegisterTensor]:
+        if output is None:
+            output = RegisterTensor.create(dtype=dst.dtype, shape=dst.shape, optional_layout=values.optional_layout)
+        inst = AtomicGlobalInst.create(
+            dst=dst,
+            values=values,
+            op=op,
+            sem=sem,
+            scope=scope,
+            output=output,
+            compare=compare,
+        )
+        self.append(inst)
+        return inst.register_output if inst.output is not None else None
+
+    def atomic_shared_scatter(
+        self,
+        dst: SharedTensor,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        sem: str = "relaxed",
+        scope: str = "cta",
+        output: Optional[RegisterTensor] = None,
+    ) -> Optional[RegisterTensor]:
+        if output is None:
+            output = RegisterTensor.create(
+                dtype=dst.dtype, shape=indices.shape, optional_layout=indices.optional_layout
+            )
+        inst = AtomicScatterSharedInst.create(
+            dst=dst,
+            indices=indices,
+            values=values,
+            dim=dim,
+            op=op,
+            sem=sem,
+            scope=scope,
+            output=output,
+        )
+        self.append(inst)
+        return inst.register_output if inst.output is not None else None
+
+    def atomic_global_scatter(
+        self,
+        dst: GlobalTensor,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        sem: str = "relaxed",
+        scope: str = "gpu",
+        output: Optional[RegisterTensor] = None,
+    ) -> Optional[RegisterTensor]:
+        if output is None:
+            output = RegisterTensor.create(
+                dtype=dst.dtype, shape=indices.shape, optional_layout=indices.optional_layout
+            )
+        inst = AtomicScatterGlobalInst.create(
+            dst=dst,
+            indices=indices,
+            values=values,
+            dim=dim,
+            op=op,
+            sem=sem,
+            scope=scope,
+            output=output,
+        )
+        self.append(inst)
+        return inst.register_output if inst.output is not None else None
 
     # semaphore
     def lock_semaphore(self, semaphore: Expr, value: Expr | int) -> None:
