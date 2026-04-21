@@ -16,6 +16,10 @@ from tilus.ir.instructions import (
     AllocateRegisterInst,
     AllocateSharedInst,
     AllocBarrierInst,
+    AtomicGlobalInst,
+    AtomicScatterGlobalInst,
+    AtomicScatterSharedInst,
+    AtomicSharedInst,
     CopyAsyncGenericInst,
     CopyAsyncInst,
     FormatPrintInst,
@@ -32,7 +36,9 @@ from tilus.ir.instructions import (
     SliceSharedInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
+    StoreGlobalScatterInst,
     StoreSharedInst,
+    StoreSharedScatterInst,
 )
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
 from tilus.ir.instructions.cuda.cp_async_bulk import (
@@ -72,6 +78,12 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(MapSharedAddrInst)
 @register_rule(ClusterLaunchControlTryCancelInst)
 @register_rule(ClusterLaunchControlQueryResponseInst)
+@register_rule(AtomicSharedInst)
+@register_rule(AtomicGlobalInst)
+@register_rule(AtomicScatterSharedInst)
+@register_rule(AtomicScatterGlobalInst)
+@register_rule(StoreSharedScatterInst)
+@register_rule(StoreGlobalScatterInst)
 @register_rule(StoreSharedInst)
 @register_rule(PrintTensorInst)
 @register_rule(FormatPrintInst)

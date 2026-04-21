@@ -16,8 +16,15 @@
 Dead code elimination pass for Tilus IR.
 
 Removes functional instructions whose output tensors are never consumed by any other instruction.
+
+Also handles a second category of instructions: those that are side-effecting (the instruction
+must stay for its memory effect) but whose output register binding is optional. For these, the
+pass rewrites the instruction to carry ``output=None`` when the output is unused, so codegen
+can emit the destination-less PTX form. Atomic instructions are the canonical example: the
+RMW must happen either way, but the returned "old value" register is often ignored.
 """
 
+import dataclasses
 from typing import Type
 
 from tilus.hidet.ir.expr import Expr, Var
@@ -25,6 +32,12 @@ from tilus.hidet.ir.tools import collect as hidet_collect
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter, IRVisitor
 from tilus.ir.inst import Instruction
+from tilus.ir.instructions.cuda.atomic import (
+    AtomicGlobalInst,
+    AtomicScatterGlobalInst,
+    AtomicScatterSharedInst,
+    AtomicSharedInst,
+)
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst
 from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 from tilus.ir.instructions.cuda.mbarrier import AllocBarrierInst
@@ -100,8 +113,24 @@ FUNCTIONAL_INST_TYPES: tuple[Type[Instruction], ...] = (
 )
 
 
+# Side-effecting instructions that expose an optional output register binding.
+# The instruction itself is never eliminated (the memory side effect must stay),
+# but when its output register is not consumed the DCE pass rewrites the instruction
+# to carry ``output=None`` so codegen can skip the destination register.
+SIDE_EFFECTING_WITH_OPTIONAL_OUTPUT_INST_TYPES: tuple[Type[Instruction], ...] = (
+    AtomicSharedInst,
+    AtomicGlobalInst,
+    AtomicScatterSharedInst,
+    AtomicScatterGlobalInst,
+)
+
+
 def _is_functional(inst: Instruction) -> bool:
     return isinstance(inst, FUNCTIONAL_INST_TYPES)
+
+
+def _is_side_effecting_with_optional_output(inst: Instruction) -> bool:
+    return isinstance(inst, SIDE_EFFECTING_WITH_OPTIONAL_OUTPUT_INST_TYPES)
 
 
 class UsedTensorCollector(IRVisitor):
@@ -123,6 +152,10 @@ class UsedTensorCollector(IRVisitor):
         super().__init__()
         self.used_tensors: set[int] = set()  # set of id(tensor)
         self.functional_insts: list[Instruction] = []
+        # Side-effecting instructions whose output register binding is optional.
+        # Their inputs are already marked unconditionally used; we track them here
+        # so the eliminator can rewrite ``output`` to ``None`` when it's unused.
+        self.side_effecting_optional_insts: list[Instruction] = []
         # Deferred: TensorItem stmts whose liveness depends on Var usage
         self.tensor_item_stmts: list[TensorItemValueStmt | TensorItemPtrStmt] = []
         # All Vars referenced in expressions (collected after traversal).
@@ -137,6 +170,8 @@ class UsedTensorCollector(IRVisitor):
             # Side-effecting: all inputs are unconditionally used
             for tensor in inst.inputs:
                 self.used_tensors.add(id(tensor))
+            if _is_side_effecting_with_optional_output(inst):
+                self.side_effecting_optional_insts.append(inst)
         # Collect Vars from all Expr-typed attributes so that TensorItemValueStmt
         # vars referenced in instruction attributes are tracked.
         for value in inst.attributes.values():
@@ -195,7 +230,12 @@ class UsedTensorCollector(IRVisitor):
 
 
 class DeadCodeEliminator(IRRewriter):
-    """Eliminates dead functional instructions and dead TensorItem stmts."""
+    """Eliminates dead functional instructions and dead TensorItem stmts.
+
+    For instructions registered in ``SIDE_EFFECTING_WITH_OPTIONAL_OUTPUT_INST_TYPES``,
+    the instruction itself is kept (side effect preserved) but its output register is
+    nulled when unused.
+    """
 
     def __init__(self, used_tensors: set[int]) -> None:
         super().__init__()
@@ -204,6 +244,13 @@ class DeadCodeEliminator(IRRewriter):
     def visit_Instruction(self, inst: Instruction) -> Instruction | None:
         if _is_functional(inst) and inst.output is not None and id(inst.output) not in self.used_tensors:
             return None
+        if (
+            _is_side_effecting_with_optional_output(inst)
+            and inst.output is not None
+            and id(inst.output) not in self.used_tensors
+        ):
+            # Keep the side effect; drop the register binding.
+            return dataclasses.replace(inst, output=None)
         return super().visit_Instruction(inst)
 
     def visit_TensorItemValueStmt(self, stmt: TensorItemValueStmt) -> Stmt:
@@ -225,10 +272,17 @@ class DeadCodeEliminationPass(Pass):
         collector.propagate()
 
         # Check if there's anything to eliminate
-        has_dead = any(
-            inst.output is not None and id(inst.output) not in collector.used_tensors
-            for inst in collector.functional_insts
-        ) or any(id(stmt.tensor) not in collector.used_tensors for stmt in collector.tensor_item_stmts)
+        has_dead = (
+            any(
+                inst.output is not None and id(inst.output) not in collector.used_tensors
+                for inst in collector.functional_insts
+            )
+            or any(
+                inst.output is not None and id(inst.output) not in collector.used_tensors
+                for inst in collector.side_effecting_optional_insts
+            )
+            or any(id(stmt.tensor) not in collector.used_tensors for stmt in collector.tensor_item_stmts)
+        )
 
         if not has_dead:
             return function

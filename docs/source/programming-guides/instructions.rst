@@ -44,14 +44,19 @@ Load and Store
 ~~~~~~~~~~~~~~
 
 Transfer data between memory spaces. Load instructions copy data from global or shared memory into
-register tensors; store instructions write register data back.
+register tensors; store instructions write register data back. The ``*_scatter`` variants perform
+non-atomic scatter writes driven by a per-lane ``indices`` tile along one axis — use them when the
+scatter is guaranteed collision-free, and reach for :ref:`self.atomic.*_scatter_* <atomic-group>`
+otherwise.
 
 .. autosummary::
 
    load_global
    store_global
+   store_global_scatter
    load_shared
    store_shared
+   store_shared_scatter
 
 
 Asynchronous Copy (SM80+)
@@ -166,12 +171,13 @@ Synchronize threads within a block or across a cluster. ``sync`` is the block-le
    sync
 
 
-Atomic and Semaphore
-~~~~~~~~~~~~~~~~~~~~
+Semaphores
+~~~~~~~~~~
 
 Inter-block synchronization using global memory semaphores. ``lock_semaphore`` spins until the
 semaphore reaches a target value; ``release_semaphore`` sets it to signal other blocks. Both
-must be called from a single thread (``self.single_thread()``).
+must be called from a single thread (``self.single_thread()``). For tile-level atomic RMW (element-wise
+and scatter), see :ref:`self.atomic <atomic-group>`.
 
 .. autosummary::
 
@@ -337,5 +343,46 @@ take over the canceled cluster's work. See :doc:`../python-api/instruction-group
 
    try_cancel
    query_response
+
+.. currentmodule:: tilus.Script
+
+
+.. _atomic-group:
+
+Atomic (``self.atomic``)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Tile-level atomic read-modify-write on shared and global memory. Two shapes are exposed:
+**element-wise** (``dst.shape == values.shape``, each lane atomically updates its own element)
+and **scatter** (``torch.scatter_add_``-style, with a per-lane ``indices`` tile picking the
+destination along a compile-time ``dim``). Each method takes ``sem`` / ``scope`` PTX qualifiers and
+an optional ``output`` register that receives the pre-RMW value — when unused, codegen lowers to
+the cheaper destination-less ``red.*`` form automatically. See
+:doc:`../python-api/instruction-groups/atomic`.
+
+.. currentmodule:: tilus.lang.instructions.atomic.AtomicInstructionGroup
+
+.. autosummary::
+
+   shared_add
+   shared_sub
+   shared_min
+   shared_max
+   shared_exch
+   shared_cas
+   global_add
+   global_sub
+   global_min
+   global_max
+   global_exch
+   global_cas
+   shared_scatter_add
+   shared_scatter_sub
+   shared_scatter_min
+   shared_scatter_max
+   global_scatter_add
+   global_scatter_sub
+   global_scatter_min
+   global_scatter_max
 
 .. currentmodule:: tilus.Script

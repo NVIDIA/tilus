@@ -15,6 +15,7 @@
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.inst import InstructionError
 
+from .atomic import AtomicInstructionGroup
 from .base import InstructionGroup, builder_context
 from .clc import ClusterLaunchControlInstructionGroup
 from .cluster import BlockClusterInstructionGroup
@@ -34,3 +35,4 @@ class InstructionInterface(RootInstructionGroup):
     clc = ClusterLaunchControlInstructionGroup()
     cluster = BlockClusterInstructionGroup()
     wgmma = WgmmaInstructionGroup()
+    atomic = AtomicInstructionGroup()

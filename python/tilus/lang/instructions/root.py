@@ -565,6 +565,53 @@ class RootInstructionGroup(InstructionGroup):
             )
         return self._builder.store_global(dst=dst, src=src, offsets=offsets, dims=dims)
 
+    def store_global_scatter(
+        self,
+        dst: GlobalTensor,
+        *,
+        dim: int,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+    ) -> None:
+        """Non-atomic scatter store into a global tensor.
+
+        For each tile element ``k``, writes ``dst[..., indices[k], ...] = values[k]``
+        where ``indices`` selects positions along ``dim``. ``indices.shape`` and
+        ``values.shape`` must match exactly and share a RegisterLayout.
+
+        Under duplicate ``indices`` the outcome is last-writer-wins with unspecified
+        winner; use :meth:`atomic.global_scatter_add()
+        <tilus.lang.instructions.atomic.AtomicInstructionGroup.global_scatter_add>`
+        (or similar) if correctness under duplicates matters.
+
+        Parameters
+        ----------
+        dst: GlobalTensor
+            Destination tensor.
+        dim: int
+            Compile-time scatter axis.
+        indices: RegisterTensor
+            Integer indices along ``dim``.
+        values: RegisterTensor
+            Values to write; ``values.shape == indices.shape``, identical layout.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        """
+        self._builder.store_global_scatter(dst=dst, indices=indices, values=values, dim=dim)
+
+    def store_shared_scatter(
+        self,
+        dst: SharedTensor,
+        *,
+        dim: int,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+    ) -> None:
+        """Non-atomic scatter store into a shared tensor. See :meth:`store_global_scatter`."""
+        self._builder.store_shared_scatter(dst=dst, indices=indices, values=values, dim=dim)
+
     def load_shared(
         self,
         src: SharedTensor,
