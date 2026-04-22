@@ -38,6 +38,7 @@ from .inference_rules.mma_dot import MmaDotRule
 from .inference_rules.philox import Philox4x32InferenceRule
 from .inference_rules.reduce import ReduceRule
 from .inference_rules.reshape_shared import ReshapeSharedRule
+from .inference_rules.scan import ScanRule
 from .inference_rules.scatter import ScatterRule
 from .inference_rules.slice_register import SliceAssignRule, SliceRegisterRule
 from .inference_rules.store_shared import StoreSharedSwizzleRule
@@ -65,6 +66,7 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [BinaryRule, UnaryRule],
     [LoadGlobalRule],
     [ReduceRule],
+    [ScanRule],
     [TransposeRule, SqueezeRule, UnsqueezeRule],
     [WhereRule],
     [AssignRule],

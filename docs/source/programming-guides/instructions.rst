@@ -143,6 +143,24 @@ for in-place output.
    sum
 
 
+Prefix Scan
+~~~~~~~~~~~
+
+Tile-level prefix scan along one dimension. The output preserves the input's shape; along ``dim``,
+element ``i`` holds the ⊕-combination of positions ``[0, i]`` (inclusive) or ``[0, i)`` with the
+op's identity at ``i == 0`` (exclusive). Supported ops: ``add`` / ``mul`` / ``max`` / ``min`` plus
+the bitwise ``and`` / ``or`` / ``xor`` for integer tiles. The lowering is Blelloch's up-sweep +
+down-sweep, bit-local at every round, so every valid tilus register layout is handled — intra-
+thread, intra-warp, inter-warp, and any mixture. ``cumsum`` / ``cumprod`` are convenience
+shortcuts for ``op='add'`` / ``op='mul'``.
+
+.. autosummary::
+
+   scan
+   cumsum
+   cumprod
+
+
 Transform
 ~~~~~~~~~
 

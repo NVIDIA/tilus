@@ -105,6 +105,35 @@ class BaseInstEmitter(StmtBuilder):
             raise RuntimeError("Current thread is not set")
         return self._codegen.current_thread
 
+    def lane_id(self, name: str = "lane_id") -> Var:
+        """Declare and return ``current_thread % 32`` as an int32 variable.
+
+        Emitters that read the lane id across multiple emitted statements should
+        cache it once via this helper rather than re-deriving ``current_thread
+        % 32`` at each use, both for readability and to let the compiler see a
+        single value.
+        """
+        return self.declare_var(name, int32, self.current_thread % 32)
+
+    def warp_id(self, name: str = "warp_id") -> Var:
+        """Declare and return the warp id as a **warp-uniform** int32 variable.
+
+        The raw expression ``current_thread // 32`` is warp-uniform on NVIDIA
+        GPUs, but nvcc often can't prove that from the division alone and
+        conservatively assumes lanes within a warp can disagree. We broadcast
+        via ``__shfl_sync`` from lane 0 so the compiler sees a value every lane
+        provably agrees on — this tends to hoist warp-id-only addressing out of
+        per-lane loops and eliminate warp-divergent guards.
+        """
+        from tilus.hidet.ir.primitives.cuda.shfl import shfl_sync
+
+        raw = self.declare_var(name + "_raw", int32, self.current_thread // 32)
+        return self.declare_var(
+            name,
+            int32,
+            shfl_sync(uint32(0xFFFFFFFF), raw, src_lane=0, width=32),
+        )
+
     @property
     def current_num_threads(self) -> int:
         return self._codegen.thread_group_stack.num_threads[-1]

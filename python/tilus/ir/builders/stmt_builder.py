@@ -110,6 +110,7 @@ from tilus.ir.instructions.generic import (
     RepeatInst,
     RepeatInterleaveInst,
     ReshapeSharedInst,
+    ScanInst,
     SliceAssignInst,
     SliceGlobalInst,
     SliceRegisterInst,
@@ -860,6 +861,21 @@ class StmtBuilder(StmtBuilderCore):
                 raise NotImplementedError(f"Unsupported reduction operation: {op}")
             out = RegisterTensor.create(dtype=dtype, shape=shape)
         inst = ReduceInst.create(x=x, output=out, dim=dim, op=op, keepdim=keepdim)
+        self.append(inst)
+        return inst.register_output
+
+    def scan(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        exclusive: bool = False,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        if out is None:
+            out = RegisterTensor.create(dtype=x.dtype, shape=x.shape, optional_layout=x.optional_layout)
+        inst = ScanInst.create(x=x, output=out, dim=dim, op=op, exclusive=exclusive)
         self.append(inst)
         return inst.register_output
 

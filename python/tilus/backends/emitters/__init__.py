@@ -27,6 +27,7 @@ from . import (
     random,
     reduce,
     regs,
+    scan,
     scatter_ldst,
     shared_ldst,
     shuffle,

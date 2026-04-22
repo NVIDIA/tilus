@@ -1652,6 +1652,75 @@ class RootInstructionGroup(InstructionGroup):
             raise InstructionError("The input tensor must be a boolean tensor.")
         return self._reduce(x, dim=dim, keepdim=keepdim, op="all", out=out)
 
+    def scan(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        exclusive: bool = False,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        """Prefix scan along ``dim``.
+
+        For each non-``dim`` coordinate independently, the output at position
+        ``i`` along ``dim`` is the ⊕-combination of the input values at
+        positions ``[0, i]`` (inclusive mode, default) or ``[0, i)`` with the
+        identity at position ``0`` (exclusive mode).
+
+        Parameters
+        ----------
+        x: RegisterTensor
+            Input tile.
+        dim: int
+            Compile-time scan axis.
+        op: str
+            One of ``'add'``, ``'mul'``, ``'max'``, ``'min'``, ``'and'``,
+            ``'or'``, ``'xor'``. Bitwise ops (``'and'`` / ``'or'`` / ``'xor'``)
+            require an integer dtype.
+        exclusive: bool
+            If ``True``, return the exclusive prefix (identity at the boundary);
+            otherwise the inclusive prefix.
+        out: RegisterTensor, optional
+            Output tile. Must match ``x`` in shape and dtype. If not provided,
+            a new tile is allocated with the same layout as ``x``. Passing
+            ``out=x`` performs the scan in-place (the emitter saves the
+            original values when needed).
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The scanned tile, same shape and dtype as ``x``.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group whose
+          size matches the input layout's ``spatial_size``.
+        """
+        return self._builder.scan(x, dim=dim, op=op, exclusive=exclusive, out=out)
+
+    def cumsum(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: int,
+        exclusive: bool = False,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        """Inclusive (or exclusive) cumulative sum along ``dim``. Shortcut for :meth:`scan` with ``op='add'``."""
+        return self._builder.scan(x, dim=dim, op="add", exclusive=exclusive, out=out)
+
+    def cumprod(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: int,
+        exclusive: bool = False,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        """Inclusive (or exclusive) cumulative product along ``dim``. Shortcut for :meth:`scan` with ``op='mul'``."""
+        return self._builder.scan(x, dim=dim, op="mul", exclusive=exclusive, out=out)
+
     def add(self, lhs: RegisterTensor, rhs: RegisterTensor, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         """Element-wise addition with broadcasting.
 

@@ -19,6 +19,7 @@ from . import (
     elementwise_unary,
     mma_dot,
     reduce,
+    scan,
     transform,
     transpose,
     view,
