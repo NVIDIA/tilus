@@ -8,7 +8,7 @@ The indexer is two kernels back-to-back (plus a metadata precompute):
 2. **`fast_topk_clusters`** (or `_exact`) — radix top-2048 over up to ~500K logits per batch item, using a 4-byte, 4-pass partition. Pass 0 can reuse the histogram from the epilogue above.
 3. **`indexer_metadata`** — tiny helper that computes an `sm_map` so each physical SM knows which batch item / page range it owns.
 
-**Status (2026-04-22).** Four of the five planned instruction PRs have landed in `main`: atomic element-wise + scatter + non-atomic scatter store (PR #147) and tile-level scan (PR #148). Only PR 4 — `self.cluster.map_shared` + remote-shared load/store/atomic — is outstanding, and it is only required for the cluster top-K variant (M6). **M1 (logits-only) through M5 and M7 are unblocked**; kernel work starts next.
+**Status (2026-04-22).** Four of the five planned instruction PRs have landed in `main`: atomic element-wise + scatter + non-atomic scatter store (PR #147) and tile-level scan (PR #148). Only PR 4 — `self.cluster.map_shared` + remote-shared load/store/atomic — is outstanding, and it is only required for the cluster top-K variant (M6). **M1 (logits-only) is in progress**: a correctness-validated SM120 fallback lives in [tilus_kernel.py](tilus_kernel.py); the native FP8 `tcgen05` path resumes on a B200 node. Every other milestone except M6 is unblocked end-to-end.
 
 **Feasibility in Tilus today:**
 
@@ -344,8 +344,8 @@ Decided policy: land the new Tilus instructions first, *before* starting the ind
 
 | M | Kernel | Depends on | Status |
 |---|---|---|---|
-| **M1** | Logits-only Tilus kernel (FP8 MMA + relu + per-head weighted sum + per-token scale). Output `logits[B, max_model_len]`. No histogram side effect. SM100 via `tcgen05`; SM90 fallback via `wgmma`. | Today's Tilus instruction set. | 🎯 **Next up** |
-| **M2** | Wire M1 into `benchmark.py` as the `tilus` column. Validate against baseline. | M1. | Ready when M1 lands |
+| **M1** | Logits-only Tilus kernel (FP8 MMA + relu + per-head weighted sum + per-token scale). Output `logits[B, max_model_len]`. No histogram side effect. SM100 via `tcgen05`; SM90 fallback via `wgmma`. | Today's Tilus instruction set. | 🟡 In progress — SM120 fallback validated at [tilus_kernel.py](tilus_kernel.py); SM100 FP8 tcgen05 path to resume on B200 |
+| **M2** | Wire M1 into `benchmark.py` as the `tilus` column. Validate against baseline. | M1. | Pending B200 M1 |
 | **M3** | Logits with fused histogram epilogue. | PR 1 ✅. | Unblocked |
 | **M4** | Single-CTA fast (lossy) radix top-K, `PRE_HISTOGRAM=False`. Benchmark against `torch.ops._C.top_k_per_row_decode`. | PR 1 ✅, PR 2 ✅, PR 3 ✅, PR 5 ✅. | Unblocked |
 | **M5** | Top-K with `PRE_HISTOGRAM=True` reusing M3's histogram. | M3, M4. | Waits on M3+M4 |
@@ -353,7 +353,31 @@ Decided policy: land the new Tilus instructions first, *before* starting the ind
 | **M7** | `_exact` variant with global overflow spill. | M4, PR 3 ✅. | Waits on M4 |
 | **M8** | Perf tuning: cache hints on `load_global`, named cluster half-barriers, PDL. | §4.6. | Future |
 
-With PRs 1–3 and 5 already landed, **M1 is the next task** and every other milestone except M6 is also unblocked end-to-end.
+With PRs 1–3 and 5 already landed, **M1 is in progress** — a correctness-validated SM120 fallback is in [tilus_kernel.py](tilus_kernel.py); the native FP8 `tcgen05` path resumes on a B200 node. Every other milestone except M6 is also unblocked end-to-end.
+
+### 5.3 M1 current state (SM120 fallback, 2026-04-22)
+
+[tilus_kernel.py](tilus_kernel.py) implements the logits half end-to-end and validates against [baseline.py](baseline.py) (max abs err ≤ 2e-4) across `(batch, seq_len)` ∈ {(1, 64), (2, 256), (4, 1024), (8, 4096)}.
+
+| Design decision | Status |
+|---|---|
+| Paged FP8 K-cache via two `global_view`s over the same `uint8` base (FP8 payload view, strides `[8448, 128, 1]`; FP32 scale view offset by 8192 B, strides `[2112, 1]`) | ✅ working |
+| Tile shape `BL=64, H=64, D=128`, 4 warps/CTA, 1 page/CTA | ✅ working |
+| Per-token FP32 scale + per-head FP32 weight broadcast in the epilogue | ✅ working |
+| relu via `self.where(r_scores >= 0, x, y=0.0)` (tilus `maximum` doesn't accept scalars today) | ✅ working |
+
+**Known SM120 constraints bypassed by the fallback:**
+
+- **`tcgen05` MMA is SM100-only** → replaced with warp-level `self.dot` and `m16n8k16_f16_f32` atomic MMA.
+- **`atomic_mma_configs.from_dtypes` has no FP8 entry** → cast FP8 → FP16 in registers after `load_shared`, then run the MMA in FP16. Numerically equivalent for this kernel because the per-token FP32 scale is only applied in the epilogue.
+- **`self.maximum` rejects scalar operands** → use `self.where` (minor; not a SM constraint).
+
+**On B200 the plan reverts to the original design in §2.1:** two-page tile (`BL=128`, M=128 mandated by `tcgen05.mma kind::f8f6f4` for `cta_group=1`), native FP8 MMA into a TMEM accumulator, warp-specialized TMA + MMA + epilogue per [blackwell_matmul/matmul_v1.py](../blackwell_matmul/matmul_v1.py). All the packed-layout / dequant / weighted-reduce / store logic carries over unchanged.
+
+**Still TODO on M1 regardless of SM target:**
+
+- Mask out-of-sequence positions (`seq_lens[b] < max_model_len`) so the invalid-page garbage doesn't contaminate the output. Today's fixture sets `seq_len == max_model_len` to sidestep this.
+- Autotuning surface: `BL ∈ {64, 128}`, warps, stages.
 
 ---
 
@@ -380,7 +404,8 @@ With PRs 1–3 and 5 already landed, **M1 is the next task** and every other mil
 ### Current state (2026-04-22)
 
 - Instruction work: 4/5 PRs landed in `main`; PR 4 deferred until M6 is on deck.
-- Kernel work: **M1 (logits-only) is next up**, with everything else up through M5 and M7 also unblocked.
-- M1 entry point: build on [blackwell_matmul/matmul_v1.py](../blackwell_matmul/matmul_v1.py) (SM100 template) with paged K-cache access per [attention_with_kvcache/attention_v1.py:126-140](../attention_with_kvcache/attention_v1.py#L126-L140). FP8 dequant with per-token scale, relu, per-head weighted sum, output `logits[B, max_model_len]`. Validate against [baseline.py](baseline.py); wire into [benchmark.py](benchmark.py) as the `tilus` column in M2.
+- Kernel work: **M1 (logits-only) is in progress.** A correctness-validated SM120 fallback exists in [tilus_kernel.py](tilus_kernel.py) (FP8 cast to FP16 before `self.dot`, since `tcgen05` and FP8 atomic-MMA configs aren't available on workstation Blackwell). Max abs err ≤ 2e-4 against the FP32 baseline across (batch, seq_len) ∈ {(1, 64), (2, 256), (4, 1024), (8, 4096)}.
+- Native FP8 path resumes on a B200 node: switch to `BL=128`, warp-specialized TMA + `tcgen05.mma kind::f8f6f4` into a TMEM accumulator, per [blackwell_matmul/matmul_v1.py](../blackwell_matmul/matmul_v1.py). The packed K-cache view layout, dequant, weighted reduce, and store logic already in the SM120 kernel carry over unchanged.
+- M2 (benchmark.py `tilus` column) waits on the B200 variant so the numbers reflect native FP8 MMA throughput.
 
 The logits half is the high-value, low-risk first milestone; the top-K half is the feature work that makes Tilus strictly-more-capable in a way that benefits other kernels too (sparse MoE, stream-K reductions, histogram-based ops).
