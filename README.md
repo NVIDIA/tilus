@@ -11,7 +11,7 @@ It also includes automatic tuning, caching, and a Pythonic interface for ease of
 
 Tilus is pronounced as tie-lus, /ˈtaɪləs/.
 
-## News
+## Newsd
 
 * **[2025/07] Tilus v0.2.0** — Blackwell and Hopper GPU support, with [step-by-step Blackwell matmul tutorials](https://nvidia.github.io/tilus/stable/tutorials/matmul-blackwell/__init__.html) that build a high-performance kernel reaching vendor library (cuBLAS) level performance. See the [release notes](https://github.com/NVIDIA/tilus/releases/tag/v0.2.0).
 * **[2025/04] Tilus v0.1.0** — Initial release with Ampere support.
