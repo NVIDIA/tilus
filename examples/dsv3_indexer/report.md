@@ -8,18 +8,18 @@ The indexer is two kernels back-to-back (plus a metadata precompute):
 2. **`fast_topk_clusters`** (or `_exact`) — radix top-2048 over up to ~500K logits per batch item, using a 4-byte, 4-pass partition. Pass 0 can reuse the histogram from the epilogue above.
 3. **`indexer_metadata`** — tiny helper that computes an `sm_map` so each physical SM knows which batch item / page range it owns.
 
+**Status (2026-04-22).** Four of the five planned instruction PRs have landed in `main`: atomic element-wise + scatter + non-atomic scatter store (PR #147) and tile-level scan (PR #148). Only PR 4 — `self.cluster.map_shared` + remote-shared load/store/atomic — is outstanding, and it is only required for the cluster top-K variant (M6). **M1 (logits-only) through M5 and M7 are unblocked**; kernel work starts next.
+
 **Feasibility in Tilus today:**
 
-| Kernel | Feasibility | Main blocker |
+| Kernel | Feasibility | Notes |
 |---|---|---|
-| Logits (MMA + weighted reduce, no histogram) | Doable, close to `blackwell_matmul/matmul_v1.py` + `attention_with_kvcache` paged pattern | None critical; manual FP8 dequant with per-token scale. |
-| Logits **with histogram-fusion epilogue** | Blocked | Needs `self.atomic.{shared,global}_add` tile instructions. |
-| Radix top-K (single CTA, fast variant) | Blocked | Needs the atomic family, `scatter_add`, non-atomic `store_shared_scatter`, and warp-level `shfl`/`ballot`/lane intrinsics. |
-| Radix top-K, `NClusters > 1` (distributed histogram) | Blocked | Needs `self.cluster.map_shared(smem, target_rank)` + remote-shared load/store/atomic (all routed through `mapa.shared::cluster`). |
-| `_exact` variant (global overflow spill) | Blocked | Needs global scatter store + global atomics. |
-| `indexer_metadata` | Awkward but doable | It's a tiny 1-block kernel doing `cg::reduce` + `exclusive_scan` + `atomicAdd`. Currently Tilus has no cooperative-groups warp scan/reduce primitives. Simpler to keep it as a CUDA kernel (via hidet) or do the scan on CPU. |
-
-In short, the logits half can land today with only moderate work; **the top-K half requires new Tilus instructions**. Concrete list in §4.
+| Logits (MMA + weighted reduce, no histogram) | ✅ Unblocked | Close to `blackwell_matmul/matmul_v1.py` + `attention_with_kvcache` paged pattern. Manual FP8 dequant with per-token scale. Next milestone (M1). |
+| Logits **with histogram-fusion epilogue** | ✅ Unblocked | `self.atomic.{shared,global}_add` landed in #147. |
+| Radix top-K (single CTA, fast variant) | ✅ Unblocked | Atomic family + scatter + non-atomic scatter store landed in #147; tile-level scan (for the 256-bin threshold search) in #148. |
+| Radix top-K, `NClusters > 1` (distributed histogram) | 🟡 Blocked on PR 4 | Needs `self.cluster.map_shared(smem, target_rank)` + remote-shared load/store/atomic (routed through `mapa.shared::cluster`). M6 only. |
+| `_exact` variant (global overflow spill) | ✅ Unblocked | Global scatter store + global atomics landed in #147. |
+| `indexer_metadata` | Awkward but doable | Tiny 1-block kernel doing `cg::reduce` + `exclusive_scan` + `atomicAdd`. Recommended to keep as an escape-hatch hidet/Python kernel or a CPU prep step; don't block the Tilus port on it. |
 
 ---
 
@@ -169,19 +169,19 @@ Every `***`-marked line is a feature Tilus doesn't expose today.
 | `__ffma2_rn` (packed FMA) | Partial | Tilus compiles `r * w` element-wise and will likely emit plain FFMA; the packed `ffma2` optimization is a backend concern. Minor perf gap. |
 | `__float_as_uint`, monotonic bit-flip | Yes | Use `view(r_logit, dtype=uint32)` then arithmetic on uint32. |
 | Extract radix byte `(bits >> 24-8t) & 0xff` | Yes | Plain arithmetic on uint32 register tensor. |
-| `atomicAdd(shared_hist[bin], 1)` | No | **Not exposed as a Tilus instruction.** Hidet has `atomic_add` but Tilus' `root.py` does not wrap it. See §4.1. |
-| `atomicAdd(&s_cached_count, 1)` returning the old value | No | Same blocker. Also: atomicAdd-returns-old semantics need to be a first-class op. |
-| `atomicAdd(global_histogram + bin, local_hist[bin])` | No | Same. Global atomic also missing from the Script API. |
-| `atomicAdd(cluster.map_shared_rank(&s_final_count, 0), n)` | No (double gap) | No shared atomic AND no "perform op on remote-CTA shared address". |
-| `__shfl_sync`, `__shfl_xor_sync`, `__shfl_down_sync` | No | Exists in hidet (`elect.py:shfl_sync_i32`) but not surfaced as a Script instruction. Needed for cross-thread cum-sum inside the radix top-K pass. |
+| `atomicAdd(shared_hist[bin], 1)` | Yes (#147) | `self.atomic.shared_add` — element-wise tile atomic. DCE rewrites unused output to the destination-less `red.*` PTX form. |
+| `atomicAdd(&s_cached_count, 1)` returning the old value | Yes (#147) | Same instruction; consume the returned register to keep the `atom.*` (with-output) form. |
+| `atomicAdd(global_histogram + bin, local_hist[bin])` | Yes (#147) | `self.atomic.global_add`. |
+| `atomicAdd(cluster.map_shared_rank(&s_final_count, 0), n)` | 🟡 Partial | Shared/global atomics exist (#147). Remote-CTA shared atomic is PR 4 (`self.cluster.map_shared` + scope=`cluster` on the atomic). |
+| `__shfl_sync`, `__shfl_xor_sync`, `__shfl_down_sync` | Yes (internal) | Used by the scan emitter (#148) and reduce emitter. Not yet surfaced as a Script-level primitive, but the tile-level `self.scan` covers the cross-thread prefix-sum use case. |
 | `__ballot_sync`, `__activemask` | No | Not exposed. The reference uses them to find an "elected" writer. Could be worked around with warp id math. |
 | `lanemask_lt / le / gt / ge`, `%laneid`, `%warpid` | No | None of these introspection intrinsics are Tilus Script primitives. |
-| `cg::reduce`, `cg::exclusive_scan`, `cg::tiled_partition` | No | Cooperative-groups helpers used by `indexer_metadata.cu`. No Tilus equivalent. |
+| `cg::reduce`, `cg::exclusive_scan`, `cg::tiled_partition` | Partial | `self.scan(x, op='add', exclusive=True)` (#148) replaces `cg::exclusive_scan` at tile level. `cg::reduce` is covered by existing `self.sum`/`self.max` etc. `cg::tiled_partition` is not exposed but shouldn't be needed when scan/reduce are tile-native. |
 | `cluster.barrier_arrive / barrier_wait` (named cluster barriers) | Partial | Tilus has only `cluster.sync()` (full barrier). The reference uses half-barriers to overlap hist-clear with next-phase threshold compute. Can be emulated with `cluster.sync()` at some perf cost. |
 | `cluster.map_shared_rank(addr, rank)` as an **address mapper** | Yes | `cluster.map_shared_addr(...)` returns a uint32 remote-shared address in a RegisterTensor. |
-| **Actually reading / writing / atomic-add at that remote address** | No | Critical gap. You get the address but no instruction consumes it except `mbarrier.arrive(scope='cluster')`. No `remote_shared_atomic_add`, no `remote_shared_load`, no `remote_shared_store`. |
+| **Actually reading / writing / atomic-add at that remote address** | 🟡 PR 4 | `self.cluster.map_shared(smem, target_rank)` will return a `SharedTensor` that all shared-accepting instructions transparently accept (with `scope='cluster'` on atomics). See §4.2. |
 | `cudaTriggerProgrammaticLaunchCompletion()` / `cudaGridDependencySynchronize()` (PDL) | No | No PDL exposure. Has ~5–20% perf impact but not correctness-critical. |
-| Dynamic-offset store into a register-computed shared address (`s_topk_idx[runtime_offset] = i`) | No | `store_shared(dst, src, offsets=Sequence[int])` only accepts compile-time `int` offsets, not `Expr`. See [root.py:594-635](../../python/tilus/lang/instructions/root.py#L594-L635). |
+| Dynamic-offset store into a register-computed shared address (`s_topk_idx[runtime_offset] = i`) | Yes (#147) | `self.store_shared_scatter(dst, dim=..., indices=..., values=...)` — non-atomic scatter store with per-lane indices. |
 
 ---
 
@@ -332,28 +332,28 @@ Decided policy: land the new Tilus instructions first, *before* starting the ind
 
 ### 5.1 PR order (instructions first)
 
-| PR | Lands | Unblocks milestone |
-|---|---|---|
-| **PR 1** | `self.atomic.{shared,global}_{add, sub, min, max, and, or, xor, exch, cas}` element-wise. `sem`/`scope` params, optional `output`. Generic DCE capability for "side-effecting instruction with a removable register binding." | M3 — logits epilogue histogram fusion + block→global histogram flush. |
-| **PR 2** | Scatter variants: `self.atomic.{shared,global}_scatter_{add, sub, min, max, and, or, xor, exch, cas}` with `dim` parameter, strict `indices.shape == values.shape`, identical RegisterLayout. | M4 — radix top-K histogram build (`atomic_add(s_hist[bin], 1)`). |
-| **PR 3** | Non-atomic scatter stores: `self.store_shared_scatter` / `self.store_global_scatter`. | M4 — `s_topk_idx[off] = i` in the top-K commit path; M7 — global overflow spill. |
-| **PR 4** | `self.cluster.map_shared(smem, target_rank)` as `MapSharedInst`. Codegen emits `mapa.shared::cluster`; all shared-accepting instructions transparently work on the output when the user sets `scope='cluster'`. Includes distributed `load_shared`/`store_shared` with `.shared::cluster` qualifier. | M6 — multi-CTA cluster variant of top-K (`NClusters > 1`). |
-| **PR 5** | Tile-level scan: `self.scan(x, op, dim, exclusive)` with `cumsum`/`cumprod` shortcuts in the lang layer. Layout-driven codegen following the `ReduceInst` template in [backends/emitters/reduce.py](../../python/tilus/backends/emitters/reduce.py) — local-in-thread scan serialized, warp-distributed dim via `shfl_up_sync`, cross-warp via shared-memory fixup. Can land in parallel to PR 1–4. | M4 — 256-bin radix threshold search (one scan per pass, four passes). |
+| PR | Lands | Status | Unblocks milestone |
+|---|---|---|---|
+| **PR 1** | `self.atomic.{shared,global}_{add, sub, min, max, and, or, xor, exch, cas}` element-wise. `sem`/`scope` params, optional `output`. Generic DCE capability for "side-effecting instruction with a removable register binding." | ✅ #147 | M3 — logits epilogue histogram fusion + block→global histogram flush. |
+| **PR 2** | Scatter variants: `self.atomic.{shared,global}_scatter_{add, sub, min, max}` with `dim` parameter, strict `indices.shape == values.shape`, identical RegisterLayout. (Landed with `add/sub/min/max`; `exch`/`cas` omitted from the scatter form — semantics under duplicate indices are unclear.) | ✅ #147 | M4 — radix top-K histogram build (`atomic_add(s_hist[bin], 1)`). |
+| **PR 3** | Non-atomic scatter stores: `self.store_shared_scatter` / `self.store_global_scatter`. | ✅ #147 | M4 — `s_topk_idx[off] = i` in the top-K commit path; M7 — global overflow spill. |
+| **PR 4** | `self.cluster.map_shared(smem, target_rank)` as `MapSharedInst`. Codegen emits `mapa.shared::cluster`; all shared-accepting instructions transparently work on the output when the user sets `scope='cluster'`. Includes distributed `load_shared`/`store_shared` with `.shared::cluster` qualifier. | 🟡 Pending | M6 — multi-CTA cluster variant of top-K (`NClusters > 1`). |
+| **PR 5** | Tile-level scan: `self.scan(x, op, dim, exclusive)` with `cumsum`/`cumprod` shortcuts in the lang layer. Shipped via **Blelloch's up-sweep + down-sweep** — bit-local at every round, so every valid tilus register layout (grouped, interleaved, straddling, replicated) works uniformly; `2·log2(N)` rounds, each a single shfl / register combine / shared-memory exchange. All seven ops `add/mul/max/min/and/or/xor`, inclusive and exclusive. | ✅ #148 | M4 — 256-bin radix threshold search (one scan per pass, four passes). |
 
 ### 5.2 Kernel milestones (each independently testable against `baseline.py`)
 
-| M | Kernel | Depends on |
-|---|---|---|
-| **M1** | Logits-only Tilus kernel (FP8 MMA + relu + per-head weighted sum + per-token scale). Output `logits[B, max_model_len]`. No histogram side effect. SM100 via `tcgen05`; SM90 fallback via `wgmma`. | Today's Tilus instruction set. |
-| **M2** | Wire M1 into `benchmark.py` as the `tilus` column. Validate against baseline. | M1. |
-| **M3** | Logits with fused histogram epilogue. | PR 1. |
-| **M4** | Single-CTA fast (lossy) radix top-K, `PRE_HISTOGRAM=False`. Benchmark against `torch.ops._C.top_k_per_row_decode`. | PR 1, PR 2, PR 3 (+ PR 5 for perf). |
-| **M5** | Top-K with `PRE_HISTOGRAM=True` reusing M3's histogram. | M3, M4. |
-| **M6** | Cluster variant (`NClusters ∈ {2, 4, 8}`). | PR 4. |
-| **M7** | `_exact` variant with global overflow spill. | M4, PR 3 (global scatter). |
-| **M8** | Perf tuning: cache hints on `load_global`, named cluster half-barriers, PDL. | §4.6. |
+| M | Kernel | Depends on | Status |
+|---|---|---|---|
+| **M1** | Logits-only Tilus kernel (FP8 MMA + relu + per-head weighted sum + per-token scale). Output `logits[B, max_model_len]`. No histogram side effect. SM100 via `tcgen05`; SM90 fallback via `wgmma`. | Today's Tilus instruction set. | 🎯 **Next up** |
+| **M2** | Wire M1 into `benchmark.py` as the `tilus` column. Validate against baseline. | M1. | Ready when M1 lands |
+| **M3** | Logits with fused histogram epilogue. | PR 1 ✅. | Unblocked |
+| **M4** | Single-CTA fast (lossy) radix top-K, `PRE_HISTOGRAM=False`. Benchmark against `torch.ops._C.top_k_per_row_decode`. | PR 1 ✅, PR 2 ✅, PR 3 ✅, PR 5 ✅. | Unblocked |
+| **M5** | Top-K with `PRE_HISTOGRAM=True` reusing M3's histogram. | M3, M4. | Waits on M3+M4 |
+| **M6** | Cluster variant (`NClusters ∈ {2, 4, 8}`). | PR 4 🟡. | Blocked on PR 4 |
+| **M7** | `_exact` variant with global overflow spill. | M4, PR 3 ✅. | Waits on M4 |
+| **M8** | Perf tuning: cache hints on `load_global`, named cluster half-barriers, PDL. | §4.6. | Future |
 
-M1–M2 can start today in parallel with PR 1–5; they'll be ready to compose as PRs land.
+With PRs 1–3 and 5 already landed, **M1 is the next task** and every other milestone except M6 is also unblocked end-to-end.
 
 ---
 
@@ -368,15 +368,19 @@ M1–M2 can start today in parallel with PR 1–5; they'll be ready to compose a
 
 ## 7. Summary
 
-- **Logits kernel**: essentially writable with today's Tilus — mirror [blackwell_matmul/matmul_v1.py](../blackwell_matmul/matmul_v1.py), paged-K pattern from [attention_with_kvcache/attention_v1.py](../attention_with_kvcache/attention_v1.py). Histogram fusion needs PR 1.
-- **Top-K kernel**: needs five instruction additions, finalized as tile-native ops:
-  - **PR 1** element-wise atomics (`self.atomic.{shared,global}_*`)
-  - **PR 2** scatter atomics (`self.atomic.*_scatter_*`, torch-style `dim`)
-  - **PR 3** non-atomic scatter stores (`self.store_shared_scatter` / `self.store_global_scatter`)
-  - **PR 4** `self.cluster.map_shared` + distributed shared load/store/atomic via `mapa.shared::cluster`
-  - **PR 5** tile-level `self.scan(x, op, dim, exclusive)` with `cumsum`/`cumprod` shortcuts
+- **Logits kernel**: essentially writable with today's Tilus — mirror [blackwell_matmul/matmul_v1.py](../blackwell_matmul/matmul_v1.py), paged-K pattern from [attention_with_kvcache/attention_v1.py](../attention_with_kvcache/attention_v1.py). Histogram fusion unblocked by PR 1 (#147).
+- **Top-K kernel**: four of the five instruction additions have landed:
+  - **PR 1** ✅ #147 — element-wise atomics (`self.atomic.{shared,global}_*`)
+  - **PR 2** ✅ #147 — scatter atomics (`self.atomic.*_scatter_*`, torch-style `dim`)
+  - **PR 3** ✅ #147 — non-atomic scatter stores (`self.store_shared_scatter` / `self.store_global_scatter`)
+  - **PR 4** 🟡 pending — `self.cluster.map_shared` + distributed shared load/store/atomic via `mapa.shared::cluster` (only required for M6)
+  - **PR 5** ✅ #148 — tile-level `self.scan(x, op, dim, exclusive)` with `cumsum`/`cumprod` shortcuts, layout-agnostic Blelloch lowering
 - **Metadata kernel**: leave outside Tilus.
 
-Policy: land the five PRs first, no hidet escape hatches in Tilus scripts. M1–M2 (logits-only) can develop in parallel and will compose as PR 1–5 land.
+### Current state (2026-04-22)
+
+- Instruction work: 4/5 PRs landed in `main`; PR 4 deferred until M6 is on deck.
+- Kernel work: **M1 (logits-only) is next up**, with everything else up through M5 and M7 also unblocked.
+- M1 entry point: build on [blackwell_matmul/matmul_v1.py](../blackwell_matmul/matmul_v1.py) (SM100 template) with paged K-cache access per [attention_with_kvcache/attention_v1.py:126-140](../attention_with_kvcache/attention_v1.py#L126-L140). FP8 dequant with per-token scale, relu, per-head weighted sum, output `logits[B, max_model_len]`. Validate against [baseline.py](baseline.py); wire into [benchmark.py](benchmark.py) as the `tilus` column in M2.
 
 The logits half is the high-value, low-risk first milestone; the top-K half is the feature work that makes Tilus strictly-more-capable in a way that benefits other kernels too (sparse MoE, stream-K reductions, histogram-based ops).
