@@ -72,6 +72,8 @@ Instructions
    copy_async_commit_group
    copy_async_wait_all
    copy_async_wait_group
+   cumprod
+   cumsum
    dot
    exp
    exp2
@@ -100,6 +102,7 @@ Instructions
    reshape_shared
    round
    rsqrt
+   scan
    shared_tensor
    sin
    sqrt

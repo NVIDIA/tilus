@@ -254,6 +254,8 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.cumprod.html">Script.cumprod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.cumsum.html">Script.cumsum</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.dot.html">Script.dot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.exp.html">Script.exp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.exp2.html">Script.exp2</a></li>
@@ -282,6 +284,7 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.scan.html">Script.scan</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
@@ -779,6 +782,12 @@ including memory accesses, computations, and any other operations that need to b
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.copy_async_wait_group.html#tilus.Script.copy_async_wait_group" title="tilus.Script.copy_async_wait_group"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_async_wait_group</span></code></a>(n)</p></td>
 <td><p>Wait the completion of asynchronous copy groups.</p></td>
 </tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.cumprod.html#tilus.Script.cumprod" title="tilus.Script.cumprod"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cumprod</span></code></a>(x, *, dim[, exclusive, out])</p></td>
+<td><p>Inclusive (or exclusive) cumulative product along <code class="docutils literal notranslate"><span class="pre">dim</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.cumsum.html#tilus.Script.cumsum" title="tilus.Script.cumsum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cumsum</span></code></a>(x, *, dim[, exclusive, out])</p></td>
+<td><p>Inclusive (or exclusive) cumulative sum along <code class="docutils literal notranslate"><span class="pre">dim</span></code>.</p></td>
+</tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.dot.html#tilus.Script.dot" title="tilus.Script.dot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dot</span></code></a>(a, b[, c, acc_dtype, out])</p></td>
 <td><p>Dot product.</p></td>
 </tr>
@@ -863,49 +872,52 @@ including memory accesses, computations, and any other operations that need to b
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.rsqrt.html#tilus.Script.rsqrt" title="tilus.Script.rsqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rsqrt</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise reciprocal square root (1/sqrt(x)).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.shared_tensor.html#tilus.Script.shared_tensor" title="tilus.Script.shared_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shared_tensor</span></code></a>(*, dtype, shape)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.scan.html#tilus.Script.scan" title="tilus.Script.scan"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scan</span></code></a>(x, *, dim, op[, exclusive, out])</p></td>
+<td><p>Prefix scan along <code class="docutils literal notranslate"><span class="pre">dim</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.shared_tensor.html#tilus.Script.shared_tensor" title="tilus.Script.shared_tensor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shared_tensor</span></code></a>(*, dtype, shape)</p></td>
 <td><p>Allocate a shared tensor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.sin.html#tilus.Script.sin" title="tilus.Script.sin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sin</span></code></a>(x, *[, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.sin.html#tilus.Script.sin" title="tilus.Script.sin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sin</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise sine.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.sqrt.html#tilus.Script.sqrt" title="tilus.Script.sqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sqrt</span></code></a>(x, *[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.sqrt.html#tilus.Script.sqrt" title="tilus.Script.sqrt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sqrt</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise square root.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.square.html#tilus.Script.square" title="tilus.Script.square"><code class="xref py py-obj docutils literal notranslate"><span class="pre">square</span></code></a>(x, *[, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.square.html#tilus.Script.square" title="tilus.Script.square"><code class="xref py py-obj docutils literal notranslate"><span class="pre">square</span></code></a>(x, *[, out])</p></td>
 <td><p>Compute the element-wise square (x^2).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.squeeze.html#tilus.Script.squeeze" title="tilus.Script.squeeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">squeeze</span></code></a>(x, *, dim[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.squeeze.html#tilus.Script.squeeze" title="tilus.Script.squeeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">squeeze</span></code></a>(x, *, dim[, out])</p></td>
 <td><p>Squeeze a dimension of a register tensor with size 1.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.store_global.html#tilus.Script.store_global" title="tilus.Script.store_global"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_global</span></code></a>(dst, src, *, offsets[, dims])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.store_global.html#tilus.Script.store_global" title="tilus.Script.store_global"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_global</span></code></a>(dst, src, *, offsets[, dims])</p></td>
 <td><p>Store a register tensor into a slice of a global tensor.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.store_global_scatter.html#tilus.Script.store_global_scatter" title="tilus.Script.store_global_scatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_global_scatter</span></code></a>(dst, *, dim, indices, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.store_global_scatter.html#tilus.Script.store_global_scatter" title="tilus.Script.store_global_scatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_global_scatter</span></code></a>(dst, *, dim, indices, ...)</p></td>
 <td><p>Non-atomic scatter store into a global tensor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.store_shared.html#tilus.Script.store_shared" title="tilus.Script.store_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_shared</span></code></a>(dst, src, *[, offsets, dims])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.store_shared.html#tilus.Script.store_shared" title="tilus.Script.store_shared"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_shared</span></code></a>(dst, src, *[, offsets, dims])</p></td>
 <td><p>Store a register tensor into a shared tensor.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.store_shared_scatter.html#tilus.Script.store_shared_scatter" title="tilus.Script.store_shared_scatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_shared_scatter</span></code></a>(dst, *, dim, indices, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.store_shared_scatter.html#tilus.Script.store_shared_scatter" title="tilus.Script.store_shared_scatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_shared_scatter</span></code></a>(dst, *, dim, indices, ...)</p></td>
 <td><p>Non-atomic scatter store into a shared tensor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.sum.html#tilus.Script.sum" title="tilus.Script.sum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sum</span></code></a>(x, *[, dim, keepdim, out])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.sum.html#tilus.Script.sum" title="tilus.Script.sum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sum</span></code></a>(x, *[, dim, keepdim, out])</p></td>
 <td><p>Sum elements along the specified dimension(s).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sync</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.sync.html#tilus.Script.sync" title="tilus.Script.sync"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sync</span></code></a>()</p></td>
 <td><p>Perform a synchronization.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.transpose.html#tilus.Script.transpose" title="tilus.Script.transpose"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transpose</span></code></a>(x)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.transpose.html#tilus.Script.transpose" title="tilus.Script.transpose"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transpose</span></code></a>(x)</p></td>
 <td><p>Transpose a 2-D register tensor.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.unsqueeze.html#tilus.Script.unsqueeze" title="tilus.Script.unsqueeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unsqueeze</span></code></a>(x, *, dim[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.unsqueeze.html#tilus.Script.unsqueeze" title="tilus.Script.unsqueeze"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unsqueeze</span></code></a>(x, *, dim[, out])</p></td>
 <td><p>Unsqueeze a dimension of a register tensor.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.view.html#tilus.Script.view" title="tilus.Script.view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">view</span></code></a>(x, *[, layout, dtype])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.view.html#tilus.Script.view" title="tilus.Script.view"><code class="xref py py-obj docutils literal notranslate"><span class="pre">view</span></code></a>(x, *[, layout, dtype])</p></td>
 <td><p>View register tensor with a different layout or data type.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/tilus.Script.where.html#tilus.Script.where" title="tilus.Script.where"><code class="xref py py-obj docutils literal notranslate"><span class="pre">where</span></code></a>(condition, x, y, *[, out])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/tilus.Script.where.html#tilus.Script.where" title="tilus.Script.where"><code class="xref py py-obj docutils literal notranslate"><span class="pre">where</span></code></a>(condition, x, y, *[, out])</p></td>
 <td><p>Select elements from <code class="docutils literal notranslate"><span class="pre">x</span></code> or <code class="docutils literal notranslate"><span class="pre">y</span></code> based on a boolean condition.</p></td>
 </tr>
 </tbody>

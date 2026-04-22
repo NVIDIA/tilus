@@ -254,6 +254,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_commit_group.html">Script.copy_async_commit_group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_all.html">Script.copy_async_wait_all</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.copy_async_wait_group.html">Script.copy_async_wait_group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.cumprod.html">Script.cumprod</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.cumsum.html">Script.cumsum</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.dot.html">Script.dot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.exp.html">Script.exp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.exp2.html">Script.exp2</a></li>
@@ -282,6 +284,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.reshape_shared.html">Script.reshape_shared</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.scan.html">Script.scan</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
@@ -647,10 +650,11 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#elementwise-arithmetic">4.1.5. Elementwise Arithmetic</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#random-number-generation">4.1.6. Random Number Generation</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.1.7. Reduction</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.8. Transform</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.9. Synchronization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#semaphores">4.1.10. Semaphores</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.11. Miscellaneous</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prefix-scan">4.1.8. Prefix Scan</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.9. Transform</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.10. Synchronization</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#semaphores">4.1.11. Semaphores</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.12. Miscellaneous</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instruction-groups">4.2. Instruction Groups</a><ul class="nav section-nav flex-column">
@@ -892,8 +896,32 @@ for in-place output.</p>
 </table>
 </div>
 </section>
+<section id="prefix-scan">
+<h3><span class="section-number">4.1.8. </span>Prefix Scan<a class="headerlink" href="#prefix-scan" title="Link to this heading"><span>¶</span></a></h3>
+<p>Tile-level prefix scan along one dimension. The output preserves the input’s shape; along <code class="docutils literal notranslate"><span class="pre">dim</span></code>,
+element <code class="docutils literal notranslate"><span class="pre">i</span></code> holds the ⊕-combination of positions <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">i]</span></code> (inclusive) or <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">i)</span></code> with the
+op’s identity at <code class="docutils literal notranslate"><span class="pre">i</span> <span class="pre">==</span> <span class="pre">0</span></code> (exclusive). Supported ops: <code class="docutils literal notranslate"><span class="pre">add</span></code> / <code class="docutils literal notranslate"><span class="pre">mul</span></code> / <code class="docutils literal notranslate"><span class="pre">max</span></code> / <code class="docutils literal notranslate"><span class="pre">min</span></code> plus
+the bitwise <code class="docutils literal notranslate"><span class="pre">and</span></code> / <code class="docutils literal notranslate"><span class="pre">or</span></code> / <code class="docutils literal notranslate"><span class="pre">xor</span></code> for integer tiles. The lowering is Blelloch’s up-sweep +
+down-sweep, bit-local at every round, so every valid tilus register layout is handled — intra-
+thread, intra-warp, inter-warp, and any mixture. <code class="docutils literal notranslate"><span class="pre">cumsum</span></code> / <code class="docutils literal notranslate"><span class="pre">cumprod</span></code> are convenience
+shortcuts for <code class="docutils literal notranslate"><span class="pre">op='add'</span></code> / <code class="docutils literal notranslate"><span class="pre">op='mul'</span></code>.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.scan.html#tilus.Script.scan" title="tilus.Script.scan"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scan</span></code></a>(x, *, dim, op[, exclusive, out])</p></td>
+<td><p>Prefix scan along <code class="docutils literal notranslate"><span class="pre">dim</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.cumsum.html#tilus.Script.cumsum" title="tilus.Script.cumsum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cumsum</span></code></a>(x, *, dim[, exclusive, out])</p></td>
+<td><p>Inclusive (or exclusive) cumulative sum along <code class="docutils literal notranslate"><span class="pre">dim</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.cumprod.html#tilus.Script.cumprod" title="tilus.Script.cumprod"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cumprod</span></code></a>(x, *, dim[, exclusive, out])</p></td>
+<td><p>Inclusive (or exclusive) cumulative product along <code class="docutils literal notranslate"><span class="pre">dim</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="transform">
-<h3><span class="section-number">4.1.8. </span>Transform<a class="headerlink" href="#transform" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.9. </span>Transform<a class="headerlink" href="#transform" title="Link to this heading"><span>¶</span></a></h3>
 <p>Reshape, reinterpret, or rearrange register tensor data without changing the underlying values.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
@@ -926,7 +954,7 @@ for in-place output.</p>
 </div>
 </section>
 <section id="synchronization">
-<h3><span class="section-number">4.1.9. </span>Synchronization<a class="headerlink" href="#synchronization" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.10. </span>Synchronization<a class="headerlink" href="#synchronization" title="Link to this heading"><span>¶</span></a></h3>
 <p>Synchronize threads within a block or across a cluster. <code class="docutils literal notranslate"><span class="pre">sync</span></code> is the block-level barrier
 (equivalent to <code class="docutils literal notranslate"><span class="pre">__syncthreads()</span></code>). For cluster-wide synchronization, use <code class="docutils literal notranslate"><span class="pre">self.cluster.sync()</span></code>.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
@@ -939,7 +967,7 @@ for in-place output.</p>
 </div>
 </section>
 <section id="semaphores">
-<h3><span class="section-number">4.1.10. </span>Semaphores<a class="headerlink" href="#semaphores" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.11. </span>Semaphores<a class="headerlink" href="#semaphores" title="Link to this heading"><span>¶</span></a></h3>
 <p>Inter-block synchronization using global memory semaphores. <code class="docutils literal notranslate"><span class="pre">lock_semaphore</span></code> spins until the
 semaphore reaches a target value; <code class="docutils literal notranslate"><span class="pre">release_semaphore</span></code> sets it to signal other blocks. Both
 must be called from a single thread (<code class="docutils literal notranslate"><span class="pre">self.single_thread()</span></code>). For tile-level atomic RMW (element-wise
@@ -957,7 +985,7 @@ and scatter), see <a class="reference internal" href="#atomic-group"><span class
 </div>
 </section>
 <section id="miscellaneous">
-<h3><span class="section-number">4.1.11. </span>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.12. </span>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Link to this heading"><span>¶</span></a></h3>
 <p>Compiler hints, debugging aids, and layout annotations.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
@@ -1301,10 +1329,11 @@ the cheaper destination-less <code class="docutils literal notranslate"><span cl
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#elementwise-arithmetic">4.1.5. Elementwise Arithmetic</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#random-number-generation">4.1.6. Random Number Generation</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reduction">4.1.7. Reduction</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.8. Transform</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.9. Synchronization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#semaphores">4.1.10. Semaphores</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.11. Miscellaneous</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prefix-scan">4.1.8. Prefix Scan</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.9. Transform</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.10. Synchronization</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#semaphores">4.1.11. Semaphores</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.12. Miscellaneous</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instruction-groups">4.2. Instruction Groups</a><ul class="nav section-nav flex-column">
