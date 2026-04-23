@@ -64,6 +64,12 @@ Documentation = "https://nvidia.github.io/tilus"
 
 [tool.setuptools_scm]
 
+[tool.uv.sources]
+# Use tvm-ffi main branch for features landing in the next release. Once a
+# released wheel ships the needed py_class updates, drop this override and
+# pin a minimum version in [project].dependencies.
+apache-tvm-ffi = { path = "knowledge/tvm-ffi" }
+
 [tool.setuptools.package-dir]
 "" = "python"
 

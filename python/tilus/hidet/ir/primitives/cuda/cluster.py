@@ -41,7 +41,7 @@ def register_cuda_cluster_functions():
 
         register_primitive_function(
             name=f"this_cluster.map_shared_rank_{dtype}",
-            func_or_type=FuncType([PointerType(dtype), i32], PointerType(dtype)),
+            func_or_type=FuncType([PointerType.create(dtype), i32], PointerType.create(dtype)),
             codegen_name="cooperative_groups::this_cluster().map_shared_rank",
         )
 

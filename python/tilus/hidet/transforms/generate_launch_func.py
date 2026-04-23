@@ -70,7 +70,7 @@ def add_launch_func(ir_module: IRModule, kernel_func: Function) -> IRModule:
             with fb.if_then(shared_memory_bytes > 48 * 1024):
                 fb += set_kernel_max_dynamic_smem_bytes(func_var, shared_memory_bytes)
             cluster_dim = kernel_func.attrs.cluster_dim if kernel_func.attrs.cluster_dim is not None else 1
-            fb += LaunchKernelStmt(
+            fb += LaunchKernelStmt.create(
                 func_var,
                 params,
                 grid_dim=rewrite(_normalize_dim3(kernel_func.attrs.grid_dim), param_remap),
@@ -83,7 +83,7 @@ def add_launch_func(ir_module: IRModule, kernel_func: Function) -> IRModule:
             dsb = kernel_func.attrs.dynamic_smem_bytes
             shared_memory_bytes: Expr = rewrite(simplify(dsb if dsb is not None else int32(0)), param_remap)
 
-            fb += LaunchKernelStmt(
+            fb += LaunchKernelStmt.create(
                 func_var,
                 params,
                 grid_dim=rewrite(_normalize_dim3(kernel_func.attrs.grid_dim), param_remap),

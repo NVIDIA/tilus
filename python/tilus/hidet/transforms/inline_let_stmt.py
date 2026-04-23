@@ -150,7 +150,7 @@ class NaiveLetStmtInlineRewriter(IRRewriter):
             return stmt
         else:
             if len(bind_vars) > 0:
-                return LetStmt(bind_vars, bind_values, body)
+                return LetStmt.create(bind_vars, bind_values, body)
             else:
                 return body
 

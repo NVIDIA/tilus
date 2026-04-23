@@ -399,7 +399,7 @@ class AffineToRecurrenceRewriter(IRRewriter):
             if body is stmt.body:
                 return stmt
             else:
-                return LetStmt(bind_vars=stmt.bind_vars, bind_values=stmt.bind_values, body=body)
+                return LetStmt.create(bind_vars=stmt.bind_vars, bind_values=stmt.bind_values, body=body)
         else:
             return super().visit_LetStmt(stmt)
 

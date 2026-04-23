@@ -34,7 +34,7 @@ from tilus.hidet.utils.py import prod
 
 
 def check_cuda_error():
-    stmt = BlackBoxStmt(
+    stmt = BlackBoxStmt.create(
         r"""{cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) TVM_FFI_THROW(RuntimeError) << "CUDA error: " << """
         r"""cudaGetErrorString(err) << "\n";}"""
     )
@@ -69,19 +69,19 @@ class CheckLaunchConfigurationRewriter(IRRewriter):
                     stmt.block_dim[1],
                     stmt.block_dim[2],
                 )
-                sb += AssertStmt(False, "Invalid launch configuration")
+                sb += AssertStmt.create(False, "Invalid launch configuration")
             conditions = [grid_dim % cluster_dim != 0 for grid_dim, cluster_dim in zip(stmt.grid_dim, stmt.cluster_dim)]
             with sb.if_then(logical_or(*conditions)):
-                sb += AssertStmt(False, "Cluster dims must elementwise evenly divide grid dims")
+                sb += AssertStmt.create(False, "Cluster dims must elementwise evenly divide grid dims")
 
             condition = prod(stmt.cluster_dim) > 8
             with sb.if_then(condition):
-                sb += AssertStmt(False, "At most 8 thread blocks in a cluster")
+                sb += AssertStmt.create(False, "At most 8 thread blocks in a cluster")
 
             with sb.if_then(stmt.shared_mem_bytes > 49152):
                 # if the shared memory is larger than 48KB, we should call cudaFuncSetAttribute
                 if stmt.target == "cuda":
-                    sb += BlackBoxStmt(
+                    sb += BlackBoxStmt.create(
                         "cudaFuncSetAttribute({}, cudaFuncAttributeMaxDynamicSharedMemorySize, {});",
                         stmt.func_var,
                         stmt.shared_mem_bytes,

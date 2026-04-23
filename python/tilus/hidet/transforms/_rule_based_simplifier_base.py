@@ -64,15 +64,15 @@ from tilus.hidet.utils import prod, repeat_until_converge, same_list
 
 
 def any_expr(allow_const):
-    return PlaceholderExpr(require_non_const=not allow_const)
+    return PlaceholderExpr.create(require_non_const=not allow_const)
 
 
 def any_constant():
-    return PlaceholderExpr(require_const=True)
+    return PlaceholderExpr.create(require_const=True)
 
 
 def int_constant():
-    return PlaceholderExpr(required_type=int32, require_const=True)
+    return PlaceholderExpr.create(required_type=int32, require_const=True)
 
 
 def c_div(a, b):
@@ -279,7 +279,12 @@ class RuleBasedSimplifier(IRRewriter):
                 cur = self.const_expr_simplifier(cur)
                 cur = self.apply_bound_aware_rule(cur)
                 cur = self.const_expr_simplifier(cur)
-                if orig_obj is cur:
+                # Use ``same_as`` (C-handle identity) rather than Python ``is``;
+                # tvm-ffi hands out a fresh Python wrapper per attribute access,
+                # so ``is`` alone never holds even when the rewriter is a no-op.
+                if orig_obj is cur or (
+                    hasattr(orig_obj, "same_as") and orig_obj.same_as(cur)
+                ):
                     break
             self.memo[obj] = cur
             return cur
@@ -326,7 +331,7 @@ class RuleBasedSimplifier(IRRewriter):
         if same_list(bind_vars, stmt.bind_vars) and same_list(bind_values, stmt.bind_values) and body is stmt.body:
             return stmt
         else:
-            return LetStmt(bind_vars, bind_values, body)
+            return LetStmt.create(bind_vars, bind_values, body)
 
     def visit_ForStmt(self, stmt: ForStmt):
         loop_var = self(stmt.loop_var)
@@ -336,7 +341,7 @@ class RuleBasedSimplifier(IRRewriter):
         if loop_var is stmt.loop_var and extent is stmt.extent and body is stmt.body:
             return stmt
         else:
-            return ForStmt(loop_var, extent, body=body, attr=stmt.attr)
+            return ForStmt.create(loop_var, extent, body=body, attr=stmt.attr)
 
     def visit_Function(self, func: Function):
         return IRRewriter.visit_Function(self, func)

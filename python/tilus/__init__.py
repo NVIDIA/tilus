@@ -13,6 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ruff: noqa: I001
+
+# Python's ``typing.no_type_check`` assigns ``__no_type_check__`` onto the
+# decorated object and only suppresses ``TypeError`` from the assignment.
+# Many existing primitive-function definitions apply it AFTER ``@script``,
+# which now returns a frozen ``@py_class`` Function whose slot-backed layout
+# raises ``AttributeError`` on that assignment. Patch the stdlib decorator
+# to also swallow ``AttributeError`` so those call sites keep working.
+import typing as _typing
+
+_real_no_type_check = _typing.no_type_check
+
+
+def _no_type_check_tolerant(arg):  # noqa: ANN001
+    try:
+        return _real_no_type_check(arg)
+    except AttributeError:
+        return arg
+
+
+_typing.no_type_check = _no_type_check_tolerant
+
 from tilus.hidet.ir.dtypes import (
     bf16,
     bfloat16,

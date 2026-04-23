@@ -142,10 +142,10 @@ class LaunchStmtRewriter(IRRewriter):
         extra_launch_args = []
         for tmpl_stmt, tmpl_arg in zip(precompute_stmts_template, extra_launch_args_template):
             fresh_var = Var(tmpl_arg.name, type=tmpl_arg.type)
-            precompute_stmts.append(DeclareStmt(fresh_var, init=rewrite(tmpl_stmt.init, param_remap)))
+            precompute_stmts.append(DeclareStmt.create(fresh_var, init=rewrite(tmpl_stmt.init, param_remap)))
             extra_launch_args.append(fresh_var)
 
-        new_launch = LaunchKernelStmt(
+        new_launch = LaunchKernelStmt.create(
             func_var=stmt.func_var,
             args=list(stmt.args) + extra_launch_args,
             grid_dim=stmt.grid_dim,
@@ -154,7 +154,7 @@ class LaunchStmtRewriter(IRRewriter):
             shared_mem=stmt.shared_mem_bytes,
             target=stmt.target,
         )
-        return SeqStmt(precompute_stmts + [new_launch])
+        return SeqStmt.create(precompute_stmts + [new_launch])
 
 
 class LowerFastDivPass(Pass):
@@ -243,8 +243,8 @@ class LowerFastDivPass(Pass):
             # Precompute functions return uint32; cast to int32 for the kernel params
             # to keep everything in int32 and avoid signed/unsigned casts that prevent
             # ptxas from using uniform registers.
-            precompute_stmts.append(DeclareStmt(launch_m, init=Cast(fastdiv_precompute_m(divisor_expr), int32)))
-            precompute_stmts.append(DeclareStmt(launch_s, init=Cast(fastdiv_precompute_s(divisor_expr), int32)))
+            precompute_stmts.append(DeclareStmt.create(launch_m, init=Cast(fastdiv_precompute_m(divisor_expr), int32)))
+            precompute_stmts.append(DeclareStmt.create(launch_s, init=Cast(fastdiv_precompute_s(divisor_expr), int32)))
             extra_launch_args.append(launch_m)
             extra_launch_args.append(launch_s)
         return precompute_stmts, extra_launch_args

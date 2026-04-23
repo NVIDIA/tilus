@@ -55,7 +55,7 @@ class _ForFrame(_Frame):
     attr: ForStmtAttr
 
     def build(self, body: Stmt) -> ForStmt:
-        return ForStmt(self.loop_var, self.extent, body, attr=self.attr)
+        return ForStmt.create(self.loop_var, self.extent, body, attr=self.attr)
 
 
 @dataclass
@@ -64,7 +64,7 @@ class _LetFrame(_Frame):
     bind_values: Tuple[Expr, ...]
 
     def build(self, body: Stmt) -> LetStmt:
-        return LetStmt(self.bind_vars, self.bind_values, body)
+        return LetStmt.create(self.bind_vars, self.bind_values, body)
 
 
 @dataclass
@@ -72,7 +72,7 @@ class _WhileFrame(_Frame):
     cond: Expr
 
     def build(self, body: Stmt) -> WhileStmt:
-        return WhileStmt(self.cond, body)
+        return WhileStmt.create(self.cond, body)
 
 
 @dataclass
@@ -141,24 +141,24 @@ class StmtBuilder:
     # ---- singleton statements ----
 
     def declare(self, v: Var, init: Optional[Expr] = None, scope=None):
-        self.append(DeclareStmt(v, init, scope=scope))
+        self.append(DeclareStmt.create(v, convert(init), scope=scope))
         return v
 
     def declare_var(
         self, name: str, tp: BaseType, init: Optional[Expr] = None, scope: Optional[DeclareScope] = None
     ) -> Var:
         v = var(name, tp)
-        self.append(DeclareStmt(v, init=init, scope=scope))
+        self.append(DeclareStmt.create(v, init=convert(init), scope=scope))
         return v
 
     def buffer_store(self, buf: Expr, indices: Sequence[Union[Expr, int]], value: Expr):
-        self.append(BufferStoreStmt(buf, convert(indices), value))
+        self.append(BufferStoreStmt.create(buf, [convert(i) for i in indices], convert(value)))
 
     def assign(self, dst: Var, value: Expr):
-        self.append(AssignStmt(dst, value))
+        self.append(AssignStmt.create(dst, convert(value)))
 
     def assertion(self, cond: Union[Expr, bool], msg: str) -> None:
-        self.append(AssertStmt(cond, msg))
+        self.append(AssertStmt.create(convert(cond), msg))
 
     def comment(self, comment_string: str, style: str = "//") -> None:
         from tilus.hidet.ir.primitives.debug import comment
@@ -226,7 +226,7 @@ class StmtBuilder:
         if isinstance(stmt, (Stmt, Expr)):
             self._flush_pending_if()
             if isinstance(stmt, Expr):
-                stmt = EvaluateStmt(stmt)
+                stmt = EvaluateStmt.create(stmt)
             self.scope_stack[-1].append(stmt)
         else:
             assert isinstance(stmt, (tuple, list))
@@ -251,15 +251,15 @@ class StmtBuilder:
 
     def _exit_scope(self) -> None:
         self._flush_pending_if()
-        body = SeqStmt(self.scope_stack.pop())
+        body = SeqStmt.create(self.scope_stack.pop())
         self.pending_if_stack.pop()
         frame = self.frame_stack.pop()
         if isinstance(frame, _IfThenFrame):
-            self.pending_if_stack[-1] = IfStmt(frame.cond, body, None)
+            self.pending_if_stack[-1] = IfStmt.create(frame.cond, body, None)
         elif isinstance(frame, _ElseIfFrame):
             prev = self.pending_if_stack[-1]
             assert prev is not None  # enforced at _enter_scope
-            self.pending_if_stack[-1] = _attach_else(prev, IfStmt(frame.cond, body, None))
+            self.pending_if_stack[-1] = _attach_else(prev, IfStmt.create(frame.cond, body, None))
         elif isinstance(frame, _OtherwiseFrame):
             prev = self.pending_if_stack[-1]
             assert prev is not None  # enforced at _enter_scope
@@ -270,15 +270,15 @@ class StmtBuilder:
     def finish(self) -> SeqStmt:
         self._flush_pending_if()
         assert len(self.scope_stack) == 1 and not self.frame_stack, "finish() called with open scopes"
-        return SeqStmt(self.scope_stack.pop())
+        return SeqStmt.create(self.scope_stack.pop())
 
 
 def _attach_else(prev_if: IfStmt, new_else: Stmt) -> IfStmt:
     """Return a new IfStmt tree with ``new_else`` attached to the innermost ``None`` else slot."""
     if prev_if.else_body is None:
-        return IfStmt(prev_if.cond, prev_if.then_body, new_else)
+        return IfStmt.create(prev_if.cond, prev_if.then_body, new_else)
     assert isinstance(prev_if.else_body, IfStmt), "otherwise() must be the last entry in an if-chain"
-    return IfStmt(prev_if.cond, prev_if.then_body, _attach_else(prev_if.else_body, new_else))
+    return IfStmt.create(prev_if.cond, prev_if.then_body, _attach_else(prev_if.else_body, new_else))
 
 
 T = TypeVar("T")

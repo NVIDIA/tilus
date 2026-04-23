@@ -49,13 +49,28 @@ from tilus.hidet.ir.node import Node
 from tilus.hidet.ir.type import BaseType
 
 
+from tvm_ffi.dataclasses import py_class
+
+
+@py_class("tilus.hidet.ir.PlaceholderExpr", frozen=True, structural_eq="tree")
 class PlaceholderExpr(Expr):
-    def __init__(self, required_type: Optional[BaseType] = None, require_const=False, require_non_const=False):
-        super().__init__()
-        self.required_type: Optional[BaseType] = required_type
-        self.require_const: bool = require_const
-        self.require_non_const: bool = require_non_const
-        assert not (self.require_const and self.require_non_const), "require placeholder to be both const & non-const"
+    required_type: Optional[BaseType] = None
+    require_const: bool = False
+    require_non_const: bool = False
+
+    @classmethod
+    def create(
+        cls,
+        required_type: Optional[BaseType] = None,
+        require_const: bool = False,
+        require_non_const: bool = False,
+    ) -> "PlaceholderExpr":
+        assert not (require_const and require_non_const), "require placeholder to be both const & non-const"
+        return cls(
+            required_type=required_type,
+            require_const=require_const,
+            require_non_const=require_non_const,
+        )
 
 
 class NotMatchedError(Exception):

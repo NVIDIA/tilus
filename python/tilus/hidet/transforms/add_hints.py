@@ -72,7 +72,7 @@ class AddHintsRewriter(IRRewriter):
             return func
         hint_body = self.get_hints_body(func)
         body = self.visit(func.body)
-        body = SeqStmt((hint_body, body))
+        body = SeqStmt.create((hint_body, body))
         return Function(func.name, func.params, body, func.ret_type, func.kind, func.attrs)
 
 

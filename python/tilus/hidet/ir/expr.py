@@ -12,26 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# pylint: disable=import-outside-toplevel, useless-parent-delegation, redefined-outer-name, redefined-builtin
-# pylint: disable=useless-super-delegation, protected-access
+# pylint: disable=redefined-builtin
 from __future__ import annotations
 
 import operator
 import string
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
-from tilus.hidet.ir.dtypes import IntegerType, boolean, int32, int64, promote_type, uint64
+from tvm_ffi.dataclasses import py_class
+
+from tilus.hidet.ir.dtypes import boolean, promote_type
 
 from .dtypes import default_float_dtype, default_int_dtype
 from .node import Node
@@ -52,7 +42,33 @@ from .type import (
 PyScalar = Union[bool, int, float, complex, str]
 
 
+# ---------------------------------------------------------------------------
+# Base expression and arithmetic-operator overloads
+# ---------------------------------------------------------------------------
+
+
+@py_class("tilus.hidet.ir.Expr", frozen=True, structural_eq="tree")
 class Expr(Node):
+    """Base class for every hidet IR expression node.
+
+    Python ``==`` and ``hash()`` stay as the default handle-identity from
+    ``tvm_ffi.Object`` — two distinct instances never compare equal, and a
+    plain ``dict`` keyed on an Expr acts as an identity map even across the
+    fresh Python wrappers that FFI-container indexing returns.
+
+    Each subclass declares ``structural_eq="tree"`` so that
+    :func:`tvm_ffi.structural_equal` / :func:`tvm_ffi.structural_hash` walk
+    its fields when needed. Use :class:`~tilus.hidet.ir.node.NodeDict` /
+    :class:`~tilus.hidet.ir.node.NodeSet` (backed by
+    :class:`tvm_ffi.StructuralKey`) to key a container by structural
+    equality.
+
+    Python comparison operators are routed through the
+    :func:`equal` / :func:`not_equal` / :func:`less_than` / :func:`less_equal`
+    factory helpers and the ordering dunders below; they all build IR nodes
+    rather than returning Python bools.
+    """
+
     def __bool__(self) -> bool:
         raise TypeError(
             "hidet.ir.Expr does not support pythonic logical operations (e.g., and, or, not, if(...)). "
@@ -65,108 +81,98 @@ class Expr(Node):
             raise ValueError("Keyword arguments are not supported in hidet function calls.")
         if isinstance(self, Var) and self.type.is_func_type():
             return call(self, args)
-        else:
-            raise ValueError("Only function variable can be called.")
+        raise ValueError("Only function variable can be called.")
 
     def __neg__(self):
-        return self._unary(Neg, self)
+        return _unary(Neg, self)
 
     def __add__(self, other):
-        return self._binary(Add, self, other)
+        return _binary(Add, self, other)
 
     def __radd__(self, other):
-        return self._binary(Add, other, self)
+        return _binary(Add, other, self)
 
     def __sub__(self, other):
-        return self._binary(Sub, self, other)
+        return _binary(Sub, self, other)
 
     def __rsub__(self, other):
-        return self._binary(Sub, other, self)
+        return _binary(Sub, other, self)
 
     def __mul__(self, other):
-        return self._binary(Multiply, self, other)
+        return _binary(Multiply, self, other)
 
     def __rmul__(self, other):
-        return self._binary(Multiply, other, self)
+        return _binary(Multiply, other, self)
 
     def __truediv__(self, other):
-        return self._binary(Div, self, other)
+        return _binary(Div, self, other)
 
     def __rtruediv__(self, other):
-        return self._binary(Div, other, self)
+        return _binary(Div, other, self)
 
     def __floordiv__(self, other):
-        return self._binary(Div, self, other)
+        return _binary(Div, self, other)
 
     def __rfloordiv__(self, other):
-        return self._binary(Div, other, self)
+        return _binary(Div, other, self)
 
     def __mod__(self, other):
-        return self._binary(Mod, self, other)
+        return _binary(Mod, self, other)
 
     def __rmod__(self, other):
-        return self._binary(Mod, other, self)
-
-    def __lt__(self, other):
-        return self._binary(LessThan, self, other)
-
-    def __le__(self, other):
-        return self._binary(LessEqual, self, other)
-
-    def __eq__(self, other):
-        # In hidet, we override the comparison operators: '<', '<=', '==', '!=', '>', '>=', which will return
-        # the corresponding comparison expression. For example, `a < b` will return a LessThan expression.
-        # An error will be raised if the result of the comparison is used in any place to evaluate the value in python:
-        # `if a < b: ...` will raise an error.
-        # This is because these comparison operators are used to construct the comparison expression in hidet IR.
-        # However, there are two exceptions:
-        #  1. if the comparison result is a constant (e.g., `int32(1) < int32(2)`), the result can be evaluated.
-        #  2. if it is a `==` comparison, the result can be evaluated in python, and True if the two expressions are
-        #     identical (e.g., `a is b`), False otherwise. We need this feature to use Expr as the keys in dict.
-        # See `hidet.ir.expr.Constant.__bool__` and `hidet.ir.expr.Equal.__bool__` for the implementation details.
-        return self._binary(Equal, self, other)
-
-    def __ne__(self, other):
-        return self._binary(NotEqual, self, other)
+        return _binary(Mod, other, self)
 
     def __lshift__(self, other):
-        return self._binary(LeftShift, self, other)
+        return _binary(LeftShift, self, other)
 
     def __rshift__(self, other):
-        return self._binary(RightShift, self, other)
+        return _binary(RightShift, self, other)
 
     def __rlshift__(self, other):
-        return self._binary(LeftShift, other, self)
+        return _binary(LeftShift, other, self)
 
     def __rrshift__(self, other):
-        return self._binary(RightShift, other, self)
+        return _binary(RightShift, other, self)
+
+    # Ordering operators stay as IR-construction helpers. py_class does NOT
+    # auto-generate ``__lt__/__le__/__gt__/__ge__`` unless ``order=True``,
+    # so they're safe to use for IR construction. Equality / inequality
+    # (``==`` / ``!=``) keep the Object-default handle-identity and are
+    # reserved for Python dict/set keying; use ``equal(a, b)`` /
+    # ``not_equal(a, b)`` when you want to build an IR comparison node.
+    def __lt__(self, other):
+        return _binary(LessThan, self, other)
+
+    def __le__(self, other):
+        return _binary(LessEqual, self, other)
 
     def __gt__(self, other):
-        return self._binary(LessThan, other, self)
+        return _binary(LessThan, other, self)
 
     def __ge__(self, other):
-        return self._binary(LessEqual, other, self)
+        return _binary(LessEqual, other, self)
 
     def __invert__(self):
-        return Address(self)  # We override the invert operator `~a` as the addressing operator.
+        # ~a is overloaded as the C "take address of a" operator.
+        return Address(expr=self)
 
     def __or__(self, other):
-        return self._binary(BitwiseOr, self, other)
+        return _binary(BitwiseOr, self, other)
 
     def __ror__(self, other):
-        return self._binary(BitwiseOr, other, self)
+        return _binary(BitwiseOr, other, self)
 
     def __and__(self, other):
-        return self._binary(BitwiseAnd, self, other)
+        return _binary(BitwiseAnd, self, other)
 
     def __rand__(self, other):
-        return self._binary(BitwiseAnd, other, self)
+        return _binary(BitwiseAnd, other, self)
 
     def __xor__(self, other):
-        return self._binary(BitwiseXor, self, other)
+        return _binary(BitwiseXor, self, other)
 
     def __rxor__(self, other):
-        return self._binary(BitwiseXor, other, self)
+        return _binary(BitwiseXor, other, self)
 
     def __getitem__(self, items):
         if not isinstance(items, (tuple, list)):
@@ -179,11 +185,6 @@ class Expr(Node):
     def __setitem__(self, key, value):
         raise ValueError()
 
-    def __str__(self):
-        from tilus.hidet.ir.tools import astext
-
-        return str(astext(self))
-
     def __int__(self):
         raise TypeError("Cannot convert hidet.ir.Expr to int.")
 
@@ -193,263 +194,189 @@ class Expr(Node):
     def __complex__(self):
         raise TypeError("Cannot convert hidet.ir.Expr to complex.")
 
-    __hash__ = object.__hash__  # use default hash function
-
     def write(self, items, value, protected=True):
-        from tilus.hidet.ir.stmt import BufferStoreStmt
+        from tilus.hidet.ir.stmt import BufferStoreStmt  # noqa: PLC0415
 
         te = self[items]
         if not isinstance(te, TensorElement):
             raise ValueError("expect element indexing, but got slicing.")
-        return BufferStoreStmt(self, te.indices, value, protected)
-
-    @staticmethod
-    def _unary(cls, a):  # pylint: disable=bad-staticmethod-argument
-        if not isinstance(a, Expr):
-            a = convert(a)
-        if isinstance(a, Constant):
-            if cls is Neg:
-                return constant(-a.value, a.type)
-            elif cls is LogicalNot:
-                return constant(not a.value, a.type)
-            elif cls is BitwiseNot:
-                return constant(~a.value, a.type)
-            else:
-                raise ValueError("unknown unary operator {}".format(cls))
-        else:
-            return cls(a)
-
-    @staticmethod
-    def _binary(cls, a: Expr, b: Expr):  # pylint: disable=bad-staticmethod-argument
-        if not isinstance(a, Expr):
-            a = convert(a)
-        if not isinstance(b, Expr):
-            b = convert(b)
-        if isinstance(a, Constant) and isinstance(b, Constant):
-            if a.type.is_data_type() and b.type.is_data_type():
-                value = operator_dict[cls](a.value, b.value)
-                if cls in [Equal, NotEqual, LessThan, LessEqual, LogicalAnd, LogicalOr]:
-                    return constant(value, const_type="bool")
-                elif cls in [LeftShift, RightShift]:
-                    return constant(value, a.type)
-                else:
-                    return constant(value, promote_type(a.type, b.type))
-            elif a.type.is_pointer() and b.type.is_pointer():
-                if cls is Sub:
-                    return constant(a.value - b.value, "uint64")
-                elif cls in [Equal, NotEqual]:
-                    return constant(operator_dict[cls](a.value, b.value), "bool")
-                else:
-                    raise ValueError("unknown binary operator {}".format(cls))
-            elif a.type.is_pointer() and b.type.is_data_type():
-                return constant(a.value + b.value, a.type)
-            elif a.type.is_data_type() and b.type.is_pointer():
-                return constant(a.value + b.value, b.type)
-            elif a.type.is_string_type() and b.type.is_string_type():
-                if cls is Add:
-                    return constant(a.value + b.value, a.type)
-                elif cls in [Equal, NotEqual]:
-                    return constant(operator_dict[cls](a.value, b.value), "bool")
-                else:
-                    raise ValueError("unknown binary operator {}".format(cls))
-            else:
-                raise ValueError("unknown binary operator {}".format(cls))
-        elif isinstance(b, Constant) and b.type.is_data_type():
-            from tilus.hidet.ir.tools import infer_type
-
-            if b == 0:
-                if cls in [Add, Sub, BitwiseXor, BitwiseOr]:
-                    return a
-                elif cls is Multiply:
-                    return promote_type(infer_type(a), b.type)(0)
-            elif b == 1 and cls in [Multiply, Div]:
-                return a
-        elif isinstance(a, Constant):
-            from tilus.hidet.ir.tools import infer_type
-
-            if a == 0:
-                if cls in [Add, BitwiseXor, BitwiseOr]:
-                    return b
-                elif cls is Multiply:
-                    return promote_type(infer_type(b), a.type)(0)
-            elif a == 1 and cls is Multiply:
-                return b
-        elif a is b and isinstance(a, Var) and cls == LessThan:
-            return constant(False, "bool")
-
-        return cls(a, b)
+        return BufferStoreStmt.create(buf=self, indices=te.indices, value=value, protected=protected)
 
 
+# ---------------------------------------------------------------------------
+# Binary / unary shape classes
+# ---------------------------------------------------------------------------
+
+
+@py_class("tilus.hidet.ir.BinaryExpr", frozen=True, structural_eq="tree")
 class BinaryExpr(Expr):
-    def __init__(self, a: Expr, b: Expr):
-        self.a: Expr = a
-        self.b: Expr = b
-
-        assert isinstance(a, Expr)
-        assert isinstance(b, Expr)
+    a: Expr
+    b: Expr
 
 
+@py_class("tilus.hidet.ir.UnaryExpr", frozen=True, structural_eq="tree")
 class UnaryExpr(Expr):
-    def __init__(self, a: Expr):
-        self.a: Expr = convert(a)
-
-        assert isinstance(a, Expr)
+    a: Expr
 
 
+@py_class("tilus.hidet.ir.Condition", frozen=True, structural_eq="tree")
 class Condition(Expr):
+    """Marker for boolean-valued expressions. No fields of its own."""
+
+
+@py_class("tilus.hidet.ir.LessThan", frozen=True, structural_eq="tree")
+class LessThan(BinaryExpr):
     pass
 
 
-class LessThan(Condition, BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+@py_class("tilus.hidet.ir.LessEqual", frozen=True, structural_eq="tree")
+class LessEqual(BinaryExpr):
+    pass
 
 
-class LessEqual(Condition, BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+@py_class("tilus.hidet.ir.Equal", frozen=True, structural_eq="tree")
+class Equal(BinaryExpr):
+    pass
 
 
-class Equal(Condition, BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
-
-    def __bool__(self):
-        r = object.__eq__(self.a, self.b)
-        if r is NotImplemented:
-            return False
-        else:
-            return True
+@py_class("tilus.hidet.ir.NotEqual", frozen=True, structural_eq="tree")
+class NotEqual(BinaryExpr):
+    pass
 
 
-class NotEqual(Condition, BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+@py_class("tilus.hidet.ir.LogicalAnd", frozen=True, structural_eq="tree")
+class LogicalAnd(BinaryExpr):
+    pass
 
 
-class LogicalAnd(Condition, BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+@py_class("tilus.hidet.ir.LogicalOr", frozen=True, structural_eq="tree")
+class LogicalOr(BinaryExpr):
+    pass
 
 
-class LogicalOr(Condition, BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+@py_class("tilus.hidet.ir.LogicalNot", frozen=True, structural_eq="tree")
+class LogicalNot(UnaryExpr):
+    pass
 
 
-class LogicalNot(Condition, UnaryExpr):
-    def __init__(self, a):
-        super().__init__(a)
-
-
+@py_class("tilus.hidet.ir.Neg", frozen=True, structural_eq="tree")
 class Neg(UnaryExpr):
-    def __init__(self, a):
-        super().__init__(a)
+    pass
 
 
+@py_class("tilus.hidet.ir.Add", frozen=True, structural_eq="tree")
 class Add(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+    pass
 
 
+@py_class("tilus.hidet.ir.Sub", frozen=True, structural_eq="tree")
 class Sub(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+    pass
 
 
+@py_class("tilus.hidet.ir.Multiply", frozen=True, structural_eq="tree")
 class Multiply(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+    pass
 
 
+@py_class("tilus.hidet.ir.Div", frozen=True, structural_eq="tree")
 class Div(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+    pass
 
 
+@py_class("tilus.hidet.ir.Mod", frozen=True, structural_eq="tree")
 class Mod(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+    pass
 
 
+@py_class("tilus.hidet.ir.BitwiseNot", frozen=True, structural_eq="tree")
 class BitwiseNot(UnaryExpr):
-    def __init__(self, a):
-        super().__init__(a)
+    pass
 
 
+@py_class("tilus.hidet.ir.BitwiseAnd", frozen=True, structural_eq="tree")
 class BitwiseAnd(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+    pass
 
 
+@py_class("tilus.hidet.ir.BitwiseOr", frozen=True, structural_eq="tree")
 class BitwiseOr(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+    pass
 
 
+@py_class("tilus.hidet.ir.BitwiseXor", frozen=True, structural_eq="tree")
 class BitwiseXor(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+    pass
 
 
+@py_class("tilus.hidet.ir.LeftShift", frozen=True, structural_eq="tree")
 class LeftShift(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+    pass
 
 
+@py_class("tilus.hidet.ir.RightShift", frozen=True, structural_eq="tree")
 class RightShift(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
+    pass
 
 
+# ---------------------------------------------------------------------------
+# Compound expressions
+# ---------------------------------------------------------------------------
+
+
+@py_class("tilus.hidet.ir.TensorElement", frozen=True, structural_eq="tree")
 class TensorElement(Expr):
-    def __init__(self, base, indices, protected=False):
-        self.base: Expr = base
-        self.indices: Tuple[Expr, ...] = indices
-        self.protected: bool = protected
-
-        assert isinstance(base, Expr) and isinstance(indices, tuple)
-        for idx in indices:
-            assert isinstance(idx, Expr)
+    base: Expr
+    indices: tuple[Expr, ...]
+    protected: bool = False
 
 
+@py_class("tilus.hidet.ir.Call", frozen=True, structural_eq="tree")
 class Call(Expr):
-    def __init__(self, func_var, args):
-        self.func_var: Var = func_var
-        self.args: Tuple[Expr, ...] = args
-        assert isinstance(func_var, Var) and isinstance(args, tuple)
-        for arg in args:
-            assert isinstance(arg, Expr)
+    func_var: "Var"
+    args: tuple[Expr, ...]
 
 
+@py_class("tilus.hidet.ir.Let", frozen=True, structural_eq="tree")
 class Let(Expr):
-    def __init__(self, var, value, body):
-        self.var: Var = var
-        self.value: Expr = value
-        self.body: Expr = body
-
-        assert isinstance(var, Var) and isinstance(value, Expr) and isinstance(body, Expr)
+    var: "Var"
+    value: Expr
+    body: Expr
 
 
+@py_class("tilus.hidet.ir.Cast", frozen=True, structural_eq="tree")
 class Cast(Expr):
-    def __init__(self, expr, target_type: BaseType):
-        self.expr: Expr = expr
-        self.target_type: BaseType = target_type
-
-        assert isinstance(target_type, BaseType), f"target_type {target_type} is not a BaseType"
+    expr: Expr
+    target_type: BaseType
 
 
+@py_class("tilus.hidet.ir.IfThenElse", frozen=True, structural_eq="tree")
+class IfThenElse(Expr):
+    cond: Expr
+    then_expr: Expr
+    else_expr: Expr
+
+
+@py_class("tilus.hidet.ir.Dereference", frozen=True, structural_eq="tree")
+class Dereference(Expr):
+    expr: Expr
+
+
+@py_class("tilus.hidet.ir.Address", frozen=True, structural_eq="tree")
+class Address(Expr):
+    expr: Expr
+
+
+@py_class("tilus.hidet.ir.Constant", frozen=True, structural_eq="tree")
 class Constant(Expr):
-    # reuse commonly-used constant objects
-    _constant_pool: Dict[Tuple[Union[int, float, bool], str], Constant] = {}
+    """A compile-time scalar / string / pointer constant.
 
-    def __init__(
-        self,
-        value: Union[float, int, complex, str],
-        const_type: Union[DataType, StringType, PointerType],
-    ):
-        self.value: Union[float, int, complex, str] = value
-        self.type: Union[DataType, StringType, PointerType] = const_type
+    ``complex`` constants are not supported: complex scalar types are
+    registered but never reach CUDA codegen.
+    """
+
+    value: Union[bool, int, float, str]
+    type: BaseType
 
     def is_scalar(self) -> bool:
         return isinstance(self.type, DataType)
@@ -469,114 +396,41 @@ class Constant(Expr):
     def __complex__(self):
         return complex(self.value)
 
-    # This speciallisation of Expr._binary is done for speedup purposes only
-    # and fully equvivalent to Expr._binary by functionality
-    @staticmethod
-    def _binary(cls, a: Expr, b: Expr):  # pylint: disable=bad-staticmethod-argument
-        def _binary_internal(cls, a: int, b: int, a_type, res_type):
-            value = operator_dict[cls](a, b)
-            if cls in [Equal, NotEqual, LessThan, LessEqual]:
-                return boolean.true if value else boolean.false
-            elif cls in [LeftShift, RightShift]:
-                return constant_int(value, a_type)
-            else:
-                return constant_int(value, res_type)
 
-        if (
-            isinstance(a, Constant)
-            and isinstance(b, Constant)
-            and isinstance(a.type, IntegerType)
-            and isinstance(b.type, IntegerType)
-        ):
-            res_type = a.type if a.type is b.type else promote_type(a.type, b.type)
-            return _binary_internal(cls, a.value, b.value, a.type, res_type)
-        if isinstance(b, int) and isinstance(a.type, IntegerType):
-            res_type = int64 if (a.type is int64 or a.type is uint64) else int32
-            return _binary_internal(cls, a.value, b, a.type, res_type)
-        if isinstance(a, int) and isinstance(b.type, IntegerType):
-            res_type = int64 if (b.type is int64 or b.type is uint64) else int32
-            return _binary_internal(cls, a, b.value, int32, res_type)
-        # 2.5% cases fall here
-        return super(Constant, Constant)._binary(cls, a, b)
+# ---------------------------------------------------------------------------
+# Var — identity-based, does NOT structurally compare equal to another Var
+# with the same name/type. This is what hidet historically relied on.
+# ---------------------------------------------------------------------------
 
 
-class IfThenElse(Expr):
-    """
-    The if-then-else expression.
-
-    Parameters
-    ----------
-    cond: Expr
-        The condition of the if-then-else expression.
-    then_expr: Expr
-        The expression to be evaluated if the condition is true.
-    else_expr: Expr
-        The expression to be evaluated if the condition is false.
-    """
-
-    def __init__(self, cond: Expr, then_expr: Expr, else_expr: Expr):
-        self.cond: Expr = cond
-        self.then_expr: Expr = then_expr
-        self.else_expr: Expr = else_expr
-
-        assert isinstance(cond, Expr) and isinstance(then_expr, Expr) and isinstance(else_expr, Expr)
-
-
-class Dereference(Expr):
-    def __init__(self, expr: Expr):
-        self.expr: Expr = expr
-
-        assert isinstance(expr, Expr)
-
-
-class Address(Expr):
-    def __init__(self, expr: Expr):
-        self.expr: Expr = expr
-
-        assert isinstance(expr, Expr)
-
-
+@py_class("tilus.hidet.ir.Var", frozen=True, structural_eq="var")
 class Var(Expr):
-    def __init__(self, name: Optional[str], type: BaseType):
-        """
-        A variable carries a *name* used for codegen.
+    """A named variable.
 
-        Naming semantics:
+    Unlike compound expressions, ``Var`` stays on the default ``Object``
+    identity semantics (``eq=False``): two freshly allocated ``Var("x",
+    int32)`` instances are NOT equal. Identity is what lets SSA passes keep
+    distinct definitions distinct.
+    """
 
-        - **Function-like vars** (primitive function references, module-level
-          function references, extern function references) have a name that is
-          *globally unique within the IRModule*. Codegen emits this name verbatim.
+    name: Optional[str]
+    type: BaseType
 
-        - **Ordinary vars inside a function** (loop indices, intermediates, user-
-          declared locals) may share a name with sibling vars. The printer /
-          codegen delegate to :class:`~tilus.hidet.utils.namer.Namer`, which
-          emits the requested name when the first occurrence is seen and
-          suffixes later duplicates (e.g. ``x``, ``x_1``, ``x_2``).
 
-        - A *None* name marks an anonymous var; the Namer then falls back to a
-          class-based default (``"v"``, ``"v_1"``, ...).
+# ---------------------------------------------------------------------------
+# Constant interning pool (lives outside the class because frozen py_class
+# can't hold class-level mutable state).
+# ---------------------------------------------------------------------------
 
-        Global symbols whose name must appear verbatim (CUDA builtins such as
-        ``threadIdx.x``, primitive function references, IRModule function refs,
-        extern function refs) are pre-seeded into the Namer so they claim their
-        canonical name before any local Var can collide with them.
-        """
-        self.name: Optional[str] = name
-        self.type: Union[BaseType, TensorType, TensorPointerType, FuncType] = type
+_constant_pool: Dict[Tuple[Any, str], Constant] = {}
 
 
 Int = Union[int, Expr]
 
-"""
-The following are the mapping from hidet expression class to corresponding python operator.
-Used by compilation-time constant folding.
-"""
 operator_dict: Dict[Type[Expr], Callable] = {
-    # unary arithmetic
     Neg: operator.neg,
     LogicalNot: operator.not_,
     BitwiseNot: operator.invert,
-    # binary arithmetic
     Add: operator.add,
     Sub: operator.sub,
     Multiply: operator.mul,
@@ -596,65 +450,146 @@ operator_dict: Dict[Type[Expr], Callable] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Internal constant-folding helpers (used by operator overloads above)
+# ---------------------------------------------------------------------------
+
+
+def _unary(cls, a):
+    if not isinstance(a, Expr):
+        a = convert(a)
+    if isinstance(a, Constant):
+        if cls is Neg:
+            return constant(-a.value, a.type)
+        if cls is LogicalNot:
+            return constant(not a.value, a.type)
+        if cls is BitwiseNot:
+            return constant(~a.value, a.type)
+        raise ValueError("unknown unary operator {}".format(cls))
+    return cls(a=a)
+
+
+def _binary(cls, a: Expr, b: Expr):
+    if not isinstance(a, Expr):
+        a = convert(a)
+    if not isinstance(b, Expr):
+        b = convert(b)
+    if isinstance(a, Constant) and isinstance(b, Constant):
+        if a.type.is_data_type() and b.type.is_data_type():
+            value = operator_dict[cls](a.value, b.value)
+            if cls in [Equal, NotEqual, LessThan, LessEqual, LogicalAnd, LogicalOr]:
+                return constant(value, const_type="bool")
+            if cls in [LeftShift, RightShift]:
+                return constant(value, a.type)
+            return constant(value, promote_type(a.type, b.type))
+        if a.type.is_pointer() and b.type.is_pointer():
+            if cls is Sub:
+                return constant(a.value - b.value, "uint64")
+            if cls in [Equal, NotEqual]:
+                return constant(operator_dict[cls](a.value, b.value), "bool")
+            raise ValueError("unknown binary operator {}".format(cls))
+        if a.type.is_pointer() and b.type.is_data_type():
+            return constant(a.value + b.value, a.type)
+        if a.type.is_data_type() and b.type.is_pointer():
+            return constant(a.value + b.value, b.type)
+        if a.type.is_string_type() and b.type.is_string_type():
+            if cls is Add:
+                return constant(a.value + b.value, a.type)
+            if cls in [Equal, NotEqual]:
+                return constant(operator_dict[cls](a.value, b.value), "bool")
+            raise ValueError("unknown binary operator {}".format(cls))
+        raise ValueError("unknown binary operator {}".format(cls))
+    if isinstance(b, Constant) and b.type.is_data_type():
+        from tilus.hidet.ir.tools import infer_type  # noqa: PLC0415
+
+        if int_equal(b, 0):
+            if cls in [Add, Sub, BitwiseXor, BitwiseOr]:
+                return a
+            if cls is Multiply:
+                return promote_type(infer_type(a), b.type)(0)
+        elif int_equal(b, 1) and cls in [Multiply, Div]:
+            return a
+    elif isinstance(a, Constant):
+        from tilus.hidet.ir.tools import infer_type  # noqa: PLC0415
+
+        if int_equal(a, 0):
+            if cls in [Add, BitwiseXor, BitwiseOr]:
+                return b
+            if cls is Multiply:
+                return promote_type(infer_type(b), a.type)(0)
+        elif int_equal(a, 1) and cls is Multiply:
+            return b
+    elif a.same_as(b) and isinstance(a, Var) and cls is LessThan:
+        return constant(False, "bool")
+
+    return cls(a=a, b=b)
+
+
+def int_equal(c: Expr, value: int) -> bool:
+    """True iff ``c`` is a numeric Constant whose Python value equals ``value``."""
+    return isinstance(c, Constant) and isinstance(c.value, (int, float)) and c.value == value
+
+
+# ---------------------------------------------------------------------------
+# Public factory helpers / comparison builders
+# ---------------------------------------------------------------------------
+
+
 def convert(
-    obj: Optional[Union[Expr, PyScalar, tuple, Sequence]], dtype: Optional[Union[str, DataType]] = None
+    obj: Optional[Union[Expr, PyScalar, tuple, Sequence]],
+    dtype: Optional[Union[str, DataType]] = None,
 ) -> Optional[Union[Expr, tuple]]:
     if isinstance(obj, Expr):
         return obj
-
     if dtype is not None:
         if isinstance(obj, (bool, int, float)):
             return constant(obj, dtype)
-        else:
-            raise ValueError("Can not convert {} to {}.".format(obj, dtype))
-
+        raise ValueError("Can not convert {} to {}.".format(obj, dtype))
     if isinstance(obj, bool):
         return constant(obj, data_type("bool"))
-    elif isinstance(obj, int):
+    if isinstance(obj, int):
         return constant(obj, data_type("int32"))
-    elif isinstance(obj, float):
+    if isinstance(obj, float):
         return constant(obj, data_type("float32"))
-    elif isinstance(obj, str):
+    if isinstance(obj, str):
         return constant(obj, string_type())
-    elif isinstance(obj, (tuple, list)):
+    if isinstance(obj, (tuple, list)):
         return tuple(convert(v) for v in obj)
-    elif obj is None:
+    if obj is None:
         return None
-    else:
-        raise NotImplementedError(type(obj))
+    raise NotImplementedError(type(obj))
 
 
 def as_expr(obj: Union[float, bool, int, str, Expr]) -> Expr:
     if isinstance(obj, Expr):
         return obj
-    elif isinstance(obj, bool):
+    if isinstance(obj, bool):
         return boolean.constant(obj)
-    elif isinstance(obj, int):
-        assert default_int_dtype.min_value <= obj <= default_int_dtype.max_value, obj
+    if isinstance(obj, int):
+        assert default_int_dtype.imin <= obj <= default_int_dtype.imax, obj
         return default_int_dtype.constant(obj)
-    elif isinstance(obj, float):
+    if isinstance(obj, float):
         return default_float_dtype.constant(obj)
-    elif isinstance(obj, str):
-        return Constant(obj, const_type=string_type())
-    else:
-        raise ValueError(obj)
+    if isinstance(obj, str):
+        return Constant(value=obj, type=string_type())
+    raise ValueError(obj)
 
 
-def var(name: str = None, dtype="int32"):
+def var(name: str = None, dtype="int32") -> Var:
     if isinstance(name, str):
         assert set(name) <= set(string.ascii_letters + "_." + string.digits)
     if isinstance(dtype, str):
         dtype = data_type(dtype)
-    return Var(name, dtype)
+    return Var(name=name, type=dtype)
 
 
 def scalar_var(name: str, dtype: Union[str, DataType] = "float32") -> Var:
     dtype = dtype if isinstance(dtype, DataType) else data_type(dtype)
-    return Var(name, dtype)
+    return Var(name=name, type=dtype)
 
 
 def tensor_var(name: str, shape, dtype: Union[str, DataType] = "float32") -> Var:
-    return Var(name, tensor_type(dtype, shape))
+    return Var(name=name, type=tensor_type(dtype, shape))
 
 
 def is_one(v: Expr) -> bool:
@@ -680,147 +615,104 @@ def is_false(v: Union[Expr, bool]) -> bool:
 def if_then_else(
     cond: Union[Expr, PyScalar], then_expr: Union[Expr, PyScalar], else_expr: Union[Expr, PyScalar]
 ) -> Expr:
-    """
-    Create an if-then-else expression.
-
-    Parameters
-    ----------
-    cond: Expr or PyScalar
-        The condition of the if-then-else expression.
-
-    then_expr: Expr or PyScalar
-        The expression to be evaluated if the condition is true.
-
-    else_expr: Expr or PyScalar
-        The expression to be evaluated if the condition is false.
-
-    Returns
-    -------
-    ret: Expr
-        The if-then-else expression.
-    """
     cond = convert(cond)
     then_expr = convert(then_expr)
     else_expr = convert(else_expr)
     if is_constant(cond):
-        if bool(cond):
-            return then_expr
-        else:
-            return else_expr
-    else:
-        return IfThenElse(cond, then_expr, else_expr)
+        return then_expr if bool(cond) else else_expr
+    return IfThenElse(cond=cond, then_expr=then_expr, else_expr=else_expr)
 
 
-def tensor_element(base: Expr, indices: Sequence[Int], protected=False):
-    indices = tuple(convert(i) for i in indices)
-    return TensorElement(base, indices, protected)
+def tensor_element(base: Expr, indices: Sequence[Int], protected: bool = False) -> TensorElement:
+    return TensorElement(base=base, indices=tuple(convert(i) for i in indices), protected=protected)
 
 
 def _chain_binary_op(op: Type[BinaryExpr], operands, default):
-    # pylint: disable=protected-access
     if len(operands) == 0:
         return convert(default)
-    elif len(operands) == 1:
+    if len(operands) == 1:
         return convert(operands[0])
-    else:
-        a = _chain_binary_op(op, operands[:-1], default)
-        b = convert(operands[-1])
-        return Expr._binary(op, a, b)
+    a = _chain_binary_op(op, operands[:-1], default)
+    b = convert(operands[-1])
+    return _binary(op, a, b)
 
 
-def logical_and(*args: Union[Expr, bool]) -> LogicalAnd:
+def logical_and(*args: Union[Expr, bool]):
     return _chain_binary_op(LogicalAnd, args, True)
 
 
-def logical_or(*args: Union[Expr, bool]) -> LogicalOr:
+def logical_or(*args: Union[Expr, bool]):
     return _chain_binary_op(LogicalOr, args, False)
 
 
 def logical_not(a: Union[Expr, PyScalar]):
-    # pylint: disable=protected-access
-    a = convert(a)
-    return Expr._unary(LogicalNot, a)
+    return _unary(LogicalNot, convert(a))
 
 
 def bitwise_not(a: Union[Expr, PyScalar]):
-    a = convert(a)
-    return Expr._unary(BitwiseNot, a)
+    return _unary(BitwiseNot, convert(a))
 
 
-def equal(a: Union[Expr, PyScalar], b: Union[Expr, PyScalar]):
-    a = convert(a)
-    b = convert(b)
-    return a == b
+def equal(a: Union[Expr, PyScalar], b: Union[Expr, PyScalar]) -> Expr:
+    """Build an ``Equal(a, b)`` IR node (the structural-eq replacement
+    for the old ``Expr.__eq__`` operator overload)."""
+    return _binary(Equal, convert(a), convert(b))
 
 
-def less_than(a: Union[Expr, PyScalar], b: Union[Expr, PyScalar]):
-    a = convert(a)
-    b = convert(b)
-    return a < b
+def less_than(a: Union[Expr, PyScalar], b: Union[Expr, PyScalar]) -> Expr:
+    return _binary(LessThan, convert(a), convert(b))
 
 
-def less_equal(a: Union[Expr, PyScalar], b: Union[Expr, PyScalar]):
-    a = convert(a)
-    b = convert(b)
-    return a <= b
+def less_equal(a: Union[Expr, PyScalar], b: Union[Expr, PyScalar]) -> Expr:
+    return _binary(LessEqual, convert(a), convert(b))
 
 
-def not_equal(a: Union[Expr, PyScalar], b: Union[Expr, PyScalar]):
-    a = convert(a)
-    b = convert(b)
-    return a != b
+def not_equal(a: Union[Expr, PyScalar], b: Union[Expr, PyScalar]) -> Expr:
+    return _binary(NotEqual, convert(a), convert(b))
 
 
-def left_shift(a: Union[Expr, int], b: Union[Expr, int]) -> LeftShift:
-    a = convert(a)
-    b = convert(b)
-    return a << b
+def left_shift(a: Union[Expr, int], b: Union[Expr, int]):
+    return _binary(LeftShift, convert(a), convert(b))
 
 
-def right_shift(a: Union[Expr, int], b: Union[Expr, int]) -> RightShift:
-    a = convert(a)
-    b = convert(b)
-    return a >> b
+def right_shift(a: Union[Expr, int], b: Union[Expr, int]):
+    return _binary(RightShift, convert(a), convert(b))
 
 
-def bitwise_and(*args: Union[Expr, int]) -> BitwiseAnd:
+def bitwise_and(*args: Union[Expr, int]):
     return _chain_binary_op(BitwiseAnd, args, -1)
 
 
-def bitwise_or(*args: Union[Expr, int]) -> BitwiseOr:
+def bitwise_or(*args: Union[Expr, int]):
     return _chain_binary_op(BitwiseOr, args, 0)
 
 
-def bitwise_xor(*args: Union[Expr, int]) -> BitwiseXor:
+def bitwise_xor(*args: Union[Expr, int]):
     return _chain_binary_op(BitwiseXor, args, 0)
 
 
-def cast(v: Union[Expr, int, bool, float], dtype: Union[str, DataType, BaseType]):
+def cast(v: Union[Expr, int, bool, float], dtype: Union[str, DataType, BaseType]) -> Expr:
     if isinstance(v, (bool, int, float)):
         v = convert(v)
     if not isinstance(v, Expr):
         raise ValueError("Expect an expression, got {}".format(type(v).__name__))
-
     if isinstance(dtype, str):
         dtype = data_type(dtype)
-
     if isinstance(v, Constant) and v.is_scalar():
         if dtype.is_vector():
             raise ValueError("Can not cast a scalar {} to a vector type {}.".format(v, dtype))
         return constant(v.value, dtype)
-    elif isinstance(v, Var) and v.type.is_data_type() and dtype.is_data_type() and v.type == dtype:
+    if isinstance(v, Var) and v.type.is_data_type() and dtype.is_data_type() and v.type == dtype:
         return v
-    else:
-        return Cast(v, dtype)
+    return Cast(expr=v, target_type=dtype)
 
 
 def call(func: Var, args: Sequence[Union[Expr, PyScalar]]) -> Call:
-    args = tuple(convert(a) for a in args)
-    return Call(func, args)
+    return Call(func_var=func, args=tuple(convert(a) for a in args))
 
 
-def tensor_pointer_var(hint: str, shape, dtype: Union[str, DataType] = "float32"):
-    return Var(hint, tensor_pointer_type(dtype=dtype, shape=shape))
+def tensor_pointer_var(hint: str, shape, dtype: Union[str, DataType] = "float32") -> Var:
+    return Var(name=hint, type=tensor_pointer_type(dtype=dtype, shape=shape))
 
 
 def view(ptr: Expr, tp: TensorType) -> Expr:
@@ -830,13 +722,13 @@ def view(ptr: Expr, tp: TensorType) -> Expr:
 
 
 def address(v: Expr) -> Expr:
-    return Address(v)
+    return Address(expr=v)
 
 
 def deref(v: Expr, derefed_type: Optional[BaseType] = None) -> Expr:
     if derefed_type is not None:
         v = cast(v, ~derefed_type)
-    return Dereference(v)
+    return Dereference(expr=v)
 
 
 def is_constant(e: Union[Expr, PyScalar], *other: Union[Expr, PyScalar]) -> bool:
@@ -850,12 +742,14 @@ def is_constant(e: Union[Expr, PyScalar], *other: Union[Expr, PyScalar]) -> bool
 def constant(value, const_type: Union[str, BaseType]) -> Constant:
     if const_type and isinstance(const_type, str):
         const_type = data_type(const_type)
-
-    # normalize value
+    # normalize the value based on const_type
     if isinstance(const_type, DataType):
         if const_type.is_complex():
-            value = complex(value)
-        elif const_type.is_float():
+            raise NotImplementedError(
+                "Complex constants are not supported in tilus.hidet.ir; "
+                "the complex dtypes are registered but never reach CUDA codegen."
+            )
+        if const_type.is_float():
             value = float(value)
         elif const_type.is_integer():
             if const_type == boolean:
@@ -863,6 +757,7 @@ def constant(value, const_type: Union[str, BaseType]) -> Constant:
             else:
                 value = int(value)
         elif const_type.is_vector():
+            # Vector constants store their lanes as a tuple of Python scalars.
             value = tuple(value)
         else:
             raise ValueError(f"Invalid data const_type {const_type}")
@@ -876,43 +771,37 @@ def constant(value, const_type: Union[str, BaseType]) -> Constant:
     if const_type.is_data_type() and (
         (isinstance(value, int) and -128 <= value <= 128) or (isinstance(value, float) and value in [-1.0, 0.0, 1.0])
     ):
-        # pylint: disable=protected-access
-        if (value, const_type.name) not in Constant._constant_pool:
-            Constant._constant_pool[(value, const_type.name)] = Constant(value, const_type)
-        return Constant._constant_pool[(value, const_type.name)]
-    else:
-        return Constant(value, const_type)
+        key = (value, const_type.name)
+        pooled = _constant_pool.get(key)
+        if pooled is None:
+            pooled = Constant(value=value, type=const_type)
+            _constant_pool[key] = pooled
+        return pooled
+    return Constant(value=value, type=const_type)
 
 
-def constant_int(value: int, const_type: IntegerType) -> Constant:
+def constant_int(value: int, const_type: "IntegerType") -> Constant:
     if -128 <= value <= 128:
-        # pylint: disable=protected-access
-        if (value, const_type.name) not in Constant._constant_pool:
-            Constant._constant_pool[(value, const_type.name)] = Constant(value, const_type)
-        return Constant._constant_pool[(value, const_type.name)]
-    else:
-        return Constant(value, const_type)
+        key = (value, const_type.name)
+        pooled = _constant_pool.get(key)
+        if pooled is None:
+            pooled = Constant(value=value, type=const_type)
+            _constant_pool[key] = pooled
+        return pooled
+    return Constant(value=value, type=const_type)
 
 
 def index_vars(num_vars: int) -> List[Var]:
-    """Create a list of index variables with given number of variables.
-
-    Parameters
-    ----------
-    num_vars: int
-        The number of index variables to create.
-
-    Returns
-    -------
-    ret: List[Var]
-        The list of created index variables.
-    """
     default_names = ["i", "j", "k", "p", "q", "r", "s", "t", "u", "v"]
     if num_vars < len(default_names):
         return [var(default_names[i]) for i in range(num_vars)]
-    else:
-        return [var("i") for _ in range(num_vars)]
+    return [var("i") for _ in range(num_vars)]
 
 
 def reinterpret(value: Expr, target_type: BaseType) -> Expr:
     return cast(~value, ~target_type)[0]
+
+
+# Re-export for pre-refactor call sites that depended on Expr._binary / ._unary.
+setattr(Expr, "_binary", staticmethod(_binary))
+setattr(Expr, "_unary", staticmethod(_unary))

@@ -201,7 +201,7 @@ _logical_binary_infer = LogicalBinaryInfer()
 class TypeInfer(IRFunctor):
     def visit_Address(self, e: Address):
         base_type = self(e.expr)
-        return PointerType(base_type=base_type)
+        return PointerType.create(base_type=base_type)
 
     def visit_Binary(self, e: BinaryExpr):
         a_type: BaseType = self.visit(e.a)

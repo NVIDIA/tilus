@@ -233,12 +233,12 @@ class Simplifier(StmtRewriter, ExprRewriter, BaseRewriter):
             if else_body:
                 return else_body
             else:
-                return SeqStmt([])
+                return SeqStmt.create([])
         else:
             if cond is stmt.cond and then_body is stmt.then_body and else_body is stmt.else_body:
                 return stmt
             else:
-                return IfStmt(cond, then_body, else_body)
+                return IfStmt.create(cond, then_body, else_body)
 
     def visit_ForStmt(self, stmt: ForStmt):
         loop_var = self(stmt.loop_var)
@@ -250,7 +250,7 @@ class Simplifier(StmtRewriter, ExprRewriter, BaseRewriter):
             if loop_var is stmt.loop_var and body is stmt.body:
                 return stmt
             else:
-                return ForStmt(loop_var, extent, body=body, attr=stmt.attr)
+                return ForStmt.create(loop_var, extent, body=body, attr=stmt.attr)
 
     def visit_IfThenElse(self, e: IfThenElse):
         cond = self.visit(e.cond)

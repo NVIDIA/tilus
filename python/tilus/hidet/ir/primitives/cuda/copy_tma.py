@@ -52,7 +52,7 @@ def register_copy_bulk():
 
     @script
     def cuda_copy_bulk_g2s_multicast(
-        dst: PointerType(VoidType()), src: PointerType(VoidType()), size: i32, mbar: ~u64, multicastmask: u16
+        dst: PointerType.create(VoidType()), src: PointerType.create(VoidType()), size: i32, mbar: ~u64, multicastmask: u16
     ):
         attrs.func_name = func_name
         attrs.func_kind = "cuda_internal"
@@ -74,7 +74,7 @@ def register_copy_bulk():
     )
 
     @script
-    def cuda_copy_bulk_g2s(dst: PointerType(VoidType()), src: PointerType(VoidType()), size: i32, mbar: ~u64):
+    def cuda_copy_bulk_g2s(dst: PointerType.create(VoidType()), src: PointerType.create(VoidType()), size: i32, mbar: ~u64):
         attrs.func_name = func_name
         attrs.func_kind = "cuda_internal"
         smem_int_ptr = cvta_generic_to_shared(dst)
@@ -96,7 +96,7 @@ def register_copy_bulk():
     )
 
     @script
-    def cuda_copy_bulk_s2s(dst: PointerType(VoidType()), src: PointerType(VoidType()), size: i32, mbar: ~u64):
+    def cuda_copy_bulk_s2s(dst: PointerType.create(VoidType()), src: PointerType.create(VoidType()), size: i32, mbar: ~u64):
         attrs.func_name = func_name
         attrs.func_kind = "cuda_internal"
         dst_smem_int_ptr = cvta_generic_to_shared(dst)
@@ -119,7 +119,7 @@ def register_copy_bulk():
     )
 
     @script
-    def cuda_copy_bulk_s2g(dst: PointerType(VoidType()), src: PointerType(VoidType()), size: i32):
+    def cuda_copy_bulk_s2g(dst: PointerType.create(VoidType()), src: PointerType.create(VoidType()), size: i32):
         attrs.func_name = func_name
         attrs.func_kind = "cuda_internal"
         smem_int_ptr = cvta_generic_to_shared(src)
@@ -133,7 +133,7 @@ def register_copy_bulk():
     template_string = "cp.async.bulk.prefetch.L2.{src} [%0], %1;".format(src="shared::cta")
 
     @script
-    def cuda_copy_bulk_prefetch(src: PointerType(VoidType()), size: i32):
+    def cuda_copy_bulk_prefetch(src: PointerType.create(VoidType()), size: i32):
         attrs.func_name = func_name
         attrs.func_kind = "cuda_internal"
         asm(template=template_string, inputs=[src, size], is_volatile=True, memory_fence=True)
@@ -169,8 +169,8 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_g2s_multicast_1d(
-                    dst: PointerType(VoidType()),
-                    src: PointerType(tensor_map_type),
+                    dst: PointerType.create(VoidType()),
+                    src: PointerType.create(tensor_map_type),
                     mbar: ~u64,
                     multicastmask: u16,
                     crd0: i32,
@@ -195,8 +195,8 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_g2s_multicast_2d(
-                    dst: PointerType(VoidType()),
-                    src: PointerType(tensor_map_type),
+                    dst: PointerType.create(VoidType()),
+                    src: PointerType.create(tensor_map_type),
                     mbar: ~u64,
                     multicastmask: u16,
                     crd0: i32,
@@ -222,8 +222,8 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_g2s_multicast_3d(
-                    dst: PointerType(VoidType()),
-                    src: PointerType(tensor_map_type),
+                    dst: PointerType.create(VoidType()),
+                    src: PointerType.create(tensor_map_type),
                     mbar: ~u64,
                     multicastmask: u16,
                     crd0: i32,
@@ -250,8 +250,8 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_g2s_multicast_4d(
-                    dst: PointerType(VoidType()),
-                    src: PointerType(tensor_map_type),
+                    dst: PointerType.create(VoidType()),
+                    src: PointerType.create(tensor_map_type),
                     mbar: ~u64,
                     multicastmask: u16,
                     crd0: i32,
@@ -279,8 +279,8 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_g2s_multicast_5d(
-                    dst: PointerType(VoidType()),
-                    src: PointerType(tensor_map_type),
+                    dst: PointerType.create(VoidType()),
+                    src: PointerType.create(tensor_map_type),
                     mbar: ~u64,
                     multicastmask: u16,
                     crd0: i32,
@@ -334,7 +334,7 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_g2s_1d(
-                    dst: PointerType(VoidType()), src: PointerType(tensor_map_type), mbar: ~u64, crd0: i32
+                    dst: PointerType.create(VoidType()), src: PointerType.create(tensor_map_type), mbar: ~u64, crd0: i32
                 ):
                     attrs.func_name = func_name
                     attrs.func_kind = "cuda_internal"
@@ -354,7 +354,7 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_g2s_2d(
-                    dst: PointerType(VoidType()), src: PointerType(tensor_map_type), mbar: ~u64, crd0: i32, crd1: i32
+                    dst: PointerType.create(VoidType()), src: PointerType.create(tensor_map_type), mbar: ~u64, crd0: i32, crd1: i32
                 ):
                     attrs.func_name = func_name
                     attrs.func_kind = "cuda_internal"
@@ -374,8 +374,8 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_g2s_3d(
-                    dst: PointerType(VoidType()),
-                    src: PointerType(tensor_map_type),
+                    dst: PointerType.create(VoidType()),
+                    src: PointerType.create(tensor_map_type),
                     mbar: ~u64,
                     crd0: i32,
                     crd1: i32,
@@ -399,8 +399,8 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_g2s_4d(
-                    dst: PointerType(VoidType()),
-                    src: PointerType(tensor_map_type),
+                    dst: PointerType.create(VoidType()),
+                    src: PointerType.create(tensor_map_type),
                     mbar: ~u64,
                     crd0: i32,
                     crd1: i32,
@@ -425,8 +425,8 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_g2s_5d(
-                    dst: PointerType(VoidType()),
-                    src: PointerType(tensor_map_type),
+                    dst: PointerType.create(VoidType()),
+                    src: PointerType.create(tensor_map_type),
                     mbar: ~u64,
                     crd0: i32,
                     crd1: i32,
@@ -466,7 +466,7 @@ def register_copy_tensor_nd():
             if dim == 1:
 
                 @script
-                def cuda_copy_tensor_s2g_1d(dst: PointerType(tensor_map_type), src: PointerType(VoidType()), crd0: i32):
+                def cuda_copy_tensor_s2g_1d(dst: PointerType.create(tensor_map_type), src: PointerType.create(VoidType()), crd0: i32):
                     attrs.func_name = func_name
                     attrs.func_kind = "cuda_internal"
                     gmem_int_desc = cast(dst, u64)
@@ -484,7 +484,7 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_s2g_2d(
-                    dst: PointerType(tensor_map_type), src: PointerType(VoidType()), crd0: i32, crd1: i32
+                    dst: PointerType.create(tensor_map_type), src: PointerType.create(VoidType()), crd0: i32, crd1: i32
                 ):
                     attrs.func_name = func_name
                     attrs.func_kind = "cuda_internal"
@@ -503,7 +503,7 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_s2g_3d(
-                    dst: PointerType(tensor_map_type), src: PointerType(VoidType()), crd0: i32, crd1: i32, crd2: i32
+                    dst: PointerType.create(tensor_map_type), src: PointerType.create(VoidType()), crd0: i32, crd1: i32, crd2: i32
                 ):
                     attrs.func_name = func_name
                     attrs.func_kind = "cuda_internal"
@@ -522,8 +522,8 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_s2g_4d(
-                    dst: PointerType(tensor_map_type),
-                    src: PointerType(VoidType()),
+                    dst: PointerType.create(tensor_map_type),
+                    src: PointerType.create(VoidType()),
                     crd0: i32,
                     crd1: i32,
                     crd2: i32,
@@ -546,8 +546,8 @@ def register_copy_tensor_nd():
 
                 @script
                 def cuda_copy_tensor_s2g_5d(
-                    dst: PointerType(tensor_map_type),
-                    src: PointerType(VoidType()),
+                    dst: PointerType.create(tensor_map_type),
+                    src: PointerType.create(VoidType()),
                     crd0: i32,
                     crd1: i32,
                     crd2: i32,

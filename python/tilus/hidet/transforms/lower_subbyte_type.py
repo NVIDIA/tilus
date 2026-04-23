@@ -481,7 +481,7 @@ class LowerSubbyteTypeRewriter(IRRewriter):
         if same_list(bind_vars, stmt.bind_vars) and same_list(bind_values, stmt.bind_values) and body is stmt.body:
             return stmt
         else:
-            return LetStmt(bind_vars, bind_values, body)
+            return LetStmt.create(bind_vars, bind_values, body)
 
     def visit_TensorElement(self, e: TensorElement) -> Expr:
         if is_subbyte(self.type_infer(e)):

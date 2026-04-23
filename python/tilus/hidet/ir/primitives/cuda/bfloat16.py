@@ -37,7 +37,7 @@ def register_functions():
         # the following inst only supports for sm_90 and later
         # asm('mul.rn.bf16x2 %0, %1, %2;', outputs=[cast(d, ~uint32)[0]], inputs=[a, b], is_volatile=True)
 
-        BlackBoxStmt(template, ~a, ~b, d)
+        BlackBoxStmt.create(template, ~a, ~b, d)
 
     funcs = [mul_bf16x2_]
     for func in funcs:

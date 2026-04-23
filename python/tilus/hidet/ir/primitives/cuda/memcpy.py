@@ -40,7 +40,7 @@ def memcpy_async(dst: Expr, src: Expr, count: Expr, kind: str):
     if kind not in kind_map:
         raise RuntimeError(f"Unsupported transfer from {src} to {dst}, candidate kinds are {list(kind_map.keys())}")
 
-    return BlackBoxStmt(
+    return BlackBoxStmt.create(
         f"cudaMemcpyAsync({{}}, {{}}, {{}}, {kind_map[kind]}, (cudaStream_t){{}});", dst, src, count, get_cuda_stream()
     )
 
@@ -56,4 +56,4 @@ def memcpy(dst: Expr, src: Expr, count: Expr, kind: str):
     if kind not in kind_map:
         raise RuntimeError(f"Unsupported transfer from {src} to {dst}, candidate kinds are {list(kind_map.keys())}")
 
-    return BlackBoxStmt("cudaMemcpy({}, {}, {}, {});".format(dst, src, count, kind_map[kind]))
+    return BlackBoxStmt.create("cudaMemcpy({}, {}, {}, {});".format(dst, src, count, kind_map[kind]))

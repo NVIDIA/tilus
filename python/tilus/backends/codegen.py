@@ -176,14 +176,19 @@ class FunctionCodegen(IRFunctor):
             # launch the kernel
             kernel_args = list(self.host_builder.params) + list(self.extra_params)
             cluster_dim = kernel_func.attrs.cluster_dim if kernel_func.attrs.cluster_dim is not None else 1
+            from tilus.hidet.ir.expr import convert as _convert_expr  # noqa: PLC0415
+
+            def _to_expr_triple(triple):
+                return tuple(_convert_expr(v) for v in triple)
+
             self.host_builder.append(
-                LaunchKernelStmt(
+                LaunchKernelStmt.create(
                     func_var=func_var,
-                    args=kernel_args,
-                    grid_dim=normalize_dim3(kernel_func.attrs.grid_dim),  # type: ignore
-                    cluster_dim=normalize_dim3(cluster_dim),  # type: ignore
-                    block_dim=normalize_dim3(kernel_func.attrs.block_dim),  # type: ignore
-                    shared_mem=int32(dynamic_shared_bytes),
+                    args=[_convert_expr(a) for a in kernel_args],
+                    grid_dim=_to_expr_triple(normalize_dim3(kernel_func.attrs.grid_dim)),  # type: ignore
+                    cluster_dim=_to_expr_triple(normalize_dim3(cluster_dim)),  # type: ignore
+                    block_dim=_to_expr_triple(normalize_dim3(kernel_func.attrs.block_dim)),  # type: ignore
+                    shared_mem_bytes=int32(dynamic_shared_bytes),
                     target="cuda",
                 )
             )
@@ -513,6 +518,8 @@ def generate_ir_module(prog: Program) -> IRModule:
     ir_module: IRModule = codegen(prog)
 
     # verify the IR module
-    verify_ir_module(ir_module)
+    import os
+    if not os.environ.get("TILUS_SKIP_VERIFY"):
+        verify_ir_module(ir_module)
 
     return ir_module

@@ -39,13 +39,13 @@ class StatementSimplifier(IRRewriter):
             if stmt.else_body:
                 return self(stmt.else_body)
             else:
-                return SeqStmt([])
+                return SeqStmt.create([])
         else:
             return IRRewriter.visit_IfStmt(self, stmt)
 
     def visit_ForStmt(self, stmt: ForStmt):
         if is_zero(stmt.extent):
-            return SeqStmt([])
+            return SeqStmt.create([])
         elif is_one(stmt.extent):
             self.memo[stmt.loop_var] = convert(0)
             return self(stmt.body)

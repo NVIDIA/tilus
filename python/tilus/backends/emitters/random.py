@@ -17,7 +17,7 @@
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
 from tilus.hidet.ir.dtypes import uint32, uint64
 from tilus.hidet.ir.expr import BitwiseAnd
-from tilus.hidet.ir.primitives.cuda.random import philox4x32
+from tilus.hidet.ir.primitives.cuda.philox import philox4x32
 from tilus.ir.instructions import Philox4x32Inst
 from tilus.ir.tensor import RegisterTensor
 

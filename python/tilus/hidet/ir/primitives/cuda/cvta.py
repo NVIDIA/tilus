@@ -48,7 +48,7 @@ def register_cvta_instructions():
             func_name = "cuda_" + resolve_cvta_func_name(src_space, dst_space)
 
             @script
-            def cvta(src: PointerType(VoidType())) -> u32:
+            def cvta(src: PointerType.create(VoidType())) -> u32:
                 attrs.func_name = func_name
                 attrs.func_kind = "cuda_internal"
                 ret: u32 = 0
@@ -74,7 +74,7 @@ def register_cvta_instructions():
                 raise NotImplementedError()
 
             @script
-            def cvta_ext(src: PointerType(VoidType())) -> u32:
+            def cvta_ext(src: PointerType.create(VoidType())) -> u32:
                 attrs.func_name = func_name
                 attrs.func_kind = "cuda_internal"
                 ret: u32 = 0

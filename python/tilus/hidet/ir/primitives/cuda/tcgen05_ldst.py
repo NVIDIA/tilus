@@ -127,7 +127,7 @@ def _register_tcgen05_ld_variant(shape: str, num: str, pack: bool):
 
         # Cast the pointer to access as array - this pattern allows us to
         # support different register counts with the same function signature
-        regs_ptr = cast(regs, PointerType("uint32"))
+        regs_ptr = cast(regs, PointerType.create("uint32"))
 
         # Ensure taddr is in a register by creating a local variable
         taddr_reg: u32 = taddr  # type: ignore
@@ -179,7 +179,7 @@ def _register_tcgen05_st_variant(shape: str, num: str, unpack: bool):
         attrs.func_kind = "cuda_internal"
 
         # Cast the pointer to access as array
-        regs_ptr = cast(regs, PointerType("uint32"))
+        regs_ptr = cast(regs, PointerType.create("uint32"))
 
         # Ensure taddr is in a register by creating a local variable
         taddr_reg: u32 = taddr
@@ -522,7 +522,7 @@ def _register_tcgen05_ld_16x32bx2_variant(num: str, pack: bool, imm_value: int):
         attrs.func_kind = "cuda_internal"
 
         # Cast the pointer to access as array
-        regs_ptr = cast(regs, PointerType("uint32"))
+        regs_ptr = cast(regs, PointerType.create("uint32"))
 
         # Ensure taddr is in a register by creating local variable
         taddr_reg: u32 = taddr  # type: ignore
@@ -584,7 +584,7 @@ def _register_tcgen05_st_16x32bx2_variant(num: str, unpack: bool, imm_value: int
         attrs.func_kind = "cuda_internal"
 
         # Cast the pointer to access as array
-        regs_ptr = cast(regs, PointerType("uint32"))
+        regs_ptr = cast(regs, PointerType.create("uint32"))
 
         # Ensure taddr is in a register by creating local variable
         taddr_reg: u32 = taddr  # type: ignore

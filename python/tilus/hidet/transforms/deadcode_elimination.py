@@ -146,21 +146,21 @@ class DeadcodeEliminationRewriter(IRRewriter):
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> Stmt:
         if self.analyzer.num_assigns[stmt.var] + self.analyzer.usage_count[stmt.var] == 0:
             if stmt.init is None:
-                return SeqStmt([])
+                return SeqStmt.create([])
             else:
                 if self.analyzer.no_side_effect[stmt.init]:
-                    return SeqStmt([])
+                    return SeqStmt.create([])
                 else:
-                    return EvaluateStmt(stmt.init)
+                    return EvaluateStmt.create(stmt.init)
         else:
             return super().visit_DeclareStmt(stmt)
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> Stmt:
         if self.analyzer.usage_count[stmt.var] == 0:
             if self.analyzer.no_side_effect[stmt.value]:
-                return SeqStmt([])
+                return SeqStmt.create([])
             else:
-                return EvaluateStmt(stmt.value)
+                return EvaluateStmt.create(stmt.value)
         else:
             return super().visit_AssignStmt(stmt)
 
@@ -183,7 +183,7 @@ class DeadcodeEliminationRewriter(IRRewriter):
                 assert len(bind_values) == 0
                 return body
             else:
-                return LetStmt(
+                return LetStmt.create(
                     bind_vars=bind_vars,
                     bind_values=bind_values,
                     body=body,
@@ -191,7 +191,7 @@ class DeadcodeEliminationRewriter(IRRewriter):
 
     def visit_EvaluateStmt(self, stmt: EvaluateStmt) -> Stmt:
         if self.analyzer.no_side_effect[stmt.expr]:
-            return SeqStmt([])
+            return SeqStmt.create([])
         else:
             return super().visit_EvaluateStmt(stmt)
 

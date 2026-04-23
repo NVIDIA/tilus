@@ -56,7 +56,7 @@ class ExplicitUnrollRewriter(IRRewriter):
             if len(seq) == 1:
                 return seq[0]
             else:
-                return SeqStmt(seq)
+                return SeqStmt.create(seq)
         return IRRewriter.visit_ForStmt(self, stmt)
 
 

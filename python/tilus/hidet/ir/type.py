@@ -12,158 +12,97 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# pylint: disable=import-outside-toplevel
 from __future__ import annotations
 
-from typing import Any, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
+
+import tvm_ffi
+from tvm_ffi.dataclasses import field, py_class
 
 from tilus.hidet.ir.node import Node
 
-# typing forward declaration
-Expr = "Expr"
-Int = Union[int, Expr]
+if TYPE_CHECKING:
+    from tilus.hidet.ir.expr import Expr
+
+Int = Union[int, "Expr"]
 
 
+@py_class("tilus.hidet.ir.BaseType", frozen=True, structural_eq="tree")
 class BaseType(Node):
-    def __invert__(self) -> BaseType:
-        # get the pointer type that points to current type
-        if isinstance(self, TensorType):
-            return TensorPointerType.from_tensor_type(self)
-        elif isinstance(self, DataType):
-            return PointerType(base_type=self)
-        elif isinstance(self, (PointerType, TensorPointerType)):
-            return PointerType(base_type=self)
-        else:
-            raise ValueError("Can not recognize type {}".format(self))
+    """Root of the hidet type hierarchy."""
 
-    def is_void(self):
+    def __invert__(self) -> BaseType:
+        # pointer-of: `~T` yields a pointer-type to T.
+        if isinstance(self, TensorType):
+            return TensorPointerType(tensor_type=self)
+        if isinstance(self, DataType):
+            return PointerType(base_type=self)
+        if isinstance(self, (PointerType, TensorPointerType)):
+            return PointerType(base_type=self)
+        raise ValueError("Can not recognize type {}".format(self))
+
+    def is_void(self) -> bool:
         return isinstance(self, VoidType)
 
-    def is_tensor(self):
+    def is_tensor(self) -> bool:
         return isinstance(self, TensorType)
 
-    def is_pointer(self):
+    def is_pointer(self) -> bool:
         return isinstance(self, (PointerType, TensorPointerType))
 
-    def is_data_type(self):
+    def is_data_type(self) -> bool:
         return isinstance(self, DataType)
 
-    def is_func_type(self):
+    def is_func_type(self) -> bool:
         return isinstance(self, FuncType)
 
-    def is_string_type(self):
+    def is_string_type(self) -> bool:
         return isinstance(self, StringType)
 
     def as_data_type(self) -> Optional[DataType]:
-        if not isinstance(self, DataType):
-            return None
-        return self
+        return self if isinstance(self, DataType) else None
 
 
+@py_class("tilus.hidet.ir.DataType", frozen=True, structural_eq="tree")
 class DataType(BaseType):
-    """
-    The data type that defines how to interpret the data in memory.
+    """Scalar data type: its ``name`` uniquely identifies it across the module."""
 
-    """
+    name: str
+    short_name: str
+    nbytes: int
 
-    def __init__(self, name: str, short_name: str, nbytes: int):
-        self._name: str = name
-        self._short_name: str = short_name
-        self._nbytes: int = nbytes
-
-    def __str__(self):
+    def __str__(self) -> str:
         return "hidet.{}".format(self.name)
 
-    def __eq__(self, other):
-        return isinstance(other, DataType) and self.name == other.name
-
-    def __hash__(self):
-        return hash(self.name)
-
     def __call__(self, value: Any):
-        """
-        Create a constant of current data type, or convert an existing Expr to current data type with cast expression.
-
-        Parameters
-        ----------
-        value: Union[int, float, bool, list, tuple, Constant, Expr]
-            The value of the constant or the value to be casted.
-
-        Returns
-        -------
-        ret: Constant or Cast
-            The constant or cast expression.
-        """
-        from tilus.hidet.ir import expr
+        """Construct a constant, or cast an existing expression, to this dtype."""
+        from tilus.hidet.ir import expr  # noqa: PLC0415
 
         built_types = (int, float, bool, complex)
-
         if (
             isinstance(value, built_types)
             or isinstance(value, (list, tuple))
             and all(isinstance(v, built_types) for v in value)
         ):
             return self.constant(value)
-        elif isinstance(value, expr.Constant):
+        if isinstance(value, expr.Constant):
             return self.constant(value.value)
-        elif isinstance(value, expr.Expr):
+        if isinstance(value, expr.Expr):
             return expr.cast(value, self)
-        else:
-            raise ValueError("Can not convert {} to {}".format(value, self))
+        raise ValueError("Can not convert {} to {}".format(value, self))
 
     def __getitem__(self, item):
         if not isinstance(item, (tuple, list)):
             item = (item,)
         return tensor_type(dtype=self, shape=list(item))
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def short_name(self) -> str:
-        return self._short_name
-
-    @property
-    def nbytes(self) -> int:
-        return self._nbytes
-
+    # Subclasses can override .nbits and .storage for subbyte dtypes.
     @property
     def nbits(self) -> int:
-        """
-        Get the bit length of the data type
-
-        Note:
-        1. The bit length of the data type itself other than the bit length of its storage.
-        2. For regular data types, the nbits can be computed from its nbytes property.
-        3. For subbyte data types, the nbits is defined when constructing the data type,
-        and this method will also be overridden for subbyte data types.
-        4. In addition, we cannot access the nbytes for a subbyte data type, otherwise
-        a type error will be raised.
-        """
-        return self._nbytes * 8
+        return self.nbytes * 8
 
     @property
     def storage(self) -> DataType:
-        """
-        Get the actual storage type of the data type
-
-        Note:
-        1. The storage of a regular data type is the data type itself, while the storage
-        of a subbyte type is the type of its actual storage. e.g., the storage of int4b is uint8
-        2. The property will be overridden in the subclass of subbyte types.
-        """
         return self
 
     def is_integer_subbyte(self) -> bool:
@@ -172,7 +111,7 @@ class DataType(BaseType):
     def is_float_subbyte(self) -> bool:
         return self.is_float() and self.is_subbyte()
 
-    def is_subbyte(self):
+    def is_subbyte(self) -> bool:
         return self.nbits < 8
 
     def is_any_float16(self) -> bool:
@@ -213,119 +152,114 @@ class DataType(BaseType):
         raise NotImplementedError()
 
 
+@py_class("tilus.hidet.ir.TensorType", frozen=True, structural_eq="tree")
 class TensorType(BaseType):
-    def __init__(self, dtype=None, shape=None):
-        """
-        A tensor type.
+    """A multi-dimensional tensor type."""
 
-        Parameters
-        ----------
-        dtype: DataType
-            The data type of the tensor.
-        shape: Tuple[Expr, ...]
-            The shape of the tensor.
-        """
-        self.dtype: DataType = dtype
-        self.shape: Tuple[Expr, ...] = shape
+    dtype: DataType
+    shape: tuple[tvm_ffi.Object, ...]  # Expr — kept as Object to avoid a circular import
 
-    def __invert__(self):
-        return TensorPointerType.from_tensor_type(self)
+    def __invert__(self) -> TensorPointerType:
+        return TensorPointerType(tensor_type=self)
 
     @property
     def size(self) -> Expr:
-        from tilus.hidet.utils import prod
+        from tilus.hidet.utils import prod  # noqa: PLC0415
 
-        return prod(self.shape)
+        return prod(list(self.shape))
 
-    def storage_bytes(self) -> Expr:
+    def storage_bytes(self):
         if self.dtype.is_integer_subbyte():
             return self.size * self.dtype.nbits // 8
-        else:
-            return self.size * self.dtype.nbytes
+        return self.size * self.dtype.nbytes
 
     def const_shape(self) -> List[int]:
         return [int(v) for v in self.shape]
 
 
+@py_class("tilus.hidet.ir.VoidType", frozen=True, structural_eq="tree")
 class VoidType(BaseType):
     pass
 
 
+@py_class("tilus.hidet.ir.StringType", frozen=True, structural_eq="tree")
 class StringType(BaseType):
     pass
 
 
+@py_class("tilus.hidet.ir.PointerType", frozen=True, structural_eq="tree")
 class PointerType(BaseType):
-    def __init__(self, base_type, specifiers: Optional[Sequence[str]] = None, use_bracket: bool = False):
-        super().__init__()
+    """Raw pointer type; ``base_type`` is the pointee type."""
+
+    base_type: BaseType
+    specifiers: tuple[str, ...] = field(default=())
+    use_bracket: bool = False
+
+    @classmethod
+    def create(cls, base_type, specifiers=(), use_bracket: bool = False) -> "PointerType":
+        """Build a ``PointerType``, coercing a ``str`` base_type to a DataType."""
         if isinstance(base_type, str):
             base_type = data_type(base_type)
-        self.base_type: BaseType = base_type
-        # todo: move the following attributes to DeclareStmt
-        self.specifiers: List[str] = list(specifiers) if specifiers else []
-        self.use_bracket: bool = use_bracket
+        return cls(
+            base_type=base_type,
+            specifiers=tuple(specifiers) if specifiers else (),
+            use_bracket=use_bracket,
+        )
 
     def __call__(self, x):
-        from tilus.hidet.ir.expr import Constant, Expr, cast, constant  # pylint: disable=redefined-outer-name
+        from tilus.hidet.ir.expr import Constant, Expr, cast, constant  # noqa: PLC0415
 
         if isinstance(x, int):
             return constant(x, self)
-        elif isinstance(x, Constant):
+        if isinstance(x, Constant):
             return constant(x.value, self)
-        elif isinstance(x, Expr):
+        if isinstance(x, Expr):
             return cast(x, self)
-        else:
-            raise ValueError("Can not convert {} to {}".format(x, self))
+        raise ValueError("Can not convert {} to {}".format(x, self))
 
 
+@py_class("tilus.hidet.ir.TensorPointerType", frozen=True, structural_eq="tree")
 class TensorPointerType(BaseType):
-    def __init__(self, ttype: TensorType):
-        """
-        A pointer type that points to tensor.
-        """
-        self.tensor_type: TensorType = ttype
+    """Pointer to a tensor of known shape/dtype."""
+
+    tensor_type: TensorType
 
     @staticmethod
     def from_tensor_type(tp: TensorType) -> TensorPointerType:
-        return TensorPointerType(tp)
+        return TensorPointerType(tensor_type=tp)
 
 
+@py_class("tilus.hidet.ir.FuncType", frozen=True, structural_eq="tree")
 class FuncType(BaseType):
-    def __init__(self, param_types: List[BaseType], ret_type: BaseType):
-        assert isinstance(param_types, list) and all(isinstance(tp, BaseType) for tp in param_types)
-        assert isinstance(ret_type, BaseType)
-        self.param_types: List[BaseType] = param_types
-        self.ret_type: BaseType = ret_type
+    """Function type: parameter types and return type."""
+
+    param_types: tuple[BaseType, ...]
+    ret_type: BaseType
 
     @staticmethod
-    def from_func(func):
-        return FuncType([param.type for param in func.params], func.ret_type)
+    def from_func(func) -> FuncType:
+        return FuncType(
+            param_types=tuple(param.type for param in func.params),
+            ret_type=func.ret_type,
+        )
 
 
+@py_class("tilus.hidet.ir.OpaqueType", frozen=True, structural_eq="tree")
 class OpaqueType(BaseType):
-    def __init__(self, cpp_name: str, *modifiers: str):
-        self.cpp_name: str = cpp_name
-        self.modifiers: Sequence[str] = modifiers
+    """An opaque C++ type referenced by name, e.g. ``cuda::barrier``."""
+
+    cpp_name: str
+    modifiers: tuple[str, ...] = field(default=())
 
 
-def tensor_type(dtype, shape: Sequence[Union[int, Expr]]):
-    """
-    Construct a tensor type.
+# ---------------------------------------------------------------------------
+# Factory helpers (preserve the pre-refactor call surface)
+# ---------------------------------------------------------------------------
 
-    Parameters
-    ----------
-    dtype: str or DataType
-        The scalar type of this tensor.
 
-    shape: Sequence[Union[int, Expr]]
-        The shape of the tensor.
-
-    Returns
-    -------
-    ret: TensorType
-        The constructed tensor type
-    """
-    from tilus.hidet.ir.expr import convert
+def tensor_type(dtype, shape: Sequence[Union[int, "Expr"]]) -> TensorType:
+    from tilus.hidet.ir.expr import convert  # noqa: PLC0415
+    from tilus.hidet.ir.node import is_seq  # noqa: PLC0415
 
     if isinstance(dtype, str):
         dtype = data_type(dtype)
@@ -333,71 +267,62 @@ def tensor_type(dtype, shape: Sequence[Union[int, Expr]]):
         raise ValueError('Scalar type expect a "str" or "ScalarType", but got {}'.format(type(dtype)))
     if shape is None:
         raise ValueError("Tensor type must give a shape")
-    assert isinstance(shape, (list, tuple))
-    shape = convert(shape)
-    return TensorType(dtype, shape)
+    assert is_seq(shape)
+    shape_tuple = tuple(convert(list(shape)))
+    return TensorType(dtype=dtype, shape=shape_tuple)
 
 
-def pointer_type(base_type):
-    return PointerType(base_type)
+def pointer_type(base_type) -> PointerType:
+    return PointerType.create(base_type=base_type)
 
 
-def tensor_pointer_type(dtype, shape):
-    return TensorPointerType(tensor_type(dtype, shape))
+def tensor_pointer_type(dtype, shape) -> TensorPointerType:
+    return TensorPointerType(tensor_type=tensor_type(dtype, shape))
 
 
-def string_type():
+def string_type() -> StringType:
     return StringType()
 
 
 def func_type(param_types, ret_type) -> FuncType:
-    return FuncType(param_types, ret_type)
+    return FuncType(param_types=tuple(param_types), ret_type=ret_type)
 
 
 def data_type(dtype: Union[str, DataType]) -> DataType:
-    from tilus.hidet.ir.dtypes import name2dtype, sname2dtype
+    from tilus.hidet.ir.dtypes import name2dtype, sname2dtype  # noqa: PLC0415
 
     if isinstance(dtype, DataType):
         return dtype
-    elif isinstance(dtype, str):
+    if isinstance(dtype, str):
         if dtype in name2dtype:
             return name2dtype[dtype]
-        elif dtype in sname2dtype:
+        if dtype in sname2dtype:
             return sname2dtype[dtype]
-        else:
-            raise ValueError("Unknown data type: {}, candidates:\n{}".format(dtype, "\n".join(name2dtype.keys())))
-    else:
-        raise ValueError("Expect a string or a DataType, but got {}".format(type(dtype)))
+        raise ValueError("Unknown data type: {}, candidates:\n{}".format(dtype, "\n".join(name2dtype.keys())))
+    raise ValueError("Expect a string or a DataType, but got {}".format(type(dtype)))
 
 
 def type_equal(lhs: BaseType, rhs: BaseType) -> bool:
-    """
-    Check whether the two types are equal or not.
+    """Structural type comparison that ignores symbolic tensor-shape mismatches.
 
-    Parameters
-    ----------
-    lhs: BaseType
-        The first type to compare.
-    rhs: BaseType
-        The second type to compare.
-
-    Returns
-    -------
-    ret: bool
-        Whether the two types are equal or not.
+    Plain ``lhs == rhs`` would require every shape element to be structurally
+    identical; this helper mirrors the pre-refactor behavior that only
+    compares constant shape dimensions.
     """
     if type(lhs) is not type(rhs):
         return False
-    if isinstance(lhs, DataType) and isinstance(rhs, DataType):
+    if isinstance(lhs, DataType):
         return lhs.name == rhs.name
-    elif isinstance(lhs, PointerType) and isinstance(rhs, PointerType):
+    if isinstance(lhs, PointerType):
         return type_equal(lhs.base_type, rhs.base_type)
-    elif isinstance(lhs, VoidType) and isinstance(rhs, VoidType):
+    if isinstance(lhs, VoidType):
         return True
-    elif isinstance(lhs, TensorPointerType) and isinstance(rhs, TensorPointerType):
+    if isinstance(lhs, StringType):
+        return True
+    if isinstance(lhs, TensorPointerType):
         return type_equal(lhs.tensor_type, rhs.tensor_type)
-    elif isinstance(lhs, TensorType) and isinstance(rhs, TensorType):
-        from tilus.hidet.ir.expr import is_constant
+    if isinstance(lhs, TensorType):
+        from tilus.hidet.ir.expr import is_constant  # noqa: PLC0415
 
         if not type_equal(lhs.dtype, rhs.dtype):
             return False
@@ -406,77 +331,49 @@ def type_equal(lhs: BaseType, rhs: BaseType) -> bool:
         for a, b in zip(lhs.shape, rhs.shape):
             if is_constant(a) ^ is_constant(b):
                 return False
-            elif is_constant(a) and is_constant(b):
-                if int(a) != int(b):
-                    return False
-            else:
-                # we do not have equivalence checking for symbolic expression
-                pass
-        # do not check layout
+            if is_constant(a) and is_constant(b) and int(a) != int(b):
+                return False
         return True
-    elif isinstance(lhs, FuncType) and isinstance(rhs, FuncType):
+    if isinstance(lhs, FuncType):
         if len(lhs.param_types) != len(rhs.param_types):
             return False
         if not type_equal(lhs.ret_type, rhs.ret_type):
             return False
-        for a, b in zip(lhs.param_types, rhs.param_types):
-            if not type_equal(a, b):
-                return False
-        return True
-    elif isinstance(lhs, OpaqueType) and isinstance(rhs, OpaqueType):
+        return all(type_equal(a, b) for a, b in zip(lhs.param_types, rhs.param_types))
+    if isinstance(lhs, OpaqueType):
         return lhs.cpp_name == rhs.cpp_name
-    else:
-        raise NotImplementedError("type_equal not implemented for {} and {}".format(type(lhs), type(rhs)))
+    raise NotImplementedError("type_equal not implemented for {} and {}".format(type(lhs), type(rhs)))
 
 
 def sizeof(tp: BaseType) -> int:
-    """
-    Get the size of the given type in bytes.
-
-    Parameters
-    ----------
-    tp: BaseType
-        The type to get the size.
-
-    Returns
-    -------
-    ret: int
-        The size of the type in bytes.
-    """
-    from tilus.hidet.utils import prod
+    from tilus.hidet.utils import prod  # noqa: PLC0415
 
     if isinstance(tp, DataType):
         return tp.nbytes
-    elif isinstance(tp, (PointerType, TensorPointerType)):
-        # we assume we work on 64-bit system
-        return 8
-    elif isinstance(tp, TensorType):
-        return sizeof(tp.dtype) * prod(tp.shape)
-    else:
-        raise NotImplementedError(type(tp))
+    if isinstance(tp, (PointerType, TensorPointerType)):
+        return 8  # 64-bit
+    if isinstance(tp, TensorType):
+        return sizeof(tp.dtype) * prod(list(tp.shape))
+    raise NotImplementedError(type(tp))
 
 
-void_p = PointerType(VoidType())
-byte_p = PointerType(data_type("uint8"))
-void = VoidType()
+def is_addressable(tp_or_var) -> bool:
+    from tilus.hidet.ir.expr import Var  # noqa: PLC0415
 
-
-def is_addressable(tp_or_var):
-    from tilus.hidet.ir.expr import Var
-
-    if isinstance(tp_or_var, Var):
-        tp = tp_or_var.type
-    else:
-        tp = tp_or_var
+    tp = tp_or_var.type if isinstance(tp_or_var, Var) else tp_or_var
     return isinstance(tp, (PointerType, TensorPointerType, TensorType))
 
 
 def get_base_type(tp: BaseType) -> BaseType:
     if isinstance(tp, PointerType):
         return tp.base_type
-    elif isinstance(tp, TensorPointerType):
+    if isinstance(tp, TensorPointerType):
         return tp.tensor_type.dtype
-    elif isinstance(tp, TensorType):
+    if isinstance(tp, TensorType):
         return tp.dtype
-    else:
-        assert False
+    raise AssertionError()
+
+
+# module-level sentinels constructed after the classes above.
+void = VoidType()
+void_p = PointerType(base_type=VoidType())

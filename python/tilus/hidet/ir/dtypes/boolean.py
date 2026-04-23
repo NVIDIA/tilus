@@ -12,28 +12,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+from __future__ import annotations
+
 import warnings
-from functools import cached_property
 from typing import Any
+
+from tvm_ffi.dataclasses import py_class
 
 from tilus.hidet.ir.type import DataType
 
 
+@py_class("tilus.hidet.ir.dtypes.Boolean", frozen=True, structural_eq="tree")
 class Boolean(DataType):
-    def __init__(self):
-        super().__init__("bool", "bool", 1)
-
     def is_float(self) -> bool:
         return False
 
@@ -51,26 +41,26 @@ class Boolean(DataType):
         return True
 
     def constant(self, value: Any):
-        from tilus.hidet.ir.expr import constant
+        from tilus.hidet.ir.expr import constant  # noqa: PLC0415
 
         if isinstance(value, float):
-            warnings.warn("Converting float to boolean when creating constant.")
+            warnings.warn("Converting float to boolean when creating constant.", stacklevel=2)
         value = bool(value)
         return constant(value, self)
 
-    @cached_property
+    @property
     def one(self):
         return self.constant(True)
 
-    @cached_property
+    @property
     def zero(self):
         return self.constant(False)
 
-    @cached_property
+    @property
     def true(self):
         return self.constant(True)
 
-    @cached_property
+    @property
     def false(self):
         return self.constant(False)
 
@@ -83,4 +73,4 @@ class Boolean(DataType):
         raise ValueError("Boolean type has no maximum value.")
 
 
-boolean = Boolean()
+boolean = Boolean(name="bool", short_name="bool", nbytes=1)

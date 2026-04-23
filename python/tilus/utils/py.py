@@ -267,8 +267,31 @@ def _is_immutable(obj):
     return False
 
 
+def same_node(lhs, rhs) -> bool:
+    """Identity check that handles tvm-ffi ``Object`` C-handle identity.
+
+    ``a is b`` is the fast path for plain Python values; for tvm-ffi Objects
+    it's unreliable because each attribute/index access returns a fresh
+    Python wrapper — use ``a.same_as(b)`` instead. ``None`` on either side
+    falls back to ``is`` semantics.
+    """
+    if lhs is rhs:
+        return True
+    if lhs is None or rhs is None:
+        return False
+    if hasattr(lhs, "same_as") and lhs.same_as(rhs):
+        return True
+    return False
+
+
 def same_list(lhs, rhs, use_equal=False):
-    """Check whether two lists are element-wise identical (by ``is``) or equal."""
+    """Check whether two sequences are element-wise identical (by ``is`` or
+    ``same_as`` for tvm-ffi Objects) or equal.
+
+    The ``same_as`` branch is required because tvm-ffi returns a fresh Python
+    wrapper per attribute/index access, so ``is`` alone never holds even when
+    the underlying C handle is unchanged.
+    """
     if len(lhs) != len(rhs):
         return False
     for l, r in zip(lhs, rhs):
@@ -276,8 +299,11 @@ def same_list(lhs, rhs, use_equal=False):
             if l != r:
                 return False
         else:
-            if l is not r:
-                return False
+            if l is r:
+                continue
+            if hasattr(l, "same_as") and l.same_as(r):
+                continue
+            return False
     return True
 
 
@@ -314,13 +340,20 @@ def str_indent(msg: str, indent: int = 0) -> str:
 
 
 def repeat_until_converge(func, obj, limit=None):
-    """Repeatedly apply *func* to *obj* until the result stops changing (identity check)."""
+    """Repeatedly apply *func* to *obj* until the result stops changing.
+
+    Identity is checked via Python ``is`` first (fast path for plain values)
+    and then via ``same_as`` (C-handle identity for tvm-ffi Objects). The
+    latter is required because tvm-ffi hands out a fresh Python wrapper on
+    every attribute access, so ``is`` alone never holds even when the
+    rewriter left the underlying handle untouched.
+    """
     i = 0
     while True:
         i += 1
         orig_obj = obj
         obj = func(obj)
-        if obj is orig_obj:
+        if obj is orig_obj or (hasattr(orig_obj, "same_as") and orig_obj.same_as(obj)):
             return obj
         if limit is not None and i >= limit:
             return obj

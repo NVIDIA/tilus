@@ -82,7 +82,7 @@ class BindPredefinedVariablesRewriter(IRRewriter):
             for var in self.used_vars:
                 bind_vars.append(var)
                 bind_values.append(self.var2value[var])
-            body = LetStmt(bind_vars, bind_values, body)
+            body = LetStmt.create(bind_vars, bind_values, body)
             return Function(func.name, func.params, body, func.ret_type, kind=func.kind, attrs=func.attrs)
         else:
             # no predefined variable is used

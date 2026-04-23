@@ -64,7 +64,7 @@ def register_functions():
         def cuda_dynamic_shared_memory(byte_offset: int) -> ~dtype:
             attrs.func_kind = "cuda_internal"
             attrs.func_name = func_name
-            dynamic_smem = PointerType(
+            dynamic_smem = PointerType.create(
                 base_type="uint8", specifiers=["extern", "__align__(128)", "__shared__"], use_bracket=True
             )
             return cast(~dynamic_smem[byte_offset], ~dtype)
@@ -84,4 +84,4 @@ def set_kernel_max_dynamic_smem_bytes(func: Var, max_dynamic_smem_bytes: Union[E
 
     max_dynamic_smem_bytes = convert(max_dynamic_smem_bytes)
     template_string = r"cudaFuncSetAttribute({}, cudaFuncAttributeMaxDynamicSharedMemorySize, {});"
-    return BlackBoxStmt(template_string, func, max_dynamic_smem_bytes)
+    return BlackBoxStmt.create(template_string, func, max_dynamic_smem_bytes)

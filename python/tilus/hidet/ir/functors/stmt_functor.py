@@ -48,6 +48,7 @@ from tilus.hidet.ir.stmt import (
     WhileStmt,
 )
 from tilus.hidet.utils import same_list
+from tilus.utils.py import same_node
 
 from .base_functor import BaseFunctor, BaseRewriter, BaseVisitor
 
@@ -232,69 +233,69 @@ class StmtRewriter(StmtFunctor, BaseRewriter):
         if self._prologues:
             if isinstance(ret, SeqStmt):
                 seq = self._prologues + list(ret.seq)
-                ret = SeqStmt(seq)
+                ret = SeqStmt.create(seq)
             else:
-                ret = SeqStmt(self._prologues + [ret])
+                ret = SeqStmt.create(self._prologues + [ret])
             self._prologues = []
         return ret
 
     def visit_DeclareStmt(self, stmt: DeclareStmt):
         v = self.visit(stmt.var)
         init = self.visit(stmt.init) if stmt.init is not None else None
-        if v is stmt.var and init is stmt.init:
+        if same_node(v, stmt.var) and same_node(init, stmt.init):
             return stmt
         else:
-            return DeclareStmt(v, init, stmt.is_static, stmt.scope)
+            return DeclareStmt.create(v, init, stmt.is_static, stmt.scope)
 
     def visit_EvaluateStmt(self, stmt: EvaluateStmt):
         e = self.visit(stmt.expr)
-        if e is stmt.expr:
+        if same_node(e, stmt.expr):
             return stmt
         else:
-            return EvaluateStmt(e)
+            return EvaluateStmt.create(e)
 
     def visit_BufferStoreStmt(self, stmt: BufferStoreStmt):
         buf = self.visit(stmt.buf)
         indices = [self.visit(e) for e in stmt.indices]
         value = self.visit(stmt.value)
-        if buf is stmt.buf and all(a is b for a, b in zip(indices, stmt.indices)) and value is stmt.value:
+        if same_node(buf, stmt.buf) and same_list(indices, stmt.indices) and same_node(value, stmt.value):
             return stmt
         else:
-            return BufferStoreStmt(buf, indices, value, stmt.protected)
+            return BufferStoreStmt.create(buf, indices, value, stmt.protected)
 
     def visit_AssignStmt(self, stmt: AssignStmt):
         v = self.visit(stmt.var)
         value = self.visit(stmt.value)
-        if v is stmt.var and value is stmt.value:
+        if same_node(v, stmt.var) and same_node(value, stmt.value):
             return stmt
         else:
-            return AssignStmt(v, value)
+            return AssignStmt.create(v, value)
 
     def visit_LetStmt(self, stmt: LetStmt):
         bind_vars = [self.visit(bind_var) for bind_var in stmt.bind_vars]
         bind_values = [self.visit(bind_value) for bind_value in stmt.bind_values]
         body = self.visit(stmt.body)
-        if same_list(bind_vars, stmt.bind_vars) and same_list(bind_values, stmt.bind_values) and body is stmt.body:
+        if same_list(bind_vars, stmt.bind_vars) and same_list(bind_values, stmt.bind_values) and same_node(body, stmt.body):
             return stmt
         else:
-            return LetStmt(bind_vars, bind_values, body)
+            return LetStmt.create(bind_vars, bind_values, body)
 
     def visit_ForStmt(self, stmt: ForStmt):
         loop_var = self.visit(stmt.loop_var)
         extent = self.visit(stmt.extent)
         body = self.visit(stmt.body)
-        if loop_var is stmt.loop_var and extent is stmt.extent and body is stmt.body:
+        if same_node(loop_var, stmt.loop_var) and same_node(extent, stmt.extent) and same_node(body, stmt.body):
             return stmt
         else:
-            return ForStmt(loop_var, extent, body=body, attr=stmt.attr)
+            return ForStmt.create(loop_var, extent, body=body, attr=stmt.attr)
 
     def visit_WhileStmt(self, stmt: WhileStmt):
         cond = self.visit(stmt.cond)
         body = self.visit(stmt.body)
-        if cond is stmt.cond and body is stmt.body:
+        if same_node(cond, stmt.cond) and same_node(body, stmt.body):
             return stmt
         else:
-            return WhileStmt(cond, body)
+            return WhileStmt.create(cond, body)
 
     def visit_BreakStmt(self, stmt: BreakStmt):
         return stmt
@@ -306,24 +307,24 @@ class StmtRewriter(StmtFunctor, BaseRewriter):
         cond = self.visit(stmt.cond)
         then_body = self.visit(stmt.then_body)
         else_body = self.visit(stmt.else_body) if stmt.else_body else None
-        if cond is stmt.cond and then_body is stmt.then_body and else_body is stmt.else_body:
+        if same_node(cond, stmt.cond) and same_node(then_body, stmt.then_body) and same_node(else_body, stmt.else_body):
             return stmt
         else:
-            return IfStmt(cond, then_body, else_body)
+            return IfStmt.create(cond, then_body, else_body)
 
     def visit_ReturnStmt(self, stmt: ReturnStmt):
         ret_value = self.visit(stmt.ret_value) if stmt.ret_value is not None else None
-        if ret_value is stmt.ret_value:
+        if same_node(ret_value, stmt.ret_value):
             return stmt
         else:
             return ReturnStmt(ret_value)
 
     def visit_AssertStmt(self, stmt: AssertStmt):
         cond = self.visit(stmt.cond)
-        if cond is stmt.cond:
+        if same_node(cond, stmt.cond):
             return stmt
         else:
-            return AssertStmt(cond, stmt.msg)
+            return AssertStmt.create(cond, stmt.msg)
 
     def visit_AsmStmt(self, stmt: AsmStmt):
         input_exprs = [self.visit(e) for e in stmt.input_exprs]
@@ -351,14 +352,14 @@ class StmtRewriter(StmtFunctor, BaseRewriter):
         ):
             return stmt
         else:
-            return LaunchKernelStmt(func_var, args, grid_dim, cluster_dim, block_dim, shared_mem_bytes, stmt.target)
+            return LaunchKernelStmt.create(func_var, args, grid_dim, cluster_dim, block_dim, shared_mem_bytes, stmt.target)
 
     def visit_BlackBoxStmt(self, stmt: BlackBoxStmt):
         exprs = [self.visit(e) for e in stmt.exprs]
         if same_list(exprs, stmt.exprs):
             return stmt
         else:
-            return BlackBoxStmt(stmt.template_string, *exprs)
+            return BlackBoxStmt.create(stmt.template_string, *exprs)
 
     def visit_SeqStmt(self, stmt: SeqStmt):
         seq = []
@@ -367,4 +368,4 @@ class StmtRewriter(StmtFunctor, BaseRewriter):
         if all(a is b for a, b in zip(seq, stmt.seq)):
             return stmt
         else:
-            return SeqStmt(seq)
+            return SeqStmt.create(seq)

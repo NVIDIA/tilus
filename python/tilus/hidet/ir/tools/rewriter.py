@@ -59,18 +59,18 @@ class CloneRewriter(IRRewriter):
         loop_var = self.process_var(stmt.loop_var)
         extent = self.visit(stmt.extent)
         body = self.visit(stmt.body)
-        return ForStmt(loop_var, extent, body, attr=stmt.attr)
+        return ForStmt.create(loop_var, extent, body, attr=stmt.attr)
 
     def visit_LetStmt(self, stmt: LetStmt):
         bind_vars = [self.process_var(v) for v in stmt.bind_vars]
         bind_values = [self.visit(bind_value) for bind_value in stmt.bind_values]
         body = self.visit(stmt.body)
-        return LetStmt(bind_vars, bind_values, body)
+        return LetStmt.create(bind_vars, bind_values, body)
 
     def visit_DeclareStmt(self, stmt: DeclareStmt):
         v = self.process_var(stmt.var)
         init = self.visit(stmt.init) if stmt.init is not None else None
-        return DeclareStmt(v, init, stmt.is_static, stmt.scope)
+        return DeclareStmt.create(v, init, stmt.is_static, stmt.scope)
 
     def visit_Let(self, e: Let):
         v = self.process_var(e.var)

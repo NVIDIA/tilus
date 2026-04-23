@@ -49,7 +49,7 @@ def register_tmem_allocation():
     template_string = "tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [%0], %1;"
 
     @script
-    def cuda_tcgen05_alloc(dst_addr: PointerType(VoidType()), num_cols: i32):  # type: ignore
+    def cuda_tcgen05_alloc(dst_addr: PointerType.create(VoidType()), num_cols: i32):  # type: ignore
         attrs.func_name = func_name
         attrs.func_kind = "cuda_internal"
         dst_smem_addr = cvta_generic_to_shared(dst_addr)
@@ -63,7 +63,7 @@ def register_tmem_allocation():
     template_string = "tcgen05.alloc.cta_group::2.sync.aligned.shared::cta.b32 [%0], %1;"
 
     @script
-    def cuda_tcgen05_alloc_cta_pair(dst_addr: PointerType(VoidType()), num_cols: i32):  # type: ignore
+    def cuda_tcgen05_alloc_cta_pair(dst_addr: PointerType.create(VoidType()), num_cols: i32):  # type: ignore
         attrs.func_name = funct_name
         attrs.func_kind = "cuda_internal"
         dst_smem_addr = cvta_generic_to_shared(dst_addr)

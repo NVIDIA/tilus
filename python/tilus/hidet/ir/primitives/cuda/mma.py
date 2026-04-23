@@ -35,8 +35,8 @@ from tilus.hidet.ir.expr import Expr, Var, cast
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.primitives.cuda.funcs import call_cuda
 from tilus.hidet.ir.primitives.func import register_primitive_function
-from tilus.hidet.ir.stmt import AsmStmt, AssignStmt, DeclareStmt, asm
-from tilus.hidet.ir.type import DataType, PointerType, data_type
+from tilus.hidet.ir.stmt import AssignStmt, DeclareStmt, asm, asm_stmt
+from tilus.hidet.ir.type import DataType, PointerType, data_type, pointer_type
 from tilus.hidet.utils import initialize
 
 from .wgmma import ptx_dtype_names
@@ -301,18 +301,18 @@ def register_mma_instructions():
         func_name = "cuda_" + inst_name.replace(".", "_")
         with FunctionBuilder(name=func_name, kind="cuda_internal") as fb:
             # parameters: a, b, c
-            a = Var("a", PointerType(config.input_dtype))
-            b = Var("b", PointerType(config.input_dtype))
-            c = Var("c", PointerType(config.output_dtype))
+            a = Var("a", pointer_type(config.input_dtype))
+            b = Var("b", pointer_type(config.input_dtype))
+            c = Var("c", pointer_type(config.output_dtype))
             fb.extend_params([a, b, c])
 
             # local variables
-            ra = Var("ra", PointerType("uint32"))
-            rb = Var("rb", PointerType("uint32"))
-            rc = Var("rc", PointerType("uint32"))
-            fb += DeclareStmt(ra)
-            fb += DeclareStmt(rb)
-            fb += DeclareStmt(rc)
+            ra = Var("ra", pointer_type("uint32"))
+            rb = Var("rb", pointer_type("uint32"))
+            rc = Var("rc", pointer_type("uint32"))
+            fb += DeclareStmt.create(ra)
+            fb += DeclareStmt.create(rb)
+            fb += DeclareStmt.create(rc)
 
             # body
             a_regs, b_regs, c_regs = config.a_regs, config.b_regs, config.c_regs
@@ -324,10 +324,10 @@ def register_mma_instructions():
                 "{{{}}};".format(", ".join([f"%{i}" for i in range(c_regs)])),
             ]
             template_string = " ".join(template_sub_strings)
-            fb += AssignStmt(ra, cast(a, ra.type))
-            fb += AssignStmt(rb, cast(b, rb.type))
-            fb += AssignStmt(rc, cast(c, rc.type))
-            fb += AsmStmt(
+            fb += AssignStmt.create(ra, cast(a, ra.type))
+            fb += AssignStmt.create(rb, cast(b, rb.type))
+            fb += AssignStmt.create(rc, cast(c, rc.type))
+            fb += asm_stmt(
                 template_string=template_string,
                 outputs=[("+r", rc[i]) for i in range(c_regs)],
                 inputs=[("r", ra[i]) for i in range(a_regs)] + [("r", rb[i]) for i in range(b_regs)],
@@ -560,8 +560,8 @@ def register_mma_v2_instructions():
         c_reg_p_type = meta.types([void_p for _ in range(c_regs)])
         d_reg_p_type = meta.types([void_p for _ in range(d_regs)])
 
-        @no_type_check
         @script
+        @no_type_check
         def mma_sync_v2_primitive(
             d_reg_p: d_reg_p_type, a_reg_p: a_reg_p_type, b_reg_p: b_reg_p_type, c_reg_p: c_reg_p_type
         ):

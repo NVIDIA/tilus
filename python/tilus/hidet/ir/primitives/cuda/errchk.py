@@ -16,7 +16,7 @@ from tilus.hidet.ir.stmt import BlackBoxStmt
 
 
 def check_cuda_error():
-    stmt = BlackBoxStmt(
+    stmt = BlackBoxStmt.create(
         r"""{cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) TVM_FFI_THROW(RuntimeError) << "CUDA error: " << """
         r"""cudaGetErrorString(err) << "\n";}"""
     )

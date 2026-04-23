@@ -154,7 +154,7 @@ class DeclareToLetRewriter(IRRewriter):
         if len(seq) == 1:
             return seq[0]
         else:
-            return SeqStmt(seq)
+            return SeqStmt.create(seq)
 
     def visit_SeqStmt(self, seq_stmt: SeqStmt) -> Stmt:
         seq = [self.visit(stmt) for stmt in seq_stmt.seq]
@@ -168,7 +168,7 @@ class DeclareToLetRewriter(IRRewriter):
                 and self.analyzer.address_count[stmt.var] == 0
             ):
                 # case 1
-                let_stmt = LetStmt(bind_vars=[stmt.var], bind_values=[stmt.init], body=self.concat(seq[i + 1 :]))
+                let_stmt = LetStmt.create(bind_vars=[stmt.var], bind_values=[stmt.init], body=self.concat(seq[i + 1 :]))
                 seq = seq[:i] + [let_stmt]
             elif (
                 isinstance(stmt, DeclareStmt)
@@ -189,7 +189,7 @@ class DeclareToLetRewriter(IRRewriter):
                 and self.analyzer.address_count[stmt.var] == 0
             ):
                 # case 2 (convert assign to let)
-                let_stmt = LetStmt(bind_vars=[stmt.var], bind_values=[stmt.value], body=self.concat(seq[i + 1 :]))
+                let_stmt = LetStmt.create(bind_vars=[stmt.var], bind_values=[stmt.value], body=self.concat(seq[i + 1 :]))
                 seq = seq[:i] + [let_stmt]
             elif (
                 isinstance(stmt, DeclareStmt)

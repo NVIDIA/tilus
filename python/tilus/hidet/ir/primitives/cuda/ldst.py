@@ -188,7 +188,7 @@ def register_ldg():
     from tilus.hidet.ir.builders import FunctionBuilder
     from tilus.hidet.ir.dtypes import boolean, i32, u16, u32
     from tilus.hidet.ir.expr import Var, cast, deref
-    from tilus.hidet.ir.stmt import AsmStmt
+    from tilus.hidet.ir.stmt import asm_stmt
     from tilus.hidet.ir.type import void_p
     from tilus.hidet.lang import asm, attrs, script  # pylint: disable=import-outside-toplevel
 
@@ -237,11 +237,11 @@ def register_ldg():
                         extra_addr_var.append(("l", cast(addr_var, ~u32) + 4 * i))
 
                 doc = "{" + "".join(insts) + "}"
-                body = AsmStmt(
+                body = asm_stmt(
                     doc,
-                    outputs=[("=r", deref(cast(var, PointerType(u32)))) for var in reg_vars],
+                    outputs=[("=r", deref(cast(var, PointerType.create(u32)))) for var in reg_vars],
                     inputs=[("l", addr_var), ("r", cast(pred_var, i32))]
-                    + [("r", deref(cast(var, PointerType(u32)))) for var in reg_vars]
+                    + [("r", deref(cast(var, PointerType.create(u32)))) for var in reg_vars]
                     + extra_addr_var,
                     is_volatile=True,
                 )
@@ -254,7 +254,7 @@ def register_stg():
     from tilus.hidet.ir.builders import FunctionBuilder
     from tilus.hidet.ir.dtypes import boolean, i32, u16, u32
     from tilus.hidet.ir.expr import Var, cast, deref
-    from tilus.hidet.ir.stmt import AsmStmt
+    from tilus.hidet.ir.stmt import asm_stmt
     from tilus.hidet.ir.type import void_p
     from tilus.hidet.lang import asm, attrs, script  # pylint: disable=import-outside-toplevel
 
@@ -295,11 +295,11 @@ def register_stg():
                     extra_addr_var.append(("l", cast(addr_var, ~u32) + 4 * i))
 
             doc = "{" + "".join(insts) + "}"
-            body = AsmStmt(
+            body = asm_stmt(
                 doc,
                 outputs=[],
                 inputs=[("l", addr_var), ("r", cast(pred_var, i32))]
-                + [("r", deref(cast(var, PointerType(u32)))) for var in reg_vars]
+                + [("r", deref(cast(var, PointerType.create(u32)))) for var in reg_vars]
                 + extra_addr_var,
                 is_volatile=True,
             )
@@ -399,7 +399,7 @@ def register_lds():
     from tilus.hidet.ir.builders import FunctionBuilder
     from tilus.hidet.ir.dtypes import u8, u16, u32
     from tilus.hidet.ir.expr import Var, cast, deref
-    from tilus.hidet.ir.stmt import AsmStmt
+    from tilus.hidet.ir.stmt import asm_stmt
     from tilus.hidet.ir.type import void_p
     from tilus.hidet.lang import asm, attrs, script  # pylint: disable=import-outside-toplevel
 
@@ -445,9 +445,9 @@ def register_lds():
             indicator = "h" if load_bytes == 2 else "r"
 
             doc = "{" + "".join(insts) + "}"
-            body = AsmStmt(
+            body = asm_stmt(
                 doc,
-                outputs=[(f"={indicator}", deref(cast(var, PointerType(dtype)))) for var in reg_vars],
+                outputs=[(f"={indicator}", deref(cast(var, PointerType.create(dtype)))) for var in reg_vars],
                 inputs=[("l", addr_var)],
                 is_volatile=True,
             )
@@ -460,7 +460,7 @@ def register_sts():
     from tilus.hidet.ir.builders import FunctionBuilder
     from tilus.hidet.ir.dtypes import u8, u16, u32
     from tilus.hidet.ir.expr import Var, cast, deref
-    from tilus.hidet.ir.stmt import AsmStmt
+    from tilus.hidet.ir.stmt import asm_stmt
     from tilus.hidet.ir.type import void_p
     from tilus.hidet.lang import asm, attrs, script  # pylint: disable=import-outside-toplevel
 
@@ -494,10 +494,10 @@ def register_sts():
             indicator = "b" if store_bytes == 1 else "h" if store_bytes == 2 else "r"
 
             doc = "{" + "".join(insts) + "}"
-            body = AsmStmt(
+            body = asm_stmt(
                 doc,
                 outputs=[],
-                inputs=[("l", addr_var)] + [(indicator, deref(cast(var, PointerType(dtype)))) for var in reg_vars],
+                inputs=[("l", addr_var)] + [(indicator, deref(cast(var, PointerType.create(dtype)))) for var in reg_vars],
                 is_volatile=True,
             )
             fb.set_body(body)

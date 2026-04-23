@@ -235,10 +235,11 @@ class IRPrinter(IRFunctor):
         # attributes
         attr_doc = Doc()
         attrs = {"kind": func.kind}
-        for f in dataclasses.fields(func.attrs):
-            value = getattr(func.attrs, f.name)
+        # FuncAttrs is a py_class now; iterate its known fields explicitly.
+        for fname in func.attrs._FIELDS:
+            value = getattr(func.attrs, fname)
             if value is not None:
-                attrs[f.name] = value
+                attrs[fname] = value
         for attr_name, attr_value in attrs.items():
             attr_doc += (NewLine() + "# {}: {}".format(attr_name, attr_value)).indent(4)
 

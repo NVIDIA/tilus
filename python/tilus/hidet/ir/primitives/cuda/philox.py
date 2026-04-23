@@ -28,7 +28,7 @@ def register_functions():
     from tilus.hidet.lang import attrs, script  # pylint: disable=import-outside-toplevel
     from tilus.hidet.lang.types import uint32
 
-    p_u32 = ~uint32  # PointerType(uint32)
+    p_u32 = ~uint32  # PointerType.create(uint32)
 
     # Philox-4x32 constants from Salmon et al., "Parallel Random Numbers: As Easy as 1, 2, 3" (2011).
     # KEY_A/B are Weyl sequence constants (golden ratio and sqrt(3) based).

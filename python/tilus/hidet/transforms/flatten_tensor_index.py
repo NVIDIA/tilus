@@ -100,13 +100,13 @@ class FlattenTensorAccessRewriter(IRRewriter):
             var = Var(stmt.var.name, tensor_type(stmt.var.type.dtype, [size]))
             self.memo[stmt.var] = var
             init = self(stmt.init) if stmt.init is not None else None
-            return DeclareStmt(var, init, is_static=stmt.is_static, scope=stmt.scope)
+            return DeclareStmt.create(var, init, is_static=stmt.is_static, scope=stmt.scope)
         elif isinstance(stmt.var.type, TensorPointerType):
             size = simplify(prod(stmt.var.type.tensor_type.shape))
             var = Var(stmt.var.name, tensor_pointer_type(stmt.var.type.tensor_type.dtype, [size]))
             self.memo[stmt.var] = var
             init = self(stmt.init) if stmt.init is not None else None
-            return DeclareStmt(var, init, is_static=stmt.is_static, scope=stmt.scope)
+            return DeclareStmt.create(var, init, is_static=stmt.is_static, scope=stmt.scope)
         else:
             return IRRewriter.visit_DeclareStmt(self, stmt)
 
@@ -135,7 +135,7 @@ class FlattenTensorAccessRewriter(IRRewriter):
                 )
             )
         global_index = _row_major_index(shape, indices)
-        return BufferStoreStmt(var, [global_index], value)
+        return BufferStoreStmt.create(var, [global_index], value)
 
 
 class FlattenTensorIndexPass(Pass):
