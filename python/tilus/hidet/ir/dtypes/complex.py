@@ -12,28 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-from functools import cached_property
+from __future__ import annotations
+
 from typing import Any
+
+from tvm_ffi.dataclasses import py_class
 
 from tilus.hidet.ir.dtypes.floats import float32, float64
 from tilus.hidet.ir.type import DataType
 
 
+@py_class("tilus.hidet.ir.dtypes.ComplexType", frozen=True, structural_eq="tree")
 class ComplexType(DataType):
-    def __init__(self, name, short_name, base_dtype: DataType):
-        super().__init__(name, short_name, 2 * base_dtype.nbytes)
-        self.base_dtype: DataType = base_dtype
+    base_dtype: DataType
 
     def is_float(self) -> bool:
         return False
@@ -51,23 +42,21 @@ class ComplexType(DataType):
         return False
 
     def constant(self, value: Any):
-        from tilus.hidet.ir.expr import Constant, constant
+        from tilus.hidet.ir.expr import Constant, constant  # noqa: PLC0415
 
         if isinstance(value, Constant):
             value = value.value
-
         if isinstance(value, complex):
             return constant(value, const_type=self)
-        elif isinstance(value, (int, float)):
+        if isinstance(value, (int, float)):
             return constant(complex(value, 0.0), const_type=self)
-        else:
-            raise RuntimeError("Invalid constant value for complex type: {}".format(value))
+        raise RuntimeError("Invalid constant value for complex type: {}".format(value))
 
-    @cached_property
+    @property
     def one(self):
         return self.constant(1.0 + 0.0j)
 
-    @cached_property
+    @property
     def zero(self):
         return self.constant(0.0 + 0.0j)
 
@@ -80,8 +69,8 @@ class ComplexType(DataType):
         raise RuntimeError("Complex type has no maximum value")
 
 
-complex64 = ComplexType("complex64", "c64", base_dtype=float32)
-complex128 = ComplexType("complex128", "c128", base_dtype=float64)
+complex64 = ComplexType(name="complex64", short_name="c64", nbytes=2 * float32.nbytes, base_dtype=float32)
+complex128 = ComplexType(name="complex128", short_name="c128", nbytes=2 * float64.nbytes, base_dtype=float64)
 
 c64 = complex64
 c128 = complex128

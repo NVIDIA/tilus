@@ -32,7 +32,15 @@ from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.primitives import is_primitive_function
 from tilus.hidet.ir.primitives.cuda.fast_divmod import fastdiv_precompute_m, fastdiv_precompute_s, fastdiv_runtime
-from tilus.hidet.ir.stmt import DeclareStmt, LaunchKernelStmt, LetStmt, SeqStmt
+from tilus.hidet.ir.stmt import (
+    DeclareStmt,
+    LaunchKernelStmt,
+    LetStmt,
+    SeqStmt,
+    declare_stmt,
+    launch_kernel_stmt,
+    seq_stmt,
+)
 from tilus.hidet.ir.tools import collect, rewrite
 from tilus.hidet.ir.tools.printer import IRPrinter
 from tilus.hidet.transforms.base import Pass
@@ -142,10 +150,10 @@ class LaunchStmtRewriter(IRRewriter):
         extra_launch_args = []
         for tmpl_stmt, tmpl_arg in zip(precompute_stmts_template, extra_launch_args_template):
             fresh_var = Var(tmpl_arg.name, type=tmpl_arg.type)
-            precompute_stmts.append(DeclareStmt(fresh_var, init=rewrite(tmpl_stmt.init, param_remap)))
+            precompute_stmts.append(declare_stmt(fresh_var, init=rewrite(tmpl_stmt.init, param_remap)))
             extra_launch_args.append(fresh_var)
 
-        new_launch = LaunchKernelStmt(
+        new_launch = launch_kernel_stmt(
             func_var=stmt.func_var,
             args=list(stmt.args) + extra_launch_args,
             grid_dim=stmt.grid_dim,
@@ -154,7 +162,7 @@ class LaunchStmtRewriter(IRRewriter):
             shared_mem=stmt.shared_mem_bytes,
             target=stmt.target,
         )
-        return SeqStmt(precompute_stmts + [new_launch])
+        return seq_stmt(precompute_stmts + [new_launch])
 
 
 class LowerFastDivPass(Pass):
@@ -243,8 +251,8 @@ class LowerFastDivPass(Pass):
             # Precompute functions return uint32; cast to int32 for the kernel params
             # to keep everything in int32 and avoid signed/unsigned casts that prevent
             # ptxas from using uniform registers.
-            precompute_stmts.append(DeclareStmt(launch_m, init=Cast(fastdiv_precompute_m(divisor_expr), int32)))
-            precompute_stmts.append(DeclareStmt(launch_s, init=Cast(fastdiv_precompute_s(divisor_expr), int32)))
+            precompute_stmts.append(declare_stmt(launch_m, init=Cast(fastdiv_precompute_m(divisor_expr), int32)))
+            precompute_stmts.append(declare_stmt(launch_s, init=Cast(fastdiv_precompute_s(divisor_expr), int32)))
             extra_launch_args.append(launch_m)
             extra_launch_args.append(launch_s)
         return precompute_stmts, extra_launch_args

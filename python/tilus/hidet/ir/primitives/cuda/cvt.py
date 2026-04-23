@@ -30,7 +30,7 @@ from tilus.hidet.ir.expr import Expr, cast, deref
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.primitives.func import call_primitive_func, lookup_primitive_function, register_primitive_function
 from tilus.hidet.ir.stmt import asm
-from tilus.hidet.ir.type import DataType, FuncType
+from tilus.hidet.ir.type import DataType, FuncType, func_type
 from tilus.hidet.lang import script
 from tilus.hidet.utils import initialize
 
@@ -190,21 +190,21 @@ def register_vectorized_cvt_instructions():
     )
 
     register_primitive_function(
-        "cuda_float1622float322", func_or_type=FuncType([f16x2], f32x2), codegen_name="__half22float2"
+        "cuda_float1622float322", func_or_type=func_type([f16x2], f32x2), codegen_name="__half22float2"
     )
     register_primitive_function(
-        "cuda_float3222float162", func_or_type=FuncType([f32x2], f16x2), codegen_name="__float22half2_rn"
-    )
-
-    register_primitive_function(
-        "cuda_bfloat1622float322", func_or_type=FuncType([bfloat16x2], f32x2), codegen_name="__bfloat1622float2"
-    )
-    register_primitive_function(
-        "cuda_float3222bfloat162", func_or_type=FuncType([f32x2], bfloat16x2), codegen_name="__float22bfloat162_rn"
+        "cuda_float3222float162", func_or_type=func_type([f32x2], f16x2), codegen_name="__float22half2_rn"
     )
 
     register_primitive_function(
-        "cuda_bfsub2", func_or_type=FuncType([bfloat16x2, bfloat16x2], bfloat16x2), codegen_name="__hsub2"
+        "cuda_bfloat1622float322", func_or_type=func_type([bfloat16x2], f32x2), codegen_name="__bfloat1622float2"
+    )
+    register_primitive_function(
+        "cuda_float3222bfloat162", func_or_type=func_type([f32x2], bfloat16x2), codegen_name="__float22bfloat162_rn"
+    )
+
+    register_primitive_function(
+        "cuda_bfsub2", func_or_type=func_type([bfloat16x2, bfloat16x2], bfloat16x2), codegen_name="__hsub2"
     )
 
     # register fast conversion from f16 and bf16 to f32

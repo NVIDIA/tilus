@@ -29,7 +29,16 @@ from tilus.hidet.ir.expr import Call, Expr, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.module import IRModule
-from tilus.hidet.ir.stmt import DeclareStmt, EvaluateStmt, ReturnStmt, SeqStmt, Stmt
+from tilus.hidet.ir.stmt import (
+    DeclareStmt,
+    EvaluateStmt,
+    ReturnStmt,
+    SeqStmt,
+    Stmt,
+    declare_stmt,
+    evaluate_stmt,
+    seq_stmt,
+)
 from tilus.hidet.ir.tools import collect, rewrite
 from tilus.hidet.ir.type import TensorType
 from tilus.hidet.ir.utils.call_graph import CallGraph, CallGraphNode
@@ -86,7 +95,7 @@ class InlineFunctionRewriter(IRRewriter):
             ret = super().visit(node)
             if len(self.stmts) > 0:
                 # the inlined statements should be inserted before the current statement
-                ret = SeqStmt(self.stmts + [ret])
+                ret = seq_stmt(self.stmts + [ret])
                 self.stmts.clear()
             return ret
         else:
@@ -109,7 +118,7 @@ class InlineFunctionRewriter(IRRewriter):
                 else:
                     param_var = Var(param.name, rewrite(param.type, remap, clone_internal_var=True))
                     param_vars.append(param_var)
-                    self.stmts.append(DeclareStmt(param_var, init=arg))
+                    self.stmts.append(declare_stmt(param_var, init=arg))
                     remap[param] = param_var
             callee_body = rewrite(callee.body, remap, clone_internal_var=True)
             self.stmts.append(callee_body)
@@ -120,12 +129,12 @@ class InlineFunctionRewriter(IRRewriter):
     def visit_EvaluateStmt(self, stmt: EvaluateStmt):
         expr = self.visit(stmt.expr)
         if expr is None:
-            return SeqStmt([])
+            return seq_stmt([])
         else:
             if expr is stmt.expr:
                 return stmt
             else:
-                return EvaluateStmt(expr)
+                return evaluate_stmt(expr)
 
 
 def inline_callees(caller: Function, updated_ir_module: IRModule) -> Function:

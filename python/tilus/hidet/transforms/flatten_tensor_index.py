@@ -14,11 +14,12 @@
 # limitations under the License.
 from typing import Dict, Sequence
 
-from tilus.hidet.ir.expr import Expr, TensorElement, Var, convert, tensor_element
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import Expr, TensorElement, Var, as_expr, tensor_element
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.module import IRModule
-from tilus.hidet.ir.stmt import BufferStoreStmt, DeclareStmt
+from tilus.hidet.ir.stmt import BufferStoreStmt, DeclareStmt, buffer_store_stmt, declare_stmt
 from tilus.hidet.ir.tools import TypeInfer, simplify
 from tilus.hidet.ir.type import (
     FuncType,
@@ -37,8 +38,8 @@ from tilus.hidet.utils import prod
 def _row_major_index(shape: Sequence[Expr], indices: Sequence[Expr]) -> Expr:
     assert len(shape) == len(indices)
     if len(shape) == 0:
-        return convert(0)
-    index: Expr = convert(indices[0])
+        return int32(0)
+    index: Expr = as_expr(indices[0])
     for dim in range(1, len(shape)):
         index = index * shape[dim] + indices[dim]
     return index
@@ -90,7 +91,7 @@ class FlattenTensorAccessRewriter(IRRewriter):
         elif isinstance(e_type, TensorPointerType):
             return e.type.tensor_type.shape
         elif isinstance(e_type, PointerType):
-            return [convert(0)]
+            return [int32(0)]
         else:
             raise ValueError("Can not infer shape from '{}' (expression {})".format(type(e), e))
 
@@ -100,13 +101,13 @@ class FlattenTensorAccessRewriter(IRRewriter):
             var = Var(stmt.var.name, tensor_type(stmt.var.type.dtype, [size]))
             self.memo[stmt.var] = var
             init = self(stmt.init) if stmt.init is not None else None
-            return DeclareStmt(var, init, is_static=stmt.is_static, scope=stmt.scope)
+            return declare_stmt(var, init, is_static=stmt.is_static, scope=stmt.scope)
         elif isinstance(stmt.var.type, TensorPointerType):
             size = simplify(prod(stmt.var.type.tensor_type.shape))
             var = Var(stmt.var.name, tensor_pointer_type(stmt.var.type.tensor_type.dtype, [size]))
             self.memo[stmt.var] = var
             init = self(stmt.init) if stmt.init is not None else None
-            return DeclareStmt(var, init, is_static=stmt.is_static, scope=stmt.scope)
+            return declare_stmt(var, init, is_static=stmt.is_static, scope=stmt.scope)
         else:
             return IRRewriter.visit_DeclareStmt(self, stmt)
 
@@ -135,7 +136,7 @@ class FlattenTensorAccessRewriter(IRRewriter):
                 )
             )
         global_index = _row_major_index(shape, indices)
-        return BufferStoreStmt(var, [global_index], value)
+        return buffer_store_stmt(var, [global_index], value)
 
 
 class FlattenTensorIndexPass(Pass):

@@ -26,7 +26,7 @@ from tilus.hidet.ir.functors import IRRewriter, IRVisitor
 from tilus.hidet.ir.primitives.cuda.atomic import atomic_cas
 from tilus.hidet.ir.primitives.cuda.cast import cast_subbyte_float_from_f32, cast_subbyte_float_to_f32
 from tilus.hidet.ir.primitives.cuda.subbyte import load_subbyte
-from tilus.hidet.ir.stmt import DeclareScope, Stmt
+from tilus.hidet.ir.stmt import DeclareScope, Stmt, let_stmt
 from tilus.hidet.ir.tools import IRPrinter, TypeInfer, collect
 from tilus.hidet.ir.type import (
     BaseType,
@@ -36,6 +36,8 @@ from tilus.hidet.ir.type import (
     TensorType,
     get_base_type,
     is_addressable,
+    tensor_pointer_type_from,
+    tensor_type,
     type_equal,
 )
 from tilus.hidet.transforms.base import FunctionPass
@@ -364,7 +366,7 @@ class LowerSubbyteTypeRewriter(IRRewriter):
             assert len(ttype.shape) == 1
             nbits = ttype.shape[0] * ttype.dtype.nbits
             new_shape = [(nbits + 7) // 8]
-            new_ttype = TensorType(dtype=uint8, shape=new_shape)
+            new_ttype = tensor_type(dtype=uint8, shape=new_shape)
             new_var = var(v.name, new_ttype)
             bit_offset_var = var(v.name + "_bo", int32)
         elif isinstance(v.type, TensorPointerType) and is_subbyte(get_base_type(v.type)):
@@ -372,7 +374,7 @@ class LowerSubbyteTypeRewriter(IRRewriter):
             assert len(ttype.shape) == 1
             nbits = ttype.shape[0] * ttype.dtype.nbits
             new_shape = [(nbits + 7) // 8]
-            new_tptype = TensorPointerType(TensorType(dtype=uint8, shape=new_shape))
+            new_tptype = tensor_pointer_type_from(tensor_type(dtype=uint8, shape=new_shape))
             new_var = var(v.name, new_tptype)
             bit_offset_var = var(v.name + "_bo", int32)
         elif isinstance(v.type, PointerType) and is_subbyte(get_base_type(v.type)):
@@ -481,7 +483,7 @@ class LowerSubbyteTypeRewriter(IRRewriter):
         if same_list(bind_vars, stmt.bind_vars) and same_list(bind_values, stmt.bind_values) and body is stmt.body:
             return stmt
         else:
-            return LetStmt(bind_vars, bind_values, body)
+            return let_stmt(bind_vars, bind_values, body)
 
     def visit_TensorElement(self, e: TensorElement) -> Expr:
         if is_subbyte(self.type_infer(e)):

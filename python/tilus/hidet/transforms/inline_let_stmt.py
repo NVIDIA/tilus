@@ -30,7 +30,7 @@ from tilus.hidet.ir.expr import Add, Call, Constant, Expr, Sub, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
 from tilus.hidet.ir.primitives import blockIdx, threadIdx
-from tilus.hidet.ir.stmt import LetStmt, Stmt
+from tilus.hidet.ir.stmt import LetStmt, Stmt, let_stmt
 from tilus.hidet.ir.tools import collect
 from tilus.hidet.ir.type import FuncType, TensorPointerType, TensorType
 from tilus.hidet.transforms.base import FunctionPass, Pass, RepeatFunctionPass
@@ -150,7 +150,7 @@ class NaiveLetStmtInlineRewriter(IRRewriter):
             return stmt
         else:
             if len(bind_vars) > 0:
-                return LetStmt(bind_vars, bind_values, body)
+                return let_stmt(bind_vars, bind_values, body)
             else:
                 return body
 

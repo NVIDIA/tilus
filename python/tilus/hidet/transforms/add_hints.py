@@ -27,7 +27,7 @@
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.primitives.debug import __builtin_assume
-from tilus.hidet.ir.stmt import SeqStmt
+from tilus.hidet.ir.stmt import SeqStmt, seq_stmt
 from tilus.hidet.transforms.base import Pass
 
 
@@ -72,7 +72,7 @@ class AddHintsRewriter(IRRewriter):
             return func
         hint_body = self.get_hints_body(func)
         body = self.visit(func.body)
-        body = SeqStmt((hint_body, body))
+        body = seq_stmt((hint_body, body))
         return Function(func.name, func.params, body, func.ret_type, func.kind, func.attrs)
 
 

@@ -19,7 +19,7 @@ from tilus.hidet.ir.dtypes import i32
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
 from tilus.hidet.ir.primitives.vars import lookup_primitive_variable, register_primitive_variable
-from tilus.hidet.ir.type import DataType, FuncType, PointerType, VoidType, data_type
+from tilus.hidet.ir.type import DataType, FuncType, PointerType, VoidType, data_type, func_type, pointer_type, void_type
 from tilus.hidet.utils.py import initialize
 
 _cluster_fields = ["thread_rank", "block_rank", "dim_threads", "dim_blocks"]
@@ -32,7 +32,7 @@ def register_cuda_cluster_functions():
 
     register_primitive_function(
         name="this_cluster.sync",
-        func_or_type=FuncType([], VoidType()),
+        func_or_type=func_type([], void_type()),
         codegen_name="cooperative_groups::this_cluster().sync",
     )
 
@@ -41,7 +41,7 @@ def register_cuda_cluster_functions():
 
         register_primitive_function(
             name=f"this_cluster.map_shared_rank_{dtype}",
-            func_or_type=FuncType([PointerType(dtype), i32], PointerType(dtype)),
+            func_or_type=func_type([pointer_type(dtype), i32], pointer_type(dtype)),
             codegen_name="cooperative_groups::this_cluster().map_shared_rank",
         )
 

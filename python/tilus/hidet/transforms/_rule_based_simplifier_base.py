@@ -51,28 +51,28 @@ from tilus.hidet.ir.expr import (
     Multiply,
     Sub,
     Var,
+    as_expr,
     constant,
-    convert,
     logical_and,
 )
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
-from tilus.hidet.ir.stmt import ForStmt, LetStmt
+from tilus.hidet.ir.stmt import ForStmt, LetStmt, for_stmt, let_stmt
 from tilus.hidet.ir.tools import rewrite, simplify
 from tilus.hidet.transforms.base import FunctionPass
 from tilus.hidet.utils import prod, repeat_until_converge, same_list
 
 
 def any_expr(allow_const):
-    return PlaceholderExpr(require_non_const=not allow_const)
+    return PlaceholderExpr.create(require_non_const=not allow_const)
 
 
 def any_constant():
-    return PlaceholderExpr(require_const=True)
+    return PlaceholderExpr.create(require_const=True)
 
 
 def int_constant():
-    return PlaceholderExpr(required_type=int32, require_const=True)
+    return PlaceholderExpr.create(required_type=int32, require_const=True)
 
 
 def c_div(a, b):
@@ -117,9 +117,9 @@ class ConstExprSimplifier(IRRewriter):
         a_val = e.a.value if isinstance(e.a, Constant) else None
         b_val = e.b.value if isinstance(e.b, Constant) else None
         if a_val and b_val:
-            return convert(True)
+            return boolean(True)
         elif a_val is False or b_val is False:
-            return convert(False)
+            return boolean(False)
         elif a_val:
             return e.b
         elif b_val:
@@ -271,7 +271,7 @@ class RuleBasedSimplifier(IRRewriter):
             if obj in self.memo:
                 return self.memo[obj]
             if obj in self.bound and self.bound[obj].value is not None and not isinstance(obj, Constant):
-                return convert(self.bound[obj].value)
+                return as_expr(self.bound[obj].value)
             cur = IRRewriter.visit(self, obj)
             while True:
                 orig_obj = cur
@@ -279,7 +279,10 @@ class RuleBasedSimplifier(IRRewriter):
                 cur = self.const_expr_simplifier(cur)
                 cur = self.apply_bound_aware_rule(cur)
                 cur = self.const_expr_simplifier(cur)
-                if orig_obj is cur:
+                # Use ``same_as`` (C-handle identity) rather than Python ``is``;
+                # tvm-ffi hands out a fresh Python wrapper per attribute access,
+                # so ``is`` alone never holds even when the rewriter is a no-op.
+                if orig_obj is cur or (hasattr(orig_obj, "same_as") and orig_obj.same_as(cur)):
                     break
             self.memo[obj] = cur
             return cur
@@ -295,25 +298,25 @@ class RuleBasedSimplifier(IRRewriter):
     def visit_LessThan(self, e: LessThan):
         ua, ub = self.bound[e.a], self.bound[e.b]
         if ua < ub:
-            return convert(True)
+            return boolean(True)
         if ub <= ua:
-            return convert(False)
+            return boolean(False)
         return IRRewriter.visit_LessThan(self, e)
 
     def visit_LessEqual(self, e: LessEqual):
         ua, ub = self.bound[e.a], self.bound[e.b]
         if ua <= ub:
-            return convert(True)
+            return boolean(True)
         if ub < ua:
-            return convert(False)
+            return boolean(False)
         return IRRewriter.visit_LessEqual(self, e)
 
     def visit_Equal(self, e: Equal):
         ua, ub = self.bound[e.a], self.bound[e.b]
         if ua <= ub <= ua:
-            return convert(True)
+            return boolean(True)
         if ua < ub or ub < ua:
-            return convert(False)
+            return boolean(False)
         return IRRewriter.visit_Equal(self, e)
 
     def visit_LetStmt(self, stmt: LetStmt):
@@ -326,7 +329,7 @@ class RuleBasedSimplifier(IRRewriter):
         if same_list(bind_vars, stmt.bind_vars) and same_list(bind_values, stmt.bind_values) and body is stmt.body:
             return stmt
         else:
-            return LetStmt(bind_vars, bind_values, body)
+            return let_stmt(bind_vars, bind_values, body)
 
     def visit_ForStmt(self, stmt: ForStmt):
         loop_var = self(stmt.loop_var)
@@ -336,7 +339,7 @@ class RuleBasedSimplifier(IRRewriter):
         if loop_var is stmt.loop_var and extent is stmt.extent and body is stmt.body:
             return stmt
         else:
-            return ForStmt(loop_var, extent, body=body, attr=stmt.attr)
+            return for_stmt(loop_var, extent, body=body, attr=stmt.attr)
 
     def visit_Function(self, func: Function):
         return IRRewriter.visit_Function(self, func)

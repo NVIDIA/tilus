@@ -36,6 +36,7 @@ from tilus.hidet.ir.stmt import (
     ForStmt,
     IfStmt,
     LetStmt,
+    let_stmt,
 )
 from tilus.hidet.transforms.base import FunctionPass, Pass
 
@@ -51,7 +52,7 @@ def wrapper(stmt_visitor):
             return updated_stmt
         bind_vars = [var for var, _ in pending]
         bind_values = [value for _, value in pending]
-        return LetStmt(bind_vars, bind_values, updated_stmt)
+        return let_stmt(bind_vars, bind_values, updated_stmt)
 
     return wrapped_visitor
 

@@ -17,7 +17,7 @@ from typing import List, Optional, Sequence
 from tilus.hidet.ir.expr import Var
 from tilus.hidet.ir.func import FuncAttrs, Function
 from tilus.hidet.ir.stmt import Stmt
-from tilus.hidet.ir.type import VoidType
+from tilus.hidet.ir.type import VoidType, void_type
 
 from .stmt_builder import StmtBuilder
 
@@ -27,7 +27,7 @@ class FunctionBuilder(StmtBuilder):
         self,
         name: str,
         kind: str,
-        ret_type=VoidType(),
+        ret_type=void_type(),
         grid_dim=None,
         cluster_dim=None,
         block_dim=None,

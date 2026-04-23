@@ -16,7 +16,7 @@ from tilus.hidet.ir.dtypes import bfloat16, boolean, float16, float32, float64, 
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
 from tilus.hidet.ir.tools import infer_type
-from tilus.hidet.ir.type import DataType, FuncType
+from tilus.hidet.ir.type import DataType, FuncType, func_type
 from tilus.hidet.utils import initialize
 
 # dtypes supported by the shfl intrinsics (signature: T __shfl*_sync(unsigned, T, int, int=warpSize))
@@ -34,14 +34,12 @@ _shfl_bases = {
 
 @initialize()
 def register_primitive_functions():
-    register_primitive_function(name="cuda_activemask", func_or_type=FuncType([], int32), codegen_name="__activemask")
+    register_primitive_function(name="cuda_activemask", func_or_type=func_type([], int32), codegen_name="__activemask")
     for base, codegen_name in _shfl_bases.items():
         for dtype in _shfl_dtypes:
             # T __shfl*_sync(unsigned mask, T var, int srcLane_or_delta_or_laneMask, int width=warpSize)
-            func_type = FuncType(param_types=[uint32, dtype, int32, int32], ret_type=dtype)
-            register_primitive_function(
-                name=f"cuda_{base}_{dtype.name}", codegen_name=codegen_name, func_or_type=func_type
-            )
+            ftype = func_type(param_types=[uint32, dtype, int32, int32], ret_type=dtype)
+            register_primitive_function(name=f"cuda_{base}_{dtype.name}", codegen_name=codegen_name, func_or_type=ftype)
 
 
 def _shfl_dispatch(base: str, mask: Expr, var: Expr, lane_arg: Expr, width: Expr) -> Expr:

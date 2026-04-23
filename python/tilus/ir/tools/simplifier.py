@@ -21,6 +21,8 @@ from tilus.ir.stmt import (
     LetStmt,
     SeqStmt,
     Stmt,
+    let_stmt,
+    seq_stmt,
 )
 
 
@@ -50,7 +52,7 @@ class IRSimplifier(IRRewriter):
         if len(new_seq) == len(stmt.seq) and all(a is b for a, b in zip(new_seq, stmt.seq)):
             return stmt
         else:
-            return SeqStmt.create(new_seq)
+            return seq_stmt(new_seq)
 
     def visit_LetStmt(self, stmt: LetStmt) -> Stmt:
         bind_vars: list[Var] = []
@@ -82,7 +84,7 @@ class IRSimplifier(IRRewriter):
         ):
             return stmt
         else:
-            return LetStmt.create(bind_vars, bind_values, body)
+            return let_stmt(bind_vars, bind_values, body)
 
 
 def simplify(prog: Program) -> Program:

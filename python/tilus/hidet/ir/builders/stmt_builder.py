@@ -15,7 +15,7 @@
 from dataclasses import dataclass
 from typing import Generic, List, Optional, Sequence, Tuple, TypeVar, Union, cast
 
-from tilus.hidet.ir.expr import Expr, Var, convert, var
+from tilus.hidet.ir.expr import Expr, Var, as_expr, var
 from tilus.hidet.ir.stmt import (
     AssertStmt,
     AssignStmt,
@@ -32,6 +32,16 @@ from tilus.hidet.ir.stmt import (
     SeqStmt,
     Stmt,
     WhileStmt,
+    assert_stmt,
+    assign_stmt,
+    buffer_store_stmt,
+    declare_stmt,
+    evaluate_stmt,
+    for_stmt,
+    if_stmt,
+    let_stmt,
+    seq_stmt,
+    while_stmt,
 )
 from tilus.hidet.ir.type import BaseType
 
@@ -55,7 +65,7 @@ class _ForFrame(_Frame):
     attr: ForStmtAttr
 
     def build(self, body: Stmt) -> ForStmt:
-        return ForStmt(self.loop_var, self.extent, body, attr=self.attr)
+        return for_stmt(self.loop_var, self.extent, body, attr=self.attr)
 
 
 @dataclass
@@ -64,7 +74,7 @@ class _LetFrame(_Frame):
     bind_values: Tuple[Expr, ...]
 
     def build(self, body: Stmt) -> LetStmt:
-        return LetStmt(self.bind_vars, self.bind_values, body)
+        return let_stmt(self.bind_vars, self.bind_values, body)
 
 
 @dataclass
@@ -72,7 +82,7 @@ class _WhileFrame(_Frame):
     cond: Expr
 
     def build(self, body: Stmt) -> WhileStmt:
-        return WhileStmt(self.cond, body)
+        return while_stmt(self.cond, body)
 
 
 @dataclass
@@ -141,24 +151,24 @@ class StmtBuilder:
     # ---- singleton statements ----
 
     def declare(self, v: Var, init: Optional[Expr] = None, scope=None):
-        self.append(DeclareStmt(v, init, scope=scope))
+        self.append(declare_stmt(v, init, scope=scope))
         return v
 
     def declare_var(
         self, name: str, tp: BaseType, init: Optional[Expr] = None, scope: Optional[DeclareScope] = None
     ) -> Var:
         v = var(name, tp)
-        self.append(DeclareStmt(v, init=init, scope=scope))
+        self.append(declare_stmt(v, init=init, scope=scope))
         return v
 
     def buffer_store(self, buf: Expr, indices: Sequence[Union[Expr, int]], value: Expr):
-        self.append(BufferStoreStmt(buf, convert(indices), value))
+        self.append(buffer_store_stmt(buf, [as_expr(i) for i in indices], value))
 
     def assign(self, dst: Var, value: Expr):
-        self.append(AssignStmt(dst, value))
+        self.append(assign_stmt(dst, value))
 
     def assertion(self, cond: Union[Expr, bool], msg: str) -> None:
-        self.append(AssertStmt(cond, msg))
+        self.append(assert_stmt(as_expr(cond), msg))
 
     def comment(self, comment_string: str, style: str = "//") -> None:
         from tilus.hidet.ir.primitives.debug import comment
@@ -176,25 +186,25 @@ class StmtBuilder:
     def let(self, v: Union[str, Var], value: Union[int, Expr]) -> StmtScope:
         if isinstance(v, str):
             v = var(v)
-        return StmtScope(self, frames=[_LetFrame((v,), (convert(value),))], ret=v)
+        return StmtScope(self, frames=[_LetFrame((v,), (as_expr(value),))], ret=v)
 
     def lets(self, bind_vars: Sequence[Union[str, Var]], values: Sequence[Union[int, Expr]]) -> StmtScope:
         assert len(bind_vars) == len(values)
         resolved_vars = tuple(var(v) if isinstance(v, str) else v for v in bind_vars)
-        resolved_values = tuple(convert(value) for value in values)
+        resolved_values = tuple(as_expr(value) for value in values)
         return StmtScope(self, frames=[_LetFrame(resolved_vars, resolved_values)], ret=list(resolved_vars))
 
     def for_loop(self, v: Union[str, Var], extent: Union[int, Expr], attr: str = ".") -> StmtScope:
         if isinstance(v, str):
             v = var(v)
         parsed_attr = ForStmtAttr.parse(attr, num_loops=1)[0]
-        return StmtScope(self, frames=[_ForFrame(v, convert(extent), parsed_attr)], ret=v)
+        return StmtScope(self, frames=[_ForFrame(v, as_expr(extent), parsed_attr)], ret=v)
 
     def if_then(self, cond: Union[bool, Expr]) -> StmtScope:
-        return StmtScope(self, frames=[_IfThenFrame(convert(cond))], ret=None)
+        return StmtScope(self, frames=[_IfThenFrame(as_expr(cond))], ret=None)
 
     def else_if(self, cond: Union[bool, Expr]) -> StmtScope:
-        return StmtScope(self, frames=[_ElseIfFrame(convert(cond))], ret=None)
+        return StmtScope(self, frames=[_ElseIfFrame(as_expr(cond))], ret=None)
 
     def otherwise(self) -> StmtScope:
         return StmtScope(self, frames=[_OtherwiseFrame()], ret=None)
@@ -202,7 +212,7 @@ class StmtBuilder:
     def for_grid(self, shape: Sequence[Union[Expr, int]]) -> StmtScope:
         iter_names = self._name_index_vars(len(shape))
         iter_vars = [var(name) for name in iter_names]
-        frames = [_ForFrame(iv, convert(extent), ForStmtAttr()) for iv, extent in zip(iter_vars, shape)]
+        frames = [_ForFrame(iv, as_expr(extent), ForStmtAttr()) for iv, extent in zip(iter_vars, shape)]
         return StmtScope(self, frames=frames, ret=iter_vars)
 
     def for_range(self, extent: Union[Expr, int], *, attr: Optional[Union[str, ForStmtAttr]] = None) -> StmtScope:
@@ -213,10 +223,10 @@ class StmtBuilder:
             attr_obj = attr
         else:
             attr_obj = ForStmtAttr()
-        return StmtScope(self, frames=[_ForFrame(iter_var, convert(extent), attr_obj)], ret=iter_var)
+        return StmtScope(self, frames=[_ForFrame(iter_var, as_expr(extent), attr_obj)], ret=iter_var)
 
     def while_loop(self, cond: Expr) -> StmtScope:
-        return StmtScope(self, frames=[_WhileFrame(convert(cond))], ret=None)
+        return StmtScope(self, frames=[_WhileFrame(as_expr(cond))], ret=None)
 
     # ---- core ----
 
@@ -226,7 +236,7 @@ class StmtBuilder:
         if isinstance(stmt, (Stmt, Expr)):
             self._flush_pending_if()
             if isinstance(stmt, Expr):
-                stmt = EvaluateStmt(stmt)
+                stmt = evaluate_stmt(stmt)
             self.scope_stack[-1].append(stmt)
         else:
             assert isinstance(stmt, (tuple, list))
@@ -251,15 +261,15 @@ class StmtBuilder:
 
     def _exit_scope(self) -> None:
         self._flush_pending_if()
-        body = SeqStmt(self.scope_stack.pop())
+        body = seq_stmt(self.scope_stack.pop())
         self.pending_if_stack.pop()
         frame = self.frame_stack.pop()
         if isinstance(frame, _IfThenFrame):
-            self.pending_if_stack[-1] = IfStmt(frame.cond, body, None)
+            self.pending_if_stack[-1] = if_stmt(frame.cond, body, None)
         elif isinstance(frame, _ElseIfFrame):
             prev = self.pending_if_stack[-1]
             assert prev is not None  # enforced at _enter_scope
-            self.pending_if_stack[-1] = _attach_else(prev, IfStmt(frame.cond, body, None))
+            self.pending_if_stack[-1] = _attach_else(prev, if_stmt(frame.cond, body, None))
         elif isinstance(frame, _OtherwiseFrame):
             prev = self.pending_if_stack[-1]
             assert prev is not None  # enforced at _enter_scope
@@ -270,15 +280,15 @@ class StmtBuilder:
     def finish(self) -> SeqStmt:
         self._flush_pending_if()
         assert len(self.scope_stack) == 1 and not self.frame_stack, "finish() called with open scopes"
-        return SeqStmt(self.scope_stack.pop())
+        return seq_stmt(self.scope_stack.pop())
 
 
 def _attach_else(prev_if: IfStmt, new_else: Stmt) -> IfStmt:
     """Return a new IfStmt tree with ``new_else`` attached to the innermost ``None`` else slot."""
     if prev_if.else_body is None:
-        return IfStmt(prev_if.cond, prev_if.then_body, new_else)
+        return if_stmt(prev_if.cond, prev_if.then_body, new_else)
     assert isinstance(prev_if.else_body, IfStmt), "otherwise() must be the last entry in an if-chain"
-    return IfStmt(prev_if.cond, prev_if.then_body, _attach_else(prev_if.else_body, new_else))
+    return if_stmt(prev_if.cond, prev_if.then_body, _attach_else(prev_if.else_body, new_else))
 
 
 T = TypeVar("T")

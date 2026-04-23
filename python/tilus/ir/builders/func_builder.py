@@ -21,7 +21,7 @@ from tilus.hidet.ir.primitives.cuda.vars import blockIdx
 from tilus.hidet.ir.type import BaseType
 from tilus.ir.builders.stmt_builder import StmtBuilder
 from tilus.ir.func import Function, Metadata
-from tilus.ir.stmt import SeqStmt, Stmt
+from tilus.ir.stmt import Stmt, seq_stmt
 from tilus.ir.utils.normalize import normalize_cluster_blocks, normalize_grid_blocks
 
 
@@ -65,7 +65,7 @@ class FunctionBuilder(StmtBuilder):
             built_function = Function.create(
                 name=self.name,
                 params=self.params,
-                body=SeqStmt.create(self.builder._stack.pop()),
+                body=seq_stmt(self.builder._stack.pop()),
                 metadata=Metadata.create(
                     grid_blocks=num_blocks,
                     cluster_blocks=cluster_blocks,

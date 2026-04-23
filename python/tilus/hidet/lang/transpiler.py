@@ -360,7 +360,7 @@ class Scope:
         self.stmts.append(stmt)
 
     def flush_stmts(self) -> ir.Stmt:
-        seq_stmt = ir.SeqStmt(seq=list(self.stmts))
+        seq_stmt = ir.seq_stmt(seq=list(self.stmts))
         self.stmts.clear()
         return seq_stmt
 
@@ -449,7 +449,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
                     var_type = self.visit(type_annotation)
                     var = Var(name=var_name, type=var_type)
                     self.current_scope.define_var(name=var_name, v=var)
-                    self.current_scope.append(ir.DeclareStmt(var, init=rhs))
+                    self.current_scope.append(ir.declare_stmt(var, init=ir.as_expr(rhs)))
                 else:
                     # define a new variable
                     # during transpiling, there are two kinds of variables:
@@ -471,26 +471,28 @@ class PythonToHidetTranslator(PythonAstFunctor):
                             scope = rhs.scope
                             init_value = rhs.init
                         else:
-                            rhs = ir.convert(rhs)
+                            if rhs is None:
+                                raise HidetProgramError(self, lhs, "Cannot assign None without a type annotation.")
+                            rhs = ir.as_expr(rhs)
                             var_type = ir.infer_type(rhs)
                             init_value = rhs
                         var = Var(name=var_name, type=var_type)
                         self.current_scope.append(
-                            ir.DeclareStmt(var, init=init_value, is_static=is_static, scope=scope)
+                            ir.declare_stmt(var, init=init_value, is_static=is_static, scope=scope)
                         )
                         self.current_scope.define_var(name=var_name, v=var)
             else:
                 # In other cases, it is an assignment of defined variable.
                 var = lookup_result
-                self.current_scope.append(ir.AssignStmt(var, value=rhs))
+                self.current_scope.append(ir.assign_stmt(var, value=ir.as_expr(rhs)))
         elif isinstance(lhs, Subscript):
             # example: a[3, 4] = 5.0
             base = self.visit(lhs.value)
             indices = self.visit(lhs.slice)
             if not isinstance(indices, list):
                 indices = [indices]
-            indices = [ir.expr.convert(idx) for idx in indices]
-            self.current_scope.append(ir.BufferStoreStmt(buf=base, indices=indices, value=rhs))
+            indices = [ir.as_expr(idx) for idx in indices]
+            self.current_scope.append(ir.buffer_store_stmt(buf=base, indices=indices, value=ir.as_expr(rhs)))
         elif isinstance(lhs, Attribute):
             # example: attr.cuda.block_dim = 16, 16
             lhs_base = self.visit(lhs.value)
@@ -881,7 +883,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
 
             then_body = then_scope.flush_stmts()
             else_body = else_scope.flush_stmts() if len(stmt.orelse) > 0 else None
-            self.current_scope.append(ir.IfStmt(cond=cond, then_body=then_body, else_body=else_body))
+            self.current_scope.append(ir.if_stmt(cond=cond, then_body=then_body, else_body=else_body))
 
     def visit_Index(self, expr):
         return self.visit(expr.value)
@@ -1042,7 +1044,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
     def visit_Expr(self, expr: Expr):
         value = self.visit(expr.value)
         if isinstance(value, ir.Expr):
-            self.current_scope.append(ir.EvaluateStmt(value))
+            self.current_scope.append(ir.evaluate_stmt(value))
         elif isinstance(value, ir.Stmt):
             # buf.write([i, j], value) would return a BufferStoreStmt
             self.current_scope.append(value)
@@ -1233,17 +1235,17 @@ class PythonToHidetTranslator(PythonAstFunctor):
         msg = None if stmt.msg is None else self.visit(stmt.msg)
         if stmt.msg is not None and not isinstance(msg, str):
             raise HidetProgramError(self, stmt.msg, "Expect a string message.")
-        self.current_scope.append(ir.AssertStmt(cond=cond, msg=msg))
+        self.current_scope.append(ir.assert_stmt(cond=cond, msg=msg))
 
     def visit_Return(self, stmt: Return):
         if stmt.value is not None:
-            return_value = self.visit(stmt.value)
+            return_value = ir.as_expr(self.visit(stmt.value))
         else:
             return_value = None
-        self.current_scope.append(ir.ReturnStmt(ir.convert(return_value)))
+        self.current_scope.append(ir.ReturnStmt(return_value))
 
     def visit_Pass(self, stmt: Pass):
-        return ir.SeqStmt([])
+        return ir.seq_stmt([])
 
     def visit_AnnAssign(self, stmt: AnnAssign):
         lhs = stmt.target
@@ -1261,7 +1263,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
         with self.scope() as while_scope:
             for body_stmt in stmt.body:
                 self.visit(body_stmt)
-        while_stmt = ir.WhileStmt(cond, while_scope.flush_stmts())
+        while_stmt = ir.while_stmt(ir.as_expr(cond), while_scope.flush_stmts())
         self.current_scope.append(while_stmt)
 
     def visit_Break(self, stmt: Break):
@@ -1296,7 +1298,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
                     from tilus.hidet.ir.tools import infer_type
 
                     bind_var = Var(name=bind_name, type=infer_type(bind_value))
-                    self.current_scope.append(ir.DeclareStmt(var=bind_var, init=bind_value))
+                    self.current_scope.append(ir.declare_stmt(var=bind_var, init=bind_value))
                     self.current_scope.define_var(bind_name, bind_var)
                 else:
                     self.current_scope.define_host_var(with_item.optional_vars.id, bind_value)

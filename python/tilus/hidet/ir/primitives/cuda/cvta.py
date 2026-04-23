@@ -27,7 +27,7 @@ from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.cuda.funcs import call_cuda
 from tilus.hidet.ir.primitives.func import register_primitive_function
 from tilus.hidet.ir.stmt import asm
-from tilus.hidet.ir.type import PointerType, VoidType
+from tilus.hidet.ir.type import PointerType, VoidType, pointer_type, void_type
 from tilus.hidet.lang import script
 from tilus.hidet.utils import initialize
 
@@ -48,7 +48,7 @@ def register_cvta_instructions():
             func_name = "cuda_" + resolve_cvta_func_name(src_space, dst_space)
 
             @script
-            def cvta(src: PointerType(VoidType())) -> u32:
+            def cvta(src: pointer_type(void_type())) -> u32:
                 attrs.func_name = func_name
                 attrs.func_kind = "cuda_internal"
                 ret: u32 = 0
@@ -74,7 +74,7 @@ def register_cvta_instructions():
                 raise NotImplementedError()
 
             @script
-            def cvta_ext(src: PointerType(VoidType())) -> u32:
+            def cvta_ext(src: pointer_type(void_type())) -> u32:
                 attrs.func_name = func_name
                 attrs.func_kind = "cuda_internal"
                 ret: u32 = 0

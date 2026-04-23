@@ -28,13 +28,13 @@ from tilus.hidet.ir.expr import logical_and, logical_or
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.primitives import printf
-from tilus.hidet.ir.stmt import AssertStmt, BlackBoxStmt, LaunchKernelStmt, Stmt
+from tilus.hidet.ir.stmt import AssertStmt, BlackBoxStmt, LaunchKernelStmt, Stmt, assert_stmt, black_box_stmt
 from tilus.hidet.transforms.base import FunctionPass, Pass
 from tilus.hidet.utils.py import prod
 
 
 def check_cuda_error():
-    stmt = BlackBoxStmt(
+    stmt = black_box_stmt(
         r"""{cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) TVM_FFI_THROW(RuntimeError) << "CUDA error: " << """
         r"""cudaGetErrorString(err) << "\n";}"""
     )
@@ -69,19 +69,19 @@ class CheckLaunchConfigurationRewriter(IRRewriter):
                     stmt.block_dim[1],
                     stmt.block_dim[2],
                 )
-                sb += AssertStmt(False, "Invalid launch configuration")
+                sb += assert_stmt(False, "Invalid launch configuration")
             conditions = [grid_dim % cluster_dim != 0 for grid_dim, cluster_dim in zip(stmt.grid_dim, stmt.cluster_dim)]
             with sb.if_then(logical_or(*conditions)):
-                sb += AssertStmt(False, "Cluster dims must elementwise evenly divide grid dims")
+                sb += assert_stmt(False, "Cluster dims must elementwise evenly divide grid dims")
 
             condition = prod(stmt.cluster_dim) > 8
             with sb.if_then(condition):
-                sb += AssertStmt(False, "At most 8 thread blocks in a cluster")
+                sb += assert_stmt(False, "At most 8 thread blocks in a cluster")
 
             with sb.if_then(stmt.shared_mem_bytes > 49152):
                 # if the shared memory is larger than 48KB, we should call cudaFuncSetAttribute
                 if stmt.target == "cuda":
-                    sb += BlackBoxStmt(
+                    sb += black_box_stmt(
                         "cudaFuncSetAttribute({}, cudaFuncAttributeMaxDynamicSharedMemorySize, {});",
                         stmt.func_var,
                         stmt.shared_mem_bytes,

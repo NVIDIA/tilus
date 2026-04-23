@@ -12,11 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus.hidet.ir.stmt import BlackBoxStmt
+from tilus.hidet.ir.stmt import BlackBoxStmt, black_box_stmt
 
 
 def check_cuda_error():
-    stmt = BlackBoxStmt(
+    stmt = black_box_stmt(
         r"""{cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) TVM_FFI_THROW(RuntimeError) << "CUDA error: " << """
         r"""cudaGetErrorString(err) << "\n";}"""
     )

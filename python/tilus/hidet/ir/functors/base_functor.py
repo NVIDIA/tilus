@@ -25,7 +25,9 @@
 # limitations under the License.
 from typing import Any, Dict, List, Tuple, Type, Union
 
-from tilus.hidet.ir.node import Node
+import tvm_ffi
+
+from tilus.hidet.ir.node import Node, is_seq
 from tilus.hidet.utils import same_list
 
 
@@ -41,8 +43,25 @@ class BaseFunctor:
             # we do not need to memoize the python constants because hash(1.0) == hash(1) == hash(True)
             return self.visit_PyConstant(node)
 
+        # Memo key.
+        #
+        # IR nodes use the node itself. ``tvm_ffi.Object``'s default
+        # ``__hash__`` / ``__eq__`` are handle-address-based — two wrappers
+        # of the same C handle collide, two distinct IR nodes stay separate
+        # — and storing the node as the key keeps a strong reference to it,
+        # which pins the C handle. That's exactly what an identity memo
+        # wants.
+        #
+        # Plain Python ``list`` / ``dict`` aren't hashable, so we key on
+        # ``id(node)``; the caller owns them for the traversal.
+        #
+        # FFI containers (``Array`` / ``List`` / ``Map`` / ``Dict``) are
+        # skipped — their ``__hash__`` is ``RecursiveHash`` (uncached, and
+        # requires every nested element type to declare a structural kind);
+        # they're visited once per parent so the memo adds little value.
         key = id(node) if isinstance(node, (list, dict)) else node
-        if self.memo is not None and key in self.memo:
+        skip_memo = type(node).__name__ in ("Array", "List", "Map", "Dict")
+        if not skip_memo and self.memo is not None and key in self.memo:
             return self.memo[key]
 
         functor_cls: Type[BaseFunctor] = type(self)
@@ -69,7 +88,7 @@ class BaseFunctor:
             else:
                 raise NotImplementedError("Can not dispatch object with type {}".format(type(node)))
 
-        if self.memo is not None:
+        if not skip_memo and self.memo is not None:
             self.memo[key] = ret
 
         return ret
@@ -77,16 +96,24 @@ class BaseFunctor:
     def visit_dispatch(self, node: Union[Node, Tuple, List, Dict[str, Any], str, int, float, Any]):
         if isinstance(node, tuple):
             return self.visit_Tuple(node)
-        elif isinstance(node, list):
+        if isinstance(node, list):
             return self.visit_List(node)
-        elif isinstance(node, dict):
+        if isinstance(node, dict):
             return self.visit_Dict(node)
-        elif isinstance(node, (str, int, float, complex)) or node is None:
+        # ``@py_class`` fields rewrite ``tuple[T, ...]``/``list[T]``/``dict[K,V]``
+        # to ``ffi.Array``/``ffi.List``/``ffi.Map``/``ffi.Dict``. Dispatch those
+        # through the same Tuple / List / Dict hooks.
+        if type(node).__name__ == "Array":
+            return self.visit_Tuple(tuple(node))
+        if type(node).__name__ == "List":
+            return self.visit_List(list(node))
+        if type(node).__name__ in ("Map", "Dict"):
+            return self.visit_Dict(dict(node))
+        if isinstance(node, (str, int, float, complex)) or node is None:
             return self.visit_PyConstant(node)
-        elif isinstance(node, Node):
+        if isinstance(node, Node):
             return self.visit_NotDispatchedNode(node)
-        else:
-            return self.visit_NotDispatched(node)
+        return self.visit_NotDispatched(node)
 
     def visit_Tuple(self, tp: Tuple):
         raise NotImplementedError()

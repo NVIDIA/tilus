@@ -27,7 +27,7 @@ from tilus.hidet.ir.dtypes import complex128, float64
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import primitive_func_pool, register_primitive_function
 from tilus.hidet.ir.primitives.math import MathFunctionSet, register_math_function_set
-from tilus.hidet.ir.type import FuncType
+from tilus.hidet.ir.type import FuncType, func_type
 
 
 class CUDAComplex128MathFunctionSet(MathFunctionSet):
@@ -41,7 +41,7 @@ class CUDAComplex128MathFunctionSet(MathFunctionSet):
                 register_primitive_function(
                     name="cuda_c128_{}".format(name),
                     codegen_name=codegen_name,
-                    func_or_type=FuncType(
+                    func_or_type=func_type(
                         param_types=[complex128] * num_args,
                         ret_type=complex128 if name not in ["abs"] else float64,
                     ),

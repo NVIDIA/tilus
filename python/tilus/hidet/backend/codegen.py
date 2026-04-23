@@ -34,7 +34,6 @@ from tilus.hidet.ir.expr import (
     Sub,
     TensorElement,
     Var,
-    convert,
 )
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import ExprFunctor, ModuleFunctor, StmtFunctor, TypeFunctor
@@ -563,7 +562,7 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
 
     def visit_ForStmt(self, stmt: ForStmt):
         v = stmt.loop_var
-        init_doc = self(v.type) + " " + self(v) + " = " + self(convert(0))
+        init_doc = self(v.type) + " " + self(v) + " = " + self(dtypes.int32(0))
         cond_doc = self(v < stmt.extent)
         update_doc = self(v) + " = " + self(v + 1)
         doc = Text("")

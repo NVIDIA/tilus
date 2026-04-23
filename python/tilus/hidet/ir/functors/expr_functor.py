@@ -59,6 +59,7 @@ from tilus.hidet.ir.expr import (
     cast,
 )
 from tilus.hidet.utils import same_list
+from tilus.utils.py import same_node
 
 from .base_functor import BaseFunctor, BaseRewriter, BaseVisitor
 
@@ -335,7 +336,7 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
     def visit_Binary(self, e: BinaryExpr):
         a = self(e.a)
         b = self(e.b)
-        if a is e.a and b is e.b:
+        if same_node(a, e.a) and same_node(b, e.b):
             return e
         else:
             return Expr._binary(e.__class__, a, b)  # pylint: disable=protected-access
@@ -375,14 +376,14 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
 
     def visit_Neg(self, e: Neg):
         a = self(e.a)
-        if a is e.a:
+        if same_node(a, e.a):
             return e
         else:
             return Neg(a)
 
     def visit_Not(self, e: LogicalNot):
         a = self(e.a)
-        if a is e.a:
+        if same_node(a, e.a):
             return e
         else:
             return LogicalNot(a)
@@ -398,7 +399,7 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
 
     def visit_BitwiseNot(self, e: BitwiseNot):
         base = self.visit(e.a)
-        if base is e.a:
+        if same_node(base, e.a):
             return e
         else:
             return BitwiseNot(base)
@@ -406,7 +407,7 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
     def visit_LeftShift(self, e: LeftShift):
         base = self.visit(e.a)
         cnt = self.visit(e.b)
-        if base is e.a and cnt is e.b:
+        if same_node(base, e.a) and same_node(cnt, e.b):
             return e
         else:
             return LeftShift(base, cnt)
@@ -414,7 +415,7 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
     def visit_RightShift(self, e: RightShift):
         base = self.visit(e.a)
         cnt = self.visit(e.b)
-        if base is e.a and cnt is e.b:
+        if same_node(base, e.a) and same_node(cnt, e.b):
             return e
         else:
             return RightShift(base, cnt)
@@ -422,7 +423,7 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
     def visit_TensorElement(self, e: TensorElement):
         base = self(e.base)
         indices = tuple(self(idx) if idx is not None else None for idx in e.indices)
-        if base is e.base and same_list(indices, e.indices):
+        if same_node(base, e.base) and same_list(indices, e.indices):
             return e
         else:
             return TensorElement(base, indices, e.protected)
@@ -431,28 +432,28 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
         cond = self(e.cond)
         then_expr = self(e.then_expr)
         else_expr = self(e.else_expr)
-        if cond is e.cond and then_expr is e.then_expr and else_expr is e.else_expr:
+        if same_node(cond, e.cond) and same_node(then_expr, e.then_expr) and same_node(else_expr, e.else_expr):
             return e
         else:
             return IfThenElse(cond, then_expr, else_expr)
 
     def visit_Cast(self, e: Cast):
         expr = self(e.expr)
-        if expr is e.expr:
+        if same_node(expr, e.expr):
             return e
         else:
             return cast(expr, e.target_type)
 
     def visit_Dereference(self, e: Dereference):
         expr = self(e.expr)
-        if expr is e.expr:
+        if same_node(expr, e.expr):
             return e
         else:
             return Dereference(expr)
 
     def visit_Address(self, e: Address):
         expr = self(e.expr)
-        if expr is e.expr:
+        if same_node(expr, e.expr):
             return e
         else:
             return Address(expr)
@@ -460,7 +461,7 @@ class ExprRewriter(ExprFunctor, BaseRewriter):
     def visit_Call(self, e: Call):
         func_var = self(e.func_var)
         args = tuple(self(arg) for arg in e.args)
-        if func_var is e.func_var and same_list(args, e.args):
+        if same_node(func_var, e.func_var) and same_list(args, e.args):
             return e
         else:
             return Call(func_var, args)

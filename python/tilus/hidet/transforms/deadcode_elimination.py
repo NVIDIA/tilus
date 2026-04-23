@@ -32,7 +32,7 @@ from tilus.hidet.ir import (
 from tilus.hidet.ir.expr import Address, BinaryExpr, Call, Expr, UnaryExpr, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
-from tilus.hidet.ir.stmt import AssignStmt, EvaluateStmt, LetStmt, Stmt
+from tilus.hidet.ir.stmt import AssignStmt, EvaluateStmt, LetStmt, Stmt, evaluate_stmt, let_stmt, seq_stmt
 from tilus.hidet.transforms.base import FunctionPass
 from tilus.hidet.utils import repeat_until_converge, same_list
 
@@ -146,21 +146,21 @@ class DeadcodeEliminationRewriter(IRRewriter):
     def visit_DeclareStmt(self, stmt: DeclareStmt) -> Stmt:
         if self.analyzer.num_assigns[stmt.var] + self.analyzer.usage_count[stmt.var] == 0:
             if stmt.init is None:
-                return SeqStmt([])
+                return seq_stmt([])
             else:
                 if self.analyzer.no_side_effect[stmt.init]:
-                    return SeqStmt([])
+                    return seq_stmt([])
                 else:
-                    return EvaluateStmt(stmt.init)
+                    return evaluate_stmt(stmt.init)
         else:
             return super().visit_DeclareStmt(stmt)
 
     def visit_AssignStmt(self, stmt: AssignStmt) -> Stmt:
         if self.analyzer.usage_count[stmt.var] == 0:
             if self.analyzer.no_side_effect[stmt.value]:
-                return SeqStmt([])
+                return seq_stmt([])
             else:
-                return EvaluateStmt(stmt.value)
+                return evaluate_stmt(stmt.value)
         else:
             return super().visit_AssignStmt(stmt)
 
@@ -183,7 +183,7 @@ class DeadcodeEliminationRewriter(IRRewriter):
                 assert len(bind_values) == 0
                 return body
             else:
-                return LetStmt(
+                return let_stmt(
                     bind_vars=bind_vars,
                     bind_values=bind_values,
                     body=body,
@@ -191,7 +191,7 @@ class DeadcodeEliminationRewriter(IRRewriter):
 
     def visit_EvaluateStmt(self, stmt: EvaluateStmt) -> Stmt:
         if self.analyzer.no_side_effect[stmt.expr]:
-            return SeqStmt([])
+            return seq_stmt([])
         else:
             return super().visit_EvaluateStmt(stmt)
 

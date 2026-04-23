@@ -20,6 +20,7 @@ from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.primitives.cuda.integer_intrinsics import umulhi
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
+from tilus.hidet.ir.type import pointer_type
 from tilus.hidet.utils import initialize
 
 
@@ -28,7 +29,7 @@ def register_functions():
     from tilus.hidet.lang import attrs, script  # pylint: disable=import-outside-toplevel
     from tilus.hidet.lang.types import uint32
 
-    p_u32 = ~uint32  # PointerType(uint32)
+    p_u32 = ~uint32  # pointer_type(uint32)
 
     # Philox-4x32 constants from Salmon et al., "Parallel Random Numbers: As Easy as 1, 2, 3" (2011).
     # KEY_A/B are Weyl sequence constants (golden ratio and sqrt(3) based).

@@ -28,7 +28,7 @@ import itertools
 from typing import List, Optional, Sequence, Union
 
 from tilus.hidet.ir.expr import Constant, Expr, Var
-from tilus.hidet.ir.stmt import ForStmt, ForStmtAttr, Stmt
+from tilus.hidet.ir.stmt import ForStmt, ForStmtAttr, Stmt, for_stmt
 
 
 class HidetLoopIterable:
@@ -53,8 +53,10 @@ class HidetLoopIterable:
 
 class GridLoopIterable(HidetLoopIterable):
     def __init__(self, extents: Sequence[Union[Expr, int]], attrs: Optional[str], bind_tuple: bool):
+        from tilus.hidet.ir.expr import as_expr  # noqa: PLC0415
+
         super().__init__()
-        self.extents: List[Expr] = list(extents)
+        self.extents: List[Expr] = [as_expr(e) for e in extents]
         self.attrs: List[ForStmtAttr] = ForStmtAttr.parse(attrs, len(self.extents))
         self._bind_tuple = bind_tuple
 
@@ -65,7 +67,7 @@ class GridLoopIterable(HidetLoopIterable):
     def generate_loop_statement(self, loop_vars: List[Var], body: Stmt) -> Stmt:
         assert len(loop_vars) == len(self.extents)
         for var, extent, attr in reversed(list(zip(loop_vars, self.extents, self.attrs))):
-            body = ForStmt(var, extent, body, attr=attr)
+            body = for_stmt(var, extent, body, attr=attr)
         return body
 
     def num_loop_vars(self) -> int:
@@ -84,8 +86,10 @@ class RangeLoopIterable(HidetLoopIterable):
         return builtins.range(self.extract_int(self.end)).__iter__()
 
     def generate_loop_statement(self, loop_vars: List[Var], body: Stmt) -> Stmt:
+        from tilus.hidet.ir.expr import as_expr  # noqa: PLC0415
+
         assert len(loop_vars) == 1
-        return ForStmt(loop_vars[0], self.end, body)
+        return for_stmt(loop_vars[0], as_expr(self.end), body)
 
     def num_loop_vars(self) -> int:
         return 1

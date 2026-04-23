@@ -66,6 +66,7 @@ from tilus.hidet.ir.type import (
     TensorPointerType,
     TensorType,
     data_type,
+    pointer_type,
     tensor_type,
     void,
 )
@@ -201,7 +202,7 @@ _logical_binary_infer = LogicalBinaryInfer()
 class TypeInfer(IRFunctor):
     def visit_Address(self, e: Address):
         base_type = self(e.expr)
-        return PointerType(base_type=base_type)
+        return pointer_type(base_type=base_type)
 
     def visit_Binary(self, e: BinaryExpr):
         a_type: BaseType = self.visit(e.a)

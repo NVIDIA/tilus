@@ -39,7 +39,7 @@ from typing import Dict
 from tilus.hidet.ir.expr import Address, Expr, Var
 from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
-from tilus.ir.stmt import AssignStmt, DeclareStmt, LetStmt, SeqStmt, Stmt
+from tilus.ir.stmt import AssignStmt, DeclareStmt, SeqStmt, Stmt, let_stmt, seq_stmt
 from tilus.ir.tools import collect
 from tilus.transforms.base import Pass
 
@@ -71,20 +71,18 @@ class DeclareToLetRewriter(IRRewriter):
                 assert False
         return self.visit(func)
 
-    def visit_SeqStmt(self, seq_stmt: SeqStmt) -> Stmt:
-        seq = [self.visit(stmt) for stmt in seq_stmt.seq]
+    def visit_SeqStmt(self, stmt: SeqStmt) -> Stmt:
+        seq = [self.visit(s) for s in stmt.seq]
         for i in range(len(seq) - 1, -1, -1):
-            stmt = seq[i]
-            if isinstance(stmt, DeclareStmt):
-                if self.assigns[stmt.var] == 1 and stmt.init is not None:
-                    let_stmt = LetStmt.create(
-                        bind_vars=[stmt.var], bind_values=[stmt.init], body=SeqStmt.create(seq[i + 1 :])
-                    )
-                    seq = seq[:i] + [let_stmt]
-        if len(seq) == len(seq_stmt.seq) and all(a is b for a, b in zip(seq, seq_stmt.seq)):
-            return seq_stmt
+            sub = seq[i]
+            if isinstance(sub, DeclareStmt):
+                if self.assigns[sub.var] == 1 and sub.init is not None:
+                    new_let = let_stmt(bind_vars=[sub.var], bind_values=[sub.init], body=seq_stmt(seq[i + 1 :]))
+                    seq = seq[:i] + [new_let]
+        if len(seq) == len(stmt.seq) and all(a is b for a, b in zip(seq, stmt.seq)):
+            return stmt
         else:
-            return SeqStmt.create(seq)
+            return seq_stmt(seq)
 
 
 class DeclareToLetPass(Pass):

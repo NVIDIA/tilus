@@ -27,7 +27,7 @@ from tilus.hidet.ir.dtypes import float8_e5m2
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import primitive_func_pool, register_primitive_function
 from tilus.hidet.ir.primitives.math import MathFunctionSet, register_math_function_set
-from tilus.hidet.ir.type import FuncType
+from tilus.hidet.ir.type import FuncType, func_type
 
 CUDA_FLOAT8E5M2 = "cuda_float8e5m2_"
 
@@ -62,7 +62,7 @@ class CUDAFloat8e5m2MathFunctionSet(MathFunctionSet):
             register_primitive_function(
                 name="cuda_float8e5m2_{}".format(name),
                 codegen_name=codegen_name,
-                func_or_type=FuncType(param_types=[float8_e5m2] * num_args, ret_type=float8_e5m2),
+                func_or_type=func_type(param_types=[float8_e5m2] * num_args, ret_type=float8_e5m2),
             )
 
     def call(self, name: str, *args) -> Expr:

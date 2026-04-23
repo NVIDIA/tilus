@@ -174,3 +174,7 @@ def seq_stmt(seq: Sequence[Stmt | Instruction]) -> Stmt:
         return stmt_seq[0]
     else:
         return SeqStmt(tuple(stmt_seq))
+
+
+def let_stmt(bind_vars: Sequence[Var], bind_values: Sequence[Expr], body: Stmt) -> LetStmt:
+    return LetStmt.create(bind_vars, bind_values, body)

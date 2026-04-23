@@ -30,23 +30,23 @@ from tilus.hidet.ir.expr import Call, Expr
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.primitives.func import call_primitive_func, is_primitive_function, register_primitive_function
 from tilus.hidet.ir.stmt import asm
-from tilus.hidet.ir.type import FuncType, VoidType
+from tilus.hidet.ir.type import FuncType, VoidType, func_type, void_type
 from tilus.hidet.lang import attrs, script
 from tilus.hidet.utils import initialize
 
 
 @initialize()
 def register_primitive_functions():
-    void_t = VoidType()
+    void_t = void_type()
     functions = [
-        ("cuda_syncthreads", "__syncthreads", FuncType([], void_t)),
-        ("cuda_syncthreads_count", "__syncthreads_count", FuncType([int32], int32)),
-        ("cuda_syncthreads_and", "__syncthreads_and", FuncType([int32], int32)),
-        ("cuda_syncthreads_or", "__syncthreads_or", FuncType([int32], int32)),
-        ("cuda_syncwarp", "__syncwarp", FuncType([], void_t)),
+        ("cuda_syncthreads", "__syncthreads", func_type([], void_t)),
+        ("cuda_syncthreads_count", "__syncthreads_count", func_type([int32], int32)),
+        ("cuda_syncthreads_and", "__syncthreads_and", func_type([int32], int32)),
+        ("cuda_syncthreads_or", "__syncthreads_or", func_type([int32], int32)),
+        ("cuda_syncwarp", "__syncwarp", func_type([], void_t)),
     ]
-    for name, codegen_name, func_type in functions:
-        register_primitive_function(name=name, func_or_type=func_type, codegen_name=codegen_name)
+    for name, codegen_name, ftype in functions:
+        register_primitive_function(name=name, func_or_type=ftype, codegen_name=codegen_name)
 
 
 def syncthreads() -> Call:

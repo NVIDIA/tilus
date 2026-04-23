@@ -41,7 +41,7 @@ from tilus.hidet.ir import ForStmt, SeqStmt, TensorElement, TensorType
 from tilus.hidet.ir.expr import Address, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
-from tilus.hidet.ir.stmt import AsmStmt, AssignStmt, DeclareStmt, LetStmt, Stmt
+from tilus.hidet.ir.stmt import AsmStmt, AssignStmt, DeclareStmt, LetStmt, Stmt, let_stmt, seq_stmt
 from tilus.hidet.transforms.base import FunctionPass, Pass
 
 
@@ -154,49 +154,49 @@ class DeclareToLetRewriter(IRRewriter):
         if len(seq) == 1:
             return seq[0]
         else:
-            return SeqStmt(seq)
+            return seq_stmt(seq)
 
-    def visit_SeqStmt(self, seq_stmt: SeqStmt) -> Stmt:
-        seq = [self.visit(stmt) for stmt in seq_stmt.seq]
+    def visit_SeqStmt(self, stmt: SeqStmt) -> Stmt:
+        seq = [self.visit(s) for s in stmt.seq]
         for i in range(len(seq) - 1, -1, -1):
-            stmt = seq[i]
+            sub = seq[i]
 
             if (
-                isinstance(stmt, DeclareStmt)
-                and stmt.init is not None
-                and self.analyzer.assign_count[stmt.var] == 0
-                and self.analyzer.address_count[stmt.var] == 0
+                isinstance(sub, DeclareStmt)
+                and sub.init is not None
+                and self.analyzer.assign_count[sub.var] == 0
+                and self.analyzer.address_count[sub.var] == 0
             ):
                 # case 1
-                let_stmt = LetStmt(bind_vars=[stmt.var], bind_values=[stmt.init], body=self.concat(seq[i + 1 :]))
-                seq = seq[:i] + [let_stmt]
+                new_let = let_stmt(bind_vars=[sub.var], bind_values=[sub.init], body=self.concat(seq[i + 1 :]))
+                seq = seq[:i] + [new_let]
             elif (
-                isinstance(stmt, DeclareStmt)
-                and not isinstance(stmt.var.type, TensorType)
-                and stmt.init is None
-                and self.analyzer.explicit_assign_count[stmt.var] == 1
-                and self.analyzer.assign_count[stmt.var] == 1
-                and self.analyzer.address_count[stmt.var] == 0
+                isinstance(sub, DeclareStmt)
+                and not isinstance(sub.var.type, TensorType)
+                and sub.init is None
+                and self.analyzer.explicit_assign_count[sub.var] == 1
+                and self.analyzer.assign_count[sub.var] == 1
+                and self.analyzer.address_count[sub.var] == 0
             ):
                 # case 2 (remove declare)
                 seq = seq[:i] + seq[i + 1 :]
             elif (
-                isinstance(stmt, AssignStmt)
-                and not isinstance(stmt.var.type, TensorType)
-                and self.analyzer.defined_by.get(stmt.var, None) == DefinitionKind.DECLARE_WITHOUT_INIT
-                and self.analyzer.explicit_assign_count[stmt.var] == 1
-                and self.analyzer.assign_count[stmt.var] == 1
-                and self.analyzer.address_count[stmt.var] == 0
+                isinstance(sub, AssignStmt)
+                and not isinstance(sub.var.type, TensorType)
+                and self.analyzer.defined_by.get(sub.var, None) == DefinitionKind.DECLARE_WITHOUT_INIT
+                and self.analyzer.explicit_assign_count[sub.var] == 1
+                and self.analyzer.assign_count[sub.var] == 1
+                and self.analyzer.address_count[sub.var] == 0
             ):
                 # case 2 (convert assign to let)
-                let_stmt = LetStmt(bind_vars=[stmt.var], bind_values=[stmt.value], body=self.concat(seq[i + 1 :]))
-                seq = seq[:i] + [let_stmt]
+                new_let = let_stmt(bind_vars=[sub.var], bind_values=[sub.value], body=self.concat(seq[i + 1 :]))
+                seq = seq[:i] + [new_let]
             elif (
-                isinstance(stmt, DeclareStmt)
-                and not isinstance(stmt.var.type, TensorType)
-                and stmt.init is None
-                and self.analyzer.assign_count[stmt.var] == 0
-                and self.analyzer.address_count[stmt.var] == 0
+                isinstance(sub, DeclareStmt)
+                and not isinstance(sub.var.type, TensorType)
+                and sub.init is None
+                and self.analyzer.assign_count[sub.var] == 0
+                and self.analyzer.address_count[sub.var] == 0
             ):
                 # case 3 (remove declare)
                 seq = seq[:i] + seq[i + 1 :]

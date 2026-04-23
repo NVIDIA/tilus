@@ -29,7 +29,7 @@ from tilus.hidet.ir.dtypes import int32
 from tilus.hidet.ir.expr import Constant
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
-from tilus.hidet.ir.stmt import Expr, ForStmt, SeqStmt, Stmt
+from tilus.hidet.ir.stmt import Expr, ForStmt, SeqStmt, Stmt, seq_stmt
 from tilus.hidet.ir.tools import rewrite, simplify
 from tilus.hidet.transforms.base import FunctionPass, Pass
 
@@ -56,7 +56,7 @@ class ExplicitUnrollRewriter(IRRewriter):
             if len(seq) == 1:
                 return seq[0]
             else:
-                return SeqStmt(seq)
+                return seq_stmt(seq)
         return IRRewriter.visit_ForStmt(self, stmt)
 
 

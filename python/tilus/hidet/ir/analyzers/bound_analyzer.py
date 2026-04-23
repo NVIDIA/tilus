@@ -206,7 +206,9 @@ Int = Union[int, Expr]
 
 
 def normalize_launch_dims(dims: Union[Int, Sequence[Int]]) -> List[Union[Expr, int]]:
-    if isinstance(dims, (list, tuple)):
+    from tilus.hidet.ir.node import is_seq  # noqa: PLC0415
+
+    if is_seq(dims):
         dims = list(dims)
         while len(dims) < 3:
             dims = dims + [1]

@@ -26,7 +26,7 @@
 import operator
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
-from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.dtypes import boolean, int32
 from tilus.hidet.ir.expr import (
     Add,
     BinaryExpr,
@@ -53,9 +53,9 @@ from tilus.hidet.ir.expr import (
     RightShift,
     Sub,
     Var,
+    as_expr,
     cast,
     constant,
-    convert,
     is_false,
     is_one,
     is_true,
@@ -63,7 +63,7 @@ from tilus.hidet.ir.expr import (
 )
 from tilus.hidet.ir.functors import BaseRewriter, ExprRewriter, StmtRewriter
 from tilus.hidet.ir.node import Node
-from tilus.hidet.ir.stmt import ForStmt, IfStmt, SeqStmt, Stmt
+from tilus.hidet.ir.stmt import ForStmt, IfStmt, SeqStmt, Stmt, for_stmt, if_stmt, seq_stmt
 from tilus.hidet.ir.tools import rewrite
 from tilus.hidet.ir.type import DataType
 from tilus.hidet.utils import same_list
@@ -96,25 +96,25 @@ class Simplifier(StmtRewriter, ExprRewriter, BaseRewriter):
             if is_one(b):
                 return a
             if is_zero(a) or is_zero(b):
-                return convert(0)
+                return int32(0)
         elif isinstance(e, Div):
             if is_one(b):
                 return a
         elif isinstance(e, Mod):
             if is_one(e.b):
-                return convert(0)
+                return int32(0)
         elif isinstance(e, (LessThan, LessEqual, Equal, NotEqual)):
             pass
         elif isinstance(e, LogicalAnd):
             if is_false(a) or is_false(b):
-                return convert(False)
+                return boolean(False)
             if is_true(a):
                 return b
             if is_true(b):
                 return a
         elif isinstance(e, LogicalOr):
             if is_true(a) or is_true(b):
-                return convert(True)
+                return boolean(True)
             if is_false(a):
                 return b
             if is_false(b):
@@ -153,13 +153,13 @@ class Simplifier(StmtRewriter, ExprRewriter, BaseRewriter):
             if e.__class__ in op_dict:
                 if a.type.name == "int32" and b.type.name == "int32" and isinstance(e, Div):
                     # the Div for int32 will use floordiv. Override the native behavior of python
-                    return convert(a.value // b.value, "int32")
+                    return int32(a.value // b.value)
                 else:
-                    return convert(op_dict[e.__class__](a.value, b.value))
+                    return as_expr(op_dict[e.__class__](a.value, b.value))
             elif isinstance(e, LogicalAnd):
-                return convert(a.value and b.value)
+                return as_expr(a.value and b.value)
             elif isinstance(e, LogicalOr):
-                return convert(a.value or b.value)
+                return as_expr(a.value or b.value)
             else:
                 raise ValueError()
         elif isinstance(a, Constant) and not isinstance(b, Constant):
@@ -198,7 +198,7 @@ class Simplifier(StmtRewriter, ExprRewriter, BaseRewriter):
     def visit_Not(self, e: LogicalNot):
         a = self(e.a)
         if isinstance(a, Constant):
-            return convert(not a.value)
+            return boolean(not a.value)
         if a is e.a:
             return e
         else:
@@ -207,7 +207,7 @@ class Simplifier(StmtRewriter, ExprRewriter, BaseRewriter):
     def visit_Neg(self, e: Neg):
         a = self(e.a)
         if isinstance(a, Constant):
-            return convert(-a.value)
+            return as_expr(-a.value)
         if a is e.a:
             return e
         else:
@@ -233,24 +233,24 @@ class Simplifier(StmtRewriter, ExprRewriter, BaseRewriter):
             if else_body:
                 return else_body
             else:
-                return SeqStmt([])
+                return seq_stmt([])
         else:
             if cond is stmt.cond and then_body is stmt.then_body and else_body is stmt.else_body:
                 return stmt
             else:
-                return IfStmt(cond, then_body, else_body)
+                return if_stmt(cond, then_body, else_body)
 
     def visit_ForStmt(self, stmt: ForStmt):
         loop_var = self(stmt.loop_var)
         extent = self(stmt.extent)
         body = self(stmt.body)
         if is_one(extent):
-            return rewrite(stmt.body, {loop_var: convert(0)})
+            return rewrite(stmt.body, {loop_var: int32(0)})
         else:
             if loop_var is stmt.loop_var and body is stmt.body:
                 return stmt
             else:
-                return ForStmt(loop_var, extent, body=body, attr=stmt.attr)
+                return for_stmt(loop_var, extent, body=body, attr=stmt.attr)
 
     def visit_IfThenElse(self, e: IfThenElse):
         cond = self.visit(e.cond)

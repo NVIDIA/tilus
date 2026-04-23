@@ -23,10 +23,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus.hidet.ir.expr import convert, is_false, is_one, is_true, is_zero
+from tilus.hidet.ir.dtypes import int32
+from tilus.hidet.ir.expr import is_false, is_one, is_true, is_zero
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
-from tilus.hidet.ir.stmt import ForStmt, IfStmt, SeqStmt
+from tilus.hidet.ir.stmt import ForStmt, IfStmt, SeqStmt, seq_stmt
 from tilus.hidet.transforms.base import FunctionPass
 
 
@@ -39,15 +40,15 @@ class StatementSimplifier(IRRewriter):
             if stmt.else_body:
                 return self(stmt.else_body)
             else:
-                return SeqStmt([])
+                return seq_stmt([])
         else:
             return IRRewriter.visit_IfStmt(self, stmt)
 
     def visit_ForStmt(self, stmt: ForStmt):
         if is_zero(stmt.extent):
-            return SeqStmt([])
+            return seq_stmt([])
         elif is_one(stmt.extent):
-            self.memo[stmt.loop_var] = convert(0)
+            self.memo[stmt.loop_var] = int32(0)
             return self(stmt.body)
         else:
             return IRRewriter.visit_ForStmt(self, stmt)

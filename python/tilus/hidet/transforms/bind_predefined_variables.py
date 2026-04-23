@@ -42,7 +42,7 @@ from tilus.hidet.ir.primitives.cuda.vars import (
     clusterIdx,
     clusterSize,
 )
-from tilus.hidet.ir.stmt import LetStmt
+from tilus.hidet.ir.stmt import LetStmt, let_stmt
 from tilus.hidet.transforms.base import FunctionPass
 
 
@@ -82,7 +82,7 @@ class BindPredefinedVariablesRewriter(IRRewriter):
             for var in self.used_vars:
                 bind_vars.append(var)
                 bind_values.append(self.var2value[var])
-            body = LetStmt(bind_vars, bind_values, body)
+            body = let_stmt(bind_vars, bind_values, body)
             return Function(func.name, func.params, body, func.ret_type, kind=func.kind, attrs=func.attrs)
         else:
             # no predefined variable is used

@@ -25,7 +25,7 @@
 # limitations under the License.
 from typing import Optional
 
-from tilus.hidet.ir.stmt import BlackBoxStmt, Stmt
+from tilus.hidet.ir.stmt import BlackBoxStmt, Stmt, black_box_stmt
 
 
 def printf(format_string, *args):
@@ -41,7 +41,7 @@ def printf(format_string, *args):
         template_string = f'printf("{format_string}");'
     # if '\n' in format_string:
     #     raise ValueError('Please use printf(r"...\\n") instead of printf("...\\n").')
-    return BlackBoxStmt(template_string, *args)
+    return black_box_stmt(template_string, *args)
 
 
 def comment(comment_string: str, style: Optional[str] = None) -> Stmt:
@@ -85,8 +85,8 @@ def comment(comment_string: str, style: Optional[str] = None) -> Stmt:
         content = "\n".join(["/*"] + [" * " + line for line in lines] + [" */"])
     else:
         content = "\n".join(["// " + line for line in lines])
-    return BlackBoxStmt(template_string=content)
+    return black_box_stmt(template_string=content)
 
 
 def __builtin_assume(arg):
-    return BlackBoxStmt("__builtin_assume({});", arg)
+    return black_box_stmt("__builtin_assume({});", arg)

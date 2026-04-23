@@ -17,7 +17,7 @@ from typing import no_type_check
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
-from tilus.hidet.ir.stmt import BlackBoxStmt
+from tilus.hidet.ir.stmt import BlackBoxStmt, black_box_stmt
 from tilus.hidet.utils import initialize
 
 
@@ -37,7 +37,7 @@ def register_functions():
         # the following inst only supports for sm_90 and later
         # asm('mul.rn.bf16x2 %0, %1, %2;', outputs=[cast(d, ~uint32)[0]], inputs=[a, b], is_volatile=True)
 
-        BlackBoxStmt(template, ~a, ~b, d)
+        black_box_stmt(template, ~a, ~b, d)
 
     funcs = [mul_bf16x2_]
     for func in funcs:

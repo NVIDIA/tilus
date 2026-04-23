@@ -17,18 +17,18 @@ from typing import Union
 from tilus.hidet.ir.dtypes import boolean, int64
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
-from tilus.hidet.ir.type import FuncType, void_p
+from tilus.hidet.ir.type import FuncType, func_type, void_p
 from tilus.hidet.utils import initialize
 
 
 @initialize()
 def register_functions():
     register_primitive_function(
-        name="get_cuda_stream", func_or_type=FuncType([], void_p), codegen_name="get_cuda_stream"
+        name="get_cuda_stream", func_or_type=func_type([], void_p), codegen_name="get_cuda_stream"
     )
     register_primitive_function(
         name="request_cuda_workspace",
-        func_or_type=FuncType([int64, boolean], void_p),
+        func_or_type=func_type([int64, boolean], void_p),
         codegen_name="request_cuda_workspace",
     )
 

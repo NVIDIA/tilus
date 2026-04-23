@@ -74,7 +74,7 @@ class CUDAFloat32MathFunctionSet(MathFunctionSet):
                 register_primitive_function(
                     name="cuda_f32_{}".format(name),
                     codegen_name=codegen_name,
-                    func_or_type=FuncType(
+                    func_or_type=func_type(
                         param_types=[float32] * num_args,
                         ret_type=float32 if name not in ["isfinite", "isinf", "isnan"] else boolean,
                     ),

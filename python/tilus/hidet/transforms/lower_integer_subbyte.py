@@ -42,9 +42,13 @@ from tilus.hidet.ir.stmt import (
     LetStmt,
     SeqStmt,
     Stmt,
+    buffer_store_stmt,
+    declare_stmt,
+    evaluate_stmt,
+    seq_stmt,
 )
 from tilus.hidet.ir.tools import TypeInfer, simplify
-from tilus.hidet.ir.type import BaseType, DataType, PointerType, TensorPointerType, TensorType
+from tilus.hidet.ir.type import BaseType, DataType, PointerType, TensorPointerType, TensorType, tensor_type
 from tilus.hidet.transforms.base import Pass
 from tilus.hidet.utils.py import is_power_of_two
 
@@ -93,16 +97,16 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
 
     def auto_var(self, v: Var = None, name: str = None, e: Expr = None):
         if v is not None:
-            self.stmts.append(DeclareStmt(v))
+            self.stmts.append(declare_stmt(v))
             return v
         v_ty = self.type_infer(e)
         v = var(name, v_ty)
-        self.stmts.append(DeclareStmt(v, e))
+        self.stmts.append(declare_stmt(v, e))
         return v
 
     def append_stmt(self, stmt: Union[Stmt, Expr]):
         if isinstance(stmt, Expr):
-            stmt = EvaluateStmt(stmt)
+            stmt = evaluate_stmt(stmt)
         self.stmts.append(stmt)
 
     def flush_stmts(self):
@@ -114,7 +118,7 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
         if len(stmts) == 1:
             return stmts[0]
         else:
-            return SeqStmt(stmts)
+            return seq_stmt(stmts)
 
     def _get_divisor(self, dtype: DataType):
         storage_ty = dtype.storage
@@ -196,7 +200,7 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
             assert self.var2scope[base].is_register()
             original = self.auto_var(name="original", e=base[idx])
             updated = self.auto_var(name="updated", e=(original & updated_mask) | new_bits)
-            self.stmts.append(BufferStoreStmt(base, [idx], updated))
+            self.stmts.append(buffer_store_stmt(base, [idx], updated))
 
     def visit_DataType(self, t: DataType):
         if t.is_integer_subbyte():
@@ -214,7 +218,7 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
             dtype_bits = dtype.nbits
             divisor = storage_bits // dtype_bits
             shape[-1] = shape[-1] // divisor
-            return TensorType(storage_ty, shape)
+            return tensor_type(storage_ty, shape)
         return super().visit_TensorType(t)
 
     def visit_Var(self, v: Var):
@@ -338,7 +342,7 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
             self.old2new[stmt.var] = v
             if isinstance(v_type, TensorType):
                 self.var2scope[v] = stmt.scope
-            self.append_stmt(DeclareStmt(v, init, stmt.is_static, stmt.scope))
+            self.append_stmt(declare_stmt(v, init, stmt.is_static, stmt.scope))
             return self.flatten_stmts(self.flush_stmts())
         self.append_stmt(super().visit_DeclareStmt(stmt))
         return self.flatten_stmts(self.flush_stmts())

@@ -28,7 +28,7 @@ from typing import List, Union
 from tilus.hidet.ir.dtypes import bf16, f16, f16x2, f32, u8, u16, u32, u64
 from tilus.hidet.ir.expr import Expr, cast, deref
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
-from tilus.hidet.ir.type import DataType, FuncType, data_type
+from tilus.hidet.ir.type import DataType, FuncType, data_type, func_type
 from tilus.hidet.utils import initialize
 
 
@@ -56,15 +56,15 @@ def register_functions():
                 return ret
 
             register_primitive_function(name=func.name, func_or_type=func)
-    register_primitive_function("cuda_atomic_add", func_or_type=FuncType([~i32, i32], i32), codegen_name="atomicAdd")
-    register_primitive_function("cuda_atomic_sub", func_or_type=FuncType([~i32, i32], i32), codegen_name="atomicSub")
-    register_primitive_function("cuda_atomic_min", func_or_type=FuncType([~i32, i32], i32), codegen_name="atomicMin")
-    register_primitive_function("cuda_atomic_max", func_or_type=FuncType([~i32, i32], i32), codegen_name="atomicMax")
+    register_primitive_function("cuda_atomic_add", func_or_type=func_type([~i32, i32], i32), codegen_name="atomicAdd")
+    register_primitive_function("cuda_atomic_sub", func_or_type=func_type([~i32, i32], i32), codegen_name="atomicSub")
+    register_primitive_function("cuda_atomic_min", func_or_type=func_type([~i32, i32], i32), codegen_name="atomicMin")
+    register_primitive_function("cuda_atomic_max", func_or_type=func_type([~i32, i32], i32), codegen_name="atomicMax")
     register_primitive_function(
-        "cuda_atomic_exchange", func_or_type=FuncType([~i32, i32], i32), codegen_name="atomicExch"
+        "cuda_atomic_exchange", func_or_type=func_type([~i32, i32], i32), codegen_name="atomicExch"
     )
     register_primitive_function(
-        "cuda_atomic_cas", func_or_type=FuncType([~i32, i32, i32], i32), codegen_name="atomicCAS"
+        "cuda_atomic_cas", func_or_type=func_type([~i32, i32, i32], i32), codegen_name="atomicCAS"
     )
 
 

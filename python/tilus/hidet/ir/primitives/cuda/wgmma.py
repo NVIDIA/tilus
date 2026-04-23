@@ -37,7 +37,7 @@ from tilus.hidet.ir.primitives.cuda.funcs import call_cuda
 from tilus.hidet.ir.primitives.func import register_primitive_function
 from tilus.hidet.ir.stmt import asm
 from tilus.hidet.ir.tools import infer_type
-from tilus.hidet.ir.type import PointerType, data_type
+from tilus.hidet.ir.type import PointerType, data_type, pointer_type
 from tilus.hidet.lang import attrs, script, u64, uint64
 from tilus.hidet.utils import initialize
 
@@ -308,8 +308,8 @@ def register_wgmma_instructions_generic(config: WgmmaConfig):
                     attrs.func_kind = "cuda_internal"
                     attrs.func_name = func_name
 
-                    ra = cast(a, PointerType("uint32"))
-                    rc = cast(c, PointerType(rc_dtype))
+                    ra = cast(a, pointer_type("uint32"))
+                    rc = cast(c, pointer_type(rc_dtype))
 
                     asm(
                         template=template_string,
@@ -347,7 +347,7 @@ def register_wgmma_instructions_generic(config: WgmmaConfig):
                     attrs.func_kind = "cuda_internal"
                     attrs.func_name = func_name
 
-                    rc = cast(c, PointerType(rc_dtype))
+                    rc = cast(c, pointer_type(rc_dtype))
 
                     asm(
                         template=template_string,
@@ -468,7 +468,7 @@ def register_wgmma_fence_operand():
 
     for base_dtype in [u32_dtype, f32_dtype]:
         func_name = f"cuda_wgmma_fence_operand_{base_dtype.short_name}"
-        ptr_type = PointerType(base_type=base_dtype)
+        ptr_type = pointer_type(base_type=base_dtype)
 
         @script
         def cuda_wgmma_fence_operand(reg_p: ptr_type):
@@ -536,8 +536,8 @@ def register_wgmma_encode_smem_descriptor():
     from tilus.hidet.lang import script as script_fn
 
     @register_primitive_function_decorator
-    @no_type_check
     @script_fn
+    @no_type_check
     def wgmma_encode_smem_descriptor(
         smem_addr: uint32_dt,  # 14 bits
         lbo: uint32_dt,  # 14 bits

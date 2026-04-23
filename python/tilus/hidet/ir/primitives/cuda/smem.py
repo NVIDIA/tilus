@@ -28,8 +28,8 @@ from typing import Union
 from tilus.hidet.ir.expr import Call, Expr, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
-from tilus.hidet.ir.stmt import BlackBoxStmt, Stmt
-from tilus.hidet.ir.type import DataType, PointerType, data_type
+from tilus.hidet.ir.stmt import BlackBoxStmt, Stmt, black_box_stmt
+from tilus.hidet.ir.type import DataType, PointerType, data_type, pointer_type
 from tilus.hidet.utils import initialize
 
 
@@ -64,7 +64,7 @@ def register_functions():
         def cuda_dynamic_shared_memory(byte_offset: int) -> ~dtype:
             attrs.func_kind = "cuda_internal"
             attrs.func_name = func_name
-            dynamic_smem = PointerType(
+            dynamic_smem = pointer_type(
                 base_type="uint8", specifiers=["extern", "__align__(128)", "__shared__"], use_bracket=True
             )
             return cast(~dynamic_smem[byte_offset], ~dtype)
@@ -80,8 +80,8 @@ def dynamic_shared_memory(byte_offset: Union[Expr, int], dtype: Union[DataType, 
 
 
 def set_kernel_max_dynamic_smem_bytes(func: Var, max_dynamic_smem_bytes: Union[Expr, int]) -> Stmt:
-    from tilus.hidet.ir.expr import convert
+    from tilus.hidet.ir.expr import as_expr
 
-    max_dynamic_smem_bytes = convert(max_dynamic_smem_bytes)
+    max_dynamic_smem_bytes = as_expr(max_dynamic_smem_bytes)
     template_string = r"cudaFuncSetAttribute({}, cudaFuncAttributeMaxDynamicSharedMemorySize, {});"
-    return BlackBoxStmt(template_string, func, max_dynamic_smem_bytes)
+    return black_box_stmt(template_string, func, max_dynamic_smem_bytes)

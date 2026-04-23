@@ -18,7 +18,16 @@ from tilus.hidet.ir import BufferStoreStmt, TensorPointerType
 from tilus.hidet.ir.expr import Call, Expr, cast
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter
-from tilus.hidet.ir.stmt import AssignStmt, LaunchKernelStmt, LetStmt, Stmt
+from tilus.hidet.ir.stmt import (
+    AssignStmt,
+    LaunchKernelStmt,
+    LetStmt,
+    Stmt,
+    assign_stmt,
+    buffer_store_stmt,
+    launch_kernel_stmt,
+    let_stmt,
+)
 from tilus.hidet.ir.tools import TypeInfer
 from tilus.hidet.ir.type import BaseType, DataType, FuncType, PointerType, get_base_type, type_equal
 from tilus.hidet.transforms.base import FunctionPass
@@ -70,13 +79,13 @@ class AddExplicitCastRewriter(IRRewriter):
         if same_list(args, stmt.args):
             return stmt
         else:
-            return LaunchKernelStmt(
+            return launch_kernel_stmt(
                 func_var=stmt.func_var,
                 args=args,
                 grid_dim=stmt.grid_dim,
                 block_dim=stmt.block_dim,
                 cluster_dim=stmt.cluster_dim,
-                shared_mem=stmt.shared_mem_bytes,
+                shared_mem_bytes=stmt.shared_mem_bytes,
                 target=stmt.target,
             )
 
@@ -85,7 +94,7 @@ class AddExplicitCastRewriter(IRRewriter):
         if value is stmt.value:
             return stmt
         else:
-            return AssignStmt(stmt.var, value)
+            return assign_stmt(stmt.var, value)
 
     def visit_BufferStoreStmt(self, stmt: BufferStoreStmt) -> Stmt:
         value = stmt.value
@@ -94,7 +103,7 @@ class AddExplicitCastRewriter(IRRewriter):
         if value is stmt.value:
             return stmt
         else:
-            return BufferStoreStmt(self.visit(stmt.buf), self.visit(stmt.indices), value)
+            return buffer_store_stmt(self.visit(stmt.buf), self.visit(stmt.indices), value)
 
     def visit_LetStmt(self, stmt: LetStmt) -> Stmt:
         bind_values = self.process_list(stmt.bind_values, [bind_var.type for bind_var in stmt.bind_vars])
@@ -102,7 +111,7 @@ class AddExplicitCastRewriter(IRRewriter):
         if same_list(bind_values, stmt.bind_values) and body is stmt.body:
             return stmt
         else:
-            return LetStmt(stmt.bind_vars, bind_values, body)
+            return let_stmt(stmt.bind_vars, bind_values, body)
 
 
 class AddExplicitPointerCastPass(FunctionPass):

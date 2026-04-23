@@ -27,7 +27,7 @@ from tilus.hidet.ir.dtypes import bfloat16, float32
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import primitive_func_pool, register_primitive_function
 from tilus.hidet.ir.primitives.math import MathFunctionSet, register_math_function_set
-from tilus.hidet.ir.type import FuncType
+from tilus.hidet.ir.type import FuncType, func_type
 
 
 class CUDABFloat16MathFunctionSet(MathFunctionSet):
@@ -52,7 +52,7 @@ class CUDABFloat16MathFunctionSet(MathFunctionSet):
             register_primitive_function(
                 name="cuda_bf16_{}".format(name),
                 codegen_name=codegen_name,
-                func_or_type=FuncType(param_types=[bfloat16] * num_args, ret_type=bfloat16),
+                func_or_type=func_type(param_types=[bfloat16] * num_args, ret_type=bfloat16),
             )
 
     def call(self, name: str, *args) -> Expr:

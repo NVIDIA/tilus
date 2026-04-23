@@ -41,7 +41,7 @@ from tilus.hidet.ir.primitives.cuda.tensor_map import (
     encode_tensor_map,
 )
 from tilus.hidet.ir.tools import rewrite, simplify
-from tilus.hidet.ir.type import DataType, PointerType, TensorType, sizeof
+from tilus.hidet.ir.type import DataType, PointerType, sizeof, tensor_type
 from tilus.ir import GlobalLayout
 from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorCommitGroupInst,
@@ -222,7 +222,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         )
 
     def declare_host_buffer(self, name: str, dtype: DataType, shape: Sequence[int]) -> Var:
-        return self.host_builder.declare_var(name=name, tp=TensorType(dtype=dtype, shape=shape))
+        return self.host_builder.declare_var(name=name, tp=tensor_type(dtype=dtype, shape=shape))
 
     def create_tensor_map(self, global_info: GlobalTensorInfo, shared_info: SharedTensorInfo, dtype: DataType) -> Var:
         tensor_map = self.host_builder.declare_var(name="tma_tensor_map", tp=CUtensorMapType)

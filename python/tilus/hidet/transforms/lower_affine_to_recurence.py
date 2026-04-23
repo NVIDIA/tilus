@@ -69,7 +69,7 @@ from tilus.hidet.ir.expr import BitwiseXor, Expr
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
 from tilus.hidet.ir.primitives.vars import is_primitive_variable
-from tilus.hidet.ir.stmt import ForStmt, Stmt
+from tilus.hidet.ir.stmt import ForStmt, Stmt, let_stmt
 from tilus.hidet.ir.tools import TypeInfer
 from tilus.hidet.ir.tools.hasher import ExprHash, HashSum
 from tilus.hidet.transforms.base import FunctionPass
@@ -399,7 +399,7 @@ class AffineToRecurrenceRewriter(IRRewriter):
             if body is stmt.body:
                 return stmt
             else:
-                return LetStmt(bind_vars=stmt.bind_vars, bind_values=stmt.bind_values, body=body)
+                return let_stmt(bind_vars=stmt.bind_vars, bind_values=stmt.bind_values, body=body)
         else:
             return super().visit_LetStmt(stmt)
 

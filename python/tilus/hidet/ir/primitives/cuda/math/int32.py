@@ -27,7 +27,7 @@ from tilus.hidet.ir.dtypes import int32
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import primitive_func_pool, register_primitive_function
 from tilus.hidet.ir.primitives.math import MathFunctionSet, register_math_function_set
-from tilus.hidet.ir.type import FuncType
+from tilus.hidet.ir.type import FuncType, func_type
 
 
 class CUDAInt32MathFunctionSet(MathFunctionSet):
@@ -39,7 +39,7 @@ class CUDAInt32MathFunctionSet(MathFunctionSet):
             register_primitive_function(
                 name="cuda_i32_{}".format(name),
                 codegen_name=codegen_name,
-                func_or_type=FuncType(param_types=[int32] * num_args, ret_type=int32),
+                func_or_type=func_type(param_types=[int32] * num_args, ret_type=int32),
             )
 
     def call(self, name: str, *args) -> Expr:

@@ -30,13 +30,13 @@ from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.primitives.func import call_primitive_func, primitive_func_pool, register_primitive_function
 from tilus.hidet.ir.primitives.math import MathFunctionSet, register_math_function_set
-from tilus.hidet.ir.type import DataType, FuncType
+from tilus.hidet.ir.type import DataType, FuncType, func_type
 from tilus.hidet.utils import initialize
 
 
 @initialize()
 def register_float16_primitives():
-    register_primitive_function("cuda_i64_to_f16", FuncType([int64], float16), codegen_name="__ll2half_rn")
+    register_primitive_function("cuda_i64_to_f16", func_type([int64], float16), codegen_name="__ll2half_rn")
 
 
 def cuda_i64_to_f16(a: Expr) -> Expr:
@@ -96,7 +96,7 @@ class CUDAFloat16MathFunctionSet(MathFunctionSet):
             register_primitive_function(
                 name="cuda_f16_{}".format(name),
                 codegen_name=codegen_name,
-                func_or_type=FuncType(param_types=[float16] * num_args, ret_type=float16),
+                func_or_type=func_type(param_types=[float16] * num_args, ret_type=float16),
             )
 
         self.register_via_delegate("min", float16, float32, min, 2)

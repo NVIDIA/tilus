@@ -26,9 +26,9 @@
 from typing import Union
 
 from tilus.hidet.ir.dtypes import uint32
-from tilus.hidet.ir.expr import Expr, convert
+from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import call_primitive_func, register_primitive_function
-from tilus.hidet.ir.type import FuncType, VoidType
+from tilus.hidet.ir.type import FuncType, VoidType, func_type, void_type
 from tilus.hidet.utils import initialize
 
 
@@ -45,7 +45,7 @@ def register_functions():
     # assert isinstance(cuda_nano_sleep, Function)
     # register_primitive_function(cuda_nano_sleep.name, cuda_nano_sleep)
     register_primitive_function(
-        name="cuda_nano_sleep", func_or_type=FuncType([uint32], VoidType()), codegen_name="__nanosleep"
+        name="cuda_nano_sleep", func_or_type=func_type([uint32], void_type()), codegen_name="__nanosleep"
     )
 
 
@@ -59,5 +59,5 @@ def nano_sleep(nano_seconds: Union[Expr, int]):
         The number of nanoseconds to sleep.
     """
     if isinstance(nano_seconds, int):
-        nano_seconds = convert(nano_seconds, "uint32")
+        nano_seconds = uint32(nano_seconds)
     return call_primitive_func("cuda_nano_sleep", [nano_seconds])

@@ -28,7 +28,7 @@ from tilus.ir.instructions import (
     LoadGlobalGenericInst,
     StoreGlobalGenericInst,
 )
-from tilus.ir.stmt import ForStmt, IfStmt, LetStmt, SeqStmt, Stmt
+from tilus.ir.stmt import ForStmt, IfStmt, LetStmt, SeqStmt, Stmt, let_stmt, seq_stmt
 from tilus.transforms.base import Pass
 from tilus.utils import same_list
 
@@ -119,7 +119,7 @@ class BoundAwareSimplifyRewriter(IRRewriter):
             if len(bind_vars) == 0:
                 return body
             else:
-                return LetStmt.create(bind_vars=bind_vars, bind_values=bind_values, body=body)
+                return let_stmt(bind_vars=bind_vars, bind_values=bind_values, body=body)
 
     def visit_ForStmt(self, stmt: ForStmt) -> Stmt:
         self.analyzer(stmt.extent)
@@ -162,7 +162,7 @@ class BoundAwareSimplifyRewriter(IRRewriter):
         if same_list(seq, stmt.seq):
             return stmt
         else:
-            return SeqStmt.create(seq)
+            return seq_stmt(seq)
 
     # instructions
 
