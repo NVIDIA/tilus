@@ -165,14 +165,14 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         # process the indexing
         assert len(offsets) == len(global_tensor.shape)
         layout: GlobalLayout = global_tensor.layout
-        indexing_dims = [dim for dim in range(len(offsets)) if dim not in dims]
-        remap: dict[Var, Expr] = {layout.axes[dim]: offsets[dim] for dim in indexing_dims}
-        offset = rewrite(layout.offset, remap)
 
-        # get the coordinates and coefficients
-        coordinates = [layout.axes[dim] for dim in dims]
+        # Decompose the layout offset by ALL global axes (not just the sliced
+        # ones), so the descriptor carries full global rank. Non-sliced dims
+        # are indexed via TMA coords at instruction time — *not* baked into
+        # the base pointer, which would require the coord to be grid-invariant.
+        coordinates = list(layout.axes)
         try:
-            coefficients = decompose_linear(offset, coordinates=coordinates)
+            coefficients = decompose_linear(layout.offset, coordinates=coordinates)
         except LinearDecompositionError:
             raise ValueError("TMA only supports strided global tensors")
         coefficients = typing.cast(list[Expr], simplify(coefficients))
@@ -181,7 +181,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         dtype = global_tensor.dtype
         constant_offset = simplify(coefficients[-1])
         ptr = cast_ptr_if_needed(view.ptr, dtype) + constant_offset
-        shape = tuple(extent for i, extent in enumerate(global_tensor.shape) if i in dims)
+        shape = tuple(global_tensor.shape)
         strides = tuple(coefficients[:-1])
 
         # rewrite the ptr, shape, and strides to grid-invariant form (so that they can be used in host code)
@@ -224,7 +224,13 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
     def declare_host_buffer(self, name: str, dtype: DataType, shape: Sequence[int]) -> Var:
         return self.host_builder.declare_var(name=name, tp=TensorType(dtype=dtype, shape=shape))
 
-    def create_tensor_map(self, global_info: GlobalTensorInfo, shared_info: SharedTensorInfo, dtype: DataType) -> Var:
+    def create_tensor_map(
+        self,
+        global_info: GlobalTensorInfo,
+        shared_info: SharedTensorInfo,
+        dtype: DataType,
+        dims: Sequence[int],
+    ) -> Var:
         tensor_map = self.host_builder.declare_var(name="tma_tensor_map", tp=CUtensorMapType)
 
         # rank
@@ -247,9 +253,17 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
                 strides_buf, indices=[i], value=as_expr(rev_global_strides[i + 1]) * sizeof(dtype)
             )
 
-        # box shape
+        # box shape: shared tile extent for sliced dims, 1 for non-sliced dims
+        # (length = full global rank; non-sliced dims are selected via coords
+        # at instruction time)
+        assert len(dims) == len(shared_info.shape), (
+            f"dims length {len(dims)} must match shared tensor rank {len(shared_info.shape)}"
+        )
+        full_box_shape: list[int] = [1] * rank
+        for j, d in enumerate(dims):
+            full_box_shape[d] = shared_info.shape[j]
         box_shape_buf = self.declare_host_buffer(name="tma_box_shape", dtype=uint32, shape=[rank])
-        rev_box_shape = list(reversed(shared_info.shape))
+        rev_box_shape = list(reversed(full_box_shape))
         for i in range(rank):
             self.host_builder.buffer_store(box_shape_buf, indices=[i], value=as_expr(rev_box_shape[i]))
 
@@ -298,7 +312,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         shared_tensor_info: SharedTensorInfo = self.resolve_shared_tensor_info(shared_tensor)
 
         shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
-        src_tensor_map = ~self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
+        src_tensor_map = ~self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype, inst.dims)
         coords = list(reversed(inst.offsets))
         optional_multicast_mask = inst.multicast_mask
         predicate = self.contexts.leader_lane_ctx.leader_lane
@@ -347,7 +361,7 @@ class CopyAsyncTensorSharedToGlobalInstEmitter(CopyAsyncTensorBaseEmitter):
         shared_tensor_info: SharedTensorInfo = self.resolve_shared_tensor_info(shared_tensor)
 
         shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
-        tensor_map = self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
+        tensor_map = self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype, inst.dims)
         tensor_coords = inst.offsets
         self.append(
             cp_async_tensor_shared_to_global(

@@ -3,15 +3,15 @@
 """Benchmark the DSV3.2 sparse-attention indexer.
 
 Columns:
-  - baseline : PyTorch reference from ``baseline.py`` (slow, correctness oracle).
-  - vllm     : the unfused decode pipeline that vLLM uses for DeepSeek V3.2 —
-               ``vllm.utils.deep_gemm.fp8_paged_mqa_logits`` (MQA logits; requires
-               DeepGEMM to be available behind the wrapper) followed by vLLM's own
-               ``torch.ops._C.top_k_per_row_decode`` / ``large_context_topk``
-               (radix top-K; no flashinfer involvement). Skipped gracefully when
-               either piece is missing. This is the primary comparison target
-               for the Tilus implementation.
-  - tilus    : Tilus implementation (TODO — add once written).
+  - baseline     : PyTorch reference from ``baseline.py`` (slow, correctness oracle).
+  - vllm         : the unfused decode pipeline that vLLM uses for DeepSeek V3.2 —
+                   ``vllm.utils.deep_gemm.fp8_paged_mqa_logits`` (MQA logits;
+                   requires DeepGEMM) followed by vLLM's own
+                   ``torch.ops._C.top_k_per_row_decode`` / ``large_context_topk``.
+                   Skipped gracefully when either piece is missing.
+  - tilus-logits : Tilus M1 logits kernel (``tilus_kernel.py``). Timed in
+                   isolation — the Tilus radix top-K (M4) will land later
+                   and a combined ``tilus`` column will follow once wired.
 
 Usage:
     python benchmark.py
@@ -152,6 +152,7 @@ def benchmark(batch_sizes: list, seq_lens: list):
     from tilus.utils import benchmark_func
 
     from baseline import dsv3_topk_indexer_ref
+    from tilus_kernel import dsv3_indexer_logits_tilus
 
     run_vllm_column = HAS_VLLM and HAS_DEEP_GEMM and _deep_gemm_arch_supported()
 
@@ -159,6 +160,7 @@ def benchmark(batch_sizes: list, seq_lens: list):
     for batch_size in batch_sizes:
         for seq_len in seq_lens:
             q, k_cache, w, sl, bt = make_test_data(batch_size, seq_len)
+            max_model_len = bt.shape[1] * 64
 
             # PyTorch reference (correctness oracle; slow).
             baseline_ms = benchmark_func(
@@ -174,16 +176,23 @@ def benchmark(batch_sizes: list, seq_lens: list):
 
             # vLLM's unfused decode pipeline.
             if run_vllm_column:
-                max_model_len = bt.shape[1] * 64
                 run_vllm = _vllm_unfused_pipeline(
                     q, k_cache, w, sl, bt, max_model_len
                 )
                 vllm_ms = benchmark_func(run_vllm, warmup=5, repeat=50)
                 row["vllm (ms)"] = vllm_ms
 
-            # TODO: add Tilus implementation once written.
-            # tilus_ms = benchmark_func(lambda: tilus_indexer(q, k_cache, w, sl, bt), ...)
-            # row["tilus (ms)"] = tilus_ms
+            # Tilus M1 logits kernel. Warm up once to pay the autotune +
+            # JIT cost before timing.
+            dsv3_indexer_logits_tilus(q, k_cache, w, sl, bt, max_model_len)
+            tilus_ms = benchmark_func(
+                lambda: dsv3_indexer_logits_tilus(
+                    q, k_cache, w, sl, bt, max_model_len
+                ),
+                warmup=5,
+                repeat=50,
+            )
+            row["tilus-logits (ms)"] = tilus_ms
 
             rows.append(row)
             time.sleep(1)  # GPU cool-down between runs
