@@ -70,7 +70,7 @@ Call `tilus.option.debug.dump_ir()` before running the kernel. The IR after each
 ```python
     ...
     self.store_shared(s_c, ...)
-    self.fence.async_view(space="shared")   # fence.proxy.async.shared::cta
+    self.fence.proxy_async(space="shared")   # fence.proxy.async.shared::cta
     self.sync()
     with self.single_thread():
         self.tma.shared_to_global(s_c, g_c, ...)
@@ -86,3 +86,7 @@ Call `tilus.option.debug.dump_ir()` before running the kernel. The IR after each
 ## Testing After Refactors
 
 After a large refactor, first run `tests/kernels/matmul/test_matmul_v2.py` as a smoke test before running the full suite — the full suite is slow. Fix any matmul_v2 failures first, then expand to more tests.
+
+## Before Committing
+
+Run `pre-commit run --all` to apply the project's linters/formatters and fix any pre-commit issues before creating the commit. Re-stage any files the hooks modify, then commit.

@@ -19,6 +19,7 @@ tilus.ir
     tensor
     register_tensor
     shared_tensor
+    tmemory_tensor
     global_tensor
 
 .. toctree::

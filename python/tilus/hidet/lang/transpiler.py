@@ -72,7 +72,6 @@ from ast import (
     If,
     IfExp,
     In,
-    Index,
     Invert,
     Lambda,
     List,
@@ -85,12 +84,10 @@ from ast import (
     Module,
     Mult,
     Name,
-    NameConstant,
     Nonlocal,
     Not,
     NotEq,
     NotIn,
-    Num,
     Or,
     Pass,
     Pow,
@@ -100,7 +97,6 @@ from ast import (
     Slice,
     Starred,
     Store,
-    Str,
     Sub,
     Subscript,
     Tuple,
@@ -268,13 +264,13 @@ class PythonAstFunctor:
     def visit_Constant(self, expr: Constant):
         raise NotImplementedError()
 
-    def visit_Num(self, expr: Num):
+    def visit_Num(self, expr):
         return self.visit(ast.copy_location(Constant(expr.n), expr))
 
-    def visit_Str(self, expr: Str):
+    def visit_Str(self, expr):
         return self.visit(ast.copy_location(Constant(expr.s), expr))
 
-    def visit_NameConstant(self, expr: NameConstant):
+    def visit_NameConstant(self, expr):
         return self.visit(ast.copy_location(Constant(expr.value), expr))
 
     def visit_Attribute(self, expr: Attribute):
@@ -298,10 +294,10 @@ class PythonAstFunctor:
     def visit_Slice(self, expr: Slice):
         raise NotImplementedError()
 
-    def visit_ExtSlice(self, expr: ExtSlice):
+    def visit_ExtSlice(self, expr):
         raise NotImplementedError()
 
-    def visit_Index(self, expr: Index):
+    def visit_Index(self, expr):
         raise NotImplementedError()
 
     def visit_ListComp(self, expr: ListComp):
@@ -320,7 +316,7 @@ class PythonAstFunctor:
         raise NotImplementedError()
 
 
-HostTypes = (ir.TaskMapping, ir.DataLayout, float, int, type(None))
+HostTypes = (float, int, type(None))
 
 
 class Scope:
@@ -428,7 +424,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
     def process_assign(self, lhs: Union[Attribute, Subscript, Name], rhs, type_annotation: Optional[ast.expr] = None):
         # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         # check the rhs value, must be an instance of allowed_types or a list of these kinds of elements.
-        host_var_types = (ir.TaskMapping, ir.DataLayout, ir.TensorSlice, ir.Function, str, list, tuple, dict)
+        host_var_types = (ir.Function, str, list, tuple, dict)
         allowed_types = (ir.Expr, ir.BaseType, Declaration, float, int, str, type(None))
         allowed_types += host_var_types
         assert isinstance(rhs, allowed_types) or (
@@ -451,7 +447,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
                         msg = "Can not define two variables with the same name in the same scope."
                         raise HidetProgramError(self, lhs, msg)
                     var_type = self.visit(type_annotation)
-                    var = Var(hint=var_name, type=var_type)
+                    var = Var(name=var_name, type=var_type)
                     self.current_scope.define_var(name=var_name, v=var)
                     self.current_scope.append(ir.DeclareStmt(var, init=rhs))
                 else:
@@ -459,7 +455,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
                     # during transpiling, there are two kinds of variables:
                     #   1. host variable, the variable in host language, and
                     #   2. hidet variable, the variable in hidet.
-                    # Typical host variables are like TaskMapping, DataLayout that are not scalar or tensor.
+                    # Typical host variables are those that are not scalar or tensor.
                     # We use host variable to reduce the complexity of hidet's data model.
                     if isinstance(rhs, host_var_types):
                         self.current_scope.define_host_var(var_name, rhs)
@@ -478,7 +474,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
                             rhs = ir.convert(rhs)
                             var_type = ir.infer_type(rhs)
                             init_value = rhs
-                        var = Var(hint=var_name, type=var_type)
+                        var = Var(name=var_name, type=var_type)
                         self.current_scope.append(
                             ir.DeclareStmt(var, init=init_value, is_static=is_static, scope=scope)
                         )
@@ -536,12 +532,12 @@ class PythonToHidetTranslator(PythonAstFunctor):
         if isinstance(arg_type, ir.BaseType):
             if isinstance(arg_type, ir.TensorType):
                 # we automatically change the tensor type of argument to a tensor pointer type.
-                arg_type = ir.tensor_pointer_type(dtype=arg_type.dtype, shape=arg_type.shape, layout=arg_type.layout)
+                arg_type = ir.tensor_pointer_type(dtype=arg_type.dtype, shape=arg_type.shape)
         elif isinstance(arg_type, Declaration):
             arg_type = arg_type.type
             if isinstance(arg_type, ir.TensorType):
                 # we automatically change the tensor type of argument to a tensor pointer type.
-                arg_type = ir.tensor_pointer_type(dtype=arg_type.dtype, shape=arg_type.shape, layout=arg_type.layout)
+                arg_type = ir.tensor_pointer_type(dtype=arg_type.dtype, shape=arg_type.shape)
         elif arg_type in [bool, int, float]:
             type_dict = {bool: ir.data_type("bool"), int: ir.data_type("int32"), float: ir.data_type("float32")}
             arg_type = type_dict[arg_type]
@@ -591,12 +587,12 @@ class PythonToHidetTranslator(PythonAstFunctor):
 
                     if isinstance(arg_type, HidetMetaParamTypeList):
                         arg_types = [self._process_arg_type(arg, t) for t in arg_type.arg_types]
-                        param_vars = [Var(hint=arg_name, type=t) for t in arg_types]
+                        param_vars = [Var(name=arg_name, type=t) for t in arg_types]
                         func_params.extend(param_vars)
                         scope.define_host_var(arg_name, list(param_vars))
                     else:
                         arg_type: ir.BaseType = self._process_arg_type(arg, arg_type)
-                        param_var = Var(hint=arg_name, type=arg_type)
+                        param_var = Var(name=arg_name, type=arg_type)
                         func_params.append(param_var)
                         scope.define_var(arg_name, param_var)
 
@@ -622,24 +618,41 @@ class PythonToHidetTranslator(PythonAstFunctor):
                         raise HidetProgramError(self, func_def.returns, "Expect a type of function return value.")
 
             # get function attributes
-            func_attrs: Dict[str, Any] = scope.attributes.copy()
-            if "func_kind" in func_attrs:
-                func_kind = func_attrs["func_kind"]
-            elif "cuda.grid_dim" in func_attrs or "cuda.block_dim" in func_attrs:
-                if not all(name in func_attrs for name in ["cuda.grid_dim", "cuda.block_dim"]):
+            raw_attrs: Dict[str, Any] = scope.attributes.copy()
+            if "func_kind" in raw_attrs:
+                func_kind = raw_attrs["func_kind"]
+            elif "cuda.grid_dim" in raw_attrs or "cuda.block_dim" in raw_attrs:
+                if not all(name in raw_attrs for name in ["cuda.grid_dim", "cuda.block_dim"]):
                     raise HidetProgramError(
                         self, func_def, "CUDA kernel expects to have both attrs.cuda.grid_dim and attrs.cuda.block_dim."
                     )
                 func_kind = "cuda_kernel"
-            elif "hip.grid_dim" in func_attrs or "hip.block_dim" in func_attrs:
-                if not all(name in func_attrs for name in ["hip.grid_dim", "hip.block_dim"]):
+            elif "hip.grid_dim" in raw_attrs or "hip.block_dim" in raw_attrs:
+                if not all(name in raw_attrs for name in ["hip.grid_dim", "hip.block_dim"]):
                     raise HidetProgramError(
                         self, func_def, "HIP kernel expects to have both attrs.hip.grid_dim and attrs.hip.block_dim."
                     )
                 func_kind = "hip_kernel"
             else:
                 func_kind = "cuda_internal"
-            func_name = func_attrs.get("func_name", func_def.name)
+            func_name = raw_attrs.get("func_name", func_def.name)
+
+            # translate DSL attribute keys (device-prefixed) into a FuncAttrs.
+            # The device is determined by func_kind; cuda.* and hip.* keys map
+            # to the same FuncAttrs fields.
+            def _pick(*keys):
+                for k in keys:
+                    if k in raw_attrs:
+                        return raw_attrs[k]
+                return None
+
+            func_attrs = ir.FuncAttrs(
+                grid_dim=_pick("cuda.grid_dim", "hip.grid_dim"),
+                cluster_dim=_pick("cuda.cluster_dim"),
+                block_dim=_pick("cuda.block_dim", "hip.block_dim"),
+                dynamic_smem_bytes=_pick("cuda.dynamic_smem_bytes", "hip.dynamic_smem_bytes"),
+                min_blocks=_pick("cuda.min_blocks", "hip.min_blocks"),
+            )
 
         return ir.Function(
             name=func_name,
@@ -725,17 +738,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
     def visit_BinOp(self, expr: BinOp):
         lhs = self.visit(expr.left)
         rhs = self.visit(expr.right)
-        if isinstance(lhs, ir.DataLayout) and isinstance(rhs, ir.DataLayout):
-            if isinstance(expr.op, Mult):
-                return lhs * rhs
-            elif isinstance(expr.op, Add):
-                return lhs + rhs
-            else:
-                raise HidetProgramError(self, expr, "Hidet does not support this operation on DataLayout.")
-        elif isinstance(lhs, ir.TaskMapping) and isinstance(rhs, ir.TaskMapping):
-            assert isinstance(expr.op, Mult)
-            return lhs * rhs
-        elif isinstance(lhs, str) and isinstance(rhs, str):
+        if isinstance(lhs, str) and isinstance(rhs, str):
             assert isinstance(expr.op, Add)
             return lhs + rhs
         elif isinstance(lhs, (list, tuple)) and isinstance(rhs, (list, tuple)):
@@ -880,7 +883,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
             else_body = else_scope.flush_stmts() if len(stmt.orelse) > 0 else None
             self.current_scope.append(ir.IfStmt(cond=cond, then_body=then_body, else_body=else_body))
 
-    def visit_Index(self, expr: Index):
+    def visit_Index(self, expr):
         return self.visit(expr.value)
 
     def visit_Constant(self, expr: Constant):
@@ -930,7 +933,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
 
             with self.scope() as for_scope:
                 for var in loop_vars:
-                    for_scope.define_var(name=var.hint, v=var)
+                    for_scope.define_var(name=var.name, v=var)
                 for name, value in host_vars.items():
                     for_scope.define_host_var(name, value)
                 for s in stmt.body:
@@ -1114,20 +1117,18 @@ class PythonToHidetTranslator(PythonAstFunctor):
             if func.kind in ["cuda_kernel", "hip_kernel"]:
                 from tilus.hidet.ir.tools import collect, rewrite
 
-                used_params: list[Var] = []
-                attr_names = [  # we allow these attributes to use the parameters
-                    "cuda.grid_dim",
-                    "cuda.cluster_dim",
-                    "cuda.block_dim",
-                    "hip.grid_dim",
-                    "hip.block_dim",
-                    "cuda.dynamic_smem_bytes",
-                    "hip.dynamic_smem_bytes",
+                launch_fields = [
+                    func.attrs.grid_dim,
+                    func.attrs.cluster_dim,
+                    func.attrs.block_dim,
+                    func.attrs.dynamic_smem_bytes,
                 ]
-                for name in attr_names:
-                    if name in func.attrs:
-                        used_vars = collect(func.attrs[name], Var)
-                        used_params.extend([var for var in used_vars if var not in used_params and var in func.params])
+                used_params: list[Var] = []
+                for value in launch_fields:
+                    if value is None:
+                        continue
+                    used_vars = collect(value, Var)
+                    used_params.extend([var for var in used_vars if var not in used_params and var in func.params])
                 param2arg = {param: arg for param, arg in zip(func.params, args)}
                 rewrite_map = {param: param2arg[param] for param in used_params}
 
@@ -1135,19 +1136,27 @@ class PythonToHidetTranslator(PythonAstFunctor):
                     return ir.stmt.launch_kernel(
                         func_var=func_var,
                         args=args,
-                        grid_dim=rewrite(func.attrs["cuda.grid_dim"], rewrite_map),
-                        cluster_dim=rewrite(func.attrs.get("cuda.cluster_dim", 1), rewrite_map),
-                        block_dim=rewrite(func.attrs["cuda.block_dim"], rewrite_map),
-                        shared_mem=rewrite(func.attrs.get("cuda.dynamic_smem_bytes", 0), rewrite_map),
+                        grid_dim=rewrite(func.attrs.grid_dim, rewrite_map),
+                        cluster_dim=rewrite(
+                            func.attrs.cluster_dim if func.attrs.cluster_dim is not None else 1, rewrite_map
+                        ),
+                        block_dim=rewrite(func.attrs.block_dim, rewrite_map),
+                        shared_mem=rewrite(
+                            func.attrs.dynamic_smem_bytes if func.attrs.dynamic_smem_bytes is not None else 0,
+                            rewrite_map,
+                        ),
                         target="cuda",
                     )
                 else:
                     return ir.stmt.launch_kernel(
                         func_var=func_var,
                         args=args,
-                        grid_dim=rewrite(func.attrs["hip.grid_dim"], rewrite_map),
-                        block_dim=rewrite(func.attrs["hip.block_dim"], rewrite_map),
-                        shared_mem=rewrite(func.attrs.get("hip.dynamic_smem_bytes", 0), rewrite_map),
+                        grid_dim=rewrite(func.attrs.grid_dim, rewrite_map),
+                        block_dim=rewrite(func.attrs.block_dim, rewrite_map),
+                        shared_mem=rewrite(
+                            func.attrs.dynamic_smem_bytes if func.attrs.dynamic_smem_bytes is not None else 0,
+                            rewrite_map,
+                        ),
                         target="hip",
                     )
             else:
@@ -1209,7 +1218,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
     def visit_Starred(self, expr: Starred):
         raise HidetProgramError(self, expr, "Hidet do not support unpack operator.")
 
-    def visit_ExtSlice(self, expr: ExtSlice):
+    def visit_ExtSlice(self, expr):
         return [self.visit(v) for v in expr.dims]
 
     def visit_Slice(self, expr: Slice):
@@ -1286,7 +1295,7 @@ class PythonToHidetTranslator(PythonAstFunctor):
                 if isinstance(bind_value, ir.Expr):
                     from tilus.hidet.ir.tools import infer_type
 
-                    bind_var = Var(hint=bind_name, type=infer_type(bind_value))
+                    bind_var = Var(name=bind_name, type=infer_type(bind_value))
                     self.current_scope.append(ir.DeclareStmt(var=bind_var, init=bind_value))
                     self.current_scope.define_var(bind_name, bind_var)
                 else:

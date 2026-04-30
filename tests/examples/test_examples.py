@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -59,9 +59,6 @@ EXAMPLES = [
     ("blackwell_matmul", "matmul_v4.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v5.py", nvgpu_sm100a),
     ("blackwell_matmul", "matmul_v6.py", nvgpu_sm100a),
-    ("blackwell_matmul", "matmul_v7.py", nvgpu_sm100a),
-    ("blackwell_matmul", "matmul_v8.py", nvgpu_sm100a),
-    ("blackwell_matmul", "matmul_v9.py", nvgpu_sm100a),
     # hopper matmul example (SM 9.0)
     ("hopper_matmul", "matmul_v0.py", nvgpu_sm90a),
     ("hopper_matmul", "matmul_v1.py", nvgpu_sm90a),
@@ -79,6 +76,8 @@ IGNORED_SCRIPTS = [
     ("flash_attention_decode", "torch_kernel.py"),
     ("flash_attention_decode", "triton_kernel.py"),
     ("flash_attention_decode", "tilus_kernel.py"),
+    # Benchmark utilities
+    ("blackwell_matmul", "benchmark.py"),
 ]
 
 

@@ -51,14 +51,8 @@ class ImportPrimitiveFunctionPass(Pass):
 
         if len(primitive_funcs) == 0:
             return ir_module
-        else:
-            new_ir_module = ir_module.copy().reset_funcs()
-            for func_name, func in ir_module.functions.items():
-                new_ir_module.add_function(func_name, func)
-            for func in primitive_funcs:
-                if func.name not in new_ir_module.functions:
-                    new_ir_module.add_function(func.name, func)
-            return new_ir_module
+        new_funcs = {func.name: func for func in primitive_funcs if func.name not in ir_module.functions}
+        return ir_module.with_added_functions(new_funcs)
 
 
 def import_primitive_functions_pass() -> Pass:

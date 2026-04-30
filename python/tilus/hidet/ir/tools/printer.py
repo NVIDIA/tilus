@@ -24,6 +24,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import contextlib
+import dataclasses
 from typing import Dict, List, Optional, Tuple, Union
 
 from tilus.hidet.ir.expr import (
@@ -39,7 +40,6 @@ from tilus.hidet.ir.expr import (
     Dereference,
     Div,
     Equal,
-    FloorDiv,
     IfThenElse,
     LeftShift,
     LessThan,
@@ -51,26 +51,12 @@ from tilus.hidet.ir.expr import (
     Multiply,
     Neg,
     NotEqual,
-    Reference,
     RightShift,
     Sub,
     TensorElement,
-    TensorSlice,
     Var,
 )
 from tilus.hidet.ir.func import Function
-from tilus.hidet.ir.layout import (
-    ColumnMajorLayout,
-    ComposedLayout,
-    ConcatLayout,
-    LocalLayout,
-    PermuteLayout,
-    ReshapeLayout,
-    RowMajorLayout,
-    StridesLayout,
-    SwizzleLayout,
-)
-from tilus.hidet.ir.mapping import ComposedTaskMapping, RepeatTaskMapping, SpatialTaskMapping
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.node import Node
 from tilus.hidet.ir.stmt import (
@@ -84,7 +70,6 @@ from tilus.hidet.ir.stmt import (
     DeclareScope,
     DeclareStmt,
     EvaluateStmt,
-    ForMappingStmt,
     ForStmt,
     IfStmt,
     LaunchKernelStmt,
@@ -94,12 +79,10 @@ from tilus.hidet.ir.stmt import (
     WhileStmt,
 )
 from tilus.hidet.ir.type import (
-    ArrayType,
     DataType,
     FuncType,
     OpaqueType,
     PointerType,
-    ReferenceType,
     StringType,
     TensorPointerType,
     TensorType,
@@ -174,9 +157,9 @@ class IRPrinter(IRFunctor):
     def __init__(self):
         super().__init__(use_memo=False)
         self.namer = Namer()
+        self.namer.seed_global_symbols()
         self.attributes: Dict[str, str] = {}
         self.ir_module: Optional[IRModule] = None
-        self.show_var_id = False
 
         self.scoped_vars: List[List[Var]] = []
 
@@ -252,7 +235,10 @@ class IRPrinter(IRFunctor):
         # attributes
         attr_doc = Doc()
         attrs = {"kind": func.kind}
-        attrs.update(func.attrs)
+        for f in dataclasses.fields(func.attrs):
+            value = getattr(func.attrs, f.name)
+            if value is not None:
+                attrs[f.name] = value
         for attr_name, attr_value in attrs.items():
             attr_doc += (NewLine() + "# {}: {}".format(attr_name, attr_value)).indent(4)
 
@@ -265,6 +251,7 @@ class IRPrinter(IRFunctor):
     def visit_IRModule(self, ir_module: IRModule):
         doc = Doc()
         self.ir_module = ir_module
+        self.namer.seed_global_symbols(ir_module)
 
         for linking_lib in ir_module.linking_libs:
             doc += Text("link lib: ") + linking_lib + NewLine()
@@ -299,9 +286,6 @@ class IRPrinter(IRFunctor):
 
     def visit_Mod(self, e: Mod):
         return Text("(") + self(e.a) + " % " + self(e.b) + ")"
-
-    def visit_FloorDiv(self, e: FloorDiv):
-        return Text("(") + self(e.a) + " / " + self(e.b) + ")"
 
     def visit_Neg(self, e: Neg):
         return Text("(-") + self(e.a) + ")"
@@ -352,34 +336,19 @@ class IRPrinter(IRFunctor):
             doc = self(e.base) + "[" + self(e.indices) + "]"
         return doc
 
-    def visit_TensorSlice(self, e: TensorSlice):
-        subscriptions = []
-        for index, start, end in zip(e.indices, e.starts, e.ends):
-            if index is not None:
-                subscriptions.append(self(index))
-            else:
-                doc = Doc()
-                if start is not None:
-                    doc += self(start)
-                doc += ":"
-                if end is not None:
-                    doc += self(end)
-                subscriptions.append(doc)
-        return self(e.base) + "[" + doc_join(subscriptions, ", ") + "]"
-
     def visit_IfThenElse(self, e: IfThenElse):
         return "(" + self(e.cond) + " ? " + self(e.then_expr) + " : " + self(e.else_expr) + ")"
 
     def visit_Call(self, e: Call):
         doc = Doc()
-        func_name = e.func_var.name if e.func_var.name else e.func_var.hint
+        func_name = e.func_var.name
         # name
         doc += func_name
         # launch
         if self.ir_module and func_name in self.ir_module.functions:
             func = self.ir_module.functions[func_name]
             if func.kind == "cuda_kernel":
-                doc += "<<<" + self(func.attrs["cuda.grid_dim"]) + ", " + self(func.attrs["cuda.block_dim"]) + ">>>"
+                doc += "<<<" + self(func.attrs.grid_dim) + ", " + self(func.attrs.block_dim) + ">>>"
         # params
         doc += "(" + self(e.args) + ")"
         return doc
@@ -390,9 +359,6 @@ class IRPrinter(IRFunctor):
     def visit_Cast(self, e: Cast):
         return Text("cast(") + self(e.target_type) + ", " + self(e.expr) + ")"
 
-    def visit_Reference(self, e: Reference):
-        return Text("Ref(") + self(e.expr) + ")"
-
     def visit_Dereference(self, e: Dereference):
         return Text("*") + self(e.expr)
 
@@ -400,16 +366,12 @@ class IRPrinter(IRFunctor):
         return Text("&") + self(e.expr)
 
     def visit_Var(self, e: Var):
-        if self.show_var_id:
-            return Text("{}@{}".format(self.namer.get_name(e), e.id))
         return Text(self.namer.get_name(e))
 
     def visit_Constant(self, e: Constant):
         if e.value is None:
             return self("Constant(None, type=") + self(e.type) + ")"
-        if e.is_tensor():
-            return "ConstTensor({}, {})".format(e.value.shape, e.type)
-        elif e.is_string():
+        if e.is_string():
             return Text('"{}"'.format(str(e.value)))
         elif e.is_scalar():
             dtype = e.type.name
@@ -471,14 +433,6 @@ class IRPrinter(IRFunctor):
         if stmt.attr.unroll or stmt.attr.parallel:
             doc += "  # " + str(stmt.attr)
         self.add_scope_var(stmt.loop_var)
-        with self.scope():
-            doc += self(stmt.body).indent(4)
-        return doc
-
-    def visit_ForTaskStmt(self, stmt: ForMappingStmt):
-        doc = NewLine() + Text("for ") + self(stmt.loop_vars) + " in " + self(stmt.mapping) + " on " + self(stmt.worker)
-        for loop_var in stmt.loop_vars:
-            self.add_scope_var(loop_var)
         with self.scope():
             doc += self(stmt.body).indent(4)
         return doc
@@ -578,18 +532,10 @@ class IRPrinter(IRFunctor):
 
     def _tensor_type(self, t: TensorType):
         items = [self(t.dtype), "[" + self(t.shape) + "]"]
-        if isinstance(t.layout, RowMajorLayout) or t.layout is None:
-            # default layout, do not print
-            pass
-        else:
-            items.append(self(t.layout))
         return doc_join(items, ", ")
 
     def visit_TensorType(self, t: TensorType):
         return Text("tensor(") + self._tensor_type(t) + ")"
-
-    def visit_ArrayType(self, t: ArrayType):
-        return Text("array(") + self(t.base_type) + ", size=" + self(t.size) + ")"
 
     def visit_StringType(self, t: StringType):
         return Text("char*")
@@ -604,17 +550,11 @@ class IRPrinter(IRFunctor):
     def visit_TensorPointerType(self, t: TensorPointerType):
         return Text("tensor_pointer(") + self._tensor_type(t.tensor_type) + ")"
 
-    def visit_ReferenceType(self, t: ReferenceType):
-        return Text("ReferenceType(") + self(t.base_type) + ")"
-
     def visit_VoidType(self, t: VoidType):
         return Text("VoidType")
 
     def visit_FuncType(self, t: FuncType):
-        if t.type_infer_func is not None:
-            return Text("FuncType[type_infer_func]")
-        else:
-            return Text("FuncType(params={}, ret={})".format(self(t.param_types), self(t.ret_type)))
+        return Text("FuncType(params={}, ret={})".format(self(t.param_types), self(t.ret_type)))
 
     def visit_OpaqueType(self, t: OpaqueType):
         return Text(f"OpaqueType({t.cpp_name})")
@@ -719,50 +659,6 @@ class IRPrinter(IRFunctor):
     def visit_ArgReduceCompute(self, c: ArgReduceCompute):
         items = ["[" + self(c.extent) + "]", self(c.axis) + " => " + self(c.value), str(c.reduce_operation)]
         return "arg_reduce(" + doc_join(items, ", ") + ")"
-
-    def visit_SpatialTaskMapping(self, mapping: SpatialTaskMapping):
-        items = [self(mapping.task_shape)]
-        if not same_list(mapping.ranks, list(range(len(mapping.task_shape)))):
-            items.append("ranks=[" + self(mapping.ranks) + "]")
-        return "spatial(" + doc_join(items, ", ") + ")"
-
-    def visit_RepeatTaskMapping(self, mapping: RepeatTaskMapping):
-        items = [self(mapping.task_shape)]
-        if not same_list(mapping.ranks, list(range(len(mapping.task_shape)))):
-            items.append("ranks=[" + self(mapping.ranks) + "]")
-        return "repeat(" + doc_join(items, ", ") + ")"
-
-    def visit_ComposedTaskMapping(self, mapping: ComposedTaskMapping):
-        return self(mapping.outer) + "." + self(mapping.inner)
-
-    def visit_StridesLayout(self, layout: StridesLayout):
-        if isinstance(layout, RowMajorLayout):
-            return Text("row(") + self(layout.shape) + ")"
-        elif isinstance(layout, ColumnMajorLayout):
-            return Text("column(") + self(layout.shape) + ")"
-        else:
-            return Text("strides(") + self(layout.strides) + ")"
-
-    def visit_SwizzleLayout(self, layout: SwizzleLayout):
-        items = [self(layout.base), Text("dim=") + self(layout.dim), Text("regards=") + self(layout.regards_dim)]
-        if layout.log_step != 0:
-            items.append(Text("log_step=") + self(layout.log_step))
-        return Text("swizzle(") + doc_join(items, ", ") + ")"
-
-    def visit_PermuteLayout(self, layout: PermuteLayout):
-        return Text("permute(") + self(layout.base) + ", " + self(layout.perm) + ")"
-
-    def visit_ReshapeLayout(self, layout: ReshapeLayout):
-        return Text("reshape(") + self(layout.base) + ", " + self(layout.shape) + ")"
-
-    def visit_LocalLayout(self, layout: LocalLayout):
-        return Text("local(") + self(layout.shape) + ")"
-
-    def visit_ComposedLayout(self, layout: ComposedLayout):
-        return self(layout.outer) + " * " + self(layout.inner)
-
-    def visit_ConcatLayout(self, layout: ConcatLayout):
-        return Text("concat(") + self(layout.lhs) + ", " + self(layout.rhs) + ")"
 
 
 def astext(obj: Node) -> str:

@@ -28,7 +28,7 @@ from typing import Dict, List, Mapping, Union
 from tilus.hidet.ir.expr import Let, Var
 from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.node import Node
-from tilus.hidet.ir.stmt import DeclareStmt, ForMappingStmt, ForStmt, LetStmt
+from tilus.hidet.ir.stmt import DeclareStmt, ForStmt, LetStmt
 
 
 class MapBasedRewriter(IRRewriter):
@@ -49,7 +49,7 @@ class CloneRewriter(IRRewriter):
     def process_var(self, v: Var):
         visited_v = self.visit(v)
         if visited_v is v:
-            new_var = Var(v.hint, type=v.type, name=v.name)
+            new_var = Var(v.name, type=v.type)
         else:
             new_var = visited_v
         self.memo[v] = new_var
@@ -60,12 +60,6 @@ class CloneRewriter(IRRewriter):
         extent = self.visit(stmt.extent)
         body = self.visit(stmt.body)
         return ForStmt(loop_var, extent, body, attr=stmt.attr)
-
-    def visit_ForTaskStmt(self, stmt: ForMappingStmt):
-        loop_vars: List[Var] = [self.process_var(v) for v in stmt.loop_vars]
-        worker = self.visit(stmt.worker)
-        body = self.visit(stmt.body)
-        return ForMappingStmt(loop_vars=loop_vars, mapping=stmt.mapping, worker=worker, body=body)
 
     def visit_LetStmt(self, stmt: LetStmt):
         bind_vars = [self.process_var(v) for v in stmt.bind_vars]

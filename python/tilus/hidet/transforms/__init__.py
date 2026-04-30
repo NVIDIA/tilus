@@ -39,19 +39,16 @@ from .declare_to_let import declare_to_let_pass
 from .expand_let_expr import expand_let_expr_pass
 from .explicit_unroll import explicit_unroll_pass
 from .flatten_tensor_index import flatten_tensor_index_pass
-from .flatten_tensor_slice import flatten_tensor_slice_pass
 from .generate_launch_func import generate_launch_func_pass
 from .hoist_loop_invariants import hoist_loop_invariants_pass
 from .import_primitive_functions import import_primitive_functions_pass
 from .inline_function import inline_function_pass
 from .inline_let_stmt import inline_let_stmt_pass
-from .instantiate_symbols import instantiate_symbols_pass
 from .instruments import PassInstrument, ProfileInstrument, SaveIRInstrument
 from .lower_affine_to_recurence import lower_affine_to_recurrence_pass
 from .lower_integer_subbyte import lower_integer_subbyte_pass
 from .lower_special_cast import lower_special_cast_pass
 from .lower_subbyte_type import lower_subbyte_type_pass
-from .lower_task_mapping import lower_task_mapping_pass
 from .propagate_launch_bound import propagate_launch_bound_pass
 from .resolve_generic_primitive_function import resolve_primitive_func_pass
 from .rule_based_simplifier import rule_based_simplify_pass

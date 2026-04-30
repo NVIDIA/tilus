@@ -25,20 +25,19 @@
 # limitations under the License.
 # pylint: disable=bad-staticmethod-argument, abstract-method, too-many-ancestors
 from .expr_functor import ExprFunctor, ExprRewriter, ExprVisitor
-from .layout_functor import LayoutFunctor, LayoutRewriter, LayoutVisitor
 from .module_functor import ModuleFunctor, ModuleRewriter, ModuleVisitor
 from .stmt_functor import StmtFunctor, StmtRewriter, StmtVisitor
 from .type_functor import TypeFunctor, TypeRewriter, TypeVisitor
 
 
-class IRFunctor(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor, LayoutFunctor):
+class IRFunctor(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
     pass
 
 
-class IRVisitor(ModuleVisitor, StmtVisitor, ExprVisitor, TypeVisitor, LayoutVisitor):
+class IRVisitor(ModuleVisitor, StmtVisitor, ExprVisitor, TypeVisitor):
     pass
 
 
-class IRRewriter(ModuleRewriter, StmtRewriter, ExprRewriter, TypeRewriter, LayoutRewriter):
+class IRRewriter(ModuleRewriter, StmtRewriter, ExprRewriter, TypeRewriter):
     def rewrite(self, node):
         return self.visit(node)

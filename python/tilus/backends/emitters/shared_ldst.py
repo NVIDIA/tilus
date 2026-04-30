@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -325,7 +325,7 @@ class LoadSharedInstLdmatrixEmitter(BaseInstEmitter):
         with self.for_range(num_vectors, attr="u+") as vec_i:
             regs: list[Expr] = []
             for i in range(vector_size):
-                regs.append(deref(cast(~regs_buf[(vec_i * vector_size + i) * ldmatrix_layout.local_size], ~uint32)))
+                regs.append(cast(~regs_buf[(vec_i * vector_size + i) * ldmatrix_layout.local_size], ~uint32))
 
             lane_id = self.current_thread % 32
             warp_id = self.current_thread // 32

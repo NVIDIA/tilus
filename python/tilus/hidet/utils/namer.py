@@ -31,6 +31,10 @@ class Namer:
     def __init__(self):
         self.name_id_clock = defaultdict(int)
         self.obj_name = {}
+        #: Seeds survive :meth:`clear`. Populated by :meth:`seed` /
+        #: :meth:`seed_global_symbols` for globally-unique symbols (CUDA
+        #: builtins, function references) whose names must appear verbatim.
+        self._seeds: dict = {}
         self.clear()
 
     def __call__(self, x):
@@ -43,30 +47,23 @@ class Namer:
         keywords = ["const"]
         for kw in keywords:
             self.name_id_clock[kw] = 0
+        # restore seeds
+        for obj, name in self._seeds.items():
+            self.obj_name[obj] = name
+            if name not in self.name_id_clock:
+                self.name_id_clock[name] = 0
 
     def get_name(self, e, hint=None):
         from tilus.hidet.ir.expr import Var
-
-        ScalarNode = TensorNode = Tensor = None  # compute/graph not available
 
         if e in self.obj_name:
             return self.obj_name[e]
         if hint:
             orig_name = hint
-        elif isinstance(e, Var) and (e.name or e.hint):
-            if e.name is not None:
-                return e.name
-            orig_name = e.hint
-        elif ScalarNode is not None and isinstance(e, (ScalarNode, TensorNode)):
+        elif isinstance(e, Var) and e.name is not None:
             orig_name = e.name
         else:
             alias = {Var: "v"}
-            if ScalarNode is not None:
-                alias[ScalarNode] = "scalar"
-            if TensorNode is not None:
-                alias[TensorNode] = "tensor"
-            if Tensor is not None:
-                alias[Tensor] = "x"
             orig_name = alias[type(e)] if type(e) in alias else type(e).__name__
 
         if orig_name in self.name_id_clock:
@@ -80,6 +77,44 @@ class Namer:
 
         self.obj_name[e] = name
         return name
+
+    def seed(self, obj, name: str) -> None:
+        """Pre-register ``obj`` with a canonical ``name``.
+
+        Future :meth:`get_name` calls on ``obj`` return ``name`` verbatim. The
+        name is also reserved in ``name_id_clock`` so later colliding objects
+        get suffixed (``name_1``, ``name_2``, ...). Seeds survive
+        :meth:`clear`, so globally-unique symbols keep their canonical
+        identifiers across function boundaries in codegen.
+        """
+        self._seeds[obj] = name
+        self.obj_name[obj] = name
+        if name not in self.name_id_clock:
+            self.name_id_clock[name] = 0
+
+    def seed_global_symbols(self, ir_module=None) -> None:
+        """Pre-register all globally-unique symbols so codegen emits them verbatim.
+
+        This covers:
+          - registered CUDA / HIP primitive variables (threadIdx.x, blockIdx.y, ...)
+          - primitive function references
+          - optionally, the given IRModule's global vars and extern function refs
+
+        Any later local Var whose name collides with one of these will be
+        suffixed by :meth:`get_name` (``x``, ``x_1``, ...).
+        """
+        from tilus.hidet.ir.primitives.func import primitive_func_pool
+        from tilus.hidet.ir.primitives.vars import registered_primitive_variables
+
+        for name, var in registered_primitive_variables.items():
+            self.seed(var, name)
+        for name, entry in primitive_func_pool.name2func.items():
+            self.seed(entry.var, name)
+        if ir_module is not None:
+            for name, var in ir_module.global_vars.items():
+                self.seed(var, name)
+            for name, var in ir_module.extern_functions.items():
+                self.seed(var, name)
 
     @staticmethod
     def unique_name_among(name: str, existed_names: Iterable[str]) -> str:

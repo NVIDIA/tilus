@@ -28,8 +28,7 @@ import itertools
 from typing import List, Optional, Sequence, Union
 
 from tilus.hidet.ir.expr import Constant, Expr, Var
-from tilus.hidet.ir.mapping import TaskMapping
-from tilus.hidet.ir.stmt import ForMappingStmt, ForStmt, ForStmtAttr, Stmt
+from tilus.hidet.ir.stmt import ForStmt, ForStmtAttr, Stmt
 
 
 class HidetLoopIterable:
@@ -50,27 +49,6 @@ class HidetLoopIterable:
             return int(extent)
         else:
             raise ValueError("end must be an integer or a constant integer.")
-
-
-class TaskMappingLoopIterable(HidetLoopIterable):
-    def __init__(self, task_mapping: TaskMapping, worker, bind_tuple=False):
-        super().__init__()
-        self.task_mapping: TaskMapping = task_mapping
-        self.worker: Expr = worker
-        self._bind_tuple: bool = bind_tuple
-
-    def __iter__(self):
-        return iter(self.task_mapping.worker2task(self.worker))
-
-    def generate_loop_statement(self, loop_vars: List[Var], body: Stmt) -> Stmt:
-        assert len(loop_vars) == len(self.task_mapping.task_shape)
-        return ForMappingStmt(loop_vars, self.task_mapping, self.worker, body)
-
-    def num_loop_vars(self) -> int:
-        return len(self.task_mapping.task_shape)
-
-    def bind_tuple(self) -> bool:
-        return self._bind_tuple
 
 
 class GridLoopIterable(HidetLoopIterable):

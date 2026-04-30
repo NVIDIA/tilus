@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,6 @@ import inspect
 import json
 import logging
 import os
-import pickle
 import shutil
 import traceback
 from itertools import product
@@ -30,7 +29,6 @@ import filelock
 import tabulate
 import torch
 import tvm_ffi
-from cuda.bindings.runtime import cudaDeviceSynchronize
 from tqdm import tqdm
 
 import tilus.option
@@ -527,7 +525,13 @@ class JitInstance:
     @staticmethod
     def _create_link(link_path: Path, target_path: Path) -> None:
         relative_path = relative_to_with_walk_up(link_path.parent, target=target_path)
-        os.symlink(relative_path, link_path)
+        try:
+            os.symlink(relative_path, link_path)
+        except FileExistsError:
+            # Symlink already exists (e.g., from a previous run with a stale dispatch table).
+            # Replace it to ensure it points to the correct target.
+            os.remove(link_path)
+            os.symlink(relative_path, link_path)
 
     def _build_programs(self):
         # build the programs in parallel
@@ -659,7 +663,13 @@ class JitInstance:
                     ):
                         compiled_func = compiled_program.get_launch_func()
                         try:
-                            latency.append(benchmark_func(lambda: compiled_func(*kernel_args), warmup=1, repeat=10))  # type: ignore
+                            latency.append(
+                                benchmark_func(
+                                    lambda: compiled_func(*kernel_args),
+                                    warmup=tilus.option.get_option("bench_warmup"),
+                                    repeat=tilus.option.get_option("bench_repeat"),
+                                )
+                            )  # type: ignore
                         except RuntimeError as e:
                             raise RuntimeError(
                                 f"Failed to benchmark the kernel {self.instance_name} with schedule: \n"
@@ -694,16 +704,18 @@ class JitInstance:
         return self.compiled_programs[self.dispatch_table[tuning_key]]
 
     def load_dispatch_table(self):
-        table_path = self.cache_dir / "dispatch_table.pickle"
+        table_path = self.cache_dir / "dispatch_table.json"
         if table_path.exists():
-            with open(table_path, "rb") as f:
-                self.dispatch_table = pickle.load(f)
+            with open(table_path, "r") as f:
+                entries = json.load(f)
+            self.dispatch_table = {tuple(key): value for key, value in entries}
 
     def dump_dispatch_table(self):
-        table_path = self.cache_dir / "dispatch_table.pickle"
+        table_path = self.cache_dir / "dispatch_table.json"
         table_txt_path = self.cache_dir / "dispatch_table.txt"
-        with open(table_path, "wb") as f:
-            pickle.dump(self.dispatch_table, f)
+        entries = [[list(key), value] for key, value in self.dispatch_table.items()]
+        with open(table_path, "w") as f:
+            json.dump(entries, f)
         headers = []
         for idx in self.call_params.tuning_params:
             headers.append(self.call_params.param_names[idx])
@@ -733,8 +745,6 @@ class InstantiatedScript:
 
         self.jit_instances: dict[JitKey, JitInstance] = {}
         self.dispatch_table: dict[tuple[JitKey, TuningKey], tvm_ffi.Function] = {}
-
-        self.launch_blocking: bool = tilus.option.get_option("debug.launch_blocking")
 
     def __call__(self, *args, **kwargs):
         if kwargs or self.with_default:
@@ -769,10 +779,6 @@ class InstantiatedScript:
         # call the compiled function
         kernel_args = (args[i] for i in self.kernel_params)
         ret = compiled_func(*kernel_args)
-
-        # sync the device if the user wants to block the launch
-        if self.launch_blocking:
-            cudaDeviceSynchronize()
 
         return ret
 

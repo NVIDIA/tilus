@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +24,12 @@ from tilus.hidet.ir.type import BaseType, DataType
 from tilus.hidet.ir.utils import broadcast_shapes, can_broadcast
 from tilus.hidet.utils import prod, same_list
 from tilus.ir.inst import Instruction, InstructionError
+from tilus.ir.instructions.cuda.atomic import (
+    AtomicGlobalInst,
+    AtomicScatterGlobalInst,
+    AtomicScatterSharedInst,
+    AtomicSharedInst,
+)
 from tilus.ir.instructions.cuda.clc import ClusterLaunchControlQueryResponseInst, ClusterLaunchControlTryCancelInst
 from tilus.ir.instructions.cuda.cluster_sync import ClusterSyncThreadsInst
 from tilus.ir.instructions.cuda.cp_async import (
@@ -45,7 +51,7 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorSharedToGlobalInst,
     CopyAsyncTensorWaitGroupInst,
 )
-from tilus.ir.instructions.cuda.fence import FenceViewAsync
+from tilus.ir.instructions.cuda.fence import FenceProxyAsync, FenceProxyAsyncRelease
 from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
 from tilus.ir.instructions.cuda.mbarrier import (
     AllocBarrierInst,
@@ -98,11 +104,13 @@ from tilus.ir.instructions.generic import (
     ModInst,
     MulInst,
     PermuteSharedInst,
+    Philox4x32Inst,
     PrintTensorInst,
     ReduceInst,
     RepeatInst,
     RepeatInterleaveInst,
     ReshapeSharedInst,
+    ScanInst,
     SliceAssignInst,
     SliceGlobalInst,
     SliceRegisterInst,
@@ -110,7 +118,9 @@ from tilus.ir.instructions.generic import (
     SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
+    StoreGlobalScatterInst,
     StoreSharedInst,
+    StoreSharedScatterInst,
     SubInst,
     SyncReduceThreadsInst,
     SyncThreadsInst,
@@ -358,10 +368,10 @@ class StmtBuilderCore:
         stmt = ReturnStmt()
         self._stack[-1].append(stmt)
 
-    def declare(self, type: BaseType, init: Optional[Expr | float | int] = None, hint: Optional[str] = None) -> Var:
-        if hint is not None:
-            hint = "v"
-        var = Var(hint, type=type)
+    def declare(self, type: BaseType, init: Optional[Expr | float | int] = None, name: Optional[str] = None) -> Var:
+        if name is not None:
+            name = "v"
+        var = Var(name, type=type)
         self.append(DeclareStmt(var, as_expr(init) if init is not None else None))
         return var
 
@@ -854,6 +864,21 @@ class StmtBuilder(StmtBuilderCore):
         self.append(inst)
         return inst.register_output
 
+    def scan(
+        self,
+        x: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        exclusive: bool = False,
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        if out is None:
+            out = RegisterTensor.create(dtype=x.dtype, shape=x.shape, optional_layout=x.optional_layout)
+        inst = ScanInst.create(x=x, output=out, dim=dim, op=op, exclusive=exclusive)
+        self.append(inst)
+        return inst.register_output
+
     def _binary(
         self,
         x: RegisterTensor,
@@ -980,6 +1005,12 @@ class StmtBuilder(StmtBuilderCore):
     def log(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: primitives.log(arg), out=out)
 
+    def sin(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.sin(arg), out=out)
+
+    def cos(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
+        return self.elementwise_unary(x, f_compute=lambda arg: primitives.cos(arg), out=out)
+
     def logical_not(self, x: RegisterTensor, *, out: Optional[RegisterTensor] = None) -> RegisterTensor:
         return self.elementwise_unary(x, f_compute=lambda arg: LogicalNot(arg), out=out)
 
@@ -1018,6 +1049,107 @@ class StmtBuilder(StmtBuilderCore):
         )
         self.append(inst)
         return inst.register_output
+
+    # random number generation
+
+    def philox4x32(
+        self,
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        inst = Philox4x32Inst.create(seed=seed, offset=offset, n_rounds=n_rounds)
+        self.append(inst)
+        return inst.register_output
+
+    def randint4x(
+        self,
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> tuple[RegisterTensor, RegisterTensor, RegisterTensor, RegisterTensor]:
+        philox_out = self.philox4x32(seed=seed, offset=offset, n_rounds=n_rounds)
+        # Philox output shape is [4, *offset.shape]. Slice along dim 0 to extract each component.
+        # offsets has one entry per source dim; dims lists which source dims the output maps to.
+        zero_offsets = [as_expr(0)] * len(offset.shape)
+        slice_dims = list(range(1, 1 + len(offset.shape)))
+        r0 = self.slice_register(
+            philox_out, offsets=[as_expr(0)] + zero_offsets, slice_dims=slice_dims, slice_shape=list(offset.shape)
+        )
+        r1 = self.slice_register(
+            philox_out, offsets=[as_expr(1)] + zero_offsets, slice_dims=slice_dims, slice_shape=list(offset.shape)
+        )
+        r2 = self.slice_register(
+            philox_out, offsets=[as_expr(2)] + zero_offsets, slice_dims=slice_dims, slice_shape=list(offset.shape)
+        )
+        r3 = self.slice_register(
+            philox_out, offsets=[as_expr(3)] + zero_offsets, slice_dims=slice_dims, slice_shape=list(offset.shape)
+        )
+        return r0, r1, r2, r3
+
+    def randint(
+        self,
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        r0, _, _, _ = self.randint4x(seed=seed, offset=offset, n_rounds=n_rounds)
+        return r0
+
+    def _uint32_to_uniform_float(self, x: RegisterTensor) -> RegisterTensor:
+        """Convert a uint32 register tensor to uniform float32 in [0, 1)."""
+        from tilus.hidet.ir.dtypes import float32
+
+        x_i32 = self.cast(x, dtype=int32)
+        neg = self.elementwise_binary(
+            x_i32,
+            self.allocate_register(dtype=int32, shape=x.shape, f_init=lambda _: int32.constant(0)),
+            f_compute=lambda a, b: LessThan(a, b),
+        )
+        neg_x = self.neg(x_i32)
+        one = self.allocate_register(dtype=int32, shape=x.shape, f_init=lambda _: int32.constant(1))
+        neg_x_minus_1 = self.sub(neg_x, one)
+        folded = self.where(neg, neg_x_minus_1, x_i32)
+        folded_f32 = self.cast(folded, dtype=float32)
+        scale = self.allocate_register(
+            dtype=float32, shape=x.shape, f_init=lambda _: float32.constant(4.6566127342e-10)
+        )
+        return self.mul(folded_f32, scale)
+
+    def rand(
+        self,
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        raw = self.randint(seed=seed, offset=offset, n_rounds=n_rounds)
+        return self._uint32_to_uniform_float(raw)
+
+    def randn(
+        self,
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> RegisterTensor:
+        from tilus.hidet.ir.dtypes import float32
+
+        r0, r1, _, _ = self.randint4x(seed=seed, offset=offset, n_rounds=n_rounds)
+        u1 = self._uint32_to_uniform_float(r0)
+        u2 = self._uint32_to_uniform_float(r1)
+        # Clamp u1 to avoid log(0)
+        eps = self.allocate_register(dtype=float32, shape=offset.shape, f_init=lambda _: float32.constant(1.0e-7))
+        u1 = self.maximum(u1, eps)
+        # Box-Muller transform
+        two_pi = self.allocate_register(
+            dtype=float32, shape=offset.shape, f_init=lambda _: float32.constant(6.283185307179586)
+        )
+        neg_two = self.allocate_register(dtype=float32, shape=offset.shape, f_init=lambda _: float32.constant(-2.0))
+        theta = self.mul(two_pi, u2)
+        log_u1 = self.log(u1)
+        scaled = self.mul(neg_two, log_u1)
+        r = self.sqrt(scaled)
+        cos_theta = self.cos(theta)
+        return self.mul(r, cos_theta)
 
     # shared value operations
 
@@ -1077,6 +1209,17 @@ class StmtBuilder(StmtBuilderCore):
         inst = StoreSharedInst.create(dst=dst, src=src)
         self.append(inst)
 
+    def store_shared_scatter(
+        self,
+        dst: SharedTensor,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+        *,
+        dim: int,
+    ) -> None:
+        inst = StoreSharedScatterInst.create(dst=dst, indices=indices, values=values, dim=dim)
+        self.append(inst)
+
     # global memory operations
     def global_view(self, ptr: Expr, dtype: DataType, layout: GlobalLayout) -> GlobalTensor:
         inst = GlobalViewInst.create(output=GlobalTensor.create(dtype=dtype, layout=layout), ptr=ptr)
@@ -1119,6 +1262,17 @@ class StmtBuilder(StmtBuilderCore):
         inst = StoreGlobalInst.create(dst=dst, x=src, offsets=[as_expr(ofs) for ofs in offsets], dims=dims)
         self.append(inst)
 
+    def store_global_scatter(
+        self,
+        dst: GlobalTensor,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+        *,
+        dim: int,
+    ) -> None:
+        inst = StoreGlobalScatterInst.create(dst=dst, indices=indices, values=values, dim=dim)
+        self.append(inst)
+
     def store_global_generic(
         self,
         x: RegisterTensor,
@@ -1146,6 +1300,115 @@ class StmtBuilder(StmtBuilderCore):
         inst = LoadGlobalGenericInst.create(ptr=ptr, f_offset=f_offset, f_mask=f_mask, output=out)
         self.append(inst)
         return inst.register_output
+
+    # atomic operations
+    def atomic_shared(
+        self,
+        dst: SharedTensor,
+        values: RegisterTensor,
+        *,
+        op: str,
+        sem: str = "relaxed",
+        scope: str = "cta",
+        output: Optional[RegisterTensor] = None,
+        compare: Optional[RegisterTensor] = None,
+    ) -> Optional[RegisterTensor]:
+        if output is None:
+            output = RegisterTensor.create(dtype=dst.dtype, shape=dst.shape, optional_layout=values.optional_layout)
+        inst = AtomicSharedInst.create(
+            dst=dst,
+            values=values,
+            op=op,
+            sem=sem,
+            scope=scope,
+            output=output,
+            compare=compare,
+        )
+        self.append(inst)
+        return inst.register_output if inst.output is not None else None
+
+    def atomic_global(
+        self,
+        dst: GlobalTensor,
+        values: RegisterTensor,
+        *,
+        op: str,
+        sem: str = "relaxed",
+        scope: str = "gpu",
+        output: Optional[RegisterTensor] = None,
+        compare: Optional[RegisterTensor] = None,
+    ) -> Optional[RegisterTensor]:
+        if output is None:
+            output = RegisterTensor.create(dtype=dst.dtype, shape=dst.shape, optional_layout=values.optional_layout)
+        inst = AtomicGlobalInst.create(
+            dst=dst,
+            values=values,
+            op=op,
+            sem=sem,
+            scope=scope,
+            output=output,
+            compare=compare,
+        )
+        self.append(inst)
+        return inst.register_output if inst.output is not None else None
+
+    def atomic_shared_scatter(
+        self,
+        dst: SharedTensor,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        sem: str = "relaxed",
+        scope: str = "cta",
+        output: Optional[RegisterTensor] = None,
+    ) -> Optional[RegisterTensor]:
+        if output is None:
+            output = RegisterTensor.create(
+                dtype=dst.dtype, shape=indices.shape, optional_layout=indices.optional_layout
+            )
+        inst = AtomicScatterSharedInst.create(
+            dst=dst,
+            indices=indices,
+            values=values,
+            dim=dim,
+            op=op,
+            sem=sem,
+            scope=scope,
+            output=output,
+        )
+        self.append(inst)
+        return inst.register_output if inst.output is not None else None
+
+    def atomic_global_scatter(
+        self,
+        dst: GlobalTensor,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        sem: str = "relaxed",
+        scope: str = "gpu",
+        output: Optional[RegisterTensor] = None,
+    ) -> Optional[RegisterTensor]:
+        if output is None:
+            output = RegisterTensor.create(
+                dtype=dst.dtype, shape=indices.shape, optional_layout=indices.optional_layout
+            )
+        inst = AtomicScatterGlobalInst.create(
+            dst=dst,
+            indices=indices,
+            values=values,
+            dim=dim,
+            op=op,
+            sem=sem,
+            scope=scope,
+            output=output,
+        )
+        self.append(inst)
+        return inst.register_output if inst.output is not None else None
 
     # semaphore
     def lock_semaphore(self, semaphore: Expr, value: Expr | int) -> None:
@@ -1272,8 +1535,12 @@ class StmtBuilder(StmtBuilderCore):
         )
         self.append(inst)
 
-    def fence_view_async(self, space: str) -> None:
-        inst = FenceViewAsync.create(scope=space)
+    def fence_proxy_async(self, space: str) -> None:
+        inst = FenceProxyAsync.create(space=space)
+        self.append(inst)
+
+    def fence_proxy_async_release(self) -> None:
+        inst = FenceProxyAsyncRelease.create()
         self.append(inst)
 
     def cluster_launch_control_try_cancel(

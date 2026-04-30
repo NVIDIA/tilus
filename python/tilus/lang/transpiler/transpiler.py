@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -141,7 +141,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                     None,
                     f'Parameter "{name}" has invalid type annotation "{param_type}", tilus requires a BaseType type annotation for each parameter.',
                 )
-            param_var = Var(hint=name, type=param_type)
+            param_var = Var(name=name, type=param_type)
             params[name] = param_var
 
         # return type
@@ -413,7 +413,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
             #    3.1) if there is type annotation, we define a scalar variable
             #    3.2) otherwise, we bind the host expression to the name
             if isinstance(value, hidet_ir.Expr):
-                var = self.declare(type=hidet_ir.infer_type(value), init=value, hint=name)
+                var = self.declare(type=hidet_ir.infer_type(value), init=value, name=name)
                 self.bind(name, var)
             elif isinstance(value, tilus_ir.Tensor):
                 self.bind(name, value)
@@ -434,7 +434,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                             )
                         if not isinstance(value, hidet_ir.Expr):
                             value = as_expr(value)  # type: ignore
-                        stmt = DeclareStmt(var=Var(hint=name, type=resolved_annotation), init=value)
+                        stmt = DeclareStmt(var=Var(name=name, type=resolved_annotation), init=value)
                         self.append(stmt)
                         self.bind(name, stmt.var)
                 else:
@@ -757,6 +757,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
         elif isinstance(lhs, (list, tuple)) and isinstance(rhs, (list, tuple)):
             assert isinstance(expr.op, ast.Add)
             return list(lhs) + list(rhs)
+        elif isinstance(lhs, list) and isinstance(rhs, int) and isinstance(expr.op, ast.Mult):
+            return lhs * rhs
         elif isinstance(lhs, (ir.Expr, float, int)) and isinstance(rhs, (ir.Expr, float, int)):
             if type(expr.op) in op_dict:
                 return op_dict[type(expr.op)](lhs, rhs)
@@ -1122,8 +1124,8 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
 
             with self.block(), self.scope() as for_scope:
                 for var in loop_vars:
-                    assert var.hint is not None
-                    for_scope.bind(name=var.hint, var_or_value=var)
+                    assert var.name is not None
+                    for_scope.bind(name=var.name, var_or_value=var)
                 for name, value in host_vars.items():
                     for_scope.bind(name, value)
                 for s in stmt.body:
@@ -1284,7 +1286,7 @@ class Transpiler(ScopedProgramBuilder, PythonAstFunctor):
                     if isinstance(bind_value, hidet_ir.Expr):
                         from tilus.hidet.ir.tools import infer_type
 
-                        bind_var = self.declare(type=infer_type(bind_value), init=bind_value, hint=bind_name)
+                        bind_var = self.declare(type=infer_type(bind_value), init=bind_value, name=bind_name)
                         self.bind(bind_name, var_or_value=bind_var)
                     else:
                         self.bind(with_item.optional_vars.id, bind_value)

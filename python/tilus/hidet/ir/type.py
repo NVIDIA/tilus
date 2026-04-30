@@ -26,7 +26,7 @@
 # pylint: disable=import-outside-toplevel
 from __future__ import annotations
 
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Any, List, Optional, Sequence, Tuple, Union
 
 from tilus.hidet.ir.node import Node
 
@@ -46,14 +46,6 @@ class BaseType(Node):
             return PointerType(base_type=self)
         else:
             raise ValueError("Can not recognize type {}".format(self))
-
-    def __getitem__(self, item):
-        if isinstance(item, (tuple, list)):
-            if len(item) == 1:
-                item = item[0]
-            else:
-                raise ValueError("Currently, only support 1-d array, but got {}".format(item))
-        return array_type(self, int(item))
 
     def is_void(self):
         return isinstance(self, VoidType)
@@ -222,7 +214,7 @@ class DataType(BaseType):
 
 
 class TensorType(BaseType):
-    def __init__(self, dtype=None, shape=None, layout=None):
+    def __init__(self, dtype=None, shape=None):
         """
         A tensor type.
 
@@ -232,23 +224,24 @@ class TensorType(BaseType):
             The data type of the tensor.
         shape: Tuple[Expr, ...]
             The shape of the tensor.
-        layout: hidet.ir.layout.DataLayout
-            The layout of the tensor.
         """
-        from tilus.hidet.ir.layout import DataLayout
-
         self.dtype: DataType = dtype
         self.shape: Tuple[Expr, ...] = shape
-        self.layout: DataLayout = layout
 
     def __invert__(self):
         return TensorPointerType.from_tensor_type(self)
 
+    @property
+    def size(self) -> Expr:
+        from tilus.hidet.utils import prod
+
+        return prod(self.shape)
+
     def storage_bytes(self) -> Expr:
         if self.dtype.is_integer_subbyte():
-            return self.layout.size * self.dtype.nbits // 8
+            return self.size * self.dtype.nbits // 8
         else:
-            return self.layout.size * self.dtype.nbytes
+            return self.size * self.dtype.nbytes
 
     def const_shape(self) -> List[int]:
         return [int(v) for v in self.shape]
@@ -285,12 +278,6 @@ class PointerType(BaseType):
             raise ValueError("Can not convert {} to {}".format(x, self))
 
 
-class ReferenceType(BaseType):
-    def __init__(self, base_type):
-        super().__init__()
-        self.base_type = base_type
-
-
 class TensorPointerType(BaseType):
     def __init__(self, ttype: TensorType):
         """
@@ -300,52 +287,15 @@ class TensorPointerType(BaseType):
 
     @staticmethod
     def from_tensor_type(tp: TensorType) -> TensorPointerType:
-        tpt = object.__new__(TensorPointerType)
-        tpt.tensor_type = tp
-        return tpt
-
-
-class ArrayType(BaseType):
-    def __init__(self, base_type, size: int):
-        super().__init__()
-        self.base_type: BaseType = base_type
-        self.size: int = size
-
-        assert isinstance(base_type, BaseType) and not isinstance(base_type, (ArrayType, TensorType))
-        assert isinstance(size, int) and size >= 0
-
-
-TypeLike = Union[str, BaseType]
+        return TensorPointerType(tp)
 
 
 class FuncType(BaseType):
-    def __init__(
-        self,
-        param_types: Optional[List[TypeLike]] = None,
-        ret_type: Optional[TypeLike] = None,
-        type_infer_func: Optional[Callable] = None,  # Callable[[a number of BaseType], BaseType]
-    ):
-        self.param_types: Optional[List[BaseType]] = (
-            [self._convert_type(tp) for tp in param_types] if param_types is not None else None
-        )
-        self.ret_type: Optional[BaseType] = self._convert_type(ret_type) if ret_type is not None else None
-        self.type_infer_func: Optional[Callable[[List[BaseType]], BaseType]] = type_infer_func
-        msg = "Please provide either a static type or a type infer func"
-        assert not all(v is None for v in [ret_type, type_infer_func]), msg
-
-    def ret_type_on(self, arg_types: List[BaseType]) -> BaseType:
-        if self.ret_type is not None:
-            # todo: add type checking
-            assert isinstance(self.ret_type, BaseType)
-            return self.ret_type
-        else:
-            return self.type_infer_func(arg_types)
-
-    def _convert_type(self, tp: Union[str, BaseType]):
-        if isinstance(tp, str):
-            return data_type(tp)
-        else:
-            return tp
+    def __init__(self, param_types: List[BaseType], ret_type: BaseType):
+        assert isinstance(param_types, list) and all(isinstance(tp, BaseType) for tp in param_types)
+        assert isinstance(ret_type, BaseType)
+        self.param_types: List[BaseType] = param_types
+        self.ret_type: BaseType = ret_type
 
     @staticmethod
     def from_func(func):
@@ -358,23 +308,17 @@ class OpaqueType(BaseType):
         self.modifiers: Sequence[str] = modifiers
 
 
-def tensor_type(dtype, shape: Optional[Sequence[Union[int, Expr]]] = None, layout=None):
+def tensor_type(dtype, shape: Sequence[Union[int, Expr]]):
     """
     Construct a tensor type.
-
-    One of shape and layout must be given.
 
     Parameters
     ----------
     dtype: str or DataType
         The scalar type of this tensor.
 
-    shape: Sequence[Union[int, Expr]] or none
-        The shape of the tensor. If not given, the shape in layout will be used.
-
-    layout: hidet.ir.layout.DataLayout or none
-        The layout of the tensor. If not given, the row major layout of given shape will
-        be used.
+    shape: Sequence[Union[int, Expr]]
+        The shape of the tensor.
 
     Returns
     -------
@@ -382,40 +326,24 @@ def tensor_type(dtype, shape: Optional[Sequence[Union[int, Expr]]] = None, layou
         The constructed tensor type
     """
     from tilus.hidet.ir.expr import convert
-    from tilus.hidet.ir.layout import DataLayout, row_major
-    from tilus.hidet.ir.tools import simplify
 
     if isinstance(dtype, str):
         dtype = data_type(dtype)
     if not isinstance(dtype, DataType):
         raise ValueError('Scalar type expect a "str" or "ScalarType", but got {}'.format(type(dtype)))
-    if shape is None and layout is None:
-        raise ValueError("Tensor type must give either shape or layout")
-    elif shape is None:
-        assert isinstance(layout, DataLayout)
-        shape = layout.shape
-    elif layout is None:
-        layout = row_major(*shape)
-        if not all(isinstance(s, int) for s in shape):
-            layout = simplify(layout, enable_rules=True)
-    else:
-        assert isinstance(layout, DataLayout)
-        assert isinstance(shape, (list, tuple))
-        assert len(shape) == len(layout.shape)
+    if shape is None:
+        raise ValueError("Tensor type must give a shape")
+    assert isinstance(shape, (list, tuple))
     shape = convert(shape)
-    return TensorType(dtype, shape, layout)
-
-
-def array_type(base_type: BaseType, size: int):
-    return ArrayType(base_type, size)
+    return TensorType(dtype, shape)
 
 
 def pointer_type(base_type):
     return PointerType(base_type)
 
 
-def tensor_pointer_type(dtype, shape=None, layout=None):
-    return TensorPointerType(tensor_type(dtype, shape, layout))
+def tensor_pointer_type(dtype, shape):
+    return TensorPointerType(tensor_type(dtype, shape))
 
 
 def string_type():
@@ -487,8 +415,6 @@ def type_equal(lhs: BaseType, rhs: BaseType) -> bool:
         # do not check layout
         return True
     elif isinstance(lhs, FuncType) and isinstance(rhs, FuncType):
-        assert lhs.param_types is not None and lhs.ret_type is not None
-        assert rhs.param_types is not None and rhs.ret_type is not None
         if len(lhs.param_types) != len(rhs.param_types):
             return False
         if not type_equal(lhs.ret_type, rhs.ret_type):
@@ -497,8 +423,6 @@ def type_equal(lhs: BaseType, rhs: BaseType) -> bool:
             if not type_equal(a, b):
                 return False
         return True
-    elif isinstance(lhs, ReferenceType) and isinstance(rhs, ReferenceType):
-        return type_equal(lhs.base_type, rhs.base_type)
     elif isinstance(lhs, OpaqueType) and isinstance(rhs, OpaqueType):
         return lhs.cpp_name == rhs.cpp_name
     else:

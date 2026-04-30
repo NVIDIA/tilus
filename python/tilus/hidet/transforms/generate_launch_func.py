@@ -54,9 +54,9 @@ def _rewrite_dim3(dim3: Tuple[Expr, Expr, Expr], param2arg: Dict[Expr, Expr]) ->
     return rewrite(dim3[0], param2arg), rewrite(dim3[1], param2arg), rewrite(dim3[2], param2arg)
 
 
-def add_launch_func(ir_module: IRModule, kernel_func: Function):
+def add_launch_func(ir_module: IRModule, kernel_func: Function) -> IRModule:
     with FunctionBuilder(name="launch", kind="public") as fb:
-        params = [Var(param.hint, param.type) for param in kernel_func.params]
+        params = [Var(param.name, param.type) for param in kernel_func.params]
         param_remap = {a: b for a, b in zip(kernel_func.params, params)}
         fb.extend_params(params)
 
@@ -65,31 +65,30 @@ def add_launch_func(ir_module: IRModule, kernel_func: Function):
         if kernel_func.kind == "cuda_kernel":
             from tilus.hidet.lang.cuda import set_kernel_max_dynamic_smem_bytes
 
-            shared_memory_bytes: Expr = rewrite(
-                simplify(kernel_func.get_attr("cuda.dynamic_smem_bytes", int32(0))), param_remap
-            )
+            dsb = kernel_func.attrs.dynamic_smem_bytes
+            shared_memory_bytes: Expr = rewrite(simplify(dsb if dsb is not None else int32(0)), param_remap)
             with fb.if_then(shared_memory_bytes > 48 * 1024):
                 fb += set_kernel_max_dynamic_smem_bytes(func_var, shared_memory_bytes)
+            cluster_dim = kernel_func.attrs.cluster_dim if kernel_func.attrs.cluster_dim is not None else 1
             fb += LaunchKernelStmt(
                 func_var,
                 params,
-                grid_dim=rewrite(_normalize_dim3(kernel_func.get_attr("cuda.grid_dim")), param_remap),
-                cluster_dim=rewrite(_normalize_dim3(kernel_func.get_attr("cuda.cluster_dim", default=1)), param_remap),
-                block_dim=rewrite(_normalize_dim3(kernel_func.get_attr("cuda.block_dim")), param_remap),
+                grid_dim=rewrite(_normalize_dim3(kernel_func.attrs.grid_dim), param_remap),
+                cluster_dim=rewrite(_normalize_dim3(cluster_dim), param_remap),
+                block_dim=rewrite(_normalize_dim3(kernel_func.attrs.block_dim), param_remap),
                 shared_mem=shared_memory_bytes,
                 target="cuda",
             )
         elif kernel_func.kind == "hip_kernel":
-            shared_memory_bytes: Expr = rewrite(
-                simplify(kernel_func.get_attr("hip.dynamic_smem_bytes", int32(0))), param_remap
-            )
+            dsb = kernel_func.attrs.dynamic_smem_bytes
+            shared_memory_bytes: Expr = rewrite(simplify(dsb if dsb is not None else int32(0)), param_remap)
 
             fb += LaunchKernelStmt(
                 func_var,
                 params,
-                grid_dim=rewrite(_normalize_dim3(kernel_func.get_attr("hip.grid_dim")), param_remap),
+                grid_dim=rewrite(_normalize_dim3(kernel_func.attrs.grid_dim), param_remap),
                 cluster_dim=(int32.one, int32.one, int32.one),
-                block_dim=rewrite(_normalize_dim3(kernel_func.get_attr("hip.block_dim")), param_remap),
+                block_dim=rewrite(_normalize_dim3(kernel_func.attrs.block_dim), param_remap),
                 shared_mem=shared_memory_bytes,
                 target="hip",
             )
@@ -99,27 +98,47 @@ def add_launch_func(ir_module: IRModule, kernel_func: Function):
             raise NotImplementedError("Unsupported function kind: {}".format(kernel_func.kind))
 
     launch: Function = fb.func
-    ir_module.add_function(launch.name, launch)
+    return ir_module.with_added_functions({launch.name: launch})
 
 
 class GenerateLaunchFuncPass(Pass):
     def process_module(self, ir_module: IRModule) -> IRModule:
         if any(func.name.startswith("launch") for func in ir_module.functions.values() if func.kind == "public"):
-            # the launch function has already existed
             return ir_module
+
+        # Find existing codegen host functions (public, not "launch")
+        host_funcs = [
+            (name, func)
+            for name, func in ir_module.functions.items()
+            if func.kind == "public" and not name.startswith("launch")
+        ]
+
+        if len(host_funcs) == 1:
+            # Single host function: rename it to "launch" so the runtime can find it.
+            # This avoids creating a duplicate function.
+            old_name, host_func = host_funcs[0]
+            renamed = Function(
+                name="launch",
+                params=host_func.params,
+                body=host_func.body,
+                ret_type=host_func.ret_type,
+                kind=host_func.kind,
+                attrs=host_func.attrs,
+            )
+            return ir_module.with_removed_functions([old_name]).with_added_functions({"launch": renamed})
+
+        # Multiple or no host functions: generate a launch function from the kernel
         kernel_functions: Dict[str, Function] = {
             name: func
             for name, func in ir_module.functions.items()
             if func.kind in ["cuda_kernel", "hip_kernel", "cpu_kernel"]
         }
         if len(kernel_functions) == 0:
-            # no kernel function found in the module, do nothing
             return ir_module
         if len(kernel_functions) > 1:
             raise NotImplementedError("Can only handle one kernel function in a module")
         kernel_func = next(iter(kernel_functions.values()))
-        add_launch_func(ir_module, kernel_func)
-        return ir_module
+        return add_launch_func(ir_module, kernel_func)
 
 
 def generate_launch_func(ir_module: IRModule) -> IRModule:

@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 410" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <!-- V1 (no pipeline): serial load → compute → load → compute -->
+  <text x="380" y="20" text-anchor="middle" font-weight="700" font-size="15" fill="#333">V1: No Pipeline (serial)</text>
+
+  <!-- Timeline axis -->
+  <line x1="80" y1="80" x2="720" y2="80" stroke="#ccc" stroke-width="1"/>
+  <text x="50" y="60" text-anchor="middle" font-size="11" fill="#666">TMA</text>
+  <text x="50" y="85" text-anchor="middle" font-size="11" fill="#666">MMA</text>
+
+  <!-- V1 blocks: load0, mma0, load1, mma1, load2, mma2 -->
+  <rect x="80" y="45" width="100" height="25" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="130" y="62" text-anchor="middle" font-size="10" fill="#bf360c">Load k=0</text>
+
+  <rect x="180" y="70" width="80" height="25" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="220" y="87" text-anchor="middle" font-size="10" fill="#5e35b1">MMA k=0</text>
+
+  <rect x="260" y="45" width="100" height="25" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="310" y="62" text-anchor="middle" font-size="10" fill="#bf360c">Load k=1</text>
+
+  <rect x="360" y="70" width="80" height="25" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="400" y="87" text-anchor="middle" font-size="10" fill="#5e35b1">MMA k=1</text>
+
+  <rect x="440" y="45" width="100" height="25" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="490" y="62" text-anchor="middle" font-size="10" fill="#bf360c">Load k=2</text>
+
+  <rect x="540" y="70" width="80" height="25" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="580" y="87" text-anchor="middle" font-size="10" fill="#5e35b1">MMA k=2</text>
+
+  <text x="660" y="67" font-size="12" fill="#999">...</text>
+
+  <!-- Idle gaps annotation -->
+  <text x="400" y="110" text-anchor="middle" font-size="11" fill="#dc3545" font-weight="600">TMA and MMA never overlap --- wasted time</text>
+
+  <!-- Dividing line -->
+  <line x1="40" y1="135" x2="720" y2="135" stroke="#ccc" stroke-width="1" stroke-dasharray="6,4"/>
+
+  <!-- V2 (3-stage pipeline) -->
+  <text x="380" y="160" text-anchor="middle" font-weight="700" font-size="15" fill="#333">V2: 3-Stage Software Pipeline</text>
+
+  <!-- Stage labels on left -->
+  <text x="50" y="200" text-anchor="middle" font-size="11" fill="#666">TMA</text>
+  <text x="50" y="230" text-anchor="middle" font-size="11" fill="#666">MMA</text>
+
+  <!-- Prefill phase -->
+  <rect x="80" y="185" width="70" height="25" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="115" y="202" text-anchor="middle" font-size="9" fill="#bf360c">Load k=0</text>
+  <rect x="150" y="185" width="70" height="25" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="185" y="202" text-anchor="middle" font-size="9" fill="#bf360c">Load k=1</text>
+
+  <!-- Prefill bracket -->
+  <line x1="80" y1="175" x2="220" y2="175" stroke="#888" stroke-width="1"/>
+  <line x1="80" y1="172" x2="80" y2="178" stroke="#888" stroke-width="1"/>
+  <line x1="220" y1="172" x2="220" y2="178" stroke="#888" stroke-width="1"/>
+  <text x="150" y="170" text-anchor="middle" font-size="9" fill="#888">prefill</text>
+
+  <!-- Main loop: overlapping load and compute -->
+  <!-- Iteration 0: load k=2, mma k=0 -->
+  <rect x="230" y="185" width="70" height="25" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="265" y="202" text-anchor="middle" font-size="9" fill="#bf360c">Load k=2</text>
+  <rect x="230" y="215" width="70" height="25" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="265" y="232" text-anchor="middle" font-size="9" fill="#5e35b1">MMA k=0</text>
+
+  <!-- Iteration 1: load k=3, mma k=1 -->
+  <rect x="310" y="185" width="70" height="25" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="345" y="202" text-anchor="middle" font-size="9" fill="#bf360c">Load k=3</text>
+  <rect x="310" y="215" width="70" height="25" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="345" y="232" text-anchor="middle" font-size="9" fill="#5e35b1">MMA k=1</text>
+
+  <!-- Iteration 2: load k=4, mma k=2 -->
+  <rect x="390" y="185" width="70" height="25" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="425" y="202" text-anchor="middle" font-size="9" fill="#bf360c">Load k=4</text>
+  <rect x="390" y="215" width="70" height="25" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="425" y="232" text-anchor="middle" font-size="9" fill="#5e35b1">MMA k=2</text>
+
+  <!-- Iteration 3: load k=5, mma k=3 -->
+  <rect x="470" y="185" width="70" height="25" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="505" y="202" text-anchor="middle" font-size="9" fill="#bf360c">Load k=5</text>
+  <rect x="470" y="215" width="70" height="25" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="505" y="232" text-anchor="middle" font-size="9" fill="#5e35b1">MMA k=3</text>
+
+  <text x="570" y="205" font-size="12" fill="#999">...</text>
+
+  <!-- Main loop bracket -->
+  <line x1="230" y1="175" x2="540" y2="175" stroke="#888" stroke-width="1"/>
+  <line x1="230" y1="172" x2="230" y2="178" stroke="#888" stroke-width="1"/>
+  <line x1="540" y1="172" x2="540" y2="178" stroke="#888" stroke-width="1"/>
+  <text x="385" y="170" text-anchor="middle" font-size="9" fill="#888">main loop</text>
+
+  <!-- Overlap annotation -->
+  <text x="400" y="260" text-anchor="middle" font-size="11" fill="#28a745" font-weight="600">TMA and MMA overlap --- higher utilization</text>
+
+  <!-- Shared memory stages diagram -->
+  <!-- Stage usage snapshots -->
+  <text x="380" y="290" text-anchor="middle" font-weight="600" font-size="13" fill="#333">Stage Usage (3 stages, showing 3 iterations)</text>
+
+  <!-- Time arrow -->
+  <defs>
+    <marker id="arr-time" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#888"/>
+    </marker>
+  </defs>
+  <line x1="50" y1="315" x2="50" y2="395" stroke="#888" stroke-width="1.2" marker-end="url(#arr-time)"/>
+  <text x="50" y="308" text-anchor="middle" font-size="9" fill="#888">time</text>
+
+  <!-- Column headers -->
+  <text x="105" y="310" text-anchor="middle" font-size="10" fill="#666" font-weight="600">Iteration</text>
+  <text x="260" y="310" text-anchor="middle" font-size="10" fill="#155724">Stage 0</text>
+  <text x="400" y="310" text-anchor="middle" font-size="10" fill="#155724">Stage 1</text>
+  <text x="540" y="310" text-anchor="middle" font-size="10" fill="#155724">Stage 2</text>
+
+  <!-- Iter 0: MMA reads stage 0, TMA writes stage 2 -->
+  <text x="105" y="332" text-anchor="middle" font-size="10" fill="#333" font-weight="600">iter 0</text>
+  <rect x="205" y="320" width="110" height="18" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1"/>
+  <text x="260" y="333" text-anchor="middle" font-size="9" fill="#5e35b1">MMA reads k=0</text>
+  <rect x="345" y="320" width="110" height="18" rx="3" fill="#f0f0f0" stroke="#ccc" stroke-width="0.8"/>
+  <text x="400" y="333" text-anchor="middle" font-size="9" fill="#999">ready (k=1)</text>
+  <rect x="485" y="320" width="110" height="18" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="540" y="333" text-anchor="middle" font-size="9" fill="#bf360c">TMA loads k=2</text>
+
+  <!-- Iter 1: MMA reads stage 1, TMA writes stage 0 -->
+  <text x="105" y="352" text-anchor="middle" font-size="10" fill="#333" font-weight="600">iter 1</text>
+  <rect x="205" y="340" width="110" height="18" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="260" y="353" text-anchor="middle" font-size="9" fill="#bf360c">TMA loads k=3</text>
+  <rect x="345" y="340" width="110" height="18" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1"/>
+  <text x="400" y="353" text-anchor="middle" font-size="9" fill="#5e35b1">MMA reads k=1</text>
+  <rect x="485" y="340" width="110" height="18" rx="3" fill="#f0f0f0" stroke="#ccc" stroke-width="0.8"/>
+  <text x="540" y="353" text-anchor="middle" font-size="9" fill="#999">ready (k=2)</text>
+
+  <!-- Iter 2: MMA reads stage 2, TMA writes stage 1 -->
+  <text x="105" y="372" text-anchor="middle" font-size="10" fill="#333" font-weight="600">iter 2</text>
+  <rect x="205" y="360" width="110" height="18" rx="3" fill="#f0f0f0" stroke="#ccc" stroke-width="0.8"/>
+  <text x="260" y="373" text-anchor="middle" font-size="9" fill="#999">ready (k=3)</text>
+  <rect x="345" y="360" width="110" height="18" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="400" y="373" text-anchor="middle" font-size="9" fill="#bf360c">TMA loads k=4</text>
+  <rect x="485" y="360" width="110" height="18" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1"/>
+  <text x="540" y="373" text-anchor="middle" font-size="9" fill="#5e35b1">MMA reads k=2</text>
+
+  <!-- Iter 3: MMA reads stage 0, TMA writes stage 2 (same as iter 0 — cycle repeats) -->
+  <text x="105" y="392" text-anchor="middle" font-size="10" fill="#333" font-weight="600">iter 3</text>
+  <rect x="205" y="380" width="110" height="18" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1"/>
+  <text x="260" y="393" text-anchor="middle" font-size="9" fill="#5e35b1">MMA reads k=3</text>
+  <rect x="345" y="380" width="110" height="18" rx="3" fill="#f0f0f0" stroke="#ccc" stroke-width="0.8"/>
+  <text x="400" y="393" text-anchor="middle" font-size="9" fill="#999">ready (k=4)</text>
+  <rect x="485" y="380" width="110" height="18" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="540" y="393" text-anchor="middle" font-size="9" fill="#bf360c">TMA loads k=5</text>
+</svg>

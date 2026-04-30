@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,6 +54,7 @@ def _register_options():
         "tilus.cache_dir",
         type_hint="str",
         default_value=_get_default_cache_dir(),
+        env="TILUS_CACHE_DIR",
         description="The directory to store the cache files.",
     )
     _register_hidet_option(
@@ -66,13 +67,27 @@ def _register_options():
         "tilus.debug.dump_ir",
         type_hint="bool",
         default_value=False,
+        env="TILUS_DUMP_IR",
         description="Whether to dump the IR during compilation.",
     )
     _register_hidet_option(
-        "tilus.debug.launch_blocking",
+        "tilus.debug.disable_ptxas_opt",
         type_hint="bool",
         default_value=False,
-        description="Whether to block the launch of the kernel until the kernel is finished.",
+        env="TILUS_DISABLE_PTXAS_OPT",
+        description="Whether to disable the optimization of ptxas. This is useful for debugging the generated PTX code.",
+    )
+    _register_hidet_option(
+        "tilus.bench_warmup",
+        type_hint="int",
+        default_value=5,
+        description="The number of warmup iterations before benchmarking during autotuning.",
+    )
+    _register_hidet_option(
+        "tilus.bench_repeat",
+        type_hint="int",
+        default_value=50,
+        description="The number of repeat iterations for benchmarking during autotuning.",
     )
 
 
@@ -120,11 +135,35 @@ def parallel_workers(n: int) -> None:
     return _set_hidet_option("tilus.parallel_workers", n)
 
 
+def bench_warmup(n: int) -> None:
+    """
+    Set the number of warmup iterations before benchmarking during autotuning.
+
+    Parameters
+    ----------
+    n: int
+        The number of warmup iterations.
+    """
+    _set_hidet_option("tilus.bench_warmup", n)
+
+
+def bench_repeat(n: int) -> None:
+    """
+    Set the number of repeat iterations for benchmarking during autotuning.
+
+    Parameters
+    ----------
+    n: int
+        The number of repeat iterations.
+    """
+    _set_hidet_option("tilus.bench_repeat", n)
+
+
 class debug:
     @staticmethod
     def dump_ir(enable: bool = True) -> None:
         """
-        Whether to dump the IR during compilation.
+        Whether to dump the IR during compilation. Default is False.
 
         Parameters
         ----------
@@ -134,13 +173,15 @@ class debug:
         return _set_hidet_option("tilus.debug.dump_ir", enable)
 
     @staticmethod
-    def launch_blocking(enabled: bool = True) -> None:
+    def disable_ptxas_opt(enabled: bool = True) -> None:
         """
-        Whether to block the launch of the kernel until the kernel is finished.
+        Whether to disable the optimization of ptxas. Default is False.
+
+        This is useful for debugging the generated PTX code.  When this option is enabled, the ptxas will be called with the -O0 flag to disable all optimizations.
 
         Parameters
         ----------
         enabled: bool
-            The flag to enable or disable blocking the launch of the kernel. Default is True.
+            The flag to enable or disable disabling the optimization of ptxas. Default is True.
         """
-        return _set_hidet_option("tilus.debug.launch_blocking", enabled)
+        return _set_hidet_option("tilus.debug.disable_ptxas_opt", enabled)

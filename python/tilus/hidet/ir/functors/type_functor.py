@@ -25,12 +25,10 @@
 # limitations under the License.
 # pylint: disable=bad-staticmethod-argument
 from tilus.hidet.ir.type import (
-    ArrayType,
     DataType,
     FuncType,
     OpaqueType,
     PointerType,
-    ReferenceType,
     StringType,
     TensorPointerType,
     TensorType,
@@ -51,12 +49,8 @@ class TypeFunctor(BaseFunctor):
             return self.visit_PointerType(node)
         elif isinstance(node, TensorPointerType):
             return self.visit_TensorPointerType(node)
-        elif isinstance(node, ReferenceType):
-            return self.visit_ReferenceType(node)
         elif isinstance(node, StringType):
             return self.visit_StringType(node)
-        elif isinstance(node, ArrayType):
-            return self.visit_ArrayType(node)
         elif isinstance(node, VoidType):
             return self.visit_VoidType(node)
         elif isinstance(node, FuncType):
@@ -72,16 +66,10 @@ class TypeFunctor(BaseFunctor):
     def visit_TensorType(self, t: TensorType):
         raise NotImplementedError()
 
-    def visit_ArrayType(self, t: ArrayType):
-        raise NotImplementedError()
-
     def visit_PointerType(self, t: PointerType):
         raise NotImplementedError()
 
     def visit_TensorPointerType(self, t: TensorPointerType):
-        raise NotImplementedError()
-
-    def visit_ReferenceType(self, t: ReferenceType):
         raise NotImplementedError()
 
     def visit_StringType(self, t: StringType):
@@ -104,19 +92,12 @@ class TypeVisitor(TypeFunctor, BaseVisitor):
     def visit_TensorType(self, t: TensorType):
         self.visit(t.dtype)
         self.visit(t.shape)
-        self.visit(t.layout)
-
-    def visit_ArrayType(self, t: ArrayType):
-        self.visit(t.base_type)
 
     def visit_PointerType(self, t: PointerType):
         self.visit(t.base_type)
 
     def visit_TensorPointerType(self, t: TensorPointerType):
         self.visit(t.tensor_type)
-
-    def visit_ReferenceType(self, t: ReferenceType):
-        self.visit(t.base_type)
 
     def visit_StringType(self, t: StringType):
         pass
@@ -140,18 +121,10 @@ class TypeRewriter(TypeFunctor, BaseRewriter):
     def visit_TensorType(self, t: TensorType):
         dtype = self.visit(t.dtype)
         shape = self.visit(t.shape)
-        layout = self.visit(t.layout)
-        if dtype == t.dtype and layout is t.layout and same_list(shape, t.shape):
+        if dtype == t.dtype and same_list(shape, t.shape):
             return t
         else:
-            return TensorType(dtype, shape, layout)
-
-    def visit_ArrayType(self, t: ArrayType):
-        base_type = self.visit(t.base_type)
-        if base_type == t.base_type:
-            return t
-        else:
-            return ArrayType(base_type, t.size)
+            return TensorType(dtype, shape)
 
     def visit_PointerType(self, t: PointerType):
         base_type = self.visit(t.base_type)
@@ -167,13 +140,6 @@ class TypeRewriter(TypeFunctor, BaseRewriter):
         else:
             return TensorPointerType(tensor_type)
 
-    def visit_ReferenceType(self, t: ReferenceType):
-        base_type = self.visit(t.base_type)
-        if base_type == t.base_type:
-            return t
-        else:
-            return ReferenceType(base_type)
-
     def visit_StringType(self, t: StringType):
         return t
 
@@ -181,15 +147,12 @@ class TypeRewriter(TypeFunctor, BaseRewriter):
         return t
 
     def visit_FuncType(self, t: FuncType):
-        if t.type_infer_func is not None:
+        ret_type = self.visit(t.ret_type)
+        param_types = [self.visit(param_type) for param_type in t.param_types]
+        if ret_type == t.ret_type and same_list(param_types, t.param_types):
             return t
         else:
-            ret_type = self.visit(t.ret_type)
-            param_types = [self.visit(param_type) for param_type in t.param_types]
-            if ret_type == t.ret_type and same_list(param_types, t.param_types):
-                return t
-            else:
-                return FuncType(param_types, ret_type)
+            return FuncType(param_types, ret_type)
 
     def visit_OpaqueType(self, t: OpaqueType):
         return t

@@ -1,5 +1,7 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+
+import time
 
 import pandas
 import tilus
@@ -7,17 +9,24 @@ import torch
 from tilus import float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
+tilus.option.cache_dir("./cache")
 
-@tilus.autotune("block_m, block_n", [[128, 64], [128, 128], [128, 256]])
+
+@tilus.autotune(
+    "block_m, block_n, e_block_n", [[128, 64, 16], [128, 128, 16], [128, 256, 16]]
+)
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("stages", [2, 3, 4])
 class BlackwellMatmulV3(tilus.Script):
-    def __init__(self, block_m: int, block_n: int, block_k: int, stages: int):
+    def __init__(
+        self, block_m: int, block_n: int, block_k: int, stages: int, e_block_n: int
+    ):
         super().__init__()
         self.block_m = block_m
         self.block_n = block_n
         self.block_k = block_k
         self.stages = stages
+        self.e_block_n = e_block_n
 
     def __call__(
         self,
@@ -43,85 +52,107 @@ class BlackwellMatmulV3(tilus.Script):
             dtype=float16, shape=[self.stages, self.block_n, self.block_k]
         )
 
-        # allocate a tensor in tensor memory (tmem)
         t_acc = self.tcgen05.alloc(dtype=float32, shape=[self.block_m, self.block_n])
 
-        # allocate barriers and the initial phases
-        consumer_barriers = self.mbarrier.alloc(
-            counts=[1 for _ in range(self.stages)]
-        )  # whether the data is ready for consumption
-        producer_barriers = self.mbarrier.alloc(
-            counts=[1 for _ in range(self.stages)]
-        )  # whether the data is ready to be filled
+        # full_barriers: signaled when TMA has filled the stage (data ready)
+        full_barriers = self.mbarrier.alloc(counts=[1] * self.stages)
+        # empty_barriers: signaled when MMA has consumed the stage (slot free)
+        empty_barriers = self.mbarrier.alloc(counts=[1] * self.stages)
 
+        # TMA warp (producer): loads tiles from global to shared memory
         with self.thread_group(thread_begin=0, num_threads=32):
-            # tma warp
             stage: int32 = 0
-            producer_phases = self.register_tensor(
-                dtype=uint32, shape=[self.stages], init=1
-            )  # all stages are ready to be filled at the beginning
+            # phase=1: mbarrier starts at phase 0, so waiting for phase 1
+            # passes immediately (slot is empty, ready to fill)
+            producer_phase: uint32 = 1
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
+                # wait for the MMA warp to free this stage
                 self.mbarrier.wait(
-                    producer_barriers[stage], phase=producer_phases[stage]
-                )  # wait until the stage is ready to be filled
-                producer_phases[stage] ^= 1
+                    empty_barriers[stage],
+                    phase=producer_phase,
+                    sem="relaxed",
+                    scope="cta",
+                )
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
-                        consumer_barriers[stage],
+                        full_barriers[stage],
                         transaction_bytes=s_a[stage].nbytes + s_b[stage].nbytes,
                     )
-                    self.tma.global_to_shared(
-                        src=g_a,
-                        dst=s_a[stage],
-                        offsets=[offset_m, offset_k],
-                        mbarrier=consumer_barriers[stage],
-                    )
-                    self.tma.global_to_shared(
-                        src=g_b,
-                        dst=s_b[stage],
-                        offsets=[offset_n, offset_k],
-                        mbarrier=consumer_barriers[stage],
-                    )
+                self.tma.global_to_shared(
+                    src=g_a,
+                    dst=s_a[stage],
+                    offsets=[offset_m, offset_k],
+                    mbarrier=full_barriers[stage],
+                )
+                self.tma.global_to_shared(
+                    src=g_b,
+                    dst=s_b[stage],
+                    offsets=[offset_n, offset_k],
+                    mbarrier=full_barriers[stage],
+                )
+                # advance stage; flip phase when wrapping to stage 0
                 stage = (stage + 1) % self.stages
+                producer_phase ^= stage == 0
 
-            # remaining mma stages to wait for completion
-            for _ in self.range(min(self.stages, cdiv(k_size, self.block_k))):
-                self.mbarrier.wait(
-                    producer_barriers[stage], phase=producer_phases[stage]
-                )  # wait until the stage is ready to be filled
-                producer_phases[stage] ^= 1
-                stage = (stage + 1) % self.stages
-
+        # MMA warp (consumer): computes on tiles loaded by the TMA warp
         with self.thread_group(thread_begin=32, num_threads=32):
-            # mma warp
-            consumer_phases = self.register_tensor(
-                dtype=uint32, shape=[self.stages], init=0
-            )  # all stages are not ready for consumption at the beginning
+            # phase=0: mbarrier starts at phase 0, so waiting for phase 0
+            # blocks until the producer signals (slot is not yet filled)
+            consumer_phase: uint32 = 0
             stage: int32 = 0
             for offset_k in self.range(0, k_size, self.block_k, unroll=self.stages):
+                # wait for the TMA warp to fill this stage
                 self.mbarrier.wait(
-                    consumer_barriers[stage], phase=consumer_phases[stage]
-                )  # wait until the stage is ready for consumption
-                consumer_phases[stage] ^= 1
-                with self.single_thread():
-                    self.tcgen05.mma(
-                        s_a[stage],
-                        s_b[stage].transpose(),
-                        t_acc,
-                        enable_input_d=offset_k != 0,
-                    )
-                    self.tcgen05.commit(mbarrier=producer_barriers[stage])
+                    full_barriers[stage],
+                    phase=consumer_phase,
+                    sem="relaxed",
+                    scope="cta",
+                )
+                self.tcgen05.mma(
+                    s_a[stage],
+                    s_b[stage].transpose(),
+                    t_acc,
+                    enable_input_d=offset_k != 0,
+                )
+                # commit signals empty_barriers: marks this stage as consumed
+                self.tcgen05.commit(mbarrier=empty_barriers[stage])
+                # advance stage; flip phase when wrapping to stage 0
                 stage = (stage + 1) % self.stages
+                consumer_phase ^= stage == 0
+
+            # drain: wait for all in-flight MMA to finish
+            flush_barrier = self.mbarrier.alloc(1)
+            self.tcgen05.commit(mbarrier=flush_barrier)
+            self.mbarrier.wait(flush_barrier, phase=0)
 
         self.sync()
 
-        # load the result from tensor memory to register
-        r_acc = self.tcgen05.load(t_acc)
-
+        # TMA epilogue: tmem -> register -> shared -> global (via TMA)
         g_c = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
-        self.store_global(g_c, r_acc.to(float16), offsets=[offset_m, offset_n])
+        s_c = self.shared_tensor(dtype=float16, shape=[self.block_m, self.e_block_n])
+        for e_offset_n in range(0, self.block_n, self.e_block_n):
+            t_acc_slice = self.tcgen05.slice(
+                t_acc,
+                offsets=[0, e_offset_n],
+                shape=[self.block_m, self.e_block_n],
+                dims=[0, 1],
+            )
+            r_acc = self.tcgen05.load(t_acc_slice)
+            self.tcgen05.wait_load()
+            self.store_shared(s_c, r_acc.to(float16))
+            self.fence.proxy_async(space="shared")
+            self.sync()
+            with self.single_warp():
+                self.tma.shared_to_global(
+                    s_c,
+                    g_c,
+                    offsets=[offset_m, offset_n + e_offset_n],
+                    dims=[0, 1],
+                )
+                self.tma.commit_group()
+                self.tma.wait_group(n=0, read=True)
+            self.sync()
 
-        # all allocated tensor memory must be deallocated
         self.sync()
         self.tcgen05.dealloc(t_acc)
 
@@ -133,20 +164,18 @@ def main(bench=True):
     rows = []
 
     for m_size, n_size, k_size in [
-        [4096, 4096, 4096],
-        [4096, 4096, 14336],
         [8192, 8192, 8192],
-        [10240, 10240, 10240],
     ]:
         print(f"Running with m_size={m_size}, n_size={n_size}, k_size={k_size}")
         a = torch.randn(m_size, k_size, dtype=torch.float16, device="cuda")
         b = torch.randn(n_size, k_size, dtype=torch.float16, device="cuda")
         c = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
-        matmul(m_size, n_size, k_size, a, b, c)
+        c_ref = a @ b.T
         torch.cuda.synchronize()
 
-        c_ref = a @ b.T
+        matmul(m_size, n_size, k_size, a, b, c)
+        torch.cuda.synchronize()
 
         torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
 
@@ -156,9 +185,10 @@ def main(bench=True):
                 ("torch", lambda: a @ b.T),
                 ("tilus", lambda: matmul(m_size, n_size, k_size, a, b, c)),
             ]:
-                latency = benchmark_func(func, warmup=5, repeat=20)
+                latency = benchmark_func(func, warmup=5, repeat=100)
                 tflops = 2 * m_size * n_size * k_size / latency * 1e-9
                 rows.append([m_size, n_size, k_size, name, latency, tflops])
+                time.sleep(3)  # sleep 3s to cool down the GPU between runs
 
     if bench:
         df = pandas.DataFrame(rows, columns=headers)
@@ -167,4 +197,4 @@ def main(bench=True):
 
 if __name__ == "__main__":
     main(bench=True)
-    # ncu_run(main, bench=False, kernel_regex="hidet|nvjet")
+    # tilus.utils.ncu_run(main, bench=False, kernel_regex="tilus|nvjet")

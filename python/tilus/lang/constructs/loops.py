@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -80,11 +80,11 @@ class RangeLoop(TilusLoopIterable):
             # range(start, stop, step)
             ib = IRBuilder()
             loop_var = loop_vars[0]
-            assert loop_var.hint is not None
+            assert loop_var.name is not None
 
             with ib.for_range(
                 extent=(self.stop - self.start + (self.step - 1)) // self.step,
-                iter_name_hint=loop_var.hint + "_",
+                iter_name_hint=loop_var.name + "_",
                 unroll_factor=unroll_factor,
             ) as i:
                 ib.append(DeclareStmt(loop_var, init=self.start + i * self.step))

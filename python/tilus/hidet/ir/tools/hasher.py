@@ -40,7 +40,6 @@ from tilus.hidet.ir.expr import (
     Dereference,
     Div,
     Equal,
-    FloorDiv,
     IfThenElse,
     LeftShift,
     LessEqual,
@@ -53,21 +52,17 @@ from tilus.hidet.ir.expr import (
     Multiply,
     Neg,
     NotEqual,
-    Reference,
     RightShift,
     Sub,
     TensorElement,
-    TensorSlice,
     Var,
 )
 from tilus.hidet.ir.functors import BaseFunctor, ExprFunctor, TypeFunctor
 from tilus.hidet.ir.type import (
-    ArrayType,
     DataType,
     FuncType,
     OpaqueType,
     PointerType,
-    ReferenceType,
     StringType,
     TensorPointerType,
     TensorType,
@@ -116,9 +111,6 @@ class ExprHash(ExprFunctor, TypeFunctor, BaseFunctor):
 
     def visit_Mod(self, e: Mod):
         return self(e.a) + self(e.b) + hash(Mod)
-
-    def visit_FloorDiv(self, e: FloorDiv):
-        return self(e.a) + self(e.b) + hash(FloorDiv)
 
     def visit_Neg(self, e: Neg):
         return self(e.a) + hash(Neg)
@@ -177,9 +169,6 @@ class ExprHash(ExprFunctor, TypeFunctor, BaseFunctor):
     def visit_Address(self, e: Address):
         return self(e.expr) + hash(Address)
 
-    def visit_Reference(self, e: Reference):
-        return self(e.expr) + hash(Reference)
-
     def visit_Call(self, e: Call):
         return self(e.func_var) + self(e.args) + hash(Call)
 
@@ -198,23 +187,14 @@ class ExprHash(ExprFunctor, TypeFunctor, BaseFunctor):
     def visit_TensorPointerType(self, t: TensorPointerType):
         return self(t.tensor_type) + hash(TensorPointerType)
 
-    def visit_ReferenceType(self, t: ReferenceType):
-        return self(t.base_type) + hash(ReferenceType)
-
     def visit_VoidType(self, t: VoidType):
         return hash(VoidType)
-
-    def visit_TensorSlice(self, e: TensorSlice):
-        return self(e.base) + self(e.indices) + self(e.starts) + self(e.ends) + hash(TensorSlice)
 
     def visit_PlaceholderExpr(self, e: PlaceholderExpr):
         return HashSum(e) + hash(PlaceholderExpr)
 
     def visit_StringType(self, t: StringType):
         return hash(StringType)
-
-    def visit_ArrayType(self, t: ArrayType):
-        return hash(ArrayType) + self(t.base_type) + self(t.size)
 
     def visit_FuncType(self, t: FuncType):
         return hash(FuncType) + self(t.param_types) + self(t.ret_type)

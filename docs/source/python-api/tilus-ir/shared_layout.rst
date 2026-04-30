@@ -3,7 +3,7 @@ tilus.ir.SharedLayout
 
 
 .. autoclass:: tilus.ir.SharedLayout
-   :members: shape, size, axes, offset, __call__, create
+   :members: shape, __call__, create
    :exclude-members: __init__, __new__
 
 Shared Layout Creation
@@ -11,7 +11,7 @@ Shared Layout Creation
 
 We can use the following functions to create a shared layout:
 
-.. currentmodule:: tilus.ir.layout
+.. currentmodule:: tilus.ir.layout.ops
 
 .. autosummary::
     :toctree: generated/

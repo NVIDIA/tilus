@@ -32,5 +32,3 @@ from .simplifier import simplify, simplify_expr, simplify_to_int
 from .type_infer import TypeInfer, infer_type
 from .util_functors import collect
 from .verifier import IRVerifier, VerificationError, verify
-
-# from .ir_dumper import astext2, parse

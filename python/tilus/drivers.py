@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,6 @@ import tilus.option
 from tilus.backends.codegen import generate_ir_module
 from tilus.hidet.backend.build import compile_source
 from tilus.hidet.backend.codegen import codegen
-from tilus.hidet.drivers.build_module import write_function_types
 from tilus.hidet.ir.module import IRModule
 from tilus.ir.prog import Program
 from tilus.ir.tools import verify
@@ -125,19 +124,17 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
     from tilus.hidet.transforms.expand_let_expr import expand_let_expr_pass
     from tilus.hidet.transforms.explicit_unroll import explicit_unroll_pass
     from tilus.hidet.transforms.flatten_tensor_index import flatten_tensor_index_pass
-    from tilus.hidet.transforms.flatten_tensor_slice import flatten_tensor_slice_pass
     from tilus.hidet.transforms.generate_launch_func import generate_launch_func_pass
     from tilus.hidet.transforms.hoist_loop_invariants import hoist_loop_invariants_pass
     from tilus.hidet.transforms.import_primitive_functions import import_primitive_functions_pass
     from tilus.hidet.transforms.inline_function import inline_function_pass
     from tilus.hidet.transforms.inline_let_stmt import inline_let_stmt_pass
-    from tilus.hidet.transforms.instantiate_symbols import instantiate_symbols_pass
     from tilus.hidet.transforms.instruments import PassInstrument, ProfileInstrument, SaveIRInstrument
     from tilus.hidet.transforms.lower_affine_to_recurence import lower_affine_to_recurrence_pass
+    from tilus.hidet.transforms.lower_fast_div import lower_fast_div_pass
     from tilus.hidet.transforms.lower_integer_subbyte import lower_integer_subbyte_pass
     from tilus.hidet.transforms.lower_special_cast import lower_special_cast_pass
     from tilus.hidet.transforms.lower_subbyte_type import lower_subbyte_type_pass
-    from tilus.hidet.transforms.lower_task_mapping import lower_task_mapping_pass
     from tilus.hidet.transforms.propagate_launch_bound import propagate_launch_bound_pass
     from tilus.hidet.transforms.resolve_generic_primitive_function import resolve_primitive_func_pass
     from tilus.hidet.transforms.rule_based_simplifier import rule_based_simplify_pass
@@ -153,11 +150,10 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         tilus_add_explicit_cast_pass(),
         lower_subbyte_type_pass(),
         generate_launch_func_pass(),
+        lower_fast_div_pass(),
         propagate_launch_bound_pass(),
-        flatten_tensor_slice_pass(),
         flatten_tensor_index_pass(),
         declare_to_let_pass(),
-        lower_task_mapping_pass(),
         rule_based_simplify_pass(),  # make ir more readable
         lower_special_cast_pass(),
         inline_function_pass(),
@@ -168,7 +164,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         lower_integer_subbyte_pass(),
         # add_explicit_cast_pass(),
         declare_to_let_pass(),
-        instantiate_symbols_pass(),
         import_primitive_functions_pass(),
         check_launch_configuration_pass(),
         # simplification
@@ -215,8 +210,16 @@ def get_cache_dir(prog: Program, options: BuildOptions) -> Path:
     cache_dir: Path
         The cache directory.
     """
+    options_dict = dataclasses.asdict(options)
+    options_dict.update(
+        {
+            "disable_ptxas_opt": tilus.option.get_option("debug.disable_ptxas_opt"),
+            "target": tilus.target.get_current_target(),
+        }
+    )
+
     prog_text: str = str(prog)
-    options_text: str = str(options)
+    options_text: str = str(options_dict)
     hex_digest: str = hashlib.sha256(options_text.encode() + prog_text.encode()).hexdigest()[:12]
     cache_dir: Path = Path(tilus.option.get_option("cache_dir")) / "programs" / hex_digest
     program_path: Path = cache_dir / "program.txt"
@@ -266,10 +269,7 @@ def build_ir_module(ir_module: IRModule, output_dir: str) -> str:
     src_path = output_path / "source.cu"
     codegen(ir_module, src_out_path=str(src_path), target="cuda")
 
-    # 3. save the function types to func_types.pickle
-    write_function_types(ir_module=ir_module, output_dir=output_dir)
-
-    # 4. compile the low-level code
+    # 3. compile the low-level code
     lib_path = output_path / "lib.so"
     target = tilus.target.get_current_target()
     compile_source(source_file=str(src_path), output_library_file=str(lib_path), target=target)

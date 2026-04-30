@@ -69,10 +69,8 @@ from tilus.hidet.ir.dtypes import (
 )
 from tilus.hidet.ir.expr import Dereference, Expr, Var, address, bitwise_not, cast, deref, view
 from tilus.hidet.ir.func import Function
-from tilus.hidet.ir.layout import DataLayout
-from tilus.hidet.ir.mapping import TaskMapping, auto_map, col_repeat, col_spatial, row_repeat, row_spatial
 from tilus.hidet.ir.stmt import DeclareScope, ForStmtAttr, asm
-from tilus.hidet.ir.type import BaseType, DataType, PointerType, ReferenceType, TensorType, VoidType, data_type, void_p
+from tilus.hidet.ir.type import BaseType, DataType, PointerType, TensorType, VoidType, data_type, void_p
 from tilus.hidet.lang.constructs import meta
 from tilus.hidet.lang.constructs.declare import (
     as_tensor_pointer,
@@ -84,12 +82,7 @@ from tilus.hidet.lang.constructs.declare import (
 from tilus.hidet.lang.constructs.loops import grid, range
 from tilus.hidet.lang.script import script, script_module
 
-ref_u32 = ReferenceType(u32)
-
 void = VoidType()
-
-spatial = row_spatial
-repeat = row_repeat
 
 # def var_of_function(func: Function) -> Var:
 #     # pylint: disable=import-outside-toplevel

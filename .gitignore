@@ -72,6 +72,10 @@ Thumbs.db
 
 uv.lock
 
+/*Knobs.txt
+.nfs*
+
 # claude tasks
 /TASK*.md
 /REPORT*.md
+/knowledge

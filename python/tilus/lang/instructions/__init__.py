@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +15,7 @@
 from tilus.ir.builders import StmtBuilder
 from tilus.ir.inst import InstructionError
 
+from .atomic import AtomicInstructionGroup
 from .base import InstructionGroup, builder_context
 from .clc import ClusterLaunchControlInstructionGroup
 from .cluster import BlockClusterInstructionGroup
@@ -34,3 +35,4 @@ class InstructionInterface(RootInstructionGroup):
     clc = ClusterLaunchControlInstructionGroup()
     cluster = BlockClusterInstructionGroup()
     wgmma = WgmmaInstructionGroup()
+    atomic = AtomicInstructionGroup()

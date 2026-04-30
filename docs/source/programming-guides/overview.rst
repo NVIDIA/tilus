@@ -50,4 +50,3 @@ explore the following sections:
 - :doc:`control-flow`
 - :doc:`cache`
 - :doc:`autotuning`
-- :doc:`low-precision-support`

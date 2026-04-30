@@ -69,7 +69,7 @@ from .memcpy import memcpy_async
 from .prmt import prmt
 from .shfl import active_mask, shfl_down_sync, shfl_sync, shfl_up_sync, shfl_xor_sync
 from .smem import set_kernel_max_dynamic_smem_bytes
-from .sync import bar_sync, syncthreads, syncwarp
+from .sync import bar_sync, bar_sync_aligned, bar_warp_sync, syncthreads, syncwarp
 from .tcgen05_cp import make_tcgen05_cp_desc, matrix_descriptor_encode, tcgen05_cp, tcgen05_shift
 from .tcgen05_ldst import tcgen05_ld, tcgen05_st, tcgen05_wait
 from .tensor_map import create_tensor_map

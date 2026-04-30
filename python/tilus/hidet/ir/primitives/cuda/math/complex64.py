@@ -23,6 +23,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from tilus.hidet.ir.dtypes import complex64, float32
 from tilus.hidet.ir.expr import Expr
 from tilus.hidet.ir.primitives.func import primitive_func_pool, register_primitive_function
 from tilus.hidet.ir.primitives.math import MathFunctionSet, register_math_function_set
@@ -41,7 +42,7 @@ class CUDAComplex64MathFunctionSet(MathFunctionSet):
                     name="cuda_c64_{}".format(name),
                     codegen_name=codegen_name,
                     func_or_type=FuncType(
-                        param_types=["complex64"] * num_args, ret_type="complex64" if name not in ["abs"] else "float32"
+                        param_types=[complex64] * num_args, ret_type=complex64 if name not in ["abs"] else float32
                     ),
                 )
 

@@ -23,4 +23,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from . import bfloat16, complex64, complex128, float8e4m3, float8e5m2, float16, float32, float64, int32, int64
+# ruff: noqa: I001
+# Import order matters: dtype math sets that delegate to float32 must be imported after float32.
+from . import complex64, complex128, float32, float64, int32, int64
+from . import bfloat16, float8e4m3, float8e5m2, float16

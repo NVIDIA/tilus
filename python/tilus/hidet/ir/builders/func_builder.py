@@ -12,21 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-from typing import Dict, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 from tilus.hidet.ir.expr import Var
-from tilus.hidet.ir.func import Function
+from tilus.hidet.ir.func import FuncAttrs, Function
 from tilus.hidet.ir.stmt import Stmt
 from tilus.hidet.ir.type import VoidType
 
@@ -38,14 +27,13 @@ class FunctionBuilder(StmtBuilder):
         self,
         name: str,
         kind: str,
-        label: str = "",
         ret_type=VoidType(),
         grid_dim=None,
         cluster_dim=None,
         block_dim=None,
         dynamic_smem_bytes=None,
         min_blocks=None,
-        attrs=None,
+        attrs: Optional[FuncAttrs] = None,
     ):
         super().__init__()
         self.name = name
@@ -54,20 +42,21 @@ class FunctionBuilder(StmtBuilder):
         self.ret_type = ret_type
         self.func: Optional[Function] = None
         self.body: Optional[Stmt] = None
-        self.attrs: Dict[str] = attrs if attrs else {}
-        self.label = label
 
-        device = "cuda" if kind in ("cuda_internal", "cuda_kernel") else "hip"
-        if grid_dim is not None:
-            self.attrs[f"{device}.grid_dim"] = grid_dim
-        if cluster_dim is not None:
-            self.attrs[f"{device}.cluster_dim"] = cluster_dim
-        if block_dim is not None:
-            self.attrs[f"{device}.block_dim"] = block_dim
-        if dynamic_smem_bytes:
-            self.attrs[f"{device}.dynamic_smem_bytes"] = dynamic_smem_bytes
-        if min_blocks:
-            self.attrs[f"{device}.min_blocks"] = min_blocks
+        base = attrs if attrs is not None else FuncAttrs()
+        self.attrs: FuncAttrs = base.replace(
+            **{
+                key: value
+                for key, value in (
+                    ("grid_dim", grid_dim),
+                    ("cluster_dim", cluster_dim),
+                    ("block_dim", block_dim),
+                    ("dynamic_smem_bytes", dynamic_smem_bytes),
+                    ("min_blocks", min_blocks),
+                )
+                if value is not None
+            }
+        )
 
     def __enter__(self):
         return self
@@ -79,21 +68,17 @@ class FunctionBuilder(StmtBuilder):
     def extend_params(self, params: Sequence[Var]):
         self.params.extend(params)
 
-    def extend_attrs(self, new_attrs: Dict[str, object]):
-        self.attrs.update(new_attrs)
+    def update_attrs(self, **kwargs) -> None:
+        """Replace selected FuncAttrs fields on this builder."""
+        self.attrs = self.attrs.replace(**kwargs)
 
     def set_body(self, body: Stmt):
         self.body = body
 
     def finish_func(self):
-        # pylint: disable=import-outside-toplevel
         assert self.func is None
-        if "label" not in self.attrs:
-            self.attrs["label"] = self.label
         if self.body is None:
             self.body = self.finish()
-        if "func_kind" not in self.attrs:
-            self.attrs["func_kind"] = self.kind
         self.func = Function(
             self.name, kind=self.kind, params=self.params, body=self.body, ret_type=self.ret_type, attrs=self.attrs
         )

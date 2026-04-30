@@ -33,13 +33,12 @@ from typing import Dict, Tuple
 
 from tilus.hidet.ir.expr import Expr, cast
 from tilus.hidet.ir.func import Function
-from tilus.hidet.ir.mapping import TaskMapping, col_repeat, col_spatial, row_repeat, row_spatial
 from tilus.hidet.ir.primitives.cuda.funcs import call_cuda
 from tilus.hidet.ir.primitives.func import register_primitive_function
 from tilus.hidet.ir.stmt import asm
 from tilus.hidet.ir.tools import infer_type
-from tilus.hidet.ir.type import PointerType, ReferenceType, data_type
-from tilus.hidet.lang import attrs, ref_u32, script, u64, uint64
+from tilus.hidet.ir.type import PointerType, data_type
+from tilus.hidet.lang import attrs, script, u64, uint64
 from tilus.hidet.utils import initialize
 
 NUM_THREADS = 128  # num threads per warp group
@@ -60,15 +59,13 @@ def num_regs(short_dtype: str, num_elements: int) -> int:
 
 
 class WgmmaConfig:
-    def __init__(self, m, n, k, a_input_dtype, b_input_dtype, output_dtype, a_load_map, c_store_map, required_arch):
+    def __init__(self, m, n, k, a_input_dtype, b_input_dtype, output_dtype, required_arch):
         self.m: int = m
         self.n: int = n
         self.k: int = k
         self.a_input_dtype: str = a_input_dtype
         self.b_input_dtype: str = b_input_dtype
         self.output_dtype: str = output_dtype
-        self.a_load_map: TaskMapping = a_load_map  # for register, A can be stored in registers or smem
-        self.c_store_map: TaskMapping = c_store_map
         self.a_elements: int = m * k // NUM_THREADS
         self.b_elements: int = k * n // NUM_THREADS
         self.c_elements: int = m * n // NUM_THREADS
@@ -134,14 +131,6 @@ def register_wgmma_configs():
                             a_input_dtype=input_dtype,
                             b_input_dtype=input_dtype,
                             output_dtype=output_dtype,
-                            a_load_map=row_spatial(4, 1)
-                            * col_repeat(2, 2, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
-                            c_store_map=row_spatial(4, 1)
-                            * col_repeat(2, n_values // 8, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
                             required_arch=(
                                 9,
                                 0,
@@ -165,14 +154,6 @@ def register_wgmma_configs():
                             a_input_dtype=input_dtype,
                             b_input_dtype=input_dtype,
                             output_dtype=output_dtype,
-                            a_load_map=row_spatial(4, 1)
-                            * col_repeat(2, 2, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
-                            c_store_map=row_spatial(4, 1)
-                            * col_repeat(2, n_values // 8, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
                             required_arch=(
                                 9,
                                 0,
@@ -195,14 +176,6 @@ def register_wgmma_configs():
                             a_input_dtype=input_dtype,
                             b_input_dtype=input_dtype,
                             output_dtype=output_dtype,
-                            a_load_map=col_spatial(4, 1)
-                            * col_repeat(2, 2, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 4, attrs="u+u+"),
-                            c_store_map=row_spatial(4, 1)
-                            * col_repeat(2, n_values // 8, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),
                             required_arch=(9, 0, "a"),
                         )
                     }
@@ -220,13 +193,6 @@ def register_wgmma_configs():
                             a_input_dtype=input_dtype,
                             b_input_dtype=input_dtype,
                             output_dtype=output_dtype,
-                            a_load_map=row_spatial(4, 1)
-                            * col_repeat(2, 2, attrs="u+u+")
-                            * row_spatial(8, 4),  # Calculation specified by the PTX doc
-                            c_store_map=row_spatial(4, 1)
-                            * col_repeat(2, n_values // 8, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
                             required_arch=(
                                 9,
                                 0,
@@ -250,14 +216,6 @@ def register_wgmma_configs():
                             a_input_dtype=input_dtype,
                             b_input_dtype=input_dtype,
                             output_dtype=output_dtype,
-                            a_load_map=row_spatial(4, 1)
-                            * col_repeat(2, 2, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 4, attrs="u+u+"),  # Calculation specified by the PTX doc
-                            c_store_map=row_spatial(4, 1)
-                            * col_repeat(2, n_values // 8, attrs="u+u+")
-                            * row_spatial(8, 4)
-                            * row_repeat(1, 2, attrs="u+u+"),  # Calculation specified by the PTX doc
                             required_arch=(
                                 9,
                                 0,
@@ -503,17 +461,21 @@ def register_wgmma_wait_group():
 
 @initialize()
 def register_wgmma_fence_operand():
-    ref_f32 = ReferenceType(data_type("f32"))
+    from tilus.hidet.ir.expr import deref
 
-    for dtype in [ref_u32, ref_f32]:
-        func_name = f"cuda_wgmma_fence_operand_{dtype.base_type.short_name}"
+    u32_dtype = data_type("u32")
+    f32_dtype = data_type("f32")
+
+    for base_dtype in [u32_dtype, f32_dtype]:
+        func_name = f"cuda_wgmma_fence_operand_{base_dtype.short_name}"
+        ptr_type = PointerType(base_type=base_dtype)
 
         @script
-        def cuda_wgmma_fence_operand(reg: dtype):
+        def cuda_wgmma_fence_operand(reg_p: ptr_type):
             attrs.func_name = func_name
             attrs.func_kind = "cuda_internal"
             template = ""
-            asm(template=template, output_inputs=[reg], is_volatile=True, memory_fence=True)
+            asm(template=template, output_inputs=[deref(reg_p)], is_volatile=True, memory_fence=True)
 
         register_primitive_function(name=cuda_wgmma_fence_operand.name, func_or_type=cuda_wgmma_fence_operand)
 
@@ -534,9 +496,11 @@ def wgmma_wait_group(N: Expr):
     return call_cuda(func_name=name, args=[])
 
 
-def wgmma_fence_operand(reg: Expr):
-    name = "wgmma_fence_operand_{}".format(infer_type(reg).short_name)
-    return call_cuda(func_name=name, args=[reg])
+def wgmma_fence_operand(reg_p: Expr):
+    reg_p_type = infer_type(reg_p)
+    assert isinstance(reg_p_type, PointerType), "wgmma_fence_operand expects a pointer"
+    name = "wgmma_fence_operand_{}".format(reg_p_type.base_type.short_name)
+    return call_cuda(func_name=name, args=[reg_p])
 
 
 # https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#matrix-descriptor-format

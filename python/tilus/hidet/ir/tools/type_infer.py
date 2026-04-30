@@ -40,7 +40,6 @@ from tilus.hidet.ir.expr import (
     Dereference,
     Div,
     Equal,
-    FloorDiv,
     IfThenElse,
     LeftShift,
     LessEqual,
@@ -53,16 +52,13 @@ from tilus.hidet.ir.expr import (
     Multiply,
     Neg,
     NotEqual,
-    Reference,
     RightShift,
     Sub,
     TensorElement,
-    TensorSlice,
     Var,
     default_float_dtype,
 )
 from tilus.hidet.ir.type import (
-    ArrayType,
     BaseType,
     DataType,
     FuncType,
@@ -70,7 +66,6 @@ from tilus.hidet.ir.type import (
     TensorPointerType,
     TensorType,
     data_type,
-    tensor_pointer_type,
     tensor_type,
     void,
 )
@@ -208,9 +203,6 @@ class TypeInfer(IRFunctor):
         base_type = self(e.expr)
         return PointerType(base_type=base_type)
 
-    def visit_Reference(self, e: Reference):
-        return self(e.expr)
-
     def visit_Binary(self, e: BinaryExpr):
         a_type: BaseType = self.visit(e.a)
         b_type: BaseType = self.visit(e.b)
@@ -240,9 +232,6 @@ class TypeInfer(IRFunctor):
         return self.visit_Binary(e)
 
     def visit_Mod(self, e: Mod):
-        return self.visit_Binary(e)
-
-    def visit_FloorDiv(self, e: FloorDiv):
         return self.visit_Binary(e)
 
     def visit_LessThan(self, e: LessThan):
@@ -295,29 +284,8 @@ class TypeInfer(IRFunctor):
             return base_type.base_type
         elif isinstance(base_type, TensorPointerType):
             return base_type.tensor_type.dtype
-        elif isinstance(base_type, ArrayType):
-            return base_type.base_type
         else:
             raise NotImplementedError()
-
-    def visit_TensorSlice(self, e: TensorSlice):
-        base_type = self.visit(e.base)
-        if isinstance(base_type, TensorPointerType):
-            base_type = base_type.tensor_type
-        assert isinstance(base_type, TensorType)
-        shape = []
-        for dim, (index, start, end) in enumerate(zip(e.indices, e.starts, e.ends)):
-            if index is not None:
-                pass
-            else:
-                if start is None:
-                    start = 0
-                if end is None:
-                    end = base_type.shape[dim]
-                shape.append(end - start)
-
-        # the layout of the slice is not used
-        return tensor_pointer_type(dtype=base_type.dtype, shape=shape, layout=None)
 
     def visit_IfThenElse(self, e: IfThenElse):
         cond_type = self.visit(e.cond)
@@ -353,8 +321,9 @@ class TypeInfer(IRFunctor):
                     func_var, func_type
                 )
             )
-        args_type = [self(arg) for arg in e.args]
-        return func_type.ret_type_on(args_type)
+        for arg in e.args:
+            self(arg)
+        return func_type.ret_type
 
     def visit_Cast(self, e: Cast):
         return e.target_type
@@ -386,7 +355,7 @@ class TypeInfer(IRFunctor):
 
     def visit_GridCompute(self, c: GridCompute):
         dtype = self.visit(c.value)
-        return tensor_type(dtype, c._shape, c.layout)  # pylint: disable=protected-access
+        return tensor_type(dtype, c._shape)  # pylint: disable=protected-access
 
     def visit_ReduceCompute(self, c: ReduceCompute):
         return self.visit(c.value)

@@ -42,8 +42,8 @@ class AddHintsRewriter(IRRewriter):
         from tilus.hidet.lang.cuda import blockIdx, threadIdx
         from tilus.hidet.lang.script import script_module
 
-        block_dims = normalize_launch_dims(func.attrs["cuda.block_dim"])
-        grid_dims = normalize_launch_dims(func.attrs["cuda.grid_dim"])
+        block_dims = normalize_launch_dims(func.attrs.block_dim)
+        grid_dims = normalize_launch_dims(func.attrs.grid_dim)
 
         with script_module() as script_module:
 

@@ -91,12 +91,12 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
         self.var2scope: Dict[Var, DeclareScope] = {}
         self.recursive_depth = 0
 
-    def auto_var(self, v: Var = None, hint: str = None, e: Expr = None):
+    def auto_var(self, v: Var = None, name: str = None, e: Expr = None):
         if v is not None:
             self.stmts.append(DeclareStmt(v))
             return v
         v_ty = self.type_infer(e)
-        v = var(hint, v_ty)
+        v = var(name, v_ty)
         self.stmts.append(DeclareStmt(v, e))
         return v
 
@@ -147,9 +147,9 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
         value_ty = self.type_infer(value)
         assert value_ty == storage_ty, f"expected {storage_ty}, but got {value_ty} (value={value})"
         mask = storage_ty.constant(dtype.bits_mask)
-        item = self.auto_var(hint="item", e=value & mask)
-        updated_mask = self.auto_var(hint="updated_mask", e=bitwise_not(storage_ty(mask << (offset_ * dtype_bits))))
-        new_bits = self.auto_var(hint="new_bits", e=storage_ty(item << (offset_ * dtype_bits)))
+        item = self.auto_var(name="item", e=value & mask)
+        updated_mask = self.auto_var(name="updated_mask", e=bitwise_not(storage_ty(mask << (offset_ * dtype_bits))))
+        new_bits = self.auto_var(name="new_bits", e=storage_ty(item << (offset_ * dtype_bits)))
 
         from tilus.hidet.ir.dtypes import u8, u16, u32
 
@@ -194,8 +194,8 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
                 self.stmts.append(sb.finish())
         else:
             assert self.var2scope[base].is_register()
-            original = self.auto_var(hint="original", e=base[idx])
-            updated = self.auto_var(hint="updated", e=(original & updated_mask) | new_bits)
+            original = self.auto_var(name="original", e=base[idx])
+            updated = self.auto_var(name="updated", e=(original & updated_mask) | new_bits)
             self.stmts.append(BufferStoreStmt(base, [idx], updated))
 
     def visit_DataType(self, t: DataType):
@@ -205,8 +205,6 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
             return t
 
     def visit_TensorType(self, t: TensorType):
-        from tilus.hidet.ir.layout import row_major
-
         if is_integer_subbyte(t.dtype):
             shape = list(self.visit(t.shape))
             assert len(shape) == 1
@@ -216,8 +214,7 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
             dtype_bits = dtype.nbits
             divisor = storage_bits // dtype_bits
             shape[-1] = shape[-1] // divisor
-            layout = row_major(*shape)
-            return TensorType(storage_ty, shape, layout)
+            return TensorType(storage_ty, shape)
         return super().visit_TensorType(t)
 
     def visit_Var(self, v: Var):
@@ -336,7 +333,7 @@ class LowerIntegerSubbyteRewriter(IRRewriter):
     def visit_DeclareStmt(self, stmt: DeclareStmt):
         v_type = self.visit(stmt.var.type)
         if v_type is not stmt.var.type:
-            v = var(stmt.var.hint, v_type)
+            v = var(stmt.var.name, v_type)
             init = self.visit(stmt.init)
             self.old2new[stmt.var] = v
             if isinstance(v_type, TensorType):
@@ -388,8 +385,7 @@ class LowerIntegerSubbytePass(Pass):
             new_funcs[name] = self.process_func(func)
         if all(new_funcs[name] is ir_module.functions[name] for name in new_funcs):
             return ir_module
-        else:
-            return ir_module.copy().reset_funcs(new_funcs, ir_module.global_vars)
+        return ir_module.with_functions(new_funcs, ir_module.global_vars)
 
 
 def lower_integer_subbyte_pass() -> Pass:

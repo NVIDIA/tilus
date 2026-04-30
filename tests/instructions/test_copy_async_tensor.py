@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,8 +42,9 @@ class CopyAsyncTensorExample(tilus.Script):
         load_barrier = self.mbarrier.alloc(counts=1)
         self.sync()
 
-        with self.single_thread():
-            self.mbarrier.arrive_and_expect_tx(load_barrier, transaction_bytes=s_x.nbytes)
+        with self.single_warp():
+            with self.single_thread():
+                self.mbarrier.arrive_and_expect_tx(load_barrier, transaction_bytes=s_x.nbytes)
             self.tma.global_to_shared(
                 src=g_x,
                 dst=s_x,
@@ -57,10 +58,10 @@ class CopyAsyncTensorExample(tilus.Script):
         x += 1
         self.store_shared(s_y, x)
 
-        self.fence.async_view()
+        self.fence.proxy_async()
         self.sync()
 
-        with self.single_thread():
+        with self.single_warp():
             self.tma.shared_to_global(
                 src=s_y,
                 dst=g_y,

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,8 +29,7 @@ Declare to Let statement conversion pass.
 Convert DeclareStmt with initialized value to LetStmt if the declared variable satisfy the following conditions:
     1. has never been modified with AssignStmt statement, and
     2. has never been addressed with Address expression, and
-    3. has never been referenced with Reference expression, and
-    4. has never appeared in outputs of AsmStmt statement.
+    3. has never appeared in outputs of AsmStmt statement.
 
 """
 
@@ -38,12 +37,11 @@ from collections import defaultdict
 from enum import Enum
 from typing import Dict, List
 
-from tilus.hidet.ir import ForMappingStmt, ForStmt, SeqStmt, TensorElement, TensorType
-from tilus.hidet.ir.expr import Address, Reference, Var
+from tilus.hidet.ir import ForStmt, SeqStmt, TensorElement, TensorType
+from tilus.hidet.ir.expr import Address, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import IRRewriter, IRVisitor
 from tilus.hidet.ir.stmt import AsmStmt, AssignStmt, DeclareStmt, LetStmt, Stmt
-from tilus.hidet.ir.type import ArrayType
 from tilus.hidet.transforms.base import FunctionPass, Pass
 
 
@@ -87,11 +85,6 @@ class UsageAnalyzer(IRVisitor):
         super().visit_ForStmt(stmt)
         self.defined_by[stmt.loop_var] = DefinitionKind.FOR
 
-    def visit_ForTaskStmt(self, stmt: ForMappingStmt) -> None:
-        super().visit_ForTaskStmt(stmt)
-        for loop_var in stmt.loop_vars:
-            self.defined_by[loop_var] = DefinitionKind.FOR
-
     def visit_AssignStmt(self, stmt: AssignStmt) -> None:
         super().visit_AssignStmt(stmt)
         self.assign_count[stmt.var] += 1
@@ -109,11 +102,6 @@ class UsageAnalyzer(IRVisitor):
             self.address_count[e.expr] += 1
         elif isinstance(e.expr, TensorElement) and isinstance(e.expr.base, Var):
             self.address_count[e.expr.base] += 1
-
-    def visit_Reference(self, e: Reference) -> None:
-        super().visit_Reference(e)
-        if isinstance(e.expr, Var):
-            self.address_count[e.expr] += 1
 
 
 class DeclareToLetRewriter(IRRewriter):
@@ -184,7 +172,7 @@ class DeclareToLetRewriter(IRRewriter):
                 seq = seq[:i] + [let_stmt]
             elif (
                 isinstance(stmt, DeclareStmt)
-                and not isinstance(stmt.var.type, (TensorType, ArrayType))
+                and not isinstance(stmt.var.type, TensorType)
                 and stmt.init is None
                 and self.analyzer.explicit_assign_count[stmt.var] == 1
                 and self.analyzer.assign_count[stmt.var] == 1
@@ -194,7 +182,7 @@ class DeclareToLetRewriter(IRRewriter):
                 seq = seq[:i] + seq[i + 1 :]
             elif (
                 isinstance(stmt, AssignStmt)
-                and not isinstance(stmt.var.type, (TensorType, ArrayType))
+                and not isinstance(stmt.var.type, TensorType)
                 and self.analyzer.defined_by.get(stmt.var, None) == DefinitionKind.DECLARE_WITHOUT_INIT
                 and self.analyzer.explicit_assign_count[stmt.var] == 1
                 and self.analyzer.assign_count[stmt.var] == 1
@@ -205,7 +193,7 @@ class DeclareToLetRewriter(IRRewriter):
                 seq = seq[:i] + [let_stmt]
             elif (
                 isinstance(stmt, DeclareStmt)
-                and not isinstance(stmt.var.type, (TensorType, ArrayType))
+                and not isinstance(stmt.var.type, TensorType)
                 and stmt.init is None
                 and self.analyzer.assign_count[stmt.var] == 0
                 and self.analyzer.address_count[stmt.var] == 0

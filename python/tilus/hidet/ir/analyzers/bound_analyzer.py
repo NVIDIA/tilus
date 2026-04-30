@@ -29,7 +29,7 @@ import operator
 from collections import defaultdict
 from typing import Dict, List, Mapping, Optional, Sequence, Set, Union
 
-from tilus.hidet.ir.expr import Add, Constant, Div, Expr, FloorDiv, Mod, Multiply, Sub, Var
+from tilus.hidet.ir.expr import Add, Constant, Div, Expr, Mod, Multiply, Sub, Var
 from tilus.hidet.ir.func import Function
 from tilus.hidet.ir.functors import ExprVisitor, ModuleVisitor, StmtVisitor
 from tilus.hidet.ir.stmt import ForStmt, LetStmt, Stmt
@@ -237,7 +237,6 @@ class BoundAnalyzer(ExprVisitor, StmtVisitor, ModuleVisitor):
         Add: operator.add,
         Sub: operator.sub,
         Multiply: operator.mul,
-        FloorDiv: operator.floordiv,
         Mod: operator.mod,
         Div: operator.floordiv,  # for the node with BoundInfo, we are sure they are integers
     }
@@ -254,8 +253,8 @@ class BoundAnalyzer(ExprVisitor, StmtVisitor, ModuleVisitor):
         from tilus.hidet.ir.primitives.vars import lookup_primitive_variable
 
         if func.kind in ["cuda_kernel", "cuda_internal"]:
-            if "cuda.block_dim" in func.attrs:
-                block_dims = normalize_launch_dims(func.attrs["cuda.block_dim"])
+            if func.attrs.block_dim is not None:
+                block_dims = normalize_launch_dims(func.attrs.block_dim)
                 for block_dim, suffix in zip(block_dims, ["x", "y", "z"]):
                     if isinstance(block_dim, int):
                         bound_info = BoundInfo(min_value=0, max_value=int(block_dim) - 1)
@@ -263,8 +262,8 @@ class BoundAnalyzer(ExprVisitor, StmtVisitor, ModuleVisitor):
                         self.bound[lookup_primitive_variable("blockDim.{}".format(suffix))] = BoundInfo(
                             value=int(block_dim)
                         )
-            if "cuda.grid_dim" in func.attrs:
-                grid_dims = normalize_launch_dims(func.attrs["cuda.grid_dim"])
+            if func.attrs.grid_dim is not None:
+                grid_dims = normalize_launch_dims(func.attrs.grid_dim)
                 for grid_dim, suffix in zip(grid_dims, ["x", "y", "z"]):
                     if isinstance(grid_dim, int):
                         bound_info = BoundInfo(min_value=0, max_value=int(grid_dim) - 1)
@@ -274,7 +273,7 @@ class BoundAnalyzer(ExprVisitor, StmtVisitor, ModuleVisitor):
                         )
         self.visit(func.body)
 
-    def combine(self, e: Union[Add, Sub, Multiply, FloorDiv, Mod, Div]):
+    def combine(self, e: Union[Add, Sub, Multiply, Mod, Div]):
         self.visit(e.a)
         self.visit(e.b)
         self.bound[e] = BoundAnalyzer.op_dict[e.__class__](self.bound[e.a], self.bound[e.b])
@@ -289,9 +288,6 @@ class BoundAnalyzer(ExprVisitor, StmtVisitor, ModuleVisitor):
         self.combine(e)
 
     def visit_Div(self, e: Div):
-        self.combine(e)
-
-    def visit_FloorDiv(self, e: FloorDiv):
         self.combine(e)
 
     def visit_Mod(self, e: Mod):

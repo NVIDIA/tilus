@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 license = "Apache-2.0"
 keywords = ["GPU", "Compiler", "CUDA", "hidet", "tensor", "torch"]
 authors = [
-    { name = "Hidet Team" }
+    { name = "Tilus Team" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -50,10 +50,10 @@ dev = [
 
     # for documentation
     "jinja2",
-    "sphinx",
-    "sphinx-gallery",
-    "sphinx-copybutton",
-    "autodocsumm",
+    "sphinx==8.1.3",
+    "sphinx-autobuild==2024.10.3",
+    "sphinx-copybutton==0.5.2",
+    "autodocsumm==0.2.14",
     "sphinx-book-theme==1.1.4",
     "matplotlib",
 ]

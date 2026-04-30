@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 300" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#555"/>
+    </marker>
+    <marker id="arr-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#28a745"/>
+    </marker>
+  </defs>
+
+  <!-- Phase 0 box -->
+  <rect x="40" y="40" width="260" height="220" rx="8" fill="#e8f0fe" stroke="#4a86c8" stroke-width="1.5"/>
+  <text x="170" y="30" text-anchor="middle" font-weight="700" font-size="14" fill="#2a5fa5">Phase 0</text>
+
+  <!-- Phase 0 steps -->
+  <text x="60" y="70" font-size="12" fill="#333">1. Barrier state:</text>
+  <text x="75" y="88" font-size="11" fill="#555">phase=0, pending_arrivals=N</text>
+
+  <text x="60" y="118" font-size="12" fill="#333">2. Threads call <tspan font-weight="600">arrive()</tspan>:</text>
+  <text x="75" y="136" font-size="11" fill="#555">pending_arrivals decrements</text>
+
+  <text x="60" y="166" font-size="12" fill="#333">3. When pending_arrivals = 0:</text>
+  <text x="75" y="184" font-size="11" fill="#28a745" font-weight="600">Phase flips: 0 → 1  (go to Phase 1)</text>
+
+  <text x="60" y="218" font-size="12" fill="#333">4. <tspan font-weight="600">wait(phase=0)</tspan> sees phase≠0:</text>
+  <text x="75" y="236" font-size="11" fill="#28a745" font-weight="600">Returns — phase 0 is done!</text>
+  <text x="75" y="254" font-size="11" fill="#555">Caller flips local phase: 0 → 1</text>
+
+  <!-- Arrow between phases -->
+  <line x1="310" y1="150" x2="380" y2="150" stroke="#28a745" stroke-width="2" marker-end="url(#arr-green)"/>
+  <text x="345" y="140" text-anchor="middle" font-size="11" fill="#28a745" font-weight="600">flip</text>
+
+  <!-- Phase 1 box -->
+  <rect x="390" y="40" width="260" height="220" rx="8" fill="#fff3cd" stroke="#ffc107" stroke-width="1.5"/>
+  <text x="520" y="30" text-anchor="middle" font-weight="700" font-size="14" fill="#856404">Phase 1</text>
+
+  <!-- Phase 1 steps -->
+  <text x="410" y="70" font-size="12" fill="#333">1. Barrier state:</text>
+  <text x="425" y="88" font-size="11" fill="#555">phase=1, pending_arrivals=N</text>
+
+  <text x="410" y="118" font-size="12" fill="#333">2. Threads call <tspan font-weight="600">arrive()</tspan>:</text>
+  <text x="425" y="136" font-size="11" fill="#555">pending_arrivals decrements</text>
+
+  <text x="410" y="166" font-size="12" fill="#333">3. When pending_arrivals = 0:</text>
+  <text x="425" y="184" font-size="11" fill="#2a5fa5" font-weight="600">Phase flips: 1 → 0  (go to Phase 0)</text>
+
+  <text x="410" y="218" font-size="12" fill="#333">4. <tspan font-weight="600">wait(phase=1)</tspan> sees phase≠1:</text>
+  <text x="425" y="236" font-size="11" fill="#2a5fa5" font-weight="600">Returns — phase 1 is done!</text>
+  <text x="425" y="254" font-size="11" fill="#555">Caller flips local phase: 1 → 0</text>
+
+  <!-- Loop-back arrow -->
+  <path d="M650,200 Q680,200 680,278 Q680,290 345,290 Q10,290 10,200 Q10,150 35,150" fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+  <text x="345" y="284" text-anchor="middle" font-size="11" fill="#888">cycle repeats</text>
+</svg>

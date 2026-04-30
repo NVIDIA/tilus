@@ -1,163 +1,172 @@
 Thread Group
 ============
 
-In Tilus Script, you can partition the threads in a thread block into smaller **thread groups** and define instructions that execute only within specific thread groups. This provides fine-grained control over thread execution and enables efficient parallel programming patterns.
-
-Overview
---------
-
-At the root level of a kernel, there is one thread group that includes all threads in the thread block. Using the ``thread_group`` context manager, you can:
-
-- Partition threads into multiple sub-groups
-- Execute instructions on specific thread groups only
-- Create nested thread group hierarchies
-- Synchronize threads within a group
-
-The ``thread_group`` Context Manager
-------------------------------------
-
-**Syntax:**
+In a GPU kernel, all threads in a thread block execute the same code. But in practice, different
+threads often need to do different things — one warp loads data while another computes, or a single
+thread updates a barrier while the rest wait. **Thread groups** let you partition threads within a
+block and assign different work to each partition.
 
 .. code-block:: python
 
-    with self.thread_group(thread_begin, num_threads):
-        # Instructions executed by threads in the specified thread group
+    def __call__(self, ...):
+        self.attrs.warps = 4  # 128 threads total
+
+        # All 128 threads execute this
+        acc = self.register_tensor(dtype=float32, shape=[64, 64], init=0.0)
+
+        with self.thread_group(thread_begin=0, num_threads=32):
+            # Only threads 0–31 (one warp) execute this
+            self.tma.global_to_shared(...)
+
+        with self.thread_group(thread_begin=32, num_threads=32):
+            # Only threads 32–63 execute this
+            self.tcgen05.mma(...)
+
+        # All 128 threads execute this again
+        self.sync()
+
+
+Why Thread Groups?
+------------------
+
+Thread groups serve three purposes:
+
+1. **Hardware requirements** — Some instructions require a specific number of threads. TMA operations
+   need a warp-aligned group (32 threads). WGMMA needs a full warp group (128 threads). Mbarrier
+   arrive/expect-tx-multicast needs at least 16 threads. Semaphore operations need exactly one thread.
+
+2. **Parallel pipelines** — In high-performance kernels, you often want one set of threads loading
+   data while another set computes. Thread groups let you express this naturally.
+
+3. **Avoiding redundant work** — Operations like barrier signaling or TMA setup only need one thread.
+   Running them on all threads wastes cycles and can cause incorrect behavior (e.g., decrementing
+   a barrier count 128 times instead of once).
+
+
+The ``thread_group`` Context Manager
+-------------------------------------
+
+The core API is ``self.thread_group(thread_begin, num_threads)``:
+
+.. code-block:: python
+
+    with self.thread_group(thread_begin=0, num_threads=32):
+        # Only threads 0–31 execute instructions here
         ...
 
-**Parameters:**
-
-- ``thread_begin`` (int): The index of the first thread in the thread group (relative to the parent thread group).
-- ``num_threads`` (int): The number of threads in this thread group.
+- ``thread_begin``: index of the first thread (relative to the **parent** group, not the block).
+- ``num_threads``: how many consecutive threads are in this group.
 
 **Constraints:**
 
-- ``thread_begin`` must be non-negative and within the parent thread group's range.
-- ``thread_begin + num_threads`` must not exceed the parent thread group's size.
-- ``num_threads`` must divide evenly into the parent thread group's size.
+- ``thread_begin >= 0``
+- ``thread_begin + num_threads <= parent group size``
 
-How Thread Partitioning Works
-------------------------------
-
-Thread groups partition the current thread group by specifying:
-
-1. **thread_begin**: The starting thread index (relative to the parent group)
-2. **num_threads**: How many consecutive threads to include
-
-This allows you to create non-overlapping thread groups that cover different ranges of threads within the parent group.
-
-**Examples:**
-
-- If you have 128 threads and specify ``thread_begin=0, num_threads=32``, threads 0-31 execute
-- If you have 128 threads and specify ``thread_begin=32, num_threads=32``, threads 32-63 execute
-- If you have 128 threads and specify ``thread_begin=64, num_threads=64``, threads 64-127 execute
-
-Basic Usage Examples
---------------------
-
-**Example 1: Simple Thread Group Partitioning**
+Thread groups can be **nested** — each level partitions the parent group further:
 
 .. code-block:: python
 
-    class MyScript(tilus.Script):
-        def __init__(self):
-            super().__init__()
+    with self.thread_group(thread_begin=0, num_threads=64):
+        # Threads 0–63
 
-        def __call__(self, ...):
-            # Specify 4 warps = 128 threads total
-            self.attrs.warps = 4
+        with self.thread_group(thread_begin=0, num_threads=32):
+            # Threads 0–31 (relative to parent = absolute 0–31)
+            ...
 
-            # All threads execute this
-            data = self.register_tensor(dtype=f32, shape=[16])
+        with self.thread_group(thread_begin=32, num_threads=32):
+            # Threads 32–63 (relative to parent = absolute 32–63)
+            ...
 
-            # Only threads 0-31 execute this block
-            with self.thread_group(thread_begin=0, num_threads=32):
-                # Instructions for first 32 threads
-                result = self.load_global(src, offsets=[0, 0])
 
-            # Only threads 32-63 execute this block
-            with self.thread_group(thread_begin=32, num_threads=32):
-                # Instructions for second 32 threads
-                result = self.load_global(src, offsets=[16, 0])
+Shortcuts
+---------
 
-            # All threads execute this again
-            self.sync()
+Tilus provides convenience methods for common thread group patterns:
 
-**Example 2: Using Different Thread Ranges**
+``self.single_thread(thread=-1)``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Execute with exactly one thread. By default (``thread=-1``), the hardware picks any thread
+using elect-any semantics, which generates efficient uniform-predicate code. Pass an explicit
+index to pin execution to a specific thread.
 
 .. code-block:: python
 
-    class MyScript(tilus.Script):
-        def __init__(self):
-            super().__init__()
+    with self.single_thread():
+        # One thread signals the barrier
+        self.mbarrier.arrive_and_expect_tx(barrier, transaction_bytes=tile_bytes)
 
-        def __call__(self, ...):
-            # Specify 4 warps = 128 threads total
-            self.attrs.warps = 4
+``self.single_warp(warp=0)``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            # Only threads 0-31 execute this
-            with self.thread_group(thread_begin=0, num_threads=32):
-                # First group of 32 threads processes first chunk
-                data = self.load_global(src, offsets=[0, 0])
-
-            # Only threads 32-63 execute this
-            with self.thread_group(thread_begin=32, num_threads=32):
-                # Second group of 32 threads processes second chunk
-                data = self.load_global(src, offsets=[32, 0])
-
-**Example 3: Nested Thread Groups**
+Execute with one warp (32 threads). Equivalent to ``thread_group(warp * 32, 32)``.
 
 .. code-block:: python
 
-    class MyScript(tilus.Script):
-        def __init__(self):
-            super().__init__()
+    with self.single_warp():
+        # One warp issues the TMA copy
+        self.tma.global_to_shared(src=ga, dst=sa, offsets=..., mbarrier=barrier)
 
-        def __call__(self, ...):
-            # Specify 4 warps = 128 threads total
-            self.attrs.warps = 4
+``self.warp_group(warp_begin, num_warps)``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            # First level: first 32 threads (threads 0-31)
-            with self.thread_group(thread_begin=0, num_threads=32):
-                # Only threads 0-31 enter here
-
-                # Second level: further split into threads 0-15
-                with self.thread_group(thread_begin=0, num_threads=16):
-                    # Only threads 0-15 execute this
-                    fine_grained_work()
-
-                # Second level: threads 16-31
-                with self.thread_group(thread_begin=16, num_threads=16):
-                    # Only threads 16-31 execute this
-                    different_fine_grained_work()
-
-                # Back to first level - all threads 0-31 execute this
-                self.sync()
-
-Synchronization Within Thread Groups
-------------------------------------
-
-The ``self.sync()`` instruction synchronizes all threads in the **current thread group**, not the entire thread block.
+Execute with multiple warps. Equivalent to ``thread_group(warp_begin * 32, num_warps * 32)``.
+Commonly used with ``num_warps=4`` for WGMMA (which requires 128 threads).
 
 .. code-block:: python
 
-    class MyScript(tilus.Script):
-        def __init__(self):
-            super().__init__()
+    with self.warp_group(warp_begin=0, num_warps=4):
+        # 128 threads (warps 0–3) perform WGMMA
+        self.wgmma.fence()
+        self.wgmma.mma(sa, sb, acc)
+        self.wgmma.commit_group()
+        self.wgmma.wait_group(0)
 
-        def __call__(self, ...):
-            # Specify 4 warps = 128 threads total
-            self.attrs.warps = 4
 
-            # First 64 threads
-            with self.thread_group(thread_begin=0, num_threads=64):
-                # Some work by first 64 threads (threads 0-63)
-                work_part_1()
+Producer-Consumer Pipelines
+----------------------------
 
-                # Synchronize only threads 0-63
-                self.sync()  # Only waits for threads 0-63
+The most common use of thread groups is building **producer-consumer pipelines** where one group
+loads data and another group computes. Barriers synchronize between them:
 
-                # Continue with synchronized work
-                work_part_2()
+.. code-block:: python
 
-            # Synchronize all threads in the thread block
-            self.sync()
+    def __call__(self, ...):
+        self.attrs.warps = 2  # 64 threads
+
+        barriers = self.mbarrier.alloc(num_stages)
+
+        with self.thread_group(thread_begin=0, num_threads=32):
+            # Producer warp: loads tiles via TMA
+            for stage in self.range(num_stages):
+                with self.single_thread():
+                    self.mbarrier.arrive_and_expect_tx(barriers[stage], tile_bytes)
+                self.tma.global_to_shared(src=g_a, dst=s_a[stage], ..., mbarrier=barriers[stage])
+
+        with self.thread_group(thread_begin=32, num_threads=32):
+            # Consumer warp: waits for data, then computes
+            for stage in self.range(num_stages):
+                self.mbarrier.wait(barriers[stage], phase=0)
+                self.tcgen05.mma(s_a[stage], s_b[stage], acc)
+                self.tcgen05.commit(mbarrier=...)
+
+The producer and consumer warps run **in parallel** — the producer starts loading the next tile
+while the consumer is still computing on the current one. Barriers prevent the consumer from
+reading data that hasn't arrived yet.
+
+
+Synchronization Scope
+---------------------
+
+``self.sync()`` synchronizes all threads in the **current thread group**, not the entire block:
+
+.. code-block:: python
+
+    with self.thread_group(thread_begin=0, num_threads=64):
+        work_phase_1()
+        self.sync()    # Syncs only threads 0–63
+        work_phase_2()
+
+    self.sync()        # Syncs all threads in the block
+
+This means you can synchronize within a warp group without stalling threads in other groups.

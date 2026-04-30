@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Hidet IR/transforms/backend integrated into tilus (originally from hidet v0.6.1)."""
 
@@ -22,4 +22,3 @@ from tilus.hidet.ir.dtypes import (
     uint32,
     uint64,
 )
-from tilus.hidet.ir.expr import symbol_var

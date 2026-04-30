@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,10 +27,15 @@ Int: TypeAlias = int | Expr
 
 
 class Attributes:
-    def __init__(self):
-        self.blocks: Optional[Sequence[Int] | Int] = None
-        self.cluster_blocks: Sequence[Int] | Int = (1, 1, 1)
-        self.warps: Optional[int] = None
+    #: The grid dimensions of the kernel launch. Set as a list of up to 3
+    #: integers, e.g., ``self.attrs.blocks = [grid_x, grid_y]``.
+    blocks: Optional[Sequence[Int] | Int] = None
+
+    #: The cluster dimensions. Defaults to ``(1, 1, 1)``.
+    cluster_blocks: Sequence[Int] | Int = (1, 1, 1)
+
+    #: The number of warps per thread block. Must be a compile-time constant.
+    warps: Optional[int] = None
 
 
 class Script(InstructionInterface):

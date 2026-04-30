@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,6 +51,14 @@ class BaseInstEmitter(StmtBuilder):
         if self.current_num_threads != 32:
             raise ValueError(f"Instruction {inst} requires a warp (32 threads): {msg}.")
 
+    def assert_is_warp_aligned(self, inst: Instruction, msg: str) -> None:
+        if self.current_num_threads != 32 or self.current_thread_group_begin % 32 != 0:
+            raise ValueError(
+                f"Instruction {inst} requires exactly one warp-aligned warp "
+                f"(thread_begin % 32 == 0, num_threads == 32), "
+                f"got thread_begin={self.current_thread_group_begin}, num_threads={self.current_num_threads}: {msg}."
+            )
+
     def sync(self):
         optional_sync_call = self.contexts.sync_ctx.sync()
         if optional_sync_call is not None:
@@ -97,6 +105,35 @@ class BaseInstEmitter(StmtBuilder):
             raise RuntimeError("Current thread is not set")
         return self._codegen.current_thread
 
+    def lane_id(self, name: str = "lane_id") -> Var:
+        """Declare and return ``current_thread % 32`` as an int32 variable.
+
+        Emitters that read the lane id across multiple emitted statements should
+        cache it once via this helper rather than re-deriving ``current_thread
+        % 32`` at each use, both for readability and to let the compiler see a
+        single value.
+        """
+        return self.declare_var(name, int32, self.current_thread % 32)
+
+    def warp_id(self, name: str = "warp_id") -> Var:
+        """Declare and return the warp id as a **warp-uniform** int32 variable.
+
+        The raw expression ``current_thread // 32`` is warp-uniform on NVIDIA
+        GPUs, but nvcc often can't prove that from the division alone and
+        conservatively assumes lanes within a warp can disagree. We broadcast
+        via ``__shfl_sync`` from lane 0 so the compiler sees a value every lane
+        provably agrees on — this tends to hoist warp-id-only addressing out of
+        per-lane loops and eliminate warp-divergent guards.
+        """
+        from tilus.hidet.ir.primitives.cuda.shfl import shfl_sync
+
+        raw = self.declare_var(name + "_raw", int32, self.current_thread // 32)
+        return self.declare_var(
+            name,
+            int32,
+            shfl_sync(uint32(0xFFFFFFFF), raw, src_lane=0, width=32),
+        )
+
     @property
     def current_num_threads(self) -> int:
         return self._codegen.thread_group_stack.num_threads[-1]
@@ -108,6 +145,10 @@ class BaseInstEmitter(StmtBuilder):
     @property
     def current_thread_group_end(self) -> int:
         return self._codegen.thread_group_stack.thread_end[-1]
+
+    @property
+    def current_thread_group_depth(self) -> int:
+        return self._codegen.thread_group_stack.stack_depth()
 
     @property
     def block_rank_in_cluster(self) -> Expr:

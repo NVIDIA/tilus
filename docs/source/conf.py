@@ -3,14 +3,17 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os as _os
+import sys as _sys
 
-# from sphinx_gallery.sorting import FileNameSortKey
+_sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), "_ext"))
+
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "tilus"
-copyright = "2025, NVIDIA"
+copyright = "2025-2026, NVIDIA"
 author = "NVIDIA"
 
 # -- General configuration ---------------------------------------------------
@@ -28,8 +31,39 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx_copybutton",
     "autodocsumm",
-    "sphinx_gallery.gen_gallery",
+    "matplotlib.sphinxext.plot_directive",
+    "github_link",
 ]
+
+github_link_base_url = "https://github.com/NVIDIA/tilus/blob/main"
+
+plot_include_source = False
+plot_html_show_source_link = False
+plot_html_show_formats = False
+plot_formats = [("svg", 150)]
+plot_basedir = _os.path.dirname(_os.path.abspath(__file__))
+
+# Make SVG output from plot_directive byte-for-byte reproducible:
+#   1. svg.hashsalt fixes the randomized element IDs (id="me6246c896a" etc.)
+#   2. The Figure.savefig patch below strips the <dc:date> timestamp that
+#      Matplotlib's SVG backend otherwise embeds on every build.
+plot_rcparams = {"svg.hashsalt": "tilus-docs"}
+plot_apply_rcparams = True
+
+from matplotlib.figure import Figure as _Figure  # noqa: E402
+
+_orig_savefig = _Figure.savefig
+
+
+def _stable_svg_savefig(self, fname, *args, **kwargs):
+    if str(fname).endswith(".svg"):
+        metadata = dict(kwargs.pop("metadata", {}) or {})
+        metadata.setdefault("Date", None)
+        kwargs["metadata"] = metadata
+    return _orig_savefig(self, fname, *args, **kwargs)
+
+
+_Figure.savefig = _stable_svg_savefig
 
 autodoc_typehints = "description"
 autoclass_content = "class"
@@ -38,13 +72,6 @@ autodoc_member_order = "alphabetical"
 
 templates_path = ["_templates"]
 exclude_patterns = []
-
-sphinx_gallery_conf = {
-    "examples_dirs": ["../../examples/matmul"],
-    "gallery_dirs": ["getting-started/tutorials/matmul"],
-    "filename_pattern": r".*\.py",
-    "download_all_examples": True,
-}
 
 intersphinx_mapping = {
     # 'python': ('https://docs.python.org/3', None),
@@ -61,8 +88,127 @@ html_theme_options = {
     "use_repository_button": True,
     "show_navbar_depth": 1,
 }
+html_sidebars = {
+    "**": [
+        "navbar-logo.html",
+        "search-button-field.html",
+        "sbt-sidebar-nav.html",
+        "versioning.html",
+    ],
+}
 html_static_path = ["_static"]
 html_css_files = [
     "custom.css",
 ]
 html_permalinks_icon = "<span>¶</span>"
+
+# -- Rewrite autosummary stub titles for instruction groups -------------------
+
+
+def _build_instruction_group_map():
+    """Auto-extract the class-name -> attribute-name mapping from InstructionInterface."""
+    from tilus.lang.instructions import InstructionInterface
+    from tilus.lang.instructions.base import InstructionGroup
+
+    return {
+        type(obj).__name__: attr_name
+        for attr_name, obj in vars(InstructionInterface).items()
+        if isinstance(obj, InstructionGroup)
+    }
+
+
+_INSTRUCTION_GROUP_MAP = _build_instruction_group_map()
+
+
+def _rewrite_autosummary_title(app, docname, source):
+    """Rewrite page titles of auto-generated stubs.
+
+    The ``source-read`` event fires after autosummary generates stubs but
+    before Sphinx parses them, so we can rewrite the RST title in-place.
+
+    - ``tilus.Script.abs`` → ``Script.abs``
+    - ``tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive`` →
+      ``Script.mbarrier.arrive``
+    """
+    import re
+
+    # Instruction group members: BarrierInstructionGroup.X -> Script.mbarrier.X
+    for cls_name, group_name in _INSTRUCTION_GROUP_MAP.items():
+        if cls_name + "." in docname:
+            member = docname.rsplit(".", 1)[-1]
+            new_title = f"Script.{group_name}.{member}"
+            source[0] = re.sub(
+                r"^.*?\n=+\n",
+                new_title + "\n" + "=" * len(new_title) + "\n",
+                source[0],
+                count=1,
+            )
+            return
+
+    # Attributes members: Attributes.blocks -> Script.attrs.blocks
+    if "Attributes." in docname:
+        member = docname.rsplit(".", 1)[-1]
+        new_title = f"Script.attrs.{member}"
+        source[0] = re.sub(
+            r"^.*?\n=+\n",
+            new_title + "\n" + "=" * len(new_title) + "\n",
+            source[0],
+            count=1,
+        )
+        return
+
+    # Script members: tilus.Script.abs -> Script.abs
+    prefix = "tilus.Script."
+    if prefix in docname:
+        short_name = docname.rsplit(".", 1)[-1]
+
+        new_title = f"Script.{short_name}"
+        source[0] = re.sub(
+            r"^.*?\n=+\n",
+            new_title + "\n" + "=" * len(new_title) + "\n",
+            source[0],
+            count=1,
+        )
+        return
+
+
+def _rewrite_instruction_group_signatures(app, doctree, docname):
+    """Rewrite instruction group names in rendered signatures.
+
+    - Class signatures: ``class tilus.lang.instructions.mbarrier.BarrierInstructionGroup``
+      → ``class Script.mbarrier``
+    - Method signatures: ``BarrierInstructionGroup.arrive(...)``
+      → ``Script.mbarrier.arrive(...)``
+    """
+    from docutils import nodes
+
+    for node in doctree.findall(nodes.Element):
+        if node.tagname == "desc_addname":
+            text = node.astext()
+            for cls_name, group_name in _INSTRUCTION_GROUP_MAP.items():
+                if cls_name in text:
+                    new_text = text.replace(cls_name, f"Script.{group_name}")
+                    node.clear()
+                    node += nodes.Text(new_text)
+                    break
+        elif node.tagname == "desc" and node.get("objtype") == "class":
+            # Check if this is an instruction group class
+            for sig in node.findall(nodes.Element):
+                if sig.tagname != "desc_signature":
+                    continue
+                for name_node in sig.findall(nodes.Element):
+                    if name_node.tagname == "desc_name" and name_node.astext() in _INSTRUCTION_GROUP_MAP:
+                        # Replace the desc node with a container holding just the docstring
+                        for content in node.findall(nodes.Element):
+                            if content.tagname == "desc_content":
+                                wrapper = nodes.container()
+                                wrapper.extend(content.children)
+                                node.replace_self(wrapper)
+                                break
+                        break
+                break
+
+
+def setup(app):
+    app.connect("source-read", _rewrite_autosummary_title)
+    app.connect("doctree-resolved", _rewrite_instruction_group_signatures)

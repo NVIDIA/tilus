@@ -50,7 +50,6 @@ from tilus.hidet.ir.expr import (
     Mod,
     Multiply,
     Sub,
-    SymbolVar,
     Var,
     constant,
     convert,
@@ -354,7 +353,7 @@ def rule_based_simplify_pass():
 
 
 def rule_based_simplify(expr: Expr, skip_node_types: Optional[Sequence[Type[Expr]]] = None):
-    if isinstance(expr, (int, float, SymbolVar)):
+    if isinstance(expr, (int, float)):
         return expr
     elif isinstance(expr, Constant) and expr.type is dtypes.default_int_dtype:
         return int(expr)

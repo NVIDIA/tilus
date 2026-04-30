@@ -30,12 +30,6 @@ from tilus.hidet.ir.expr import Var
 from tilus.hidet.lang.attrs import cuda, hip
 
 """
-general attributes
-"""
-# The label of the scope
-label: Optional[str] = None
-
-"""
 function attributes
 """
 # The name of the function. The default hidet function name is the name of wrapped python function.

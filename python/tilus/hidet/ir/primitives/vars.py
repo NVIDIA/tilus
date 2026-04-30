@@ -34,7 +34,7 @@ registered_primitive_variables: Dict[str, Var] = {}
 def register_primitive_variable(name: str, dtype: DataType):
     if name in registered_primitive_variables:
         raise KeyError("Primitive variable {} has already registered.".format(name))
-    var = Var(hint=None, type=dtype, name=name)
+    var = Var(name=name, type=dtype)
     registered_primitive_variables[name] = var
     return var
 
@@ -43,3 +43,8 @@ def lookup_primitive_variable(name: str) -> Var:
     if name not in registered_primitive_variables:
         raise KeyError("Primitive variable {} has not registered.".format(name))
     return registered_primitive_variables[name]
+
+
+def is_primitive_variable(var: Var) -> bool:
+    """Return True if ``var`` is a registered primitive variable (e.g. ``threadIdx.x``)."""
+    return var.name is not None and registered_primitive_variables.get(var.name) is var

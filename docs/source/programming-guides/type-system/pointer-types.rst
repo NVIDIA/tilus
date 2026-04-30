@@ -11,7 +11,7 @@ The syntax to define a pointer type is as follows:
 
     ~<dtype>
 
-Where ``dtype`` is one of the scalar types (e.g., :py:data:`~tilus.float32`) in :doc:`scalar-types`, or a pointer type itself.
+Where ``dtype`` is one of the scalar types (e.g., :py:data:`~tilus.float32`) in :doc:`data-types`, or a pointer type itself.
 
 **Pointer to Scalar** We can define a pointer to a scalar type like ``~float32``.
 

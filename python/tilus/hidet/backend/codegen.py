@@ -1,32 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 import os
 from typing import Dict, List, Optional, Sequence, Tuple, Union
-
-import numpy as np
 
 from tilus.hidet.ir import dtypes
 from tilus.hidet.ir.dialects.pattern import PlaceholderExpr
@@ -44,7 +19,6 @@ from tilus.hidet.ir.expr import (
     Dereference,
     Div,
     Equal,
-    FloorDiv,
     IfThenElse,
     LeftShift,
     LessThan,
@@ -56,17 +30,17 @@ from tilus.hidet.ir.expr import (
     Multiply,
     Neg,
     NotEqual,
-    Reference,
     RightShift,
     Sub,
     TensorElement,
-    TensorSlice,
     Var,
     convert,
 )
 from tilus.hidet.ir.func import Function
+from tilus.hidet.ir.functors import ExprFunctor, ModuleFunctor, StmtFunctor, TypeFunctor
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.node import Node
+from tilus.hidet.ir.primitives import is_primitive_function, lookup_primitive_function
 from tilus.hidet.ir.stmt import (
     AsmStmt,
     AssertStmt,
@@ -78,7 +52,6 @@ from tilus.hidet.ir.stmt import (
     DeclareScope,
     DeclareStmt,
     EvaluateStmt,
-    ForMappingStmt,
     ForStmt,
     IfStmt,
     LaunchKernelStmt,
@@ -88,26 +61,17 @@ from tilus.hidet.ir.stmt import (
     WhileStmt,
 )
 from tilus.hidet.ir.target import Target
+from tilus.hidet.ir.tools import TypeInfer
 from tilus.hidet.ir.type import (
-    ArrayType,
     DataType,
     FuncType,
     OpaqueType,
     PointerType,
-    ReferenceType,
     StringType,
     TensorPointerType,
     TensorType,
     VoidType,
 )
-
-try:
-    from tilus.hidet.ir.compute import ScalarNode, TensorNode
-except ImportError:
-    TensorNode = ScalarNode = None
-from tilus.hidet.ir.functors import ExprFunctor, ModuleFunctor, StmtFunctor, TypeFunctor
-from tilus.hidet.ir.primitives import is_primitive_function, lookup_primitive_function
-from tilus.hidet.ir.tools import TypeInfer
 from tilus.hidet.ir.utils.call_graph import CallGraph
 from tilus.hidet.utils import prod
 from tilus.hidet.utils.doc import Doc, NewLine, Text, doc_join, doc_strip_parentheses
@@ -119,6 +83,7 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
         super().__init__()
         self.ir_module: Optional[IRModule] = None
         self.namer = Namer()
+        self.namer.seed_global_symbols()
         self.type_infer = TypeInfer()
 
         self.require_immintrin = False
@@ -244,19 +209,10 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
             dtype = v_type.tensor_type.dtype
             base_type_doc = self(dtype)
             return base_type_doc + " *" + " __restrict__ " + name_doc
-        elif isinstance(v_type, ReferenceType):
-            if isinstance(v_type.base_type, DataType):
-                base_type_doc = self(v_type.base_type)
-                return base_type_doc + " &" + name_doc
-            else:
-                raise NotImplementedError()
         elif isinstance(v_type, TensorType):
             dtype = v_type.dtype
             base_type_doc = self(dtype)
             return base_type_doc + " *" + " __restrict__ " + name_doc
-        elif isinstance(v_type, ArrayType):
-            base_type_doc = self(v_type.base_type)
-            return base_type_doc + " " + name_doc + "[" + self(v_type.size) + "]"
         elif isinstance(v_type, OpaqueType):
             dtype_doc = self(v_type)
             return dtype_doc + " " + name_doc
@@ -292,14 +248,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
             return_type_doc = self(v_type.ret_type)
             args_doc = doc_join([self(param_type) for param_type in v_type.param_types], sep=", ")
             return return_type_doc + " (*" + name_doc + ")(" + args_doc + ")"
-        elif isinstance(v_type, ArrayType):
-            if isinstance(v_type.base_type, FuncType):
-                return_type_doc = self(v_type.base_type.ret_type)
-                args_doc = doc_join([self(param_type) for param_type in v_type.base_type.param_types], sep=", ")
-                return return_type_doc + " (*" + name_doc + "[" + self(v_type.size) + "])(" + args_doc + ")"
-            else:
-                base_type_doc = self(v_type.base_type)
-                return base_type_doc + " " + name_doc + "[" + self(v_type.size) + "]"
         elif isinstance(v_type, OpaqueType):
             dtype_doc = self(v_type)
             return dtype_doc + " " + name_doc
@@ -349,6 +297,7 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
 
     def visit_IRModule(self, module: IRModule) -> Doc:
         self.ir_module = module
+        self.namer.seed_global_symbols(module)
         doc = Doc()
 
         for name, func_var in module.extern_functions.items():
@@ -429,9 +378,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
 
     def visit_Mod(self, e: Mod):
         return "(" + self(e.a) + " % " + self(e.b) + ")"
-
-    def visit_FloorDiv(self, e: FloorDiv):
-        return "(" + self(e.a) + " / " + self(e.b) + ")"
 
     def visit_LessThan(self, e: LessThan):
         return "(" + self(e.a) + " < " + self(e.b) + ")"
@@ -525,14 +471,11 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
     def visit_Address(self, e: Address):
         return Text("(&") + self.visit(e.expr) + ")"
 
-    def visit_Reference(self, e: Reference):
-        raise ValueError()
-
     def visit_Dereference(self, e: Dereference):
         return Text("*") + self(e.expr)
 
     def visit_Call(self, e: Call):
-        func_name: str = e.func_var.name if e.func_var.name else e.func_var.hint
+        func_name: str = e.func_var.name
         assert isinstance(func_name, str)
         if func_name in self.ir_module.functions:
             func = self.ir_module.functions[func_name]
@@ -547,12 +490,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
                 msg = (
                     f"Please use import_primitive_functions pass to import primitive function first: {entry.name}, "
                     f"functions in current module:\n{list(self.ir_module.functions.keys())}."
-                )
-                raise ValueError(msg)
-            if entry.generic:
-                msg = (
-                    "Please use resolve_generic_primitive_function pass to lower "
-                    "the generic primitive function {}.".format(entry.name)
                 )
                 raise ValueError(msg)
             # system-provided function, do not canonize the func name
@@ -579,10 +516,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
             return Text('"{}"'.format(e.value))
         elif e.is_scalar():
             return self.scalar_literal(e.value, e.type)
-        elif e.is_tensor():
-            dtype = e.type.dtype
-            items = [self.scalar_literal(v, dtype) for v in np.array(e.value).flatten()]
-            return "{" + doc_join(items, ", ") + "}"
         elif isinstance(e.type, PointerType):
             return "(" + self(e.type) + ")" + str(int(e.value))
         else:
@@ -649,9 +582,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
         body_doc = self(stmt.body)
         doc += Text("{") + body_doc.indent() + NewLine() + Text("} ")
         return doc
-
-    def visit_ForTaskStmt(self, stmt: ForMappingStmt):
-        raise ValueError("ForTaskStmt should be lowered to ForStmt in lower_task_mapping pass before code generation.")
 
     def visit_WhileStmt(self, stmt: WhileStmt):
         doc = NewLine() + Text("while (") + self(stmt.cond) + ")"
@@ -813,17 +743,11 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
     def visit_TensorType(self, t: TensorType):
         raise ValueError()
 
-    def visit_ArrayType(self, t: ArrayType):
-        raise ValueError()
-
     def visit_PointerType(self, t: PointerType):
         return self(t.base_type) + Text("*")
 
     def visit_TensorPointerType(self, t: TensorPointerType):
         return self(t.tensor_type.dtype) + Text("*")
-
-    def visit_ReferenceType(self, t: ReferenceType):
-        raise ValueError()
 
     def visit_VoidType(self, t: VoidType):
         return Text("void")
@@ -840,15 +764,6 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
         return doc_join(t.modifiers, " ") + Text((" " if len(t.modifiers) > 0 else "") + f"{t.cpp_name}")
 
     # the following expressions should not remain to codegen
-    def visit_TensorSlice(self, e: TensorSlice):
-        raise ValueError()
-
-    def visit_ScalarNode(self, e: ScalarNode):
-        raise ValueError()
-
-    def visit_TensorNode(self, e: TensorNode):
-        raise ValueError()
-
     def visit_PlaceholderExpr(self, e: PlaceholderExpr):
         raise ValueError()
 
@@ -918,22 +833,22 @@ class CUDACodegen(Codegen):
 
         doc += self(func.ret_type)
 
-        if "cuda.cluster_dim" in func.attrs:
+        if func.attrs.cluster_dim is not None:
             from tilus.hidet.transforms.generate_launch_func import _normalize_dim3
 
-            cluster_dims = _normalize_dim3(func.attrs["cuda.cluster_dim"])
+            cluster_dims = _normalize_dim3(func.attrs.cluster_dim)
             doc += f" __cluster_dims__({cluster_dims[0]}, {cluster_dims[1]}, {cluster_dims[2]})"
 
             self.require_cooperative_groups = True
 
         # launch bound for grid worker
         if func.kind == "cuda_kernel":
-            block_dim = func.attrs["cuda.block_dim"]
+            block_dim = func.attrs.block_dim
             if isinstance(block_dim, list):
                 block_dim = prod(block_dim)
             if isinstance(block_dim, (Constant, int)):
-                if "cuda.min_blocks" in func.attrs:
-                    min_blocks = func.attrs["cuda.min_blocks"]
+                min_blocks = func.attrs.min_blocks
+                if min_blocks is not None:
                     if isinstance(min_blocks, (Constant, int)):
                         doc += f" __launch_bounds__({block_dim}, {min_blocks})"
                     else:
@@ -991,19 +906,10 @@ class UpdatedCUDACodeGen(CUDACodegen):
             dtype = v_type.tensor_type.dtype
             base_type_doc = self(dtype)
             return base_type_doc + " *" + restrict_item + name_doc
-        elif isinstance(v_type, ReferenceType):
-            if isinstance(v_type.base_type, DataType):
-                base_type_doc = self(v_type.base_type)
-                return base_type_doc + " &" + name_doc
-            else:
-                raise NotImplementedError()
         elif isinstance(v_type, TensorType):
             dtype = v_type.dtype
             base_type_doc = self(dtype)
             return base_type_doc + " *" + restrict_item + name_doc
-        elif isinstance(v_type, ArrayType):
-            base_type_doc = self(v_type.base_type)
-            return base_type_doc + " " + name_doc + "[" + self(v_type.size) + "]"
         elif isinstance(v_type, OpaqueType):
             dtype_doc = self(v_type)
             if v_type.cpp_name == "CUtensorMap":
@@ -1034,22 +940,22 @@ class UpdatedCUDACodeGen(CUDACodegen):
 
         doc += self(func.ret_type)
 
-        if "cuda.cluster_dim" in func.attrs:
+        if func.attrs.cluster_dim is not None:
             from tilus.hidet.transforms.generate_launch_func import _normalize_dim3
 
-            cluster_dims = _normalize_dim3(func.attrs["cuda.cluster_dim"])  # type: ignore
+            cluster_dims = _normalize_dim3(func.attrs.cluster_dim)
             doc += f" __cluster_dims__({cluster_dims[0]}, {cluster_dims[1]}, {cluster_dims[2]})"
 
             self.require_cooperative_groups = True
 
         # launch bound for grid worker
         if func.kind == "cuda_kernel":
-            block_dim = func.attrs["cuda.block_dim"]
+            block_dim = func.attrs.block_dim
             if isinstance(block_dim, list):
                 block_dim = prod(block_dim)
             if isinstance(block_dim, (Constant, int)):
-                if "cuda.min_blocks" in func.attrs:
-                    min_blocks = func.attrs["cuda.min_blocks"]
+                min_blocks = func.attrs.min_blocks
+                if min_blocks is not None:
                     if isinstance(min_blocks, (Constant, int)):
                         doc += f" __launch_bounds__({block_dim}, {min_blocks})"
                     else:
@@ -1092,6 +998,7 @@ class UpdatedCUDACodeGen(CUDACodegen):
             raise NotImplementedError("Namespace is not supported")
 
         self.ir_module = module
+        self.namer.seed_global_symbols(module)
         doc = Doc()
 
         for name, func_var in module.extern_functions.items():
@@ -1166,12 +1073,12 @@ class HIPCodegen(Codegen):
 
         # launch bound for grid worker
         if func.kind == "hip_kernel":
-            block_dim = func.attrs["hip.block_dim"]
+            block_dim = func.attrs.block_dim
             if isinstance(block_dim, list):
                 block_dim = prod(block_dim)
             if isinstance(block_dim, (Constant, int)):
-                if "hip.min_blocks" in func.attrs:
-                    min_blocks = func.attrs["hip.min_blocks"]
+                min_blocks = func.attrs.min_blocks
+                if min_blocks is not None:
                     if isinstance(min_blocks, (Constant, int)):
                         # https://sep5.readthedocs.io/en/latest/Programming_Guides/HIP-GUIDE.html#device-side-dynamic-global-memory-allocation
                         doc += f" __launch_bounds__({block_dim}, {(min_blocks * block_dim) / 32})"

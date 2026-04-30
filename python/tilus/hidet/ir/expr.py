@@ -31,14 +31,11 @@ import operator
 import string
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
-import numpy as np
-
 from tilus.hidet.ir.dtypes import IntegerType, boolean, int32, int64, promote_type, uint64
 
 from .dtypes import default_float_dtype, default_int_dtype
 from .node import Node
 from .type import (
-    ArrayType,
     BaseType,
     DataType,
     FuncType,
@@ -50,7 +47,6 @@ from .type import (
     string_type,
     tensor_pointer_type,
     tensor_type,
-    type_equal,
 )
 
 PyScalar = Union[bool, int, float, complex, str]
@@ -175,28 +171,10 @@ class Expr(Node):
     def __getitem__(self, items):
         if not isinstance(items, (tuple, list)):
             items = [items]
-        indices = []
-        starts = []
-        ends = []
         for item in items:
             if isinstance(item, slice):
-                indices.append(None)
-                starts.append(item.start)
-                ends.append(item.stop)
-                assert item.step is None, "do not support step slice"
-            else:
-                indices.append(item)
-                starts.append(None)
-                ends.append(None)
-        rank = tensor_rank(self)
-        if len(items) < rank or any(i is None for i in indices):
-            while len(indices) < rank:
-                indices.append(None)
-                starts.append(None)
-                ends.append(None)
-            return tensor_slice(base=self, indices=indices, starts=starts, ends=ends)
-        else:
-            return tensor_element(base=self, indices=indices)
+                raise ValueError("Tensor slicing is not supported in hidet IR; use explicit indices.")
+        return tensor_element(base=self, indices=list(items))
 
     def __setitem__(self, key, value):
         raise ValueError()
@@ -216,13 +194,6 @@ class Expr(Node):
         raise TypeError("Cannot convert hidet.ir.Expr to complex.")
 
     __hash__ = object.__hash__  # use default hash function
-
-    def read(self, items, protected=True):
-        te = self[items]
-        if not isinstance(te, TensorElement):
-            raise ValueError("expect element indexing, but got slicing.")
-        te.protected = protected
-        return te
 
     def write(self, items, value, protected=True):
         from tilus.hidet.ir.stmt import BufferStoreStmt
@@ -396,12 +367,6 @@ class Div(BinaryExpr):
         super().__init__(a, b)
 
 
-class FloorDiv(BinaryExpr):
-    def __init__(self, a, b):
-        super().__init__(a, b)
-        raise ValueError("FloorDiv is not supported in hidet by design from now on.")
-
-
 class Mod(BinaryExpr):
     def __init__(self, a, b):
         super().__init__(a, b)
@@ -448,27 +413,6 @@ class TensorElement(Expr):
             assert isinstance(idx, Expr)
 
 
-class TensorSlice(Expr):
-    def __init__(self, base, indices, starts, ends):
-        # a[3, 4:, :5, :] will be represented by
-        # base: a
-        # indices: [3, None, None, None]
-        # starts: [None, 4, None, None]
-        # ends: [None, None, 5, None]
-        self.base: Expr = base
-        self.indices: Tuple[Optional[Expr], ...] = indices
-        self.starts: Tuple[Optional[Expr], ...] = starts
-        self.ends: Tuple[Optional[Expr], ...] = ends
-
-        assert isinstance(indices, tuple) and isinstance(starts, tuple) and isinstance(ends, tuple)
-        for idx in indices:
-            assert idx is None or isinstance(idx, Expr)
-        for start in starts:
-            assert start is None or isinstance(start, Expr)
-        for end in ends:
-            assert end is None or isinstance(end, Expr)
-
-
 class Call(Expr):
     def __init__(self, func_var, args):
         self.func_var: Var = func_var
@@ -501,17 +445,14 @@ class Constant(Expr):
 
     def __init__(
         self,
-        value: Union[np.ndarray, float, int, complex, str],
-        const_type: Union[DataType, StringType, TensorType, PointerType],
+        value: Union[float, int, complex, str],
+        const_type: Union[DataType, StringType, PointerType],
     ):
-        self.value: Union[np.ndarray, float, int, complex, str] = value
-        self.type: Union[DataType, StringType, TensorType, PointerType] = const_type
+        self.value: Union[float, int, complex, str] = value
+        self.type: Union[DataType, StringType, PointerType] = const_type
 
     def is_scalar(self) -> bool:
         return isinstance(self.type, DataType)
-
-    def is_tensor(self) -> bool:
-        return isinstance(self.type, TensorType)
 
     def is_string(self) -> bool:
         return isinstance(self.type, StringType)
@@ -527,9 +468,6 @@ class Constant(Expr):
 
     def __complex__(self):
         return complex(self.value)
-
-    def array(self) -> np.ndarray:
-        return self.value
 
     # This speciallisation of Expr._binary is done for speedup purposes only
     # and fully equvivalent to Expr._binary by functionality
@@ -598,65 +536,35 @@ class Address(Expr):
         assert isinstance(expr, Expr)
 
 
-class Reference(Expr):
-    def __init__(self, expr: Expr):
-        self.expr: Expr = expr
-
-        assert isinstance(expr, Expr)
-
-
 class Var(Expr):
-    id_clock = 0
-
-    def __init__(self, hint: Optional[str], type: BaseType, name: Optional[str] = None):
+    def __init__(self, name: Optional[str], type: BaseType):
         """
-        A variable may have a hint, name, and id.
+        A variable carries a *name* used for codegen.
 
-        self.hint is used to determine the name in codegen. Different vars may have the
-        same hint. If two vars have the same hint such as 'x', the final name would be like 'x1', 'x2'.
+        Naming semantics:
 
-        self.name is used to store the name of the variables that will be used directly in codegen, such as
-        "threadIdx.x". The field self.name and self.hint are used exclusively. If self.name is not None,
-        self.hint will be ignored, otherwise, self.hint will be used to determine the name in codegen.
+        - **Function-like vars** (primitive function references, module-level
+          function references, extern function references) have a name that is
+          *globally unique within the IRModule*. Codegen emits this name verbatim.
 
-        self.id is used to track the allocation of Var object in python, which is only used to help us to distinguish
-        different Var in python debugger.
+        - **Ordinary vars inside a function** (loop indices, intermediates, user-
+          declared locals) may share a name with sibling vars. The printer /
+          codegen delegate to :class:`~tilus.hidet.utils.namer.Namer`, which
+          emits the requested name when the first occurrence is seen and
+          suffixes later duplicates (e.g. ``x``, ``x_1``, ``x_2``).
+
+        - A *None* name marks an anonymous var; the Namer then falls back to a
+          class-based default (``"v"``, ``"v_1"``, ...).
+
+        Global symbols whose name must appear verbatim (CUDA builtins such as
+        ``threadIdx.x``, primitive function references, IRModule function refs,
+        extern function refs) are pre-seeded into the Namer so they claim their
+        canonical name before any local Var can collide with them.
         """
-        self.hint: Optional[str] = hint
         self.name: Optional[str] = name
         self.type: Union[BaseType, TensorType, TensorPointerType, FuncType] = type
-        self.id: int = self.new_id()
-
-    @staticmethod
-    def new_id():
-        return 0
-
-    @staticmethod
-    def reset_id_counter():
-        Var.id_clock = 0
 
 
-class SymbolVar(Var):
-    name2symbol: Dict[str, SymbolVar] = {}
-
-    def __init__(self, name: str, dtype: DataType):
-        super().__init__(hint=None, type=dtype, name=name)
-
-
-# the following are used as type hints
-# if a primitive function expect an int8 expression, we should use ExprInt8 instead of Expr
-# to explicit tell the reader that this function expect an int8 expression
-# but this is not enforced by the type system of python
-# ExprInt8 should be read as "expression with int8 type"
-# Usage example:
-#
-#   def cuda_i64_to_f16(a: ExprInt64) -> ExprFloat16:
-#       ...
-# Above function expects an int64 expression and returns a float16 value.
-
-ExprInt8 = ExprInt16 = ExprInt32 = ExprInt64 = Expr
-ExprUInt8 = ExprUInt16 = ExprUInt32 = ExprUInt64 = Expr
-ExprFloat16 = ExprFloat32 = ExprFloat64 = ExprBFloat16 = ExprTFloat32 = Expr
 Int = Union[int, Expr]
 
 """
@@ -732,21 +640,21 @@ def as_expr(obj: Union[float, bool, int, str, Expr]) -> Expr:
         raise ValueError(obj)
 
 
-def var(hint: str = None, dtype="int32"):
-    if isinstance(hint, str):
-        assert set(hint) <= set(string.ascii_letters + "_." + string.digits)
+def var(name: str = None, dtype="int32"):
+    if isinstance(name, str):
+        assert set(name) <= set(string.ascii_letters + "_." + string.digits)
     if isinstance(dtype, str):
         dtype = data_type(dtype)
-    return Var(hint, dtype)
+    return Var(name, dtype)
 
 
-def scalar_var(hint: str, dtype: Union[str, DataType] = "float32") -> Var:
+def scalar_var(name: str, dtype: Union[str, DataType] = "float32") -> Var:
     dtype = dtype if isinstance(dtype, DataType) else data_type(dtype)
-    return Var(hint, dtype)
+    return Var(name, dtype)
 
 
-def tensor_var(hint: str, shape=None, dtype: Union[str, DataType] = "float32", layout=None) -> Var:
-    return Var(hint, tensor_type(dtype, shape, layout))
+def tensor_var(name: str, shape, dtype: Union[str, DataType] = "float32") -> Var:
+    return Var(name, tensor_type(dtype, shape))
 
 
 def is_one(v: Expr) -> bool:
@@ -801,69 +709,6 @@ def if_then_else(
             return else_expr
     else:
         return IfThenElse(cond, then_expr, else_expr)
-
-
-def tensor_rank(v: Expr) -> int:
-    try:
-        from tilus.hidet.ir.compute import TensorNode
-    except ImportError:
-        TensorNode = None
-
-    if isinstance(v, Var):
-        if isinstance(v.type, TensorType):
-            return len(v.type.shape)
-        elif isinstance(v.type, TensorPointerType):
-            return len(v.type.tensor_type.shape)
-        elif isinstance(v.type, PointerType):
-            return 1
-        elif isinstance(v.type, ArrayType):
-            return 1
-        else:
-            raise ValueError(v)
-    elif isinstance(v, TensorSlice):
-        return sum(1 if i is None else 0 for i in v.indices)
-    elif TensorNode is not None and isinstance(v, TensorNode):
-        return len(v.type.shape)
-    elif isinstance(v, Constant) and isinstance(v.type, TensorType):
-        return len(v.type.shape)
-    elif isinstance(v, Cast) and isinstance(v.target_type, PointerType):
-        return 1
-    else:
-        raise ValueError('Can not infer the tensor rank of "{}"'.format(v))
-
-
-def tensor_slice(
-    base: Expr, indices: Sequence[Optional[Int]], starts: Sequence[Optional[Int]], ends: Sequence[Optional[Int]]
-) -> TensorSlice:
-    """
-    Create a tensor slice expression.
-
-    Parameters
-    ----------
-    base: Expr
-        The base tensor expression.
-
-    indices: Sequence[Optional[Int]]
-        The indices of the tensor slice.
-
-    starts: Sequence[Optional[Int]]
-        The start indices of the tensor slice.
-
-    ends: Sequence[Optional[Int]]
-        The end indices of the tensor slice.
-
-    Returns
-    -------
-    ret: TensorSlice
-        The tensor slice expression.
-    """
-    if len(indices) != len(starts) or len(indices) != len(ends):
-        raise ValueError("The length of indices, starts and ends should be the same.")
-
-    indices = tuple(convert(i) for i in indices)
-    starts = tuple(convert(i) for i in starts)
-    ends = tuple(convert(i) for i in ends)
-    return TensorSlice(base, indices, starts, ends)
 
 
 def tensor_element(base: Expr, indices: Sequence[Int], protected=False):
@@ -974,14 +819,8 @@ def call(func: Var, args: Sequence[Union[Expr, PyScalar]]) -> Call:
     return Call(func, args)
 
 
-def const_tensor(value: np.ndarray) -> Constant:
-    from tilus.hidet.ir.utils.type_utils import from_numpy_dtype
-
-    return constant(value=value, const_type=tensor_type(dtype=from_numpy_dtype(value.dtype), shape=list(value.shape)))
-
-
-def tensor_pointer_var(hint: str, shape=None, dtype: Union[str, DataType] = "float32", layout=None):
-    return Var(hint, tensor_pointer_type(dtype=dtype, shape=shape, layout=layout))
+def tensor_pointer_var(hint: str, shape, dtype: Union[str, DataType] = "float32"):
+    return Var(hint, tensor_pointer_type(dtype=dtype, shape=shape))
 
 
 def view(ptr: Expr, tp: TensorType) -> Expr:
@@ -1027,8 +866,6 @@ def constant(value, const_type: Union[str, BaseType]) -> Constant:
             value = tuple(value)
         else:
             raise ValueError(f"Invalid data const_type {const_type}")
-    elif isinstance(const_type, TensorType):
-        value = np.array(value)
     elif isinstance(const_type, PointerType):
         value = int(value)
     elif isinstance(const_type, StringType):
@@ -1055,26 +892,6 @@ def constant_int(value: int, const_type: IntegerType) -> Constant:
         return Constant._constant_pool[(value, const_type.name)]
     else:
         return Constant(value, const_type)
-
-
-def symbol_var(name: str, dtype: Union[DataType, PointerType, str] = "int32") -> SymbolVar:
-    if isinstance(dtype, str):
-        dtype = data_type(dtype)
-    assert isinstance(dtype, (DataType, PointerType)), (
-        "symbolic variable must be with either a data type or a pointer type"
-    )
-    if name not in SymbolVar.name2symbol:
-        if not name.isidentifier():
-            raise ValueError('Invalid symbol name "{}", must be a valid identifier'.format(name))
-        SymbolVar.name2symbol[name] = SymbolVar(name, dtype)
-    else:
-        if not type_equal(SymbolVar.name2symbol[name].type, dtype):
-            raise ValueError(
-                'SymbolVar "{}" already exists with dtype {}, new dtype is {}'.format(
-                    name, SymbolVar.name2symbol[name].type, dtype
-                )
-            )
-    return SymbolVar.name2symbol[name]
 
 
 def index_vars(num_vars: int) -> List[Var]:

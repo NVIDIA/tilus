@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ from tilus.hidet.ir import primitives
 from tilus.hidet.ir.dtypes import DataType, boolean, i32
 from tilus.hidet.ir.expr import Expr, Var, as_expr, index_vars
 from tilus.hidet.ir.tools import rewrite
-from tilus.ir.inst import Instruction
+from tilus.ir.inst import Instruction, InstructionError
 from tilus.ir.layout import RegisterLayout
 from tilus.ir.tensor import GlobalTensor, RegisterTensor, SharedTensor, Tensor
 
@@ -122,6 +122,96 @@ class StoreSharedInst(Instruction):
     @staticmethod
     def create(dst: SharedTensor, src: RegisterTensor) -> StoreSharedInst:
         return StoreSharedInst(output=None, inputs=(dst, src))
+
+
+def check_scatter_shapes(
+    ctx: str,
+    *,
+    dst_shape: Sequence,
+    dst_dtype: DataType,
+    indices: RegisterTensor,
+    values: RegisterTensor,
+    dim: int,
+) -> None:
+    """Validate scatter instruction shapes.
+
+    Shared by :class:`StoreSharedScatterInst` / :class:`StoreGlobalScatterInst`
+    and their atomic variants. The rules are identical regardless of atomicity:
+    ``indices.shape == values.shape`` strictly, ranks match ``dst``, non-scatter
+    axes are size-equal, and ``dim`` is in range.
+    """
+    if dst_dtype != values.dtype:
+        raise InstructionError(f"{ctx}: dst dtype {dst_dtype.name} != values dtype {values.dtype.name}")
+    if tuple(indices.shape) != tuple(values.shape):
+        raise InstructionError(f"{ctx}: indices.shape {list(indices.shape)} != values.shape {list(values.shape)}")
+    if len(dst_shape) != len(indices.shape):
+        raise InstructionError(f"{ctx}: dst rank {len(dst_shape)} != indices rank {len(indices.shape)}")
+    if not (0 <= dim < len(dst_shape)):
+        raise InstructionError(f"{ctx}: dim {dim} out of range for rank-{len(dst_shape)} dst")
+    for d in range(len(dst_shape)):
+        if d == dim:
+            continue
+        if int(dst_shape[d]) != int(indices.shape[d]):
+            raise InstructionError(
+                f"{ctx}: non-scatter axis {d} mismatch, dst.shape[{d}]={dst_shape[d]}, "
+                f"indices.shape[{d}]={indices.shape[d]}"
+            )
+
+
+@dataclass(frozen=True, eq=False)
+class StoreSharedScatterInst(Instruction):
+    """Non-atomic scatter store into a shared tensor.
+
+    For each tile element k: ``dst[..., indices[k], ...] = values[k]``.
+    Semantics under duplicate ``indices`` is last-writer-wins (undefined which
+    lane wins); use an atomic scatter op if correctness under duplicates is
+    required.
+    """
+
+    dim: int
+
+    @staticmethod
+    def create(
+        dst: SharedTensor,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+        *,
+        dim: int,
+    ) -> StoreSharedScatterInst:
+        check_scatter_shapes(
+            "store_shared_scatter",
+            dst_shape=dst.shape,
+            dst_dtype=dst.dtype,
+            indices=indices,
+            values=values,
+            dim=dim,
+        )
+        return StoreSharedScatterInst(output=None, inputs=(dst, indices, values), dim=dim)
+
+
+@dataclass(frozen=True, eq=False)
+class StoreGlobalScatterInst(Instruction):
+    """Non-atomic scatter store into a global tensor. Semantics mirror :class:`StoreSharedScatterInst`."""
+
+    dim: int
+
+    @staticmethod
+    def create(
+        dst: GlobalTensor,
+        indices: RegisterTensor,
+        values: RegisterTensor,
+        *,
+        dim: int,
+    ) -> StoreGlobalScatterInst:
+        check_scatter_shapes(
+            "store_global_scatter",
+            dst_shape=dst.shape,
+            dst_dtype=dst.dtype,
+            indices=indices,
+            values=values,
+            dim=dim,
+        )
+        return StoreGlobalScatterInst(output=None, inputs=(dst, indices, values), dim=dim)
 
 
 @dataclass(frozen=True, eq=False)
@@ -426,6 +516,50 @@ class ReduceInst(Instruction):
         return ReduceInst(output=output, inputs=(x,), dim=dim, keepdim=keepdim, op=op)
 
 
+# Scan opcodes. `add`/`mul`/`max`/`min` accept any numeric dtype; the bitwise
+# variants (`and`/`or`/`xor`) require an integer dtype.
+SCAN_OPS: tuple[str, ...] = ("add", "mul", "max", "min", "and", "or", "xor")
+SCAN_BITWISE_OPS: tuple[str, ...] = ("and", "or", "xor")
+
+
+@dataclass(frozen=True, eq=False)
+class ScanInst(Instruction):
+    """Tile-level prefix scan along a single axis.
+
+    Output shape == input shape (no dim collapse, unlike reduce). The scan is
+    performed independently for each non-``dim`` coordinate; along ``dim`` the
+    result at position ``i`` is the ⊕-combination of input positions
+    ``0..i`` (inclusive) or ``0..i-1`` (exclusive), with the op's identity at
+    the boundary.
+    """
+
+    dim: int
+    op: str
+    exclusive: bool
+    VALID_OPS: ClassVar[tuple[str, ...]] = SCAN_OPS
+
+    @staticmethod
+    def create(
+        x: RegisterTensor,
+        *,
+        dim: int,
+        op: str,
+        exclusive: bool,
+        output: RegisterTensor,
+    ) -> ScanInst:
+        if op not in SCAN_OPS:
+            raise InstructionError(f"scan op must be one of {SCAN_OPS}, got {op!r}")
+        if not (0 <= dim < len(x.shape)):
+            raise InstructionError(f"scan dim {dim} out of range for rank-{len(x.shape)} input")
+        if tuple(x.shape) != tuple(output.shape):
+            raise InstructionError(f"scan: input shape {list(x.shape)} != output shape {list(output.shape)}")
+        if x.dtype != output.dtype:
+            raise InstructionError(f"scan: input dtype {x.dtype.name} != output dtype {output.dtype.name}")
+        if op in SCAN_BITWISE_OPS and not x.dtype.is_integer():
+            raise InstructionError(f"scan op {op!r} requires an integer dtype, got {x.dtype.name}")
+        return ScanInst(output=output, inputs=(x,), dim=dim, op=op, exclusive=exclusive)
+
+
 @dataclass(frozen=True, eq=False)
 class ViewInst(Instruction):
     local_offset: Expr
@@ -590,3 +724,28 @@ class NopInst(Instruction):
     @staticmethod
     def create() -> NopInst:
         return NopInst(output=None, inputs=())
+
+
+@dataclass(frozen=True, eq=False)
+class Philox4x32Inst(Instruction):
+    """Philox-4x32 counter-based PRNG instruction.
+
+    Given a seed (uint64 scalar) and an offset register tensor (uint32),
+    produces an output register tensor with shape [4, *offset.shape] of dtype uint32,
+    containing four independent streams of random uint32 values.
+    """
+
+    seed: Expr
+    n_rounds: int
+
+    @staticmethod
+    def create(
+        seed: Expr,
+        offset: RegisterTensor,
+        n_rounds: int = 10,
+    ) -> Philox4x32Inst:
+        from tilus.hidet.ir.dtypes import uint32
+
+        assert offset.dtype == uint32, f"offset must be uint32, got {offset.dtype}"
+        output = RegisterTensor.create(dtype=uint32, shape=(4, *offset.shape))
+        return Philox4x32Inst(output=output, inputs=(offset,), seed=seed, n_rounds=n_rounds)

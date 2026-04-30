@@ -26,7 +26,6 @@
 from .base_functor import BaseFunctor, BaseRewriter, BaseVisitor
 from .expr_functor import ExprFunctor, ExprRewriter, ExprVisitor
 from .ir_functor import IRFunctor, IRRewriter, IRVisitor
-from .layout_functor import LayoutFunctor, LayoutRewriter, LayoutVisitor
 from .module_functor import ModuleFunctor, ModuleRewriter, ModuleVisitor
 from .stmt_functor import StmtFunctor, StmtRewriter, StmtVisitor
 from .type_functor import TypeFunctor, TypeRewriter, TypeVisitor

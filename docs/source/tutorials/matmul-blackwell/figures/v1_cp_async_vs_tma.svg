@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="arr-cp" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#e65100"/>
+    </marker>
+    <marker id="arr-tma" markerWidth="16" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L16,6 L0,12 Z" fill="#7e57c2"/>
+    </marker>
+  </defs>
+
+  <!-- Dividing line -->
+  <line x1="380" y1="30" x2="380" y2="390" stroke="#ccc" stroke-width="1" stroke-dasharray="6,4"/>
+
+  <!-- ===== LEFT: cp.async ===== -->
+  <!-- Title in cp.async color (orange) -->
+  <text x="190" y="24" text-anchor="middle" font-weight="700" font-size="15" fill="#e65100">cp.async (V0)</text>
+
+  <!-- Global memory block -->
+  <rect x="30" y="45" width="130" height="50" rx="5" fill="#e8f0fe" stroke="#4a86c8" stroke-width="1.5"/>
+  <text x="95" y="75" text-anchor="middle" font-weight="600" font-size="12" fill="#2a5fa5">Global Memory</text>
+
+  <!-- Shared memory tile (divided into many small chunks) -->
+  <rect x="220" y="45" width="130" height="50" rx="5" fill="#d4edda" stroke="#28a745" stroke-width="1.5"/>
+  <text x="285" y="75" text-anchor="middle" font-weight="600" font-size="12" fill="#155724">Shared Memory</text>
+  <!-- Chunk dividers -->
+  <line x1="230" y1="45" x2="230" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="240" y1="45" x2="240" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="250" y1="45" x2="250" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="260" y1="45" x2="260" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="270" y1="45" x2="270" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="280" y1="45" x2="280" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="290" y1="45" x2="290" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="300" y1="45" x2="300" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="310" y1="45" x2="310" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="320" y1="45" x2="320" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="330" y1="45" x2="330" y2="95" stroke="#28a745" stroke-width="0.3"/>
+  <line x1="340" y1="45" x2="340" y2="95" stroke="#28a745" stroke-width="0.3"/>
+
+  <!-- Many small arrows in cp.async color (orange) -->
+  <line x1="160" y1="52" x2="219" y2="52" stroke="#e65100" stroke-width="0.8" marker-end="url(#arr-cp)"/>
+  <line x1="160" y1="56" x2="219" y2="56" stroke="#e65100" stroke-width="0.8" marker-end="url(#arr-cp)"/>
+  <line x1="160" y1="60" x2="219" y2="60" stroke="#e65100" stroke-width="0.8" marker-end="url(#arr-cp)"/>
+  <line x1="160" y1="64" x2="219" y2="64" stroke="#e65100" stroke-width="0.8" marker-end="url(#arr-cp)"/>
+  <text x="189" y="73" text-anchor="middle" font-size="10" fill="#999">...</text>
+  <line x1="160" y1="76" x2="219" y2="76" stroke="#e65100" stroke-width="0.8" marker-end="url(#arr-cp)"/>
+  <line x1="160" y1="80" x2="219" y2="80" stroke="#e65100" stroke-width="0.8" marker-end="url(#arr-cp)"/>
+  <line x1="160" y1="84" x2="219" y2="84" stroke="#e65100" stroke-width="0.8" marker-end="url(#arr-cp)"/>
+  <line x1="160" y1="88" x2="219" y2="88" stroke="#e65100" stroke-width="0.8" marker-end="url(#arr-cp)"/>
+  <text x="189" y="48" text-anchor="middle" font-size="9" fill="#e65100">16B each</text>
+
+  <!-- Thread labels (right of Global Memory box) -->
+  <text x="158" y="55" text-anchor="end" font-size="9" fill="#666">T0</text>
+  <text x="158" y="91" text-anchor="end" font-size="9" fill="#666">T127</text>
+
+  <!-- LD/ST Unit label (centered between Global and Shared: midpoint of 95 and 285 = 190) -->
+  <rect x="140" y="100" width="100" height="20" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="190" y="114" text-anchor="middle" font-size="9" fill="#e65100" font-weight="600">LD/ST Unit (SM)</text>
+
+  <!-- Instruction sequence -->
+  <rect x="40" y="135" width="290" height="190" rx="6" fill="#f8f8f8" stroke="#ddd" stroke-width="1"/>
+  <text x="185" y="155" text-anchor="middle" font-weight="600" font-size="12" fill="#333">Instruction Sequence</text>
+
+  <!-- cp.async instructions in orange -->
+  <rect x="60" y="165" width="250" height="18" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
+  <text x="185" y="178" text-anchor="middle" font-size="10" fill="#bf360c">T0: cp.async 16B</text>
+  <rect x="60" y="185" width="250" height="18" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
+  <text x="185" y="198" text-anchor="middle" font-size="10" fill="#bf360c">T1: cp.async 16B</text>
+  <rect x="60" y="205" width="250" height="18" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
+  <text x="185" y="218" text-anchor="middle" font-size="10" fill="#bf360c">T2: cp.async 16B</text>
+  <text x="185" y="237" text-anchor="middle" font-size="11" fill="#999">... (128 threads x N rounds)</text>
+
+  <!-- Sync instructions in grey -->
+  <rect x="60" y="250" width="250" height="18" rx="3" fill="#f0f0f0" stroke="#999" stroke-width="0.8"/>
+  <text x="185" y="263" text-anchor="middle" font-size="10" fill="#666">all threads: cp.async.commit_group</text>
+  <rect x="60" y="270" width="250" height="18" rx="3" fill="#f0f0f0" stroke="#999" stroke-width="0.8"/>
+  <text x="185" y="283" text-anchor="middle" font-size="10" fill="#666">all threads: cp.async.wait_group</text>
+  <rect x="60" y="290" width="250" height="18" rx="3" fill="#f0f0f0" stroke="#999" stroke-width="0.8"/>
+  <text x="185" y="303" text-anchor="middle" font-size="10" fill="#666">all threads: bar.sync</text>
+
+  <!-- Summary -->
+  <rect x="55" y="340" width="260" height="40" rx="5" fill="#f8d7da" stroke="#dc3545" stroke-width="1"/>
+  <text x="185" y="358" text-anchor="middle" font-size="11" fill="#721c24" font-weight="600">High instruction overhead</text>
+  <text x="185" y="373" text-anchor="middle" font-size="10" fill="#721c24">All 128 threads busy copying</text>
+
+  <!-- ===== RIGHT: TMA ===== -->
+  <!-- Title in TMA color (purple) -->
+  <text x="570" y="24" text-anchor="middle" font-weight="700" font-size="15" fill="#7e57c2">TMA (V1)</text>
+
+  <!-- Global memory block -->
+  <rect x="410" y="45" width="130" height="50" rx="5" fill="#e8f0fe" stroke="#4a86c8" stroke-width="1.5"/>
+  <text x="475" y="75" text-anchor="middle" font-weight="600" font-size="12" fill="#2a5fa5">Global Memory</text>
+
+  <!-- Shared memory tile (one solid block) -->
+  <rect x="600" y="45" width="130" height="50" rx="5" fill="#d4edda" stroke="#28a745" stroke-width="1.5"/>
+  <text x="665" y="75" text-anchor="middle" font-weight="600" font-size="12" fill="#155724">Shared Memory</text>
+
+  <!-- One big arrow in TMA color (purple) -->
+  <line x1="540" y1="70" x2="594" y2="70" stroke="#7e57c2" stroke-width="2" marker-end="url(#arr-tma)"/>
+  <text x="569" y="62" text-anchor="middle" font-size="10" fill="#7e57c2" font-weight="600">whole tile</text>
+
+  <!-- TMA engine label (centered: midpoint of 475 and 665 = 570) -->
+  <rect x="520" y="100" width="100" height="20" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1"/>
+  <text x="570" y="114" text-anchor="middle" font-size="9" fill="#5e35b1" font-weight="600">TMA Engine</text>
+
+  <!-- Instruction sequence -->
+  <rect x="420" y="135" width="290" height="190" rx="6" fill="#f8f8f8" stroke="#ddd" stroke-width="1"/>
+  <text x="565" y="155" text-anchor="middle" font-weight="600" font-size="12" fill="#333">Instruction Sequence</text>
+
+  <!-- TMA instructions in purple -->
+  <rect x="440" y="170" width="250" height="18" rx="3" fill="#f0f0f0" stroke="#999" stroke-width="0.8"/>
+  <text x="565" y="183" text-anchor="middle" font-size="10" fill="#666">1 thread: arrive_and_expect_tx</text>
+  <rect x="440" y="195" width="250" height="18" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="0.8"/>
+  <text x="565" y="208" text-anchor="middle" font-size="10" fill="#5e35b1">1 warp: tma.global_to_shared (tile A)</text>
+  <rect x="440" y="220" width="250" height="18" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="0.8"/>
+  <text x="565" y="233" text-anchor="middle" font-size="10" fill="#5e35b1">1 warp: tma.global_to_shared (tile B)</text>
+  <rect x="440" y="245" width="250" height="18" rx="3" fill="#f0f0f0" stroke="#999" stroke-width="0.8"/>
+  <text x="565" y="258" text-anchor="middle" font-size="10" fill="#666">1 warp: mbarrier.wait</text>
+
+  <text x="565" y="290" text-anchor="middle" font-size="11" fill="#999">(remaining warps are free)</text>
+
+  <!-- Summary -->
+  <rect x="435" y="340" width="260" height="40" rx="5" fill="#ede7f6" stroke="#7e57c2" stroke-width="1"/>
+  <text x="565" y="358" text-anchor="middle" font-size="11" fill="#5e35b1" font-weight="600">Minimal instruction overhead</text>
+  <text x="565" y="373" text-anchor="middle" font-size="10" fill="#5e35b1">Dedicated HW copies; other warps free</text>
+</svg>

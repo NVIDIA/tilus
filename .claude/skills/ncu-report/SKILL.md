@@ -14,7 +14,7 @@ user-invocable: true
 
 This skill handles two modes:
 
-1. **Analyze an existing report**: The user provides a path to an `.ncu-rep` file (or one exists under `examples/`). Use the `ncu` CLI to extract and present metrics. All `ncu` commands MUST use `TMPDIR=/tmp/ncu_tmp` prefix to avoid temp file errors.
+1. **Analyze an existing report**: The user provides a path to an `.ncu-rep` file (or one exists under `examples/`). Use the `ncu` CLI to extract and present metrics.
 
 2. **Generate a new report**: The user specifies a script or kernel to profile but does NOT provide a `.ncu-rep` file. In this case, set up profiling using `tilus.utils.ncu_utils.ncu_run()`, run it, then analyze the resulting report.
 
@@ -84,10 +84,10 @@ Run these in parallel:
 
 ```bash
 # List all kernels with timing
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page raw --csv --metrics gpu__time_duration.sum 2>&1
+ncu -i <REPORT> --page raw --csv --metrics gpu__time_duration.sum 2>&1
 
 # Session/device info
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page session --csv 2>&1
+ncu -i <REPORT> --page session --csv 2>&1
 ```
 
 Present a summary table:
@@ -97,7 +97,7 @@ Present a summary table:
 ### Step 2: Speed of Light — Top-level throughput
 
 ```bash
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page details --csv --section SpeedOfLight 2>&1
+ncu -i <REPORT> --page details --csv --section SpeedOfLight 2>&1
 ```
 
 Key metrics to highlight per kernel:
@@ -113,10 +113,10 @@ Key metrics to highlight per kernel:
 
 ```bash
 # Compute workload
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page details --csv --section ComputeWorkloadAnalysis 2>&1
+ncu -i <REPORT> --page details --csv --section ComputeWorkloadAnalysis 2>&1
 
 # Memory workload
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page details --csv --section MemoryWorkloadAnalysis 2>&1
+ncu -i <REPORT> --page details --csv --section MemoryWorkloadAnalysis 2>&1
 ```
 
 Key compute metrics: Executed IPC Active, SM Busy %, Issue Slots Busy %
@@ -125,7 +125,7 @@ Key memory metrics: Mem Busy %, Max Bandwidth %, L1/L2 hit rates
 ### Step 4: Occupancy
 
 ```bash
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page details --csv --section Occupancy 2>&1
+ncu -i <REPORT> --page details --csv --section Occupancy 2>&1
 ```
 
 Report: Theoretical Occupancy, Achieved Occupancy, and limiters (registers, shared memory, block size).
@@ -134,24 +134,24 @@ Report: Theoretical Occupancy, Achieved Occupancy, and limiters (registers, shar
 
 To extract specific raw metrics:
 ```bash
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page raw --csv --metrics <metric1>,<metric2>,... 2>&1
+ncu -i <REPORT> --page raw --csv --metrics <metric1>,<metric2>,... 2>&1
 ```
 
 To filter by kernel:
 ```bash
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page raw --csv --metrics <metrics> --kernel-name regex:<pattern> 2>&1
+ncu -i <REPORT> --page raw --csv --metrics <metrics> --kernel-name regex:<pattern> 2>&1
 ```
 
 ### Step 6: Source-level analysis (on demand)
 
 SASS-only (default, always available):
 ```bash
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page source --csv --kernel-name regex:<pattern> 2>&1
+ncu -i <REPORT> --page source --csv --kernel-name regex:<pattern> 2>&1
 ```
 
 CUDA source correlated with SASS (requires `--import-source yes` during profiling):
 ```bash
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page source --csv --print-source cuda,sass --kernel-name regex:<pattern> 2>&1
+ncu -i <REPORT> --page source --csv --print-source cuda,sass --kernel-name regex:<pattern> 2>&1
 ```
 
 Source output columns include per-instruction: Warp Stall Sampling, Instructions Executed, Thread Instructions Executed, stall reasons (stall_barrier, stall_math, stall_wait, etc.), shared memory conflicts, and more.
@@ -160,12 +160,12 @@ Source output columns include per-instruction: Warp Stall Sampling, Instructions
 
 Rules are included in the details page output. Look for non-empty "Rule Name" column entries.
 ```bash
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page details --csv --print-rule-details 2>&1 | grep -v '^"[0-9]' | head -5  # header
+ncu -i <REPORT> --page details --csv --print-rule-details 2>&1 | grep -v '^"[0-9]' | head -5  # header
 ```
 
 To see all rule results with descriptions:
 ```bash
-TMPDIR=/tmp/ncu_tmp ncu -i <REPORT> --page details --csv --print-rule-details 2>&1
+ncu -i <REPORT> --page details --csv --print-rule-details 2>&1
 ```
 Filter for rows where column 17 (Rule Name) is non-empty.
 

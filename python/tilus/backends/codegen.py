@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -156,8 +156,10 @@ class FunctionCodegen(IRFunctor):
     def launch_kernel(self, kernel_func: HidetFunction) -> None:
         """Generate the host code to launch the kernel function."""
         if kernel_func.kind == "cuda_kernel":
-            func_var = Var(hint=None, type=FuncType.from_func(kernel_func), name=kernel_func.name)
-            dynamic_shared_bytes = kernel_func.get_attr("cuda.dynamic_smem_bytes", int32(0))
+            func_var = Var(name=kernel_func.name, type=FuncType.from_func(kernel_func))
+            dynamic_shared_bytes = (
+                kernel_func.attrs.dynamic_smem_bytes if kernel_func.attrs.dynamic_smem_bytes is not None else int32(0)
+            )
             assert isinstance(dynamic_shared_bytes, Constant | int), (
                 "dynamic shared memory bytes must be a constant integer"
             )
@@ -173,13 +175,14 @@ class FunctionCodegen(IRFunctor):
 
             # launch the kernel
             kernel_args = list(self.host_builder.params) + list(self.extra_params)
+            cluster_dim = kernel_func.attrs.cluster_dim if kernel_func.attrs.cluster_dim is not None else 1
             self.host_builder.append(
                 LaunchKernelStmt(
                     func_var=func_var,
                     args=kernel_args,
-                    grid_dim=normalize_dim3(kernel_func.get_attr("cuda.grid_dim")),  # type: ignore
-                    cluster_dim=normalize_dim3(kernel_func.get_attr("cuda.cluster_dim", default=1)),  # type: ignore
-                    block_dim=normalize_dim3(kernel_func.get_attr("cuda.block_dim")),  # type: ignore
+                    grid_dim=normalize_dim3(kernel_func.attrs.grid_dim),  # type: ignore
+                    cluster_dim=normalize_dim3(cluster_dim),  # type: ignore
+                    block_dim=normalize_dim3(kernel_func.attrs.block_dim),  # type: ignore
                     shared_mem=int32(dynamic_shared_bytes),
                     target="cuda",
                 )
@@ -192,15 +195,22 @@ class FunctionCodegen(IRFunctor):
             raise RuntimeError("Function analysis is required for code generation")
         self._function = func
 
+        current_target = get_current_target()
+        if current_target.supports(nvgpu_sm90):
+            cluster_blocks = self._function.metadata.cluster_blocks
+        else:
+            if self._function.metadata.cluster_blocks != (1, 1, 1):
+                raise RuntimeError(
+                    f"Target {current_target} does not support cluster blocks, but function {func.name} has cluster blocks {self._function.metadata.cluster_blocks}"
+                )
+            cluster_blocks = None
+
         # create function builders for both device and host side
         self._builder = FunctionBuilder(
             name=func.name + "_kernel",
             kind="cuda_kernel" if get_current_target().is_nvgpu() else "hip_kernel",
-            label="",
             grid_dim=self._function.metadata.grid_blocks,
-            cluster_dim=self._function.metadata.cluster_blocks
-            if self._function.metadata.cluster_blocks != (1, 1, 1)
-            else None,
+            cluster_dim=cluster_blocks,
             block_dim=func.metadata.num_warps * 32,
             dynamic_smem_bytes=None,
             min_blocks=None,
@@ -208,7 +218,6 @@ class FunctionCodegen(IRFunctor):
         self._host_builder = FunctionBuilder(
             name=func.name,
             kind="public",
-            label="",
         )
         self.builder.extend_params(list(func.params))
         self.host_builder.extend_params(list(func.params))
@@ -481,23 +490,8 @@ class ProgramCodegen(IRFunctor):
             sub_ir_module = func_codegen(func)
             ir_module = merge_ir_modules([ir_module, sub_ir_module])
 
-        # if there is only one public function, we copy it and generate a function named 'launch', which is used as the
-        # entry point of the module
-        public_functions = [func for func in ir_module.functions.values() if func.kind == "public"]
-
-        if len(public_functions) == 1 and "launch" not in ir_module.functions:
-            public_func: HidetFunction = public_functions[0]
-            ir_module.add_function(
-                name="launch",
-                func=HidetFunction(
-                    name="launch",
-                    params=public_func.params,
-                    body=public_func.body,
-                    ret_type=public_func.ret_type,
-                    kind=public_func.kind,
-                    attrs=public_func.attrs,
-                ),
-            )
+        # The 'launch' entry point is handled by GenerateLaunchFuncPass which runs later
+        # in the optimization pipeline.
         return ir_module
 
 

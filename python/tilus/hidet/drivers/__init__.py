@@ -14,4 +14,3 @@
 # limitations under the License.
 # Licensed under the Apache License, Version 2.0 (the "License")
 # Stripped for tilus integration.
-from .build_module import write_function_types

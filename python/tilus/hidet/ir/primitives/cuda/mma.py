@@ -33,7 +33,6 @@ from typing import Dict, List, Tuple
 from tilus.hidet.ir.builders import FunctionBuilder
 from tilus.hidet.ir.expr import Expr, Var, cast
 from tilus.hidet.ir.func import Function
-from tilus.hidet.ir.mapping import TaskMapping, col_repeat, col_spatial, row_repeat, row_spatial
 from tilus.hidet.ir.primitives.cuda.funcs import call_cuda
 from tilus.hidet.ir.primitives.func import register_primitive_function
 from tilus.hidet.ir.stmt import AsmStmt, AssignStmt, DeclareStmt, asm
@@ -50,15 +49,12 @@ def num_regs(short_dtype: str, num_elements: int) -> int:
 
 
 class MmaConfig:
-    def __init__(self, m, n, k, input_dtype, output_dtype, a_load_map, b_load_map, c_store_map, required_arch):
+    def __init__(self, m, n, k, input_dtype, output_dtype, required_arch):
         self.m: int = m
         self.n: int = n
         self.k: int = k
         self.input_dtype: str = input_dtype
         self.output_dtype: str = output_dtype
-        self.a_load_map: TaskMapping = a_load_map
-        self.b_load_map: TaskMapping = b_load_map
-        self.c_store_map: TaskMapping = c_store_map
         self.a_elements: int = m * k // 32
         self.b_elements: int = k * n // 32
         self.c_elements: int = m * n // 32
@@ -184,9 +180,6 @@ def register_mma_configs():
                     k=8,
                     input_dtype="f16",
                     output_dtype=output_dtype,
-                    a_load_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
-                    b_load_map=col_spatial(4, 8) * col_repeat(2, 1, attrs="u+u+"),
-                    c_store_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                     required_arch=(7, 5),
                 ),
                 "m16n8k16_f16_{}".format(output_dtype): MmaConfig(
@@ -195,9 +188,6 @@ def register_mma_configs():
                     k=16,
                     input_dtype="f16",
                     output_dtype=output_dtype,
-                    a_load_map=col_repeat(2, 2, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
-                    b_load_map=col_repeat(2, 1, attrs="u+u+") * col_spatial(4, 8) * col_repeat(2, 1, attrs="u+u+"),
-                    c_store_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                     required_arch=(8, 0),
                 ),
             }
@@ -217,9 +207,6 @@ def register_mma_configs():
                     k=16,
                     input_dtype=input_type,
                     output_dtype="i32",
-                    a_load_map=row_spatial(8, 4) * row_repeat(1, 4, attrs="u+u+"),
-                    b_load_map=col_spatial(4, 8) * col_repeat(4, 1, attrs="u+u+"),
-                    c_store_map=row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                     required_arch=(7, 5),
                 ),
                 f"m16n8k16_{input_type}_i32": MmaConfig(
@@ -228,9 +215,6 @@ def register_mma_configs():
                     k=16,
                     input_dtype=input_type,
                     output_dtype="i32",
-                    a_load_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 4, attrs="u+u+"),
-                    b_load_map=col_spatial(4, 8) * col_repeat(4, 1, attrs="u+u+"),
-                    c_store_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                     required_arch=(7, 5),
                 ),
                 f"m16n8k32_{input_type}_i32": MmaConfig(
@@ -239,9 +223,6 @@ def register_mma_configs():
                     k=32,
                     input_dtype=input_type,
                     output_dtype="i32",
-                    a_load_map=row_repeat(2, 2, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 4, attrs="u+u+"),
-                    b_load_map=col_repeat(2, 1, attrs="u+u+") * col_spatial(4, 8) * col_repeat(4, 1, attrs="u+u+"),
-                    c_store_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                     required_arch=(7, 5),
                 ),
             }
@@ -255,9 +236,6 @@ def register_mma_configs():
                 k=8,
                 input_dtype="bf16",
                 output_dtype="f32",
-                a_load_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
-                b_load_map=col_spatial(4, 8) * col_repeat(2, 1, attrs="u+u+"),
-                c_store_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                 required_arch=(8, 0),
             ),
             "m16n8k16_bf16_f32": MmaConfig(
@@ -266,9 +244,6 @@ def register_mma_configs():
                 k=16,
                 input_dtype="bf16",
                 output_dtype="f32",
-                a_load_map=col_repeat(2, 2, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
-                b_load_map=col_repeat(2, 1, attrs="u+u+") * col_spatial(4, 8) * col_repeat(2, 1, attrs="u+u+"),
-                c_store_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                 required_arch=(8, 0),
             ),
         }
@@ -284,9 +259,6 @@ def register_mma_configs():
                         k=16,
                         input_dtype=input_dtype,
                         output_dtype=output_dtype,
-                        a_load_map=col_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 4, attrs="u+u+"),
-                        b_load_map=col_spatial(4, 8) * col_repeat(4, 1, attrs="u+u+"),
-                        c_store_map=col_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                         required_arch=(8, 0),
                     ),
                     f"m16n8k32_{input_dtype}_{output_dtype}": MmaConfig(
@@ -295,9 +267,6 @@ def register_mma_configs():
                         k=32,
                         input_dtype=input_dtype,
                         output_dtype=output_dtype,
-                        a_load_map=col_repeat(2, 2, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 4, attrs="u+u+"),
-                        b_load_map=col_spatial(4, 8) * col_repeat(4, 1, attrs="u+u+"),
-                        c_store_map=col_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                         required_arch=(8, 0),
                     ),
                 }
@@ -311,9 +280,6 @@ def register_mma_configs():
                 k=4,
                 input_dtype="tf32",
                 output_dtype="f32",
-                a_load_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4),
-                b_load_map=col_spatial(4, 8),
-                c_store_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                 required_arch=(8, 0),
             ),
             "m16n8k8_tf32_f32": MmaConfig(
@@ -322,9 +288,6 @@ def register_mma_configs():
                 k=8,
                 input_dtype="tf32",
                 output_dtype="f32",
-                a_load_map=col_repeat(2, 2, attrs="u+u+") * row_spatial(8, 4),
-                b_load_map=col_repeat(2, 1, attrs="u+u+") * col_spatial(4, 8),
-                c_store_map=row_repeat(2, 1, attrs="u+u+") * row_spatial(8, 4) * row_repeat(1, 2, attrs="u+u+"),
                 required_arch=(8, 0),
             ),
         }
@@ -383,7 +346,10 @@ def resolve_ldmatrix_func_name(num: int, shared_space_addr: bool = False, trans=
 
 @initialize()
 def register_ldmatrix_instructions():
-    from tilus.hidet.lang import attrs, ref_u32, script, u32, void_p
+    from tilus.hidet.ir.expr import deref
+    from tilus.hidet.lang import attrs, script, u32, void_p
+
+    u32_p = ~u32
 
     for num in [1, 2, 4]:
         for trans in [False, True]:
@@ -399,10 +365,10 @@ def register_ldmatrix_instructions():
                     template = "{inst_name} {{%0}}, [%1];".format(inst_name=inst_name)
 
                     @script
-                    def cuda_ldmatrix(reg0: ref_u32, smem: smem_type):
+                    def cuda_ldmatrix(reg0: u32_p, smem: smem_type):
                         attrs.func_name = func_name
                         attrs.func_kind = "cuda_internal"
-                        asm(template, outputs=[reg0], inputs=[smem], is_volatile=True)
+                        asm(template, outputs=[deref(reg0)], inputs=[smem], is_volatile=True)
 
                     assert isinstance(cuda_ldmatrix, Function)
                     register_primitive_function(cuda_ldmatrix.name, cuda_ldmatrix)
@@ -411,10 +377,10 @@ def register_ldmatrix_instructions():
                     template = "{inst_name} {{%0, %1}}, [%2];".format(inst_name=inst_name)
 
                     @script
-                    def cuda_ldmatrix(reg0: ref_u32, reg1: ref_u32, smem: smem_type):
+                    def cuda_ldmatrix(reg0: u32_p, reg1: u32_p, smem: smem_type):
                         attrs.func_name = func_name
                         attrs.func_kind = "cuda_internal"
-                        asm(template, outputs=[reg0, reg1], inputs=[smem], is_volatile=True)
+                        asm(template, outputs=[deref(reg0), deref(reg1)], inputs=[smem], is_volatile=True)
 
                     assert isinstance(cuda_ldmatrix, Function)
                     register_primitive_function(cuda_ldmatrix.name, cuda_ldmatrix)
@@ -422,10 +388,15 @@ def register_ldmatrix_instructions():
                     template = "{inst_name} {{%0, %1, %2, %3}}, [%4];".format(inst_name=inst_name)
 
                     @script
-                    def cuda_ldmatrix(reg0: ref_u32, reg1: ref_u32, reg2: ref_u32, reg3: ref_u32, smem: smem_type):
+                    def cuda_ldmatrix(reg0: u32_p, reg1: u32_p, reg2: u32_p, reg3: u32_p, smem: smem_type):
                         attrs.func_name = func_name
                         attrs.func_kind = "cuda_internal"
-                        asm(template, outputs=[reg0, reg1, reg2, reg3], inputs=[smem], is_volatile=True)
+                        asm(
+                            template,
+                            outputs=[deref(reg0), deref(reg1), deref(reg2), deref(reg3)],
+                            inputs=[smem],
+                            is_volatile=True,
+                        )
 
                     assert isinstance(cuda_ldmatrix, Function)
                     register_primitive_function(cuda_ldmatrix.name, cuda_ldmatrix)
@@ -522,45 +493,6 @@ def stmatrix(regs: List[Expr], smem_addr: Expr, shared_space_addr: bool = False,
 def mma_sync(config: MmaConfig, a_addr: Expr, b_addr: Expr, c_addr: Expr):
     name = config.inst_name().replace(".", "_")
     return call_cuda(func_name=name, args=[a_addr, b_addr, c_addr])
-
-
-def _print_segment(mapping: TaskMapping, dtype: DataType, addr: Expr, worker_id: Expr, precision: int, msg: str):
-    from tilus.hidet.ir.builders import StmtBuilder
-    from tilus.hidet.ir.dtypes import float32, int32
-    from tilus.hidet.ir.expr import LogicalAnd, var
-    from tilus.hidet.ir.primitives import printf, syncwarp
-
-    sb = StmtBuilder()
-    seg = Var("seg", ~dtype)
-    with sb.let(seg, addr):
-        if msg:
-            with sb.if_then(worker_id == 0):
-                sb += printf(f"{msg}\\n")
-        with sb.for_loop("i", mapping.task_shape[0]) as i:
-            with sb.for_loop("j", mapping.task_shape[1]) as j:
-                p = var("p", int32)
-                sb += DeclareStmt(p, int32(0))
-                with sb.for_mapping(mapping, ["ii", "jj"], worker_id) as (ii, jj):
-                    with sb.if_then(LogicalAnd(ii == i, jj == j)):
-                        sb += printf("%.{}f ".format(precision), cast(seg[p], float32))
-                    sb += syncwarp()
-                    sb += AssignStmt(p, p + 1)
-            with sb.if_then(worker_id == 0):
-                sb += printf(r"\n")
-            sb += syncwarp()
-    return sb.finish()
-
-
-def print_segment_a(config: MmaConfig, a_addr: Expr, worker_id: Expr, precision: int = 2, msg: str = "Segment A"):
-    return _print_segment(config.a_load_map, data_type(config.input_dtype), a_addr, worker_id, precision, msg)
-
-
-def print_segment_b(config: MmaConfig, b_addr: Expr, worker_id: Expr, precision: int = 2, msg: str = "Segment B"):
-    return _print_segment(config.b_load_map, data_type(config.input_dtype), b_addr, worker_id, precision, msg)
-
-
-def print_segment_c(config: MmaConfig, c_addr: Expr, worker_id: Expr, precision: int = 2, msg: str = "Segment C"):
-    return _print_segment(config.c_store_map, data_type(config.output_dtype), c_addr, worker_id, precision, msg)
 
 
 def ldmatrix(regs: List[Expr], smem_addr: Expr, shared_space_addr: bool = False, trans: bool = False):

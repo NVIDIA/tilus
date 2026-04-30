@@ -32,9 +32,11 @@ Attributes and Variables
 .. autosummary::
    :toctree: generated
 
-   attrs
    blockIdx
    gridDim
+   current_num_threads
+   current_thread_begin
+   current_thread_end
 
 Language Constructs
 -------------------
@@ -44,7 +46,11 @@ Language Constructs
 
    assume
    range
+   single_thread
+   single_warp
+   static_assert
    thread_group
+   warp_group
 
 
 Instructions
@@ -55,68 +61,111 @@ Instructions
 
    abs
    add
+   all
    annotate_layout
-   arrive_barrier
-   arrive_remote_barrier
+   any
    assign
    cast
+   clip
+   cos
    copy_async
    copy_async_commit_group
    copy_async_wait_all
    copy_async_wait_group
-   copy_async_bulk_global_to_shared
-   copy_async_bulk_global_to_cluster_shared
-   copy_async_bulk_shared_to_global
-   copy_async_tensor_global_to_shared
-   copy_async_tensor_shared_to_global
-   copy_async_tensor_commit_group
-   copy_async_tensor_wait_group
-   fence_proxy_copy_async
-   cluster_sync
+   cumprod
+   cumsum
    dot
    exp
    exp2
+   fast_divmod
+   flatten
    free_shared
    global_tensor
    global_view
-   init_barrier
    load_global
    load_shared
    lock_semaphore
+   log
    max
    maximum
    min
    print_tensor
    printf
+   rand
+   randint
+   randint4x
+   randn
    register_tensor
    release_semaphore
    repeat
    repeat_interleave
+   reshape_shared
    round
+   rsqrt
+   scan
    shared_tensor
+   sin
+   sqrt
+   square
    squeeze
    store_global
+   store_global_scatter
    store_shared
+   store_shared_scatter
    sum
    sync
    transpose
    unsqueeze
    view
-   wait_barrier
    where
+
+
+Instruction Groups
+------------------
+
+.. toctree::
+   :hidden:
+
+   instruction-groups/mbarrier
+   instruction-groups/fence
+   instruction-groups/tma
+   instruction-groups/tcgen05
+   instruction-groups/clc
+   instruction-groups/cluster
+   instruction-groups/wgmma
+   instruction-groups/atomic
+
+.. list-table::
+   :widths: 20 80
+
+   * - :doc:`mbarrier <instruction-groups/mbarrier>`
+     - Memory barrier instructions for synchronizing async memory transactions.
+   * - :doc:`fence <instruction-groups/fence>`
+     - Fence instructions for memory ordering between proxies.
+   * - :doc:`tma <instruction-groups/tma>`
+     - Tensor Memory Accelerator (TMA) async copy instructions.
+   * - :doc:`tcgen05 <instruction-groups/tcgen05>`
+     - Tensor Core Generation 05 (Blackwell) instructions.
+   * - :doc:`clc <instruction-groups/clc>`
+     - Cluster Launch Control instructions.
+   * - :doc:`cluster <instruction-groups/cluster>`
+     - Block cluster synchronization and shared memory access.
+   * - :doc:`wgmma <instruction-groups/wgmma>`
+     - Warp Group Matrix Multiply-Accumulate (Hopper) instructions.
+   * - :doc:`atomic <instruction-groups/atomic>`
+     - Tile-level atomic RMW (element-wise and scatter) on shared and global memory.
 
 
 Script Attributes
 -----------------
 
-.. currentmodule:: tilus.lang
+.. toctree::
+   :hidden:
 
-.. class:: Attributes
+   attrs
 
-.. currentmodule:: tilus.lang.Attributes
+.. list-table::
+   :widths: 20 80
 
-.. autosummary::
-   :toctree: generated
-
-   blocks
-   warps
+   * - :doc:`attrs <attrs>`
+     - Kernel launch configuration (blocks, warps, cluster).

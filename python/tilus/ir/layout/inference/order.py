@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ from tilus.utils import initialize
 
 from .inference_rules.allocate_shared import AllocateSharedRule
 from .inference_rules.assign import AssignRule
+from .inference_rules.atomic import AtomicElementWiseRule
 from .inference_rules.clc import ClusterLaunchControlQueryResponseInstRule, ClusterLaunchControlTryCancelInstRule
 from .inference_rules.cp_async import CopyAsyncRule
 from .inference_rules.elementwise_binary import BinaryRule
@@ -34,8 +35,11 @@ from .inference_rules.load_shared import (
 from .inference_rules.mapa import MapSharedAddrRule
 from .inference_rules.mbarrier import AllocBarrierRule
 from .inference_rules.mma_dot import MmaDotRule
+from .inference_rules.philox import Philox4x32InferenceRule
 from .inference_rules.reduce import ReduceRule
 from .inference_rules.reshape_shared import ReshapeSharedRule
+from .inference_rules.scan import ScanRule
+from .inference_rules.scatter import ScatterRule
 from .inference_rules.slice_register import SliceAssignRule, SliceRegisterRule
 from .inference_rules.store_shared import StoreSharedSwizzleRule
 from .inference_rules.tcgen05.alloc import Tcgen05AllocRule
@@ -58,13 +62,19 @@ inference_order: list[list[Type[LayoutInferenceRule]]] = [
     [WgmmaMmaSSRule],
     [Tcgen05LoadRule, Tcgen05StoreRule],
     [Tcgen05CopyRule],
+    [Philox4x32InferenceRule],
     [BinaryRule, UnaryRule],
     [LoadGlobalRule],
     [ReduceRule],
+    [ScanRule],
     [TransposeRule, SqueezeRule, UnsqueezeRule],
     [WhereRule],
     [AssignRule],
     [StoreGlobalRule],
+    # Atomic / scatter-store rules: run alongside StoreGlobalRule so that their
+    # register tensors pick up a reasonable default layout when no other
+    # instruction constrains them.
+    [AtomicElementWiseRule, ScatterRule],
     [ClusterLaunchControlTryCancelInstRule, ClusterLaunchControlQueryResponseInstRule, MapSharedAddrRule],
     [EmptyRule],
     # shared memory rules

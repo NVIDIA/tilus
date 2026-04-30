@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,9 +51,11 @@ class MmaDotInstEmitter(BaseInstEmitter):
             a_outer_indices = broadcast_indices(c_outer_indices, a_value.shape[:-2], c_outer_shape)
             b_outer_indices = broadcast_indices(c_outer_indices, b_value.shape[:-2], c_outer_shape)
             with self.for_grid(list(warp_repeat)) as repeat_indices:
-                from tilus.hidet.ir.mapping import spatial_map
-
-                spatial_indices: Tuple[Expr, ...] = spatial_map(warp_spatial, ranks=[1, 2, 0])(warp_id)[0]  # type: ignore
+                spatial_indices: Tuple[Expr, ...] = (
+                    (warp_id // warp_spatial[2]) % warp_spatial[0],
+                    (warp_id // (warp_spatial[2] * warp_spatial[0])) % warp_spatial[1],
+                    warp_id % warp_spatial[2],
+                )
 
                 mma_indices = [
                     (spatial_indices[0] * warp_repeat[0] + repeat_indices[0]) * simt_m,

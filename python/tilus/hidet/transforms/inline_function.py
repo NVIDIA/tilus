@@ -31,7 +31,7 @@ from tilus.hidet.ir.functors import IRRewriter
 from tilus.hidet.ir.module import IRModule
 from tilus.hidet.ir.stmt import DeclareStmt, EvaluateStmt, ReturnStmt, SeqStmt, Stmt
 from tilus.hidet.ir.tools import collect, rewrite
-from tilus.hidet.ir.type import ReferenceType, TensorType
+from tilus.hidet.ir.type import TensorType
 from tilus.hidet.ir.utils.call_graph import CallGraph, CallGraphNode
 from tilus.hidet.transforms.base import Pass
 
@@ -50,7 +50,7 @@ class InlineFunctionRewriter(IRRewriter):
         Currently, we only inline functions that
         1. have no return value
         2. have no return statement
-        3. have no reference type and tensor type arguments
+        3. have no tensor type arguments
 
         Parameters
         ----------
@@ -69,7 +69,7 @@ class InlineFunctionRewriter(IRRewriter):
             ret = False
         elif callee.kind in ["public", "cpu_kernel", "cuda_kernel"]:
             ret = False
-        elif any(isinstance(arg.type, (ReferenceType, TensorType)) for arg in callee.params):
+        elif any(isinstance(arg.type, TensorType) for arg in callee.params):
             ret = False
         elif len(collect(callee.body, ReturnStmt)) > 0:
             ret = False
@@ -107,7 +107,7 @@ class InlineFunctionRewriter(IRRewriter):
                 if isinstance(arg, Var) and arg.type.is_tensor():
                     remap[param] = arg
                 else:
-                    param_var = Var(param.hint, rewrite(param.type, remap, clone_internal_var=True))
+                    param_var = Var(param.name, rewrite(param.type, remap, clone_internal_var=True))
                     param_vars.append(param_var)
                     self.stmts.append(DeclareStmt(param_var, init=arg))
                     remap[param] = param_var
@@ -133,44 +133,45 @@ def inline_callees(caller: Function, updated_ir_module: IRModule) -> Function:
     return rewriter.inline(caller)
 
 
-class PruneUnusedFunctionRewriter(IRRewriter):
-    def visit_IRModule(self, module: IRModule):
-        call_graph = CallGraph(module, allow_missing=True)
-        unused_func_names: Set[str] = set()
-        for node in call_graph.nodes:
-            func: Function = node.func
-            if func.kind in ["public", "cpu_kernel", "cuda_kernel", "hip_kernel"]:
-                continue
-            if len(node.callers) == 0:
-                unused_func_names.add(func.name)
-        for func_name in unused_func_names:
-            del module.functions[func_name]
-            if func_name in module.global_vars:
-                del module.global_vars[func_name]
-
-        return module
-
-
-def prune_unused_functions(ir_module: IRModule):
-    rewriter = PruneUnusedFunctionRewriter()
-    return rewriter.visit(ir_module)
+def prune_unused_functions(ir_module: IRModule) -> IRModule:
+    call_graph = CallGraph(ir_module, allow_missing=True)
+    unused_func_names: Set[str] = set()
+    for node in call_graph.nodes:
+        func: Function = node.func
+        if func.kind in ["public", "cpu_kernel", "cuda_kernel", "hip_kernel"]:
+            continue
+        if len(node.callers) == 0:
+            unused_func_names.add(func.name)
+    if not unused_func_names:
+        return ir_module
+    return ir_module.with_removed_functions(unused_func_names)
 
 
 class InlineFunctionPass(Pass):
     def process_module(self, ir_module: IRModule) -> IRModule:
         call_graph = CallGraph(ir_module, allow_missing=True)
-        updated_ir_module = ir_module.copy().reset_funcs()
+        # Accumulate inlined functions in a fresh IRModule so the rewriter can see the
+        # already-inlined definitions when processing their callers.
+        updated_ir_module = ir_module.with_functions(functions={}, global_vars={})
         for node in call_graph.reversed_order:
             assert isinstance(node, CallGraphNode)
             func = inline_callees(node.func, updated_ir_module)
-            updated_ir_module.functions[func.name] = func
+            new_functions = dict(updated_ir_module.functions)
+            new_functions[func.name] = func
+            updated_ir_module = updated_ir_module.with_functions(
+                functions=new_functions, global_vars=updated_ir_module.global_vars
+            )
 
         updated_ir_module = prune_unused_functions(updated_ir_module)
 
-        # add global variables that are not functions
-        updated_ir_module.global_vars.update(
-            {name: var for name, var in ir_module.global_vars.items() if name not in ir_module.functions}
-        )
+        # Preserve global variables that are not tied to a function definition.
+        non_func_globals = {name: var for name, var in ir_module.global_vars.items() if name not in ir_module.functions}
+        if non_func_globals:
+            merged_globals = dict(updated_ir_module.global_vars)
+            merged_globals.update(non_func_globals)
+            updated_ir_module = updated_ir_module.with_functions(
+                functions=updated_ir_module.functions, global_vars=merged_globals
+            )
 
         return updated_ir_module
 
