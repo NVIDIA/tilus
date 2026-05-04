@@ -36,12 +36,13 @@ class TMemoryLayout(IRNode):
             )
         if len(shape) < 2:
             raise ValueError("TMemLayout requires at least 2 dimensions, got {}".format(len(shape)))
-        if shape[-2] not in [32, 64, 128]:
-            raise ValueError("The number of rows (shape[-2]) must be 32, 64, or 128, got {}".format(shape[-2]))
-        if column_strides[-2] != 0:
+        # Convention: shape[0] is the lane (row) dimension; all other dims are column-strided.
+        if shape[0] not in [32, 64, 128]:
+            raise ValueError("The number of rows (shape[0]) must be 32, 64, or 128, got {}".format(shape[0]))
+        if column_strides[0] != 0:
             raise ValueError(
-                "The column stride for the row dimension (column_strides[-2]) must be 0, got {}".format(
-                    column_strides[-2]
+                "The column stride for the row dimension (column_strides[0]) must be 0, got {}".format(
+                    column_strides[0]
                 )
             )
         return TMemoryLayout(shape=tuple(shape), column_strides=tuple(column_strides), lane_offset=lane_offset)

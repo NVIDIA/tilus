@@ -68,7 +68,7 @@ class TMemoryLoadStoreBaseEmitter(BaseInstEmitter):
             raise ValueError(
                 "Lane mismatch: the first lane of the tmem tensor must be the same as the thread group begin"
             )
-        if self.current_num_threads != tmem_tensor.shape[-2]:
+        if self.current_num_threads != tmem_tensor.shape[0]:
             raise ValueError(
                 "The number of threads in the current thread group must be the same as the number of lanes in the tmem tensor"
             )
