@@ -1624,8 +1624,8 @@ class StmtBuilder(StmtBuilderCore):
         inst = Tcgen05WaitInst.create(wait_load=False, wait_store=True)
         self.append(inst)
 
-    def tcgen05_copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
-        inst = Tcgen05CopyInst.create(src=src, dst=dst)
+    def tcgen05_copy(self, src: SharedTensor, dst: TMemoryTensor, multicast: str = "") -> None:
+        inst = Tcgen05CopyInst.create(src=src, dst=dst, multicast=multicast)
         self.append(inst)
 
     def tcgen05_commit(
