@@ -1288,15 +1288,15 @@ document.write(`
 
 <span class="sd">    Tensor memory is a dedicated on-chip memory available on Blackwell (SM 10.0+) GPUs, private to the SM&#39;s tensor</span>
 <span class="sd">    cores. It is organized as a 2D structure of lanes (rows) and columns, with each cell being 32 bits. The number</span>
-<span class="sd">    of lanes (``shape[-2]``) must be 32, 64, or 128.</span>
+<span class="sd">    of lanes (``shape[0]``) must be 32, 64, or 128.</span>
 
 <span class="sd">    Attributes</span>
 <span class="sd">    ----------</span>
 <span class="sd">    dtype: DataType</span>
 <span class="sd">        The data type of the tensor elements.</span>
 <span class="sd">    shape: tuple[int, ...]</span>
-<span class="sd">        The shape of the tensor. Must have at least 2 dimensions. The second-to-last dimension (lanes) must be</span>
-<span class="sd">        32, 64, or 128.</span>
+<span class="sd">        The shape of the tensor. Must have at least 2 dimensions. The first dimension (lanes) must be</span>
+<span class="sd">        32, 64, or 128. All remaining dimensions are column-strided.</span>
 <span class="sd">    optional_layout: TMemoryLayout, optional</span>
 <span class="sd">        The layout of the tensor, which is optional. When not provided, the layout will be automatically inferred</span>
 <span class="sd">        with compiler pass.</span>
@@ -1314,8 +1314,8 @@ document.write(`
 <span class="sd">        dtype: DataType</span>
 <span class="sd">            The data type of the tensor elements.</span>
 <span class="sd">        shape: Sequence[int]</span>
-<span class="sd">            The shape of the tensor. Must have at least 2 dimensions, with the second-to-last</span>
-<span class="sd">            dimension (lanes) being 32, 64, or 128.</span>
+<span class="sd">            The shape of the tensor. Must have at least 2 dimensions, with the first</span>
+<span class="sd">            dimension (lanes) being 32, 64, or 128. All remaining dimensions are column-strided.</span>
 <span class="sd">        optional_layout: TMemoryLayout, optional</span>
 <span class="sd">            The layout of the tensor. If not provided, the layout will be inferred later.</span>
 
@@ -1326,8 +1326,8 @@ document.write(`
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;TMemoryTensor requires at least 2 dimensions, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)))</span>
-        <span class="k">if</span> <span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The number of rows (shape[-2]) must be 32, 64, or 128, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The number of rows (shape[0]) must be 32, 64, or 128, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
         <span class="k">if</span> <span class="n">optional_layout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">optional_layout</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Shape mismatch: provided shape </span><span class="si">{</span><span class="n">shape</span><span class="si">}</span><span class="s2"> does not match layout shape </span><span class="si">{</span><span class="n">optional_layout</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span>
@@ -1384,7 +1384,7 @@ document.write(`
 <span class="sd">    converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">indices</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TMemoryTensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">indices</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">|</span> <span class="nb">slice</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">|</span> <span class="nb">slice</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TMemoryTensor</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;tmemory_tensor[...] could only be used in Tilus Script.&quot;</span><span class="p">)</span></div>
 
 

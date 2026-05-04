@@ -668,7 +668,7 @@ document.write(`
 <dd><p>A tensor that resides in tensor memory (TMEM).</p>
 <p>Tensor memory is a dedicated on-chip memory available on Blackwell (SM 10.0+) GPUs, private to the SM’s tensor
 cores. It is organized as a 2D structure of lanes (rows) and columns, with each cell being 32 bits. The number
-of lanes (<code class="docutils literal notranslate"><span class="pre">shape[-2]</span></code>) must be 32, 64, or 128.</p>
+of lanes (<code class="docutils literal notranslate"><span class="pre">shape[0]</span></code>) must be 32, 64, or 128.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="tilus.ir.tensor.TMemoryTensor.dtype">
 <span class="sig-name descname"><span class="pre">dtype</span></span><a class="headerlink" href="#tilus.ir.tensor.TMemoryTensor.dtype" title="Link to this definition"><span>¶</span></a></dt>
@@ -683,8 +683,8 @@ of lanes (<code class="docutils literal notranslate"><span class="pre">shape[-2]
 <dl class="py attribute">
 <dt class="sig sig-object py" id="tilus.ir.tensor.TMemoryTensor.shape">
 <span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#tilus.ir.tensor.TMemoryTensor.shape" title="Link to this definition"><span>¶</span></a></dt>
-<dd><p>The shape of the tensor. Must have at least 2 dimensions. The second-to-last dimension (lanes) must be
-32, 64, or 128.</p>
+<dd><p>The shape of the tensor. Must have at least 2 dimensions. The first dimension (lanes) must be
+32, 64, or 128. All remaining dimensions are column-strided.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>tuple[int, …]</p>

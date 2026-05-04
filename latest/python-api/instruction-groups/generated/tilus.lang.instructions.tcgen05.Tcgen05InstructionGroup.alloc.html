@@ -667,8 +667,9 @@ or for load/store operations.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>dtype</strong> (<a class="reference internal" href="../../tilus-ir/datatype.html#tilus.ir.DataType" title="tilus.ir.DataType"><em>DataType</em></a>) – The data type of the tensor elements (e.g., <code class="docutils literal notranslate"><span class="pre">float32</span></code>, <code class="docutils literal notranslate"><span class="pre">float16</span></code>).</p></li>
-<li><p><strong>shape</strong> (<em>Sequence</em><em>[</em><em>int</em><em>]</em>) – The shape of the tensor. Must have at least 2 dimensions. The second-to-last
-dimension (<code class="docutils literal notranslate"><span class="pre">shape[-2]</span></code>) must be 32, 64, or 128.</p></li>
+<li><p><strong>shape</strong> (<em>Sequence</em><em>[</em><em>int</em><em>]</em>) – The shape of the tensor. Must have at least 2 dimensions. The first
+dimension (<code class="docutils literal notranslate"><span class="pre">shape[0]</span></code>) is the lane axis and must be 32, 64, or 128.
+All remaining dimensions are column-strided.</p></li>
 <li><p><strong>cta_group</strong> (<em>int</em>) – The CTA group size for the allocation. Must be 1 or 2. When 2, the tensor is
 shared across two CTAs in the same cluster.</p></li>
 </ul>

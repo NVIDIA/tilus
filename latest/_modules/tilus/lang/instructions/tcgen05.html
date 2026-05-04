@@ -659,8 +659,9 @@ document.write(`
 <span class="sd">        dtype: DataType</span>
 <span class="sd">            The data type of the tensor elements (e.g., ``float32``, ``float16``).</span>
 <span class="sd">        shape: Sequence[int]</span>
-<span class="sd">            The shape of the tensor. Must have at least 2 dimensions. The second-to-last</span>
-<span class="sd">            dimension (``shape[-2]``) must be 32, 64, or 128.</span>
+<span class="sd">            The shape of the tensor. Must have at least 2 dimensions. The first</span>
+<span class="sd">            dimension (``shape[0]``) is the lane axis and must be 32, 64, or 128.</span>
+<span class="sd">            All remaining dimensions are column-strided.</span>
 <span class="sd">        cta_group: int</span>
 <span class="sd">            The CTA group size for the allocation. Must be 1 or 2. When 2, the tensor is</span>
 <span class="sd">            shared across two CTAs in the same cluster.</span>
@@ -680,8 +681,8 @@ document.write(`
             <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;cta_group must be 1 or 2&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;shape must be a sequence of length 2 or more, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">))</span>
-        <span class="k">if</span> <span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;shape[-2] must be 32, 64, or 128, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;shape[0] must be 32, 64, or 128, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
         <span class="k">if</span> <span class="mi">128</span> <span class="o">%</span> <span class="n">dtype</span><span class="o">.</span><span class="n">nbits</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;dtype must be 1, 2, 4, 8, 16, 32, 64, or 128 bit, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dtype</span><span class="p">))</span>
         <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_alloc</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">cta_group</span><span class="p">)</span>
