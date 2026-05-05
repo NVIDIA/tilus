@@ -619,7 +619,7 @@ document.write(`
 <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.lang.modules.cuda</span><span class="w"> </span><span class="kn">import</span> <span class="n">cuda</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.lang.instantiated_script</span><span class="w"> </span><span class="kn">import</span> <span class="n">InstantiatedScript</span><span class="p">,</span> <span class="n">JitInstance</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.lang.instantiated_script</span><span class="w"> </span><span class="kn">import</span> <span class="n">InstantiatedScript</span><span class="p">,</span> <span class="n">JitInstance</span>  <span class="c1"># noqa: F401</span>
 
 <span class="n">Int</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">Expr</span>
 
@@ -679,9 +679,9 @@ document.write(`
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;This method should never be called.&quot;</span><span class="p">)</span></div>
 
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">jit_instance_for</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JitInstance</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JitInstance</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Instantiate the script program with the specified arguments and keyword arguments.</span>
+<span class="sd">        Transpile and build the script for the given arguments without executing it.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -695,7 +695,7 @@ document.write(`
 <span class="sd">        ret: JitInstance</span>
 <span class="sd">            The JIT instance for the script with given arguments.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;This method should never be called. See InstantiatedScript.jit_instance instead.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;This method should never be called. See InstantiatedScript.compile instead.&quot;</span><span class="p">)</span>
 
     <span class="c1"># the following properties should only be access in the __call__ function</span>
     <span class="nd">@property</span>

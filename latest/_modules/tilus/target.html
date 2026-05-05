@@ -611,8 +611,9 @@ document.write(`
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">contextmanager</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span>
 
 
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -895,6 +896,33 @@ document.write(`
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">Target</span><span class="p">)</span>
     <span class="n">_target</span> <span class="o">=</span> <span class="n">target</span></div>
 
+
+
+<span class="nd">@contextmanager</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">scope</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="n">Target</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Target</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Temporarily set the current compilation target.</span>
+
+<span class="sd">    Useful to compile a kernel for a specific architecture (e.g., sm100a) on a machine that does not</span>
+<span class="sd">    support running it. Restores the previous target on exit.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    target: Target</span>
+<span class="sd">        The target to use within the scope.</span>
+
+<span class="sd">    Yields</span>
+<span class="sd">    ------</span>
+<span class="sd">    target: Target</span>
+<span class="sd">        The target that is now active.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">_target</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">Target</span><span class="p">)</span>
+    <span class="n">prev</span> <span class="o">=</span> <span class="n">_target</span>
+    <span class="n">_target</span> <span class="o">=</span> <span class="n">target</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">target</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">_target</span> <span class="o">=</span> <span class="n">prev</span>
 
 
 <span class="nd">@functools</span><span class="o">.</span><span class="n">cache</span>
