@@ -71,7 +71,7 @@ class CopyAsyncTensorExample(tilus.Script):
             self.tma.wait_group(0)
 
 
-@requires.nvgpu_sm90
+@requires.nvgpu_sm100a
 def test_copy_async_tensor_cta():
     m = 123
     n = 64 * 8

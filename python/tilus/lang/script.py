@@ -21,7 +21,7 @@ from tilus.lang.instructions import InstructionInterface
 from tilus.lang.modules.cuda import cuda
 
 if TYPE_CHECKING:
-    from tilus.lang.instantiated_script import InstantiatedScript, JitInstance
+    from tilus.lang.instantiated_script import InstantiatedScript, JitInstance  # noqa: F401
 
 Int: TypeAlias = int | Expr
 
@@ -70,9 +70,9 @@ class Script(InstructionInterface):
     def __call__(self, *args, **kwargs):
         raise RuntimeError("This method should never be called.")
 
-    def jit_instance_for(self, *args: object, **kwargs: object) -> JitInstance:
+    def compile(self, *args: object, **kwargs: object) -> JitInstance:
         """
-        Instantiate the script program with the specified arguments and keyword arguments.
+        Transpile and build the script for the given arguments without executing it.
 
         Parameters
         ----------
@@ -86,7 +86,7 @@ class Script(InstructionInterface):
         ret: JitInstance
             The JIT instance for the script with given arguments.
         """
-        raise RuntimeError("This method should never be called. See InstantiatedScript.jit_instance instead.")
+        raise RuntimeError("This method should never be called. See InstantiatedScript.compile instead.")
 
     # the following properties should only be access in the __call__ function
     @property
