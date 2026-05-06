@@ -69,6 +69,8 @@ from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05CopyInst,
     Tcgen05DeallocInst,
     Tcgen05LoadInst,
+    Tcgen05BlockScaledMmaSSInst,
+    Tcgen05BlockScaledMmaTSInst,
     Tcgen05MmaSSInst,
     Tcgen05MmaTSInst,
     Tcgen05RelinquishAllocPermitInst,
@@ -1648,6 +1650,70 @@ class StmtBuilder(StmtBuilderCore):
     ) -> None:
         enable_input_d = as_expr(enable_input_d) if isinstance(enable_input_d, bool) else enable_input_d
         inst = Tcgen05MmaTSInst.create(a=a, b=b, d=d, enable_input_d=enable_input_d, cta_group=cta_group)
+        self.append(inst)
+
+    def tcgen05_mma_scaled_ss(
+        self,
+        a: SharedTensor,
+        b: SharedTensor,
+        d: TMemoryTensor,
+        sfa: TMemoryTensor,
+        sfb: TMemoryTensor,
+        kind: str,
+        scale_vec: str,
+        sf_block_size: int,
+        sfa_id: int,
+        sfb_id: int,
+        cta_group: int,
+        enable_input_d: Expr | bool,
+    ) -> None:
+        enable_input_d = as_expr(enable_input_d) if isinstance(enable_input_d, bool) else enable_input_d
+        inst = Tcgen05BlockScaledMmaSSInst.create(
+            a=a,
+            b=b,
+            d=d,
+            sfa=sfa,
+            sfb=sfb,
+            kind=kind,
+            scale_vec=scale_vec,
+            sf_block_size=sf_block_size,
+            sfa_id=sfa_id,
+            sfb_id=sfb_id,
+            cta_group=cta_group,
+            enable_input_d=enable_input_d,
+        )
+        self.append(inst)
+
+    def tcgen05_mma_scaled_ts(
+        self,
+        a: TMemoryTensor,
+        b: SharedTensor,
+        d: TMemoryTensor,
+        sfa: TMemoryTensor,
+        sfb: TMemoryTensor,
+        kind: str,
+        scale_vec: str,
+        sf_block_size: int,
+        sfa_id: int,
+        sfb_id: int,
+        cta_group: int,
+        enable_input_d: Expr | bool,
+    ) -> None:
+        enable_input_d = as_expr(enable_input_d) if isinstance(enable_input_d, bool) else enable_input_d
+        inst = Tcgen05BlockScaledMmaTSInst.create(
+            a=a,
+            b=b,
+            d=d,
+            sfa=sfa,
+            sfb=sfb,
+            kind=kind,
+            scale_vec=scale_vec,
+            sf_block_size=sf_block_size,
+            sfa_id=sfa_id,
+            sfb_id=sfb_id,
+            cta_group=cta_group,
+            enable_input_d=enable_input_d,
+        )
         self.append(inst)
 
     # wgmma

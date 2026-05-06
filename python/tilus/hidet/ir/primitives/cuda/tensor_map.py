@@ -61,6 +61,12 @@ class TensorMapDataType(Enum):
     def from_dtype(cls, dtype: DataType) -> TensorMapDataType:
         if dtype.nbits == 8:
             return cls.UINT8
+        elif dtype.nbits == 4:
+            # 4-bit FP/INT use TMA's UINT4x16 packed mode. ALIGN16B gives the
+            # widest valid box stride and matches what cuBLASLt uses.
+            return cls.UINT4x16_ALIGN16B
+        elif dtype.nbits == 6:
+            return cls.UINT6x16_ALIGN16B
         else:
             return cls(dtype.name.upper())
 

@@ -52,7 +52,14 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorSharedToGlobalInst,
 )
 from tilus.ir.instructions.cuda.mapa import MapSharedAddrInst
-from tilus.ir.instructions.cuda.tcgen05 import Tcgen05CopyInst, Tcgen05LoadInst, Tcgen05MmaSSInst, Tcgen05StoreInst
+from tilus.ir.instructions.cuda.tcgen05 import (
+    Tcgen05BlockScaledMmaSSInst,
+    Tcgen05BlockScaledMmaTSInst,
+    Tcgen05CopyInst,
+    Tcgen05LoadInst,
+    Tcgen05MmaSSInst,
+    Tcgen05StoreInst,
+)
 from tilus.ir.instructions.cuda.wgmma import WgmmaMmaRSInst, WgmmaMmaSSInst
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 
@@ -63,6 +70,8 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(Tcgen05StoreInst)  # todo: should have its own rule
 @register_rule(Tcgen05CopyInst)  # todo: should have its own rule
 @register_rule(Tcgen05MmaSSInst)  # todo: should have its own rule
+@register_rule(Tcgen05BlockScaledMmaSSInst)  # todo: should have its own rule
+@register_rule(Tcgen05BlockScaledMmaTSInst)  # todo: should have its own rule
 @register_rule(CopyAsyncTensorGlobalToSharedInst)  # todo: should have its own rule
 @register_rule(CopyAsyncTensorSharedToGlobalInst)  # todo: should have its own rule
 @register_rule(CopyAsyncBulkSharedToClusterSharedInst)  # todo: should have its own rule

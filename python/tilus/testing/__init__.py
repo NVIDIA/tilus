@@ -13,3 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from ._requires import requires
+from .quantize import (
+    NVFP4_SF_BLOCK_K,
+    dequantize_nvfp4,
+    quantize_nvfp4,
+    shuffle_sf_to_block_scaled_layout,
+)

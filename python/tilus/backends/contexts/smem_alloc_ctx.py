@@ -130,7 +130,8 @@ class SharedMemoryAllocationContext(BaseEmitContext):
         if swizzle is None:
             return 128  # no swizzle, default 128-byte alignment
 
-        repeat_bytes = (2 ** (swizzle.base + swizzle.bits + swizzle.shift)) * tensor.dtype.nbytes
+        repeat_bits = (2 ** (swizzle.base + swizzle.bits + swizzle.shift)) * tensor.dtype.nbits
+        repeat_bytes = repeat_bits // 8
         if repeat_bytes < 128:
             return 128  # minimum alignment is 128 bytes
         return repeat_bytes

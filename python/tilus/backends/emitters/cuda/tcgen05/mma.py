@@ -378,6 +378,9 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
         b_shared_addr: Var = self.shared_tensor_shared_space_addr[b_tensor]
         d_tmem_addr: Var = self.tensor2var[d_tensor]
 
+        # Use bit math to support sub-byte dtypes (FP4 / FP6).
+        a_nbits = a_tensor.dtype.nbits
+        b_nbits = b_tensor.dtype.nbits
         for k in range(repeat_k):
             for i in range(repeat_m):
                 for j in range(repeat_n):
@@ -385,17 +388,17 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
                     a_offset = a_cute_layout(i * inst_m, k * inst_k)
                     b_offset = b_cute_layout(j * inst_n, k * inst_k)
                     a_desc = SharedMatrixDescriptor(
-                        addr=a_shared_addr + a_offset * a_tensor.dtype.nbytes,
-                        lbo=a_canonical.LBO * a_tensor.dtype.nbytes,
-                        sbo=a_canonical.SBO * a_tensor.dtype.nbytes,
+                        addr=a_shared_addr + a_offset * a_nbits // 8,
+                        lbo=a_canonical.LBO * a_nbits // 8,
+                        sbo=a_canonical.SBO * a_nbits // 8,
                         base_offset=0,
                         stride_mode=0,
                         swizzle_mode=a_canonical.swizzle_mode.encode(),
                     )
                     b_desc = SharedMatrixDescriptor(
-                        addr=b_shared_addr + b_offset * b_tensor.dtype.nbytes,
-                        lbo=b_canonical.LBO * b_tensor.dtype.nbytes,
-                        sbo=b_canonical.SBO * b_tensor.dtype.nbytes,
+                        addr=b_shared_addr + b_offset * b_nbits // 8,
+                        lbo=b_canonical.LBO * b_nbits // 8,
+                        sbo=b_canonical.SBO * b_nbits // 8,
                         base_offset=0,
                         stride_mode=0,
                         swizzle_mode=b_canonical.swizzle_mode.encode(),

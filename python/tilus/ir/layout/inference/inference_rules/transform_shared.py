@@ -34,7 +34,16 @@ class SharedSliceRule(LayoutInferenceRule):
                 dims = list(inst.dims)
             return {b: a.layout.slice(retain_dims=dims)}
         elif b.optional_layout is not None:
-            b_layout = b.layout.unsqueeze(dims=range(len(a.shape) - len(b.shape)))
+            # Reverse-propagate the slice's layout to the unsliced parent. The
+            # unsqueeze must happen at the *collapsed* dims (= those of `a`
+            # not in `inst.dims`); inserting at the leading dims only works
+            # when the slice drops trailing dims.
+            if inst.dims is None:
+                retained_dims = list(range(len(a.shape)))
+            else:
+                retained_dims = list(inst.dims)
+            collapsed_dims = [d for d in range(len(a.shape)) if d not in retained_dims]
+            b_layout = b.layout.unsqueeze(dims=collapsed_dims)
             outer_shape = []
             for i in range(len(a.shape)):
                 outer_shape.append(a.shape[i] // b_layout.shape[i])

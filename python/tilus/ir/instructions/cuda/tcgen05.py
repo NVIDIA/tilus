@@ -181,3 +181,119 @@ class Tcgen05MmaTSInst(Instruction):
             raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
         # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.mma)
         return Tcgen05MmaTSInst(output=None, inputs=(a, b, d), enable_input_d=enable_input_d, cta_group=cta_group)
+
+
+# ----------------------------------------------------------------------------
+# Block-scaled MMA — kept as separate instructions from the unscaled MMA so
+# their codegen and validation can stay focused. Each Tcgen05BlockScaledMma*Inst
+# lowers to exactly **one** PTX `tcgen05.mma.block_scale` call. All choice of
+# (kind, scale_vec, sf_block_size, sfa_id, sfb_id) is determined at the lang
+# layer from the operand dtypes + shape, so the IR carries a fully-resolved
+# instruction descriptor.
+# ----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, eq=False)
+class Tcgen05BlockScaledMmaSSInst(Instruction):
+    """One PTX ``tcgen05.mma.cta_group::C.kind::K.block_scale.scale_vec::S`` with shared-A.
+
+    Inputs: ``(a, b, d, sfa, sfb)``. Field meanings:
+
+    * ``kind``: one of ``"mxf8f6f4"``, ``"mxf4"``, ``"mxf4nvf4"`` — the PTX
+      ``.kind::*`` modifier.
+    * ``scale_vec``: ``"1X"``, ``"2X"``, or ``"4X"`` — the PTX
+      ``.scale_vec::NX`` modifier (``"4X"`` is also spelled ``.block16``,
+      ``"1X"``/``"2X"`` are ``.block32``).
+    * ``sf_block_size``: 16 or 32 — the SF group size in K-elements (kept for
+      provenance / introspection; the PTX-level inst is uniquely determined by
+      ``scale_vec`` + ``kind``).
+    * ``sfa_id``, ``sfb_id``: byte / half-word offset within each TMEM cell
+      of SFA/SFB indicating which inst-K iter of a packed cell-round is
+      consumed by this MMA. Valid set depends on ``scale_vec`` (4X→{0},
+      2X→{0,2}, 1X→{0,1,2,3}).
+    * ``cta_group``: 1 or 2 (the ``.cta_group::C`` modifier).
+    * ``enable_input_d``: predicate; ``D = A*B + D`` if true, ``D = A*B``
+      otherwise.
+    """
+
+    kind: str
+    scale_vec: str
+    sf_block_size: int
+    sfa_id: int
+    sfb_id: int
+    cta_group: int
+    enable_input_d: Expr
+
+    @staticmethod
+    def create(
+        a: SharedTensor,
+        b: SharedTensor,
+        d: TMemoryTensor,
+        sfa: TMemoryTensor,
+        sfb: TMemoryTensor,
+        kind: str,
+        scale_vec: str,
+        sf_block_size: int,
+        sfa_id: int,
+        sfb_id: int,
+        cta_group: int,
+        enable_input_d: Expr,
+    ) -> Tcgen05BlockScaledMmaSSInst:
+        if cta_group not in (1, 2):
+            raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
+        # Validation of (kind, scale_vec, sf_block_size, sfa/sfb shapes & ids)
+        # is performed at the lang layer (Tcgen05InstructionGroup.mma_scaled)
+        # so that user-facing error messages can reference the support matrix.
+        return Tcgen05BlockScaledMmaSSInst(
+            output=None,
+            inputs=(a, b, d, sfa, sfb),
+            kind=kind,
+            scale_vec=scale_vec,
+            sf_block_size=sf_block_size,
+            sfa_id=sfa_id,
+            sfb_id=sfb_id,
+            cta_group=cta_group,
+            enable_input_d=enable_input_d,
+        )
+
+
+@dataclass(frozen=True, eq=False)
+class Tcgen05BlockScaledMmaTSInst(Instruction):
+    """Block-scaled MMA with A operand in TMEM. See :class:`Tcgen05BlockScaledMmaSSInst`."""
+
+    kind: str
+    scale_vec: str
+    sf_block_size: int
+    sfa_id: int
+    sfb_id: int
+    cta_group: int
+    enable_input_d: Expr
+
+    @staticmethod
+    def create(
+        a: TMemoryTensor,
+        b: SharedTensor,
+        d: TMemoryTensor,
+        sfa: TMemoryTensor,
+        sfb: TMemoryTensor,
+        kind: str,
+        scale_vec: str,
+        sf_block_size: int,
+        sfa_id: int,
+        sfb_id: int,
+        cta_group: int,
+        enable_input_d: Expr,
+    ) -> Tcgen05BlockScaledMmaTSInst:
+        if cta_group not in (1, 2):
+            raise InstructionError("cta_group must be 1 or 2, got {}".format(cta_group))
+        return Tcgen05BlockScaledMmaTSInst(
+            output=None,
+            inputs=(a, b, d, sfa, sfb),
+            kind=kind,
+            scale_vec=scale_vec,
+            sf_block_size=sf_block_size,
+            sfa_id=sfa_id,
+            sfb_id=sfb_id,
+            cta_group=cta_group,
+            enable_input_d=enable_input_d,
+        )

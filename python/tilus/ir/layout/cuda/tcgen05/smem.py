@@ -294,8 +294,12 @@ def get_shared_layout_from_canonical(canonical_layout: CanonicalSharedLayout) ->
     else:
         raise ValueError(f"Unsupported major_kind: {canonical_layout.major_kind}")
 
-    nbytes = 16 // canonical_layout.T
-    swizzle = CuteSwizzle(bbits=bbits, mbase=mbase - floor_log2(nbytes), sshift=sshift)
+    # The cute Swizzle in tilus' SharedLayout indexes elements (not bytes), so
+    # the byte-level mbase from the canonical-layout table needs to be shifted
+    # by log2(bytes_per_element). Use bit units so sub-byte dtypes (FP4, FP6)
+    # work too: log2(bytes_per_element) = log2(nbits) - 3.
+    nbits = 128 // canonical_layout.T
+    swizzle = CuteSwizzle(bbits=bbits, mbase=mbase - (floor_log2(nbits) - 3), sshift=sshift)
     swizzled_cute_layout = SwizzledCuteLayout(layout, swizzle)
 
     assert isinstance(layout.shape, Sequence)

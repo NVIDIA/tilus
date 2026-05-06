@@ -170,9 +170,24 @@ class Tcgen05MmaKind(Enum):
     TF32 = ".kind::tf32"
     F8F6F4 = ".kind::f8f6f4"
     I8 = ".kind::i8"
-    MXF8F6F4 = ".kind::mx8f6f4"
+    MXF8F6F4 = ".kind::mxf8f6f4"
     MXF4 = ".kind::mxf4"
     MXF4NVF4 = ".kind::mxf4nvf4"
+
+
+class Tcgen05MmaScaleVecKind(Enum):
+    """Scale-vector size for block-scaled MMA — see PTX 9.7.16.10 Table 39."""
+
+    SCALE_VEC_1X = ".scale_vec::1X"
+    SCALE_VEC_2X = ".scale_vec::2X"
+    SCALE_VEC_4X = ".scale_vec::4X"
+
+
+class Tcgen05MmaBlockSizeKind(Enum):
+    """Block size for block-scaled MMA. ``block16`` is required for ``mxf4nvf4``."""
+
+    BLOCK16 = ".block16"
+    BLOCK32 = ".block32"
 
 
 class Tcgen05SwizzleMode(Enum):
@@ -260,6 +275,25 @@ def resolve_tcgen05_commit(cta_group: Tcgen05CtaGroupKind, multicast: Tcgen05Com
 
 def resolve_tcgen05_mma(cta_group: Tcgen05CtaGroupKind, mma_kind: Tcgen05MmaKind, a_is_shared: bool) -> str:
     ret = "cuda_tcgen05_mma_cta_group" + cta_group.value + mma_kind.value + ("_a_shared" if a_is_shared else "_a_tmem")
+    ret = ret.replace(".", "_").replace("::", "_")
+    return ret
+
+
+def resolve_tcgen05_mma_block_scale(
+    cta_group: Tcgen05CtaGroupKind,
+    mma_kind: Tcgen05MmaKind,
+    scale_vec: Tcgen05MmaScaleVecKind,
+    block_size: Tcgen05MmaBlockSizeKind,
+    a_is_shared: bool,
+) -> str:
+    ret = (
+        "cuda_tcgen05_mma_block_scale_cta_group"
+        + cta_group.value
+        + mma_kind.value
+        + scale_vec.value
+        + block_size.value
+        + ("_a_shared" if a_is_shared else "_a_tmem")
+    )
     ret = ret.replace(".", "_").replace("::", "_")
     return ret
 
@@ -494,6 +528,76 @@ def register_tcgen05_instructions():
                 attrs.func_kind = "cuda_internal"
                 asm(template, inputs=[d_tmem, a_tmem, b_desc, i_desc, enable_input_d, predicate], is_volatile=True)
 
+    # block-scaled mma — covers all (kind, scale_vec, block_size) combinations
+    # accepted by Tcgen05InstructionGroup.mma_scaled (lang/instructions/
+    # tcgen05.py): mxf4nvf4 × {2X.block32, 4X.block16}, mxf8f6f4 × 1X.block32.
+    # Each combo is registered once per (cta_group, a_is_shared) — the IR
+    # picks the right primitive at codegen time via resolve_tcgen05_mma_block_scale.
+    for cta_group in [Tcgen05CtaGroupKind.CTA_1, Tcgen05CtaGroupKind.CTA_2]:
+        for mma_kind, scale_vec, block_size in [
+            (Tcgen05MmaKind.MXF4NVF4, Tcgen05MmaScaleVecKind.SCALE_VEC_4X, Tcgen05MmaBlockSizeKind.BLOCK16),
+            (Tcgen05MmaKind.MXF4NVF4, Tcgen05MmaScaleVecKind.SCALE_VEC_2X, Tcgen05MmaBlockSizeKind.BLOCK32),
+            (Tcgen05MmaKind.MXF8F6F4, Tcgen05MmaScaleVecKind.SCALE_VEC_1X, Tcgen05MmaBlockSizeKind.BLOCK32),
+        ]:
+            modifier = f"{cta_group.value}{mma_kind.value}.block_scale{scale_vec.value}{block_size.value}"
+            # a: shared memory
+            template = (
+                "{{{{.reg.pred __pred; .reg.pred p; setp.ne.u32 __pred, %7, 0; setp.ne.u32 p, %6, 0;"
+                " @__pred tcgen05.mma" + modifier + " [%0], %1, %2, [%3], [%4], %5, p;}}}}"
+            )
+
+            @register_primitive_function_decorator
+            @no_type_check
+            @script
+            def tcgen05_mma_block_scale_shared_a_(
+                d_tmem: uint32,
+                a_desc: uint64,
+                b_desc: uint64,
+                scale_a_tmem: uint32,
+                scale_b_tmem: uint32,
+                i_desc: uint32,
+                enable_input_d: uint32,
+                predicate: uint32,
+            ):
+                attrs.func_name = resolve_tcgen05_mma_block_scale(
+                    cta_group, mma_kind, scale_vec, block_size, a_is_shared=True
+                )
+                attrs.func_kind = "cuda_internal"
+                asm(
+                    template,
+                    inputs=[d_tmem, a_desc, b_desc, scale_a_tmem, scale_b_tmem, i_desc, enable_input_d, predicate],
+                    is_volatile=True,
+                )
+
+            # a: tensor memory
+            template = (
+                "{{{{.reg.pred __pred; .reg.pred p; setp.ne.u32 __pred, %7, 0; setp.ne.u32 p, %6, 0;"
+                " @__pred tcgen05.mma" + modifier + " [%0], [%1], %2, [%3], [%4], %5, p;}}}}"
+            )
+
+            @register_primitive_function_decorator
+            @no_type_check
+            @script
+            def tcgen05_mma_block_scale_tmem_a_(
+                d_tmem: uint32,
+                a_tmem: uint32,
+                b_desc: uint64,
+                scale_a_tmem: uint32,
+                scale_b_tmem: uint32,
+                i_desc: uint32,
+                enable_input_d: uint32,
+                predicate: uint32,
+            ):
+                attrs.func_name = resolve_tcgen05_mma_block_scale(
+                    cta_group, mma_kind, scale_vec, block_size, a_is_shared=False
+                )
+                attrs.func_kind = "cuda_internal"
+                asm(
+                    template,
+                    inputs=[d_tmem, a_tmem, b_desc, scale_a_tmem, scale_b_tmem, i_desc, enable_input_d, predicate],
+                    is_volatile=True,
+                )
+
 
 def tcgen05_relinquish_alloc_permit(cta_group: Tcgen05CtaGroupKind) -> Expr:
     func_name = resolve_tcgen05_relinquish_alloc_permit(cta_group)
@@ -589,6 +693,100 @@ def tcgen05_encode_mma_inst_descriptor(
     return desc
 
 
+def tcgen05_encode_mxf8f6f4_block_scale_inst_descriptor(
+    sparsity: int,
+    d_dtype: int,
+    a_dtype: int,
+    b_dtype: int,
+    negate_a: int,
+    negate_b: int,
+    transpose_a: int,
+    transpose_b: int,
+    shifted_n: int,
+    shifted_m_minus_7: int,
+    sf_b_id: int,
+    sf_a_id: int,
+    sf_dtype_is_ue8m0: int,
+) -> int:
+    """Inst-desc encoder for ``.kind::mxf8f6f4`` (PTX 9.7.16.4 Table 43).
+
+    Notable bit-layout differences from the non-block-scaled Table 42:
+
+    * Bits 0-1: reserved (vs sparsity_selector)
+    * Bits 4-5: SFB ID (vs d_dtype) — selects byte/half-word slot in SFB cell
+    * Bit 23: SF dtype (UE8M0 = 1)
+    * Bits 27-28: M >> 7 (vs M >> 4 in 5 bits) — only M ∈ {128, 256} legal
+    * Bits 29-30: SFA ID (vs maximim_shift_in_ws)
+    * Bit 31: reserved
+    """
+    desc: int = 0
+    desc |= 0  # bits 0-1 reserved
+    desc |= (sparsity & 0b1) << 2
+    desc |= 0  # bit 3 reserved
+    desc |= (sf_b_id & 0b11) << 4
+    desc |= 0  # bit 6 reserved
+    desc |= (a_dtype & 0b111) << 7
+    desc |= (b_dtype & 0b111) << 10
+    desc |= (negate_a & 0b1) << 13
+    desc |= (negate_b & 0b1) << 14
+    desc |= (transpose_a & 0b1) << 15
+    desc |= (transpose_b & 0b1) << 16
+    desc |= (shifted_n & 0b111111) << 17
+    desc |= (sf_dtype_is_ue8m0 & 0b1) << 23
+    # bits 24-26 reserved
+    desc |= (shifted_m_minus_7 & 0b11) << 27
+    desc |= (sf_a_id & 0b11) << 29
+    # bit 31 reserved
+    return desc
+
+
+def tcgen05_encode_mxf4_block_scale_inst_descriptor(
+    sparsity: int,
+    d_dtype: int,
+    a_dtype: int,
+    b_dtype: int,
+    negate_a: int,
+    negate_b: int,
+    shifted_n: int,
+    shifted_m_minus_7: int,
+    sf_b_id: int,
+    sf_a_id: int,
+    sf_dtype_is_ue8m0: int,
+    k_dim_select: int,
+) -> int:
+    """Inst-desc encoder for ``.kind::mxf4`` and ``.kind::mxf4nvf4`` (PTX 9.7.16.4 Table 44).
+
+    Notable bit-layout differences from Table 43:
+
+    * Bits 7-9: a_dtype (3 bits, but only value 1 = E2M1 is legal)
+    * Bits 10-11: b_dtype (**2 bits** for mxf4 — vs 3 bits in mxf8f6f4)
+    * Bit 12: reserved (was part of b_dtype in mxf8f6f4)
+    * Bits 15-16: transpose_a / transpose_b. For mxf4 / mxf4nvf4, transpose
+      is *unsupported* per Table 51 — must be 0.
+    * Bit 23: SF dtype (UE8M0 = 1, UE4M3 = 0)
+    * Bit 31: K dim select (0 = K=64 dense / K=128 sparse, 1 = K=96)
+    """
+    desc: int = 0
+    desc |= 0  # bits 0-1 reserved
+    desc |= (sparsity & 0b1) << 2
+    desc |= 0  # bit 3 reserved
+    desc |= (sf_b_id & 0b11) << 4
+    desc |= 0  # bit 6 reserved
+    desc |= (a_dtype & 0b111) << 7
+    desc |= (b_dtype & 0b11) << 10  # 2 bits in Table 44
+    # bit 12 reserved
+    desc |= (negate_a & 0b1) << 13
+    desc |= (negate_b & 0b1) << 14
+    # bits 15-16: transpose A / B — must be 0 for mxf4 / mxf4nvf4
+    desc |= (shifted_n & 0b111111) << 17
+    desc |= (sf_dtype_is_ue8m0 & 0b1) << 23
+    # bits 24-26 reserved
+    desc |= (shifted_m_minus_7 & 0b11) << 27
+    desc |= (sf_a_id & 0b11) << 29
+    desc |= (k_dim_select & 0b1) << 31
+    return desc
+
+
 def tcgen05_copy(
     taddr: Expr,
     sdesc: Expr,
@@ -643,3 +841,45 @@ def tcgen05_mma_with_tmem_a(
 ) -> Expr:
     func_name = resolve_tcgen05_mma(cta_group, mma_kind, a_is_shared=False)
     return call_primitive_func(func_name, [d_tmem, a_tmem, b_desc, i_desc, enable_input_d, predicate])
+
+
+def tcgen05_mma_block_scale_with_shared_a(
+    d_tmem: Expr,
+    a_desc: Expr,
+    b_desc: Expr,
+    scale_a_tmem: Expr,
+    scale_b_tmem: Expr,
+    i_desc: Expr,
+    enable_input_d: Expr | bool,
+    cta_group: Tcgen05CtaGroupKind,
+    mma_kind: Tcgen05MmaKind,
+    scale_vec: Tcgen05MmaScaleVecKind,
+    block_size: Tcgen05MmaBlockSizeKind,
+    predicate: Expr = uint32(1),
+) -> Expr:
+    func_name = resolve_tcgen05_mma_block_scale(cta_group, mma_kind, scale_vec, block_size, a_is_shared=True)
+    return call_primitive_func(
+        func_name,
+        [d_tmem, a_desc, b_desc, scale_a_tmem, scale_b_tmem, i_desc, as_expr(enable_input_d), predicate],
+    )
+
+
+def tcgen05_mma_block_scale_with_tmem_a(
+    d_tmem: Expr,
+    a_tmem: Expr,
+    b_desc: Expr,
+    scale_a_tmem: Expr,
+    scale_b_tmem: Expr,
+    i_desc: Expr,
+    enable_input_d: Expr | bool,
+    cta_group: Tcgen05CtaGroupKind,
+    mma_kind: Tcgen05MmaKind,
+    scale_vec: Tcgen05MmaScaleVecKind,
+    block_size: Tcgen05MmaBlockSizeKind,
+    predicate: Expr = uint32(1),
+) -> Expr:
+    func_name = resolve_tcgen05_mma_block_scale(cta_group, mma_kind, scale_vec, block_size, a_is_shared=False)
+    return call_primitive_func(
+        func_name,
+        [d_tmem, a_tmem, b_desc, scale_a_tmem, scale_b_tmem, i_desc, as_expr(enable_input_d), predicate],
+    )

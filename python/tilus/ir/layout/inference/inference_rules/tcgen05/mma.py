@@ -12,7 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus.ir.instructions.cuda.tcgen05 import Tcgen05MmaSSInst, Tcgen05MmaTSInst
+from tilus.ir.instructions.cuda.tcgen05 import (
+    Tcgen05BlockScaledMmaSSInst,
+    Tcgen05BlockScaledMmaTSInst,
+    Tcgen05MmaSSInst,
+    Tcgen05MmaTSInst,
+)
 from tilus.ir.layout import SharedLayout
 from tilus.ir.layout.cuda.tcgen05.smem import (
     Tcgen05SwizzleMode,
@@ -149,3 +154,27 @@ class Tcgen05MmaTSRule(LayoutInferenceRule):
                     break
 
         return ret
+
+
+# ----------------------------------------------------------------------------
+# Block-scaled MMA — same SMEM canonicalization as the unscaled MMA. The SF
+# tensors (sfa, sfb at inputs[3] and inputs[4]) live in TMEM with layouts
+# [32, MN_fold, 4] WARPX4-duplicated — those layouts are filled by the
+# Tcgen05AllocRule + Tcgen05CopyRule and don't need a dedicated rule here.
+# ----------------------------------------------------------------------------
+
+
+@register_rule(Tcgen05BlockScaledMmaSSInst)
+class Tcgen05BlockScaledMmaSSRule(LayoutInferenceRule):
+    @staticmethod
+    def inference(ctx: LayoutInferenceContext, inst: Tcgen05BlockScaledMmaSSInst) -> dict[SharedTensor, SharedLayout]:
+        # Reuse the existing Tcgen05MmaSSRule logic for canonical SMEM A/B layouts.
+        # The scaled inst has the same a/b/d shape relationship at inputs[0:3].
+        return Tcgen05MmaSSRule.inference(ctx, inst)  # type: ignore[arg-type]
+
+
+@register_rule(Tcgen05BlockScaledMmaTSInst)
+class Tcgen05BlockScaledMmaTSRule(LayoutInferenceRule):
+    @staticmethod
+    def inference(ctx: LayoutInferenceContext, inst: Tcgen05BlockScaledMmaTSInst) -> dict[SharedTensor, SharedLayout]:
+        return Tcgen05MmaTSRule.inference(ctx, inst)  # type: ignore[arg-type]

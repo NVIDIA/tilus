@@ -242,9 +242,13 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         self.host_builder.assertion(
             cond=rev_global_strides[0] == 1, msg="The last dimension of the global tensor must be contiguous"
         )
+        # TMA expects strides in bytes; use bit-math so sub-byte dtypes work
+        # (the caller is responsible for ensuring the byte count is integral).
         for i in range(rank - 1):
             self.host_builder.buffer_store(
-                strides_buf, indices=[i], value=as_expr(rev_global_strides[i + 1]) * sizeof(dtype)
+                strides_buf,
+                indices=[i],
+                value=(as_expr(rev_global_strides[i + 1]) * dtype.nbits) // 8,
             )
 
         # box shape
