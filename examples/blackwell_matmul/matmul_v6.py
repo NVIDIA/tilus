@@ -10,6 +10,7 @@ from tilus import RegisterTensor, SharedTensor, float16, float32, int32, uint32
 from tilus.utils import benchmark_func, cdiv
 
 tilus.option.cache_dir("./cache")
+tilus.option.debug.dump_ir()
 
 
 class Pipeline(tilus.Class):  # same as V4/V5
@@ -69,6 +70,16 @@ class Pipeline(tilus.Class):  # same as V4/V5
 @tilus.autotune("mma_stages", [2])
 @tilus.autotune("swizzle_size", [4, 8, 16])
 class BlackwellMatmulV6(tilus.Script):
+    debug_schedule = dict(
+        block_m=256,
+        block_n=256,
+        e_block_n=16,
+        block_k=64,
+        tma_stages=5,
+        mma_stages=2,
+        swizzle_size=8,
+    )
+
     def __init__(
         self,
         block_m: int,
@@ -156,8 +167,9 @@ class BlackwellMatmulV6(tilus.Script):
         s_a = self.shared_tensor(dtype=float16, shape=[tma_stages, block_m // 2, block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n // 2, block_k])
         # cta_group=2: distributed MMA reads shared memory from both CTAs
+        # lane dim (block_m // 2 per CTA) is first; the stages axis is a column-strided sub-axis
         t_acc = self.tcgen05.alloc(
-            dtype=float32, shape=[mma_stages, block_m // 2, block_n], cta_group=2
+            dtype=float32, shape=[block_m // 2, mma_stages, block_n], cta_group=2
         )
 
         s_clc_response = self.shared_tensor(dtype=int32, shape=[clc_stages, 4])
@@ -225,7 +237,7 @@ class BlackwellMatmulV6(tilus.Script):
                         self.tcgen05.mma(
                             s_a[tma_pipe.consumer_stage],
                             s_b[tma_pipe.consumer_stage].transpose(),
-                            t_acc[mma_pipe.producer_stage],
+                            t_acc[:, mma_pipe.producer_stage, :],
                             enable_input_d=offset_k != 0,
                             cta_group=2,
                         )
@@ -282,7 +294,7 @@ class BlackwellMatmulV6(tilus.Script):
 
                 for e_offset_n in range(0, block_n, e_block_n):
                     t_acc_slice = self.tcgen05.slice(
-                        t_acc[mma_pipe.consumer_stage],
+                        t_acc[:, mma_pipe.consumer_stage, :],
                         offsets=[0, e_offset_n],
                         shape=[block_m // 2, e_block_n],
                         dims=[0, 1],

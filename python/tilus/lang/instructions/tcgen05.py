@@ -57,8 +57,9 @@ class Tcgen05InstructionGroup(InstructionGroup):
         dtype: DataType
             The data type of the tensor elements (e.g., ``float32``, ``float16``).
         shape: Sequence[int]
-            The shape of the tensor. Must have at least 2 dimensions. The second-to-last
-            dimension (``shape[-2]``) must be 32, 64, or 128.
+            The shape of the tensor. Must have at least 2 dimensions. The first
+            dimension (``shape[0]``) is the lane axis and must be 32, 64, or 128.
+            All remaining dimensions are column-strided.
         cta_group: int
             The CTA group size for the allocation. Must be 1 or 2. When 2, the tensor is
             shared across two CTAs in the same cluster.
@@ -78,8 +79,8 @@ class Tcgen05InstructionGroup(InstructionGroup):
             raise InstructionError("cta_group must be 1 or 2")
         if len(shape) < 2:
             raise InstructionError("shape must be a sequence of length 2 or more, got {}".format(shape))
-        if shape[-2] not in (32, 64, 128):
-            raise InstructionError("shape[-2] must be 32, 64, or 128, got {}".format(shape[-2]))
+        if shape[0] not in (32, 64, 128):
+            raise InstructionError("shape[0] must be 32, 64, or 128, got {}".format(shape[0]))
         if 128 % dtype.nbits != 0:
             raise InstructionError("dtype must be 1, 2, 4, 8, 16, 32, 64, or 128 bit, got {}".format(dtype))
         ret = self._builder.tcgen05_alloc(dtype, shape, cta_group)

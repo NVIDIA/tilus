@@ -18,15 +18,13 @@ from tilus.ir.layout import TMemoryLayout
 
 
 def tmemory_row_major(shape: Sequence[int]) -> TMemoryLayout:
-    column_strides = []
+    # Convention: dim 0 is the lane axis (stride 0); dims 1..-1 are column-strided
+    # in row-major order (innermost dim has stride 1).
+    column_strides = [0] * len(shape)
     stride = 1
-    for dim in reversed(range(len(shape))):
-        if dim == len(shape) - 2:
-            column_strides.append(0)
-        else:
-            column_strides.append(stride)
-            stride *= shape[dim]
-    column_strides = list(reversed(column_strides))
+    for dim in reversed(range(1, len(shape))):
+        column_strides[dim] = stride
+        stride *= shape[dim]
     return TMemoryLayout.create(shape, column_strides, lane_offset=0)
 
 

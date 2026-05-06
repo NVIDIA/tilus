@@ -366,6 +366,11 @@ class IRPrinter(IRFunctor):
         return Text("&") + self(e.expr)
 
     def visit_Var(self, e: Var):
+        # Function-typed Vars are global symbols: their Var.name is a canonical
+        # identifier that must match the function definition, so use it verbatim
+        # instead of going through the Namer's identity-based disambiguation.
+        if isinstance(e.type, FuncType) and e.name is not None:
+            return Text(e.name)
         return Text(self.namer.get_name(e))
 
     def visit_Constant(self, e: Constant):

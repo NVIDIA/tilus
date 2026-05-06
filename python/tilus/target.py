@@ -13,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import functools
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Optional, Sequence, Tuple
+from typing import Iterator, Optional, Sequence, Tuple
 
 
 @dataclass(frozen=True)
@@ -291,6 +292,33 @@ def set_current_target(target: Target) -> None:
     global _target
     assert isinstance(target, Target)
     _target = target
+
+
+@contextmanager
+def scope(target: Target) -> Iterator[Target]:
+    """Temporarily set the current compilation target.
+
+    Useful to compile a kernel for a specific architecture (e.g., sm100a) on a machine that does not
+    support running it. Restores the previous target on exit.
+
+    Parameters
+    ----------
+    target: Target
+        The target to use within the scope.
+
+    Yields
+    ------
+    target: Target
+        The target that is now active.
+    """
+    global _target
+    assert isinstance(target, Target)
+    prev = _target
+    _target = target
+    try:
+        yield target
+    finally:
+        _target = prev
 
 
 @functools.cache

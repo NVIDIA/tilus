@@ -152,7 +152,8 @@ class BlackwellMatmulV5(tilus.Script):
         s_a = self.shared_tensor(dtype=float16, shape=[tma_stages, block_m, block_k])
         s_b = self.shared_tensor(dtype=float16, shape=[tma_stages, block_n, block_k])
         # multi-stage accumulator: allows MMA and epilogue to overlap via mma_pipe
-        t_acc = self.tcgen05.alloc(dtype=float32, shape=[mma_stages, block_m, block_n])
+        # lane dim (block_m) is first; the stages axis is a column-strided sub-axis
+        t_acc = self.tcgen05.alloc(dtype=float32, shape=[block_m, mma_stages, block_n])
 
         # 16-byte buffer for CLC responses (cancel result + blockIdx)
         s_clc_response = self.shared_tensor(dtype=int32, shape=[clc_stages, 4])
@@ -214,7 +215,7 @@ class BlackwellMatmulV5(tilus.Script):
                     self.tcgen05.mma(
                         s_a[tma_pipe.consumer_stage],
                         s_b[tma_pipe.consumer_stage].transpose(),
-                        t_acc[mma_pipe.producer_stage],
+                        t_acc[:, mma_pipe.producer_stage, :],
                         enable_input_d=offset_k != 0,
                     )
                     self.tcgen05.commit(mbarrier=tma_pipe.consumer_barrier())
@@ -261,7 +262,7 @@ class BlackwellMatmulV5(tilus.Script):
 
                 for e_offset_n in range(0, block_n, e_block_n):
                     t_acc_slice = self.tcgen05.slice(
-                        t_acc[mma_pipe.consumer_stage],
+                        t_acc[:, mma_pipe.consumer_stage, :],
                         offsets=[0, e_offset_n],
                         shape=[block_m, e_block_n],
                         dims=[0, 1],

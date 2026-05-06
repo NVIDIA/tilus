@@ -31,7 +31,7 @@ class Tcgen05SliceRule(LayoutInferenceRule):
         return {
             tmem: tmemory_slice(
                 tmem_layout=inst.tmemory_input.optional_layout,
-                lane_offset=int(inst.offsets[-2]),
+                lane_offset=int(inst.offsets[0]),
                 slice_dims=inst.slice_dims,
                 shape=tmem.shape,
             )

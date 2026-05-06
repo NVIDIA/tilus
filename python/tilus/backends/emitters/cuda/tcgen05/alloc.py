@@ -38,13 +38,15 @@ from tilus.utils import prod, same_list
 class Tcgen05AllocDeallocEmitter(BaseInstEmitter):
     def get_num_columns(self, tmem_tensor: TMemoryTensor) -> int:
         shape = tmem_tensor.shape
-        if shape[-2] != 128:
-            raise NotImplementedError(f"The emitter currently only supports shape[-2] == 128, but got {shape[-2]}")
+        if shape[0] != 128:
+            raise NotImplementedError(f"The emitter currently only supports shape[0] == 128, but got {shape[0]}")
         if shape[-1] * tmem_tensor.dtype.nbits % 32 != 0:
             raise ValueError(
                 f"shape[-1] * dtype.nbits must be divisible by 32, but got {shape[-1]} * {tmem_tensor.dtype.nbits} = {shape[-1] * tmem_tensor.dtype.nbits}"
             )
-        num_columns = prod(shape[:-2]) * shape[-1] * tmem_tensor.dtype.nbits // 32
+        # All dimensions after the lane dim (shape[0]) are column-strided; total column count
+        # is the product of those dims, scaled by the dtype's bits-per-element / 32.
+        num_columns = prod(shape[1:]) * tmem_tensor.dtype.nbits // 32
 
         # the number of columns must be a power-of-two and in the range [32, 512]
         # normalize it to be at least 32 and be a power of two
@@ -142,9 +144,10 @@ class TMemoryViewEmitter(BaseInstEmitter):
         ):
             raise ValueError("The total number of bits must be the same as the original tensor.")
 
-        if not same_list(tmem_tensor.layout.column_strides[:-2], output_tmem_tensor.layout.column_strides[:-2]):
+        if not same_list(tmem_tensor.layout.column_strides[1:-1], output_tmem_tensor.layout.column_strides[1:-1]):
             raise ValueError(
-                "The column strides of the leading dimensions (all dimensions except the last two ones) must be the same as the original tensor."
+                "The column strides of the middle dimensions (all dimensions except the lane (dim 0) and "
+                "the innermost column (dim -1)) must be the same as the original tensor."
             )
 
         tmem_addr = self.get_or_allocate_var(tmem_tensor)

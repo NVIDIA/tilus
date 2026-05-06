@@ -99,7 +99,7 @@ class ClusterLaunchControlExample(tilus.Script):
                 break
 
 
-@tilus.testing.requires.nvgpu_sm100
+@tilus.testing.requires.nvgpu_sm100a
 @pytest.mark.parametrize("cluster_blocks", [2, 4])
 @pytest.mark.parametrize("num_stages", [2, 3, 4])
 @pytest.mark.parametrize("warps", [4, 8])

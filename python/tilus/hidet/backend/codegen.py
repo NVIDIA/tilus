@@ -502,14 +502,16 @@ class Codegen(ModuleFunctor, StmtFunctor, ExprFunctor, TypeFunctor):
         raise ValueError("please run 'expand_let_expr' pass before codegen")
 
     def visit_Var(self, e: Var):
+        # Function-typed Vars are global symbols: their Var.name is the canonical
+        # identifier that must match the function definition. Use it verbatim
+        # instead of routing through the Namer's identity-based disambiguation.
+        if isinstance(e.type, FuncType) and e.name is not None:
+            return Text(self.canonize_funcname(e.name))
         cast2int = {"threadIdx.x", "threadIdx.y", "threadIdx.z", "blockIdx.x", "blockIdx.y", "blockIdx.z"}
         name = self.namer.get_name(e)
         if name in cast2int:
             return Text(f"(int){name}")
-        else:
-            if isinstance(e.type, FuncType):
-                name = self.canonize_funcname(name)
-            return Text(name)
+        return Text(name)
 
     def visit_Constant(self, e: Constant):
         if e.is_string():
