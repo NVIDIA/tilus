@@ -782,6 +782,33 @@ class InstantiatedScript:
 
         return ret
 
+    def compile(self, *args: Any, **kwargs: Any) -> JitInstance:
+        """Compile the script for the given arguments without executing it.
+
+        This transpiles every schedule in the autotune space into a Program and builds each Program
+        to a shared library, but does not run the kernel and does not benchmark/persist a dispatch
+        choice. Useful in CI to validate that a kernel compiles for a target architecture (e.g.,
+        sm100a) on a machine that does not support running it. Combine with
+        :func:`tilus.target.scope` to override the build target.
+
+        Parameters
+        ----------
+        args:
+            The positional arguments to ``__call__``.
+
+        kwargs:
+            The keyword arguments to ``__call__``.
+
+        Returns
+        -------
+        jit_instance: JitInstance
+            The JIT instance for the script with the given arguments. The compiled programs are
+            available as ``jit_instance.valid_programs`` and ``jit_instance.compiled_programs``.
+        """
+        jit_instance = self._jit_instance_for(*args, **kwargs)
+        jit_instance.programs()
+        return jit_instance
+
     def _jit_instance_for(self, *args: Any, **kwargs: Any) -> JitInstance:
         if kwargs or self.with_default:
             # we allow the user to pass the keyword arguments to the script instance, or use the default values
@@ -794,10 +821,7 @@ class InstantiatedScript:
                     "The number of arguments should be {}, but got {}.".format(len(self.params.param_names), len(args))
                 )
 
-        # extract the JIT key and the tuning key
-        keys = extract_keys(args, self.const_params, self.tuning_params)
-
-        jit_key, tuning_key = keys
+        jit_key, _ = extract_keys(args, self.const_params, self.tuning_params)
         jit_instance: Optional[JitInstance] = self.jit_instances.get(jit_key, None)
         if jit_instance is None:
             jit_instance = JitInstance(self.script_cls, self.params, self.build_options, self.schedules, jit_key)

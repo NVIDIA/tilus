@@ -661,15 +661,15 @@ class TMemoryTensor(Tensor):
 
     Tensor memory is a dedicated on-chip memory available on Blackwell (SM 10.0+) GPUs, private to the SM's tensor
     cores. It is organized as a 2D structure of lanes (rows) and columns, with each cell being 32 bits. The number
-    of lanes (``shape[-2]``) must be 32, 64, or 128.
+    of lanes (``shape[0]``) must be 32, 64, or 128.
 
     Attributes
     ----------
     dtype: DataType
         The data type of the tensor elements.
     shape: tuple[int, ...]
-        The shape of the tensor. Must have at least 2 dimensions. The second-to-last dimension (lanes) must be
-        32, 64, or 128.
+        The shape of the tensor. Must have at least 2 dimensions. The first dimension (lanes) must be
+        32, 64, or 128. All remaining dimensions are column-strided.
     optional_layout: TMemoryLayout, optional
         The layout of the tensor, which is optional. When not provided, the layout will be automatically inferred
         with compiler pass.
@@ -687,8 +687,8 @@ class TMemoryTensor(Tensor):
         dtype: DataType
             The data type of the tensor elements.
         shape: Sequence[int]
-            The shape of the tensor. Must have at least 2 dimensions, with the second-to-last
-            dimension (lanes) being 32, 64, or 128.
+            The shape of the tensor. Must have at least 2 dimensions, with the first
+            dimension (lanes) being 32, 64, or 128. All remaining dimensions are column-strided.
         optional_layout: TMemoryLayout, optional
             The layout of the tensor. If not provided, the layout will be inferred later.
 
@@ -699,8 +699,8 @@ class TMemoryTensor(Tensor):
         """
         if len(shape) < 2:
             raise ValueError("TMemoryTensor requires at least 2 dimensions, got {}".format(len(shape)))
-        if shape[-2] not in (32, 64, 128):
-            raise ValueError("The number of rows (shape[-2]) must be 32, 64, or 128, got {}".format(shape[-2]))
+        if shape[0] not in (32, 64, 128):
+            raise ValueError("The number of rows (shape[0]) must be 32, 64, or 128, got {}".format(shape[0]))
         if optional_layout is not None and tuple(shape) != tuple(optional_layout.shape):
             raise ValueError(
                 f"Shape mismatch: provided shape {shape} does not match layout shape {optional_layout.shape}."
@@ -757,7 +757,7 @@ class TMemoryTensor(Tensor):
     converted in the Tilus Script transpiler defined in tilus.lang.transpiler module.
     """
 
-    def __getitem__(self, indices: tuple[Expr | int, ...] | Expr | int) -> TMemoryTensor:
+    def __getitem__(self, indices: tuple[Expr | int | None | slice, ...] | Expr | int | None | slice) -> TMemoryTensor:
         raise RuntimeError("tmemory_tensor[...] could only be used in Tilus Script.")
 
 

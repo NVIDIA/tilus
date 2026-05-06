@@ -91,7 +91,7 @@ class Tcgen05LdstRule(LayoutInferenceRule):
 
         # check that the lane matches the threads
         lane_begin = tmem_tensor.layout.lane_offset
-        lane_end = lane_begin + tmem_tensor.shape[-2]
+        lane_end = lane_begin + tmem_tensor.shape[0]
         thread_begin = ctx.thread_begin
         thread_end = ctx.thread_end
 

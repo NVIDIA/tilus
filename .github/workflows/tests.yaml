@@ -48,7 +48,7 @@ jobs:
     if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_tests == 'true'
     runs-on: linux-amd64-gpu-l4-latest-1
     container:
-      image: nvidia/cuda:12.6.2-devel-ubuntu22.04
+      image: nvidia/cuda:13.0.0-devel-ubuntu22.04
       options: --gpus all
     steps:
       - name: Checkout Repository
@@ -106,7 +106,7 @@ jobs:
           - linux-amd64-gpu-l4-latest-1
     runs-on: ${{ matrix.runner }}
     container:
-      image: nvidia/cuda:12.6.2-devel-ubuntu22.04
+      image: nvidia/cuda:13.0.0-devel-ubuntu22.04
       options: --gpus all
     steps:
       - name: Checkout Repository
@@ -128,7 +128,7 @@ jobs:
     if: github.repository == 'NVIDIA/tilus' && needs.check-changes.outputs.should_run_examples == 'true'
     runs-on: linux-amd64-gpu-l4-latest-1
     container:
-      image: nvidia/cuda:12.6.2-devel-ubuntu22.04
+      image: nvidia/cuda:13.0.0-devel-ubuntu22.04
       options: --gpus all
     steps:
       - name: Checkout Repository

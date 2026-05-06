@@ -30,7 +30,7 @@ class Tcgen05AllocInst(Instruction):
     @staticmethod
     def create(dtype: DataType, shape: Sequence[int], cta_group: int) -> Tcgen05AllocInst:
         assert len(shape) >= 2, "Tcgen05AllocInst only supports tensors with rank >= 2."
-        assert shape[-2] in (32, 64, 128), "The second last dimension must be 32, 64, or 128."
+        assert shape[0] in (32, 64, 128), "The first (lane) dimension must be 32, 64, or 128."
         output = TMemoryTensor.create(dtype=dtype, shape=shape)
         return Tcgen05AllocInst(output=output, inputs=(), cta_group=cta_group)
 
@@ -65,10 +65,11 @@ class Tcgen05SliceInst(Instruction):
     ) -> Tcgen05SliceInst:
         assert len(tmem.shape) == len(offsets)
         assert len(slice_shape) == len(slice_dims)
-        assert len(slice_dims) >= 2 and all(len(tmem.shape) - 1 - i in slice_dims for i in range(2)), (
-            "The last two dimensions must be included in the slice."
+        # The lane dim (0) and the innermost column dim (-1) must always be in the slice.
+        assert len(slice_dims) >= 2 and 0 in slice_dims and (len(tmem.shape) - 1) in slice_dims, (
+            "The lane dim (0) and the innermost column dim (-1) must be included in the slice."
         )
-        assert isinstance(offsets[-2], Constant), "The row-offset must be a constant."
+        assert isinstance(offsets[0], Constant), "The lane (row) offset must be a constant."
         output = TMemoryTensor.create(dtype=tmem.dtype, shape=slice_shape)
         return Tcgen05SliceInst(output=output, inputs=(tmem,), offsets=tuple(offsets), slice_dims=tuple(slice_dims))
 
