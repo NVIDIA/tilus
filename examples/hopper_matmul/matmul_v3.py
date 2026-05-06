@@ -69,23 +69,26 @@ class MatmulWGMMAV3(tilus.Script):
             for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
                 self.mbarrier.wait(producer_barriers[stage], phase=producer_phases[stage])
                 producer_phases[stage] ^= 1
+                # Producer is already 32 threads (one warp) — TMA needs that to
+                # be warp-cooperative. Only the arrive must be by a single
+                # thread so tx-bytes is counted once.
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
                         consumer_barriers[stage],
                         transaction_bytes=sa[stage].nbytes + sb[stage].nbytes,
                     )
-                    self.tma.global_to_shared(
-                        src=ga,
-                        dst=sa[stage],
-                        offsets=[offset_m, offset_k],
-                        mbarrier=consumer_barriers[stage],
-                    )
-                    self.tma.global_to_shared(
-                        src=gb,
-                        dst=sb[stage],
-                        offsets=[offset_n, offset_k],
-                        mbarrier=consumer_barriers[stage],
-                    )
+                self.tma.global_to_shared(
+                    src=ga,
+                    dst=sa[stage],
+                    offsets=[offset_m, offset_k],
+                    mbarrier=consumer_barriers[stage],
+                )
+                self.tma.global_to_shared(
+                    src=gb,
+                    dst=sb[stage],
+                    offsets=[offset_n, offset_k],
+                    mbarrier=consumer_barriers[stage],
+                )
                 stage = (stage + 1) % self.num_stages
 
             for _ in self.range(min(self.num_stages, cdiv(k_size, self.block_k))):

@@ -237,8 +237,8 @@ class BoundAnalyzer(ExprVisitor, StmtVisitor, ModuleVisitor):
         Add: operator.add,
         Sub: operator.sub,
         Multiply: operator.mul,
-        Mod: operator.mod,
-        Div: operator.floordiv,  # for the node with BoundInfo, we are sure they are integers
+        Mod: operator.mod,  # floor-mod; only used for candidate enumeration (exact path)
+        Div: operator.floordiv,  # floor-div; same — only used when candidates are enumerable
     }
 
     def __init__(self, var2bound: Dict[Expr, BoundInfo] = None):

@@ -52,7 +52,7 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
 from tilus.ir.tensor import GlobalTensor, SharedTensor
 from tilus.ir.utils.lineardec import LinearDecompositionError, decompose_linear
 from tilus.ir.utils.veceval import vectorized_evaluate
-from tilus.target import nvgpu_sm90
+from tilus.target import get_current_target, nvgpu_sm90
 
 
 @dataclass(frozen=True, eq=False)
@@ -285,7 +285,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
 @register_emitter(CopyAsyncTensorGlobalToSharedInst, target=nvgpu_sm90)
 class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
     def emit(self, inst: CopyAsyncTensorGlobalToSharedInst) -> None:
-        self.assert_is_warp_aligned(inst, "TMA global to shared is a warp-cooperative instruction")
+        self.assert_is_single_thread_or_warp_aligned(inst, "TMA global to shared must be issued by one thread")
         global_tensor: GlobalTensor = inst.inputs[1].as_global_tensor()
         shared_tensor: SharedTensor = inst.inputs[0].as_shared_tensor()
         assert global_tensor.dtype == shared_tensor.dtype
@@ -301,7 +301,11 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
         src_tensor_map = ~self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
         coords = list(reversed(inst.offsets))
         optional_multicast_mask = inst.multicast_mask
-        predicate = self.contexts.leader_lane_ctx.leader_lane
+        predicate = self.tma_predicate
+        # `.cta_group::{n}` is a Blackwell (sm_100+) PTX feature; ptxas rejects it on
+        # sm_90a even though the IR always carries cta_group=1. Pass None on Hopper so
+        # the inline asm template emits the unqualified TMA instruction.
+        cta_group = inst.cta_group if get_current_target().properties.compute_capability >= (10, 0) else None
 
         if optional_multicast_mask is None:
             self.append(
@@ -310,7 +314,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
                     src_tensor_map=src_tensor_map,
                     coords=coords,
                     mbarrier=inst.mbarrier,
-                    cta_group=inst.cta_group,
+                    cta_group=cta_group,
                     cache_policy=inst.cache_policy,
                     predicate=predicate,
                 )
@@ -324,7 +328,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
                     coords=coords,
                     mbarrier=inst.mbarrier,
                     multicast_mask=multicast_mask,
-                    cta_group=inst.cta_group,
+                    cta_group=cta_group,
                     cache_policy=inst.cache_policy,
                     predicate=predicate,
                 )
@@ -334,7 +338,7 @@ class CopyAsyncTensorGlobalToSharedInstEmitter(CopyAsyncTensorBaseEmitter):
 @register_emitter(CopyAsyncTensorSharedToGlobalInst, target=nvgpu_sm90)
 class CopyAsyncTensorSharedToGlobalInstEmitter(CopyAsyncTensorBaseEmitter):
     def emit(self, inst: CopyAsyncTensorSharedToGlobalInst) -> None:
-        self.assert_is_warp_aligned(inst, "TMA shared to global is a warp-cooperative instruction")
+        self.assert_is_single_thread_or_warp_aligned(inst, "TMA shared to global must be issued by one thread")
         global_tensor: GlobalTensor = inst.inputs[0].as_global_tensor()
         shared_tensor: SharedTensor = inst.inputs[1].as_shared_tensor()
         assert global_tensor.dtype == shared_tensor.dtype
@@ -355,7 +359,7 @@ class CopyAsyncTensorSharedToGlobalInstEmitter(CopyAsyncTensorBaseEmitter):
                 src=shared_addr,
                 coords=list(reversed(tensor_coords)),
                 cache_policy=inst.cache_policy,
-                predicate=self.contexts.leader_lane_ctx.leader_lane,
+                predicate=self.tma_predicate,
             )
         )
 

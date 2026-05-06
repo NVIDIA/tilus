@@ -26,8 +26,6 @@ from tilus.hidet.ir.primitives.cuda.mbarrier import mbarrier_init_shared
 from tilus.hidet.ir.primitives.cuda.smem import dynamic_shared_memory
 from tilus.hidet.ir.primitives.cuda.sync import syncthreads
 from tilus.hidet.ir.primitives.cuda.vars import threadIdx
-from tilus.ir.layout import ops
-from tilus.ir.tensor import SharedTensor
 
 
 class BarrierAllocContext(BaseEmitContext):
@@ -46,8 +44,17 @@ class BarrierAllocContext(BaseEmitContext):
             # No barriers to allocate
             return
 
-        tensor = SharedTensor(dtype=uint64, shape=(num_barriers,), optional_layout=ops.shared_row_major(num_barriers))
-        virtual_smem_addr = self.contexts.smem_alloc_ctx.allocate_shared_tensor(tensor, nbytes=tensor.storage_nbytes)
+        # Place barriers past the smem high-water mark rather than into a slot that
+        # was freed by FreeShared. The smem allocator only tracks the static
+        # post-emit free list; at runtime, data tensors that get freed *after* the
+        # main loop are still alive while the barriers are in use, so reusing their
+        # slot would cause TMA writes to clobber the barrier state.
+        smem_alloc_ctx = self.contexts.smem_alloc_ctx
+        nbytes = num_barriers * uint64.nbytes
+        alignment = 128
+        aligned_hwm = (smem_alloc_ctx.smem_allocator.maximum_allocated + alignment - 1) // alignment * alignment
+        virtual_smem_addr = aligned_hwm
+        smem_alloc_ctx.smem_allocator.maximum_allocated = aligned_hwm + nbytes
         sb = StmtBuilder()
         sb.declare(
             v=self.barrier_addr,

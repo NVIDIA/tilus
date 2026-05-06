@@ -149,24 +149,27 @@ class MatmulWGMMAV5(tilus.Script):
         with self.thread_group(thread_begin=128, num_threads=32):  # TMA producer warp
             for offset_k in self.range(0, k_size, block_k, unroll=num_stages):
                 tma_pipe.producer_acquire()
+                # Producer warp is already 32 threads — the granularity TMA
+                # needs at SASS level. Only the arrive runs in single_thread so
+                # transaction-bytes is counted once.
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
                         tma_pipe.producer_barrier(),
                         transaction_bytes=sa[tma_pipe.producer_stage].nbytes
                         + sb[tma_pipe.producer_stage].nbytes,
                     )
-                    self.tma.global_to_shared(
-                        src=ga,
-                        dst=sa[tma_pipe.producer_stage],
-                        offsets=[offset_m, offset_k],
-                        mbarrier=tma_pipe.producer_barrier(),
-                    )
-                    self.tma.global_to_shared(
-                        src=gb,
-                        dst=sb[tma_pipe.producer_stage],
-                        offsets=[offset_n, offset_k],
-                        mbarrier=tma_pipe.producer_barrier(),
-                    )
+                self.tma.global_to_shared(
+                    src=ga,
+                    dst=sa[tma_pipe.producer_stage],
+                    offsets=[offset_m, offset_k],
+                    mbarrier=tma_pipe.producer_barrier(),
+                )
+                self.tma.global_to_shared(
+                    src=gb,
+                    dst=sb[tma_pipe.producer_stage],
+                    offsets=[offset_n, offset_k],
+                    mbarrier=tma_pipe.producer_barrier(),
+                )
                 tma_pipe.producer_advance()
 
             for _ in self.range(min(num_stages, cdiv(k_size, block_k))):
@@ -205,7 +208,8 @@ class MatmulWGMMAV5(tilus.Script):
             # fence required: store_shared uses generic proxy; TMA uses async proxy
             self.fence.proxy_async(space="shared")
             self.sync()
-            with self.single_thread():
+            # tma.shared_to_global is warp-cooperative; run inside single_warp.
+            with self.single_warp():
                 self.tma.shared_to_global(
                     sc,
                     gc,

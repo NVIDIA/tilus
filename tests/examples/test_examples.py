@@ -64,6 +64,8 @@ EXAMPLES = [
     ("hopper_matmul", "matmul_v1.py", nvgpu_sm90a),
     ("hopper_matmul", "matmul_v2.py", nvgpu_sm90a),
     ("hopper_matmul", "matmul_v3.py", nvgpu_sm90a),
+    ("hopper_matmul", "matmul_v4.py", nvgpu_sm90a),
+    ("hopper_matmul", "matmul_v5.py", nvgpu_sm90a),
     # quantization examples (SM 8.0+)
     ("quantization", "matmul_a16wx.py", nvgpu_sm80),
     # flash attention decode examples (SM 8.0+)
@@ -78,6 +80,7 @@ IGNORED_SCRIPTS = [
     ("flash_attention_decode", "tilus_kernel.py"),
     # Benchmark utilities
     ("blackwell_matmul", "benchmark.py"),
+    ("hopper_matmul", "benchmark.py"),
 ]
 
 
