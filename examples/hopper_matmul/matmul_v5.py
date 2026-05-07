@@ -1,16 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-# v5: TMA epilogue — replaces direct register-to-global stores with a
-#     shared-memory staging buffer written out via TMA bulk store.
-#
-# Changes from v4:
-#   - Pre-allocates s_c[block_m, block_n] alongside s_a/s_b.
-#   - After the K loop, stores the float16-cast accumulator to s_c, then
-#     issues a TMA shared->global transfer instead of store_global.
-#   - A fence.proxy_async(space="shared") between store_shared and TMA is
-#     required so the generic-proxy writes are visible to the async proxy.
-
 import math
 
 import pandas
@@ -70,20 +60,14 @@ class Pipeline(tilus.Class):
         self.consumer_phase = self.consumer_phase ^ (self.consumer_stage == 0)
 
     def prev_consumer_barrier(self) -> RegisterTensor:
-        # Use (consumer_stage + num_stages - 1) so num_stages - 1 is evaluated as a
-        # Python int constant first, ensuring the inner expression is always non-negative
-        # and avoids C's negative-dividend truncated-modulo behaviour.
         prev_stage = (self.consumer_stage + (self.num_stages - 1)) % self.num_stages
         return self.empty_barriers[prev_stage]
 
 
-# Keep block_n=64 / [256,128] in the space: the TMA epilogue stages s_c via
-# store_shared, and only certain (m,n) shapes give a single-swizzle s_c
-# layout that tma.shared_to_global can consume. Trimming those out leaves
-# every remaining schedule failing layout validation.
-@tilus.autotune("num_stages", [2, 3, 4, 5])
+# block_m must be >= 128 so each WG's WGMMA M = block_m/2 >= 64.
+@tilus.autotune("num_stages", [3, 4, 5, 6])
 @tilus.autotune(
-    "block_m, block_n", [[128, 64], [128, 128], [128, 256], [256, 128], [256, 256]]
+    "block_m, block_n", [[128, 128], [128, 256], [256, 128], [256, 256]]
 )
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("swizzle_size", [4, 8])
@@ -126,11 +110,12 @@ class MatmulWGMMAV5(tilus.Script):
     ):
         num_stages = self.num_stages
         block_m, block_n, block_k = self.block_m, self.block_n, self.block_k
+        block_m_half = block_m // 2
 
         num_m_blocks = cdiv(m_size, block_m)
         num_n_blocks = cdiv(n_size, block_n)
         self.attrs.blocks = num_m_blocks * num_n_blocks
-        self.attrs.warps = 5
+        self.attrs.warps = 9  # 1 producer + 2 consumer WGs (4 warps each)
 
         m_block, n_block = self.compute_block_coord(
             self.blockIdx.x, num_m_blocks, num_n_blocks
@@ -141,28 +126,36 @@ class MatmulWGMMAV5(tilus.Script):
         ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         gb = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
         gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
-        sa = self.shared_tensor(dtype=float16, shape=[num_stages, block_m, block_k])
+        # Per-WG A slab: index as sa[stage, wg_idx].
+        sa = self.shared_tensor(
+            dtype=float16, shape=[num_stages, 2, block_m_half, block_k]
+        )
         sb = self.shared_tensor(dtype=float16, shape=[num_stages, block_n, block_k])
-        sc = self.shared_tensor(dtype=float16, shape=[block_m, block_n])
-        acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
         tma_pipe = Pipeline(
-            num_stages, producer_arrive_count=1, consumer_arrive_count=128
+            num_stages, producer_arrive_count=1, consumer_arrive_count=256
         )
 
-        with self.thread_group(thread_begin=128, num_threads=32):  # TMA producer warp
+        with self.thread_group(thread_begin=256, num_threads=32):  # TMA producer
             for offset_k in self.range(0, k_size, block_k, unroll=num_stages):
                 tma_pipe.producer_acquire()
                 with self.single_thread():
                     self.mbarrier.arrive_and_expect_tx(
                         tma_pipe.producer_barrier(),
-                        transaction_bytes=sa[tma_pipe.producer_stage].nbytes
+                        transaction_bytes=sa[tma_pipe.producer_stage, 0].nbytes
+                        + sa[tma_pipe.producer_stage, 1].nbytes
                         + sb[tma_pipe.producer_stage].nbytes,
                     )
                 self.tma.global_to_shared(
                     src=ga,
-                    dst=sa[tma_pipe.producer_stage],
+                    dst=sa[tma_pipe.producer_stage, 0],
                     offsets=[offset_m, offset_k],
+                    mbarrier=tma_pipe.producer_barrier(),
+                )
+                self.tma.global_to_shared(
+                    src=ga,
+                    dst=sa[tma_pipe.producer_stage, 1],
+                    offsets=[offset_m + block_m_half, offset_k],
                     mbarrier=tma_pipe.producer_barrier(),
                 )
                 self.tma.global_to_shared(
@@ -177,11 +170,16 @@ class MatmulWGMMAV5(tilus.Script):
                 tma_pipe.producer_acquire()
                 tma_pipe.producer_advance()
 
-        with self.thread_group(thread_begin=0, num_threads=128):  # WGMMA consumer
+        with self.thread_group(thread_begin=0, num_threads=128):  # consumer WG0
+            acc0 = self.register_tensor(
+                dtype=float32, shape=[block_m_half, block_n], init=0.0
+            )
             tma_pipe.consumer_acquire()
             self.wgmma.fence()
             self.wgmma.mma(
-                sa[tma_pipe.consumer_stage], sb[tma_pipe.consumer_stage].transpose(), acc
+                sa[tma_pipe.consumer_stage, 0],
+                sb[tma_pipe.consumer_stage].transpose(),
+                acc0,
             )
             self.wgmma.commit_group()
             tma_pipe.consumer_advance()
@@ -190,9 +188,9 @@ class MatmulWGMMAV5(tilus.Script):
                 tma_pipe.consumer_acquire()
                 self.wgmma.fence()
                 self.wgmma.mma(
-                    sa[tma_pipe.consumer_stage],
+                    sa[tma_pipe.consumer_stage, 0],
                     sb[tma_pipe.consumer_stage].transpose(),
-                    acc,
+                    acc0,
                 )
                 self.wgmma.commit_group()
                 self.wgmma.wait_group(1)
@@ -202,17 +200,43 @@ class MatmulWGMMAV5(tilus.Script):
             self.wgmma.wait_group(0)
             self.mbarrier.arrive(tma_pipe.prev_consumer_barrier())
 
-            self.sync()
-            casted_acc = self.cast(acc, dtype=float16)
-            self.store_shared(sc, casted_acc)
-            self.fence.proxy_async(space="shared")
-            self.sync()
-            with self.single_warp():
-                self.tma.shared_to_global(
-                    sc, gc, offsets=[offset_m, offset_n], dims=[0, 1]
+            casted0 = self.cast(acc0, dtype=float16)
+            self.store_global(gc, casted0, offsets=[offset_m, offset_n])
+
+        with self.thread_group(thread_begin=128, num_threads=128):  # consumer WG1
+            acc1 = self.register_tensor(
+                dtype=float32, shape=[block_m_half, block_n], init=0.0
+            )
+            tma_pipe.consumer_acquire()
+            self.wgmma.fence()
+            self.wgmma.mma(
+                sa[tma_pipe.consumer_stage, 1],
+                sb[tma_pipe.consumer_stage].transpose(),
+                acc1,
+            )
+            self.wgmma.commit_group()
+            tma_pipe.consumer_advance()
+
+            for offset_k in self.range(block_k, k_size, block_k, unroll=num_stages):
+                tma_pipe.consumer_acquire()
+                self.wgmma.fence()
+                self.wgmma.mma(
+                    sa[tma_pipe.consumer_stage, 1],
+                    sb[tma_pipe.consumer_stage].transpose(),
+                    acc1,
                 )
-                self.tma.commit_group()
-                self.tma.wait_group(n=0, read=True)
+                self.wgmma.commit_group()
+                self.wgmma.wait_group(1)
+                self.mbarrier.arrive(tma_pipe.prev_consumer_barrier())
+                tma_pipe.consumer_advance()
+
+            self.wgmma.wait_group(0)
+            self.mbarrier.arrive(tma_pipe.prev_consumer_barrier())
+
+            casted1 = self.cast(acc1, dtype=float16)
+            self.store_global(
+                gc, casted1, offsets=[offset_m + block_m_half, offset_n]
+            )
 
 
 def main():

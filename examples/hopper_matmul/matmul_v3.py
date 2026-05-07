@@ -74,18 +74,18 @@ class MatmulWGMMAV3(tilus.Script):
                         consumer_barriers[stage],
                         transaction_bytes=sa[stage].nbytes + sb[stage].nbytes,
                     )
-                self.tma.global_to_shared(
-                    src=ga,
-                    dst=sa[stage],
-                    offsets=[offset_m, offset_k],
-                    mbarrier=consumer_barriers[stage],
-                )
-                self.tma.global_to_shared(
-                    src=gb,
-                    dst=sb[stage],
-                    offsets=[offset_n, offset_k],
-                    mbarrier=consumer_barriers[stage],
-                )
+                    self.tma.global_to_shared(
+                        src=ga,
+                        dst=sa[stage],
+                        offsets=[offset_m, offset_k],
+                        mbarrier=consumer_barriers[stage],
+                    )
+                    self.tma.global_to_shared(
+                        src=gb,
+                        dst=sb[stage],
+                        offsets=[offset_n, offset_k],
+                        mbarrier=consumer_barriers[stage],
+                    )
                 stage = (stage + 1) % self.num_stages
 
             for _ in self.range(min(self.num_stages, cdiv(k_size, self.block_k))):
@@ -100,7 +100,6 @@ class MatmulWGMMAV3(tilus.Script):
                 dtype=uint32, shape=[self.num_stages], init=0
             )
             stage: int32 = 0
-
             for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
                 self.mbarrier.wait(consumer_barriers[stage], phase=consumer_phases[stage])
                 consumer_phases[stage] ^= 1
@@ -110,7 +109,6 @@ class MatmulWGMMAV3(tilus.Script):
                 self.wgmma.wait_group(0)
                 self.mbarrier.arrive(producer_barriers[stage])
                 stage = (stage + 1) % self.num_stages
-
             self.sync()
             casted_acc = self.cast(acc, dtype=float16)
             gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
