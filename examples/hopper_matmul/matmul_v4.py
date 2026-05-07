@@ -80,9 +80,7 @@ class Pipeline(tilus.Class):
 # swizzle_size=1 (≡ default rasterization, no L2 win). The remaining 60 configs
 # are biased toward shapes cuBLAS uses for 8K² fp16 GEMMs.
 @tilus.autotune("num_stages", [3, 4, 5, 6])
-@tilus.autotune(
-    "block_m, block_n", [[128, 128], [128, 256], [256, 256]]
-)
+@tilus.autotune("block_m, block_n", [[128, 128], [128, 256], [256, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("swizzle_size", [4, 8])
 class MatmulWGMMAV4(tilus.Script):
@@ -148,7 +146,9 @@ class MatmulWGMMAV4(tilus.Script):
 
         # producer_arrive_count=1: single thread does arrive_and_expect_tx
         # consumer_arrive_count=128: all 128 consumer threads arrive when done
-        tma_pipe = Pipeline(num_stages, producer_arrive_count=1, consumer_arrive_count=128)
+        tma_pipe = Pipeline(
+            num_stages, producer_arrive_count=1, consumer_arrive_count=128
+        )
 
         with self.thread_group(thread_begin=128, num_threads=32):  # TMA producer warp
             for offset_k in self.range(0, k_size, block_k, unroll=num_stages):
@@ -187,7 +187,9 @@ class MatmulWGMMAV4(tilus.Script):
             # after wait_group(1) confirms the MMA is done).
             tma_pipe.consumer_acquire()
             self.wgmma.fence()
-            self.wgmma.mma(sa[tma_pipe.consumer_stage], sb[tma_pipe.consumer_stage].transpose(), acc)
+            self.wgmma.mma(
+                sa[tma_pipe.consumer_stage], sb[tma_pipe.consumer_stage].transpose(), acc
+            )
             self.wgmma.commit_group()
             tma_pipe.consumer_advance()
 
@@ -199,7 +201,11 @@ class MatmulWGMMAV4(tilus.Script):
             for offset_k in self.range(block_k, k_size, block_k, unroll=num_stages):
                 tma_pipe.consumer_acquire()
                 self.wgmma.fence()
-                self.wgmma.mma(sa[tma_pipe.consumer_stage], sb[tma_pipe.consumer_stage].transpose(), acc)
+                self.wgmma.mma(
+                    sa[tma_pipe.consumer_stage],
+                    sb[tma_pipe.consumer_stage].transpose(),
+                    acc,
+                )
                 self.wgmma.commit_group()
                 self.wgmma.wait_group(1)
                 self.mbarrier.arrive(tma_pipe.prev_consumer_barrier())

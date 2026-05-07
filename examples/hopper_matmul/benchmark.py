@@ -127,13 +127,19 @@ def benchmark_all(versions: list[str], m_size: int, n_size: int, k_size: int):
     headers = ["version", "latency (ms)", "tflops", "% of cublas"]
     rows = []
 
-    a = (torch.rand(m_size, k_size, dtype=torch.float16, device="cuda") - 0.5) / math.sqrt(k_size)
-    b = (torch.rand(n_size, k_size, dtype=torch.float16, device="cuda") - 0.5) / math.sqrt(k_size)
+    a = (
+        torch.rand(m_size, k_size, dtype=torch.float16, device="cuda") - 0.5
+    ) / math.sqrt(k_size)
+    b = (
+        torch.rand(n_size, k_size, dtype=torch.float16, device="cuda") - 0.5
+    ) / math.sqrt(k_size)
     c_ref = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
     c_tilus = torch.empty(m_size, n_size, dtype=torch.float16, device="cuda")
 
     # cuBLAS baseline first, so we can compute % of cublas
-    cublas_lat = benchmark_func(lambda: torch.matmul(a, b.T, out=c_ref), warmup=5, repeat=30)
+    cublas_lat = benchmark_func(
+        lambda: torch.matmul(a, b.T, out=c_ref), warmup=5, repeat=30
+    )
     cublas_tf = 2 * m_size * n_size * k_size / cublas_lat * 1e-9
 
     for name in versions:

@@ -224,8 +224,9 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
     def resolve_shared_tensor_segments(
         self, shared_tensor: SharedTensor
     ) -> tuple[list[tuple[SharedTensorInfo, int]], int]:
-        """Decompose a 2D shared tensor whose n-axis has been split by the layout
-        selector into ``S`` row-major sub-blocks (``mode_shape=[bm, S, bn/S]``,
+        """Decompose a 2D shared tensor whose n-axis has been split by the layout.
+
+        The selector into ``S`` row-major sub-blocks (``mode_shape=[bm, S, bn/S]``,
         ``mode_strides=[bn/S, bm*bn/S, 1]``) into ``S`` TMA-issuable boxes.
 
         Such layouts arise when ``store_shared`` mirrors the wgmma register-tile
@@ -259,9 +260,7 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
         if m0 != bm or s * n_inner != bn:
             raise NotImplementedError("mode shape does not segment the n-axis")
         if sn != 1 or sm != n_inner or ss != bm * n_inner:
-            raise NotImplementedError(
-                "mode strides do not match contiguous [bm, bn/S] segments stacked along n"
-            )
+            raise NotImplementedError("mode strides do not match contiguous [bm, bn/S] segments stacked along n")
 
         # Validate that each segment is a single TMA-supported swizzle box.
         per_segment_shape = (bm, n_inner)

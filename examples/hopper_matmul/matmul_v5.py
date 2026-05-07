@@ -146,7 +146,9 @@ class MatmulWGMMAV5(tilus.Script):
         sc = self.shared_tensor(dtype=float16, shape=[block_m, block_n])
         acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
-        tma_pipe = Pipeline(num_stages, producer_arrive_count=1, consumer_arrive_count=128)
+        tma_pipe = Pipeline(
+            num_stages, producer_arrive_count=1, consumer_arrive_count=128
+        )
 
         with self.thread_group(thread_begin=128, num_threads=32):  # TMA producer warp
             for offset_k in self.range(0, k_size, block_k, unroll=num_stages):
@@ -178,14 +180,20 @@ class MatmulWGMMAV5(tilus.Script):
         with self.thread_group(thread_begin=0, num_threads=128):  # WGMMA consumer
             tma_pipe.consumer_acquire()
             self.wgmma.fence()
-            self.wgmma.mma(sa[tma_pipe.consumer_stage], sb[tma_pipe.consumer_stage].transpose(), acc)
+            self.wgmma.mma(
+                sa[tma_pipe.consumer_stage], sb[tma_pipe.consumer_stage].transpose(), acc
+            )
             self.wgmma.commit_group()
             tma_pipe.consumer_advance()
 
             for offset_k in self.range(block_k, k_size, block_k, unroll=num_stages):
                 tma_pipe.consumer_acquire()
                 self.wgmma.fence()
-                self.wgmma.mma(sa[tma_pipe.consumer_stage], sb[tma_pipe.consumer_stage].transpose(), acc)
+                self.wgmma.mma(
+                    sa[tma_pipe.consumer_stage],
+                    sb[tma_pipe.consumer_stage].transpose(),
+                    acc,
+                )
                 self.wgmma.commit_group()
                 self.wgmma.wait_group(1)
                 self.mbarrier.arrive(tma_pipe.prev_consumer_barrier())
