@@ -221,6 +221,98 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
             + layout.visualize()
         )
 
+    def resolve_shared_tensor_segments(
+        self, shared_tensor: SharedTensor
+    ) -> tuple[list[tuple[SharedTensorInfo, int]], int]:
+        """Decompose a 2D shared tensor whose n-axis has been split by the layout
+        selector into ``S`` row-major sub-blocks (``mode_shape=[bm, S, bn/S]``,
+        ``mode_strides=[bn/S, bm*bn/S, 1]``) into ``S`` TMA-issuable boxes.
+
+        Such layouts arise when ``store_shared`` mirrors the wgmma register-tile
+        fragmentation (each warp's output spans ``bn/S`` columns and the warps
+        are stacked along the n-axis at strided offsets). The aggregate layout
+        is not one of the 7 hardware swizzle patterns, but each per-segment
+        ``[bm, bn/S]`` sub-tile *is*, so we emit one TMA store per segment.
+
+        Returns
+        -------
+        segments
+            A list of ``(per_segment_info, segment_n_offset)`` pairs, in segment
+            order. ``segment_n_offset`` is the column offset (in elements) of the
+            sub-tile within the original n-axis, to be added to ``inst.offsets``
+            on the segmented dim.
+        seg_dim
+            The shared-tensor dimension that has been segmented (always 1 for
+            now; surfaced for future extension).
+        """
+        layout: SharedLayout = shared_tensor.layout
+
+        if len(shared_tensor.shape) != 2 or len(layout.mode_shape) != 3:
+            raise NotImplementedError("segmented decomposition only handles 2D layouts split into 3 modes")
+
+        bm, bn = shared_tensor.shape
+        m0, s, n_inner = layout.mode_shape
+        sm, ss, sn = layout.mode_strides
+
+        # Expected: dim 0 = [bm], dim 1 = [S, bn/S]; segments contiguous as
+        # ``[bm, bn/S]`` row-major boxes stacked along n.
+        if m0 != bm or s * n_inner != bn:
+            raise NotImplementedError("mode shape does not segment the n-axis")
+        if sn != 1 or sm != n_inner or ss != bm * n_inner:
+            raise NotImplementedError(
+                "mode strides do not match contiguous [bm, bn/S] segments stacked along n"
+            )
+
+        # Validate that each segment is a single TMA-supported swizzle box.
+        per_segment_shape = (bm, n_inner)
+        per_segment_layout = SharedLayout(
+            shape=per_segment_shape,
+            mode_shape=(bm, n_inner),
+            mode_strides=(n_inner, 1),
+            optional_swizzle=layout.optional_swizzle,
+        )
+        per_segment_grid = per_segment_layout.as_numpy_grid()
+
+        chosen_swizzle: Optional[TensorMapSwizzle] = None
+        for swizzle in [
+            TensorMapSwizzle.NONE,
+            TensorMapSwizzle.B32,
+            TensorMapSwizzle.B64,
+            TensorMapSwizzle.B128,
+            TensorMapSwizzle.B128_ATOM_32B,
+            TensorMapSwizzle.B128_ATOM_32B_FLIP_8B,
+            TensorMapSwizzle.B128_ATOM_64B,
+        ]:
+            swizzled_grid = get_offset_grid_of_swizzled_layout(
+                dtype_nbits=shared_tensor.dtype.nbits, shape=per_segment_shape, swizzle=swizzle
+            )
+            if swizzled_grid is not None and np.array_equal(per_segment_grid, swizzled_grid):
+                chosen_swizzle = swizzle
+                break
+
+        if chosen_swizzle is None:
+            raise NotImplementedError(
+                "Segment layout does not match any TMA hardware swizzle: \n"
+                + f"Per-segment shape: {shared_tensor.dtype.name}{list(per_segment_shape)}\n"
+                + per_segment_layout.visualize()
+            )
+
+        base_addr = self.shared_tensor_shared_space_addr[shared_tensor]
+        segment_nbytes = bm * n_inner * shared_tensor.dtype.nbytes
+        segments: list[tuple[SharedTensorInfo, int]] = []
+        for k in range(s):
+            segments.append(
+                (
+                    SharedTensorInfo(
+                        addr=base_addr + k * segment_nbytes,
+                        shape=per_segment_shape,
+                        swizzle=chosen_swizzle,
+                    ),
+                    k * n_inner,
+                )
+            )
+        return segments, 1
+
     def declare_host_buffer(self, name: str, dtype: DataType, shape: Sequence[int]) -> Var:
         return self.host_builder.declare_var(name=name, tp=TensorType(dtype=dtype, shape=shape))
 
@@ -348,20 +440,35 @@ class CopyAsyncTensorSharedToGlobalInstEmitter(CopyAsyncTensorBaseEmitter):
             global_tensor, offsets=inst.offsets, dims=inst.dims
         )
 
-        shared_tensor_info: SharedTensorInfo = self.resolve_shared_tensor_info(shared_tensor)
+        try:
+            shared_tensor_info: SharedTensorInfo = self.resolve_shared_tensor_info(shared_tensor)
+            segments: list[tuple[SharedTensorInfo, int]] = [(shared_tensor_info, 0)]
+            seg_dim: Optional[int] = None
+        except NotImplementedError:
+            # Fall back to per-segment emission for layouts that split a dim
+            # into stacked sub-boxes (typically the wgmma-fragment layout that
+            # store_shared inherits when targeting sc[bm, bn]).
+            segments, seg_dim = self.resolve_shared_tensor_segments(shared_tensor)
 
-        shared_addr = self.shared_tensor_shared_space_addr[shared_tensor]
-        tensor_map = self.create_tensor_map(global_tensor_info, shared_tensor_info, dtype)
-        tensor_coords = inst.offsets
-        self.append(
-            cp_async_tensor_shared_to_global(
-                dst_tensor_map=~tensor_map,
-                src=shared_addr,
-                coords=list(reversed(tensor_coords)),
-                cache_policy=inst.cache_policy,
-                predicate=self.tma_predicate,
+        # All segments share box shape and swizzle, so reuse one descriptor.
+        first_info = segments[0][0]
+        tensor_map = self.create_tensor_map(global_tensor_info, first_info, dtype)
+        for info, segment_offset in segments:
+            tensor_coords = list(inst.offsets)
+            if seg_dim is not None and segment_offset != 0:
+                # seg_dim indexes the *shared* dims; map it to the matching
+                # global dim through inst.dims, then shift that coord.
+                global_seg_dim = inst.dims[seg_dim]
+                tensor_coords[global_seg_dim] = tensor_coords[global_seg_dim] + segment_offset
+            self.append(
+                cp_async_tensor_shared_to_global(
+                    dst_tensor_map=~tensor_map,
+                    src=info.addr,
+                    coords=list(reversed(tensor_coords)),
+                    cache_policy=inst.cache_policy,
+                    predicate=self.tma_predicate,
+                )
             )
-        )
 
 
 @register_emitter(CopyAsyncTensorCommitGroupInst, target=nvgpu_sm90)
