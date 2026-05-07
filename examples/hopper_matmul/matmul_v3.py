@@ -103,15 +103,37 @@ class MatmulWGMMAV3(tilus.Script):
                 dtype=uint32, shape=[self.num_stages], init=0
             )
             stage: int32 = 0
-            for offset_k in self.range(0, k_size, block_k, unroll=self.num_stages):
+
+            # Prologue: issue first wgmma but don't wait. The current group is
+            # still in flight; we'll overlap it with the next iteration's TMA
+            # wait via wait_group(1) below.
+            self.mbarrier.wait(consumer_barriers[stage], phase=consumer_phases[stage])
+            consumer_phases[stage] ^= 1
+            self.wgmma.fence()
+            self.wgmma.mma(sa[stage], sb[stage].transpose(), acc)
+            self.wgmma.commit_group()
+            stage = (stage + 1) % self.num_stages
+
+            # Main loop: issue the next wgmma, then wait_group(1) drains the
+            # previous group while the new one runs. This is the double-buffered
+            # async pattern that lets wgmma overlap the next consumer_acquire.
+            for offset_k in self.range(block_k, k_size, block_k, unroll=self.num_stages):
                 self.mbarrier.wait(consumer_barriers[stage], phase=consumer_phases[stage])
                 consumer_phases[stage] ^= 1
                 self.wgmma.fence()
                 self.wgmma.mma(sa[stage], sb[stage].transpose(), acc)
                 self.wgmma.commit_group()
-                self.wgmma.wait_group(0)
-                self.mbarrier.arrive(producer_barriers[stage])
+                self.wgmma.wait_group(1)
+                # Release the previous stage (whose mma just finished).
+                prev_stage = (stage + self.num_stages - 1) % self.num_stages
+                self.mbarrier.arrive(producer_barriers[prev_stage])
                 stage = (stage + 1) % self.num_stages
+
+            # Epilogue: drain the last in-flight group, release its stage.
+            self.wgmma.wait_group(0)
+            prev_stage = (stage + self.num_stages - 1) % self.num_stages
+            self.mbarrier.arrive(producer_barriers[prev_stage])
+
             self.sync()
             casted_acc = self.cast(acc, dtype=float16)
             gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])

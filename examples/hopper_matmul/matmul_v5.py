@@ -1,15 +1,18 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-# v5: TMA epilogue — replaces direct register-to-global stores with a
-#     shared-memory staging buffer written out via TMA bulk store.
+# v5: TMA epilogue + persistent grid.
 #
 # Changes from v4:
-#   - Pre-allocates s_c[block_m, block_n] alongside s_a/s_b.
-#   - After the K loop, stores the float16-cast accumulator to s_c, then
-#     issues a TMA shared→global transfer instead of store_global.
-#   - A fence.proxy_async(space="shared") between store_shared and TMA is
-#     required so the generic-proxy writes are visible to the async proxy.
+#   - Persistent grid: launch one CTA per SM and stride through tiles inside
+#     the kernel. The TMA epilogue of tile T runs while the wgmma compute of
+#     tile T+1 is in flight, hiding the shared->global bulk-store latency.
+#     v4's direct register stores are synchronous and can't be overlapped.
+#   - s_c[block_m, block_n] staging buffer: cast(acc) -> store_shared(s_c)
+#     -> tma.shared_to_global. fence.proxy_async between the generic-proxy
+#     store_shared and the async-proxy TMA store.
+#   - tma.wait_group is moved to the *start* of the next tile's epilogue so
+#     it overlaps with cast and consumer drain instead of blocking the CTA.
 
 import math
 
@@ -77,12 +80,16 @@ class Pipeline(tilus.Class):
         return self.empty_barriers[prev_stage]
 
 
+# Keep block_n=64 / [256,128] in the space: the TMA epilogue stages s_c via
+# store_shared, and only certain (m,n) shapes give a single-swizzle s_c
+# layout that tma.shared_to_global can consume. Trimming those out leaves
+# every remaining schedule failing layout validation.
 @tilus.autotune("num_stages", [2, 3, 4, 5])
 @tilus.autotune(
     "block_m, block_n", [[128, 64], [128, 128], [128, 256], [256, 128], [256, 256]]
 )
 @tilus.autotune("block_k", [16, 32, 64])
-@tilus.autotune("swizzle_size", [1, 4, 8])
+@tilus.autotune("swizzle_size", [4, 8])
 class MatmulWGMMAV5(tilus.Script):
     def __init__(self, num_stages, block_m, block_n, block_k, swizzle_size):
         super().__init__()
@@ -125,100 +132,113 @@ class MatmulWGMMAV5(tilus.Script):
 
         num_m_blocks = cdiv(m_size, block_m)
         num_n_blocks = cdiv(n_size, block_n)
-        self.attrs.blocks = num_m_blocks * num_n_blocks
+        total_tiles = num_m_blocks * num_n_blocks
+        # Persistent grid: launch one CTA per SM (H200 NVL = 132 SMs) and
+        # iterate tiles inside the kernel. The TMA epilogue of tile T then
+        # overlaps with the wgmma compute of tile T+1, hiding the
+        # shared->global bulk-store latency that v4 (direct register stores)
+        # cannot hide.
+        num_sms = 132
+        self.attrs.blocks = num_sms
         self.attrs.warps = 5
-
-        m_block, n_block = self.compute_block_coord(
-            self.blockIdx.x, num_m_blocks, num_n_blocks
-        )
-        offset_m: int32 = m_block * block_m
-        offset_n: int32 = n_block * block_n
 
         ga = self.global_view(a_ptr, dtype=float16, shape=[m_size, k_size])
         gb = self.global_view(b_ptr, dtype=float16, shape=[n_size, k_size])
         gc = self.global_view(c_ptr, dtype=float16, shape=[m_size, n_size])
         sa = self.shared_tensor(dtype=float16, shape=[num_stages, block_m, block_k])
         sb = self.shared_tensor(dtype=float16, shape=[num_stages, block_n, block_k])
-        # s_c is the staging buffer for the TMA epilogue; allocated alongside
-        # s_a/s_b so the allocator can pick a fitting shared-memory partition.
         sc = self.shared_tensor(dtype=float16, shape=[block_m, block_n])
-        acc = self.register_tensor(dtype=float32, shape=[block_m, block_n], init=0.0)
 
         tma_pipe = Pipeline(num_stages, producer_arrive_count=1, consumer_arrive_count=128)
 
         with self.thread_group(thread_begin=128, num_threads=32):  # TMA producer warp
-            for offset_k in self.range(0, k_size, block_k, unroll=num_stages):
-                tma_pipe.producer_acquire()
-                # Producer warp is already 32 threads — the granularity TMA
-                # needs at SASS level. Only the arrive runs in single_thread so
-                # transaction-bytes is counted once.
-                with self.single_thread():
-                    self.mbarrier.arrive_and_expect_tx(
-                        tma_pipe.producer_barrier(),
-                        transaction_bytes=sa[tma_pipe.producer_stage].nbytes
-                        + sb[tma_pipe.producer_stage].nbytes,
+            for tile_idx in self.range(self.blockIdx.x, total_tiles, num_sms):
+                m_block, n_block = self.compute_block_coord(
+                    tile_idx, num_m_blocks, num_n_blocks
+                )
+                offset_m: int32 = m_block * block_m
+                offset_n: int32 = n_block * block_n
+                for offset_k in self.range(0, k_size, block_k, unroll=num_stages):
+                    tma_pipe.producer_acquire()
+                    with self.single_thread():
+                        self.mbarrier.arrive_and_expect_tx(
+                            tma_pipe.producer_barrier(),
+                            transaction_bytes=sa[tma_pipe.producer_stage].nbytes
+                            + sb[tma_pipe.producer_stage].nbytes,
+                        )
+                    self.tma.global_to_shared(
+                        src=ga,
+                        dst=sa[tma_pipe.producer_stage],
+                        offsets=[offset_m, offset_k],
+                        mbarrier=tma_pipe.producer_barrier(),
                     )
-                self.tma.global_to_shared(
-                    src=ga,
-                    dst=sa[tma_pipe.producer_stage],
-                    offsets=[offset_m, offset_k],
-                    mbarrier=tma_pipe.producer_barrier(),
-                )
-                self.tma.global_to_shared(
-                    src=gb,
-                    dst=sb[tma_pipe.producer_stage],
-                    offsets=[offset_n, offset_k],
-                    mbarrier=tma_pipe.producer_barrier(),
-                )
-                tma_pipe.producer_advance()
+                    self.tma.global_to_shared(
+                        src=gb,
+                        dst=sb[tma_pipe.producer_stage],
+                        offsets=[offset_n, offset_k],
+                        mbarrier=tma_pipe.producer_barrier(),
+                    )
+                    tma_pipe.producer_advance()
 
-            for _ in self.range(min(num_stages, cdiv(k_size, block_k))):
+            # Drain: let the consumer release the last num_stages stages.
+            for _ in self.range(num_stages):
                 tma_pipe.producer_acquire()
                 tma_pipe.producer_advance()
 
         with self.thread_group(thread_begin=0, num_threads=128):  # WGMMA consumer
-            # Prologue: issue first MMA; release happens in first main-loop
-            # iteration after wait_group(1) confirms the MMA is done.
-            tma_pipe.consumer_acquire()
-            self.wgmma.fence()
-            self.wgmma.mma(sa[tma_pipe.consumer_stage], sb[tma_pipe.consumer_stage].transpose(), acc)
-            self.wgmma.commit_group()
-            tma_pipe.consumer_advance()
+            for tile_idx in self.range(self.blockIdx.x, total_tiles, num_sms):
+                m_block, n_block = self.compute_block_coord(
+                    tile_idx, num_m_blocks, num_n_blocks
+                )
+                offset_m: int32 = m_block * block_m
+                offset_n: int32 = n_block * block_n
+                acc = self.register_tensor(
+                    dtype=float32, shape=[block_m, block_n], init=0.0
+                )
 
-            # Main loop: issue MMA then wait_group(1) *after* commit so the
-            # hardware pipelines the current and previous MMA groups while
-            # consumer_acquire overlaps with the prior group's execution.
-            for offset_k in self.range(block_k, k_size, block_k, unroll=num_stages):
+                # Prologue
                 tma_pipe.consumer_acquire()
                 self.wgmma.fence()
                 self.wgmma.mma(sa[tma_pipe.consumer_stage], sb[tma_pipe.consumer_stage].transpose(), acc)
                 self.wgmma.commit_group()
-                self.wgmma.wait_group(1)
-                self.mbarrier.arrive(tma_pipe.prev_consumer_barrier())
                 tma_pipe.consumer_advance()
 
-            # Epilogue: drain last in-flight MMA, release its stage.
-            self.wgmma.wait_group(0)
-            self.mbarrier.arrive(tma_pipe.prev_consumer_barrier())
+                # Main K loop
+                for offset_k in self.range(block_k, k_size, block_k, unroll=num_stages):
+                    tma_pipe.consumer_acquire()
+                    self.wgmma.fence()
+                    self.wgmma.mma(sa[tma_pipe.consumer_stage], sb[tma_pipe.consumer_stage].transpose(), acc)
+                    self.wgmma.commit_group()
+                    self.wgmma.wait_group(1)
+                    self.mbarrier.arrive(tma_pipe.prev_consumer_barrier())
+                    tma_pipe.consumer_advance()
 
-            # TMA epilogue: registers → shared → global
-            self.sync()
-            casted_acc = self.cast(acc, dtype=float16)
-            self.store_shared(sc, casted_acc)
-            # fence required: store_shared uses generic proxy; TMA uses async proxy
-            self.fence.proxy_async(space="shared")
-            self.sync()
-            # tma.shared_to_global is warp-cooperative; run inside single_warp.
+                # Epilogue: drain last in-flight MMA, release its stage.
+                self.wgmma.wait_group(0)
+                self.mbarrier.arrive(tma_pipe.prev_consumer_barrier())
+
+                # Cast in registers (no shared dep) so it can run while the
+                # previous tile's bulk-store is still in flight.
+                casted_acc = self.cast(acc, dtype=float16)
+
+                # Wait for the previous tile's TMA to finish before reusing
+                # sc. On the first tile this is a no-op (zero pending).
+                with self.single_warp():
+                    self.tma.wait_group(n=0, read=True)
+                self.sync()
+                self.store_shared(sc, casted_acc)
+                # store_shared uses generic proxy; TMA uses async proxy.
+                self.fence.proxy_async(space="shared")
+                self.sync()
+                with self.single_warp():
+                    self.tma.shared_to_global(
+                        sc, gc, offsets=[offset_m, offset_n], dims=[0, 1]
+                    )
+                    self.tma.commit_group()
+
+            # Drain the final tile's bulk store before kernel exit.
             with self.single_warp():
-                self.tma.shared_to_global(
-                    sc,
-                    gc,
-                    offsets=[offset_m, offset_n],
-                    dims=[0, 1],
-                )
-                self.tma.commit_group()
                 self.tma.wait_group(n=0, read=True)
-            self.sync()
 
 
 def main():

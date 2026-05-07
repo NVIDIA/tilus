@@ -74,12 +74,17 @@ class Pipeline(tilus.Class):
         return self.empty_barriers[prev_stage]
 
 
-@tilus.autotune("num_stages", [2, 3, 4, 5, 6, 7])
+# Tightened autotune space: drop block_m=128/n=64 (skinny → poor wgmma fill),
+# drop block_m=256/n=128 (heavy register pressure), drop num_stages=2 (too
+# shallow to hide TMA), drop num_stages=7 (smem-thrashing on 256×256), drop
+# swizzle_size=1 (≡ default rasterization, no L2 win). The remaining 60 configs
+# are biased toward shapes cuBLAS uses for 8K² fp16 GEMMs.
+@tilus.autotune("num_stages", [3, 4, 5, 6])
 @tilus.autotune(
-    "block_m, block_n", [[128, 64], [128, 128], [128, 256], [256, 128], [256, 256]]
+    "block_m, block_n", [[128, 128], [128, 256], [256, 256]]
 )
 @tilus.autotune("block_k", [16, 32, 64])
-@tilus.autotune("swizzle_size", [1, 4, 8])
+@tilus.autotune("swizzle_size", [4, 8])
 class MatmulWGMMAV4(tilus.Script):
     def __init__(self, num_stages, block_m, block_n, block_k, swizzle_size):
         super().__init__()
