@@ -15,7 +15,7 @@ token/group.
 import pandas
 import tilus
 import torch
-from tilus import float16, float32, float8_e4m3, int32
+from tilus import float8_e4m3, float16, float32, int32
 from tilus.utils import benchmark_func, cdiv
 
 
