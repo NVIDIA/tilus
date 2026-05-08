@@ -66,9 +66,7 @@ class Pipeline(tilus.Class):
 
 # block_m must be >= 128 so each WG's WGMMA M = block_m/2 >= 64.
 @tilus.autotune("num_stages", [3, 4, 5, 6])
-@tilus.autotune(
-    "block_m, block_n", [[128, 128], [128, 256], [256, 128], [256, 256]]
-)
+@tilus.autotune("block_m, block_n", [[128, 128], [128, 256], [256, 128], [256, 256]])
 @tilus.autotune("block_k", [16, 32, 64])
 @tilus.autotune("swizzle_size", [4, 8])
 class MatmulWGMMAV5(tilus.Script):
@@ -234,9 +232,7 @@ class MatmulWGMMAV5(tilus.Script):
             self.mbarrier.arrive(tma_pipe.prev_consumer_barrier())
 
             casted1 = self.cast(acc1, dtype=float16)
-            self.store_global(
-                gc, casted1, offsets=[offset_m + block_m_half, offset_n]
-            )
+            self.store_global(gc, casted1, offsets=[offset_m + block_m_half, offset_n])
 
 
 def main():

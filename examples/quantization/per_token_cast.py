@@ -94,7 +94,9 @@ def per_token_cast_reference(
     return out, scales
 
 
-def dequantized_sum(out: torch.Tensor, scales: torch.Tensor, num_per_channels: int) -> torch.Tensor:
+def dequantized_sum(
+    out: torch.Tensor, scales: torch.Tensor, num_per_channels: int
+) -> torch.Tensor:
     grouped = out.float().reshape(
         out.shape[0],
         out.shape[1] // num_per_channels,
