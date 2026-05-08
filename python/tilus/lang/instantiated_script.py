@@ -666,11 +666,20 @@ class JitInstance:
                     # cloning preserves those bits — so a slot that was already
                     # non-finite cannot fail the gate.
                     nan_gate_enabled: bool = bool(tilus.option.get_option("autotune_nan_gate"))
+
+                    def all_finite_or_unchecked(t: torch.Tensor) -> bool:
+                        if t.dtype in (torch.float8_e4m3fn, torch.float8_e5m2):
+                            return True
+                        try:
+                            return bool(torch.isfinite(t).all().item())
+                        except NotImplementedError:
+                            return True
+
                     pre_finite: list[bool] = []
                     for j in self.call_params.kernel_params:
                         a_j = args[j]
                         if isinstance(a_j, torch.Tensor) and a_j.is_floating_point():
-                            pre_finite.append(bool(torch.isfinite(a_j).all().item()))
+                            pre_finite.append(all_finite_or_unchecked(a_j))
                         else:
                             pre_finite.append(True)
                     for i, compiled_program in tqdm(
@@ -710,7 +719,7 @@ class JitInstance:
                                 if (
                                     isinstance(t, torch.Tensor)
                                     and t.is_floating_point()
-                                    and not torch.isfinite(t).all()
+                                    and not all_finite_or_unchecked(t)
                                 ):
                                     lat = float("inf")
                                     break
