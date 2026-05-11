@@ -44,9 +44,9 @@ from tilus.utils.multiprocess import parallel_imap
 
 logger = logging.getLogger(__name__)
 
-# Bump when tuner semantics change. On bump, dispatch_table.json files written
-# under the prior version are ignored and tuning re-runs, so users don't have to
-# manually delete cache.
+# Bump when tuner semantics change (e.g. correctness gates, new selection
+# criteria). On bump, dispatch_table.json files written under the prior version
+# are ignored and tuning re-runs, so users don't have to manually delete cache.
 _TUNER_VERSION = 2
 
 

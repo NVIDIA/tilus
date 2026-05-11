@@ -61,7 +61,6 @@ def _register_options():
         "tilus.parallel_workers",
         type_hint="int",
         default_value=os.cpu_count(),
-        env="TILUS_PARALLEL_WORKERS",
         description="The number of parallel workers the tilus package could use for parallel jobs.",
     )
     _register_hidet_option(

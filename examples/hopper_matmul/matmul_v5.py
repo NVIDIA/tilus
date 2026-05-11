@@ -1,6 +1,10 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+# Optimizations from v4:
+# - Use mbarrier for synchronization between producer and consumer WGs, instead of using shared memory as flags.
+# - Use two consumer WGs to consume the produced tiles in parallel, and use WGMMA commit/wait group to synchronize between them, instead of using a single consumer WG to consume all tiles.
+
 import math
 
 import pandas
