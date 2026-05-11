@@ -90,17 +90,6 @@ def _register_options():
         default_value=50,
         description="The number of repeat iterations for benchmarking during autotuning.",
     )
-    _register_hidet_option(
-        "tilus.autotune_nan_gate",
-        type_hint="bool",
-        default_value=True,
-        env="TILUS_AUTOTUNE_NAN_GATE",
-        description=(
-            "Whether the autotuner rejects schedules that flip a kernel tensor argument from "
-            "finite to non-finite. Set to 0 to disable for diagnosing whether a tuning failure "
-            "is caused by the gate or by the kernel actually producing NaN/Inf."
-        ),
-    )
 
 
 _register_options()

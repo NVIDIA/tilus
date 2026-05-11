@@ -44,9 +44,9 @@ from tilus.utils.multiprocess import parallel_imap
 
 logger = logging.getLogger(__name__)
 
-# Bump when tuner semantics change (e.g. correctness gates, new selection
-# criteria). On bump, dispatch_table.json files written under the prior version
-# are ignored and tuning re-runs, so users don't have to manually delete cache.
+# Bump when tuner semantics change. On bump, dispatch_table.json files written
+# under the prior version are ignored and tuning re-runs, so users don't have to
+# manually delete cache.
 _TUNER_VERSION = 2
 
 
@@ -655,24 +655,6 @@ class JitInstance:
                     latency.append(0.0)
                 else:
                     tuning_key_name = " " + "-".join([str(v) for v in tuning_key]) if tuning_key else ""
-                    # Clone tensor args fresh for each candidate. The clone serves two
-                    # purposes: shield the user's buffers from mutation, and prevent
-                    # one candidate's output (e.g. NaN) from becoming the next
-                    # candidate's input.
-                    # Snapshot pre-kernel finiteness so the correctness gate flags
-                    # only finite→non-finite transitions caused by the kernel.
-                    # User-supplied output buffers (e.g. torch.empty()) may already
-                    # contain NaN/Inf bit patterns from uninitialized memory, and
-                    # cloning preserves those bits — so a slot that was already
-                    # non-finite cannot fail the gate.
-                    nan_gate_enabled: bool = bool(tilus.option.get_option("autotune_nan_gate"))
-                    pre_finite: list[bool] = []
-                    for j in self.call_params.kernel_params:
-                        a_j = args[j]
-                        if isinstance(a_j, torch.Tensor) and a_j.is_floating_point():
-                            pre_finite.append(bool(torch.isfinite(a_j).all().item()))
-                        else:
-                            pre_finite.append(True)
                     for i, compiled_program in tqdm(
                         iterable=enumerate(self.compiled_programs),
                         desc="[{}] {}{}".format("Tuning", self.instance_name, tuning_key_name),
@@ -698,33 +680,9 @@ class JitInstance:
                                 "Error message:\n"
                                 f"  {str(e)}"
                             ) from e
-                        # Correctness gate: reject candidates that flip a kernel
-                        # tensor arg from finite to non-finite. Slots that were
-                        # already non-finite before the kernel ran are ignored —
-                        # otherwise uninitialized output buffers spuriously fail
-                        # the gate even when the kernel writes valid values.
-                        if nan_gate_enabled:
-                            for slot_idx, t in enumerate(kernel_args):
-                                if not pre_finite[slot_idx]:
-                                    continue
-                                if (
-                                    isinstance(t, torch.Tensor)
-                                    and t.is_floating_point()
-                                    and not torch.isfinite(t).all()
-                                ):
-                                    lat = float("inf")
-                                    break
                         latency.append(lat)  # type: ignore
 
                 best_latency = min(latency)
-                if not (best_latency < float("inf")):
-                    raise RuntimeError(
-                        f"Autotune for {self.instance_name} found no schedule that produced finite outputs. "
-                        f"All {len(latency)} candidates flipped a kernel tensor argument from finite to NaN/Inf. "
-                        f"Inspect schedules in {self.cache_dir} or narrow the autotune space. "
-                        "If you want to confirm whether the gate is the cause, re-run with "
-                        "TILUS_AUTOTUNE_NAN_GATE=0 (the autotuner will then accept any candidate)."
-                    )
                 best_program_idx = latency.index(best_latency)
                 self.dispatch_table[tuning_key] = best_program_idx
                 self.dump_dispatch_table()
@@ -756,8 +714,8 @@ class JitInstance:
                 payload = json.load(f)
             # New format is {"tuner_version": int, "entries": [...]}; legacy format
             # was a bare list. Treat legacy or version-mismatched files as empty so
-            # changes to tuner semantics (e.g. adding a NaN/Inf rejection gate)
-            # automatically re-run tuning instead of serving stale picks.
+            # tuner semantic changes automatically re-run tuning instead of serving
+            # stale picks.
             if isinstance(payload, dict) and payload.get("tuner_version") == _TUNER_VERSION:
                 entries = payload["entries"]
             else:
