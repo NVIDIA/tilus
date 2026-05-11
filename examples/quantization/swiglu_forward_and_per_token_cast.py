@@ -107,9 +107,14 @@ class SwiGLUForwardAndPerTokenCast(tilus.Script):
             ).to(float32)
 
             if self.use_clamp:
+                negative_swiglu_clamp_value = 0.0 - swiglu_clamp_value
                 r_l = self.where(r_l > swiglu_clamp_value, x=swiglu_clamp_value, y=r_l)
                 r_r = self.where(r_r > swiglu_clamp_value, x=swiglu_clamp_value, y=r_r)
-                r_r = self.where(r_r < -swiglu_clamp_value, x=-swiglu_clamp_value, y=r_r)
+                r_r = self.where(
+                    r_r < negative_swiglu_clamp_value,
+                    x=negative_swiglu_clamp_value,
+                    y=r_r,
+                )
 
             r_silu = r_l / (self.exp(-r_l) + 1.0)
             r_value = r_silu * r_r
