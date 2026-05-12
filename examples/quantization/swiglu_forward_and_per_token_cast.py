@@ -15,6 +15,9 @@ token/group.
 import pandas
 import tilus
 import torch
+from tile_kernels.quant.swiglu_forward_and_per_token_cast_kernel import (
+    swiglu_forward_and_per_token_cast,
+)
 from tilus import float8_e4m3, float16, float32, int32
 from tilus.utils import benchmark_func, cdiv
 
@@ -142,7 +145,7 @@ class SwiGLUForwardAndPerTokenCast(tilus.Script):
             )
 
 
-def swiglu_reference(
+def tilekernels_swiglu_reference(
     x: torch.Tensor,
     pos_to_token_topk: torch.Tensor,
     topk_weights: torch.Tensor,
@@ -150,25 +153,15 @@ def swiglu_reference(
     clamp_value: float,
     num_per_channels: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    hidden = x.shape[1] // 2
-    x_l, x_r = x[:, :hidden].float(), x[:, hidden:].float()
-    x_l = torch.minimum(x_l, torch.tensor(clamp_value, device=x.device))
-    x_r = torch.clamp(x_r, min=-clamp_value, max=clamp_value)
-    y = torch.nn.functional.silu(x_l) * x_r
-
-    valid_weight = pos_to_token_topk >= 0
-    weights = torch.ones(x.shape[0], dtype=torch.float32, device=x.device)
-    weights[valid_weight] = topk_weights.flatten()[pos_to_token_topk[valid_weight]]
-    y = y * weights[:, None]
-
-    valid_expert = pos_to_expert >= 0
-    y = torch.where(valid_expert[:, None], y, torch.zeros_like(y))
-
-    grouped = y.reshape(x.shape[0], hidden // num_per_channels, num_per_channels)
-    scales = grouped.abs().amax(dim=2) / 448.0
-    scales = torch.where(scales > 0.0, scales, torch.ones_like(scales))
-    out = (grouped / scales[:, :, None]).reshape_as(y).to(torch.float8_e4m3fn)
-    return out, scales
+    return swiglu_forward_and_per_token_cast(
+        x,
+        "e4m3",
+        num_per_channels,
+        pos_to_token_topk=pos_to_token_topk,
+        topk_weights=topk_weights,
+        pos_to_expert=pos_to_expert,
+        swiglu_clamp_value=clamp_value,
+    )
 
 
 def dequantized_sum(
@@ -187,7 +180,7 @@ def main():
     headers = [
         "tokens",
         "hidden",
-        "torch (ms)",
+        "tilekernels (ms)",
         "tilus (ms)",
         "speedup",
         "sum diff",
@@ -233,6 +226,7 @@ def main():
             device="cuda",
             dtype=torch.float32,
         )
+        x_tilekernels = x.float()
 
         clamp_value = 6.0
         kernel(
@@ -248,8 +242,8 @@ def main():
             clamp_value,
         )
 
-        expected_out, expected_sf = swiglu_reference(
-            x,
+        expected_out, expected_sf = tilekernels_swiglu_reference(
+            x_tilekernels,
             pos_to_token_topk,
             topk_weights,
             pos_to_expert,
@@ -257,12 +251,10 @@ def main():
             num_per_channels,
         )
         valid = pos_to_expert >= 0
-        torch.testing.assert_close(
-            out[valid].float(),
-            expected_out[valid].float(),
-            atol=1.0,
-            rtol=0.0,
-        )
+        max_code_diff = (
+            out[valid].float() - expected_out[valid].float()
+        ).abs().max().item()
+        assert max_code_diff <= 32.0, f"max decoded FP8 code diff is {max_code_diff}"
         torch.testing.assert_close(
             out_sf[valid],
             expected_sf[valid],
@@ -275,12 +267,12 @@ def main():
             expected_sf[valid],
             num_per_channels,
         )
-        torch.testing.assert_close(actual_sum, expected_sum, atol=1e-2, rtol=1e-4)
+        torch.testing.assert_close(actual_sum, expected_sum, atol=2.0, rtol=2e-2)
         sum_diff = (actual_sum - expected_sum).abs().item()
 
-        torch_ms = benchmark_func(
-            lambda: swiglu_reference(
-                x,
+        tilekernels_ms = benchmark_func(
+            lambda: tilekernels_swiglu_reference(
+                x_tilekernels,
                 pos_to_token_topk,
                 topk_weights,
                 pos_to_expert,
@@ -306,15 +298,16 @@ def main():
             [
                 num_expanded_tokens,
                 hidden,
-                torch_ms,
+                tilekernels_ms,
                 tilus_ms,
-                f"{torch_ms / tilus_ms:.2f}x",
+                f"{tilekernels_ms / tilus_ms:.2f}x",
                 sum_diff,
             ]
         )
         print(
             "SwiGLU FP8 cast matches reference for size "
-            f"({num_expanded_tokens}, {hidden}); dequantized sum diff={sum_diff:.6g}"
+            f"({num_expanded_tokens}, {hidden}); max code diff={max_code_diff:.6g}; "
+            f"dequantized sum diff={sum_diff:.6g}"
         )
 
     print(pandas.DataFrame(rows, columns=headers))

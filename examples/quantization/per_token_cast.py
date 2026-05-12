@@ -11,6 +11,7 @@ that group, stores a float32 scale factor, and writes the scaled FP8 output.
 import pandas
 import tilus
 import torch
+from tile_kernels.quant.per_token_cast_kernel import per_token_cast
 from tilus import float8_e4m3, float16, float32, int32
 from tilus.utils import benchmark_func, cdiv
 
@@ -82,16 +83,11 @@ class PerTokenCast(tilus.Script):
         )
 
 
-def per_token_cast_reference(
+def tilekernels_per_token_cast_reference(
     x: torch.Tensor,
     num_per_channels: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    num_tokens, hidden = x.shape
-    grouped = x.float().reshape(num_tokens, hidden // num_per_channels, num_per_channels)
-    scales = grouped.abs().amax(dim=2) / 448.0
-    scales = torch.where(scales > 0.0, scales, torch.ones_like(scales))
-    out = (grouped / scales[:, :, None]).reshape_as(x).to(torch.float8_e4m3fn)
-    return out, scales
+    return per_token_cast(x, "e4m3", num_per_channels)
 
 
 def dequantized_sum(
@@ -110,7 +106,7 @@ def main():
     headers = [
         "tokens",
         "hidden",
-        "torch (ms)",
+        "tilekernels (ms)",
         "tilus (ms)",
         "speedup",
         "sum diff",
@@ -139,9 +135,13 @@ def main():
             device="cuda",
             dtype=torch.float32,
         )
+        x_tilekernels = x.float()
 
         kernel(num_tokens, hidden, x, out, out_sf)
-        expected_out, expected_sf = per_token_cast_reference(x, num_per_channels)
+        expected_out, expected_sf = tilekernels_per_token_cast_reference(
+            x_tilekernels,
+            num_per_channels,
+        )
 
         max_code_diff = (out.float() - expected_out.float()).abs().max().item()
         assert max_code_diff <= 32.0, f"max decoded FP8 code diff is {max_code_diff}"
@@ -152,15 +152,20 @@ def main():
         torch.testing.assert_close(actual_sum, expected_sum, atol=2.0, rtol=2e-2)
         sum_diff = (actual_sum - expected_sum).abs().item()
 
-        torch_ms = benchmark_func(lambda: per_token_cast_reference(x, num_per_channels))
+        tilekernels_ms = benchmark_func(
+            lambda: tilekernels_per_token_cast_reference(
+                x_tilekernels,
+                num_per_channels,
+            )
+        )
         tilus_ms = benchmark_func(lambda: kernel(num_tokens, hidden, x, out, out_sf))
         rows.append(
             [
                 num_tokens,
                 hidden,
-                torch_ms,
+                tilekernels_ms,
                 tilus_ms,
-                f"{torch_ms / tilus_ms:.2f}x",
+                f"{tilekernels_ms / tilus_ms:.2f}x",
                 sum_diff,
             ]
         )
