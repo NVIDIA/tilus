@@ -49,6 +49,7 @@ from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorSharedToGlobalInst,
     CopyAsyncTensorWaitGroupInst,
 )
+from tilus.ir.inst import Instruction
 from tilus.ir.tensor import GlobalTensor, SharedTensor
 from tilus.ir.utils.lineardec import LinearDecompositionError, decompose_linear
 from tilus.ir.utils.veceval import vectorized_evaluate
@@ -151,6 +152,27 @@ def get_offset_grid_of_swizzled_layout(
 
 
 class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
+    def assert_is_single_thread_or_warp_aligned(self, inst: Instruction, msg: str) -> None:
+        # TMA copies are issued by one elected lane. single_thread() already
+        # narrows execution to one lane; at warp scope, the TMA predicate elects
+        # the leader lane.
+        if self.current_num_threads == 1:
+            return
+        if self.current_num_threads != 32 or self.current_thread_group_begin % 32 != 0:
+            raise ValueError(
+                f"Instruction {inst} requires a single-thread or warp-aligned context "
+                f"(num_threads==1, or thread_begin % 32 == 0 and num_threads == 32), "
+                f"got thread_begin={self.current_thread_group_begin}, num_threads={self.current_num_threads}: {msg}."
+            )
+
+    @property
+    def tma_predicate(self) -> Expr:
+        # Inside single_thread() only one thread reaches the TMA call, so use
+        # constant true. At warp scope, predicate the asm on the elected leader.
+        if self.current_num_threads == 1:
+            return uint32(1)
+        return self.contexts.leader_lane_ctx.leader_lane
+
     def resolve_global_tensor_info(
         self, global_tensor: GlobalTensor, offsets: Sequence[Expr], dims: Sequence[int]
     ) -> GlobalTensorInfo:

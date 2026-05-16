@@ -44,11 +44,6 @@ from tilus.utils.multiprocess import parallel_imap
 
 logger = logging.getLogger(__name__)
 
-# Bump when tuner semantics change (e.g. correctness gates, new selection
-# criteria). On bump, dispatch_table.json files written under the prior version
-# are ignored and tuning re-runs, so users don't have to manually delete cache.
-_TUNER_VERSION = 2
-
 
 def span_space(space: Mapping[str, Sequence[Any]]) -> list[dict[str, Any]]:
     """
@@ -711,15 +706,7 @@ class JitInstance:
         table_path = self.cache_dir / "dispatch_table.json"
         if table_path.exists():
             with open(table_path, "r") as f:
-                payload = json.load(f)
-            # New format is {"tuner_version": int, "entries": [...]}; legacy format
-            # was a bare list. Treat legacy or version-mismatched files as empty so
-            # tuner semantic changes automatically re-run tuning instead of serving
-            # stale picks.
-            if isinstance(payload, dict) and payload.get("tuner_version") == _TUNER_VERSION:
-                entries = payload["entries"]
-            else:
-                entries = []
+                entries = json.load(f)
             self.dispatch_table = {tuple(key): value for key, value in entries}
 
     def dump_dispatch_table(self):
@@ -727,7 +714,7 @@ class JitInstance:
         table_txt_path = self.cache_dir / "dispatch_table.txt"
         entries = [[list(key), value] for key, value in self.dispatch_table.items()]
         with open(table_path, "w") as f:
-            json.dump({"tuner_version": _TUNER_VERSION, "entries": entries}, f)
+            json.dump(entries, f)
         headers = []
         for idx in self.call_params.tuning_params:
             headers.append(self.call_params.param_names[idx])

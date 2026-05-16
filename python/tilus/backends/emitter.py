@@ -59,32 +59,6 @@ class BaseInstEmitter(StmtBuilder):
                 f"got thread_begin={self.current_thread_group_begin}, num_threads={self.current_num_threads}: {msg}."
             )
 
-    def assert_is_single_thread_or_warp_aligned(self, inst: Instruction, msg: str) -> None:
-        # TMA copies must be issued by exactly one thread. The user can express
-        # that with single_thread() (num_threads == 1), or at warp scope where the
-        # `@pred` predicate selects the elected lane. Both are valid; reject only
-        # multi-thread non-warp contexts.
-        if self.current_num_threads == 1:
-            return
-        if self.current_num_threads != 32 or self.current_thread_group_begin % 32 != 0:
-            raise ValueError(
-                f"Instruction {inst} requires a single-thread or warp-aligned context "
-                f"(num_threads==1, or thread_begin % 32 == 0 and num_threads == 32), "
-                f"got thread_begin={self.current_thread_group_begin}, num_threads={self.current_num_threads}: {msg}."
-            )
-
-    @property
-    def tma_predicate(self):
-        # Inside single_thread() only one thread runs the TMA call, so the
-        # @pred predicate is the constant 1. At warp scope we still need to
-        # select a single lane, so use the elected leader-lane predicate to
-        # avoid an if-branch divergence.
-        from tilus.hidet.ir.dtypes import uint32 as _u32
-
-        if self.current_num_threads == 1:
-            return _u32(1)
-        return self.contexts.leader_lane_ctx.leader_lane
-
     def sync(self):
         optional_sync_call = self.contexts.sync_ctx.sync()
         if optional_sync_call is not None:
