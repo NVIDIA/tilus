@@ -16,15 +16,23 @@ from tilus import float8_e4m3, float16, float32, int32
 from tilus.utils import benchmark_func, cdiv
 
 
-@tilus.autotune("block_n", [128])
+@tilus.autotune("block_m", [1, 2, 4, 8])
+@tilus.autotune("groups_per_block", [1, 2, 4, 8])
 @tilus.autotune("warps", [4, 8])
 class PerTokenCast(tilus.Script):
-    def __init__(self, block_n: int, warps: int, num_per_channels: int = 128):
+    def __init__(
+        self,
+        block_m: int,
+        groups_per_block: int,
+        warps: int,
+        num_per_channels: int = 128,
+    ):
         super().__init__()
-        self.block_m = 1
-        self.block_n = block_n
-        self.warps = warps
+        self.block_m = block_m
         self.num_per_channels = num_per_channels
+        self.groups_per_block = groups_per_block
+        self.block_n = num_per_channels
+        self.warps = warps
 
     def __call__(
         self,
@@ -34,15 +42,16 @@ class PerTokenCast(tilus.Script):
         out_ptr: ~float8_e4m3,
         out_sf_ptr: ~float32,
     ):
+        n_step = self.block_n * self.groups_per_block
         self.attrs.blocks = (
             cdiv(num_tokens, self.block_m),
-            cdiv(hidden, self.block_n),
+            cdiv(hidden, n_step),
         )
         self.attrs.warps = self.warps
+        self.assume(hidden % self.num_per_channels == 0)
 
         offset_m = self.blockIdx.x * self.block_m
-        offset_n = self.blockIdx.y * self.block_n
-        sf_col = offset_n // self.num_per_channels
+        base_offset_n = self.blockIdx.y * n_step
 
         g_x = self.global_view(
             x_ptr,
@@ -60,27 +69,31 @@ class PerTokenCast(tilus.Script):
             shape=[num_tokens, cdiv(hidden, self.num_per_channels)],
         )
 
-        r_x = self.load_global(
-            g_x,
-            offsets=[offset_m, offset_n],
-            shape=[self.block_m, self.block_n],
-        ).to(float32)
+        for gi in range(self.groups_per_block):
+            offset_n = base_offset_n + gi * self.block_n
+            sf_col = offset_n // self.num_per_channels
 
-        r_absmax = self.max(self.abs(r_x), dim=1, keepdim=True)
-        r_fp8_max = self.register_tensor(
-            dtype=float32,
-            shape=[self.block_m, 1],
-            init=448.0,
-        )
-        r_scale = self.where(r_absmax > 0.0, x=r_absmax / 448.0, y=1.0)
-        r_inv_scale = self.where(r_absmax > 0.0, x=r_fp8_max / r_absmax, y=1.0)
+            r_x = self.load_global(
+                g_x,
+                offsets=[offset_m, offset_n],
+                shape=[self.block_m, self.block_n],
+            ).to(float32)
 
-        self.store_global(g_out_sf, r_scale, offsets=[offset_m, sf_col])
-        self.store_global(
-            g_out,
-            (r_x * r_inv_scale).to(float8_e4m3),
-            offsets=[offset_m, offset_n],
-        )
+            r_absmax = self.max(self.abs(r_x), dim=1, keepdim=True)
+            r_fp8_max = self.register_tensor(
+                dtype=float32,
+                shape=[self.block_m, 1],
+                init=448.0,
+            )
+            r_scale = self.where(r_absmax > 0.0, x=r_absmax / 448.0, y=1.0)
+            r_inv_scale = self.where(r_absmax > 0.0, x=r_fp8_max / r_absmax, y=1.0)
+
+            self.store_global(g_out_sf, r_scale, offsets=[offset_m, sf_col])
+            self.store_global(
+                g_out,
+                (r_x * r_inv_scale).to(float8_e4m3),
+                offsets=[offset_m, offset_n],
+            )
 
 
 def tilekernels_per_token_cast_reference(

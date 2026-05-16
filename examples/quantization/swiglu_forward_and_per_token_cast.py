@@ -22,12 +22,14 @@ from tilus import float8_e4m3, float16, float32, int32
 from tilus.utils import benchmark_func, cdiv
 
 
-@tilus.autotune("block_n", [128])
-@tilus.autotune("warps", [4, 8])
+@tilus.autotune("block_m", [1])
+@tilus.autotune("groups_per_block", [1, 2, 4, 8, 16])
+@tilus.autotune("warps", [1, 2, 4, 8])
 class SwiGLUForwardAndPerTokenCast(tilus.Script):
     def __init__(
         self,
-        block_n: int,
+        block_m: int,
+        groups_per_block: int,
         warps: int,
         with_weight: bool = True,
         with_pos_to_expert: bool = True,
@@ -35,13 +37,14 @@ class SwiGLUForwardAndPerTokenCast(tilus.Script):
         num_per_channels: int = 128,
     ):
         super().__init__()
-        self.block_m = 1
-        self.block_n = block_n
+        self.block_m = block_m
+        self.num_per_channels = num_per_channels
+        self.groups_per_block = groups_per_block
+        self.block_n = num_per_channels
         self.warps = warps
         self.with_weight = with_weight
         self.with_pos_to_expert = with_pos_to_expert
         self.use_clamp = use_clamp
-        self.num_per_channels = num_per_channels
 
     def __call__(
         self,
@@ -56,15 +59,16 @@ class SwiGLUForwardAndPerTokenCast(tilus.Script):
         pos_to_expert_ptr: ~int32,
         swiglu_clamp_value: float32,
     ):
+        n_step = self.block_n * self.groups_per_block
         self.attrs.blocks = (
             cdiv(num_expanded_tokens, self.block_m),
-            cdiv(hidden, self.block_n),
+            cdiv(hidden, n_step),
         )
         self.attrs.warps = self.warps
+        self.assume(hidden % self.num_per_channels == 0)
 
         offset_m = self.blockIdx.x * self.block_m
-        offset_n = self.blockIdx.y * self.block_n
-        sf_col = offset_n // self.num_per_channels
+        base_offset_n = self.blockIdx.y * n_step
 
         g_x = self.global_view(
             x_ptr,
@@ -98,51 +102,57 @@ class SwiGLUForwardAndPerTokenCast(tilus.Script):
         )
 
         if (not self.with_pos_to_expert) or g_pos_to_expert[offset_m].item() >= 0:
-            r_l = self.load_global(
-                g_x,
-                offsets=[offset_m, offset_n],
-                shape=[self.block_m, self.block_n],
-            ).to(float32)
-            r_r = self.load_global(
-                g_x,
-                offsets=[offset_m, offset_n + hidden],
-                shape=[self.block_m, self.block_n],
-            ).to(float32)
-
-            if self.use_clamp:
-                negative_swiglu_clamp_value = 0.0 - swiglu_clamp_value
-                r_l = self.where(r_l > swiglu_clamp_value, x=swiglu_clamp_value, y=r_l)
-                r_r = self.where(r_r > swiglu_clamp_value, x=swiglu_clamp_value, y=r_r)
-                r_r = self.where(
-                    r_r < negative_swiglu_clamp_value,
-                    x=negative_swiglu_clamp_value,
-                    y=r_r,
-                )
-
-            r_silu = r_l / (self.exp(-r_l) + 1.0)
-            r_value = r_silu * r_r
-
             if self.with_weight:
                 topk_pos = g_pos_to_token_topk[offset_m].item()
-                if topk_pos >= 0:
-                    topk_weight = g_topk_weights[topk_pos].item()
-                    r_value = r_value * topk_weight
 
-            r_absmax = self.max(self.abs(r_value), dim=1, keepdim=True)
-            r_fp8_max = self.register_tensor(
-                dtype=float32,
-                shape=[self.block_m, 1],
-                init=448.0,
-            )
-            r_scale = self.where(r_absmax > 0.0, x=r_absmax / 448.0, y=1.0)
-            r_inv_scale = self.where(r_absmax > 0.0, x=r_fp8_max / r_absmax, y=1.0)
+            for gi in range(self.groups_per_block):
+                offset_n = base_offset_n + gi * self.block_n
+                sf_col = offset_n // self.num_per_channels
 
-            self.store_global(g_out_sf, r_scale, offsets=[offset_m, sf_col])
-            self.store_global(
-                g_out,
-                (r_value * r_inv_scale).to(float8_e4m3),
-                offsets=[offset_m, offset_n],
-            )
+                r_l = self.load_global(
+                    g_x,
+                    offsets=[offset_m, offset_n],
+                    shape=[self.block_m, self.block_n],
+                ).to(float32)
+                r_r = self.load_global(
+                    g_x,
+                    offsets=[offset_m, offset_n + hidden],
+                    shape=[self.block_m, self.block_n],
+                ).to(float32)
+
+                if self.use_clamp:
+                    negative_swiglu_clamp_value = 0.0 - swiglu_clamp_value
+                    r_l = self.where(r_l > swiglu_clamp_value, x=swiglu_clamp_value, y=r_l)
+                    r_r = self.where(r_r > swiglu_clamp_value, x=swiglu_clamp_value, y=r_r)
+                    r_r = self.where(
+                        r_r < negative_swiglu_clamp_value,
+                        x=negative_swiglu_clamp_value,
+                        y=r_r,
+                    )
+
+                r_silu = r_l / (self.exp(-r_l) + 1.0)
+                r_value = r_silu * r_r
+
+                if self.with_weight:
+                    if topk_pos >= 0:
+                        topk_weight = g_topk_weights[topk_pos].item()
+                        r_value = r_value * topk_weight
+
+                r_absmax = self.max(self.abs(r_value), dim=1, keepdim=True)
+                r_fp8_max = self.register_tensor(
+                    dtype=float32,
+                    shape=[self.block_m, 1],
+                    init=448.0,
+                )
+                r_scale = self.where(r_absmax > 0.0, x=r_absmax / 448.0, y=1.0)
+                r_inv_scale = self.where(r_absmax > 0.0, x=r_fp8_max / r_absmax, y=1.0)
+
+                self.store_global(g_out_sf, r_scale, offsets=[offset_m, sf_col])
+                self.store_global(
+                    g_out,
+                    (r_value * r_inv_scale).to(float8_e4m3),
+                    offsets=[offset_m, offset_n],
+                )
 
 
 def tilekernels_swiglu_reference(

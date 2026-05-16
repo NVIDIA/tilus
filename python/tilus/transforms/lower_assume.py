@@ -17,7 +17,7 @@ from tilus.ir.func import Function
 from tilus.ir.functors import IRRewriter
 from tilus.ir.instructions import AssumeInst
 from tilus.transforms.base import Pass
-from tilus.utils import gcd
+from tilus.utils import lcm
 
 
 class ApplyAssumeRewriter(IRRewriter):
@@ -54,7 +54,11 @@ class ApplyAssumeRewriter(IRRewriter):
                     raise RuntimeError(
                         "We only allow to specify the divisibility of kernel parameter, got {}".format(a.name)
                     )
-                self.param2divisibility[a] = int(term.a.b.value)  # type: ignore[arg-type]
+                divisor = int(term.a.b.value)  # type: ignore[arg-type]
+                if a in self.param2divisibility:
+                    self.param2divisibility[a] = lcm(self.param2divisibility[a], divisor)
+                else:
+                    self.param2divisibility[a] = divisor
             else:
                 raise RuntimeError("Can not recognize the condition in assume: {}".format(term))
 
@@ -70,7 +74,7 @@ class ApplyAssumeRewriter(IRRewriter):
             param2divisibility = updated_func.metadata.param2divisibility.copy()
             for var in self.param2divisibility:
                 if var in param2divisibility:
-                    param2divisibility[var] = gcd(param2divisibility[var], self.param2divisibility[var])
+                    param2divisibility[var] = lcm(param2divisibility[var], self.param2divisibility[var])
                 else:
                     param2divisibility[var] = self.param2divisibility[var]
             return updated_func.with_metadata(updated_func.metadata.with_param2divisibility(param2divisibility))
