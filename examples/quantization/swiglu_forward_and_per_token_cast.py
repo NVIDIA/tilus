@@ -102,57 +102,66 @@ class SwiGLUForwardAndPerTokenCast(tilus.Script):
         )
 
         if (not self.with_pos_to_expert) or g_pos_to_expert[offset_m].item() >= 0:
+            base_sf_col = base_offset_n // self.num_per_channels
+
+            # Wide load: full n_step at once so layout-inference vectorises.
+            r_l = self.load_global(
+                g_x,
+                offsets=[offset_m, base_offset_n],
+                shape=[self.block_m, n_step],
+            ).to(float32)
+            r_r = self.load_global(
+                g_x,
+                offsets=[offset_m, base_offset_n + hidden],
+                shape=[self.block_m, n_step],
+            ).to(float32)
+
+            if self.use_clamp:
+                negative_swiglu_clamp_value = 0.0 - swiglu_clamp_value
+                r_l = self.where(r_l > swiglu_clamp_value, x=swiglu_clamp_value, y=r_l)
+                r_r = self.where(r_r > swiglu_clamp_value, x=swiglu_clamp_value, y=r_r)
+                r_r = self.where(
+                    r_r < negative_swiglu_clamp_value,
+                    x=negative_swiglu_clamp_value,
+                    y=r_r,
+                )
+
+            r_silu = r_l / (self.exp(-r_l) + 1.0)
+            r_value = r_silu * r_r
+
             if self.with_weight:
                 topk_pos = g_pos_to_token_topk[offset_m].item()
+                if topk_pos >= 0:
+                    topk_weight = g_topk_weights[topk_pos].item()
+                    r_value = r_value * topk_weight
 
-            for gi in range(self.groups_per_block):
-                offset_n = base_offset_n + gi * self.block_n
-                sf_col = offset_n // self.num_per_channels
+            # Reshape into [block_m, groups_per_block, num_per_channels] so the
+            # per-group absmax is a single reduce on dim=2.
+            r_value_grouped = self.reshape(
+                r_value,
+                shape=[self.block_m, self.groups_per_block, self.num_per_channels],
+            )
+            r_absmax = self.max(
+                self.abs(r_value_grouped), dim=2, keepdim=True
+            )  # [block_m, groups_per_block, 1]
+            r_fp8_max = self.register_tensor(
+                dtype=float32,
+                shape=[self.block_m, self.groups_per_block, 1],
+                init=448.0,
+            )
+            r_scale = self.where(r_absmax > 0.0, x=r_absmax / 448.0, y=1.0)
+            r_inv_scale = self.where(r_absmax > 0.0, x=r_fp8_max / r_absmax, y=1.0)
 
-                r_l = self.load_global(
-                    g_x,
-                    offsets=[offset_m, offset_n],
-                    shape=[self.block_m, self.block_n],
-                ).to(float32)
-                r_r = self.load_global(
-                    g_x,
-                    offsets=[offset_m, offset_n + hidden],
-                    shape=[self.block_m, self.block_n],
-                ).to(float32)
+            # Store one fp32 scale per group.
+            r_scale_2d = self.reshape(
+                r_scale, shape=[self.block_m, self.groups_per_block]
+            )
+            self.store_global(g_out_sf, r_scale_2d, offsets=[offset_m, base_sf_col])
 
-                if self.use_clamp:
-                    negative_swiglu_clamp_value = 0.0 - swiglu_clamp_value
-                    r_l = self.where(r_l > swiglu_clamp_value, x=swiglu_clamp_value, y=r_l)
-                    r_r = self.where(r_r > swiglu_clamp_value, x=swiglu_clamp_value, y=r_r)
-                    r_r = self.where(
-                        r_r < negative_swiglu_clamp_value,
-                        x=negative_swiglu_clamp_value,
-                        y=r_r,
-                    )
-
-                r_silu = r_l / (self.exp(-r_l) + 1.0)
-                r_value = r_silu * r_r
-
-                if self.with_weight:
-                    if topk_pos >= 0:
-                        topk_weight = g_topk_weights[topk_pos].item()
-                        r_value = r_value * topk_weight
-
-                r_absmax = self.max(self.abs(r_value), dim=1, keepdim=True)
-                r_fp8_max = self.register_tensor(
-                    dtype=float32,
-                    shape=[self.block_m, 1],
-                    init=448.0,
-                )
-                r_scale = self.where(r_absmax > 0.0, x=r_absmax / 448.0, y=1.0)
-                r_inv_scale = self.where(r_absmax > 0.0, x=r_fp8_max / r_absmax, y=1.0)
-
-                self.store_global(g_out_sf, r_scale, offsets=[offset_m, sf_col])
-                self.store_global(
-                    g_out,
-                    (r_value * r_inv_scale).to(float8_e4m3),
-                    offsets=[offset_m, offset_n],
-                )
+            # Apply scaling, flatten back, cast to fp8, bulk store.
+            r_out_grouped = (r_value_grouped * r_inv_scale).to(float8_e4m3)
+            r_out = self.reshape(r_out_grouped, shape=[self.block_m, n_step])
+            self.store_global(g_out, r_out, offsets=[offset_m, base_offset_n])
 
 
 def tilekernels_swiglu_reference(
@@ -199,6 +208,8 @@ def main():
     for num_expanded_tokens, hidden, num_tokens, num_topk in [
         (128, 1024, 64, 2),
         (256, 2048, 128, 2),
+        (257, 4096, 128, 2),
+        (1024, 4096, 512, 2),
     ]:
         num_per_channels = 128
         kernel = SwiGLUForwardAndPerTokenCast(num_per_channels=num_per_channels)
@@ -262,8 +273,8 @@ def main():
         )
         valid = pos_to_expert >= 0
         max_code_diff = (
-            out[valid].float() - expected_out[valid].float()
-        ).abs().max().item()
+            (out[valid].float() - expected_out[valid].float()).abs().max().item()
+        )
         assert max_code_diff <= 32.0, f"max decoded FP8 code diff is {max_code_diff}"
         torch.testing.assert_close(
             out_sf[valid],

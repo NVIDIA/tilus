@@ -496,15 +496,21 @@ def reshape(layout: RegisterLayout, shape: Sequence[int]) -> RegisterLayout:
         p = mode_shape.pop(0)
         grouped_mode_shape.append([])
 
-        while shape:
+        while shape and p > 1:
             q = shape[0]
+            if q == 1:
+                shape.pop(0)
+                continue
             if q % p == 0:
                 grouped_mode_shape[-1].append(p)
                 shape[0] = q // p
+                if shape[0] == 1:
+                    shape.pop(0)
+                p = 1
                 break
             elif p % q == 0:
-                if q > 1:
-                    grouped_mode_shape[-1].append(q)
+                grouped_mode_shape[-1].append(q)
+                p //= q
                 shape.pop(0)
             else:
                 raise LayoutOperationError("Cannot reshape layout {} to shape {}".format(layout, shape))
