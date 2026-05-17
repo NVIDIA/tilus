@@ -650,10 +650,6 @@ class JitInstance:
                     latency.append(0.0)
                 else:
                     tuning_key_name = " " + "-".join([str(v) for v in tuning_key]) if tuning_key else ""
-                    kernel_args = [
-                        args[i].clone() if isinstance(args[i], torch.Tensor) else args[i]
-                        for i in self.call_params.kernel_params
-                    ]
                     for i, compiled_program in tqdm(
                         iterable=enumerate(self.compiled_programs),
                         desc="[{}] {}{}".format("Tuning", self.instance_name, tuning_key_name),
@@ -662,14 +658,16 @@ class JitInstance:
                         ncols=60 + max(60, len(self.instance_name) + len(tuning_key_name)),
                     ):
                         compiled_func = compiled_program.get_launch_func()
+                        kernel_args = [
+                            args[j].clone() if isinstance(args[j], torch.Tensor) else args[j]
+                            for j in self.call_params.kernel_params
+                        ]
                         try:
-                            latency.append(
-                                benchmark_func(
-                                    lambda: compiled_func(*kernel_args),
-                                    warmup=tilus.option.get_option("bench_warmup"),
-                                    repeat=tilus.option.get_option("bench_repeat"),
-                                )
-                            )  # type: ignore
+                            lat = benchmark_func(
+                                lambda: compiled_func(*kernel_args),
+                                warmup=tilus.option.get_option("bench_warmup"),
+                                repeat=tilus.option.get_option("bench_repeat"),
+                            )
                         except RuntimeError as e:
                             raise RuntimeError(
                                 f"Failed to benchmark the kernel {self.instance_name} with schedule: \n"
@@ -677,6 +675,7 @@ class JitInstance:
                                 "Error message:\n"
                                 f"  {str(e)}"
                             ) from e
+                        latency.append(lat)  # type: ignore
 
                 best_latency = min(latency)
                 best_program_idx = latency.index(best_latency)

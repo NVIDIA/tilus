@@ -82,6 +82,35 @@ def c_div(a, b):
         return a / b
 
 
+def _c_trunc_div(a, b):
+    """Integer division truncated toward zero (C semantics: a/b).
+
+    When a or b are not plain ints (i.e. they are Hidet IR Expr nodes used
+    for pattern construction) fall back to Python's // so that the operator
+    overloads build the correct IR node.  The C-semantics branch is only
+    reached during candidate-value verification where both operands are ints.
+    """
+    if not isinstance(a, int) or not isinstance(b, int):
+        return a // b  # IR expression path — builds a Hidet Div node
+    if b == 0:
+        return 0
+    return int(a / b)  # truncate-toward-zero, avoiding Python's floor behaviour
+
+
+def _c_trunc_mod(a, b):
+    """Integer modulo with C semantics (result has the sign of a, not b).
+
+    Same dual-mode design as _c_trunc_div: falls back to Python % when called
+    with Hidet IR Expr nodes so the operator overloads build a Hidet Mod node.
+    The C-semantics branch is only reached during candidate-value verification.
+    """
+    if not isinstance(a, int) or not isinstance(b, int):
+        return a % b  # IR expression path — builds a Hidet Mod node
+    if b == 0:
+        return 0
+    return a - b * _c_trunc_div(a, b)
+
+
 class ConstExprSimplifier(IRRewriter):
     op_dict = {
         Add: operator.add,
@@ -92,7 +121,7 @@ class ConstExprSimplifier(IRRewriter):
         BitwiseAnd: operator.and_,
         BitwiseXor: operator.xor,
         BitwiseNot: operator.invert,
-        Mod: operator.mod,
+        Mod: _c_trunc_mod,
         LessThan: operator.lt,
         LessEqual: operator.le,
         Equal: operator.eq,
@@ -192,21 +221,29 @@ class RuleBasedSimplifier(IRRewriter):
             (IfThenElse(ec1, ec2, ec2), ec2),
         ]
         self.bound_patterns = [
-            # ((pattern_args, pattern_func, target_args, target_func)
+            # Verify using C-compatible truncated division/modulo rather than Python
+            # floor division/modulo.  The generated code uses C's % and /, which
+            # differ from Python for negative operands, so the candidate-value checks
+            # must use the same semantics as the emitted C code.
             (
                 (ec1, ec2, c1),
                 (ec1, ec2, c1),
-                lambda ec1, ec2, c1: (ec1 + ec2) // c1,
-                lambda ec1, ec2, c1: ec1 // c1 + ec2 // c1,
+                lambda ec1, ec2, c1: _c_trunc_div(ec1 + ec2, c1),
+                lambda ec1, ec2, c1: _c_trunc_div(ec1, c1) + _c_trunc_div(ec2, c1),
             ),
             (
                 (ec1, ec2, c1),
                 (ec1, ec2, c1),
-                lambda ec1, ec2, c1: (ec1 + ec2) % c1,
-                lambda ec1, ec2, c1: ec1 % c1 + ec2 % c1,
+                lambda ec1, ec2, c1: _c_trunc_mod(ec1 + ec2, c1),
+                lambda ec1, ec2, c1: _c_trunc_mod(ec1, c1) + _c_trunc_mod(ec2, c1),
             ),
-            ((ec1, c1), (ec1,), lambda ec1, c1: ec1 % c1, lambda ec1: ec1),
-            ((ec1, c1, c2), (ec1, c2), lambda ec1, c1, c2: (ec1 % c1) % c2, lambda ec1, c2: ec1 % c2),
+            ((ec1, c1), (ec1,), lambda ec1, c1: _c_trunc_mod(ec1, c1), lambda ec1: ec1),
+            (
+                (ec1, c1, c2),
+                (ec1, c2),
+                lambda ec1, c1, c2: _c_trunc_mod(_c_trunc_mod(ec1, c1), c2),
+                lambda ec1, c2: _c_trunc_mod(ec1, c2),
+            ),
         ]
         if skip_node_types:
             for skip_type in skip_node_types:
@@ -288,7 +325,10 @@ class RuleBasedSimplifier(IRRewriter):
 
     def visit_Mod(self, e: Mod):
         ua, ub = self.bound[e.a], self.bound[e.b]
-        if ua.is_zero() or ua < ub:
+        # In C, x % y == x only when 0 <= x < y (truncated modulo).  The < check
+        # covers the upper bound; also require a provably non-negative lower bound.
+        a_min = ua.possible_min_value()
+        if ua.is_zero() or (ua < ub and a_min is not None and a_min >= 0):
             return self(e.a)
         return IRRewriter.visit_Mod(self, e)
 

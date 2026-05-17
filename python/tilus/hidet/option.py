@@ -27,6 +27,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 
@@ -115,6 +116,18 @@ class OptionContext:
         if name not in OptionRegistry.registered_options:
             raise KeyError(f"Option {name} has not been registered.")
         registry = OptionRegistry.registered_options[name]
+        if registry.env is not None and registry.env in os.environ:
+            raw = os.environ[registry.env]
+            if registry.normalizer is not None:
+                return registry.normalizer(raw)
+            # coerce to the same type as the default value when no normalizer is provided
+            if isinstance(registry.default_value, int):
+                return int(raw)
+            if isinstance(registry.default_value, float):
+                return float(raw)
+            if isinstance(registry.default_value, bool):
+                return raw.lower() not in ("0", "false", "no", "off")
+            return raw
         return registry.default_value
 
 
