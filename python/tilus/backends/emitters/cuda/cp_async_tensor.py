@@ -153,10 +153,9 @@ def get_offset_grid_of_swizzled_layout(
 
 class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
     def assert_is_single_thread_or_warp_aligned(self, inst: Instruction, msg: str) -> None:
-        # TMA copies must be issued by exactly one thread. The user can express
-        # that with single_thread() (num_threads == 1), or at warp scope where the
-        # `@pred` predicate selects the elected lane. Both are valid; reject only
-        # multi-thread non-warp contexts.
+        # TMA copies are issued by one elected lane. single_thread() already
+        # narrows execution to one lane; at warp scope, the TMA predicate elects
+        # the leader lane.
         if self.current_num_threads == 1:
             return
         if self.current_num_threads != 32 or self.current_thread_group_begin % 32 != 0:
@@ -168,10 +167,8 @@ class CopyAsyncTensorBaseEmitter(BaseInstEmitter):
 
     @property
     def tma_predicate(self) -> Expr:
-        # Inside single_thread() only one thread runs the TMA call, so the
-        # @pred predicate is the constant 1. At warp scope we still need to
-        # select a single lane, so use the elected leader-lane predicate to
-        # avoid an if-branch divergence.
+        # Inside single_thread() only one thread reaches the TMA call, so use
+        # constant true. At warp scope, predicate the asm on the elected leader.
         if self.current_num_threads == 1:
             return uint32(1)
         return self.contexts.leader_lane_ctx.leader_lane
