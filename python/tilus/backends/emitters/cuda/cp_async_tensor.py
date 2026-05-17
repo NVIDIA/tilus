@@ -43,13 +43,13 @@ from tilus.hidet.ir.primitives.cuda.tensor_map import (
 from tilus.hidet.ir.tools import rewrite, simplify
 from tilus.hidet.ir.type import DataType, PointerType, TensorType, sizeof
 from tilus.ir import GlobalLayout
+from tilus.ir.inst import Instruction
 from tilus.ir.instructions.cuda.cp_async_tensor import (
     CopyAsyncTensorCommitGroupInst,
     CopyAsyncTensorGlobalToSharedInst,
     CopyAsyncTensorSharedToGlobalInst,
     CopyAsyncTensorWaitGroupInst,
 )
-from tilus.ir.inst import Instruction
 from tilus.ir.tensor import GlobalTensor, SharedTensor
 from tilus.ir.utils.lineardec import LinearDecompositionError, decompose_linear
 from tilus.ir.utils.veceval import vectorized_evaluate
