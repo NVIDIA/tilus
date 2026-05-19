@@ -22,6 +22,9 @@
 #include <cuda_bf16.h>
 #include <type_traits>
 
+#include <tilus/cuda/float8_e4m3.h>
+#include <tilus/cuda/float8_e5m2.h>
+
 #include "void_p.h"
 
 namespace tvm {
@@ -82,6 +85,30 @@ struct TypeTraits<__nv_bfloat16*> : public FallbackOnlyTraitsBase<__nv_bfloat16*
       TVM_FFI_THROW(ValueError) << "Expect a tensor with 16 bit bfloat16, got a tensor with dtype " << dtype_to_str(src->dtype);
     }
     return reinterpret_cast<__nv_bfloat16*>(src->data);
+  }
+};
+
+template <>
+struct TypeTraits<float8_e4m3*> : public FallbackOnlyTraitsBase<float8_e4m3*, DLTensor*> {
+  TVM_FFI_INLINE static std::string TypeStr() { return "float8_e4m3*"; }
+
+  TVM_FFI_INLINE static float8_e4m3* ConvertFallbackValue(DLTensor* src) {
+    if (src->dtype.code != kDLFloat8_e4m3fn || src->dtype.bits != 8) {
+      TVM_FFI_THROW(ValueError) << "Expect a tensor with 8 bit float8_e4m3, got a tensor with dtype " << dtype_to_str(src->dtype);
+    }
+    return reinterpret_cast<float8_e4m3*>(src->data);
+  }
+};
+
+template <>
+struct TypeTraits<float8_e5m2*> : public FallbackOnlyTraitsBase<float8_e5m2*, DLTensor*> {
+  TVM_FFI_INLINE static std::string TypeStr() { return "float8_e5m2*"; }
+
+  TVM_FFI_INLINE static float8_e5m2* ConvertFallbackValue(DLTensor* src) {
+    if (src->dtype.code != kDLFloat8_e5m2 || src->dtype.bits != 8) {
+      TVM_FFI_THROW(ValueError) << "Expect a tensor with 8 bit float8_e5m2, got a tensor with dtype " << dtype_to_str(src->dtype);
+    }
+    return reinterpret_cast<float8_e5m2*>(src->data);
   }
 };
 

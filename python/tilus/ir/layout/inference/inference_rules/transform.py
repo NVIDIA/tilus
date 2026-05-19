@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from tilus import RegisterLayout
-from tilus.ir.instructions import SqueezeInst, UnsqueezeInst
+from tilus.ir.instructions import ReshapeRegisterInst, SqueezeInst, UnsqueezeInst
 from tilus.ir.layout import ops
 from tilus.ir.layout.inference.rule import LayoutInferenceContext, LayoutInferenceRule, register_rule
 from tilus.ir.tensor import RegisterTensor
@@ -49,5 +49,22 @@ class SqueezeRule(LayoutInferenceRule):
             return {y: ops.squeeze(x.layout, dims=inst.dims)}
         elif y.optional_layout is not None:
             return {x: ops.unsqueeze(y.layout, dims=inst.dims)}
+        else:
+            return {}
+
+
+@register_rule(ReshapeRegisterInst)
+class ReshapeRegisterRule(LayoutInferenceRule):
+    @staticmethod
+    def inference(ctx: LayoutInferenceContext, inst: ReshapeRegisterInst) -> dict[RegisterTensor, RegisterLayout]:
+        x = inst.register_input
+        y = inst.register_output
+
+        if x.optional_layout is not None and y.optional_layout is not None:
+            return {}
+        elif x.optional_layout is not None:
+            return {y: ops.reshape(x.layout, shape=y.shape)}
+        elif y.optional_layout is not None:
+            return {x: ops.reshape(y.layout, shape=x.shape)}
         else:
             return {}

@@ -695,6 +695,31 @@ class RootInstructionGroup(InstructionGroup):
         """
         self._builder.free_shared(tensor)
 
+    def reshape(self, tensor: RegisterTensor, shape: Sequence[int]) -> RegisterTensor:
+        """Reshape a register tensor.
+
+        The new shape must have the same total size as the original. The
+        underlying per-thread storage is unchanged; only the logical shape (and
+        mode grouping used for broadcasts/reductions) is updated.
+
+        Parameters
+        ----------
+        tensor: RegisterTensor
+            The register tensor to reshape.
+        shape: Sequence[int]
+            The new shape of the register tensor.
+
+        Returns
+        -------
+        ret: RegisterTensor
+            The reshaped register tensor.
+
+        Notes
+        -----
+        - **Thread group**: Can be executed by any sized thread group.
+        """
+        return self._builder.reshape_register(x=tensor, shape=shape)
+
     def reshape_shared(self, tensor: SharedTensor, shape: Sequence[int]) -> SharedTensor:
         """Reshape a shared tensor.
 

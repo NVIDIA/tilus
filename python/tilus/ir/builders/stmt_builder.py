@@ -109,6 +109,7 @@ from tilus.ir.instructions.generic import (
     ReduceInst,
     RepeatInst,
     RepeatInterleaveInst,
+    ReshapeRegisterInst,
     ReshapeSharedInst,
     ScanInst,
     SliceAssignInst,
@@ -550,6 +551,16 @@ class StmtBuilder(StmtBuilderCore):
         out: Optional[RegisterTensor] = None,
     ) -> RegisterTensor:
         inst = UnsqueezeInst.create(x=x, dims=dim, out=out)
+        self.append(inst)
+        return inst.register_output
+
+    def reshape_register(
+        self,
+        x: RegisterTensor,
+        shape: Sequence[int],
+        out: Optional[RegisterTensor] = None,
+    ) -> RegisterTensor:
+        inst = ReshapeRegisterInst.create(x=x, shape=shape, out=out)
         self.append(inst)
         return inst.register_output
 

@@ -13,7 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
-from tilus.ir.instructions import RepeatInst, RepeatInterleaveInst, SqueezeInst, TransposeInst, UnsqueezeInst
+from tilus.ir.instructions import (
+    RepeatInst,
+    RepeatInterleaveInst,
+    ReshapeRegisterInst,
+    SqueezeInst,
+    TransposeInst,
+    UnsqueezeInst,
+)
 
 
 @register_emitter(RepeatInst)
@@ -87,6 +94,7 @@ class RepeatInterleaveInstEmitter(BaseInstEmitter):
 
 @register_emitter(UnsqueezeInst)
 @register_emitter(SqueezeInst)
+@register_emitter(ReshapeRegisterInst)
 class SqueezeUnsqueezeInstEmitter(BaseInstEmitter):
     def emit(self, inst: SqueezeInst) -> None:
         src = inst.register_input

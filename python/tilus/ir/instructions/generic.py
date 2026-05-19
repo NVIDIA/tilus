@@ -638,6 +638,23 @@ class TransposeInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
+class ReshapeRegisterInst(Instruction):
+    @staticmethod
+    def create(
+        x: RegisterTensor,
+        shape: Sequence[int],
+        out: Optional[RegisterTensor] = None,
+    ) -> ReshapeRegisterInst:
+        from tilus.utils import prod
+
+        if out is None:
+            if prod(x.shape) != prod(shape):
+                raise ValueError(f"Cannot reshape register tensor with shape {x.shape} to shape {shape}: sizes differ")
+            out = RegisterTensor.create(dtype=x.dtype, shape=tuple(shape))
+        return ReshapeRegisterInst(output=out, inputs=(x,))
+
+
+@dataclass(frozen=True, eq=False)
 class AllocateSharedInst(Instruction):
     @staticmethod
     def create(output: SharedTensor) -> AllocateSharedInst:

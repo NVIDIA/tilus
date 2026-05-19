@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tilus.ir.instructions import SqueezeInst, UnsqueezeInst
+from tilus.ir.instructions import ReshapeRegisterInst, SqueezeInst, UnsqueezeInst
 from tilus.ir.layout import ops
 from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 from tilus.ir.tensor import RegisterTensor
@@ -36,3 +36,16 @@ class UnsqueezeRule(LayoutValidationRule):
         y: RegisterTensor = inst.register_output
 
         return y.layout == ops.unsqueeze(x.layout, dims=inst.dims)
+
+
+@register_rule(ReshapeRegisterInst)
+class ReshapeRegisterRule(LayoutValidationRule):
+    @staticmethod
+    def validate(inst: ReshapeRegisterInst) -> bool:
+        x: RegisterTensor = inst.register_input
+        y: RegisterTensor = inst.register_output
+
+        try:
+            return y.layout == ops.reshape(x.layout, shape=y.shape)
+        except Exception:
+            return False
