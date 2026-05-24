@@ -56,10 +56,42 @@ class Tcgen05CopyInstMeta:
         return "Tcgen05CopyInstMeta(" + ",\n  ".join(items) + "\n)"
 
 
+_MULTICAST_NAME_TO_KIND: dict[str, Tcgen05CopyMulticastKind] = {
+    "": Tcgen05CopyMulticastKind.NONE,
+    "warpx4": Tcgen05CopyMulticastKind.WARP_X4,
+    "warpx2_02_13": Tcgen05CopyMulticastKind.WARP_X2_02_13,
+    "warpx2_01_23": Tcgen05CopyMulticastKind.WARP_X2_01_23,
+}
+
+# Per-multicast: required source-row count in SMEM and the candidate shape kinds.
+# Smaller shape kinds (R32x128B / R64x128B) are only valid with multicast — the
+# table maps each multicast to the shape kind PTX requires for it.
+_MULTICAST_TO_SOURCE_ROWS: dict[Tcgen05CopyMulticastKind, int] = {
+    Tcgen05CopyMulticastKind.NONE: 128,
+    Tcgen05CopyMulticastKind.WARP_X4: 32,
+    Tcgen05CopyMulticastKind.WARP_X2_02_13: 64,
+    Tcgen05CopyMulticastKind.WARP_X2_01_23: 64,
+}
+
+_MULTICAST_TO_SHAPE_KINDS: dict[Tcgen05CopyMulticastKind, tuple[Tcgen05CopyShapeKind, ...]] = {
+    Tcgen05CopyMulticastKind.NONE: (
+        Tcgen05CopyShapeKind.R128x256B,
+        Tcgen05CopyShapeKind.R128x128B,
+    ),
+    Tcgen05CopyMulticastKind.WARP_X4: (Tcgen05CopyShapeKind.R32x128B,),
+    Tcgen05CopyMulticastKind.WARP_X2_02_13: (Tcgen05CopyShapeKind.R64x128B,),
+    Tcgen05CopyMulticastKind.WARP_X2_01_23: (Tcgen05CopyShapeKind.R64x128B,),
+}
+
+
 @register_emitter(Tcgen05CopyInst, target=nvgpu_sm100)
 class Tcgen05CopyEmitter(BaseInstEmitter):
     def split_canonical_layout(
-        self, smem_addr: Expr, canonical: CanonicalSharedLayout, shape_kind: Tcgen05CopyShapeKind
+        self,
+        smem_addr: Expr,
+        canonical: CanonicalSharedLayout,
+        shape_kind: Tcgen05CopyShapeKind,
+        multicast: Tcgen05CopyMulticastKind = Tcgen05CopyMulticastKind.NONE,
     ) -> list[Tcgen05CopyInstMeta]:
         """
         Split the canonical shared layout into multiple sub-tensors that can be copied by tcgen05.copy instructions.
@@ -95,7 +127,7 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
             raise GenerationFailedError(
                 "The number of rows or columns in the shape kind must be divisible by the number of rows or columns in the canonical layout"
             )
-        if canonical.major_kind == "K" and (inst_m % 8 != 0 or inst_n % (canonical.T * 2) != 0):
+        if canonical.major_kind == "K" and (inst_m % 8 != 0 or inst_n % canonical.T != 0):
             raise GenerationFailedError(
                 "The number of rows or columns in the shape kind must be divisible by the number of rows or columns in the canonical layout"
             )
@@ -151,7 +183,7 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
                 instructions.append(
                     Tcgen05CopyInstMeta(
                         shape_kind=shape_kind,
-                        multicast=Tcgen05CopyMulticastKind.NONE,
+                        multicast=multicast,
                         cta_group=Tcgen05CtaGroupKind.CTA_1,
                         tmem_offset=tmem_offset,
                         shared_descriptor=s_desc,
@@ -161,7 +193,10 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
         return instructions
 
     def generate_instructions(
-        self, tmem_tensor: TMemoryTensor, shared_tensor: SharedTensor
+        self,
+        tmem_tensor: TMemoryTensor,
+        shared_tensor: SharedTensor,
+        multicast: Tcgen05CopyMulticastKind = Tcgen05CopyMulticastKind.NONE,
     ) -> list[Tcgen05CopyInstMeta]:
         dtype = shared_tensor.dtype
         canonical_layout: CanonicalSharedLayout | None = canonicalize_shared_layout(
@@ -176,12 +211,9 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
             raise ValueError("\n".join(msg))
         smem_addr = self.shared_tensor_shared_space_addr[shared_tensor]
 
-        for shape_kind in [
-            Tcgen05CopyShapeKind.R128x256B,
-            Tcgen05CopyShapeKind.R128x128B,
-        ]:
+        for shape_kind in _MULTICAST_TO_SHAPE_KINDS[multicast]:
             try:
-                return self.split_canonical_layout(smem_addr, canonical_layout, shape_kind)
+                return self.split_canonical_layout(smem_addr, canonical_layout, shape_kind, multicast)
             except GenerationFailedError:
                 continue
 
@@ -193,19 +225,28 @@ class Tcgen05CopyEmitter(BaseInstEmitter):
 
         self.assert_is_warp_aligned(inst, "tcgen05.copy is a warp-cooperative instruction")
 
+        multicast_kind = _MULTICAST_NAME_TO_KIND.get(inst.multicast)
+        if multicast_kind is None:
+            raise ValueError("Unknown multicast {!r} on Tcgen05CopyInst".format(inst.multicast))
+
         if len(shared_tensor.shape) != 2:
             raise ValueError("The shared tensor must be a 2D tensor, got shape {}".format(shared_tensor.shape))
         if len(tmem_tensor.shape) != 2:
             raise ValueError("The tensor memory tensor must be a 2D tensor, got shape {}".format(tmem_tensor.shape))
-        if shared_tensor.shape[0] != 128:
-            raise NotImplementedError("The number of rows in the shared tensor must be 128")
+        expected_rows = _MULTICAST_TO_SOURCE_ROWS[multicast_kind]
+        if shared_tensor.shape[0] != expected_rows:
+            raise ValueError(
+                "tcgen05.copy multicast={!r} requires the shared tensor to have {} rows, got {}".format(
+                    inst.multicast, expected_rows, shared_tensor.shape[0]
+                )
+            )
         if tmem_tensor.layout.lane_offset != 0:
             raise NotImplementedError("The first lane of the tmem tensor must be 0")
 
         tmem_base_addr = self.tensor2var[tmem_tensor]
 
         with self.single_thread():
-            insts = self.generate_instructions(tmem_tensor, shared_tensor)
+            insts = self.generate_instructions(tmem_tensor, shared_tensor, multicast_kind)
             for inst_meta in insts:
                 s_desc = self.declare_var("s_desc", tp=uint64, init=inst_meta.shared_descriptor.encoded())
                 t_addr = tmem_base_addr + inst_meta.tmem_offset
