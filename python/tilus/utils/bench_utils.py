@@ -51,13 +51,29 @@ def cuda_sleep(nanoseconds: int) -> None:
     torch.cuda._sleep(nanoseconds)
 
 
+@functools.lru_cache(maxsize=None)
+def _l2_clear_nbytes(device_index: int) -> int:
+    """Return the number of bytes to write in order to evict the L2 cache on the given device.
+
+    Writing a slab twice the device's L2 cache size reliably flushes it, so that each benchmarked
+    iteration starts from a cold L2. The actual L2 size is queried from the device (it varies across
+    architectures); a 128 MiB floor preserves the previous behavior when the size cannot be determined.
+    """
+    floor = 128 * 1024 * 1024
+    try:
+        l2_size = torch.cuda.get_device_properties(device_index).L2_cache_size
+    except Exception:
+        l2_size = 0
+    return max(2 * int(l2_size), floor)
+
+
 def benchmark_func(
     run_func: Callable[[], Any],
     warmup: int = 1,
     repeat: int = 5,
     clear_l2_cache: bool = True,
 ) -> float:
-    num_bytes = 128 * 1024 * 1024
+    num_bytes = _l2_clear_nbytes(torch.cuda.current_device())
     memory_slab = torch.empty(num_bytes, dtype=torch.int8, device="cuda")
 
     assert repeat >= 1
