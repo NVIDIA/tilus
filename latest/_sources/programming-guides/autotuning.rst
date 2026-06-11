@@ -68,3 +68,22 @@ When we launch the kernel, tilus will automatically compile the kernel with all 
 The kernels will be compiled in parallel when we first call the kernel with a specific input size triggering the JIT
 compilation (:doc:`tilus-script`). We can use :py:func:`tilus.option.parallel_workers` to control the number of
 parallel workers to compile the kernels.
+
+Hardware-aware tuning cache
+---------------------------
+
+The best schedule for a given input is hardware- and toolchain-specific, so the tuning result (the
+*dispatch table* that maps an input bucket to the winning schedule) must not be reused across
+different environments. The compiled kernels are already keyed by target architecture, and the
+dispatch table additionally records an environment fingerprint -- the GPU name, compute capability,
+CUDA version, target, and tilus version -- next to it.
+
+When a dispatch table is loaded, this fingerprint is compared against the current environment. If any
+field differs (for example, a table tuned on a B200 being picked up on a B300 through a shared cache
+directory), the table is ignored and the kernel is re-tuned for the current environment instead of
+silently using a schedule that was optimal elsewhere. Advanced users can relax an individual check by
+editing the ``_metadata`` block in ``dispatch_table.json`` and setting a field to ``"*"``.
+
+The tilus version recorded in the fingerprint is the release base version (e.g. ``0.2.1``) rather than
+the full development version (``0.2.1.dev19+g<hash>``), so that development builds off the same release
+continue to share a cache instead of invalidating it on every commit.

@@ -644,6 +644,7 @@ document.write(`
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-typical-hyperparameters">8.1. What’s typical hyperparameters?</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#define-tuning-space">8.2. Define tuning space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hardware-aware-tuning-cache">8.3. Hardware-aware tuning cache</a></li>
 </ul>
             </nav>
         </div>
@@ -718,6 +719,22 @@ The kernels will be compiled in parallel when we first call the kernel with a sp
 compilation (<a class="reference internal" href="tilus-script.html"><span class="doc">Tilus Script</span></a>). We can use <a class="reference internal" href="../python-api/generated/tilus.option.parallel_workers.html#tilus.option.parallel_workers" title="tilus.option.parallel_workers"><code class="xref py py-func docutils literal notranslate"><span class="pre">tilus.option.parallel_workers()</span></code></a> to control the number of
 parallel workers to compile the kernels.</p>
 </section>
+<section id="hardware-aware-tuning-cache">
+<h2><span class="section-number">8.3. </span>Hardware-aware tuning cache<a class="headerlink" href="#hardware-aware-tuning-cache" title="Link to this heading"><span>¶</span></a></h2>
+<p>The best schedule for a given input is hardware- and toolchain-specific, so the tuning result (the
+<em>dispatch table</em> that maps an input bucket to the winning schedule) must not be reused across
+different environments. The compiled kernels are already keyed by target architecture, and the
+dispatch table additionally records an environment fingerprint – the GPU name, compute capability,
+CUDA version, target, and tilus version – next to it.</p>
+<p>When a dispatch table is loaded, this fingerprint is compared against the current environment. If any
+field differs (for example, a table tuned on a B200 being picked up on a B300 through a shared cache
+directory), the table is ignored and the kernel is re-tuned for the current environment instead of
+silently using a schedule that was optimal elsewhere. Advanced users can relax an individual check by
+editing the <code class="docutils literal notranslate"><span class="pre">_metadata</span></code> block in <code class="docutils literal notranslate"><span class="pre">dispatch_table.json</span></code> and setting a field to <code class="docutils literal notranslate"><span class="pre">&quot;*&quot;</span></code>.</p>
+<p>The tilus version recorded in the fingerprint is the release base version (e.g. <code class="docutils literal notranslate"><span class="pre">0.2.1</span></code>) rather than
+the full development version (<code class="docutils literal notranslate"><span class="pre">0.2.1.dev19+g&lt;hash&gt;</span></code>), so that development builds off the same release
+continue to share a cache instead of invalidating it on every commit.</p>
+</section>
 </section>
 
 
@@ -767,6 +784,7 @@ parallel workers to compile the kernels.</p>
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-s-typical-hyperparameters">8.1. What’s typical hyperparameters?</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#define-tuning-space">8.2. Define tuning space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hardware-aware-tuning-cache">8.3. Hardware-aware tuning cache</a></li>
 </ul>
   </nav></div>
 
