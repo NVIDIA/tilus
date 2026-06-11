@@ -38,7 +38,7 @@ from tilus.hidet.utils.py import nocolor
 from tilus.ir.prog import Program
 from tilus.lang.script import Script
 from tilus.runtime import CompiledProgram, load_compiled_program
-from tilus.target import lazy_init
+from tilus.target import get_current_target, lazy_init
 from tilus.utils import benchmark_func, relative_to_with_walk_up, to_snake_case
 from tilus.utils.multiprocess import parallel_imap
 
@@ -157,6 +157,74 @@ def generate_schedules(
         schedule.pop("self")  # remove the 'self' argument
         schedules.append(schedule)
     return schedules
+
+
+def _safe_str(fn: Any) -> str:
+    """Call ``fn`` and stringify its result, returning ``"unknown"`` on any failure."""
+    try:
+        return str(fn())
+    except Exception:
+        return "unknown"
+
+
+def _tilus_version() -> str:
+    """Release-level tilus version used in the cache fingerprint.
+
+    We deliberately key on the *base* release (e.g. ``0.2.1``) rather than the full SCM version
+    (``0.2.1.dev19+g<hash>``). The SCM version changes on every commit during development, which would
+    needlessly invalidate the dispatch cache each time; keying on the base release lets all dev builds
+    off the same release share the cache while distinct releases stay separated.
+    """
+    try:
+        import importlib.metadata as importlib_metadata
+
+        raw = importlib_metadata.version("tilus")
+    except Exception:
+        raw = str(getattr(tilus, "__version__", "unknown"))
+    try:
+        from packaging.version import Version
+
+        return Version(raw).base_version
+    except Exception:
+        # strip a PEP 440 dev / local suffix by hand if packaging is unavailable
+        return raw.split(".dev")[0].split("+")[0]
+
+
+def collect_tuning_metadata() -> dict[str, str]:
+    """Fingerprint of the environment that produced a tuning dispatch table.
+
+    The fastest schedule for a tuning key depends on the GPU and the toolchain, so a dispatch table
+    tuned in one environment must not be silently reused in another (for example, a table tuned on a
+    B200 picked up on a B300 through a shared cache directory). These fields are written next to the
+    dispatch table and compared on load; a mismatch causes the on-disk table to be ignored and
+    re-tuned. This mirrors the metadata-validation approach used by FlashInfer's autotuner cache.
+    """
+    return {
+        "tilus_version": _tilus_version(),
+        "target": _safe_str(get_current_target),
+        "gpu": _safe_str(lambda: torch.cuda.get_device_name(torch.cuda.current_device())),
+        "compute_capability": _safe_str(lambda: "{}.{}".format(*torch.cuda.get_device_capability())),
+        "cuda_version": _safe_str(lambda: torch.version.cuda),
+    }
+
+
+def tuning_metadata_matches(saved: Any, current: Mapping[str, str]) -> bool:
+    """Return whether a saved metadata block is compatible with the current environment.
+
+    Every field present in ``current`` must match the corresponding field in ``saved``. A saved field
+    set to the wildcard ``"*"`` matches any value, allowing advanced users to relax individual checks
+    by editing the cache file by hand (as in FlashInfer). A missing or non-mapping ``saved`` (e.g. a
+    legacy cache file without metadata) never matches.
+    """
+    if not isinstance(saved, dict):
+        return False
+    for key, current_value in current.items():
+        saved_value = saved.get(key)
+        if saved_value == "*":
+            continue
+        if saved_value != current_value:
+            return False
+    return True
 
 
 class CallParameters:
@@ -704,17 +772,25 @@ class JitInstance:
 
     def load_dispatch_table(self):
         table_path = self.cache_dir / "dispatch_table.json"
-        if table_path.exists():
-            with open(table_path, "r") as f:
-                entries = json.load(f)
-            self.dispatch_table = {tuple(key): value for key, value in entries}
+        if not table_path.exists():
+            return
+        with open(table_path, "r") as f:
+            data = json.load(f)
+        # The fastest schedule for a tuning key is environment-specific, so a dispatch table is only
+        # reused when its saved environment fingerprint matches the current one. Otherwise (including a
+        # legacy table that predates the fingerprint) it is ignored and the kernel is re-tuned.
+        saved_meta = data.get("_metadata") if isinstance(data, dict) else None
+        if not tuning_metadata_matches(saved_meta, collect_tuning_metadata()):
+            return
+        self.dispatch_table = {tuple(key): value for key, value in data["entries"]}
 
     def dump_dispatch_table(self):
         table_path = self.cache_dir / "dispatch_table.json"
         table_txt_path = self.cache_dir / "dispatch_table.txt"
         entries = [[list(key), value] for key, value in self.dispatch_table.items()]
+        data = {"_metadata": collect_tuning_metadata(), "entries": entries}
         with open(table_path, "w") as f:
-            json.dump(entries, f)
+            json.dump(data, f)
         headers = []
         for idx in self.call_params.tuning_params:
             headers.append(self.call_params.param_names[idx])
