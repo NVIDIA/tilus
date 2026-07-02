@@ -155,7 +155,11 @@ class SharedMemoryAllocationContext(BaseEmitContext):
         # define the shared workspace variable if needed
         if self.shared_workspace_var is not None:
             workspace_offset = (maximum_allocated + 127) // 128 * 128  # align to 128 bytes
-            maximum_allocated += self.shared_workspace_bytes
+            # Size the arena from the aligned workspace offset, not the (possibly
+            # unaligned) high-water mark: otherwise the alignment padding between
+            # `maximum_allocated` and `workspace_offset` is not reserved and the
+            # workspace tail spills past the requested dynamic shared memory.
+            maximum_allocated = workspace_offset + self.shared_workspace_bytes
             sb = StmtBuilder()
             sb.declare(self.shared_workspace_var, init=dynamic_shared_memory(workspace_offset, dtype=uint8))
             self.kernel_prepend(sb.finish())
