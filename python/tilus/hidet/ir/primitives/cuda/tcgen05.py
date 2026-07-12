@@ -155,8 +155,8 @@ class Tcgen05CopyShapeKind(Enum):
 
 class Tcgen05CopyMulticastKind(Enum):
     NONE = ""
-    WARP_X2_02_13 = ".warpx2_02_13"
-    WARP_X2_01_23 = ".warpx2_01_23"
+    WARP_X2_02_13 = ".warpx2::02_13"
+    WARP_X2_01_23 = ".warpx2::01_23"
     WARP_X4 = ".warpx4"
 
 
