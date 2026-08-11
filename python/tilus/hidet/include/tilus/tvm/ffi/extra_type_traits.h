@@ -16,6 +16,7 @@
 // helper used to produce human-readable error messages on type mismatch.
 #pragma once
 
+#include <tvm/ffi/container/tensor.h>
 #include <tvm/ffi/type_traits.h>
 #include <cuda.h>
 #include <cuda_fp16.h>
