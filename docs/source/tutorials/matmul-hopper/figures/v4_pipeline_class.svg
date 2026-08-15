@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 0 740 415" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="arr-p" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="380" y="18" text-anchor="middle" font-weight="700" font-size="14" fill="#333">Async Pipeline (stages = 5)</text>
+
+  <!-- ===== Producer (left) ===== -->
+  <rect x="20" y="40" width="190" height="175" rx="8" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+  <text x="115" y="62" text-anchor="middle" font-weight="700" font-size="13" fill="#e65100">Producer</text>
+
+  <rect x="32" y="75" width="166" height="18" rx="3" fill="#fff9f0" stroke="#e65100" stroke-width="0.8"/>
+  <text x="115" y="88" text-anchor="middle" font-size="9" fill="#bf360c" font-weight="600">producer_acquire()</text>
+  <text x="115" y="104" text-anchor="middle" font-size="8" fill="#888">wait for empty slot</text>
+
+  <rect x="32" y="113" width="166" height="18" rx="3" fill="#fff9f0" stroke="#e65100" stroke-width="0.8"/>
+  <text x="115" y="126" text-anchor="middle" font-size="9" fill="#bf360c" font-weight="600">producer_barrier()</text>
+  <text x="115" y="142" text-anchor="middle" font-size="8" fill="#888">get full_barrier to signal when done</text>
+
+  <rect x="32" y="151" width="166" height="18" rx="3" fill="#fff9f0" stroke="#e65100" stroke-width="0.8"/>
+  <text x="115" y="164" text-anchor="middle" font-size="9" fill="#bf360c" font-weight="600">producer_advance()</text>
+  <text x="115" y="180" text-anchor="middle" font-size="8" fill="#888">move to next slot</text>
+
+  <!-- Producer stage pointer -->
+  <text x="115" y="204" text-anchor="middle" font-size="9" fill="#e65100" font-weight="600">producer_stage → slot 3</text>
+
+  <!-- ===== Consumer (right) ===== -->
+  <rect x="550" y="40" width="190" height="175" rx="8" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.5"/>
+  <text x="645" y="62" text-anchor="middle" font-weight="700" font-size="13" fill="#7e57c2">Consumer</text>
+
+  <rect x="562" y="75" width="166" height="18" rx="3" fill="#f5f0ff" stroke="#7e57c2" stroke-width="0.8"/>
+  <text x="645" y="88" text-anchor="middle" font-size="9" fill="#5e35b1" font-weight="600">consumer_acquire()</text>
+  <text x="645" y="104" text-anchor="middle" font-size="8" fill="#888">wait for filled slot</text>
+
+  <rect x="562" y="113" width="166" height="18" rx="3" fill="#f5f0ff" stroke="#7e57c2" stroke-width="0.8"/>
+  <text x="645" y="126" text-anchor="middle" font-size="9" fill="#5e35b1" font-weight="600">consumer_barrier()</text>
+  <text x="645" y="142" text-anchor="middle" font-size="8" fill="#888">get empty_barrier to signal when done</text>
+
+  <rect x="562" y="151" width="166" height="18" rx="3" fill="#f5f0ff" stroke="#7e57c2" stroke-width="0.8"/>
+  <text x="645" y="164" text-anchor="middle" font-size="9" fill="#5e35b1" font-weight="600">consumer_advance()</text>
+  <text x="645" y="180" text-anchor="middle" font-size="8" fill="#888">move to next slot</text>
+
+  <!-- Consumer stage pointer -->
+  <text x="645" y="204" text-anchor="middle" font-size="9" fill="#7e57c2" font-weight="600">consumer_stage → slot 1</text>
+
+  <!-- ===== Ring Buffer (center) ===== -->
+  <rect x="240" y="35" width="280" height="230" rx="8" fill="#f8f8f8" stroke="#999" stroke-width="1.2"/>
+  <text x="380" y="55" text-anchor="middle" font-weight="700" font-size="12" fill="#333">Ring Buffer</text>
+
+  <!-- Column headers -->
+  <text x="290" y="73" text-anchor="middle" font-size="8" fill="#666" font-weight="600">slot</text>
+  <text x="350" y="73" text-anchor="middle" font-size="8" fill="#666" font-weight="600">full</text>
+  <text x="420" y="73" text-anchor="middle" font-size="8" fill="#666" font-weight="600">empty</text>
+  <text x="496" y="73" text-anchor="end" font-size="8" fill="#666" font-weight="600">state</text>
+
+  <!-- Slot 0: consumed (full=✗, empty=✓) -->
+  <rect x="260" y="80" width="240" height="24" rx="3" fill="#f5f5f5" stroke="#ddd" stroke-width="0.8"/>
+  <text x="290" y="96" text-anchor="middle" font-size="10" fill="#666">0</text>
+  <text x="350" y="96" text-anchor="middle" font-size="11" fill="#dc3545">✗</text>
+  <text x="420" y="96" text-anchor="middle" font-size="11" fill="#28a745">✓</text>
+  <text x="496" y="96" text-anchor="end" font-size="9" fill="#888">empty</text>
+
+  <!-- Slot 1: filled, being consumed (full=✓, empty=✗) — consumer points here -->
+  <rect x="260" y="106" width="240" height="24" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="290" y="122" text-anchor="middle" font-size="10" fill="#5e35b1" font-weight="600">1</text>
+  <text x="350" y="122" text-anchor="middle" font-size="11" fill="#28a745">✓</text>
+  <text x="420" y="122" text-anchor="middle" font-size="11" fill="#dc3545">✗</text>
+  <text x="496" y="122" text-anchor="end" font-size="9" fill="#5e35b1" font-weight="600">consuming</text>
+
+  <!-- Slot 2: filled, waiting (full=✓, empty=✗) -->
+  <rect x="260" y="132" width="240" height="24" rx="3" fill="#d4edda" stroke="#28a745" stroke-width="0.8"/>
+  <text x="290" y="148" text-anchor="middle" font-size="10" fill="#155724">2</text>
+  <text x="350" y="148" text-anchor="middle" font-size="11" fill="#28a745">✓</text>
+  <text x="420" y="148" text-anchor="middle" font-size="11" fill="#dc3545">✗</text>
+  <text x="496" y="148" text-anchor="end" font-size="9" fill="#155724">full</text>
+
+  <!-- Slot 3: being produced (full=✗, empty=✓) — producer points here -->
+  <rect x="260" y="158" width="240" height="24" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="290" y="174" text-anchor="middle" font-size="10" fill="#e65100" font-weight="600">3</text>
+  <text x="350" y="174" text-anchor="middle" font-size="11" fill="#dc3545">✗</text>
+  <text x="420" y="174" text-anchor="middle" font-size="11" fill="#28a745">✓</text>
+  <text x="496" y="174" text-anchor="end" font-size="9" fill="#e65100" font-weight="600">producing</text>
+
+  <!-- Slot 4: empty (full=✗, empty=✓) -->
+  <rect x="260" y="184" width="240" height="24" rx="3" fill="#f5f5f5" stroke="#ddd" stroke-width="0.8"/>
+  <text x="290" y="200" text-anchor="middle" font-size="10" fill="#666">4</text>
+  <text x="350" y="200" text-anchor="middle" font-size="11" fill="#dc3545">✗</text>
+  <text x="420" y="200" text-anchor="middle" font-size="11" fill="#28a745">✓</text>
+  <text x="496" y="200" text-anchor="end" font-size="9" fill="#888">empty</text>
+
+  <!-- Pointer arrows -->
+  <!-- Producer → slot 3 -->
+  <line x1="212" y1="200" x2="258" y2="170" stroke="#e65100" stroke-width="1.5" marker-end="url(#arr-p)"/>
+  <!-- Consumer → slot 1 -->
+  <line x1="548" y1="200" x2="502" y2="118" stroke="#7e57c2" stroke-width="1.5" marker-end="url(#arr-p)"/>
+
+  <!-- Wrap-around annotation -->
+  <text x="380" y="225" text-anchor="middle" font-size="9" fill="#888">slots cycle: 0 → 1 → 2 → 3 → 4 → 0 → ...</text>
+  <text x="380" y="238" text-anchor="middle" font-size="9" fill="#888">phase flips each time a pointer wraps around</text>
+
+  <!-- ===== Legend ===== -->
+  <line x1="30" y1="275" x2="730" y2="275" stroke="#ccc" stroke-width="1" stroke-dasharray="6,4"/>
+
+  <text x="380" y="295" text-anchor="middle" font-size="10" fill="#333">Initial state: all slots are empty. Each slot is in one of four states: <tspan font-weight="600">producing</tspan>, <tspan font-weight="600">full</tspan>, <tspan font-weight="600">consuming</tspan>, or <tspan font-weight="600">empty</tspan>.</text>
+
+  <text x="80" y="318" font-size="10" fill="#333" font-weight="600">full ✓</text>
+  <text x="125" y="318" font-size="10" fill="#333">= producer has filled this slot</text>
+
+  <text x="80" y="338" font-size="10" fill="#333" font-weight="600">empty ✓</text>
+  <text x="131" y="338" font-size="10" fill="#333">= consumer has consumed this slot</text>
+
+  <text x="420" y="318" font-size="10" fill="#333" font-weight="600">full ✗</text>
+  <text x="465" y="318" font-size="10" fill="#333">= not yet filled by producer</text>
+
+  <text x="420" y="338" font-size="10" fill="#333" font-weight="600">empty ✗</text>
+  <text x="471" y="338" font-size="10" fill="#333">= not yet consumed by consumer</text>
+
+  <!-- Summary -->
+  <text x="380" y="370" text-anchor="middle" font-size="10" fill="#333">
+    Producer waits on <tspan fill="#dc3545" font-weight="600">empty</tspan> barrier (slot free?), signals <tspan fill="#28a745" font-weight="600">full</tspan> barrier (data ready).
+  </text>
+  <text x="380" y="386" text-anchor="middle" font-size="10" fill="#333">
+    Consumer waits on <tspan fill="#28a745" font-weight="600">full</tspan> barrier (data ready?), signals <tspan fill="#dc3545" font-weight="600">empty</tspan> barrier (slot freed).
+  </text>
+  <text x="380" y="406" text-anchor="middle" font-size="10" fill="#888">
+    Both advance their stage pointer independently, cycling through the ring buffer.
+  </text>
+</svg>

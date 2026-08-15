@@ -21,6 +21,7 @@ Additional features include automatic tuning, caching, and a Pythonic interface 
    :caption: Tutorials
 
    tutorials/matmul-ampere/__init__
+   tutorials/matmul-hopper/__init__
    tutorials/matmul-blackwell/__init__
 
 .. toctree::

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 370" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <!-- ============ V4: wait_group(0) ============ -->
+  <text x="380" y="22" text-anchor="middle" font-weight="700" font-size="15" fill="#333">V4: wait_group(0) — the tensor core pipeline drains every K-tile</text>
+
+  <text x="72" y="62" text-anchor="end" font-size="11" fill="#666">warp group</text>
+  <text x="72" y="98" text-anchor="end" font-size="11" fill="#666">tensor core</text>
+
+  <!-- warp group activity -->
+  <rect x="82" y="45" width="46" height="22" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.1"/>
+  <text x="105" y="60" text-anchor="middle" font-size="9.5" fill="#0d47a1">issue 0</text>
+  <rect x="128" y="45" width="86" height="22" rx="3" fill="#eeeeee" stroke="#9e9e9e" stroke-width="1.1"/>
+  <text x="171" y="60" text-anchor="middle" font-size="9.5" fill="#616161">wait_group(0)</text>
+  <rect x="214" y="45" width="46" height="22" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.1"/>
+  <text x="237" y="60" text-anchor="middle" font-size="9.5" fill="#1b5e20">release</text>
+
+  <rect x="260" y="45" width="46" height="22" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.1"/>
+  <text x="283" y="60" text-anchor="middle" font-size="9.5" fill="#0d47a1">issue 1</text>
+  <rect x="306" y="45" width="86" height="22" rx="3" fill="#eeeeee" stroke="#9e9e9e" stroke-width="1.1"/>
+  <text x="349" y="60" text-anchor="middle" font-size="9.5" fill="#616161">wait_group(0)</text>
+  <rect x="392" y="45" width="46" height="22" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.1"/>
+  <text x="415" y="60" text-anchor="middle" font-size="9.5" fill="#1b5e20">release</text>
+
+  <rect x="438" y="45" width="46" height="22" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.1"/>
+  <text x="461" y="60" text-anchor="middle" font-size="9.5" fill="#0d47a1">issue 2</text>
+  <rect x="484" y="45" width="86" height="22" rx="3" fill="#eeeeee" stroke="#9e9e9e" stroke-width="1.1"/>
+  <text x="527" y="60" text-anchor="middle" font-size="9.5" fill="#616161">wait_group(0)</text>
+
+  <!-- tensor core activity: busy only during the wait windows -->
+  <rect x="128" y="81" width="86" height="22" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="171" y="96" text-anchor="middle" font-size="9.5" fill="#5e35b1">MMA 0</text>
+  <rect x="306" y="81" width="86" height="22" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="349" y="96" text-anchor="middle" font-size="9.5" fill="#5e35b1">MMA 1</text>
+  <rect x="484" y="81" width="86" height="22" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="527" y="96" text-anchor="middle" font-size="9.5" fill="#5e35b1">MMA 2</text>
+
+  <!-- idle gaps -->
+  <rect x="214" y="81" width="92" height="22" rx="3" fill="#ffebee" stroke="#ef9a9a" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="260" y="96" text-anchor="middle" font-size="9" fill="#c62828">idle</text>
+  <rect x="392" y="81" width="92" height="22" rx="3" fill="#ffebee" stroke="#ef9a9a" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="438" y="96" text-anchor="middle" font-size="9" fill="#c62828">idle</text>
+
+  <text x="640" y="96" font-size="11" fill="#c62828">drains between MMAs</text>
+
+  <line x1="40" y1="135" x2="720" y2="135" stroke="#ddd" stroke-width="1"/>
+
+  <!-- ============ V5: wait_group(1) ============ -->
+  <text x="380" y="167" text-anchor="middle" font-weight="700" font-size="15" fill="#333">V5: wait_group(1) — the next MMA is issued before waiting on the previous</text>
+
+  <text x="72" y="207" text-anchor="end" font-size="11" fill="#666">warp group</text>
+  <text x="72" y="243" text-anchor="end" font-size="11" fill="#666">tensor core</text>
+
+  <rect x="82" y="190" width="46" height="22" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.1"/>
+  <text x="105" y="205" text-anchor="middle" font-size="9.5" fill="#0d47a1">issue 0</text>
+  <rect x="128" y="190" width="46" height="22" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.1"/>
+  <text x="151" y="205" text-anchor="middle" font-size="9.5" fill="#0d47a1">issue 1</text>
+  <rect x="174" y="190" width="86" height="22" rx="3" fill="#eeeeee" stroke="#9e9e9e" stroke-width="1.1"/>
+  <text x="217" y="205" text-anchor="middle" font-size="9.5" fill="#616161">wait_group(1)</text>
+  <rect x="260" y="190" width="60" height="22" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.1"/>
+  <text x="290" y="205" text-anchor="middle" font-size="9.5" fill="#1b5e20">release 0</text>
+
+  <rect x="320" y="190" width="46" height="22" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.1"/>
+  <text x="343" y="205" text-anchor="middle" font-size="9.5" fill="#0d47a1">issue 2</text>
+  <rect x="366" y="190" width="86" height="22" rx="3" fill="#eeeeee" stroke="#9e9e9e" stroke-width="1.1"/>
+  <text x="409" y="205" text-anchor="middle" font-size="9.5" fill="#616161">wait_group(1)</text>
+  <rect x="452" y="190" width="60" height="22" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.1"/>
+  <text x="482" y="205" text-anchor="middle" font-size="9.5" fill="#1b5e20">release 1</text>
+
+  <rect x="512" y="190" width="46" height="22" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.1"/>
+  <text x="535" y="205" text-anchor="middle" font-size="9.5" fill="#0d47a1">issue 3</text>
+  <rect x="558" y="190" width="86" height="22" rx="3" fill="#eeeeee" stroke="#9e9e9e" stroke-width="1.1"/>
+  <text x="601" y="205" text-anchor="middle" font-size="9.5" fill="#616161">wait_group(1)</text>
+
+  <!-- tensor core: back to back -->
+  <rect x="128" y="226" width="92" height="22" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="174" y="241" text-anchor="middle" font-size="9.5" fill="#5e35b1">MMA 0</text>
+  <rect x="220" y="226" width="92" height="22" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="266" y="241" text-anchor="middle" font-size="9.5" fill="#5e35b1">MMA 1</text>
+  <rect x="312" y="226" width="92" height="22" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="358" y="241" text-anchor="middle" font-size="9.5" fill="#5e35b1">MMA 2</text>
+  <rect x="404" y="226" width="92" height="22" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="450" y="241" text-anchor="middle" font-size="9.5" fill="#5e35b1">MMA 3</text>
+  <rect x="496" y="226" width="92" height="22" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="542" y="241" text-anchor="middle" font-size="9.5" fill="#5e35b1">MMA 4</text>
+
+  <text x="640" y="241" font-size="11" fill="#2e7d32">no gaps</text>
+
+  <text x="380" y="292" text-anchor="middle" font-size="11.5" fill="#666">When <tspan font-family="monospace" font-size="11">wait_group(1)</tspan> returns, only the <tspan font-weight="700">previous</tspan> MMA has completed — the current one</text>
+  <text x="380" y="310" text-anchor="middle" font-size="11.5" fill="#666">is still reading shared memory. The stage release therefore lags one iteration behind,</text>
+  <text x="380" y="328" text-anchor="middle" font-size="11.5" fill="#666">which is why the consumer holds two stages and the ring buffer grows to four.</text>
+</svg>

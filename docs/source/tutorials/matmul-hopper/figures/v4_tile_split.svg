@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 330" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#777"/>
+    </marker>
+  </defs>
+
+  <text x="380" y="24" text-anchor="middle" font-weight="700" font-size="15" fill="#333">One 128 x 256 output tile, two consumer warp groups</text>
+
+  <!-- A slabs -->
+  <text x="105" y="66" text-anchor="middle" font-size="12" font-weight="700" fill="#333">A (shared)</text>
+  <rect x="55" y="80" width="100" height="55" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="105" y="104" text-anchor="middle" font-size="11" fill="#0d47a1">sa[stage, 0]</text>
+  <text x="105" y="121" text-anchor="middle" font-size="10" fill="#1565c0">64 x 64</text>
+  <rect x="55" y="135" width="100" height="55" fill="#e1f5fe" stroke="#0277bd" stroke-width="1.4"/>
+  <text x="105" y="159" text-anchor="middle" font-size="11" fill="#01579b">sa[stage, 1]</text>
+  <text x="105" y="176" text-anchor="middle" font-size="10" fill="#0277bd">64 x 64</text>
+
+  <!-- B tile -->
+  <text x="270" y="66" text-anchor="middle" font-size="12" font-weight="700" fill="#333">B (shared, shared by both)</text>
+  <rect x="190" y="80" width="160" height="110" fill="#fff3e0" stroke="#e65100" stroke-width="1.6"/>
+  <text x="270" y="128" text-anchor="middle" font-size="11" fill="#bf360c">sb[stage]</text>
+  <text x="270" y="146" text-anchor="middle" font-size="10" fill="#e65100">256 x 64</text>
+
+  <!-- C tile -->
+  <text x="560" y="66" text-anchor="middle" font-size="12" font-weight="700" fill="#333">C tile (registers)</text>
+  <rect x="440" y="80" width="240" height="55" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.6"/>
+  <text x="560" y="103" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5e35b1">consumer WG0 — acc0</text>
+  <text x="560" y="122" text-anchor="middle" font-size="10.5" fill="#7e57c2">rows 0-63, threads 0-127</text>
+  <rect x="440" y="135" width="240" height="55" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.6"/>
+  <text x="560" y="158" text-anchor="middle" font-size="11.5" font-weight="700" fill="#6a1b9a">consumer WG1 — acc1</text>
+  <text x="560" y="177" text-anchor="middle" font-size="10.5" fill="#8e24aa">rows 64-127, threads 128-255</text>
+
+  <!-- arrows -->
+  <line x1="157" y1="107" x2="200" y2="107" stroke="#777" stroke-width="1.2" marker-end="url(#a4)"/>
+  <line x1="157" y1="162" x2="200" y2="162" stroke="#777" stroke-width="1.2" marker-end="url(#a4)"/>
+  <line x1="352" y1="107" x2="436" y2="107" stroke="#777" stroke-width="1.2" marker-end="url(#a4)"/>
+  <line x1="352" y1="162" x2="436" y2="162" stroke="#777" stroke-width="1.2" marker-end="url(#a4)"/>
+  <text x="394" y="100" text-anchor="middle" font-size="10" fill="#666">wgmma</text>
+  <text x="394" y="155" text-anchor="middle" font-size="10" fill="#666">wgmma</text>
+
+  <!-- producer -->
+  <rect x="55" y="220" width="295" height="34" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="202" y="242" text-anchor="middle" font-size="11.5" fill="#1b5e20">producer warp (threads 256-287): 3 TMA loads per stage</text>
+
+  <text x="380" y="288" text-anchor="middle" font-size="11.5" fill="#666">Different A rows per group, <tspan font-weight="700" fill="#bf360c">the same B tile for both</tspan> — so widening the tile</text>
+  <text x="380" y="306" text-anchor="middle" font-size="11.5" fill="#666">in M costs no extra B traffic, and each group's accumulator is half as large.</text>
+</svg>

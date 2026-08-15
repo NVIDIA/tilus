@@ -312,7 +312,10 @@ def main():
         matmul(m, n, k, a, b, c_actual)
         torch.cuda.synchronize()
 
-        torch.testing.assert_close(c_expect, c_actual, atol=5e-2, rtol=1e-2)
+        # Looser atol than v0-v5: this kernel accumulates in fp16 inside the
+        # WGMMA rather than fp32, which costs roughly 5x in absolute error over
+        # a K=8192 reduction.
+        torch.testing.assert_close(c_actual, c_expect, atol=5e-2, rtol=1e-2)
 
         for name, func in [
             ("torch", lambda: torch.matmul(a, b.T, out=c_expect)),
