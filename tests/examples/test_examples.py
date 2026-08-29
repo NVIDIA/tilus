@@ -84,6 +84,8 @@ IGNORED_SCRIPTS = [
     # Benchmark utilities
     ("blackwell_matmul", "benchmark.py"),
     ("hopper_matmul", "benchmark.py"),
+    # Shared correctness helpers for the quantization examples
+    ("quantization", "fp8_check.py"),
 ]
 
 

@@ -3,22 +3,43 @@
 """Per-token FP8 cast with scale factors.
 
 This is a Tilus translation of DeepSeek TileKernels'
-``per_token_cast_kernel.py`` for the common FP16 -> FP8 e4m3 path.  Each CTA
-processes one token and one channel group, computes the absolute maximum within
-that group, stores a float32 scale factor, and writes the scaled FP8 output.
+``per_token_cast_kernel.py``.  Each CTA processes one token and one channel
+group, computes the absolute maximum within that group, stores a float32 scale
+factor, and writes the scaled FP8 e4m3 output.
+
+The input is bfloat16.  That is not a free choice: TileKernels'
+``get_cast_input_and_config`` asserts the unquantized input is bfloat16 or
+float32, so bf16 is the only 16-bit type both implementations accept.  Since
+this kernel is purely DRAM-bound on its input read, handing the reference fp32
+while Tilus reads 16-bit halves the reference's achievable bandwidth-limited
+runtime and makes the comparison meaningless.  Both sides here read the same
+bf16 tensor.
+
+Scale-factor arithmetic follows TileKernels' ``get_sf_and_inv`` exactly: the
+group absmax is clamped from below to 1e-4, the scale is ``absmax / 448`` and
+its reciprocal is ``448 / absmax``.
 """
 
 import pandas
 import tilus
 import torch
+from fp8_check import (
+    E4M3_MAX,
+    SF_CLAMP_MIN,
+    check_fp8_close,
+    check_scales_close,
+    dequantize,
+    quantization_snr_db,
+    torch_per_token_cast,
+)
 from tile_kernels.quant.per_token_cast_kernel import per_token_cast
-from tilus import float8_e4m3, float16, float32, int32
+from tilus import bfloat16, float8_e4m3, float32, int32
 from tilus.utils import benchmark_func, cdiv
 
 
-@tilus.autotune("block_m", [1, 2, 4, 8])
-@tilus.autotune("groups_per_block", [1, 2, 4, 8])
-@tilus.autotune("warps", [4, 8])
+@tilus.autotune("block_m", [1, 2, 4])
+@tilus.autotune("groups_per_block", [1, 4, 16, 64])
+@tilus.autotune("warps", [4, 8, 16])
 class PerTokenCast(tilus.Script):
     def __init__(
         self,
@@ -38,7 +59,7 @@ class PerTokenCast(tilus.Script):
         self,
         num_tokens: int,
         hidden: int32,
-        x_ptr: ~float16,
+        x_ptr: ~bfloat16,
         out_ptr: ~float8_e4m3,
         out_sf_ptr: ~float32,
     ):
@@ -55,7 +76,7 @@ class PerTokenCast(tilus.Script):
 
         g_x = self.global_view(
             x_ptr,
-            dtype=float16,
+            dtype=bfloat16,
             shape=[num_tokens, hidden],
         )
         g_out = self.global_view(
@@ -69,49 +90,49 @@ class PerTokenCast(tilus.Script):
             shape=[num_tokens, cdiv(hidden, self.num_per_channels)],
         )
 
-        for gi in range(self.groups_per_block):
-            offset_n = base_offset_n + gi * self.block_n
-            sf_col = offset_n // self.num_per_channels
+        # One wide load of the whole tile rather than a loop of per-group
+        # loads.  The loop form does not get unrolled, so each iteration
+        # exposed the full global-load latency with nothing to overlap it;
+        # issuing every load up front and reshaping for the reduction is worth
+        # ~5% at the DRAM-bound shape.
+        r_x = self.load_global(
+            g_x,
+            offsets=[offset_m, base_offset_n],
+            shape=[self.block_m, n_step],
+        ).to(float32)
 
-            r_x = self.load_global(
-                g_x,
-                offsets=[offset_m, offset_n],
-                shape=[self.block_m, self.block_n],
-            ).to(float32)
+        # Reshape into [block_m, groups_per_block, num_per_channels] so the
+        # per-group absmax is a single reduce on dim=2.
+        r_x_grouped = self.reshape(
+            r_x,
+            shape=[self.block_m, self.groups_per_block, self.num_per_channels],
+        )
 
-            r_absmax = self.max(self.abs(r_x), dim=1, keepdim=True)
-            r_fp8_max = self.register_tensor(
-                dtype=float32,
-                shape=[self.block_m, 1],
-                init=448.0,
-            )
-            r_scale = self.where(r_absmax > 0.0, x=r_absmax / 448.0, y=1.0)
-            r_inv_scale = self.where(r_absmax > 0.0, x=r_fp8_max / r_absmax, y=1.0)
+        # Clamp the absmax from below exactly as TileKernels does, so an
+        # all-zero group produces a tiny scale instead of a division by zero,
+        # and so both sides agree bit-for-bit on the clamped value.
+        r_absmax = self.max(self.abs(r_x_grouped), dim=2, keepdim=True)
+        r_amax = self.where(r_absmax > SF_CLAMP_MIN, x=r_absmax, y=SF_CLAMP_MIN)
+        r_fp8_max = self.register_tensor(
+            dtype=float32,
+            shape=[self.block_m, self.groups_per_block, 1],
+            init=E4M3_MAX,
+        )
+        r_scale = r_amax / E4M3_MAX
+        r_inv_scale = r_fp8_max / r_amax
 
-            self.store_global(g_out_sf, r_scale, offsets=[offset_m, sf_col])
-            self.store_global(
-                g_out,
-                (r_x * r_inv_scale).to(float8_e4m3),
-                offsets=[offset_m, offset_n],
-            )
+        # Store one fp32 scale per group.
+        r_scale_2d = self.reshape(r_scale, shape=[self.block_m, self.groups_per_block])
+        self.store_global(
+            g_out_sf,
+            r_scale_2d,
+            offsets=[offset_m, base_offset_n // self.num_per_channels],
+        )
 
-
-def tilekernels_per_token_cast_reference(
-    x: torch.Tensor,
-    num_per_channels: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    return per_token_cast(x, "e4m3", num_per_channels)
-
-
-def dequantized_sum(
-    out: torch.Tensor, scales: torch.Tensor, num_per_channels: int
-) -> torch.Tensor:
-    grouped = out.float().reshape(
-        out.shape[0],
-        out.shape[1] // num_per_channels,
-        num_per_channels,
-    )
-    return (grouped * scales[:, :, None]).sum()
+        # Apply scaling, flatten back, cast to fp8, bulk store.
+        r_out_grouped = (r_x_grouped * r_inv_scale).to(float8_e4m3)
+        r_out = self.reshape(r_out_grouped, shape=[self.block_m, n_step])
+        self.store_global(g_out, r_out, offsets=[offset_m, base_offset_n])
 
 
 def main():
@@ -122,56 +143,84 @@ def main():
         "tilekernels (ms)",
         "tilus (ms)",
         "speedup",
-        "sum diff",
+        "code mismatch",
+        "sf rel err",
+        "snr (dB)",
     ]
 
+    # The first three shapes move only a few hundred KB, so at ~6 us they are
+    # dominated by launch and dispatch overhead rather than by the kernel.  The
+    # last one reads 128 MB and is genuinely DRAM-bound, which is the regime
+    # this kernel is written for and the only one where the speedup column
+    # says anything about code quality.
     for num_tokens, hidden in [
         (128, 1024),
         (256, 2048),
         (257, 4096),
+        (8192, 8192),
     ]:
         num_per_channels = 128
         kernel = PerTokenCast(num_per_channels=num_per_channels)
 
+        # One bf16 tensor, read by both implementations.
         x = (
             torch.randn(
                 num_tokens,
                 hidden,
                 device="cuda",
-                dtype=torch.float16,
+                dtype=torch.bfloat16,
             )
             * 2.0
         ).contiguous()
-        out = torch.empty((num_tokens, hidden), device="cuda", dtype=torch.float8_e4m3fn)
-        out_sf = torch.empty(
-            (num_tokens, hidden // num_per_channels),
-            device="cuda",
-            dtype=torch.float32,
-        )
-        x_tilekernels = x.float()
 
-        kernel(num_tokens, hidden, x, out, out_sf)
-        expected_out, expected_sf = tilekernels_per_token_cast_reference(
-            x_tilekernels,
-            num_per_channels,
-        )
-
-        max_code_diff = (out.float() - expected_out.float()).abs().max().item()
-        assert max_code_diff <= 32.0, f"max decoded FP8 code diff is {max_code_diff}"
-        torch.testing.assert_close(out_sf, expected_sf, atol=1e-5, rtol=1e-5)
-
-        actual_sum = dequantized_sum(out, out_sf, num_per_channels)
-        expected_sum = dequantized_sum(expected_out, expected_sf, num_per_channels)
-        torch.testing.assert_close(actual_sum, expected_sum, atol=2.0, rtol=2e-2)
-        sum_diff = (actual_sum - expected_sum).abs().item()
-
-        tilekernels_ms = benchmark_func(
-            lambda: tilekernels_per_token_cast_reference(
-                x_tilekernels,
-                num_per_channels,
+        def run_tilus():
+            # Allocate here rather than reusing preallocated buffers, because
+            # the TileKernels entry point allocates its returns on every call.
+            out = torch.empty(
+                (num_tokens, hidden), device="cuda", dtype=torch.float8_e4m3fn
             )
+            out_sf = torch.empty(
+                (num_tokens, hidden // num_per_channels),
+                device="cuda",
+                dtype=torch.float32,
+            )
+            kernel(num_tokens, hidden, x, out, out_sf)
+            return out, out_sf
+
+        def run_tilekernels():
+            return per_token_cast(x, "e4m3", num_per_channels)
+
+        out, out_sf = run_tilus()
+        expected_out, expected_sf = run_tilekernels()
+        torch_out, torch_sf = torch_per_token_cast(x, num_per_channels)
+
+        # Tilus against TileKernels: same inputs, same arithmetic, so they may
+        # differ only by the approximate fp32 division Tilus compiles with.
+        sf_rel_err = check_scales_close(
+            out_sf, expected_sf, label=f"({num_tokens}, {hidden}) sf vs tilekernels"
         )
-        tilus_ms = benchmark_func(lambda: kernel(num_tokens, hidden, x, out, out_sf))
+        stats = check_fp8_close(
+            out,
+            expected_out,
+            label=f"({num_tokens}, {hidden}) out vs tilekernels",
+        )
+
+        # Both against an independent fp32 PyTorch cast, so that agreeing with
+        # each other is not mistaken for being correct.
+        check_scales_close(
+            out_sf, torch_sf, label=f"({num_tokens}, {hidden}) sf vs torch"
+        )
+        check_fp8_close(out, torch_out, label=f"({num_tokens}, {hidden}) out vs torch")
+        check_fp8_close(
+            expected_out,
+            torch_out,
+            label=f"({num_tokens}, {hidden}) tilekernels out vs torch",
+        )
+
+        snr_db = quantization_snr_db(x, dequantize(out, out_sf, num_per_channels))
+
+        tilekernels_ms = benchmark_func(run_tilekernels)
+        tilus_ms = benchmark_func(run_tilus)
         rows.append(
             [
                 num_tokens,
@@ -179,16 +228,26 @@ def main():
                 tilekernels_ms,
                 tilus_ms,
                 f"{tilekernels_ms / tilus_ms:.2f}x",
-                sum_diff,
+                f"{stats.mismatch_frac:.4%}",
+                f"{sf_rel_err:.2e}",
+                f"{snr_db:.1f}",
             ]
         )
         print(
             "Per-token FP8 cast matches reference for size "
-            f"({num_tokens}, {hidden}); max code diff={max_code_diff:.6g}; "
-            f"dequantized sum diff={sum_diff:.6g}"
+            f"({num_tokens}, {hidden}): every code within 1 of TileKernels and "
+            f"of fp32 torch, {stats.mismatch_frac:.4%} of codes differ at all, "
+            f"scale factors agree to {sf_rel_err:.2e} relative, "
+            f"quantization SNR {snr_db:.1f} dB"
         )
 
-    print(pandas.DataFrame(rows, columns=headers))
+    print(pandas.DataFrame(rows, columns=headers).to_string(index=False))
+    print(
+        "\nBoth implementations read the same bf16 input and allocate their own "
+        "outputs.\nThe Tilus kernel is autotuned per shape; the TileKernels "
+        "kernel picks its tiling\nanalytically from `hidden`, so it is not tuned "
+        "against this measurement."
+    )
 
 
 if __name__ == "__main__":
