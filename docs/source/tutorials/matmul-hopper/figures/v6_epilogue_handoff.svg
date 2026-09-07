@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="e6a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#777"/>
+    </marker>
+    <pattern id="e6wait" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <rect width="6" height="6" fill="#f7f7f7"/>
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#d5d5d5" stroke-width="2"/>
+    </pattern>
+  </defs>
+
+  <text x="380" y="24" text-anchor="middle" font-weight="700" font-size="15" fill="#333">One 64 x 256 buffer, four quarters, taken in turn</text>
+  <text x="380" y="43" text-anchor="middle" font-size="11.5" fill="#666">A full 256 x 256 fp16 staging buffer would be 128 KB, so the groups serialize through a 32 KB quarter instead</text>
+
+  <line x1="118" y1="60" x2="118" y2="330" stroke="#e0e0e0" stroke-width="1"/>
+
+  <!-- consumer lanes: group i stages its quarter only when its turn comes -->
+  <text x="110" y="84" text-anchor="end" font-size="11.5" font-weight="700" fill="#5e35b1">WG0</text>
+  <rect x="126" y="70" width="86" height="24" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.3"/>
+  <text x="169" y="86" text-anchor="middle" font-size="10" fill="#5e35b1">store_shared</text>
+
+  <text x="110" y="120" text-anchor="end" font-size="11.5" font-weight="700" fill="#6a1b9a">WG1</text>
+  <rect x="126" y="106" width="140" height="24" rx="3" fill="url(#e6wait)" stroke="#ddd" stroke-width="1"/>
+  <text x="190" y="122" text-anchor="middle" font-size="9.5" fill="#aaa">blocked</text>
+  <rect x="266" y="106" width="86" height="24" rx="3" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.3"/>
+  <text x="309" y="122" text-anchor="middle" font-size="10" fill="#6a1b9a">store_shared</text>
+
+  <text x="110" y="156" text-anchor="end" font-size="11.5" font-weight="700" fill="#5e35b1">WG2</text>
+  <rect x="126" y="142" width="280" height="24" rx="3" fill="url(#e6wait)" stroke="#ddd" stroke-width="1"/>
+  <text x="260" y="158" text-anchor="middle" font-size="9.5" fill="#aaa">blocked</text>
+  <rect x="406" y="142" width="86" height="24" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.3"/>
+  <text x="449" y="158" text-anchor="middle" font-size="10" fill="#5e35b1">store_shared</text>
+
+  <text x="110" y="192" text-anchor="end" font-size="11.5" font-weight="700" fill="#6a1b9a">WG3</text>
+  <rect x="126" y="178" width="420" height="24" rx="3" fill="url(#e6wait)" stroke="#ddd" stroke-width="1"/>
+  <text x="330" y="194" text-anchor="middle" font-size="9.5" fill="#aaa">blocked</text>
+  <rect x="546" y="178" width="86" height="24" rx="3" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.3"/>
+  <text x="589" y="194" text-anchor="middle" font-size="10" fill="#6a1b9a">store_shared</text>
+
+  <!-- ready: consumer signals the buffer is filled. Drawn in two segments so the
+       buffer band reads as the medium the signal passes through, not as cut apart. -->
+  <line x1="212" y1="94" x2="212" y2="222" stroke="#7e57c2" stroke-width="1.1"/>
+  <line x1="212" y1="252" x2="212" y2="272" stroke="#7e57c2" stroke-width="1.1" marker-end="url(#e6a)"/>
+  <line x1="352" y1="130" x2="352" y2="222" stroke="#8e24aa" stroke-width="1.1"/>
+  <line x1="352" y1="252" x2="352" y2="272" stroke="#8e24aa" stroke-width="1.1" marker-end="url(#e6a)"/>
+  <line x1="492" y1="166" x2="492" y2="222" stroke="#7e57c2" stroke-width="1.1"/>
+  <line x1="492" y1="252" x2="492" y2="272" stroke="#7e57c2" stroke-width="1.1" marker-end="url(#e6a)"/>
+  <line x1="632" y1="202" x2="632" y2="222" stroke="#8e24aa" stroke-width="1.1"/>
+  <line x1="632" y1="252" x2="632" y2="272" stroke="#8e24aa" stroke-width="1.1" marker-end="url(#e6a)"/>
+  <text x="206" y="268" text-anchor="end" font-size="9" fill="#7e57c2">ready[0]</text>
+  <text x="346" y="268" text-anchor="end" font-size="9" fill="#8e24aa">ready[1]</text>
+  <text x="486" y="268" text-anchor="end" font-size="9" fill="#7e57c2">ready[2]</text>
+  <text x="626" y="268" text-anchor="end" font-size="9" fill="#8e24aa">ready[3]</text>
+
+  <!-- the single buffer, and who owns it when -->
+  <text x="110" y="240" text-anchor="end" font-size="11.5" font-weight="700" fill="#bf360c">sc [64, 256]</text>
+  <text x="110" y="254" text-anchor="end" font-size="9.5" fill="#e65100">32 KB, one copy</text>
+  <rect x="126" y="222" width="137" height="30" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="194" y="241" text-anchor="middle" font-size="10" fill="#bf360c">quarter 0</text>
+  <rect x="266" y="222" width="137" height="30" fill="#ffe0b2" stroke="#e65100" stroke-width="1.3"/>
+  <text x="334" y="241" text-anchor="middle" font-size="10" fill="#bf360c">quarter 1</text>
+  <rect x="406" y="222" width="137" height="30" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="474" y="241" text-anchor="middle" font-size="10" fill="#bf360c">quarter 2</text>
+  <rect x="546" y="222" width="137" height="30" fill="#ffe0b2" stroke="#e65100" stroke-width="1.3"/>
+  <text x="614" y="241" text-anchor="middle" font-size="10" fill="#bf360c">quarter 3</text>
+
+  <!-- producer lane -->
+  <text x="110" y="294" text-anchor="end" font-size="11.5" font-weight="700" fill="#1b5e20">Producer</text>
+  <text x="110" y="308" text-anchor="end" font-size="9.5" fill="#2e7d32">warp, loads done</text>
+  <rect x="186" y="278" width="80" height="26" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="226" y="295" text-anchor="middle" font-size="9.5" fill="#1b5e20">TMA store 0</text>
+  <rect x="326" y="278" width="80" height="26" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="366" y="295" text-anchor="middle" font-size="9.5" fill="#1b5e20">TMA store 1</text>
+  <rect x="466" y="278" width="80" height="26" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="506" y="295" text-anchor="middle" font-size="9.5" fill="#1b5e20">TMA store 2</text>
+  <rect x="606" y="278" width="80" height="26" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="646" y="295" text-anchor="middle" font-size="9.5" fill="#1b5e20">TMA store 3</text>
+  <text x="694" y="295" font-size="9.5" font-weight="700" fill="#2e7d32">no free[3]</text>
+
+  <!-- free: the producer hands the drained buffer to the next group, in two
+       segments for the same reason as ready -->
+  <line x1="266" y1="278" x2="266" y2="252" stroke="#2e7d32" stroke-width="1.1"/>
+  <line x1="266" y1="222" x2="266" y2="134" stroke="#2e7d32" stroke-width="1.1" marker-end="url(#e6a)"/>
+  <line x1="406" y1="278" x2="406" y2="252" stroke="#2e7d32" stroke-width="1.1"/>
+  <line x1="406" y1="222" x2="406" y2="170" stroke="#2e7d32" stroke-width="1.1" marker-end="url(#e6a)"/>
+  <line x1="546" y1="278" x2="546" y2="252" stroke="#2e7d32" stroke-width="1.1"/>
+  <line x1="546" y1="222" x2="546" y2="206" stroke="#2e7d32" stroke-width="1.1" marker-end="url(#e6a)"/>
+  <text x="260" y="102" text-anchor="end" font-size="9" fill="#2e7d32">free[0]</text>
+  <text x="400" y="138" text-anchor="end" font-size="9" fill="#2e7d32">free[1]</text>
+  <text x="540" y="174" text-anchor="end" font-size="9" fill="#2e7d32">free[2]</text>
+
+  <text x="700" y="348" text-anchor="end" font-size="10.5" fill="#aaa">time →</text>
+
+  <line x1="126" y1="366" x2="700" y2="366" stroke="#eee" stroke-width="1"/>
+  <text x="126" y="386" font-size="11" fill="#333"><tspan font-weight="700" fill="#7e57c2">epilogue_ready[i]</tspan> — arrival count 128: every thread of the group takes part in store_shared. Four of them.</text>
+  <text x="126" y="404" font-size="11" fill="#333"><tspan font-weight="700" fill="#2e7d32">epilogue_free[i]</tspan> — arrival count 1: the producer alone. Only <tspan font-weight="700">three</tspan>, because WG3 has nobody to hand the buffer to.</text>
+</svg>

@@ -78,13 +78,6 @@ What Changed from V5
 The Register Budget Problem
 ---------------------------
 
-.. figure:: figures/v6_tile_partition.svg
-   :width: 100%
-   :align: center
-
-   A 256 x 256 output tile split by rows across four consumer warp groups. Each
-   group loads its own A slab; all four read the same B tile.
-
 A CUDA thread can hold at most 255 registers. An accumulator of ``m x n``
 distributed over a 128-thread warp group costs ``m * n / 128`` registers per
 thread in fp32. For V5's ``64 x 256`` per-group accumulator that is **128
@@ -96,6 +89,14 @@ Scaling to a ``256 x 256`` tile with four groups keeps each group's share at
 is legal, but there are now 512 consumer threads, and ``512 x 128 = 65536`` is
 the entire register file of an SM --- with nothing left for operands, addresses,
 loop state, or the producer warp. V6 instead accumulates in **fp16**:
+
+.. figure:: figures/v6_register_budget.svg
+   :width: 100%
+   :align: center
+
+   The same 64 x 256 quarter per group either way. Doubling the consumer groups
+   doubles the demand on a register file that does not grow; halving the
+   accumulator dtype is what pays it back.
 
 .. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
    :language: python
@@ -139,6 +140,14 @@ staging buffer would be 128 KB, competing with the pipeline's ring buffer for th
 same 228 KB budget.
 
 V6 allocates **one quarter-sized buffer** and has the groups take turns:
+
+.. figure:: figures/v6_epilogue_handoff.svg
+   :width: 100%
+   :align: center
+
+   Each group waits for its predecessor to clear ``sc`` before staging its own
+   quarter, and the producer warp drains it between turns. WG3 releases nothing,
+   which is why ``epilogue_free`` has three barriers rather than four.
 
 .. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
    :language: python
