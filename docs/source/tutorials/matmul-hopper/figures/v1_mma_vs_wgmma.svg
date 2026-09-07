@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- ================= V0: mma.sync ================= -->
+  <text x="380" y="22" text-anchor="middle" font-weight="700" font-size="15" fill="#333">V0: mma.sync — operands staged in registers</text>
+
+  <rect x="60" y="45" width="130" height="105" rx="5" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="125" y="68" text-anchor="middle" font-weight="700" font-size="12" fill="#bf360c">Shared Memory</text>
+  <text x="125" y="88" text-anchor="middle" font-size="11" fill="#e65100">sa [128, 64]</text>
+  <text x="125" y="106" text-anchor="middle" font-size="11" fill="#e65100">sb [256, 64]</text>
+  <text x="125" y="130" text-anchor="middle" font-size="10.5" fill="#8d6e63">48 KB per K-chunk</text>
+
+  <rect x="300" y="45" width="150" height="105" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="375" y="68" text-anchor="middle" font-weight="700" font-size="12" fill="#0d47a1">Register File</text>
+  <text x="375" y="88" text-anchor="middle" font-size="11" fill="#1565c0">a, b fragments</text>
+  <text x="375" y="106" text-anchor="middle" font-size="11" fill="#1565c0">acc (fp32)</text>
+  <text x="375" y="130" text-anchor="middle" font-size="10.5" fill="#c62828">all 48 KB passes through</text>
+
+  <rect x="560" y="45" width="140" height="105" rx="5" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.4"/>
+  <text x="630" y="68" text-anchor="middle" font-weight="700" font-size="12" fill="#5e35b1">Tensor Core</text>
+  <text x="630" y="90" text-anchor="middle" font-size="11" fill="#7e57c2">mma.sync</text>
+  <text x="630" y="112" text-anchor="middle" font-size="10.5" fill="#7e57c2">m16n8k16</text>
+  <text x="630" y="132" text-anchor="middle" font-size="10.5" fill="#8d6e63">per-warp, synchronous</text>
+
+  <line x1="192" y1="97" x2="296" y2="97" stroke="#c62828" stroke-width="1.8" marker-end="url(#a1)"/>
+  <text x="244" y="90" text-anchor="middle" font-size="10.5" fill="#c62828">ldmatrix x N</text>
+  <line x1="452" y1="97" x2="556" y2="97" stroke="#555" stroke-width="1.4" marker-end="url(#a1)"/>
+  <text x="504" y="90" text-anchor="middle" font-size="10.5" fill="#666">registers</text>
+
+  <!-- divider -->
+  <line x1="40" y1="185" x2="720" y2="185" stroke="#ddd" stroke-width="1"/>
+
+  <!-- ================= V1: wgmma ================= -->
+  <text x="380" y="215" text-anchor="middle" font-weight="700" font-size="15" fill="#333">V1: wgmma.mma_async — operands read from shared memory</text>
+
+  <rect x="60" y="240" width="130" height="105" rx="5" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="125" y="263" text-anchor="middle" font-weight="700" font-size="12" fill="#bf360c">Shared Memory</text>
+  <text x="125" y="283" text-anchor="middle" font-size="11" fill="#e65100">sa [128, 64]</text>
+  <text x="125" y="301" text-anchor="middle" font-size="11" fill="#e65100">sb [256, 64]</text>
+  <text x="125" y="325" text-anchor="middle" font-size="10.5" fill="#8d6e63">read in place</text>
+
+  <rect x="300" y="240" width="150" height="105" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="375" y="263" text-anchor="middle" font-weight="700" font-size="12" fill="#0d47a1">Register File</text>
+  <text x="375" y="290" text-anchor="middle" font-size="11" fill="#1565c0">acc (fp32) only</text>
+  <text x="375" y="316" text-anchor="middle" font-size="10.5" fill="#2e7d32">operand registers freed</text>
+
+  <rect x="560" y="240" width="140" height="105" rx="5" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.4"/>
+  <text x="630" y="263" text-anchor="middle" font-weight="700" font-size="12" fill="#5e35b1">Tensor Core</text>
+  <text x="630" y="285" text-anchor="middle" font-size="11" fill="#7e57c2">wgmma.mma_async</text>
+  <text x="630" y="307" text-anchor="middle" font-size="10.5" fill="#7e57c2">up to 64 x 256 x 16</text>
+  <text x="630" y="327" text-anchor="middle" font-size="10.5" fill="#8d6e63">per-warp-group, async</text>
+
+  <!-- descriptor arrow: shared straight to tensor core -->
+  <path d="M 192 268 C 300 250, 450 250, 556 268" fill="none" stroke="#2e7d32" stroke-width="1.8" marker-end="url(#a1)"/>
+  <text x="375" y="243" text-anchor="middle" font-size="10.5" fill="#2e7d32">64-bit shared memory descriptor</text>
+
+  <!-- accumulator arrow -->
+  <line x1="556" y1="318" x2="452" y2="318" stroke="#555" stroke-width="1.4" marker-end="url(#a1)"/>
+  <text x="504" y="337" text-anchor="middle" font-size="10.5" fill="#666">accumulate</text>
+
+  <text x="380" y="378" text-anchor="middle" font-size="11.5" fill="#2e7d32" font-weight="700">no ldmatrix, no operand registers, one instruction per warp group</text>
+</svg>
