@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,14 +609,14 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -618,7 +628,7 @@ document.write(`
 <div class="viewcode-block" id="FenceInstructionGroup">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/fence.html#tilus.lang.instructions.fence.FenceInstructionGroup">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">FenceInstructionGroup</span><span class="p">(</span><span class="n">InstructionGroup</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fence instructions for memory ordering between memory proxies.</span>
+<span class="w">    </span><span class="sd">"""Fence instructions for memory ordering between memory proxies.</span>
 
 <span class="sd">    CUDA GPUs have multiple memory proxies (generic, async, alias, tensormap) that can access</span>
 <span class="sd">    the same memory through different paths. When one proxy writes data that another proxy needs</span>
@@ -635,12 +645,12 @@ document.write(`
 
 <span class="sd">    ``proxy_async_release()`` is a lighter-weight alternative to ``proxy_async()`` when only</span>
 <span class="sd">    generic-to-async ordering is needed (not bidirectional).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
 <div class="viewcode-block" id="FenceInstructionGroup.proxy_async">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html#tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">proxy_async</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">space</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;shared&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Bidirectional async proxy fence.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">proxy_async</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">space</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"shared"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Bidirectional async proxy fence.</span>
 
 <span class="sd">        Establishes ordering between the async proxy and the generic proxy for memory</span>
 <span class="sd">        operations in the specified state space. Required when both proxies access the</span>
@@ -650,17 +660,17 @@ document.write(`
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        space: str</span>
-<span class="sd">            The state space for the fence. Candidates: ``&#39;shared&#39;``, ``&#39;global&#39;``.</span>
+<span class="sd">            The state space for the fence. Candidates: ``'shared'``, ``'global'``.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 8.0+ (sm_80).</span>
 <span class="sd">        - **PTX**: ``fence.proxy.async.shared::cta`` or ``fence.proxy.async.global``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">space</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;shared&quot;</span><span class="p">,</span> <span class="s2">&quot;global&quot;</span><span class="p">):</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">space</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"shared"</span><span class="p">,</span> <span class="s2">"global"</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Invalid scope for async proxy fence: </span><span class="si">{</span><span class="n">space</span><span class="si">}</span><span class="s2">. Supported candidates are &#39;shared&#39; and &#39;global&#39;.&quot;</span>
+                <span class="sa">f</span><span class="s2">"Invalid scope for async proxy fence: </span><span class="si">{</span><span class="n">space</span><span class="si">}</span><span class="s2">. Supported candidates are 'shared' and 'global'."</span>
             <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">fence_proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="n">space</span><span class="p">)</span></div>
 
@@ -668,7 +678,7 @@ document.write(`
 <div class="viewcode-block" id="FenceInstructionGroup.proxy_async_release">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release.html#tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async_release">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">proxy_async_release</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unidirectional generic-to-async release proxy fence for shared memory.</span>
+<span class="w">        </span><span class="sd">"""Unidirectional generic-to-async release proxy fence for shared memory.</span>
 
 <span class="sd">        A lighter-weight alternative to ``proxy_async()``. Only ensures that prior generic proxy</span>
 <span class="sd">        writes to shared memory are visible to subsequent async proxy reads (e.g.,</span>
@@ -679,7 +689,7 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
 <span class="sd">        - **PTX**: ``fence.proxy.async::generic.release.sync_restrict::shared::cta.cluster``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">fence_proxy_async_release</span><span class="p">()</span></div>
 </div>
 

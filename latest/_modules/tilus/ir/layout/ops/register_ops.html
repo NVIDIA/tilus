@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,14 +609,14 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -627,7 +637,7 @@ document.write(`
 <div class="viewcode-block" id="spatial">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.spatial.html#tilus.ir.layout.ops.spatial">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">spatial</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">ranks</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Create a spatial layout.</span>
 
 <span class="sd">    A spatial layout is a layout that maps all dimensions to the spatial dimensions. The ranks of the dimensions are</span>
@@ -646,16 +656,16 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The spatial layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">ranks</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span>
-                <span class="s2">&quot;Shape and ranks must have the same length, got </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">))</span>
+                <span class="s2">"Shape and ranks must have the same length, got </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">))</span>
             <span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">ranks</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Ranks must be unique, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ranks</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Ranks must be unique, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ranks</span><span class="p">))</span>
         <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">r</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">r</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">ranks</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Ranks must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">ranks</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Ranks must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">ranks</span><span class="p">))</span>
         <span class="n">spatial_modes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ranks</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">))]</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">spatial_modes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)))</span>
@@ -666,7 +676,7 @@ document.write(`
 <div class="viewcode-block" id="local">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.local.html#tilus.ir.layout.ops.local">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">local</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">ranks</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Create a local layout.</span>
 
 <span class="sd">    A local layout is a layout that maps all dimensions to the local dimensions. The ranks of the dimensions are</span>
@@ -685,16 +695,16 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The local layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">ranks</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span>
-                <span class="s2">&quot;Shape and ranks must have the same length, got </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">))</span>
+                <span class="s2">"Shape and ranks must have the same length, got </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">))</span>
             <span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">ranks</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Ranks must be unique, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ranks</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Ranks must be unique, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ranks</span><span class="p">))</span>
         <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">r</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">r</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">ranks</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Ranks must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">ranks</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Ranks must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">ranks</span><span class="p">))</span>
         <span class="n">local_modes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ranks</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">))]</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">local_modes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)))</span>
@@ -703,7 +713,7 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">replicated</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Create a full replicated layout.</span>
 
 <span class="sd">    A full replicated layout is a layout that replicates the entire tensor across all workers.</span>
@@ -720,7 +730,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The full replicated layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">replicated_unit</span> <span class="o">=</span> <span class="n">RegisterLayout</span><span class="p">(</span>
         <span class="n">shape</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(),</span> <span class="n">mode_shape</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(),</span> <span class="n">spatial_modes</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="n">num_workers</span><span class="p">,),</span> <span class="n">local_modes</span><span class="o">=</span><span class="nb">tuple</span><span class="p">()</span>
     <span class="p">)</span>
@@ -730,7 +740,7 @@ document.write(`
 <div class="viewcode-block" id="column_spatial">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_spatial.html#tilus.ir.layout.ops.column_spatial">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">column_spatial</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Create a spatial layout in column-major order.</span>
 
 <span class="sd">    Parameters</span>
@@ -742,7 +752,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The spatial layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">return</span> <span class="n">spatial</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">,</span> <span class="n">ranks</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)))))</span></div>
 
 
@@ -750,7 +760,7 @@ document.write(`
 <div class="viewcode-block" id="column_local">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.column_local.html#tilus.ir.layout.ops.column_local">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">column_local</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Create a local layout in column-major order.</span>
 
 <span class="sd">    Parameters</span>
@@ -762,7 +772,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The local layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">return</span> <span class="n">local</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">,</span> <span class="n">ranks</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)))))</span></div>
 
 
@@ -770,7 +780,7 @@ document.write(`
 <div class="viewcode-block" id="squeeze">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.squeeze.html#tilus.ir.layout.ops.squeeze">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">squeeze</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Squeeze the layout over the given dimensions.</span>
 
 <span class="sd">    The squeeze function will return a new layout with the dimensions specified in dims removed from the layout. The</span>
@@ -789,15 +799,15 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The squeezed layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">layout</span>
     <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">d</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">d</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Dims must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">dims</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Dims must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">dims</span><span class="p">))</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dims</span><span class="p">)):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Dims must be unique, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dims</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Dims must be unique, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dims</span><span class="p">))</span>
     <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Dims must have size 1, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">([</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">]))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Dims must have size 1, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">([</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">]))</span>
     <span class="n">shape</span> <span class="o">=</span> <span class="p">[</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">layout</span><span class="o">.</span><span class="n">with_shape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span></div>
 
@@ -806,7 +816,7 @@ document.write(`
 <div class="viewcode-block" id="unsqueeze">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.unsqueeze.html#tilus.ir.layout.ops.unsqueeze">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">unsqueeze</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Unsqueeze the layout over the given dimensions.</span>
 
 <span class="sd">    The unsqueeze function will return a new layout with the dimensions specified in dims added to the layout. The</span>
@@ -825,13 +835,13 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The unsqueezed layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">layout</span>
     <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">d</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">d</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Dims must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">),</span> <span class="n">dims</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Dims must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">),</span> <span class="n">dims</span><span class="p">))</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dims</span><span class="p">)):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Dims must be unique, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dims</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Dims must be unique, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dims</span><span class="p">))</span>
     <span class="n">shape</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">current</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)):</span>
@@ -847,16 +857,16 @@ document.write(`
 <div class="viewcode-block" id="compose">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.compose.html#tilus.ir.layout.ops.compose">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">compose</span><span class="p">(</span><span class="n">outer</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">inner</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Compose two layouts together.</span>
 
-<span class="sd">    Given two layouts with shapes (d_0, d_1, ..., d_{n-1}) and (d&#39;_0, d&#39;_1, ..., d&#39;_{n-1}), the compose function will</span>
-<span class="sd">    return a new layout with shape (d_0 * d&#39;_0, d_1 * d&#39;_1, ..., d_{n-1} * d&#39;_{n-1}). The modes of the new layout will be</span>
+<span class="sd">    Given two layouts with shapes (d_0, d_1, ..., d_{n-1}) and (d'_0, d'_1, ..., d'_{n-1}), the compose function will</span>
+<span class="sd">    return a new layout with shape (d_0 * d'_0, d_1 * d'_1, ..., d_{n-1} * d'_{n-1}). The modes of the new layout will be</span>
 <span class="sd">    the concatenation of the modes of the two layouts. The spatial dimensions of the new layout will be the concatenation</span>
 <span class="sd">    of the spatial dimensions of the two layouts. The local dimensions of the new layout will be the concatenation of the</span>
 <span class="sd">    local dimensions of the two layouts. The spatial_modes and local_modes of the new layout will be the concatenation of the</span>
-<span class="sd">    spatial_modes and local_modes of the two layouts, respectively, where the outer layout&#39;s spatial_modes and local_modes</span>
-<span class="sd">    come first, followed by the inner layout&#39;s spatial_modes and local_modes.</span>
+<span class="sd">    spatial_modes and local_modes of the two layouts, respectively, where the outer layout's spatial_modes and local_modes</span>
+<span class="sd">    come first, followed by the inner layout's spatial_modes and local_modes.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -870,7 +880,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The composed layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># unify the ndims of the two layouts</span>
     <span class="n">ndims</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">outer</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">inner</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
     <span class="n">outer</span> <span class="o">=</span> <span class="n">unsqueeze</span><span class="p">(</span><span class="n">outer</span><span class="p">,</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndims</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">outer</span><span class="o">.</span><span class="n">shape</span><span class="p">))])</span>
@@ -912,7 +922,7 @@ document.write(`
 <div class="viewcode-block" id="permute">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.permute.html#tilus.ir.layout.ops.permute">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">permute</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Permute the dimensions of the layout.</span>
 
 <span class="sd">    Given a layout with shape (d_0, d_1, ..., d_{n-1}), the permute function will return a new layout with shape</span>
@@ -931,15 +941,15 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The permuted layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span>
-            <span class="s2">&quot;Dims must have the same length as the layout shape, got </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+            <span class="s2">"Dims must have the same length as the layout shape, got </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
         <span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dims</span><span class="p">)):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Dims must be unique, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dims</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Dims must be unique, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dims</span><span class="p">))</span>
     <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">d</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">d</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Dims must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">dims</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Dims must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">dims</span><span class="p">))</span>
 
     <span class="n">shape</span> <span class="o">=</span> <span class="p">[</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">]</span>
     <span class="n">grouped_modes</span> <span class="o">=</span> <span class="p">[</span><span class="n">layout</span><span class="o">.</span><span class="n">grouped_modes</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">]</span>
@@ -965,7 +975,7 @@ document.write(`
     <span class="o">*</span><span class="p">,</span>
     <span class="n">keepdims</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Reduce the layout over the given dimensions.</span>
 
 <span class="sd">    The reduce function will return a new layout with the dimensions specified in dims reduced to 1. The reduced</span>
@@ -987,13 +997,13 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The reduced layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">layout</span>
     <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">d</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">d</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Dims must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">dims</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Dims must be in range [0, </span><span class="si">{}</span><span class="s2">), got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">dims</span><span class="p">))</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dims</span><span class="p">)):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Dims must be unique, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dims</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Dims must be unique, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dims</span><span class="p">))</span>
 
     <span class="n">mode_map</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="n">modes_to_reduce</span> <span class="o">=</span> <span class="p">[</span><span class="n">mode</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">grouped_modes</span><span class="p">)</span> <span class="k">for</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">group</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">]</span>
@@ -1051,7 +1061,7 @@ document.write(`
             <span class="c1"># matched dimension</span>
             <span class="k">continue</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;can not broadcast output layout from input shape&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"can not broadcast output layout from input shape"</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">reduce_dims_keep_dims</span><span class="p">:</span>
         <span class="n">layout</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">reduce_dims_keep_dims</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -1063,7 +1073,7 @@ document.write(`
 <div class="viewcode-block" id="concat">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.concat.html#tilus.ir.layout.ops.concat">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">concat</span><span class="p">(</span><span class="n">lhs</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">rhs</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Concatenate two layouts.</span>
 
 <span class="sd">    The concat function will return a new layout with the dimensions of the two layouts concatenated.</span>
@@ -1079,7 +1089,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The concatenated layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">lhs_num_modes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">register_layout</span><span class="p">(</span>
         <span class="n">shape</span><span class="o">=</span><span class="n">lhs</span><span class="o">.</span><span class="n">shape</span> <span class="o">+</span> <span class="n">rhs</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
@@ -1093,7 +1103,7 @@ document.write(`
 <div class="viewcode-block" id="reshape">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.reshape.html#tilus.ir.layout.ops.reshape">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">reshape</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Reshape the layout to the given shape.</span>
 
 <span class="sd">    Parameters</span>
@@ -1102,15 +1112,15 @@ document.write(`
 <span class="sd">        The layout to reshape.</span>
 
 <span class="sd">    shape: Sequence[int]</span>
-<span class="sd">        The shape to reshape to. The shape must be compatible with the layout&#39;s shape.</span>
+<span class="sd">        The shape to reshape to. The shape must be compatible with the layout's shape.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The reshaped layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">prod</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="n">prod</span><span class="p">(</span><span class="n">shape</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot reshape layout with shape </span><span class="si">{}</span><span class="s2"> to shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">shape</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot reshape layout with shape </span><span class="si">{}</span><span class="s2"> to shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">shape</span><span class="p">))</span>
 
     <span class="n">original_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
 
@@ -1143,7 +1153,7 @@ document.write(`
                 <span class="n">p</span> <span class="o">//=</span> <span class="n">q</span>
                 <span class="n">shape</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot reshape layout </span><span class="si">{}</span><span class="s2"> to shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">shape</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot reshape layout </span><span class="si">{}</span><span class="s2"> to shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">shape</span><span class="p">))</span>
 
     <span class="n">new_mode_shape</span> <span class="o">=</span> <span class="p">[</span><span class="n">size</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">grouped_mode_shape</span> <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">group</span><span class="p">]</span>
     <span class="n">mode_map</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
@@ -1176,7 +1186,7 @@ document.write(`
 <div class="viewcode-block" id="flatten">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.flatten.html#tilus.ir.layout.ops.flatten">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">flatten</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">start_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">end_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Flatten the layout over the dimensions between start_dim and end_dim, inclusive.</span>
 
 <span class="sd">    Parameters</span>
@@ -1195,7 +1205,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The flattened layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">end_dim</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">end_dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">+</span> <span class="n">end_dim</span>
     <span class="n">shape</span> <span class="o">=</span> <span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="n">start_dim</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">prod</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">start_dim</span><span class="p">:</span><span class="n">end_dim</span><span class="p">]),)</span> <span class="o">+</span> <span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">end_dim</span><span class="p">:]</span>
@@ -1240,7 +1250,7 @@ document.write(`
 <div class="viewcode-block" id="divide">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.divide.html#tilus.ir.layout.ops.divide">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">divide</span><span class="p">(</span><span class="n">lhs</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">rhs</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Divide two layouts.</span>
 
 <span class="sd">    Given two layouts lhs and rhs, the divide function will return a new layout result, such that:</span>
@@ -1260,10 +1270,10 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The result layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># 0. refine the mode_shape of the lhs layout to make it compatible with the rhs layout</span>
     <span class="c1"># 1. check whether we can divide the two layouts</span>
-    <span class="c1">#  1.1. the rhs layout&#39;s grouped modes must be a suffix of the lhs layout&#39;s grouped modes for each group</span>
+    <span class="c1">#  1.1. the rhs layout's grouped modes must be a suffix of the lhs layout's grouped modes for each group</span>
     <span class="c1">#  1.2. all such suffix dimension must also be the suffix of the spatial/local modes in lhs layout</span>
     <span class="c1"># 2. construct the result of division lhs / rhs</span>
     <span class="c1">#  2.1. calculate the mode_shape of the result layout</span>
@@ -1271,7 +1281,7 @@ document.write(`
     <span class="c1">#  2.2. calculate the new spatial/local modes of the result layout based on the mapping</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
         <span class="n">rhs</span> <span class="o">=</span> <span class="n">unsqueeze</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">shape</span><span class="p">))])</span>
 
@@ -1282,7 +1292,7 @@ document.write(`
     <span class="n">mode_shape</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">lhs_group</span><span class="p">,</span> <span class="n">rhs_group</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">grouped_modes</span><span class="p">,</span> <span class="n">rhs</span><span class="o">.</span><span class="n">grouped_modes</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs_group</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs_group</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
         <span class="n">refined_group_shape</span> <span class="o">=</span> <span class="p">[</span><span class="n">lhs</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span> <span class="k">for</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">lhs_group</span><span class="p">[:</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs_group</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs_group</span><span class="p">)]]</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">lhs_group</span><span class="p">[</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">rhs_group</span><span class="p">)</span> <span class="p">:],</span> <span class="n">rhs_group</span><span class="p">)):</span>
             <span class="n">p</span><span class="p">,</span> <span class="n">q</span> <span class="o">=</span> <span class="n">lhs</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">rhs</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">q</span><span class="p">]</span>
@@ -1294,7 +1304,7 @@ document.write(`
                     <span class="n">refined_group_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span> <span class="o">//</span> <span class="n">q</span><span class="p">)</span>
                     <span class="n">refined_group_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+                    <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
         <span class="n">mode_shape</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">refined_group_shape</span><span class="p">)</span>
     <span class="n">lhs</span> <span class="o">=</span> <span class="n">_layout_with_mode_shape</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">mode_shape</span><span class="p">)</span>
 
@@ -1308,10 +1318,10 @@ document.write(`
         <span class="n">lhs_group</span> <span class="o">=</span> <span class="n">lhs_grouped_modes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
         <span class="n">rhs_group</span> <span class="o">=</span> <span class="n">rhs_grouped_modes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs_group</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs_group</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">lhs_group</span><span class="p">[</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">rhs_group</span><span class="p">)</span> <span class="p">:],</span> <span class="n">rhs_group</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">lhs</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">!=</span> <span class="n">rhs</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">b</span><span class="p">]:</span>
-                <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
 
     <span class="c1"># 1.2. check the spatial/local modes</span>
     <span class="n">mode_map</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># from rhs mode to its corresponding mode in lhs layout</span>
@@ -1324,20 +1334,20 @@ document.write(`
             <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
             <span class="n">j</span> <span class="o">+=</span> <span class="mi">1</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">local_modes</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">local_modes</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
     <span class="k">for</span> <span class="n">lhs_mode</span><span class="p">,</span> <span class="n">rhs_mode</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">[</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">)</span> <span class="p">:],</span> <span class="n">rhs</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">lhs_mode</span> <span class="o">==</span> <span class="n">rhs_mode</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">continue</span>
         <span class="k">if</span> <span class="n">lhs_mode</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">rhs_mode</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
         <span class="k">if</span> <span class="n">mode_map</span><span class="p">[</span><span class="n">rhs_mode</span><span class="p">]</span> <span class="o">!=</span> <span class="n">lhs_mode</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
     <span class="k">for</span> <span class="n">lhs_mode</span><span class="p">,</span> <span class="n">rhs_mode</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">local_modes</span><span class="p">[</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">local_modes</span><span class="p">)</span> <span class="p">:],</span> <span class="n">rhs</span><span class="o">.</span><span class="n">local_modes</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">mode_map</span><span class="p">[</span><span class="n">rhs_mode</span><span class="p">]</span> <span class="o">!=</span> <span class="n">lhs_mode</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
     <span class="k">for</span> <span class="n">lhs_mode</span><span class="p">,</span> <span class="n">rhs_mode</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">local_modes</span><span class="p">[</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">local_modes</span><span class="p">)</span> <span class="p">:],</span> <span class="n">rhs</span><span class="o">.</span><span class="n">local_modes</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">mode_map</span><span class="p">[</span><span class="n">rhs_mode</span><span class="p">]</span> <span class="o">!=</span> <span class="n">lhs_mode</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">))</span>
 
     <span class="c1"># 2.1. calculate the mode_shape of the result layout</span>
     <span class="n">shape</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="o">//</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">rhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)]</span>
@@ -1375,7 +1385,7 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">left_divide</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Divide the layout from the left by the lhs_divisor.</span>
 
 <span class="sd">    Given two layouts: layout and lhs_divisor, the left_divide function will return a new layout result, such that:</span>
@@ -1395,10 +1405,10 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The result layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># 0. refine the mode_shape of the layout to make it compatible with the lhs_divisor layout</span>
     <span class="c1"># 1. check whether we can left-divide the two layouts</span>
-    <span class="c1">#  1.1. the lhs_divisor layout&#39;s grouped modes must be a prefix of the layout&#39;s grouped modes for each group</span>
+    <span class="c1">#  1.1. the lhs_divisor layout's grouped modes must be a prefix of the layout's grouped modes for each group</span>
     <span class="c1">#  1.2. all such prefix dimensions must also be the prefix of the spatial/local modes in layout</span>
     <span class="c1"># 2. construct the result of left division: layout = compose(lhs_divisor, result)</span>
     <span class="c1">#  2.1. calculate the mode_shape of the result layout (remove the prefix modes)</span>
@@ -1406,7 +1416,7 @@ document.write(`
     <span class="c1">#  2.3. calculate the new spatial/local modes of the result layout based on the mapping</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs_divisor</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs_divisor</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
         <span class="n">lhs_divisor</span> <span class="o">=</span> <span class="n">unsqueeze</span><span class="p">(</span><span class="n">lhs_divisor</span><span class="p">,</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs_divisor</span><span class="o">.</span><span class="n">shape</span><span class="p">))])</span>
 
@@ -1423,7 +1433,7 @@ document.write(`
         <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># pointer in lay_sizes</span>
         <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">q</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">div_sizes</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lay_sizes</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
             <span class="n">p</span> <span class="o">=</span> <span class="n">lay_sizes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">p</span> <span class="o">==</span> <span class="n">q</span><span class="p">:</span>
                 <span class="n">group_refined</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
@@ -1434,10 +1444,10 @@ document.write(`
                     <span class="n">group_refined</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
                     <span class="n">lay_sizes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span> <span class="o">//</span> <span class="n">q</span>
                     <span class="k">if</span> <span class="n">lay_sizes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                        <span class="c1"># keep 1 as a mode piece to be consistent with divide&#39;s refinement behavior</span>
+                        <span class="c1"># keep 1 as a mode piece to be consistent with divide's refinement behavior</span>
                         <span class="k">pass</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
+                    <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
         <span class="c1"># append the remaining parts of the layout group</span>
         <span class="n">group_refined</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">lay_sizes</span><span class="p">[</span><span class="n">i</span><span class="p">:])</span>
         <span class="n">refined_mode_shape</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">group_refined</span><span class="p">)</span>
@@ -1451,10 +1461,10 @@ document.write(`
         <span class="n">lay_group</span> <span class="o">=</span> <span class="n">lay_grouped</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
         <span class="n">div_group</span> <span class="o">=</span> <span class="n">div_grouped</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lay_group</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">div_group</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">lay_group</span><span class="p">[:</span> <span class="nb">len</span><span class="p">(</span><span class="n">div_group</span><span class="p">)],</span> <span class="n">div_group</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">layout</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">!=</span> <span class="n">lhs_divisor</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">[</span><span class="n">b</span><span class="p">]:</span>
-                <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
 
     <span class="c1"># 1.2. check the spatial/local modes (prefix)</span>
     <span class="c1"># build mapping from lhs_divisor mode to corresponding mode index in layout</span>
@@ -1471,19 +1481,19 @@ document.write(`
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs_divisor</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">local_modes</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span>
         <span class="n">lhs_divisor</span><span class="o">.</span><span class="n">local_modes</span>
     <span class="p">):</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
 
     <span class="k">for</span> <span class="n">lay_mode</span><span class="p">,</span> <span class="n">div_mode</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">[:</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs_divisor</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">)],</span> <span class="n">lhs_divisor</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">lay_mode</span> <span class="o">==</span> <span class="n">div_mode</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">continue</span>
         <span class="k">if</span> <span class="n">lay_mode</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">div_mode</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
         <span class="k">if</span> <span class="n">mode_map</span><span class="p">[</span><span class="n">div_mode</span><span class="p">]</span> <span class="o">!=</span> <span class="n">lay_mode</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
 
     <span class="k">for</span> <span class="n">lay_mode</span><span class="p">,</span> <span class="n">div_mode</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">local_modes</span><span class="p">[:</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs_divisor</span><span class="o">.</span><span class="n">local_modes</span><span class="p">)],</span> <span class="n">lhs_divisor</span><span class="o">.</span><span class="n">local_modes</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">mode_map</span><span class="p">[</span><span class="n">div_mode</span><span class="p">]</span> <span class="o">!=</span> <span class="n">lay_mode</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">&quot;Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="s2">"Cannot left-divide layout </span><span class="si">{}</span><span class="s2"> by layout </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="p">))</span>
 
     <span class="c1"># 2.1. calculate the mode_shape of the result layout (remove prefix)</span>
     <span class="n">shape</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="o">//</span> <span class="n">b</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">lhs_divisor</span><span class="o">.</span><span class="n">shape</span><span class="p">)]</span>
@@ -1523,7 +1533,7 @@ document.write(`
 <div class="viewcode-block" id="auto_local_spatial">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.auto_local_spatial.html#tilus.ir.layout.ops.auto_local_spatial">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">auto_local_spatial</span><span class="p">(</span><span class="n">num_threads</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a local(...).spatial(...) layout.</span>
+<span class="w">    </span><span class="sd">"""Create a local(...).spatial(...) layout.</span>
 
 <span class="sd">    This function automatically determines a composition of the local and spatial layouts, based on the number of threads</span>
 <span class="sd">    and the shape of the composed layout.</span>
@@ -1539,10 +1549,10 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The layout that is a composition of local and spatial layouts.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">size</span> <span class="o">=</span> <span class="n">prod</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
     <span class="k">assert</span> <span class="n">size</span> <span class="o">%</span> <span class="n">num_threads</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">num_threads</span> <span class="o">%</span> <span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span>
-        <span class="s2">&quot;Cannot auto local spatial layout with shape </span><span class="si">{}</span><span class="s2"> and num_threads </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">num_threads</span><span class="p">)</span>
+        <span class="s2">"Cannot auto local spatial layout with shape </span><span class="si">{}</span><span class="s2"> and num_threads </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">num_threads</span><span class="p">)</span>
     <span class="p">)</span>
 
     <span class="n">remain_shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
@@ -1570,7 +1580,7 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">locate_at</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">global_indices</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">],</span> <span class="n">spatial_index</span><span class="p">:</span> <span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Check if the global indices are located at the given spatial index.</span>
 
 <span class="sd">    Parameters</span>
@@ -1588,14 +1598,14 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: Expr</span>
 <span class="sd">        Expression with value True if the global indices are located at the given spatial index, False otherwise.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.dtypes</span><span class="w"> </span><span class="kn">import</span> <span class="n">boolean</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.expr</span><span class="w"> </span><span class="kn">import</span> <span class="n">logical_and</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.utils.index_transform</span><span class="w"> </span><span class="kn">import</span> <span class="n">index_deserialize</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">global_indices</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;Global indices must match the shape of the layout, got </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="s2">"Global indices must match the shape of the layout, got </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                 <span class="nb">len</span><span class="p">(</span><span class="n">global_indices</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
             <span class="p">)</span>
         <span class="p">)</span>

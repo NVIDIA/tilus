@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,22 +609,22 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
-<span class="sd">&quot;&quot;&quot;User-facing atomic tile operations exposed as ``self.atomic.*``.</span>
+<span class="sd">"""User-facing atomic tile operations exposed as ``self.atomic.*``.</span>
 
 <span class="sd">See :doc:`/python-api/instruction-groups/atomic` for a detailed guide on the</span>
 <span class="sd">element-wise vs. scatter forms and the ``sem`` / ``scope`` semantics.</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
@@ -628,7 +638,7 @@ document.write(`
 <div class="viewcode-block" id="AtomicInstructionGroup">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/atomic.html#tilus.lang.instructions.atomic.AtomicInstructionGroup">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">AtomicInstructionGroup</span><span class="p">(</span><span class="n">InstructionGroup</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tile-level atomic read-modify-write instructions.</span>
+<span class="w">    </span><span class="sd">"""Tile-level atomic read-modify-write instructions.</span>
 
 <span class="sd">    Two flavours are offered. The **element-wise** form (:meth:`shared_add` and</span>
 <span class="sd">    friends) operates tile-to-tile: each lane contributes its own element of a</span>
@@ -636,7 +646,7 @@ document.write(`
 <span class="sd">    the requested PTX ``atom.*`` operation. The **scatter** form</span>
 <span class="sd">    (:meth:`shared_scatter_add` and friends) follows ``torch.scatter_add_``</span>
 <span class="sd">    semantics --- a compile-time ``dim`` axis plus a per-lane ``indices`` tile</span>
-<span class="sd">    picks the destination offset; the non-scatter axes come from the tile&#39;s</span>
+<span class="sd">    picks the destination offset; the non-scatter axes come from the tile's</span>
 <span class="sd">    global position.</span>
 
 <span class="sd">    The full element-wise family is ``add`` / ``sub`` / ``min`` / ``max`` /</span>
@@ -646,10 +656,10 @@ document.write(`
 
 <span class="sd">    All methods accept two optional PTX qualifiers:</span>
 
-<span class="sd">    - ``sem``: the memory-ordering qualifier. Candidates: ``&#39;relaxed&#39;``,</span>
-<span class="sd">      ``&#39;acquire&#39;``, ``&#39;release&#39;``, ``&#39;acq_rel&#39;``. Defaults to ``&#39;relaxed&#39;``.</span>
-<span class="sd">    - ``scope``: the sync-scope qualifier. Candidates: ``&#39;cta&#39;``, ``&#39;cluster&#39;``,</span>
-<span class="sd">      ``&#39;gpu&#39;``, ``&#39;sys&#39;``. Defaults to ``&#39;cta&#39;`` on shared ops and ``&#39;gpu&#39;``</span>
+<span class="sd">    - ``sem``: the memory-ordering qualifier. Candidates: ``'relaxed'``,</span>
+<span class="sd">      ``'acquire'``, ``'release'``, ``'acq_rel'``. Defaults to ``'relaxed'``.</span>
+<span class="sd">    - ``scope``: the sync-scope qualifier. Candidates: ``'cta'``, ``'cluster'``,</span>
+<span class="sd">      ``'gpu'``, ``'sys'``. Defaults to ``'cta'`` on shared ops and ``'gpu'``</span>
 <span class="sd">      on global ops.</span>
 
 <span class="sd">    And an optional ``output`` register tensor that receives the per-element</span>
@@ -663,7 +673,7 @@ document.write(`
 <span class="sd">    :meth:`tilus.Script.store_shared_scatter` / :meth:`tilus.Script.store_global_scatter`</span>
 <span class="sd">        Non-atomic scatter stores that share the same ``indices`` / ``values``</span>
 <span class="sd">        contract. Use them when the scatter is guaranteed collision-free.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="c1"># ------------------------------------------------------------------</span>
     <span class="c1"># Element-wise atomics (shared)</span>
@@ -676,11 +686,11 @@ document.write(`
         <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cta"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = dst[i] + values[i]`` atomically, on shared memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise ``dst[i] = dst[i] + values[i]`` atomically, on shared memory.</span>
 
 <span class="sd">        ``dst.shape`` and ``values.shape`` must be equal, and each lane contributes</span>
 <span class="sd">        its own slice of ``values`` to the matching slice of ``dst`` with no</span>
@@ -693,11 +703,11 @@ document.write(`
 <span class="sd">        values: RegisterTensor</span>
 <span class="sd">            Per-lane contribution; same shape as ``dst``.</span>
 <span class="sd">        sem: str</span>
-<span class="sd">            PTX memory-ordering qualifier. Candidates: ``&#39;relaxed&#39;``, ``&#39;acquire&#39;``,</span>
-<span class="sd">            ``&#39;release&#39;``, ``&#39;acq_rel&#39;``.</span>
+<span class="sd">            PTX memory-ordering qualifier. Candidates: ``'relaxed'``, ``'acquire'``,</span>
+<span class="sd">            ``'release'``, ``'acq_rel'``.</span>
 <span class="sd">        scope: str</span>
-<span class="sd">            PTX sync scope. Candidates: ``&#39;cta&#39;``, ``&#39;cluster&#39;``, ``&#39;gpu&#39;``,</span>
-<span class="sd">            ``&#39;sys&#39;``.</span>
+<span class="sd">            PTX sync scope. Candidates: ``'cta'``, ``'cluster'``, ``'gpu'``,</span>
+<span class="sd">            ``'sys'``.</span>
 <span class="sd">        output: RegisterTensor, optional</span>
 <span class="sd">            If provided, the per-element pre-RMW value at each location is written</span>
 <span class="sd">            into this register tile (same shape as ``dst``).</span>
@@ -715,11 +725,11 @@ document.write(`
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.add.s32`` (or ``red.*`` when the</span>
 <span class="sd">          output is unused).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"add"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -733,11 +743,11 @@ document.write(`
         <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cta"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = dst[i] - values[i]`` atomically, on shared memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise ``dst[i] = dst[i] - values[i]`` atomically, on shared memory.</span>
 
 <span class="sd">        PTX has no native ``atom.sub``; the codegen lowers this to ``atom.add``</span>
 <span class="sd">        with the negated operand. See :meth:`shared_add` for the full parameter</span>
@@ -748,11 +758,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.add.s32`` with a negated input.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;sub&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"sub"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -766,11 +776,11 @@ document.write(`
         <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cta"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = min(dst[i], values[i])`` atomically, on shared memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise ``dst[i] = min(dst[i], values[i])`` atomically, on shared memory.</span>
 
 <span class="sd">        See :meth:`shared_add` for the full parameter description.</span>
 
@@ -779,11 +789,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.min.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"min"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -797,11 +807,11 @@ document.write(`
         <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cta"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = max(dst[i], values[i])`` atomically, on shared memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise ``dst[i] = max(dst[i], values[i])`` atomically, on shared memory.</span>
 
 <span class="sd">        See :meth:`shared_add` for the full parameter description.</span>
 
@@ -810,11 +820,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.max.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"max"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -828,14 +838,14 @@ document.write(`
         <span class="n">dst</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cta"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``old = dst[i]; dst[i] = values[i]`` atomically (exchange).</span>
+<span class="w">        </span><span class="sd">"""Element-wise ``old = dst[i]; dst[i] = values[i]`` atomically (exchange).</span>
 
 <span class="sd">        Unlike the arithmetic ops, ``exch`` has no ``red.*`` counterpart in PTX,</span>
-<span class="sd">        so ``output`` is effectively always bound. Callers that don&#39;t need the</span>
+<span class="sd">        so ``output`` is effectively always bound. Callers that don't need the</span>
 <span class="sd">        old value should prefer a plain store.</span>
 
 <span class="sd">        See :meth:`shared_add` for the full parameter description.</span>
@@ -845,11 +855,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.exch.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;exch&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"exch"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -864,11 +874,11 @@ document.write(`
         <span class="n">compare</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cta"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise compare-and-swap on shared memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise compare-and-swap on shared memory.</span>
 
 <span class="sd">        Per element: ``old = dst[i]; if (old == compare[i]) dst[i] = values[i]``,</span>
 <span class="sd">        atomically. The returned ``output`` (if bound) holds ``old``, which the</span>
@@ -898,11 +908,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.cas.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;cas&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"cas"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -921,15 +931,15 @@ document.write(`
         <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gpu"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = dst[i] + values[i]`` atomically, on global memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise ``dst[i] = dst[i] + values[i]`` atomically, on global memory.</span>
 
 <span class="sd">        See :meth:`shared_add` for the full parameter description; the only</span>
 <span class="sd">        difference is that ``dst`` is a :class:`~tilus.ir.GlobalTensor` and the</span>
-<span class="sd">        default scope is ``&#39;gpu&#39;`` rather than ``&#39;cta&#39;``.</span>
+<span class="sd">        default scope is ``'gpu'`` rather than ``'cta'``.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
@@ -937,11 +947,11 @@ document.write(`
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.add.s32`` (or ``red.*`` when the</span>
 <span class="sd">          output is unused).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"add"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -955,11 +965,11 @@ document.write(`
         <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gpu"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = dst[i] - values[i]`` atomically, on global memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise ``dst[i] = dst[i] - values[i]`` atomically, on global memory.</span>
 
 <span class="sd">        Lowered to ``atom.add`` with a negated operand; see :meth:`global_add`.</span>
 
@@ -968,11 +978,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.add.s32`` with a negated input.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;sub&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"sub"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -986,11 +996,11 @@ document.write(`
         <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gpu"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = min(dst[i], values[i])`` atomically, on global memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise ``dst[i] = min(dst[i], values[i])`` atomically, on global memory.</span>
 
 <span class="sd">        See :meth:`global_add` for the full parameter description.</span>
 
@@ -999,11 +1009,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.min.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"min"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1017,11 +1027,11 @@ document.write(`
         <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gpu"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise ``dst[i] = max(dst[i], values[i])`` atomically, on global memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise ``dst[i] = max(dst[i], values[i])`` atomically, on global memory.</span>
 
 <span class="sd">        See :meth:`global_add` for the full parameter description.</span>
 
@@ -1030,11 +1040,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.max.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"max"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1048,11 +1058,11 @@ document.write(`
         <span class="n">dst</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gpu"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise atomic exchange on global memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise atomic exchange on global memory.</span>
 
 <span class="sd">        ``old = dst[i]; dst[i] = values[i]``. See :meth:`shared_exch` for the</span>
 <span class="sd">        caveat about ``exch`` having no ``red.*`` counterpart.</span>
@@ -1062,11 +1072,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.exch.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;exch&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"exch"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1081,11 +1091,11 @@ document.write(`
         <span class="n">compare</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gpu"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Element-wise compare-and-swap on global memory.</span>
+<span class="w">        </span><span class="sd">"""Element-wise compare-and-swap on global memory.</span>
 
 <span class="sd">        Per element: ``old = dst[i]; if (old == compare[i]) dst[i] = values[i]``.</span>
 <span class="sd">        See :meth:`shared_cas` for the full parameter description.</span>
@@ -1095,11 +1105,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.cas.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;cas&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"cas"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1120,19 +1130,19 @@ document.write(`
         <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cta"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-add into a shared tile along ``dim``.</span>
+<span class="w">        </span><span class="sd">"""Scatter-add into a shared tile along ``dim``.</span>
 
 <span class="sd">        For each tile element *k*, performs</span>
 <span class="sd">        ``dst[..., indices[k], ...] = dst[..., indices[k], ...] + values[k]``</span>
 <span class="sd">        atomically, where ``indices`` picks positions along ``dim`` and the</span>
-<span class="sd">        non-scatter axes come from the lane&#39;s own tile position.</span>
+<span class="sd">        non-scatter axes come from the lane's own tile position.</span>
 
 <span class="sd">        ``indices.shape == values.shape`` strictly (identical RegisterLayout);</span>
-<span class="sd">        ``dst``&#39;s non-``dim`` axes must match ``indices`` exactly. Out-of-range</span>
+<span class="sd">        ``dst``'s non-``dim`` axes must match ``indices`` exactly. Out-of-range</span>
 <span class="sd">        index values are undefined --- there is no runtime bounds check.</span>
 
 <span class="sd">        Parameters</span>
@@ -1167,13 +1177,13 @@ document.write(`
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.add.s32`` (or ``red.*`` when the</span>
 <span class="sd">          output is unused).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared_scatter</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
             <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"add"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1189,11 +1199,11 @@ document.write(`
         <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cta"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-sub into a shared tile along ``dim``; lowered to ``atom.add`` with a negated value.</span>
+<span class="w">        </span><span class="sd">"""Scatter-sub into a shared tile along ``dim``; lowered to ``atom.add`` with a negated value.</span>
 
 <span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
 
@@ -1202,13 +1212,13 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.add.s32`` with a negated input.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared_scatter</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
             <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;sub&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"sub"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1224,11 +1234,11 @@ document.write(`
         <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cta"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-min into a shared tile along ``dim``.</span>
+<span class="w">        </span><span class="sd">"""Scatter-min into a shared tile along ``dim``.</span>
 
 <span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
 
@@ -1237,13 +1247,13 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.min.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared_scatter</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
             <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"min"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1259,11 +1269,11 @@ document.write(`
         <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cta"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-max into a shared tile along ``dim``.</span>
+<span class="w">        </span><span class="sd">"""Scatter-max into a shared tile along ``dim``.</span>
 
 <span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
 
@@ -1272,13 +1282,13 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.shared.max.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_shared_scatter</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
             <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"max"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1298,14 +1308,14 @@ document.write(`
         <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gpu"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-add into a global tile along ``dim``.</span>
+<span class="w">        </span><span class="sd">"""Scatter-add into a global tile along ``dim``.</span>
 
 <span class="sd">        Same contract as :meth:`shared_scatter_add` but the destination is a</span>
-<span class="sd">        :class:`~tilus.ir.GlobalTensor` and the default scope is ``&#39;gpu&#39;``.</span>
+<span class="sd">        :class:`~tilus.ir.GlobalTensor` and the default scope is ``'gpu'``.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
@@ -1313,13 +1323,13 @@ document.write(`
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.add.s32`` (or ``red.*`` when the</span>
 <span class="sd">          output is unused).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global_scatter</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
             <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"add"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1335,11 +1345,11 @@ document.write(`
         <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gpu"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-sub into a global tile along ``dim``; lowered to ``atom.add`` with a negated value.</span>
+<span class="w">        </span><span class="sd">"""Scatter-sub into a global tile along ``dim``; lowered to ``atom.add`` with a negated value.</span>
 
 <span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
 
@@ -1348,13 +1358,13 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.add.s32`` with a negated input.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global_scatter</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
             <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;sub&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"sub"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1370,11 +1380,11 @@ document.write(`
         <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gpu"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-min into a global tile along ``dim``.</span>
+<span class="w">        </span><span class="sd">"""Scatter-min into a global tile along ``dim``.</span>
 
 <span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
 
@@ -1383,13 +1393,13 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.min.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global_scatter</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
             <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"min"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
@@ -1405,11 +1415,11 @@ document.write(`
         <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">indices</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">values</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">sem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"relaxed"</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gpu"</span><span class="p">,</span>
         <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RegisterTensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scatter-max into a global tile along ``dim``.</span>
+<span class="w">        </span><span class="sd">"""Scatter-max into a global tile along ``dim``.</span>
 
 <span class="sd">        See :meth:`shared_scatter_add` for the parameter description.</span>
 
@@ -1418,13 +1428,13 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 7.0+ (sm_70).</span>
 <span class="sd">        - **PTX**: ``atom.{sem}.{scope}.global.max.s32``.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">atomic_global_scatter</span><span class="p">(</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
             <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
             <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
             <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
-            <span class="n">op</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">,</span>
+            <span class="n">op</span><span class="o">=</span><span class="s2">"max"</span><span class="p">,</span>
             <span class="n">sem</span><span class="o">=</span><span class="n">sem</span><span class="p">,</span>
             <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
             <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>

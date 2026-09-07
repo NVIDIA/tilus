@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7e57c2"/>
+    </marker>
+    <marker id="a3o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e65100"/>
+    </marker>
+  </defs>
+
+  <!-- ============ V2 ============ -->
+  <text x="380" y="22" text-anchor="middle" font-weight="700" font-size="15" fill="#333">V2: one warp group alternates roles, gated by __syncthreads()</text>
+
+  <text x="60" y="62" font-size="11" fill="#666" font-weight="700">warps 0-3</text>
+  <rect x="130" y="45" width="72" height="24" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="166" y="61" text-anchor="middle" font-size="10" fill="#bf360c">issue TMA</text>
+  <rect x="212" y="45" width="52" height="24" rx="3" fill="#eeeeee" stroke="#9e9e9e" stroke-width="1.2"/>
+  <text x="238" y="61" text-anchor="middle" font-size="10" fill="#616161">sync</text>
+  <rect x="274" y="45" width="72" height="24" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="310" y="61" text-anchor="middle" font-size="10" fill="#5e35b1">WGMMA</text>
+  <rect x="356" y="45" width="52" height="24" rx="3" fill="#eeeeee" stroke="#9e9e9e" stroke-width="1.2"/>
+  <text x="382" y="61" text-anchor="middle" font-size="10" fill="#616161">sync</text>
+  <rect x="418" y="45" width="72" height="24" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="454" y="61" text-anchor="middle" font-size="10" fill="#bf360c">issue TMA</text>
+  <rect x="500" y="45" width="52" height="24" rx="3" fill="#eeeeee" stroke="#9e9e9e" stroke-width="1.2"/>
+  <text x="526" y="61" text-anchor="middle" font-size="10" fill="#616161">sync</text>
+  <rect x="562" y="45" width="72" height="24" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="598" y="61" text-anchor="middle" font-size="10" fill="#5e35b1">WGMMA</text>
+
+  <text x="380" y="96" text-anchor="middle" font-size="11" fill="#c62828">the tensor cores cannot be issued to while these warps are loading or synchronizing</text>
+
+  <line x1="40" y1="125" x2="720" y2="125" stroke="#ddd" stroke-width="1"/>
+
+  <!-- ============ V3 ============ -->
+  <text x="380" y="155" text-anchor="middle" font-weight="700" font-size="15" fill="#333">V3: separate warps, coupled only by mbarriers</text>
+
+  <!-- producer row -->
+  <text x="60" y="196" font-size="11" fill="#666" font-weight="700">warp 4</text>
+  <text x="60" y="210" font-size="10" fill="#999">producer</text>
+  <rect x="130" y="180" width="76" height="24" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="168" y="196" text-anchor="middle" font-size="10" fill="#bf360c">TMA k=0</text>
+  <rect x="210" y="180" width="76" height="24" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="248" y="196" text-anchor="middle" font-size="10" fill="#bf360c">TMA k=1</text>
+  <rect x="290" y="180" width="76" height="24" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="328" y="196" text-anchor="middle" font-size="10" fill="#bf360c">TMA k=2</text>
+  <rect x="370" y="180" width="76" height="24" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="408" y="196" text-anchor="middle" font-size="10" fill="#bf360c">TMA k=3</text>
+  <rect x="450" y="180" width="76" height="24" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="488" y="196" text-anchor="middle" font-size="10" fill="#bf360c">TMA k=4</text>
+  <rect x="530" y="180" width="76" height="24" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="568" y="196" text-anchor="middle" font-size="10" fill="#bf360c">TMA k=5</text>
+
+  <!-- consumer row -->
+  <text x="60" y="286" font-size="11" fill="#666" font-weight="700">warps 0-3</text>
+  <text x="60" y="300" font-size="10" fill="#999">consumer</text>
+  <rect x="210" y="270" width="76" height="24" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="248" y="286" text-anchor="middle" font-size="10" fill="#5e35b1">MMA k=0</text>
+  <rect x="290" y="270" width="76" height="24" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="328" y="286" text-anchor="middle" font-size="10" fill="#5e35b1">MMA k=1</text>
+  <rect x="370" y="270" width="76" height="24" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="408" y="286" text-anchor="middle" font-size="10" fill="#5e35b1">MMA k=2</text>
+  <rect x="450" y="270" width="76" height="24" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="488" y="286" text-anchor="middle" font-size="10" fill="#5e35b1">MMA k=3</text>
+  <rect x="530" y="270" width="76" height="24" rx="3" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.2"/>
+  <text x="568" y="286" text-anchor="middle" font-size="10" fill="#5e35b1">MMA k=4</text>
+
+  <!-- barrier arrows -->
+  <line x1="206" y1="208" x2="246" y2="266" stroke="#e65100" stroke-width="1.1" marker-end="url(#a3o)" opacity="0.75"/>
+  <line x1="286" y1="208" x2="326" y2="266" stroke="#e65100" stroke-width="1.1" marker-end="url(#a3o)" opacity="0.75"/>
+  <line x1="366" y1="208" x2="406" y2="266" stroke="#e65100" stroke-width="1.1" marker-end="url(#a3o)" opacity="0.75"/>
+  <text x="150" y="243" font-size="10" fill="#e65100">consumer_barriers (stage full)</text>
+
+  <line x1="326" y1="266" x2="446" y2="208" stroke="#7e57c2" stroke-width="1.1" marker-end="url(#a3)" opacity="0.75" stroke-dasharray="4 3"/>
+  <line x1="406" y1="266" x2="526" y2="208" stroke="#7e57c2" stroke-width="1.1" marker-end="url(#a3)" opacity="0.75" stroke-dasharray="4 3"/>
+  <text x="470" y="243" font-size="10" fill="#7e57c2">producer_barriers (stage empty)</text>
+
+  <text x="380" y="335" text-anchor="middle" font-size="11.5" fill="#2e7d32" font-weight="700">the producer runs num_stages tiles ahead; neither warp ever waits on the other's code</text>
+  <text x="380" y="360" text-anchor="middle" font-size="11" fill="#666">no __syncthreads() anywhere in the main loop</text>
+</svg>

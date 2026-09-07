@@ -169,6 +169,16 @@
 <li class="toctree-l2"><a class="reference internal" href="matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -839,7 +849,7 @@ instance, prepare tensors, and call the script:</p>
 <div class="literal-block-wrapper docutils container" id="id2">
 <div class="code-block-caption"><span class="caption-text">Benchmarking MatmulV1</span><a class="headerlink" href="#id2" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
-    <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span> <span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;latency (ms)&quot;</span><span class="p">,</span> <span class="s2">&quot;tflops&quot;</span><span class="p">]</span>
+    <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"m"</span><span class="p">,</span> <span class="s2">"n"</span><span class="p">,</span> <span class="s2">"k"</span><span class="p">,</span> <span class="s2">"name"</span><span class="p">,</span> <span class="s2">"latency (ms)"</span><span class="p">,</span> <span class="s2">"tflops"</span><span class="p">]</span>
     <span class="n">workloads</span> <span class="o">=</span> <span class="p">[</span>
         <span class="p">[</span><span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">],</span>
     <span class="p">]</span>
@@ -861,8 +871,8 @@ instance, prepare tensors, and call the script:</p>
 
         <span class="c1"># benchmark</span>
         <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">func</span> <span class="ow">in</span> <span class="p">[</span>
-            <span class="p">(</span><span class="s2">&quot;torch&quot;</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">c_expect</span><span class="p">)),</span>
-            <span class="p">(</span><span class="s2">&quot;tilus&quot;</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">matmul</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c_actual</span><span class="p">)),</span>
+            <span class="p">(</span><span class="s2">"torch"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">c_expect</span><span class="p">)),</span>
+            <span class="p">(</span><span class="s2">"tilus"</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">matmul</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c_actual</span><span class="p">)),</span>
         <span class="p">]:</span>
             <span class="n">latency</span> <span class="o">=</span> <span class="n">benchmark_func</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">warmup</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">repeat</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
             <span class="n">tflops</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">m</span> <span class="o">*</span> <span class="n">n</span> <span class="o">*</span> <span class="n">k</span> <span class="o">/</span> <span class="n">latency</span> <span class="o">*</span> <span class="mf">1e-9</span>

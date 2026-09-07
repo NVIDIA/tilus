@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,14 +609,14 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -623,7 +633,7 @@ document.write(`
 <div class="viewcode-block" id="Tcgen05InstructionGroup">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/tcgen05.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Tcgen05InstructionGroup</span><span class="p">(</span><span class="n">InstructionGroup</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tensor Core Generation 05 (tcgen05) instructions for Blackwell GPUs.</span>
+<span class="w">    </span><span class="sd">"""Tensor Core Generation 05 (tcgen05) instructions for Blackwell GPUs.</span>
 
 <span class="sd">    Blackwell introduces **tensor memory (TMEM)**, a high-bandwidth on-chip memory space dedicated</span>
 <span class="sd">    to the tensor core. Unlike registers (which are per-thread), TMEM is a shared accumulator space</span>
@@ -643,12 +653,12 @@ document.write(`
 
 <span class="sd">    With ``cta_group=2``, two CTAs in the same cluster collaborate: each CTA provides half the</span>
 <span class="sd">    data (split along the M dimension) and holds half the accumulator, enabling larger tile sizes.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
 <div class="viewcode-block" id="Tcgen05InstructionGroup.alloc">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.alloc">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">alloc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">DataType</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">cta_group</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TMemoryTensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Allocate a tensor in tensor memory (TMEM).</span>
+<span class="w">        </span><span class="sd">"""Allocate a tensor in tensor memory (TMEM).</span>
 
 <span class="sd">        Tensor memory is a high-bandwidth on-chip memory space accessible by the tensor core</span>
 <span class="sd">        on Blackwell GPUs. The allocated tensor can be used as an accumulator for MMA operations</span>
@@ -676,15 +686,15 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a thread group with at least 32 threads (one warp).</span>
 <span class="sd">        - **Hardware**: Requires compute capability 10.0+ (sm_100).</span>
 <span class="sd">        - **PTX**: ``tcgen05.alloc``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="n">cta_group</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;cta_group must be 1 or 2&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"cta_group must be 1 or 2"</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;shape must be a sequence of length 2 or more, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"shape must be a sequence of length 2 or more, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">))</span>
         <span class="k">if</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;shape[0] must be 32, 64, or 128, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"shape[0] must be 32, 64, or 128, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
         <span class="k">if</span> <span class="mi">128</span> <span class="o">%</span> <span class="n">dtype</span><span class="o">.</span><span class="n">nbits</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;dtype must be 1, 2, 4, 8, 16, 32, 64, or 128 bit, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dtype</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"dtype must be 1, 2, 4, 8, 16, 32, 64, or 128 bit, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dtype</span><span class="p">))</span>
         <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_alloc</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">cta_group</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ret</span></div>
 
@@ -692,7 +702,7 @@ document.write(`
 <div class="viewcode-block" id="Tcgen05InstructionGroup.dealloc">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.dealloc">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">dealloc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">TMemoryTensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deallocate a tensor memory tensor.</span>
+<span class="w">        </span><span class="sd">"""Deallocate a tensor memory tensor.</span>
 
 <span class="sd">        Releases the tensor memory previously allocated with ``tcgen05.alloc``.</span>
 
@@ -706,7 +716,7 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a thread group with at least 32 threads (one warp).</span>
 <span class="sd">        - **Hardware**: Requires compute capability 10.0+ (sm_100).</span>
 <span class="sd">        - **PTX**: ``tcgen05.dealloc``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_dealloc</span><span class="p">(</span><span class="n">tensor</span><span class="p">)</span></div>
 
 
@@ -715,7 +725,7 @@ document.write(`
     <span class="k">def</span><span class="w"> </span><span class="nf">slice</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">TMemoryTensor</span><span class="p">,</span> <span class="n">offsets</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">],</span> <span class="n">dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TMemoryTensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a sliced view of a tensor memory tensor.</span>
+<span class="w">        </span><span class="sd">"""Create a sliced view of a tensor memory tensor.</span>
 
 <span class="sd">        Returns a new ``TMemoryTensor`` that refers to a sub-region of the original tensor.</span>
 <span class="sd">        This is a metadata-only operation and does not copy data.</span>
@@ -735,14 +745,14 @@ document.write(`
 <span class="sd">        -------</span>
 <span class="sd">        ret: TMemoryTensor</span>
 <span class="sd">            A new tensor memory tensor referencing the sliced sub-region.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_slice</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">offsets</span><span class="p">,</span> <span class="n">dims</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Tcgen05InstructionGroup.view">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.view">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">view</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">TMemoryTensor</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">DataType</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">TMemoryTensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reinterpret a tensor memory tensor with a different dtype and shape.</span>
+<span class="w">        </span><span class="sd">"""Reinterpret a tensor memory tensor with a different dtype and shape.</span>
 
 <span class="sd">        Returns a new ``TMemoryTensor`` that views the same underlying tensor memory with</span>
 <span class="sd">        a different data type and shape. This is a metadata-only operation.</span>
@@ -760,14 +770,14 @@ document.write(`
 <span class="sd">        -------</span>
 <span class="sd">        ret: TMemoryTensor</span>
 <span class="sd">            A new tensor memory tensor with the specified dtype and shape.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_view</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Tcgen05InstructionGroup.relinquish_alloc_permit">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.relinquish_alloc_permit">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">relinquish_alloc_permit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cta_group</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Relinquish the tensor memory allocation permit.</span>
+<span class="w">        </span><span class="sd">"""Relinquish the tensor memory allocation permit.</span>
 
 <span class="sd">        After this instruction, the current CTA group can no longer allocate tensor memory</span>
 <span class="sd">        until the permit is re-acquired (which happens implicitly after deallocation).</span>
@@ -783,14 +793,14 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 10.0+ (sm_100).</span>
 <span class="sd">        - **PTX**: ``tcgen05.relinquish_alloc_permit``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_relinquish_alloc_permit</span><span class="p">(</span><span class="n">cta_group</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Tcgen05InstructionGroup.load">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.load">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">TMemoryTensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterTensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load data from tensor memory into registers.</span>
+<span class="w">        </span><span class="sd">"""Load data from tensor memory into registers.</span>
 
 <span class="sd">        Copies the contents of a 2D tensor memory tensor into a register tensor.</span>
 
@@ -809,16 +819,16 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a warp-aligned thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 10.0+ (sm_100).</span>
 <span class="sd">        - **PTX**: ``tcgen05.ld.sync.aligned``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;load requires a 2D tensor memory tensor, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"load requires a 2D tensor memory tensor, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_load</span><span class="p">(</span><span class="n">tensor</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Tcgen05InstructionGroup.store">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.store">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">store</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tensor</span><span class="p">:</span> <span class="n">TMemoryTensor</span><span class="p">,</span> <span class="n">src</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Store data from registers into tensor memory.</span>
+<span class="w">        </span><span class="sd">"""Store data from registers into tensor memory.</span>
 
 <span class="sd">        Copies the contents of a register tensor into a 2D tensor memory tensor.</span>
 
@@ -834,18 +844,18 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a warp-aligned thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 10.0+ (sm_100).</span>
 <span class="sd">        - **PTX**: ``tcgen05.st.sync.aligned``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;store requires a 2D tensor memory tensor, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"store requires a 2D tensor memory tensor, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;store requires a 2D register tensor, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"store requires a 2D register tensor, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_store</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">src</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Tcgen05InstructionGroup.wait_load">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_load">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">wait_load</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait for all pending tensor memory load operations to complete.</span>
+<span class="w">        </span><span class="sd">"""Wait for all pending tensor memory load operations to complete.</span>
 
 <span class="sd">        Must be called after ``tcgen05.load`` before using the loaded register data.</span>
 
@@ -854,14 +864,14 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 10.0+ (sm_100).</span>
 <span class="sd">        - **PTX**: ``tcgen05.wait::ld``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_wait_load</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="Tcgen05InstructionGroup.wait_store">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.wait_store">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">wait_store</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait for all pending tensor memory store operations to complete.</span>
+<span class="w">        </span><span class="sd">"""Wait for all pending tensor memory store operations to complete.</span>
 
 <span class="sd">        Must be called after ``tcgen05.store`` before reading from the destination tensor memory.</span>
 
@@ -870,14 +880,14 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 10.0+ (sm_100).</span>
 <span class="sd">        - **PTX**: ``tcgen05.wait::st``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_wait_store</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="Tcgen05InstructionGroup.copy">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.copy">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span> <span class="n">dst</span><span class="p">:</span> <span class="n">TMemoryTensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Copy data from shared memory to tensor memory.</span>
+<span class="w">        </span><span class="sd">"""Copy data from shared memory to tensor memory.</span>
 
 <span class="sd">        Asynchronously copies a 2D shared tensor into a 2D tensor memory tensor. Use</span>
 <span class="sd">        ``tcgen05.commit`` to signal completion via an mbarrier.</span>
@@ -894,21 +904,21 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a warp-aligned thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 10.0+ (sm_100).</span>
 <span class="sd">        - **PTX**: ``tcgen05.cp``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;copy requires a 2D shared tensor, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"copy requires a 2D shared tensor, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dst</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;copy requires a 2D tensor memory tensor, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dst</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"copy requires a 2D tensor memory tensor, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dst</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_copy</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dst</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Tcgen05InstructionGroup.commit">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit.html#tilus.lang.instructions.tcgen05.Tcgen05InstructionGroup.commit">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">commit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mbarrier</span><span class="p">:</span> <span class="n">Expr</span> <span class="o">|</span> <span class="n">RegisterTensor</span><span class="p">,</span> <span class="n">cta_group</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">multicast_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Commit pending tcgen05 async operations and signal an mbarrier.</span>
+<span class="w">        </span><span class="sd">"""Commit pending tcgen05 async operations and signal an mbarrier.</span>
 
 <span class="sd">        Groups all prior uncommitted tcgen05 async operations (e.g., ``copy``, ``mma``) and</span>
-<span class="sd">        signals the specified mbarrier upon completion. The mbarrier&#39;s tx-count will be</span>
+<span class="sd">        signals the specified mbarrier upon completion. The mbarrier's tx-count will be</span>
 <span class="sd">        decreased when the operations finish.</span>
 
 <span class="sd">        Parameters</span>
@@ -926,11 +936,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a single warp (use ``self.single_warp()``).</span>
 <span class="sd">        - **Hardware**: Requires compute capability 10.0+ (sm_100).</span>
 <span class="sd">        - **PTX**: ``tcgen05.commit``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">num_threads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tg_stack</span><span class="o">.</span><span class="n">current_num_threads</span>
         <span class="k">if</span> <span class="n">num_threads</span> <span class="o">!=</span> <span class="mi">32</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span>
-                <span class="s2">&quot;tcgen05.commit must be called by a warp (32 threads), got </span><span class="si">{}</span><span class="s2"> threads&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">num_threads</span><span class="p">)</span>
+                <span class="s2">"tcgen05.commit must be called by a warp (32 threads), got </span><span class="si">{}</span><span class="s2"> threads"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">num_threads</span><span class="p">)</span>
             <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="p">,</span> <span class="n">cta_group</span><span class="p">,</span> <span class="n">multicast_mask</span><span class="p">)</span></div>
 
@@ -945,7 +955,7 @@ document.write(`
         <span class="n">enable_input_d</span><span class="p">:</span> <span class="n">Expr</span> <span class="o">|</span> <span class="nb">bool</span><span class="p">,</span>
         <span class="n">cta_group</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform tensor core matrix multiply-accumulate with TMEM accumulator.</span>
+<span class="w">        </span><span class="sd">"""Perform tensor core matrix multiply-accumulate with TMEM accumulator.</span>
 
 <span class="sd">        Computes ``d = a @ b + d`` (or ``d = a @ b`` when ``enable_input_d=False``).</span>
 <span class="sd">        All operands must be 2D: ``a`` is ``[M, K]``, ``b`` is ``[K, N]``, ``d`` is ``[M, N]``.</span>
@@ -977,36 +987,36 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a single warp (use ``self.single_warp()``).</span>
 <span class="sd">        - **Hardware**: Requires compute capability 10.0a+ (sm_100a).</span>
 <span class="sd">        - **PTX**: ``tcgen05.mma``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">num_threads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tg_stack</span><span class="o">.</span><span class="n">current_num_threads</span>
         <span class="k">if</span> <span class="n">num_threads</span> <span class="o">!=</span> <span class="mi">32</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span>
-                <span class="s2">&quot;tcgen05.mma must be called by a warp (32 threads), got </span><span class="si">{}</span><span class="s2"> threads&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">num_threads</span><span class="p">)</span>
+                <span class="s2">"tcgen05.mma must be called by a warp (32 threads), got </span><span class="si">{}</span><span class="s2"> threads"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">num_threads</span><span class="p">)</span>
             <span class="p">)</span>
         <span class="k">if</span> <span class="n">cta_group</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;cta_group must be 1 or 2, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cta_group</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"cta_group must be 1 or 2, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cta_group</span><span class="p">))</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">SharedTensor</span><span class="p">):</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;mma requires 2D shared tensors, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"mma requires 2D shared tensors, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;mma requires 2D shared tensors, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"mma requires 2D shared tensors, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span>
-                    <span class="s2">&quot;mma requires a 2D tensor memory tensor for output, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                    <span class="s2">"mma requires a 2D tensor memory tensor for output, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
                 <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_mma_ss</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">enable_input_d</span><span class="o">=</span><span class="n">enable_input_d</span><span class="p">,</span> <span class="n">cta_group</span><span class="o">=</span><span class="n">cta_group</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">TMemoryTensor</span><span class="p">):</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;mma requires a 2D tensor memory tensor, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"mma requires a 2D tensor memory tensor, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;mma requires a 2D shared tensor, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"mma requires a 2D shared tensor, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span>
-                    <span class="s2">&quot;mma requires a 2D tensor memory tensor for output, got shape </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                    <span class="s2">"mma requires a 2D tensor memory tensor for output, got shape </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
                 <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">tcgen05_mma_ts</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">enable_input_d</span><span class="o">=</span><span class="n">enable_input_d</span><span class="p">,</span> <span class="n">cta_group</span><span class="o">=</span><span class="n">cta_group</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid type of a: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="si">}</span><span class="s2">, expected SharedTensor or TMemoryTensor&quot;</span><span class="p">)</span></div>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid type of a: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="si">}</span><span class="s2">, expected SharedTensor or TMemoryTensor"</span><span class="p">)</span></div>
 </div>
 
 </pre></div>

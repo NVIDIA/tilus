@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,14 +609,14 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -621,7 +631,7 @@ document.write(`
 <div class="viewcode-block" id="TmaInstructionGroup">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/tma.html#tilus.lang.instructions.tma.TmaInstructionGroup">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">TmaInstructionGroup</span><span class="p">(</span><span class="n">InstructionGroup</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tensor Memory Accelerator (TMA) instructions for asynchronous bulk data transfers.</span>
+<span class="w">    </span><span class="sd">"""Tensor Memory Accelerator (TMA) instructions for asynchronous bulk data transfers.</span>
 
 <span class="sd">    TMA is a dedicated hardware engine on Hopper+ GPUs that asynchronously copies multi-dimensional</span>
 <span class="sd">    tiles between global memory and shared memory, without occupying SM compute resources.</span>
@@ -629,9 +639,9 @@ document.write(`
 <span class="sd">    TMA transfers are **asynchronous**: the issuing thread returns immediately while the TMA engine</span>
 <span class="sd">    performs the copy in the background. Completion is tracked through mbarriers:</span>
 
-<span class="sd">    1. Issue ``global_to_shared()`` or ``shared_to_global()`` — the mbarrier&#39;s tx-count is</span>
+<span class="sd">    1. Issue ``global_to_shared()`` or ``shared_to_global()`` — the mbarrier's tx-count is</span>
 <span class="sd">       automatically increased.</span>
-<span class="sd">    2. The TMA engine completes the transfer and decrements the mbarrier&#39;s tx-count.</span>
+<span class="sd">    2. The TMA engine completes the transfer and decrements the mbarrier's tx-count.</span>
 <span class="sd">    3. Consumers call ``mbarrier.wait()`` to block until all transfers for a phase are done.</span>
 
 <span class="sd">    For legacy (non-mbarrier) async copies, use ``commit_group()`` and ``wait_group()`` to</span>
@@ -640,7 +650,7 @@ document.write(`
 <span class="sd">    TMA supports **multicast** (``multicast_mask``) to deliver the same global tile to shared</span>
 <span class="sd">    memory of multiple CTAs in a cluster, and **CTA groups** (``cta_group=2``) for coordinated</span>
 <span class="sd">    two-CTA operations where the mbarrier can reside on a peer CTA.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
 <div class="viewcode-block" id="TmaInstructionGroup.global_to_shared">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared.html#tilus.lang.instructions.tma.TmaInstructionGroup.global_to_shared">[docs]</a>
@@ -656,14 +666,14 @@ document.write(`
         <span class="n">multicast_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">cache_policy</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Expr</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Asynchronously copy a tile from global memory to shared memory via TMA.</span>
+<span class="w">        </span><span class="sd">"""Asynchronously copy a tile from global memory to shared memory via TMA.</span>
 
 <span class="sd">        Issues an asynchronous TMA transfer from a region of ``src`` (global) to ``dst`` (shared).</span>
 <span class="sd">        The ``offsets`` specify where in the global tensor the tile starts, and ``dims`` specifies</span>
 <span class="sd">        which global dimensions map to the shared tensor dimensions.</span>
 
 <span class="sd">        Completion is tracked via the ``mbarrier``: this instruction automatically increases the</span>
-<span class="sd">        barrier&#39;s tx-count by the transfer size in bytes. When the TMA engine finishes, it</span>
+<span class="sd">        barrier's tx-count by the transfer size in bytes. When the TMA engine finishes, it</span>
 <span class="sd">        decrements the tx-count by the same amount. Use ``mbarrier.wait()`` to block until done.</span>
 
 <span class="sd">        **Multicast and CTA groups:**</span>
@@ -693,7 +703,7 @@ document.write(`
 <span class="sd">            defaults to all dimensions in order.</span>
 <span class="sd">        mbarrier: Expr | RegisterTensor</span>
 <span class="sd">            The barrier for tracking completion. A uint32 expression or single-element register</span>
-<span class="sd">            tensor containing the barrier&#39;s shared memory address.</span>
+<span class="sd">            tensor containing the barrier's shared memory address.</span>
 <span class="sd">        cta_group: int</span>
 <span class="sd">            CTA group size for the transfer. 1 (default) for single-CTA, 2 for two-CTA</span>
 <span class="sd">            coordinated operations.</span>
@@ -708,7 +718,7 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a warp-aligned thread group (i.e., a multiple of 32 threads).</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
 <span class="sd">        - **PTX**: ``cp.async.bulk.tensor.global.shared::cta.tile.mbarrier::complete_tx::bytes``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">copy_async_tensor_global_to_shared</span><span class="p">(</span>
             <span class="n">src</span><span class="o">=</span><span class="n">src</span><span class="p">,</span>
             <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span>
@@ -731,7 +741,7 @@ document.write(`
         <span class="n">dims</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">cache_policy</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Expr</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Asynchronously copy a tile from shared memory to global memory via TMA.</span>
+<span class="w">        </span><span class="sd">"""Asynchronously copy a tile from shared memory to global memory via TMA.</span>
 
 <span class="sd">        Issues an asynchronous TMA transfer from ``src`` (shared) to a region of ``dst`` (global).</span>
 <span class="sd">        The ``offsets`` specify where in the global tensor the tile is written to, and ``dims``</span>
@@ -766,7 +776,7 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a warp-aligned thread group (i.e., a multiple of 32 threads).</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
 <span class="sd">        - **PTX**: ``cp.async.bulk.tensor.shared::cta.global.tile``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">copy_async_tensor_shared_to_global</span><span class="p">(</span>
             <span class="n">src</span><span class="o">=</span><span class="n">src</span><span class="p">,</span> <span class="n">dst</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="n">offsets</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="n">dims</span><span class="p">,</span> <span class="n">cache_policy</span><span class="o">=</span><span class="n">cache_policy</span>
         <span class="p">)</span></div>
@@ -775,7 +785,7 @@ document.write(`
 <div class="viewcode-block" id="TmaInstructionGroup.commit_group">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html#tilus.lang.instructions.tma.TmaInstructionGroup.commit_group">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">commit_group</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Commit pending TMA async copy operations into a group.</span>
+<span class="w">        </span><span class="sd">"""Commit pending TMA async copy operations into a group.</span>
 
 <span class="sd">        Groups all prior uncommitted ``shared_to_global()`` operations so they can be</span>
 <span class="sd">        collectively waited on with ``wait_group()``.</span>
@@ -785,14 +795,14 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
 <span class="sd">        - **PTX**: ``cp.async.bulk.commit_group``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">copy_async_tensor_commit_group</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="TmaInstructionGroup.wait_group">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html#tilus.lang.instructions.tma.TmaInstructionGroup.wait_group">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">wait_group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">read</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait for TMA async copy commit groups to complete.</span>
+<span class="w">        </span><span class="sd">"""Wait for TMA async copy commit groups to complete.</span>
 
 <span class="sd">        Blocks until at most ``n`` commit groups remain pending. Use ``n=0`` to wait for all</span>
 <span class="sd">        committed groups.</span>
@@ -817,7 +827,7 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
 <span class="sd">        - **PTX**: ``cp.async.bulk.wait_group`` or ``cp.async.bulk.wait_group.read``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">copy_async_tensor_wait_group</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">read</span><span class="o">=</span><span class="n">read</span><span class="p">)</span></div>
 </div>
 

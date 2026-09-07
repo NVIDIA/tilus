@@ -169,6 +169,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="__init__.html">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -684,10 +694,10 @@ issuing prefill loads, and managing phase tracking yourself.</p>
 <div class="literal-block-wrapper docutils container" id="id1">
 <div class="code-block-caption"><span class="caption-text">BlackwellMatmulV2 — full kernel</span><a class="headerlink" href="#id1" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span>
-    <span class="s2">&quot;block_m, block_n, e_block_n&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">]]</span>
+    <span class="s2">"block_m, block_n, e_block_n"</span><span class="p">,</span> <span class="p">[[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">]]</span>
 <span class="p">)</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"block_k"</span><span class="p">,</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"stages"</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">BlackwellMatmulV2</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">block_m</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">block_n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">block_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">stages</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">e_block_n</span><span class="p">:</span> <span class="nb">int</span>
@@ -782,12 +792,12 @@ issuing prefill loads, and managing phase tracking yourself.</p>
                     <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">preload_offset_k</span><span class="p">],</span>
                     <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_barriers</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
                 <span class="p">)</span>
-                <span class="c1"># wait for the current stage&#39;s TMA data to arrive</span>
+                <span class="c1"># wait for the current stage's TMA data to arrive</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
                     <span class="n">tma_barriers</span><span class="p">[</span><span class="n">current_stage</span><span class="p">],</span>
                     <span class="n">phase</span><span class="o">=</span><span class="n">tma_phase</span><span class="p">,</span>
-                    <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-                    <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+                    <span class="n">sem</span><span class="o">=</span><span class="s2">"relaxed"</span><span class="p">,</span>
+                    <span class="n">scope</span><span class="o">=</span><span class="s2">"cta"</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="c1"># compute on the current stage</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
@@ -798,7 +808,7 @@ issuing prefill loads, and managing phase tracking yourself.</p>
                 <span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">mma_barrier</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
-                    <span class="n">mma_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">mma_phase</span><span class="p">,</span> <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span>
+                    <span class="n">mma_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">mma_phase</span><span class="p">,</span> <span class="n">sem</span><span class="o">=</span><span class="s2">"relaxed"</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s2">"cta"</span>
                 <span class="p">)</span>
 
             <span class="c1"># advance stage indices (ring buffer); flip phase when wrapping to stage 0</span>
@@ -821,7 +831,7 @@ issuing prefill loads, and managing phase tracking yourself.</p>
             <span class="n">r_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">t_acc_slice</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">wait_load</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">s_c</span><span class="p">,</span> <span class="n">r_acc</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">float16</span><span class="p">))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">fence</span><span class="o">.</span><span class="n">proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="s2">&quot;shared&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fence</span><span class="o">.</span><span class="n">proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="s2">"shared"</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
             <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">shared_to_global</span><span class="p">(</span>
@@ -1026,12 +1036,12 @@ requests before entering the main loop.</p>
             <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">preload_offset_k</span><span class="p">],</span>
             <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_barriers</span><span class="p">[</span><span class="n">preload_stage</span><span class="p">],</span>
         <span class="p">)</span>
-        <span class="c1"># wait for the current stage&#39;s TMA data to arrive</span>
+        <span class="c1"># wait for the current stage's TMA data to arrive</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
             <span class="n">tma_barriers</span><span class="p">[</span><span class="n">current_stage</span><span class="p">],</span>
             <span class="n">phase</span><span class="o">=</span><span class="n">tma_phase</span><span class="p">,</span>
-            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">"relaxed"</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">"cta"</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="c1"># compute on the current stage</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
@@ -1042,7 +1052,7 @@ requests before entering the main loop.</p>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">mbarrier</span><span class="o">=</span><span class="n">mma_barrier</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
-            <span class="n">mma_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">mma_phase</span><span class="p">,</span> <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span>
+            <span class="n">mma_barrier</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="n">mma_phase</span><span class="p">,</span> <span class="n">sem</span><span class="o">=</span><span class="s2">"relaxed"</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s2">"cta"</span>
         <span class="p">)</span>
 
     <span class="c1"># advance stage indices (ring buffer); flip phase when wrapping to stage 0</span>

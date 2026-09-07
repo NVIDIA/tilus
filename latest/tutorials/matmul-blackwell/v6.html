@@ -169,6 +169,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="__init__.html">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -710,8 +720,8 @@ how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
             <span class="n">barrier</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">empty_barriers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
             <span class="n">phase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">producer_phase</span><span class="p">,</span>
-            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">"relaxed"</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">"cta"</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">producer_barrier</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterTensor</span><span class="p">:</span>
@@ -725,8 +735,8 @@ how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
             <span class="n">barrier</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">full_barriers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">],</span>
             <span class="n">phase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span><span class="p">,</span>
-            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cta&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">"relaxed"</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">"cta"</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">consumer_barrier</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterTensor</span><span class="p">:</span>
@@ -737,12 +747,12 @@ how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">consumer_phase</span> <span class="o">^</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_stage</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
 
 
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_m&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">256</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_n, e_block_n&quot;</span><span class="p">,</span> <span class="p">[[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">32</span><span class="p">]])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;block_k&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">64</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;tma_stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;mma_stages&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">&quot;swizzle_size&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">16</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"block_m"</span><span class="p">,</span> <span class="p">[</span><span class="mi">256</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"block_n, e_block_n"</span><span class="p">,</span> <span class="p">[[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">32</span><span class="p">]])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"block_k"</span><span class="p">,</span> <span class="p">[</span><span class="mi">64</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"tma_stages"</span><span class="p">,</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"mma_stages"</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"swizzle_size"</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">16</span><span class="p">])</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">BlackwellMatmulV6</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
     <span class="n">debug_schedule</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
         <span class="n">block_m</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
@@ -794,17 +804,17 @@ how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
         <span class="k">return</span> <span class="n">m_block</span><span class="p">,</span> <span class="n">n_block</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">query_clc_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s_clc_response</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span> <span class="n">pipe</span><span class="p">:</span> <span class="n">Pipeline</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Consume the CLC response: read the next tile assignment from shared memory.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Consume the CLC response: read the next tile assignment from shared memory."""</span>
         <span class="n">pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
         <span class="n">response</span> <span class="o">=</span> <span class="n">s_clc_response</span><span class="p">[</span><span class="n">pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span>
         <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clc</span><span class="o">.</span><span class="n">query_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-        <span class="c1"># arrive on CTA 0&#39;s barrier remotely (cluster-scoped)</span>
+        <span class="c1"># arrive on CTA 0's barrier remotely (cluster-scoped)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx_remote</span><span class="p">(</span>
             <span class="n">pipe</span><span class="o">.</span><span class="n">consumer_barrier</span><span class="p">(),</span>
             <span class="n">transaction_bytes</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
             <span class="n">target_rank</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-            <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-            <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cluster&quot;</span><span class="p">,</span>
+            <span class="n">sem</span><span class="o">=</span><span class="s2">"relaxed"</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="s2">"cluster"</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">is_valid</span><span class="p">,</span> <span class="n">new_blockIdx</span>
@@ -850,10 +860,10 @@ how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
 
         <span class="n">tma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">tma_stages</span><span class="p">)</span>
         <span class="n">mma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
-        <span class="c1"># 7 warps × 32 threads × 2 CTAs = 448: both CTAs&#39; warps consume CLC responses</span>
+        <span class="c1"># 7 warps × 32 threads × 2 CTAs = 448: both CTAs' warps consume CLC responses</span>
         <span class="n">clc_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">clc_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">224</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
 
-        <span class="c1"># each CTA&#39;s rank (0 or 1) within the 2-CTA cluster</span>
+        <span class="c1"># each CTA's rank (0 or 1) within the 2-CTA cluster</span>
         <span class="n">cta_rank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">blockRank</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
@@ -875,7 +885,7 @@ how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
                                 <span class="n">mbarrier</span><span class="p">,</span> <span class="n">transaction_bytes</span>
                             <span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
-                        <span class="c1"># CTA 1 maps to CTA 0&#39;s barrier (shared across cluster)</span>
+                        <span class="c1"># CTA 1 maps to CTA 0's barrier (shared across cluster)</span>
                         <span class="n">mbarrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">map_shared_addr</span><span class="p">(</span><span class="n">mbarrier</span><span class="p">,</span> <span class="n">target_rank</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
                         <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
@@ -904,7 +914,7 @@ how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
 
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>  <span class="c1"># mma worker (smem -&gt; tmem)</span>
             <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># only CTA 0 issues MMA (reads both CTAs&#39; smem)</span>
+                <span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># only CTA 0 issues MMA (reads both CTAs' smem)</span>
                     <span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
                     <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">):</span>
                         <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
@@ -937,13 +947,13 @@ how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
             <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># only CTA 0 runs the scheduler</span>
                     <span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
-                    <span class="c1"># multicast: CLC response delivered to both CTAs&#39; shared memory</span>
+                    <span class="c1"># multicast: CLC response delivered to both CTAs' shared memory</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx_multicast</span><span class="p">(</span>
                         <span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
                         <span class="n">transaction_bytes</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
                         <span class="n">multicast_mask</span><span class="o">=</span><span class="mb">0b11</span><span class="p">,</span>
-                        <span class="n">sem</span><span class="o">=</span><span class="s2">&quot;relaxed&quot;</span><span class="p">,</span>
-                        <span class="n">scope</span><span class="o">=</span><span class="s2">&quot;cluster&quot;</span><span class="p">,</span>
+                        <span class="n">sem</span><span class="o">=</span><span class="s2">"relaxed"</span><span class="p">,</span>
+                        <span class="n">scope</span><span class="o">=</span><span class="s2">"cluster"</span><span class="p">,</span>
                     <span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">clc</span><span class="o">.</span><span class="n">try_cancel</span><span class="p">(</span>
                         <span class="n">s_clc_response</span><span class="p">[</span><span class="n">clc_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
@@ -976,7 +986,7 @@ how the 2-CTA MMA instruction works, and what changes in the kernel code.</p>
                     <span class="n">r_acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">t_acc_slice</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">tcgen05</span><span class="o">.</span><span class="n">wait_load</span><span class="p">()</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">s_c</span><span class="p">,</span> <span class="n">r_acc</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">float16</span><span class="p">))</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">fence</span><span class="o">.</span><span class="n">proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="s2">&quot;shared&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">fence</span><span class="o">.</span><span class="n">proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="s2">"shared"</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
                     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">():</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">shared_to_global</span><span class="p">(</span>
@@ -1158,7 +1168,7 @@ address on another CTA’s SM, allowing cross-CTA barrier operations:</p>
             <span class="n">mbarrier</span><span class="p">,</span> <span class="n">transaction_bytes</span>
         <span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
-    <span class="c1"># CTA 1 maps to CTA 0&#39;s barrier (shared across cluster)</span>
+    <span class="c1"># CTA 1 maps to CTA 0's barrier (shared across cluster)</span>
     <span class="n">mbarrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">map_shared_addr</span><span class="p">(</span><span class="n">mbarrier</span><span class="p">,</span> <span class="n">target_rank</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
     <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
@@ -1229,10 +1239,10 @@ the kernel code.</p>
 
 <span class="n">tma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">tma_stages</span><span class="p">)</span>
 <span class="n">mma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">mma_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
-<span class="c1"># 7 warps × 32 threads × 2 CTAs = 448: both CTAs&#39; warps consume CLC responses</span>
+<span class="c1"># 7 warps × 32 threads × 2 CTAs = 448: both CTAs' warps consume CLC responses</span>
 <span class="n">clc_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">clc_stages</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">224</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
 
-<span class="c1"># each CTA&#39;s rank (0 or 1) within the 2-CTA cluster</span>
+<span class="c1"># each CTA's rank (0 or 1) within the 2-CTA cluster</span>
 <span class="n">cta_rank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">blockRank</span>
 
 <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
@@ -1272,7 +1282,7 @@ replaces <code class="xref py py-meth docutils literal notranslate"><span class=
                         <span class="n">mbarrier</span><span class="p">,</span> <span class="n">transaction_bytes</span>
                     <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="c1"># CTA 1 maps to CTA 0&#39;s barrier (shared across cluster)</span>
+                <span class="c1"># CTA 1 maps to CTA 0's barrier (shared across cluster)</span>
                 <span class="n">mbarrier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">map_shared_addr</span><span class="p">(</span><span class="n">mbarrier</span><span class="p">,</span> <span class="n">target_rank</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
                 <span class="n">src</span><span class="o">=</span><span class="n">g_a</span><span class="p">,</span>
@@ -1312,7 +1322,7 @@ loads signal CTA 0’s barrier (CTA 1 maps the barrier address remotely).</p>
 <div class="code-block-caption"><span class="caption-text">MMA warp</span><a class="headerlink" href="#id6" title="Link to this code"><span>¶</span></a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_warp</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>  <span class="c1"># mma worker (smem -&gt; tmem)</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># only CTA 0 issues MMA (reads both CTAs&#39; smem)</span>
+        <span class="k">if</span> <span class="n">cta_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># only CTA 0 issues MMA (reads both CTAs' smem)</span>
             <span class="n">mma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">):</span>
                 <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>

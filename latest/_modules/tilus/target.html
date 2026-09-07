@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,14 +609,14 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -630,16 +640,16 @@ document.write(`
     <span class="n">properties</span><span class="p">:</span> <span class="n">TargetProperties</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">arch</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">"</span><span class="si">{}</span><span class="s2">/</span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">arch</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">is_nvgpu</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;nvgpu&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">"nvgpu"</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">is_amdgpu</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;amdgpu&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">"amdgpu"</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">supports</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether the current target supports the given target.</span>
+<span class="w">        </span><span class="sd">"""Check whether the current target supports the given target.</span>
 
 <span class="sd">        This function checks whether all GPUs that are compatible with `self` are also compatible with `target`.</span>
 
@@ -652,7 +662,7 @@ document.write(`
 <span class="sd">        -------</span>
 <span class="sd">        ret: bool</span>
 <span class="sd">            Whether the GPUs that supports the current target also support the given target.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">Target</span><span class="p">)</span>
         <span class="c1"># whether the features supported by the self target contains features in the target</span>
         <span class="k">if</span> <span class="n">target</span> <span class="o">==</span> <span class="n">gpgpu_any</span><span class="p">:</span>
@@ -665,21 +675,21 @@ document.write(`
         <span class="n">target_major</span><span class="p">,</span> <span class="n">target_minor</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">compute_capability</span>
         <span class="n">target_suffix</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">feature_suffix</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;nvgpu&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">"nvgpu"</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">target_suffix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">return</span> <span class="p">(</span><span class="n">self_major</span><span class="p">,</span> <span class="n">self_minor</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">target_major</span><span class="p">,</span> <span class="n">target_minor</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">target_suffix</span> <span class="o">==</span> <span class="s2">&quot;f&quot;</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">self_major</span> <span class="o">==</span> <span class="n">target_major</span> <span class="ow">and</span> <span class="n">self_minor</span> <span class="o">&gt;=</span> <span class="n">target_minor</span> <span class="ow">and</span> <span class="p">(</span><span class="n">self_suffix</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">))</span>
-            <span class="k">elif</span> <span class="n">target_suffix</span> <span class="o">==</span> <span class="s2">&quot;a&quot;</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">self_major</span> <span class="o">==</span> <span class="n">target_major</span> <span class="ow">and</span> <span class="n">self_minor</span> <span class="o">==</span> <span class="n">target_minor</span> <span class="ow">and</span> <span class="p">(</span><span class="n">self_suffix</span> <span class="o">==</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">target_suffix</span> <span class="o">==</span> <span class="s2">"f"</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">self_major</span> <span class="o">==</span> <span class="n">target_major</span> <span class="ow">and</span> <span class="n">self_minor</span> <span class="o">&gt;=</span> <span class="n">target_minor</span> <span class="ow">and</span> <span class="p">(</span><span class="n">self_suffix</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"a"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">target_suffix</span> <span class="o">==</span> <span class="s2">"a"</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">self_major</span> <span class="o">==</span> <span class="n">target_major</span> <span class="ow">and</span> <span class="n">self_minor</span> <span class="o">==</span> <span class="n">target_minor</span> <span class="ow">and</span> <span class="p">(</span><span class="n">self_suffix</span> <span class="o">==</span> <span class="s2">"a"</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported target suffix: </span><span class="si">{</span><span class="n">target_suffix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsupported target suffix: </span><span class="si">{</span><span class="n">target_suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">assert</span> <span class="n">target_suffix</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">self_suffix</span> <span class="ow">is</span> <span class="kc">None</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">self_major</span><span class="p">,</span> <span class="n">self_minor</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">target_major</span><span class="p">,</span> <span class="n">target_minor</span><span class="p">)</span>
 
 
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 <span class="sd">  Predefined targets</span>
 
 <span class="sd">  The generic ones:</span>
@@ -689,171 +699,171 @@ document.write(`
 <span class="sd">  are used to represent the generic targets that our compilation process (like scheduler) can work on.</span>
 
 <span class="sd">  Each specific GPU must be represented by a specific target, e.g., amdgpu/gfx1100 for AMD RX 7900 XTX.</span>
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="n">gpgpu_any</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s2">&quot;gpgpu&quot;</span><span class="p">,</span> <span class="n">arch</span><span class="o">=</span><span class="s2">&quot;any&quot;</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="n">TargetProperties</span><span class="p">())</span>
+<span class="sd">"""</span>
+<span class="n">gpgpu_any</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s2">"gpgpu"</span><span class="p">,</span> <span class="n">arch</span><span class="o">=</span><span class="s2">"any"</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="n">TargetProperties</span><span class="p">())</span>
 
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 <span class="sd">    AMD GPUs</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 <span class="n">amdgpu_any</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;amdgpu&quot;</span><span class="p">,</span>
-    <span class="n">arch</span><span class="o">=</span><span class="s2">&quot;any&quot;</span><span class="p">,</span>
+    <span class="n">kind</span><span class="o">=</span><span class="s2">"amdgpu"</span><span class="p">,</span>
+    <span class="n">arch</span><span class="o">=</span><span class="s2">"any"</span><span class="p">,</span>
     <span class="n">properties</span><span class="o">=</span><span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">64</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 
 <span class="c1"># RX 7900 XTX, etc.</span>
 <span class="n">amdgpu_gfx1100</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;amdgpu&quot;</span><span class="p">,</span>
-    <span class="n">arch</span><span class="o">=</span><span class="s2">&quot;gfx1100&quot;</span><span class="p">,</span>
+    <span class="n">kind</span><span class="o">=</span><span class="s2">"amdgpu"</span><span class="p">,</span>
+    <span class="n">arch</span><span class="o">=</span><span class="s2">"gfx1100"</span><span class="p">,</span>
     <span class="n">properties</span><span class="o">=</span><span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">64</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 <span class="sd">    NVIDIA GPUs</span>
 
 <span class="sd">    See Also: https://docs.nvidia.com/cuda/cuda-c-programming-guide/#compute-capabilities</span>
 
 <span class="sd">    Suffixes:</span>
 <span class="sd">    - No suffix: Base architecture</span>
-<span class="sd">    - &#39;f&#39;: Family variant</span>
-<span class="sd">    - &#39;a&#39;: Architecture-specific variant</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    - 'f': Family variant</span>
+<span class="sd">    - 'a': Architecture-specific variant</span>
+<span class="sd">"""</span>
 <span class="n">nvgpu_any</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span> <span class="s2">&quot;any&quot;</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">64</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span> <span class="s2">"any"</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">64</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 7.0</span>
 <span class="n">nvgpu_sm70</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span> <span class="s2">&quot;sm70&quot;</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">96</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span> <span class="s2">"sm70"</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">96</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 7.5</span>
 <span class="n">nvgpu_sm75</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span> <span class="s2">&quot;sm75&quot;</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">96</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span> <span class="s2">"sm75"</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">96</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 8.0</span>
 <span class="n">nvgpu_sm80</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm80&quot;</span><span class="p">,</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm80"</span><span class="p">,</span>
     <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">163</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 8.6</span>
 <span class="n">nvgpu_sm86</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span> <span class="s2">&quot;sm86&quot;</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span> <span class="s2">"sm86"</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 8.7</span>
 <span class="n">nvgpu_sm87</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span> <span class="s2">&quot;sm87&quot;</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span> <span class="s2">"sm87"</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 8.8</span>
 <span class="n">nvgpu_sm88</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span> <span class="s2">&quot;sm88&quot;</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span> <span class="s2">"sm88"</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 8.9</span>
 <span class="n">nvgpu_sm89</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span> <span class="s2">&quot;sm89&quot;</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span> <span class="s2">"sm89"</span><span class="p">,</span> <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 9.0</span>
 <span class="n">nvgpu_sm90</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm90&quot;</span><span class="p">,</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm90"</span><span class="p">,</span>
     <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm90a</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm90a&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm90a"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"a"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 10.0</span>
 <span class="n">nvgpu_sm100</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm100&quot;</span><span class="p">,</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm100"</span><span class="p">,</span>
     <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm100f</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm100f&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm100f"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"f"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm100a</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm100a&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm100a"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"a"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 10.3</span>
 <span class="n">nvgpu_sm103</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm103&quot;</span><span class="p">,</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm103"</span><span class="p">,</span>
     <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm103f</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm103f&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm103f"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"f"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm103a</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm103a&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm103a"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"a"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 11.0</span>
 <span class="n">nvgpu_sm110</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm110&quot;</span><span class="p">,</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm110"</span><span class="p">,</span>
     <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm110f</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm110f&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm110f"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"f"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm110a</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm110a&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm110a"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"a"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">227</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 12.0</span>
 <span class="n">nvgpu_sm120</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm120&quot;</span><span class="p">,</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm120"</span><span class="p">,</span>
     <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm120f</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm120f&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm120f"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"f"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm120a</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm120a&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm120a"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"a"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 
 <span class="c1"># SM 12.1</span>
 <span class="n">nvgpu_sm121</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm121&quot;</span><span class="p">,</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm121"</span><span class="p">,</span>
     <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm121f</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm121f&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm121f"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"f"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">nvgpu_sm121a</span> <span class="o">=</span> <span class="n">Target</span><span class="p">(</span>
-    <span class="s2">&quot;nvgpu&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;sm121a&quot;</span><span class="p">,</span>
-    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="s2">"nvgpu"</span><span class="p">,</span>
+    <span class="s2">"sm121a"</span><span class="p">,</span>
+    <span class="n">TargetProperties</span><span class="p">(</span><span class="n">compute_capability</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">feature_suffix</span><span class="o">=</span><span class="s2">"a"</span><span class="p">,</span> <span class="n">shared_memory_per_block</span><span class="o">=</span><span class="mi">99</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">),</span>
 <span class="p">)</span>
 
 
@@ -863,7 +873,7 @@ document.write(`
 <div class="viewcode-block" id="get_current_target">
 <a class="viewcode-back" href="../../python-api/generated/tilus.target.get_current_target.html#tilus.target.get_current_target">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_current_target</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Target</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the current compilation target.</span>
+<span class="w">    </span><span class="sd">"""Get the current compilation target.</span>
 
 <span class="sd">    This is the target used to compile kernels when compiling new kernels.</span>
 
@@ -871,7 +881,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    target: Target</span>
 <span class="sd">        The current compilation target.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">global</span> <span class="n">_target</span>
     <span class="k">if</span> <span class="n">_target</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">_target</span> <span class="o">=</span> <span class="n">get_default_target</span><span class="p">()</span>
@@ -883,7 +893,7 @@ document.write(`
 <div class="viewcode-block" id="set_current_target">
 <a class="viewcode-back" href="../../python-api/generated/tilus.target.set_current_target.html#tilus.target.set_current_target">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">set_current_target</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="n">Target</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Set the current compilation target.</span>
+<span class="w">    </span><span class="sd">"""Set the current compilation target.</span>
 
 <span class="sd">    The current target is used to compile kernels when compiling new kernels.</span>
 
@@ -891,7 +901,7 @@ document.write(`
 <span class="sd">    ----------</span>
 <span class="sd">    target: Target</span>
 <span class="sd">        The target to be set.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">global</span> <span class="n">_target</span>
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">Target</span><span class="p">)</span>
     <span class="n">_target</span> <span class="o">=</span> <span class="n">target</span></div>
@@ -900,7 +910,7 @@ document.write(`
 
 <span class="nd">@contextmanager</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">scope</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="n">Target</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Target</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Temporarily set the current compilation target.</span>
+<span class="w">    </span><span class="sd">"""Temporarily set the current compilation target.</span>
 
 <span class="sd">    Useful to compile a kernel for a specific architecture (e.g., sm100a) on a machine that does not</span>
 <span class="sd">    support running it. Restores the previous target on exit.</span>
@@ -914,7 +924,7 @@ document.write(`
 <span class="sd">    ------</span>
 <span class="sd">    target: Target</span>
 <span class="sd">        The target that is now active.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">global</span> <span class="n">_target</span>
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">Target</span><span class="p">)</span>
     <span class="n">prev</span> <span class="o">=</span> <span class="n">_target</span>
@@ -933,13 +943,13 @@ document.write(`
     <span class="n">has_amdgpu</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">if</span> <span class="n">has_nvgpu</span> <span class="ow">and</span> <span class="n">has_amdgpu</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Both AMD and NVIDIA GPUs are available. We do not support this configuration yet.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"Both AMD and NVIDIA GPUs are available. We do not support this configuration yet."</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">has_nvgpu</span><span class="p">:</span>
         <span class="n">compute_capabilities</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_capability</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">device_count</span><span class="p">())]</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">compute_capabilities</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                <span class="s2">&quot;Multiple NVIDIA GPUs with different compute capabilities are available. &quot;</span>
-                <span class="s2">&quot;We do not support this configuration yet.&quot;</span>
+                <span class="s2">"Multiple NVIDIA GPUs with different compute capabilities are available. "</span>
+                <span class="s2">"We do not support this configuration yet."</span>
             <span class="p">)</span>
         <span class="n">major</span><span class="p">,</span> <span class="n">minor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_capability</span><span class="p">()</span>
 
@@ -977,31 +987,31 @@ document.write(`
         <span class="p">}</span>
 
         <span class="c1"># first try arch-specific variant</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">target_map</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">target_map</span><span class="p">[(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="s2">"a"</span><span class="p">)</span> <span class="ow">in</span> <span class="n">target_map</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">target_map</span><span class="p">[(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="s2">"a"</span><span class="p">)]</span>
 
         <span class="c1"># then try family variant</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">target_map</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">target_map</span><span class="p">[(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">)</span> <span class="ow">in</span> <span class="n">target_map</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">target_map</span><span class="p">[(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">)]</span>
 
         <span class="c1"># finally try base architecture</span>
         <span class="k">if</span> <span class="p">(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">in</span> <span class="n">target_map</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">target_map</span><span class="p">[(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="kc">None</span><span class="p">)]</span>
 
         <span class="c1"># If no target found, raise an error</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported NVIDIA GPU compute capability: </span><span class="si">{</span><span class="n">major</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">minor</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsupported NVIDIA GPU compute capability: </span><span class="si">{</span><span class="n">major</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">minor</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">has_amdgpu</span><span class="p">:</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet</span><span class="w"> </span><span class="kn">import</span> <span class="n">hip</span>  <span class="c1"># type: ignore</span>
 
         <span class="n">compute_capabilities</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">hip</span><span class="o">.</span><span class="n">compute_capability</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">hip</span><span class="o">.</span><span class="n">device_count</span><span class="p">())</span>
-            <span class="k">if</span> <span class="n">hip</span><span class="o">.</span><span class="n">properties</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;AMD Radeon Graphics&quot;</span>  <span class="c1"># skip the integrated GPU in AMD CPU</span>
+            <span class="k">if</span> <span class="n">hip</span><span class="o">.</span><span class="n">properties</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">"AMD Radeon Graphics"</span>  <span class="c1"># skip the integrated GPU in AMD CPU</span>
         <span class="p">]</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">compute_capabilities</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                <span class="s2">&quot;Multiple AMD GPUs with different compute capabilities are available. &quot;</span>
-                <span class="s2">&quot;We do not support this configuration yet.&quot;</span>
+                <span class="s2">"Multiple AMD GPUs with different compute capabilities are available. "</span>
+                <span class="s2">"We do not support this configuration yet."</span>
             <span class="p">)</span>
         <span class="n">major</span><span class="p">,</span> <span class="n">minor</span> <span class="o">=</span> <span class="n">hip</span><span class="o">.</span><span class="n">compute_capability</span><span class="p">()</span>
         <span class="n">amdgpu_targets</span> <span class="o">=</span> <span class="p">[</span><span class="n">amdgpu_gfx1100</span><span class="p">]</span>
@@ -1010,7 +1020,7 @@ document.write(`
         <span class="p">}</span>
         <span class="k">return</span> <span class="n">target_map</span><span class="p">[(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">)]</span>  <span class="c1"># type: ignore[index]</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No GPU is available.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"No GPU is available."</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">match_target</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="n">Target</span><span class="p">,</span> <span class="n">target_templates</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Target</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Target</span><span class="p">]:</span>

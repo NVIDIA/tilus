@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,14 +609,14 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -622,9 +632,9 @@ document.write(`
 <div class="viewcode-block" id="BlockClusterInstructionGroup">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/cluster.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">BlockClusterInstructionGroup</span><span class="p">(</span><span class="n">InstructionGroup</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Block cluster instructions for multi-CTA coordination on Hopper+ GPUs.</span>
+<span class="w">    </span><span class="sd">"""Block cluster instructions for multi-CTA coordination on Hopper+ GPUs.</span>
 
-<span class="sd">    A **cluster** is a group of thread blocks (CTAs) that can directly access each other&#39;s</span>
+<span class="sd">    A **cluster** is a group of thread blocks (CTAs) that can directly access each other's</span>
 <span class="sd">    shared memory and synchronize collectively. Clusters are configured at launch time via</span>
 <span class="sd">    ``self.attrs.cluster_blocks``.</span>
 
@@ -633,16 +643,16 @@ document.write(`
 <span class="sd">    - **Synchronization**: ``sync()`` is a cluster-wide barrier — all threads across all CTAs</span>
 <span class="sd">      in the cluster must arrive before any can proceed.</span>
 <span class="sd">    - **Introspection**: ``blockIdx``, ``clusterDim``, and ``blockRank`` provide the current</span>
-<span class="sd">      CTA&#39;s position and rank within the cluster.</span>
+<span class="sd">      CTA's position and rank within the cluster.</span>
 <span class="sd">    - **Cross-CTA addressing**: ``map_shared_addr()`` translates a shared memory address from</span>
-<span class="sd">      the current CTA&#39;s address space to another CTA&#39;s, enabling direct remote shared memory</span>
-<span class="sd">      access (e.g., signaling a peer CTA&#39;s mbarrier).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">      the current CTA's address space to another CTA's, enabling direct remote shared memory</span>
+<span class="sd">      access (e.g., signaling a peer CTA's mbarrier).</span>
+<span class="sd">    """</span>
 
 <div class="viewcode-block" id="BlockClusterInstructionGroup.sync">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.sync">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">sync</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Synchronize all thread blocks in the current cluster.</span>
+<span class="w">        </span><span class="sd">"""Synchronize all thread blocks in the current cluster.</span>
 
 <span class="sd">        All threads in all CTAs of the cluster must reach this barrier before any thread can</span>
 <span class="sd">        proceed past it. This is the cluster-level equivalent of ``__syncthreads()``.</span>
@@ -652,7 +662,7 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
 <span class="sd">        - **PTX**: ``barrier.cluster.arrive`` / ``barrier.cluster.wait``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.primitives.cuda.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">cluster_sync</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">pred</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">expr</span><span class="o">=</span><span class="n">cluster_sync</span><span class="p">())</span></div>
@@ -660,7 +670,7 @@ document.write(`
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">blockIdx</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dim3</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;The block index within the cluster.</span>
+<span class="w">        </span><span class="sd">"""The block index within the cluster.</span>
 
 <span class="sd">        Returns a ``Dim3`` with ``x``, ``y``, ``z`` components representing the position</span>
 <span class="sd">        of the current block within the cluster grid.</span>
@@ -668,7 +678,7 @@ document.write(`
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.primitives.cuda.vars</span><span class="w"> </span><span class="kn">import</span> <span class="n">clusterBlockIdx</span>
 
         <span class="k">return</span> <span class="n">Dim3</span><span class="p">(</span>
@@ -679,7 +689,7 @@ document.write(`
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">clusterDim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dim3</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;The dimensions of the cluster.</span>
+<span class="w">        </span><span class="sd">"""The dimensions of the cluster.</span>
 
 <span class="sd">        Returns a ``Dim3`` with ``x``, ``y``, ``z`` components representing the</span>
 <span class="sd">        number of blocks in each dimension of the cluster.</span>
@@ -687,7 +697,7 @@ document.write(`
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.primitives.cuda.vars</span><span class="w"> </span><span class="kn">import</span> <span class="n">clusterDim</span>
 
         <span class="k">return</span> <span class="n">Dim3</span><span class="p">(</span>
@@ -698,14 +708,14 @@ document.write(`
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">blockRank</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Var</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;The linear rank of the current block within the cluster.</span>
+<span class="w">        </span><span class="sd">"""The linear rank of the current block within the cluster.</span>
 
 <span class="sd">        Returns a scalar ``uint32`` value in the range ``[0, clusterSize)``.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.primitives.cuda.vars</span><span class="w"> </span><span class="kn">import</span> <span class="n">clusterBlockRank</span>
 
         <span class="k">return</span> <span class="n">clusterBlockRank</span>
@@ -713,10 +723,10 @@ document.write(`
 <div class="viewcode-block" id="BlockClusterInstructionGroup.map_shared_addr">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr.html#tilus.lang.instructions.cluster.BlockClusterInstructionGroup.map_shared_addr">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">map_shared_addr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span> <span class="n">target_rank</span><span class="p">:</span> <span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterTensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Map shared memory address(es) to the corresponding address(es) in another CTA&#39;s shared memory.</span>
+<span class="w">        </span><span class="sd">"""Map shared memory address(es) to the corresponding address(es) in another CTA's shared memory.</span>
 
 <span class="sd">        This instruction uses the PTX ``mapa.shared::cluster`` instruction to translate shared memory addresses</span>
-<span class="sd">        from the current CTA&#39;s address space to another CTA&#39;s address space within the same cluster.</span>
+<span class="sd">        from the current CTA's address space to another CTA's address space within the same cluster.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -735,11 +745,11 @@ document.write(`
 <span class="sd">        - **Thread group**: Can be executed by any sized thread group.</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0+ (sm_90).</span>
 <span class="sd">        - **PTX**: ``mapa.shared::cluster``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="n">RegisterTensor</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;addr must be a RegisterTensor, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">addr</span><span class="p">)))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"addr must be a RegisterTensor, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">addr</span><span class="p">)))</span>
         <span class="k">if</span> <span class="n">addr</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">uint32</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;addr must have dtype uint32, got </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">addr</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"addr must have dtype uint32, got </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">addr</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">map_shared_addr</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="n">target_rank</span><span class="o">=</span><span class="n">as_expr</span><span class="p">(</span><span class="n">target_rank</span><span class="p">))</span></div>
 </div>
 

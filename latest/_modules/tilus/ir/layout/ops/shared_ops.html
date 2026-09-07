@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,14 +609,14 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -622,7 +632,7 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">strides_from_ranks</span><span class="p">(</span><span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">ranks</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Compute the strides from the ranks of each dimension.</span>
 
 <span class="sd">    Parameters</span>
@@ -637,7 +647,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: list[int]</span>
 <span class="sd">        The strides of each dimension.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">)</span>
     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">ranks</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">d</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ranks</span><span class="p">)</span>
     <span class="n">strides</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">prod</span><span class="p">([</span><span class="n">s</span> <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="k">if</span> <span class="n">ranks</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">ranks</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">))]</span>
@@ -647,7 +657,7 @@ document.write(`
 <div class="viewcode-block" id="shared_row_major">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_row_major.html#tilus.ir.layout.ops.shared_row_major">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">shared_row_major</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a shared layout with row-major order.</span>
+<span class="w">    </span><span class="sd">"""Create a shared layout with row-major order.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -658,7 +668,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: SharedLayout</span>
 <span class="sd">        A shared layout with the specified shape in row-major order.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">mode_shape</span> <span class="o">=</span> <span class="n">shape</span>
     <span class="n">mode_strides</span> <span class="o">=</span> <span class="n">strides_from_ranks</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">mode_shape</span><span class="p">,</span> <span class="n">ranks</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">))))</span>
     <span class="k">return</span> <span class="n">shared_layout</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">mode_shape</span><span class="o">=</span><span class="n">mode_shape</span><span class="p">,</span> <span class="n">mode_strides</span><span class="o">=</span><span class="n">mode_strides</span><span class="p">,</span> <span class="n">optional_swizzle</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></div>
@@ -668,7 +678,7 @@ document.write(`
 <div class="viewcode-block" id="shared_column_major">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_column_major.html#tilus.ir.layout.ops.shared_column_major">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">shared_column_major</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a shared layout with column-major order.</span>
+<span class="w">    </span><span class="sd">"""Create a shared layout with column-major order.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -679,7 +689,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: SharedLayout</span>
 <span class="sd">        A shared layout with the specified shape in column-major order.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">mode_shape</span> <span class="o">=</span> <span class="n">shape</span>
     <span class="n">mode_strides</span> <span class="o">=</span> <span class="n">strides_from_ranks</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">mode_shape</span><span class="p">,</span> <span class="n">ranks</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">)))))</span>
     <span class="k">return</span> <span class="n">shared_layout</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">mode_shape</span><span class="o">=</span><span class="n">mode_shape</span><span class="p">,</span> <span class="n">mode_strides</span><span class="o">=</span><span class="n">mode_strides</span><span class="p">,</span> <span class="n">optional_swizzle</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></div>
@@ -689,7 +699,7 @@ document.write(`
 <div class="viewcode-block" id="shared_compose">
 <a class="viewcode-back" href="../../../../../python-api/tilus-ir/generated/tilus.ir.layout.ops.shared_compose.html#tilus.ir.layout.ops.shared_compose">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">shared_compose</span><span class="p">(</span><span class="n">lhs</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">,</span> <span class="n">rhs</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compose multiple shared layouts together.</span>
+<span class="w">    </span><span class="sd">"""Compose multiple shared layouts together.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -702,7 +712,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: SharedLayout</span>
 <span class="sd">        The composed shared layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
     <span class="n">ndims</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 
@@ -729,7 +739,7 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">shared_permute</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">,</span> <span class="n">dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Permute the dimensions of the shared layout.</span>
+<span class="w">    </span><span class="sd">"""Permute the dimensions of the shared layout.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -744,7 +754,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: SharedLayout</span>
 <span class="sd">        The permuted layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">set</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)))</span>
 
     <span class="c1"># shape</span>
@@ -764,7 +774,7 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">shared_slice</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">,</span> <span class="n">retain_dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Slice the shared layout by removing specified dimensions.</span>
+<span class="w">    </span><span class="sd">"""Slice the shared layout by removing specified dimensions.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -778,7 +788,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: SharedLayout</span>
 <span class="sd">        The sliced layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">d</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">retain_dims</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">retain_dims</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">retain_dims</span><span class="p">))</span>
     <span class="n">shape</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">mode_shape</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
@@ -800,10 +810,10 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">shared_reshape</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">,</span> <span class="n">new_shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reshape the shared layout to a new shape.</span>
+<span class="w">    </span><span class="sd">"""Reshape the shared layout to a new shape.</span>
 
-<span class="sd">    It&#39;s not guranteed that the reshape operation can be performed on arbitrary combination of (shared layout, new shape).</span>
-<span class="sd">    If the result shape can be represented by the shared layout system, it&#39;s guaranteed that the reshape will succeed.</span>
+<span class="sd">    It's not guranteed that the reshape operation can be performed on arbitrary combination of (shared layout, new shape).</span>
+<span class="sd">    If the result shape can be represented by the shared layout system, it's guaranteed that the reshape will succeed.</span>
 <span class="sd">    Otherwise, a runtime error will be raised.</span>
 
 <span class="sd">    Parameters</span>
@@ -817,18 +827,18 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: SharedLayout</span>
 <span class="sd">        The reshaped layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">assert</span> <span class="n">prod</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="n">prod</span><span class="p">(</span><span class="n">new_shape</span><span class="p">)</span>
 
     <span class="c1"># we need to split some sub-dimensions so that each dimension of the new shape contains a contigous group</span>
     <span class="c1"># of sub-dimensions. For example, mode_shape=[16], mode_strides=[1] can be reshaped to [4, 4]. Then we need</span>
     <span class="c1"># to split this dimension to mode_shape[4, 4], mode_strides[4, 1].</span>
-    <span class="c1"># It&#39;s not guranteed that the reshape operation will always succeed. For example, if we have layout:</span>
+    <span class="c1"># It's not guranteed that the reshape operation will always succeed. For example, if we have layout:</span>
     <span class="c1">#   shape = [12]</span>
     <span class="c1">#   mode_shape = [4, 3]</span>
     <span class="c1">#   mode_strides = [1, 4]</span>
     <span class="c1"># if we want to reshape this layout to shape [3, 4], the result layout can not be represented with the shared memory</span>
-    <span class="c1"># layout system of tilus. It&#39;s something like (i, j) -&gt; (i * 4 + j) -&gt; ((i * 4 + j) // 3, (i * 4 + j) % 3)</span>
+    <span class="c1"># layout system of tilus. It's something like (i, j) -&gt; (i * 4 + j) -&gt; ((i * 4 + j) // 3, (i * 4 + j) % 3)</span>
     <span class="c1">#   -&gt; (i * 4 + j) // 3  + (i * 4 + j) % 3 * 4</span>
     <span class="c1"># the formula can not be represented by the form i * s_i + j * s_j.</span>
     <span class="n">mode_shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">)</span>
@@ -841,7 +851,7 @@ document.write(`
         <span class="k">while</span> <span class="n">extent</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">factor</span> <span class="o">=</span> <span class="n">gcd</span><span class="p">(</span><span class="n">extent</span><span class="p">,</span> <span class="n">mode_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
             <span class="k">if</span> <span class="n">factor</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Can not reshape layout </span><span class="si">{</span><span class="n">layout</span><span class="si">}</span><span class="s2"> with new shape </span><span class="si">{</span><span class="n">new_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Can not reshape layout </span><span class="si">{</span><span class="n">layout</span><span class="si">}</span><span class="s2"> with new shape </span><span class="si">{</span><span class="n">new_shape</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
             <span class="n">new_mode_shape</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">factor</span><span class="p">)</span>
             <span class="n">new_mode_strides</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="n">factor</span> <span class="o">*</span> <span class="n">mode_strides</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
@@ -861,7 +871,7 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">shared_unsqueeze</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">,</span> <span class="n">dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Unsqueeze the shared layout by adding new dimensions of size 1.</span>
+<span class="w">    </span><span class="sd">"""Unsqueeze the shared layout by adding new dimensions of size 1.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -874,7 +884,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: SharedLayout</span>
 <span class="sd">        The unsqueezed layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">d</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dims</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dims</span><span class="p">))</span>
     <span class="n">shape</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">dims</span><span class="p">):</span>
@@ -888,7 +898,7 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">shared_row_major_swizzle</span><span class="p">(</span><span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">dtype_nbytes</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SharedLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Generate a shared layout that could be used to generate ldmatrix instruction when using LoadSharedInst.</span>
 
 <span class="sd">    Both m and n must be a multiple of 8.</span>
@@ -964,13 +974,13 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    shared_layout: SharedLayout</span>
 <span class="sd">        The shared layout that could be used to generate ldmatrix instruction when using LoadSharedInst.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The shape of swizzled shared layout must have at least two dimensions.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"The shape of swizzled shared layout must have at least two dimensions."</span><span class="p">)</span>
     <span class="n">head</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]),</span> <span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 
     <span class="k">if</span> <span class="n">m</span> <span class="o">%</span> <span class="mi">8</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">n</span> <span class="o">*</span> <span class="n">dtype_nbytes</span> <span class="o">%</span> <span class="mi">16</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;m must be a multiple of 8, and n * dtype_nbytes must be a multiple of 16.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"m must be a multiple of 8, and n * dtype_nbytes must be a multiple of 16."</span><span class="p">)</span>
 
     <span class="n">n_vector_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">gcd</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">128</span> <span class="o">//</span> <span class="n">dtype_nbytes</span><span class="p">)</span>
     <span class="n">n_num_vectors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">n</span> <span class="o">//</span> <span class="n">n_vector_size</span>
@@ -990,7 +1000,7 @@ document.write(`
     <span class="p">}</span>
 
     <span class="k">if</span> <span class="n">n_vector_size</span> <span class="o">*</span> <span class="n">dtype_nbytes</span> <span class="o">==</span> <span class="mi">128</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        (each number represents a 16-byte group of elements)</span>
 <span class="sd">        0  1  2  3  4  5  6  7</span>
 <span class="sd">        1  0  3  2  5  4  7  6</span>
@@ -1000,10 +1010,10 @@ document.write(`
 <span class="sd">        5  4  7  6  1  0  3  2</span>
 <span class="sd">        6  7  4  5  2  3  0  1</span>
 <span class="sd">        7  6  5  4  3  2  1  0</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">swizzle</span> <span class="o">=</span> <span class="n">Swizzle</span><span class="p">(</span><span class="n">base</span><span class="o">=</span><span class="n">log2</span><span class="p">[</span><span class="mi">16</span> <span class="o">//</span> <span class="n">dtype_nbytes</span><span class="p">],</span> <span class="n">bits</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">n_vector_size</span> <span class="o">*</span> <span class="n">dtype_nbytes</span> <span class="o">==</span> <span class="mi">64</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        0  1  2  3</span>
 <span class="sd">        4  5  6  7</span>
 <span class="sd">        1  0  3  2</span>
@@ -1012,10 +1022,10 @@ document.write(`
 <span class="sd">        6  7  4  5</span>
 <span class="sd">        3  2  1  0</span>
 <span class="sd">        7  6  5  4</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">swizzle</span> <span class="o">=</span> <span class="n">Swizzle</span><span class="p">(</span><span class="n">base</span><span class="o">=</span><span class="n">log2</span><span class="p">[</span><span class="mi">16</span> <span class="o">//</span> <span class="n">dtype_nbytes</span><span class="p">],</span> <span class="n">bits</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">n_vector_size</span> <span class="o">*</span> <span class="n">dtype_nbytes</span> <span class="o">==</span> <span class="mi">32</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        0  1</span>
 <span class="sd">        2  3</span>
 <span class="sd">        4  5</span>
@@ -1024,10 +1034,10 @@ document.write(`
 <span class="sd">        3  2</span>
 <span class="sd">        5  4</span>
 <span class="sd">        7  6</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">swizzle</span> <span class="o">=</span> <span class="n">Swizzle</span><span class="p">(</span><span class="n">base</span><span class="o">=</span><span class="n">log2</span><span class="p">[</span><span class="mi">16</span> <span class="o">//</span> <span class="n">dtype_nbytes</span><span class="p">],</span> <span class="n">bits</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">n_vector_size</span> <span class="o">*</span> <span class="n">dtype_nbytes</span> <span class="o">==</span> <span class="mi">16</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        0</span>
 <span class="sd">        1</span>
 <span class="sd">        2</span>
@@ -1036,7 +1046,7 @@ document.write(`
 <span class="sd">        5</span>
 <span class="sd">        6</span>
 <span class="sd">        7</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">swizzle</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">assert</span> <span class="kc">False</span>
@@ -1049,8 +1059,8 @@ document.write(`
     <span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">visualize_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">,</span> <span class="n">tablefmt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;simple_grid&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">visualize_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">SharedLayout</span><span class="p">,</span> <span class="n">tablefmt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"simple_grid"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Visualize the layout in a human-readable format.</span>
 
 <span class="sd">    Parameters</span>
@@ -1078,20 +1088,20 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: str</span>
 <span class="sd">        The string representation of the layout that is human-readable.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">head</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span>
     <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="n">SharedLayout</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Shared layout with shape </span><span class="si">{</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> is not supported for visualization.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">LayoutOperationError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Shared layout with shape </span><span class="si">{</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> is not supported for visualization."</span><span class="p">)</span>
     <span class="n">grid</span> <span class="o">=</span> <span class="n">layout</span><span class="o">.</span><span class="n">as_numpy_grid</span><span class="p">()</span>
     <span class="n">table</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
         <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
-            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">grid</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">grid</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="n">table</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">head</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">tabulate</span><span class="o">.</span><span class="n">tabulate</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">tablefmt</span><span class="o">=</span><span class="n">tablefmt</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">head</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span> <span class="o">+</span> <span class="n">tabulate</span><span class="o">.</span><span class="n">tabulate</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">tablefmt</span><span class="o">=</span><span class="n">tablefmt</span><span class="p">)</span>
 </pre></div>
 
                 </article>

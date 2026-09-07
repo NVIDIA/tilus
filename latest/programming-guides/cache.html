@@ -169,6 +169,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -664,7 +674,7 @@ the current Git repository. If Tilus is used outside a Git repository, the
 default falls back to <code class="docutils literal notranslate"><span class="pre">~/.cache/tilus</span></code>.</p>
 <p>You can override the cache directory with <a class="reference internal" href="../python-api/generated/tilus.option.cache_dir.html#tilus.option.cache_dir" title="tilus.option.cache_dir"><code class="xref py py-func docutils literal notranslate"><span class="pre">tilus.option.cache_dir()</span></code></a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">tilus</span>
-<span class="n">tilus</span><span class="o">.</span><span class="n">option</span><span class="o">.</span><span class="n">cache_dir</span><span class="p">(</span><span class="s1">&#39;./my-cache&#39;</span><span class="p">)</span>
+<span class="n">tilus</span><span class="o">.</span><span class="n">option</span><span class="o">.</span><span class="n">cache_dir</span><span class="p">(</span><span class="s1">'./my-cache'</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The cache directory can be safely deleted at any time — Tilus will simply
@@ -674,7 +684,7 @@ recompile on the next run.</p>
 <p>To inspect the generated CUDA source for a kernel, set the cache directory and
 run your program:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">tilus</span>
-<span class="n">tilus</span><span class="o">.</span><span class="n">option</span><span class="o">.</span><span class="n">cache_dir</span><span class="p">(</span><span class="s1">&#39;./cache&#39;</span><span class="p">)</span>
+<span class="n">tilus</span><span class="o">.</span><span class="n">option</span><span class="o">.</span><span class="n">cache_dir</span><span class="p">(</span><span class="s1">'./cache'</span><span class="p">)</span>
 
 <span class="c1"># ... your program ...</span>
 </pre></div>
@@ -689,7 +699,7 @@ run your program:</p>
 <p>To inspect the intermediate representations (IRs) produced during compilation,
 enable <a class="reference internal" href="../python-api/generated/tilus.option.debug.dump_ir.html#tilus.option.debug.dump_ir" title="tilus.option.debug.dump_ir"><code class="xref py py-func docutils literal notranslate"><span class="pre">tilus.option.debug.dump_ir()</span></code></a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">tilus</span>
-<span class="n">tilus</span><span class="o">.</span><span class="n">option</span><span class="o">.</span><span class="n">cache_dir</span><span class="p">(</span><span class="s1">&#39;./cache&#39;</span><span class="p">)</span>
+<span class="n">tilus</span><span class="o">.</span><span class="n">option</span><span class="o">.</span><span class="n">cache_dir</span><span class="p">(</span><span class="s1">'./cache'</span><span class="p">)</span>
 <span class="n">tilus</span><span class="o">.</span><span class="n">option</span><span class="o">.</span><span class="n">debug</span><span class="o">.</span><span class="n">dump_ir</span><span class="p">()</span>
 
 <span class="c1"># ... your program ...</span>

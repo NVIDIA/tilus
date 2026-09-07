@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,14 +609,14 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -622,7 +632,7 @@ document.write(`
 <div class="viewcode-block" id="WgmmaInstructionGroup">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/wgmma.html#tilus.lang.instructions.wgmma.WgmmaInstructionGroup">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">WgmmaInstructionGroup</span><span class="p">(</span><span class="n">InstructionGroup</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Warp Group Matrix Multiply-Accumulate (WGMMA) instructions for Hopper GPUs.</span>
+<span class="w">    </span><span class="sd">"""Warp Group Matrix Multiply-Accumulate (WGMMA) instructions for Hopper GPUs.</span>
 
 <span class="sd">    WGMMA performs asynchronous matrix multiply-accumulate operations using a **warp group**</span>
 <span class="sd">    (4 consecutive warps, 128 threads). The operands reside in shared memory (``a``, ``b``) or</span>
@@ -640,12 +650,12 @@ document.write(`
 
 <span class="sd">    All WGMMA instructions must be executed by a full warp group (4 warps). Use</span>
 <span class="sd">    ``self.warp_group()`` to create the appropriate thread group context.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
 <div class="viewcode-block" id="WgmmaInstructionGroup.fence">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence.html#tilus.lang.instructions.wgmma.WgmmaInstructionGroup.fence">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">fence</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Issue a warp group MMA fence.</span>
+<span class="w">        </span><span class="sd">"""Issue a warp group MMA fence.</span>
 
 <span class="sd">        This fence must be issued before any ``wgmma.mma`` instruction to ensure that prior</span>
 <span class="sd">        register or shared memory writes are visible to the MMA operation. It establishes</span>
@@ -656,14 +666,14 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a warp group (4 warps).</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0a+ (sm_90a).</span>
 <span class="sd">        - **PTX**: ``wgmma.fence.sync.aligned``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">wgmma_fence</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="WgmmaInstructionGroup.commit_group">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group.html#tilus.lang.instructions.wgmma.WgmmaInstructionGroup.commit_group">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">commit_group</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Commit the previously issued warp group MMA operations.</span>
+<span class="w">        </span><span class="sd">"""Commit the previously issued warp group MMA operations.</span>
 
 <span class="sd">        Groups all prior uncommitted ``wgmma.mma`` operations into a commit group</span>
 <span class="sd">        that can be waited on with ``wgmma.wait_group``.</span>
@@ -673,14 +683,14 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a warp group (4 warps).</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0a+ (sm_90a).</span>
 <span class="sd">        - **PTX**: ``wgmma.commit_group.sync.aligned``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">wgmma_commit_group</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="WgmmaInstructionGroup.wait_group">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group.html#tilus.lang.instructions.wgmma.WgmmaInstructionGroup.wait_group">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">wait_group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Expr</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait for warp group MMA commit groups to complete.</span>
+<span class="w">        </span><span class="sd">"""Wait for warp group MMA commit groups to complete.</span>
 
 <span class="sd">        Waits until at most ``n`` commit groups are pending (i.e., all but the most recent</span>
 <span class="sd">        ``n`` groups have completed).</span>
@@ -696,14 +706,14 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a warp group (4 warps).</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0a+ (sm_90a).</span>
 <span class="sd">        - **PTX**: ``wgmma.wait_group.sync.aligned``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">wgmma_wait_group</span><span class="p">(</span><span class="n">n</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="WgmmaInstructionGroup.mma">
 <a class="viewcode-back" href="../../../../python-api/instruction-groups/generated/tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma.html#tilus.lang.instructions.wgmma.WgmmaInstructionGroup.mma">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">mma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="n">SharedTensor</span> <span class="o">|</span> <span class="n">RegisterTensor</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform warp group matrix multiply-accumulate (MMA) operation.</span>
+<span class="w">        </span><span class="sd">"""Perform warp group matrix multiply-accumulate (MMA) operation.</span>
 
 <span class="sd">        Computes ``d = a @ b + d`` where ``a`` is in shared or register memory, ``b`` is in</span>
 <span class="sd">        shared memory, and ``d`` is in register memory (both input accumulator and output).</span>
@@ -728,17 +738,17 @@ document.write(`
 <span class="sd">        - **Thread group**: Must be executed by a warp group (4 warps).</span>
 <span class="sd">        - **Hardware**: Requires compute capability 9.0a+ (sm_90a).</span>
 <span class="sd">        - **PTX**: ``wgmma.mma_async.sync.aligned``</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">d</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span>
-                <span class="s2">&quot;mma requires 2D tensors, got shapes </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">([</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span> <span class="k">for</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">d</span><span class="p">)])</span>
+                <span class="s2">"mma requires 2D tensors, got shapes </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">([</span><span class="n">tensor</span><span class="o">.</span><span class="n">shape</span> <span class="k">for</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">d</span><span class="p">)])</span>
             <span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">SharedTensor</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">wgmma_mma_ss</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">RegisterTensor</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_builder</span><span class="o">.</span><span class="n">wgmma_mma_rs</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">&quot;Invalid type of a: </span><span class="si">{}</span><span class="s2">, expected SharedTensor or RegisterTensor&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">a</span><span class="p">)))</span></div>
+            <span class="k">raise</span> <span class="n">InstructionError</span><span class="p">(</span><span class="s2">"Invalid type of a: </span><span class="si">{}</span><span class="s2">, expected SharedTensor or RegisterTensor"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">a</span><span class="p">)))</span></div>
 </div>
 
 </pre></div>

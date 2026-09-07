@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,14 +609,14 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -620,72 +630,72 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_get_default_cache_dir</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the default cache directory by checking if the current file is inside a Git repository.</span>
+<span class="w">    </span><span class="sd">"""Get the default cache directory by checking if the current file is inside a Git repository.</span>
 
-<span class="sd">    If the current file is inside a Git repository, the cache directory will be set to &#39;.cache&#39; in the root of the</span>
-<span class="sd">    repository. Otherwise, the cache directory will be set to &#39;~/.cache/tilus&#39;.</span>
+<span class="sd">    If the current file is inside a Git repository, the cache directory will be set to '.cache' in the root of the</span>
+<span class="sd">    repository. Otherwise, the cache directory will be set to '~/.cache/tilus'.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    default_cache_dir: str</span>
 <span class="sd">        The default cache directory.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
 
     <span class="k">try</span><span class="p">:</span>
         <span class="c1"># check if the current file is inside a Git repository</span>
         <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-            <span class="p">[</span><span class="s2">&quot;git&quot;</span><span class="p">,</span> <span class="s2">&quot;-C&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="p">),</span> <span class="s2">&quot;rev-parse&quot;</span><span class="p">,</span> <span class="s2">&quot;--is-inside-work-tree&quot;</span><span class="p">],</span>
+            <span class="p">[</span><span class="s2">"git"</span><span class="p">,</span> <span class="s2">"-C"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="p">),</span> <span class="s2">"rev-parse"</span><span class="p">,</span> <span class="s2">"--is-inside-work-tree"</span><span class="p">],</span>
             <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
             <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
             <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="s2">&quot;.cache&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="s2">".cache"</span>
     <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span><span class="p">:</span>
-        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;.cache&quot;</span> <span class="o">/</span> <span class="s2">&quot;tilus&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">".cache"</span> <span class="o">/</span> <span class="s2">"tilus"</span>
     <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_register_options</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Register all options for the tilus package.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Register all options for the tilus package."""</span>
     <span class="n">_register_hidet_option</span><span class="p">(</span>
-        <span class="s2">&quot;tilus.cache_dir&quot;</span><span class="p">,</span>
-        <span class="n">type_hint</span><span class="o">=</span><span class="s2">&quot;str&quot;</span><span class="p">,</span>
+        <span class="s2">"tilus.cache_dir"</span><span class="p">,</span>
+        <span class="n">type_hint</span><span class="o">=</span><span class="s2">"str"</span><span class="p">,</span>
         <span class="n">default_value</span><span class="o">=</span><span class="n">_get_default_cache_dir</span><span class="p">(),</span>
-        <span class="n">env</span><span class="o">=</span><span class="s2">&quot;TILUS_CACHE_DIR&quot;</span><span class="p">,</span>
-        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The directory to store the cache files.&quot;</span><span class="p">,</span>
+        <span class="n">env</span><span class="o">=</span><span class="s2">"TILUS_CACHE_DIR"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"The directory to store the cache files."</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">_register_hidet_option</span><span class="p">(</span>
-        <span class="s2">&quot;tilus.parallel_workers&quot;</span><span class="p">,</span>
-        <span class="n">type_hint</span><span class="o">=</span><span class="s2">&quot;int&quot;</span><span class="p">,</span>
+        <span class="s2">"tilus.parallel_workers"</span><span class="p">,</span>
+        <span class="n">type_hint</span><span class="o">=</span><span class="s2">"int"</span><span class="p">,</span>
         <span class="n">default_value</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(),</span>
-        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The number of parallel workers the tilus package could use for parallel jobs.&quot;</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"The number of parallel workers the tilus package could use for parallel jobs."</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">_register_hidet_option</span><span class="p">(</span>
-        <span class="s2">&quot;tilus.debug.dump_ir&quot;</span><span class="p">,</span>
-        <span class="n">type_hint</span><span class="o">=</span><span class="s2">&quot;bool&quot;</span><span class="p">,</span>
+        <span class="s2">"tilus.debug.dump_ir"</span><span class="p">,</span>
+        <span class="n">type_hint</span><span class="o">=</span><span class="s2">"bool"</span><span class="p">,</span>
         <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">env</span><span class="o">=</span><span class="s2">&quot;TILUS_DUMP_IR&quot;</span><span class="p">,</span>
-        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Whether to dump the IR during compilation.&quot;</span><span class="p">,</span>
+        <span class="n">env</span><span class="o">=</span><span class="s2">"TILUS_DUMP_IR"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Whether to dump the IR during compilation."</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">_register_hidet_option</span><span class="p">(</span>
-        <span class="s2">&quot;tilus.debug.disable_ptxas_opt&quot;</span><span class="p">,</span>
-        <span class="n">type_hint</span><span class="o">=</span><span class="s2">&quot;bool&quot;</span><span class="p">,</span>
+        <span class="s2">"tilus.debug.disable_ptxas_opt"</span><span class="p">,</span>
+        <span class="n">type_hint</span><span class="o">=</span><span class="s2">"bool"</span><span class="p">,</span>
         <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">env</span><span class="o">=</span><span class="s2">&quot;TILUS_DISABLE_PTXAS_OPT&quot;</span><span class="p">,</span>
-        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Whether to disable the optimization of ptxas. This is useful for debugging the generated PTX code.&quot;</span><span class="p">,</span>
+        <span class="n">env</span><span class="o">=</span><span class="s2">"TILUS_DISABLE_PTXAS_OPT"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Whether to disable the optimization of ptxas. This is useful for debugging the generated PTX code."</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">_register_hidet_option</span><span class="p">(</span>
-        <span class="s2">&quot;tilus.bench_warmup&quot;</span><span class="p">,</span>
-        <span class="n">type_hint</span><span class="o">=</span><span class="s2">&quot;int&quot;</span><span class="p">,</span>
+        <span class="s2">"tilus.bench_warmup"</span><span class="p">,</span>
+        <span class="n">type_hint</span><span class="o">=</span><span class="s2">"int"</span><span class="p">,</span>
         <span class="n">default_value</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The number of warmup iterations before benchmarking during autotuning.&quot;</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"The number of warmup iterations before benchmarking during autotuning."</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">_register_hidet_option</span><span class="p">(</span>
-        <span class="s2">&quot;tilus.bench_repeat&quot;</span><span class="p">,</span>
-        <span class="n">type_hint</span><span class="o">=</span><span class="s2">&quot;int&quot;</span><span class="p">,</span>
+        <span class="s2">"tilus.bench_repeat"</span><span class="p">,</span>
+        <span class="n">type_hint</span><span class="o">=</span><span class="s2">"int"</span><span class="p">,</span>
         <span class="n">default_value</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
-        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The number of repeat iterations for benchmarking during autotuning.&quot;</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"The number of repeat iterations for benchmarking during autotuning."</span><span class="p">,</span>
     <span class="p">)</span>
 
 
@@ -693,7 +703,7 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">get_option</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Get the value of an option.</span>
 
 <span class="sd">    Parameters</span>
@@ -705,62 +715,62 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    value: Any</span>
 <span class="sd">        The value of the option.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_get_hidet_option</span><span class="p">(</span><span class="s2">&quot;tilus.&quot;</span> <span class="o">+</span> <span class="n">name</span><span class="p">)</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">_get_hidet_option</span><span class="p">(</span><span class="s2">"tilus."</span> <span class="o">+</span> <span class="n">name</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="cache_dir">
 <a class="viewcode-back" href="../../python-api/generated/tilus.option.cache_dir.html#tilus.option.cache_dir">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">cache_dir</span><span class="p">(</span><span class="n">dir_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Set the cache directory for the compiled programs.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    dir_path: str or Path</span>
 <span class="sd">        The path to the cache directory.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">&quot;tilus.cache_dir&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">dir_path</span><span class="p">))</span></div>
+<span class="sd">    """</span>
+    <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">"tilus.cache_dir"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">dir_path</span><span class="p">))</span></div>
 
 
 
 <div class="viewcode-block" id="parallel_workers">
 <a class="viewcode-back" href="../../python-api/generated/tilus.option.parallel_workers.html#tilus.option.parallel_workers">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">parallel_workers</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Set the number of parallel workers the tilus package could use for parallel jobs (e.g., parallel compilation).</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    n: int</span>
 <span class="sd">        The number of parallel workers.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">&quot;tilus.parallel_workers&quot;</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></div>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">"tilus.parallel_workers"</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></div>
 
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">bench_warmup</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Set the number of warmup iterations before benchmarking during autotuning.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    n: int</span>
 <span class="sd">        The number of warmup iterations.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">&quot;tilus.bench_warmup&quot;</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+<span class="sd">    """</span>
+    <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">"tilus.bench_warmup"</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">bench_repeat</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Set the number of repeat iterations for benchmarking during autotuning.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    n: int</span>
 <span class="sd">        The number of repeat iterations.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">&quot;tilus.bench_repeat&quot;</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+<span class="sd">    """</span>
+    <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">"tilus.bench_repeat"</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">debug</span><span class="p">:</span>
@@ -768,22 +778,22 @@ document.write(`
 <a class="viewcode-back" href="../../python-api/generated/tilus.option.debug.dump_ir.html#tilus.option.debug.dump_ir">[docs]</a>
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">dump_ir</span><span class="p">(</span><span class="n">enable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Whether to dump the IR during compilation. Default is False.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        enable: bool</span>
 <span class="sd">            The flag to enable or disable dumping the IR. Default is True.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">&quot;tilus.debug.dump_ir&quot;</span><span class="p">,</span> <span class="n">enable</span><span class="p">)</span></div>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">"tilus.debug.dump_ir"</span><span class="p">,</span> <span class="n">enable</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="debug.disable_ptxas_opt">
 <a class="viewcode-back" href="../../python-api/generated/tilus.option.debug.disable_ptxas_opt.html#tilus.option.debug.disable_ptxas_opt">[docs]</a>
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">disable_ptxas_opt</span><span class="p">(</span><span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Whether to disable the optimization of ptxas. Default is False.</span>
 
 <span class="sd">        This is useful for debugging the generated PTX code.  When this option is enabled, the ptxas will be called with the -O0 flag to disable all optimizations.</span>
@@ -792,8 +802,8 @@ document.write(`
 <span class="sd">        ----------</span>
 <span class="sd">        enabled: bool</span>
 <span class="sd">            The flag to enable or disable disabling the optimization of ptxas. Default is True.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">&quot;tilus.debug.disable_ptxas_opt&quot;</span><span class="p">,</span> <span class="n">enabled</span><span class="p">)</span></div>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">_set_hidet_option</span><span class="p">(</span><span class="s2">"tilus.debug.disable_ptxas_opt"</span><span class="p">,</span> <span class="n">enabled</span><span class="p">)</span></div>
 
 </pre></div>
 

@@ -168,6 +168,16 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-ampere/matmul/matmul_v5.html">5. Split-K</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-hopper/__init__.html">Matmul (Hopper)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v0.html">0. A Minimal Hopper Matmul</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v1.html">1. WGMMA: Hopper’s Asynchronous Tensor Core</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v2.html">2. Multi-Stage Software Pipelining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v0.html">0. A Minimal Blackwell Matmul</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/matmul-blackwell/v1.html">1. TMA Loads and TMA Epilogue</a></li>
@@ -599,14 +609,14 @@ document.write(`
 <span></span><span class="c1"># SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.</span>
 <span class="c1"># SPDX-License-Identifier: Apache-2.0</span>
 <span class="c1">#</span>
-<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the "License");</span>
 <span class="c1"># you may not use this file except in compliance with the License.</span>
 <span class="c1"># You may obtain a copy of the License at</span>
 <span class="c1">#</span>
 <span class="c1"># http://www.apache.org/licenses/LICENSE-2.0</span>
 <span class="c1">#</span>
 <span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
-<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># distributed under the License is distributed on an "AS IS" BASIS,</span>
 <span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
 <span class="c1"># See the License for the specific language governing permissions and</span>
 <span class="c1"># limitations under the License.</span>
@@ -633,7 +643,7 @@ document.write(`
 <a class="viewcode-back" href="../../../../python-api/tilus-ir/register_layout.html#tilus.ir.layout.ops.RegisterLayout">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eq</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">RegisterLayout</span><span class="p">(</span><span class="n">IRNode</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Layout for register tensor.</span>
+<span class="w">    </span><span class="sd">"""Layout for register tensor.</span>
 
 <span class="sd">    Attributes</span>
 <span class="sd">    ----------</span>
@@ -645,7 +655,7 @@ document.write(`
 <span class="sd">        The spatial modes.</span>
 <span class="sd">    local_modes: tuple[int, ...]</span>
 <span class="sd">        The local modes.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
     <span class="n">mode_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
@@ -654,7 +664,7 @@ document.write(`
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">RegisterLayout</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot multiply </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> with </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Cannot multiply </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> with </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout.ops.register_ops</span><span class="w"> </span><span class="kn">import</span> <span class="n">compose</span>
 
@@ -662,7 +672,7 @@ document.write(`
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__truediv__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">RegisterLayout</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot divide </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> with </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Cannot divide </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> with </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
         <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout.ops.register_ops</span><span class="w"> </span><span class="kn">import</span> <span class="n">divide</span>
 
@@ -712,7 +722,7 @@ document.write(`
         <span class="k">return</span> <span class="n">prod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">spatial_mfunction</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MultiFunction</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the multi-function that maps the global indices to the spatial indices (serialized).&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Get the multi-function that maps the global indices to the spatial indices (serialized)."""</span>
         <span class="k">return</span> <span class="n">multi_function</span><span class="p">(</span>
             <span class="n">shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
             <span class="n">mode_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode_shape</span><span class="p">,</span>
@@ -746,7 +756,7 @@ document.write(`
     <span class="k">def</span><span class="w"> </span><span class="nf">get_local</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">global_indices</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">global_indices</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;Global indices must match the shape of the layout, got </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="s2">"Global indices must match the shape of the layout, got </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                     <span class="nb">len</span><span class="p">(</span><span class="n">global_indices</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
                 <span class="p">)</span>
             <span class="p">)</span>
@@ -799,7 +809,7 @@ document.write(`
         <span class="k">return</span> <span class="n">compose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column_local</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">))</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">reduce_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Reduce the layout to the given shape by removing the modes that are not in the shape.</span>
 
 <span class="sd">        Parameters</span>
@@ -811,12 +821,12 @@ document.write(`
 <span class="sd">        -------</span>
 <span class="sd">        ret: RegisterLayout</span>
 <span class="sd">            The reduced layout.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.layout.ops.register_ops</span><span class="w"> </span><span class="kn">import</span> <span class="n">reduce_to</span>
 
         <span class="k">return</span> <span class="n">reduce_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">visualize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablefmt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;simple_grid&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">visualize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablefmt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"simple_grid"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">visualize_layout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablefmt</span><span class="p">)</span></div>
 
 
@@ -827,7 +837,7 @@ document.write(`
     <span class="n">spatial_modes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
     <span class="n">local_modes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Validate the layout parameters.</span>
 
 <span class="sd">    Parameters</span>
@@ -843,8 +853,8 @@ document.write(`
 
 <span class="sd">    local_modes: Sequence[int]</span>
 <span class="sd">        The local modes of the layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="o">&gt;=</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">shape</span><span class="p">),</span> <span class="s2">&quot;Shape must only be positive integers&quot;</span>
+<span class="sd">    """</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="o">&gt;=</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">shape</span><span class="p">),</span> <span class="s2">"Shape must only be positive integers"</span>
 
     <span class="c1"># validate modes</span>
     <span class="n">remaining_shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
@@ -856,13 +866,13 @@ document.write(`
             <span class="n">remaining_shape</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">remaining_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">remaining_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">%</span> <span class="n">mode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mode </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> does not divide the remaining shape </span><span class="si">{</span><span class="n">remaining_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Mode </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> does not divide the remaining shape </span><span class="si">{</span><span class="n">remaining_shape</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="n">remaining_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">//=</span> <span class="n">mode</span>
     <span class="k">while</span> <span class="n">remaining_shape</span> <span class="ow">and</span> <span class="n">remaining_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
         <span class="n">remaining_shape</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="n">remaining_shape</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Modes </span><span class="si">{}</span><span class="s2"> and shape </span><span class="si">{}</span><span class="s2"> do not match&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">,</span> <span class="n">shape</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Modes </span><span class="si">{}</span><span class="s2"> and shape </span><span class="si">{}</span><span class="s2"> do not match"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">,</span> <span class="n">shape</span><span class="p">))</span>
 
     <span class="c1"># the thread dims and local dims must be</span>
     <span class="c1"># 1. the indices of modes</span>
@@ -872,18 +882,18 @@ document.write(`
         <span class="k">if</span> <span class="n">dim</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">continue</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">dim</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Thread dim </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> is out of range for modes </span><span class="si">{</span><span class="n">mode_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Thread dim </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> is out of range for modes </span><span class="si">{</span><span class="n">mode_shape</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="n">used_dims</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">local_modes</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">dim</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">mode_shape</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Local dim </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> is out of range for modes </span><span class="si">{</span><span class="n">mode_shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Local dim </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> is out of range for modes </span><span class="si">{</span><span class="n">mode_shape</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="n">used_dims</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">used_dims</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">used_dims</span><span class="p">)):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Thread dims and local dims must be unique&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Thread dims and local dims must be unique"</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">visualize_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">tablefmt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;simple_grid&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">visualize_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">,</span> <span class="n">tablefmt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"simple_grid"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Visualize the layout in a human-readable format.</span>
 
 <span class="sd">    Parameters</span>
@@ -911,7 +921,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: str</span>
 <span class="sd">        The string representation of the layout that is human-readable.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">head</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span>
 
     <span class="n">shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
@@ -934,13 +944,13 @@ document.write(`
                 <span class="n">thread_indices</span> <span class="o">=</span> <span class="n">layout</span><span class="o">.</span><span class="n">get_spatial</span><span class="p">(</span><span class="n">global_indices</span><span class="o">=</span><span class="p">[</span><span class="n">batch</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">])</span>
                 <span class="n">thread_indices</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">thread_indices</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">thread_indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">local_index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">thread_indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">local_index</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">thread_indices</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">local_index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">thread_indices</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">local_index</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
             <span class="n">table</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
         <span class="n">tables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tabulate</span><span class="o">.</span><span class="n">tabulate</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">tablefmt</span><span class="o">=</span><span class="n">tablefmt</span><span class="p">))</span>
 
-    <span class="k">return</span> <span class="n">head</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tables</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">head</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tables</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_canonicalize_singleton_modes</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
@@ -978,10 +988,10 @@ document.write(`
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mode</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">spatial_modes</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">mode</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">continue</span>
-        <span class="n">mode_kind</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;spatial&quot;</span>
+        <span class="n">mode_kind</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"spatial"</span>
         <span class="n">mode_index</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mode</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">local_modes</span><span class="p">):</span>
-        <span class="n">mode_kind</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;local&quot;</span>
+        <span class="n">mode_kind</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"local"</span>
         <span class="n">mode_index</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
 
     <span class="c1"># determine the modes that should be merged</span>
@@ -1034,7 +1044,7 @@ document.write(`
     <span class="n">spatial_modes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
     <span class="n">local_modes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Create a register layout with the given shape, mode shape, spatial modes, and local modes.</span>
 
 <span class="sd">    Parameters</span>
@@ -1055,7 +1065,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The created register layout.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">validate_layout</span><span class="p">(</span>
         <span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span>
         <span class="n">mode_shape</span><span class="o">=</span><span class="n">mode_shape</span><span class="p">,</span>
@@ -1073,7 +1083,7 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">canonicalize_layout</span><span class="p">(</span><span class="n">layout</span><span class="p">:</span> <span class="n">RegisterLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegisterLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Cannonicalize the register layout.</span>
 
 <span class="sd">    Canonicalize the layout by</span>
@@ -1091,7 +1101,7 @@ document.write(`
 <span class="sd">    -------</span>
 <span class="sd">    ret: RegisterLayout</span>
 <span class="sd">        The canonicalized layout</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">return</span> <span class="n">_canonicalize_contiguous_modes</span><span class="p">(</span><span class="n">_canonicalize_singleton_modes</span><span class="p">(</span><span class="n">layout</span><span class="p">))</span>
 </pre></div>
 

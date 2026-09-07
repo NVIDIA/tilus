@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 330" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <pattern id="r6hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <rect width="7" height="7" fill="#ffebee"/>
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#ef9a9a" stroke-width="2.5"/>
+    </pattern>
+  </defs>
+
+  <text x="380" y="24" text-anchor="middle" font-weight="700" font-size="15" fill="#333">Accumulator registers per SM, against a fixed register file</text>
+  <text x="380" y="43" text-anchor="middle" font-size="11.5" fill="#666">Each consumer group owns a 64 x 256 quarter in every case. What changes is how many groups, and the dtype.</text>
+
+  <text x="700" y="62" text-anchor="end" font-size="10.5" font-weight="700" fill="#c62828">65,536 registers = one SM's entire file</text>
+  <line x1="700" y1="68" x2="700" y2="258" stroke="#c62828" stroke-width="1.6" stroke-dasharray="5 3"/>
+
+  <!-- ROW 1: V5, fp32, two consumer groups -->
+  <text x="222" y="90" text-anchor="end" font-size="12" font-weight="700" fill="#333">V5 — 2 groups, fp32</text>
+  <text x="222" y="105" text-anchor="end" font-size="10" fill="#777">128 regs/thread</text>
+  <rect x="230" y="76" width="470" height="34" fill="#fafafa" stroke="#ddd" stroke-width="1"/>
+  <rect x="230" y="76" width="235" height="34" fill="#ede7f6" stroke="#7e57c2" stroke-width="1.4"/>
+  <text x="347" y="97" text-anchor="middle" font-size="10.5" fill="#5e35b1">256 threads x 128 = 32,768</text>
+  <text x="582" y="97" text-anchor="middle" font-size="10.5" fill="#999">half the file free</text>
+
+  <!-- ROW 2: the same tile as V6 but with fp32 accumulators, which does not fit -->
+  <text x="222" y="146" text-anchor="end" font-size="12" font-weight="700" fill="#c62828">V6 tile, fp32</text>
+  <text x="222" y="161" text-anchor="end" font-size="10" fill="#c62828">128 regs/thread</text>
+  <rect x="230" y="132" width="470" height="34" fill="url(#r6hatch)" stroke="#c62828" stroke-width="1.6"/>
+  <text x="465" y="153" text-anchor="middle" font-size="10.5" font-weight="700" fill="#b71c1c">512 threads x 128 = 65,536 — the whole file</text>
+  <text x="230" y="184" font-size="10.5" fill="#c62828">Legal per thread (128 of the 255 a thread may hold) — impossible per SM.</text>
+  <text x="230" y="199" font-size="10.5" fill="#c62828">Nothing left for operands, addresses, loop state, or the producer warp.</text>
+
+  <!-- ROW 3: V6 as shipped, fp16 -->
+  <text x="222" y="232" text-anchor="end" font-size="12" font-weight="700" fill="#333">V6 — 4 groups, fp16</text>
+  <text x="222" y="247" text-anchor="end" font-size="10" fill="#777">64 regs/thread</text>
+  <rect x="230" y="218" width="470" height="34" fill="#fafafa" stroke="#ddd" stroke-width="1"/>
+  <rect x="230" y="218" width="235" height="34" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.6"/>
+  <text x="347" y="239" text-anchor="middle" font-size="10.5" fill="#1b5e20">512 threads x 64 = 32,768</text>
+  <text x="582" y="239" text-anchor="middle" font-size="10.5" fill="#999">half the file free</text>
+
+  <line x1="60" y1="278" x2="700" y2="278" stroke="#eee" stroke-width="1"/>
+  <text x="60" y="298" font-size="11" fill="#333"><tspan font-weight="700">Two fp16 values pack into one 32-bit register.</tspan> Doubling the groups doubles the demand;</text>
+  <text x="60" y="315" font-size="11" fill="#333">halving the accumulator dtype pays it back exactly — which is why the tile could not grow without it.</text>
+</svg>
