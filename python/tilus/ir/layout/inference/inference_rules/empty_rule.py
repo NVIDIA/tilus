@@ -20,6 +20,7 @@ from tilus.ir.instructions import (
     GlobalViewInst,
     PrintTensorInst,
     StoreGlobalInst,
+    StoreScaledFp8E4M3FromSharedInst,
 )
 from tilus.ir.instructions.cuda.cp_async_bulk import (
     CopyAsyncBulkGlobalToClusterSharedInst,
@@ -48,6 +49,7 @@ from tilus.ir.tensor import Tensor
 @register_rule(FreeSharedInst)
 @register_rule(AllocateRegisterInst)
 @register_rule(StoreGlobalInst)
+@register_rule(StoreScaledFp8E4M3FromSharedInst)
 class EmptyRule(LayoutInferenceRule):
     @staticmethod
     def validate(inst: GlobalViewInst) -> bool:

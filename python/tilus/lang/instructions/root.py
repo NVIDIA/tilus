@@ -17,7 +17,7 @@ from typing import Callable, Iterable, Literal, Optional, Sequence, Union
 
 from tilus.hidet.ir.dtypes import boolean
 from tilus.hidet.ir.expr import Constant, Expr, Var, as_expr
-from tilus.hidet.ir.primitives.cuda.vars import blockIdx, gridDim
+from tilus.hidet.ir.primitives.cuda.vars import blockIdx, gridDim, threadIdx
 from tilus.hidet.ir.tools import infer_type
 from tilus.hidet.ir.type import DataType
 from tilus.ir.inst import InstructionError
@@ -30,6 +30,10 @@ from .base import InstructionGroup
 
 
 class RootInstructionGroup(InstructionGroup):
+    def get_thread_binding(self) -> Expr:
+        """Return the physical CUDA thread index within the thread block."""
+        return threadIdx.x
+
     @property
     def blockIdx(self) -> Dim3:
         """Get the block index of the current thread block."""
@@ -600,6 +604,12 @@ class RootInstructionGroup(InstructionGroup):
         - **Thread group**: Can be executed by any sized thread group.
         """
         self._builder.store_global_scatter(dst=dst, indices=indices, values=values, dim=dim)
+
+    def store_scaled_fp8e4m3_from_shared(
+        self, dst: GlobalTensor, src: SharedTensor, inv_scale: RegisterTensor, *, offsets: Sequence[Expr | int]
+    ) -> None:
+        """Store a 128x128 shared BF16 tile as per-column scaled E4M3 FP8."""
+        self._builder.store_scaled_fp8e4m3_from_shared(dst=dst, src=src, inv_scale=inv_scale, offsets=offsets)
 
     def store_shared_scatter(
         self,

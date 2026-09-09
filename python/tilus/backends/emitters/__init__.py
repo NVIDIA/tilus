@@ -22,6 +22,7 @@ from . import (
     cuda,
     debug,
     elementwise,
+    fp8_epilogue,
     gmem,
     ldst,
     random,

@@ -21,7 +21,7 @@ from tilus.hidet import boolean
 from tilus.hidet.ir import DataType
 from tilus.hidet.ir.dtypes import int32, uint32
 from tilus.hidet.ir.expr import Expr, Var, bitwise_and, bitwise_or, cast, if_then_else, logical_and
-from tilus.hidet.ir.primitives.cuda.shfl import shfl_down_sync, shfl_up_sync
+from tilus.hidet.ir.primitives.cuda.shfl import shfl_up_sync, shfl_xor_sync
 from tilus.hidet.ir.type import tensor_pointer_type
 from tilus.hidet.ir.utils.index_transform import index_deserialize, index_serialize
 from tilus.hidet.utils.py import is_power_of_two
@@ -138,10 +138,15 @@ class ReduceInstEmitter(BaseInstEmitter):
                     indices=[dst_local],
                     value=self.scalar_reduce(
                         lhs=dst_buf[dst_local],
-                        rhs=shfl_down_sync(
+                        # XOR butterfly reduction produces the final value in
+                        # every participating lane.  The old down-tree needed
+                        # a second, reverse shuffle tree to broadcast its
+                        # lane-zero result, doubling shuffle traffic for every
+                        # warp-local reduction.
+                        rhs=shfl_xor_sync(
                             mask=uint32(0xFFFFFFFF),
                             var=dst_buf[dst_local],
-                            delta=1 << lane_bit,
+                            lane_mask=1 << lane_bit,
                             width=1 << (lane_bit + 1),
                         ),
                         op=inst.op,
@@ -350,8 +355,6 @@ class ReduceInstEmitter(BaseInstEmitter):
         if self.requires_inter_warp_reduction(inst):
             # reduce between warps
             self.inter_warp_reduce(inst)
-        else:
-            self.intra_warp_broadcast(inst)
 
     def emit(self, inst: ReduceInst) -> None:
         self.efficient_reduce(inst)

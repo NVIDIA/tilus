@@ -119,6 +119,7 @@ from tilus.ir.instructions.generic import (
     SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
+    StoreScaledFp8E4M3FromSharedInst,
     StoreGlobalScatterInst,
     StoreSharedInst,
     StoreSharedScatterInst,
@@ -1272,6 +1273,16 @@ class StmtBuilder(StmtBuilderCore):
             dims = list(range(len(dst.shape)))
         inst = StoreGlobalInst.create(dst=dst, x=src, offsets=[as_expr(ofs) for ofs in offsets], dims=dims)
         self.append(inst)
+
+    def store_scaled_fp8e4m3_from_shared(
+        self, dst: GlobalTensor, src: SharedTensor, inv_scale: RegisterTensor, offsets: Sequence[Expr | int]
+    ) -> None:
+        self.append(
+            StoreScaledFp8E4M3FromSharedInst.create(
+                dst=dst, src=src, inv_scale=inv_scale, offsets=[as_expr(offset) for offset in offsets]
+            )
+        )
+
 
     def store_global_scatter(
         self,
