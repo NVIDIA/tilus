@@ -605,12 +605,6 @@ class RootInstructionGroup(InstructionGroup):
         """
         self._builder.store_global_scatter(dst=dst, indices=indices, values=values, dim=dim)
 
-    def store_scaled_fp8e4m3_from_shared(
-        self, dst: GlobalTensor, src: SharedTensor, inv_scale: RegisterTensor, *, offsets: Sequence[Expr | int]
-    ) -> None:
-        """Store a 128x128 shared BF16 tile as per-column scaled E4M3 FP8."""
-        self._builder.store_scaled_fp8e4m3_from_shared(dst=dst, src=src, inv_scale=inv_scale, offsets=offsets)
-
     def store_shared_scatter(
         self,
         dst: SharedTensor,

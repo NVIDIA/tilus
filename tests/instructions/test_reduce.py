@@ -15,9 +15,9 @@
 import pytest
 import tilus
 import torch
-from tilus import boolean, int32
+from tilus import bfloat16, boolean, float16, float32, int32
 from tilus.ir.layout import RegisterLayout, register_layout
-from tilus.ir.layout.ops import spatial
+from tilus.ir.layout.ops import replicated, spatial
 
 
 class ReduceKernelExample(tilus.Script):
@@ -53,6 +53,82 @@ class AnyAllInstExample(tilus.Script):
 
         self.store_global(g_y, src=self.any(r_x != 0), offsets=[0], dims=[])
         self.store_global(g_y, src=self.all(r_x != 0), offsets=[1], dims=[])
+
+
+class IntraWarpReductionMatrixExample(tilus.Script):
+    """Expose the reduction result from every lane in each warp-local group."""
+
+    def __init__(self, lane_width: int, num_warps: int, op: str, dtype):
+        super().__init__()
+        self.lane_width = lane_width
+        self.num_warps = num_warps
+        self.op = op
+        self.dtype = dtype
+        self.is_boolean = dtype == boolean
+        # The negative spatial mode replicates one logical reduction group across
+        # all other lanes.  Thus b[0] is defined in every thread and a store per
+        # physical lane verifies the broadcast part of the reduction contract.
+        self.layout = replicated(num_workers=32 * num_warps // lane_width) * spatial(lane_width)
+
+    def __call__(self, out_ptr: ~int32) -> None:
+        self.attrs.blocks = 1
+        self.attrs.warps = self.num_warps
+
+        if self.is_boolean:
+            a = self.register_tensor(dtype=self.dtype, shape=[self.lane_width], init=lambda i: (i % 2) == 0)
+        else:
+            a = self.register_tensor(dtype=self.dtype, shape=[self.lane_width], init=lambda _i: 1)
+        if self.op == "sum":
+            b = self.sum(a, dim=0, keepdim=True)
+        elif self.op == "max":
+            b = self.max(a, dim=0, keepdim=True)
+        elif self.op == "min":
+            b = self.min(a, dim=0, keepdim=True)
+        elif self.op == "any":
+            b = self.any(a, dim=0, keepdim=True)
+        elif self.op == "all":
+            b = self.all(a, dim=0, keepdim=True)
+        else:
+            raise ValueError(f"Unsupported operation: {self.op}")
+
+        g_out = self.global_view(ptr=out_ptr, dtype=int32, shape=[32 * self.num_warps])
+        self.store_global(g_out, b[0].to(int32), offsets=[self.get_thread_binding()], dims=[])
+        self.annotate_layout(a, self.layout)
+
+
+class InterWarpReductionMatrixExample(tilus.Script):
+    """Exercise the shared-memory inter-warp path in addition to XOR shuffles."""
+
+    def __init__(self, op: str, dtype):
+        super().__init__()
+        self.op = op
+        self.dtype = dtype
+        self.is_boolean = dtype == boolean
+
+    def __call__(self, out_ptr: ~int32) -> None:
+        self.attrs.blocks = 1
+        self.attrs.warps = 2
+        layout = spatial(2, 32)
+        if self.is_boolean:
+            a = self.register_tensor(dtype=self.dtype, shape=layout.shape, init=lambda i, j: (i + j) % 2 == 0)
+        else:
+            a = self.register_tensor(dtype=self.dtype, shape=layout.shape, init=lambda _i, _j: 1)
+        if self.op == "sum":
+            b = self.sum(a, dim=0, keepdim=True)
+        elif self.op == "max":
+            b = self.max(a, dim=0, keepdim=True)
+        elif self.op == "min":
+            b = self.min(a, dim=0, keepdim=True)
+        elif self.op == "any":
+            b = self.any(a, dim=0, keepdim=True)
+        elif self.op == "all":
+            b = self.all(a, dim=0, keepdim=True)
+        else:
+            raise ValueError(f"Unsupported operation: {self.op}")
+
+        g_out = self.global_view(ptr=out_ptr, dtype=int32, shape=b.shape)
+        self.store_global(g_out, b.to(int32), offsets=[0, 0], dims=[0, 1])
+        self.annotate_layout(a, layout)
 
 
 @pytest.mark.parametrize("dim", [0, 1])
@@ -99,3 +175,43 @@ def test_any_all_reduce_instruction():
         y_actual = torch.empty_like(y)
         kernel(x, y_actual)
         assert torch.allclose(y_actual, y), f"Failed for x={x} and y={y}, y_actual={y_actual}"
+
+
+@pytest.mark.parametrize("lane_width", [2, 4, 8, 16, 32])
+@pytest.mark.parametrize("num_warps", [1, 2], ids=["single_warp", "multi_warp"])
+@pytest.mark.parametrize(
+    ("op", "dtype", "expected"),
+    [
+        ("sum", int32, lambda width: width),
+        ("sum", float32, lambda width: width),
+        ("max", float16, lambda _width: 1),
+        ("min", bfloat16, lambda _width: 1),
+        ("any", boolean, lambda _width: 1),
+        ("all", boolean, lambda _width: 0),
+    ],
+    ids=["sum_int32", "sum_fp32", "max_fp16", "min_bf16", "any", "all"],
+)
+def test_intra_warp_reduction_equivalence_matrix(lane_width: int, num_warps: int, op: str, dtype, expected):
+    """All lanes must agree for every supported XOR-reduction subgroup width."""
+    actual = torch.empty(32 * num_warps, dtype=torch.int32, device="cuda")
+    IntraWarpReductionMatrixExample(lane_width, num_warps, op, dtype)(actual)
+    torch.testing.assert_close(actual, torch.full_like(actual, expected(lane_width)))
+
+
+@pytest.mark.parametrize(
+    ("op", "dtype", "expected"),
+    [
+        ("sum", int32, 2),
+        ("sum", float32, 2),
+        ("max", float16, 1),
+        ("min", bfloat16, 1),
+        ("any", boolean, 1),
+        ("all", boolean, 0),
+    ],
+    ids=["sum_int32", "sum_fp32", "max_fp16", "min_bf16", "any", "all"],
+)
+def test_inter_warp_reduction_equivalence_matrix(op: str, dtype, expected: int):
+    """The shared-memory handoff preserves the same result for two warps."""
+    actual = torch.empty((1, 32), dtype=torch.int32, device="cuda")
+    InterWarpReductionMatrixExample(op, dtype)(actual)
+    torch.testing.assert_close(actual, torch.full_like(actual, expected))

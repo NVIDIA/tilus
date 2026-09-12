@@ -35,32 +35,48 @@ class TopKGate(tilus.Script):
         expert_ids = self.register_tensor(
             dtype=int32, shape=[1, self.aligned_experts], init=lambda _, j: j
         )
-        negative_max = -3.402823466e38
-        # A vector load past the logical expert dimension is zero-filled by
-        # Tilus.  Only materialize a validity mask when there actually is a
-        # tail: for the standard 256-expert route it is compile-time dead work.
+        padding_value = -3.402823466e38
+        # Keep selection state separate from score values: neither -inf nor
+        # any finite sentinel is safe to use as an in-band removed marker.
         if self.aligned_experts != self.num_experts:
-            valid = self.register_tensor(
+            active = self.register_tensor(
                 dtype=int32,
                 shape=[1, self.aligned_experts],
                 init=lambda _, j: j < self.num_experts,
             )
-            values = self.where(valid != 0, x=values, y=negative_max)
+        else:
+            active = self.register_tensor(dtype=int32, shape=[1, self.aligned_experts], init=lambda _i, _j: 1)
+        # Out-of-bounds vector-load lanes are not necessarily initialized to a
+        # value below every valid score.  Mask them before the first max.
+        values = self.where(active != 0, x=values, y=padding_value)
 
         # ``num_topk`` is a specialization constant.  TileKernels unrolls
         # this selection loop; retain that property in the generated CUDA.
         for rank in self.range(0, self.num_topk, 1, unroll="all"):
             best_value = self.max(values, dim=1, keepdim=True)
             # ``min`` over matching candidates is the stable tie breaker.
-            candidates = self.where(values == best_value, x=expert_ids, y=int32.max_value)
+            candidates = self.where(
+                active != 0,
+                x=self.where(values == best_value, x=expert_ids, y=int32.max_value),
+                y=int32.max_value,
+            )
             best_index = self.min(candidates, dim=1, keepdim=True)
+            # Only a padding-sentinel maximum can leave no matching active
+            # candidate (all valid scores are -inf).  Keeping this fallback in
+            # a uniform runtime branch avoids a second warp reduction in the
+            # normal finite-score path.
+            if best_value[0, 0].item() == padding_value:
+                best_index = self.min(
+                    self.where(active != 0, x=expert_ids, y=int32.max_value), dim=1, keepdim=True
+                )
             # The reduction result is replicated across the warp.  A direct
             # store from every lane creates 32 identical global writes; only
             # lane 0 owns the scalar output (as in TileKernels' shared-output
             # epilogue).
             if self.get_thread_binding() == 0:
                 self.store_global(output, best_index.to(int64), offsets=[token, rank])
-            values = self.where(expert_ids == best_index, x=negative_max, y=values)
+            active = self.where(expert_ids == best_index, x=0, y=active)
+            values = self.where(expert_ids == best_index, x=padding_value, y=values)
 
 
 def main():
@@ -74,6 +90,11 @@ def main():
         kernel(num_tokens, scores, output)
         expected = torch.sort(scores, dim=1, descending=True, stable=True).indices[:, :num_topk]
         torch.testing.assert_close(output, expected)
+        # Padding must never win when valid experts contain -inf.
+        if num_experts % 32:
+            scores.fill_(float("-inf"))
+            kernel(num_tokens, scores, output)
+            torch.testing.assert_close(output, torch.arange(num_topk, device="cuda", dtype=torch.int64)[None, :].expand(num_tokens, -1))
         def run_tilus():
             out = torch.empty(num_tokens, num_topk, device="cuda", dtype=torch.int64)
             kernel(num_tokens, scores, out)

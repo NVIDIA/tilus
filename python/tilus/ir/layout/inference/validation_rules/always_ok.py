@@ -36,7 +36,6 @@ from tilus.ir.instructions import (
     SliceSharedInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
-    StoreScaledFp8E4M3FromSharedInst,
     StoreGlobalScatterInst,
     StoreSharedInst,
     StoreSharedScatterInst,
@@ -91,7 +90,6 @@ from tilus.ir.layout.inference.rule import LayoutValidationRule, register_rule
 @register_rule(LoadGlobalInst)
 @register_rule(LoadGlobalGenericInst)
 @register_rule(StoreGlobalInst)
-@register_rule(StoreScaledFp8E4M3FromSharedInst)
 @register_rule(SliceSharedInst)
 @register_rule(PermuteSharedInst)
 @register_rule(ReshapeSharedInst)

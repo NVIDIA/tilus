@@ -32,6 +32,7 @@ from tilus.hidet.ir.primitives.func import call_primitive_func, primitive_func_p
 from tilus.hidet.ir.primitives.math import MathFunctionSet, register_math_function_set
 from tilus.hidet.ir.type import DataType, FuncType
 from tilus.hidet.utils import initialize
+from tilus.target import get_current_target
 
 
 @initialize()
@@ -202,17 +203,13 @@ class CUDAFloat16MathFunctionSet(MathFunctionSet):
         return self.call("cuda_f16_floor", a)
 
     def min(self, a: Expr, b: Expr) -> Expr:
-        arch_pair: Tuple[int, int] = hidet.option.cuda.get_arch_pair()
-
-        if arch_pair >= (8, 0):
+        if get_current_target().properties.compute_capability >= (8, 0):
             return self.call("cuda_f16_min_sm80", a, b)
         else:
             return self.call("cuda_f16_min", a, b)
 
     def max(self, a: Expr, b: Expr) -> Expr:
-        arch_pair: Tuple[int, int] = hidet.option.cuda.get_arch_pair()
-
-        if arch_pair >= (8, 0):
+        if get_current_target().properties.compute_capability >= (8, 0):
             return self.call("cuda_f16_max_sm80", a, b)
         else:
             return self.call("cuda_f16_max", a, b)

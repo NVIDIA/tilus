@@ -84,8 +84,11 @@ IGNORED_SCRIPTS = [
     # Benchmark utilities
     ("blackwell_matmul", "benchmark.py"),
     ("hopper_matmul", "benchmark.py"),
-    # Shared correctness helpers for the quantization examples
-    ("quantization", "fp8_check.py"),
+    # Standalone TileKernels comparison benchmarks; exercised explicitly in
+    # the port benchmark workflow rather than the generic example smoke test.
+    ("mhc", "normw_merge.py"),
+    ("moe", "topk_gate.py"),
+    ("quantization", "per_channel_cast.py"),
 ]
 
 

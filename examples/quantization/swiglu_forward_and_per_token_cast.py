@@ -23,23 +23,66 @@ group absmax is clamped from below to 1e-4, the scale is ``absmax / 448`` and
 its reciprocal is ``448 / absmax``.
 """
 
+from typing import NamedTuple
+
 import pandas
 import tilus
 import torch
-from fp8_check import (
-    E4M3_MAX,
-    SF_CLAMP_MIN,
-    check_fp8_close,
-    check_scales_close,
-    dequantize,
-    quantization_snr_db,
-    torch_per_token_cast,
-)
 from tile_kernels.quant.swiglu_forward_and_per_token_cast_kernel import (
     swiglu_forward_and_per_token_cast,
 )
 from tilus import bfloat16, float8_e4m3, float32, int32
 from tilus.utils import benchmark_func, cdiv
+
+E4M3_MAX = 448.0
+SF_CLAMP_MIN = 1e-4
+
+
+class CodeLadderStats(NamedTuple):
+    max_code_diff: int
+    mismatch_frac: float
+
+
+def fp8_ordinal(x: torch.Tensor) -> torch.Tensor:
+    """Map e4m3 values to consecutive signed integer codes."""
+    assert x.dtype == torch.float8_e4m3fn
+    bits = x.view(torch.uint8).to(torch.int32)
+    magnitude = bits & 0x7F
+    return torch.where(bits & 0x80 != 0, -magnitude, magnitude)
+
+
+def check_fp8_close(actual: torch.Tensor, expected: torch.Tensor, *, label: str, max_mismatch_frac: float = 0.01) -> CodeLadderStats:
+    code_diff = (fp8_ordinal(actual) - fp8_ordinal(expected)).abs()
+    max_code_diff = int(code_diff.max().item())
+    mismatch_frac = float((code_diff != 0).to(torch.float64).mean().item())
+    assert max_code_diff <= 1, f"{label}: {max_code_diff} e4m3 codes apart at worst; expected at most 1"
+    assert mismatch_frac <= max_mismatch_frac, f"{label}: {mismatch_frac:.4%} of elements differ"
+    return CodeLadderStats(max_code_diff, mismatch_frac)
+
+
+def check_scales_close(actual: torch.Tensor, expected: torch.Tensor, *, label: str, rtol: float = 1e-6) -> float:
+    torch.testing.assert_close(actual, expected, rtol=rtol, atol=0.0, msg=label)
+    return float(((actual - expected).abs() / expected.abs()).max().item())
+
+
+def torch_per_token_cast(values: torch.Tensor, num_per_channels: int) -> tuple[torch.Tensor, torch.Tensor]:
+    num_tokens, hidden = values.shape
+    grouped = values.float().reshape(num_tokens, hidden // num_per_channels, -1)
+    amax = grouped.abs().amax(dim=-1, keepdim=True).clamp_min(SF_CLAMP_MIN)
+    scale = (amax / E4M3_MAX).squeeze(-1)
+    out = (grouped * (E4M3_MAX / amax)).clamp(-E4M3_MAX, E4M3_MAX).reshape(num_tokens, hidden).to(torch.float8_e4m3fn)
+    return out, scale
+
+
+def dequantize(out: torch.Tensor, scales: torch.Tensor, num_per_channels: int) -> torch.Tensor:
+    grouped = out.float().reshape(out.shape[0], out.shape[1] // num_per_channels, num_per_channels)
+    return (grouped * scales[:, :, None]).reshape(out.shape)
+
+
+def quantization_snr_db(reference: torch.Tensor, dequantized: torch.Tensor) -> float:
+    noise = dequantized.float() - reference.float()
+    return float(10.0 * torch.log10(reference.float().square().sum() / noise.square().sum().clamp_min(1e-30)))
+
 
 
 @tilus.autotune("block_m", [1])

@@ -77,7 +77,6 @@ from .generic import (
     SqueezeInst,
     StoreGlobalGenericInst,
     StoreGlobalInst,
-    StoreScaledFp8E4M3FromSharedInst,
     StoreGlobalScatterInst,
     StoreSharedInst,
     StoreSharedScatterInst,

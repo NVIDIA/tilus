@@ -88,23 +88,6 @@ class StoreGlobalInst(Instruction):
 
 
 @dataclass(frozen=True, eq=False)
-class StoreScaledFp8E4M3FromSharedInst(Instruction):
-    """Fused shared-BF16 to scaled global E4M3 store for 128x128 tiles."""
-
-    offsets: tuple[Expr, Expr]
-
-    @staticmethod
-    def create(
-        dst: GlobalTensor, src: SharedTensor, inv_scale: RegisterTensor, offsets: Sequence[Expr]
-    ) -> StoreScaledFp8E4M3FromSharedInst:
-        if len(offsets) != 2:
-            raise InstructionError("StoreScaledFp8E4M3FromSharedInst expects two offsets")
-        return StoreScaledFp8E4M3FromSharedInst(output=None, inputs=(dst, src, inv_scale), offsets=tuple(offsets))
-
-
-
-
-@dataclass(frozen=True, eq=False)
 class SliceGlobalInst(Instruction):
     offsets: tuple[Expr, ...]
     dims: Optional[tuple[int, ...]]
