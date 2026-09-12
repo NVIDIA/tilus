@@ -22,8 +22,13 @@ from typing import Any, Sequence
 import tilus
 from tilus import float16, int32
 from tilus.lang.instantiated_script import (
+    InstantiatedScript,
+    _make_tuple_getter,
     _tilus_version,
+    _tuning_key_part,
     collect_tuning_metadata,
+    construct_keys,
+    extract_keys,
     generate_schedules,
     span_space,
     tuning_metadata_matches,
@@ -66,6 +71,52 @@ def test_generate_schedules_cartesian_product():
     assert len(schedules) == 9
     assert {"block_m": 64, "block_n": 64, "block_k": 16} in schedules
     assert {"block_m": 128, "block_n": 128, "block_k": 64} in schedules
+
+
+def test_tuning_key_parts_are_reused():
+    _tuning_key_part.cache_clear()
+    args = (128, 257, 7)
+    expected = extract_keys(args, const_params=[2], tuning_params=[0, 1])
+    assert expected == construct_keys(const_params=[7], tuning_params=[128, 257])
+    first = _tuning_key_part.cache_info()
+    extract_keys(args, const_params=[2], tuning_params=[0, 1])
+    second = _tuning_key_part.cache_info()
+    assert second.hits == first.hits + 2
+
+
+def test_tuple_getter_selects_positional_arguments():
+    args = ("a", "b", "c")
+    assert _make_tuple_getter([])(args) == ()
+    assert _make_tuple_getter([1])(args) == ("b",)
+    assert _make_tuple_getter([2, 0])(args) == ("c", "a")
+
+
+def test_repeated_shape_uses_last_dispatch_entry():
+    calls = []
+
+    def launch(*args):
+        calls.append(args)
+
+    script = InstantiatedScript.__new__(InstantiatedScript)
+    script.with_default = False
+    script.params = type("Params", (), {"param_names": ["ptr", "size", "mode"]})()
+    script.const_params = [2]
+    script.tuning_params = [1]
+    script.kernel_params = [0, 1]
+    script.jit_instances = {}
+    script._dispatch_arg_getter = _make_tuple_getter([2, 1])
+    script._kernel_arg_getter = _make_tuple_getter([0, 1])
+    script._last_dispatch_args = None
+    script._last_compiled_func = None
+
+    ptr = object()
+    keys = extract_keys((ptr, 128, 7), script.const_params, script.tuning_params)
+    script.dispatch_table = {keys: launch}
+    script(ptr, 128, 7)
+    script.dispatch_table.clear()
+    script(ptr, 128, 7)
+
+    assert calls == [(ptr, 128), (ptr, 128)]
 
 
 # ---------------------------------------------------------------------------

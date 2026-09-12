@@ -57,6 +57,8 @@ def parallel_imap(func: Callable, jobs: Sequence[Any], num_workers: Optional[int
 
             num_workers = get_option("parallel_workers")
 
+        # Idle workers add startup cost without increasing job parallelism.
+        num_workers = min(num_workers, len(jobs))
         ctx = multiprocessing.get_context("fork")
         with ctx.Pool(num_workers) as pool:
             yield from pool.imap(_wrapped_func, range(len(jobs)))
@@ -65,6 +67,9 @@ def parallel_imap(func: Callable, jobs: Sequence[Any], num_workers: Optional[int
 
 
 def parallel_map(func: Callable, jobs: Sequence[Any], num_workers: Optional[int] = None) -> Iterable[Any]:
+    if len(jobs) == 0:
+        return []
+
     global _job_queue
 
     if _job_queue is not None:
@@ -78,6 +83,8 @@ def parallel_map(func: Callable, jobs: Sequence[Any], num_workers: Optional[int]
 
             num_workers = get_option("parallel_workers")
 
+        # Idle workers add startup cost without increasing job parallelism.
+        num_workers = min(num_workers, len(jobs))
         ctx = multiprocessing.get_context("fork")
         with ctx.Pool(num_workers) as pool:
             ret = pool.map(_wrapped_func, range(len(jobs)), chunksize=1)
