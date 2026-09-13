@@ -42,6 +42,7 @@ from tilus.hidet.ir.type import DataType, PointerType, TensorPointerType
 from tilus.hidet.utils.py import nocolor
 from tilus.ir.prog import Program
 from tilus.lang.script import Script
+from tilus.lang.script_dependencies import script_dependency_fingerprint
 from tilus.runtime import CompiledProgram, compiled_program_exists, load_compiled_program
 from tilus.target import get_current_target, lazy_init
 from tilus.utils import benchmark_func, relative_to_with_walk_up, to_snake_case
@@ -392,7 +393,7 @@ def _make_tuple_getter(indices: Sequence[int]) -> Callable[[Sequence[Any]], tupl
 
 
 class JitInstance:
-    SPECIALIZATION_CACHE_VERSION = 2
+    SPECIALIZATION_CACHE_VERSION = 3
 
     def __init__(
         self,
@@ -446,32 +447,26 @@ class JitInstance:
             self._build_programs()
         return self.valid_programs
 
-    def _get_specialization_cache_path(self) -> Path:
-        try:
-            script_source = inspect.getsource(self.script_cls)
-        except (OSError, TypeError):
-            call_code = getattr(self.script_cls.__call__, "__code__", None)
-            script_source = repr(
-                self.script_cls
-                if call_code is None
-                else (call_code.co_code, call_code.co_consts, call_code.co_names, call_code.co_varnames)
-            )
+    def _get_specialization_cache_path(self) -> Path | None:
         param_info = self.call_params
+        inputs = (
+            self.schedules,
+            self.jit_key,
+            param_info.param_names,
+            param_info.const_params,
+            param_info.kernel_params,
+            param_info.tuning_params,
+        )
+        dependencies = script_dependency_fingerprint(self.script_cls, inputs)
+        if dependencies is None:
+            return None
         cache_key = repr(
             (
                 self.SPECIALIZATION_CACHE_VERSION,
                 self.frontend_fingerprint,
-                self.script_cls.__module__,
-                self.script_cls.__qualname__,
-                script_source,
-                self.schedules,
-                self.jit_key,
+                dependencies,
                 self.build_options,
-                param_info.param_names,
                 [str(param_type) for param_type in param_info.param_types],
-                param_info.const_params,
-                param_info.kernel_params,
-                param_info.tuning_params,
                 get_current_target(),
             )
         )
@@ -494,7 +489,7 @@ class JitInstance:
 
     def _load_specialization_cache(self) -> bool:
         path = self.specialization_cache_path
-        if not path.exists():
+        if path is None or not path.exists():
             return False
         try:
             with open(path, "r") as f:
@@ -555,6 +550,8 @@ class JitInstance:
         return True
 
     def _dump_specialization_cache(self) -> None:
+        if self.specialization_cache_path is None:
+            return
         cache_root = Path(tilus.option.get_option("cache_dir")).resolve()
         path = self.specialization_cache_path
         programs_payload = pickle.dumps(

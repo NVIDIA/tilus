@@ -138,3 +138,29 @@ def test_compiler_stages_share_leaf_validation(monkeypatch, tmp_path: Path):
     result = _content_fingerprints(stages, package_root=package_root, index_path=tmp_path / "index.json")
     assert len(result) == 2
     assert read_paths == [source]
+
+
+def test_frontend_fingerprints_all_language_modules(monkeypatch, tmp_path: Path):
+    import tilus.compiler_fingerprint as module
+
+    content_fingerprints = module._content_fingerprints
+
+    def fingerprint_test_package(stages, **kwargs):
+        return content_fingerprints(stages, package_root=tmp_path / "tilus", **kwargs)
+
+    monkeypatch.setattr(module, "_content_fingerprints", fingerprint_test_package)
+
+    def frontend():
+        module._compiler_fingerprints.cache_clear()  # simulate a new process
+        return module._compiler_fingerprints(str(tmp_path))[0]
+
+    try:
+        for relative in ["lang/methods/register_tensor.py", "lang/constructs/loops.py", "hidet/lang/transpiler.py"]:
+            source = tmp_path / "tilus" / relative
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_text("old source")
+            original = frontend()
+            source.write_text("changed frontend semantics")
+            assert frontend() != original
+    finally:
+        module._compiler_fingerprints.cache_clear()

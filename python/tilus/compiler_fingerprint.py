@@ -201,15 +201,16 @@ def _content_fingerprint(
 def _compiler_fingerprints(cache_root: str | Path | None = None) -> tuple[str, str]:
     frontend_roots = [
         "target.py",
+        "__init__.py",
+        "option.py",
         "ir",
-        "hidet/ir",
-        "lang/script.py",
-        "lang/transpiler",
-        "lang/instructions",
+        "hidet",
+        "lang",
+        "utils",
         "compiler_fingerprint.py",
     ]
     backend_roots = ["backends", "transforms", "hidet", "drivers.py", "compiler_fingerprint.py"]
-    # Visit the broader backend roots first so frontend hidet/ir reuses its node.
+    # Visit backend roots first so the frontend reuses the bundled Hidet node.
     backend, frontend = _content_fingerprints(
         [(BACKEND_CACHE_VERSION, backend_roots), (FRONTEND_CACHE_VERSION, frontend_roots)],
         index_path=_fingerprint_index_path(cache_root),

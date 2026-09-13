@@ -2,11 +2,33 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import tilus.lang.instantiated_script as instantiated_script_module
 from tilus.ir.prog import Program
 from tilus.lang.instantiated_script import JitInstance
+
+_KERNEL_VALUE = 1
+
+
+class _TrackedScript:
+    def __call__(self):
+        return _KERNEL_VALUE
+
+
+class _UntrackedScript:
+    dependency = object()
+
+
+def _call_params():
+    return SimpleNamespace(
+        param_names=[],
+        param_types=[],
+        const_params=[],
+        kernel_params=[],
+        tuning_params=[],
+    )
 
 
 class _DummyCompiledProgram:
@@ -19,6 +41,9 @@ class _DummyCompiledProgram:
 
 def _jit_instance(cache_root: Path) -> JitInstance:
     instance = JitInstance.__new__(JitInstance)
+    instance.script_cls = _UntrackedScript
+    instance.call_params = _call_params()
+    instance.jit_key = ()
     instance.frontend_fingerprint = "frontend"
     instance.backend_fingerprint = "backend"
     instance.specialization_cache_path = cache_root / "specializations" / "test.json"
@@ -135,3 +160,72 @@ def test_build_workers_receive_only_uncached_programs(monkeypatch, tmp_path: Pat
     assert submitted == [program for i, program in enumerate(instance.transpiled_programs) if i not in cached_indices]
     assert instance.valid_schedules == [0, 1]
     assert [compiled.program_dir for compiled in instance.compiled_programs] == paths
+
+
+def test_untracked_dependencies_disable_persistent_ir(monkeypatch, tmp_path: Path):
+    """Even an existing manifest must not bypass fresh transpilation."""
+    monkeypatch.setattr(instantiated_script_module.tilus.option, "get_option", lambda name: str(tmp_path))
+    original = _jit_instance(tmp_path)
+    original.cache_dir.mkdir(parents=True)
+    original._dump_specialization_cache()
+    assert original.specialization_cache_path.exists()
+
+    restored = _jit_instance(tmp_path)
+    _empty_loaded_state(restored)
+    restored.specialization_cache_path = restored._get_specialization_cache_path()
+
+    assert restored.specialization_cache_path is None
+    assert not restored._load_specialization_cache()
+    restored._dump_specialization_cache()
+    assert list((tmp_path / "specializations").glob("*.json")) == [original.specialization_cache_path]
+
+
+def test_unsupported_jit_instances_always_transpile(monkeypatch, tmp_path: Path):
+    """Fresh instances must observe external state rather than restore old IR."""
+    monkeypatch.setattr(instantiated_script_module.tilus.option, "get_option", lambda name: str(tmp_path))
+    monkeypatch.setattr(instantiated_script_module, "frontend_fingerprint", lambda root: "frontend")
+    monkeypatch.setattr(instantiated_script_module, "backend_fingerprint", lambda root: "backend")
+    monkeypatch.setattr(JitInstance, "_instance_name", lambda *args: "test")
+    external_state = {"value": 1}
+    observed = []
+
+    def transpile(instance):
+        observed.append(external_state["value"])
+        instance._dump_specialization_cache()
+
+    monkeypatch.setattr(JitInstance, "_transpile_programs", transpile)
+    JitInstance(_UntrackedScript, _call_params(), None, [], ())
+    external_state["value"] = 2
+    JitInstance(_UntrackedScript, _call_params(), None, [], ())
+
+    assert observed == [1, 2]
+    assert not (tmp_path / "specializations").exists()
+
+
+def test_supported_instances_reuse_ir_and_invalidate_globals(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(instantiated_script_module.tilus.option, "get_option", lambda name: str(tmp_path))
+    monkeypatch.setattr(instantiated_script_module, "frontend_fingerprint", lambda root: "frontend")
+    monkeypatch.setattr(instantiated_script_module, "backend_fingerprint", lambda root: "backend")
+    monkeypatch.setattr(instantiated_script_module, "get_current_target", lambda: "test-target")
+    monkeypatch.setattr(JitInstance, "_instance_name", lambda *args: "test")
+    observed = []
+
+    def transpile(instance):
+        observed.append(_KERNEL_VALUE)
+        instance.cache_dir = tmp_path / "scripts" / str(_KERNEL_VALUE)
+        instance.cache_dir.mkdir(parents=True)
+        instance.transpiled_programs = [Program.create({})]
+        instance.transpiled_schedules = [0]
+        instance._dump_specialization_cache()
+
+    monkeypatch.setattr(JitInstance, "_transpile_programs", transpile)
+    original = JitInstance(_TrackedScript, _call_params(), None, [{}], ())
+    restored = JitInstance(_TrackedScript, _call_params(), None, [{}], ())
+    assert restored.specialization_cache_path == original.specialization_cache_path
+    assert len(restored.transpiled_programs) == 1
+    assert observed == [1]
+
+    monkeypatch.setitem(globals(), "_KERNEL_VALUE", 2)
+    changed = JitInstance(_TrackedScript, _call_params(), None, [{}], ())
+    assert changed.specialization_cache_path != original.specialization_cache_path
+    assert observed == [1, 2]

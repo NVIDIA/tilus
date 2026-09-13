@@ -13,7 +13,7 @@ Tilus caches generated kernels. During development, set the cache directory via 
 - Use `debug_schedule=dict(...)` to pin a specific schedule, so only that single configuration is compiled.
 - Cache keys contain content fingerprints for both compiler stages. Changes to the frontend/transpiler invalidate persisted script specializations, while changes to backend lowering, emitters, codegen, or bundled headers invalidate compiled programs automatically.
 - Compiler fingerprints use persisted per-file hashes and Merkle directory nodes. Each new process validates file metadata once across both stages; only changed files are read and changed directory nodes rehashed. Cached binary builds skip worker startup after validating the normal build cache key. Worker pools are capped at the number of jobs, so small schedule sets do not start unused workers.
-- Successful script specializations are persisted under `/specializations/`. A new process can reuse their Program IR without re-running Python-to-Tilus transpilation; binary reuse still goes through the normal build cache key.
+- Successful script specializations are persisted under `/specializations/`. Their keys snapshot user code, referenced globals, closure values, inherited methods, external helpers, and specialization inputs. Unsupported dependencies (such as opaque runtime objects, dynamic imports, or reflection) skip persistent reuse and transpile again. Binary reuse still goes through the normal content-keyed build cache.
 
 ## Compilation Pipeline
 
