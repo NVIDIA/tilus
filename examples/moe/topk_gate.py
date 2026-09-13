@@ -61,11 +61,11 @@ class TopKGate(tilus.Script):
                 y=int32.max_value,
             )
             best_index = self.min(candidates, dim=1, keepdim=True)
-            # Only a padding-sentinel maximum can leave no matching active
-            # candidate (all valid scores are -inf).  Keeping this fallback in
-            # a uniform runtime branch avoids a second warp reduction in the
-            # normal finite-score path.
-            if best_value[0, 0].item() == padding_value:
+            # A sentinel maximum may also match a valid finite score.  Fall
+            # back only when no active candidate matches the maximum (the
+            # remaining scores are -inf).  This uniform branch avoids a second
+            # warp reduction in the normal finite-score path.
+            if best_index[0, 0].item() == int32.max_value:
                 best_index = self.min(
                     self.where(active != 0, x=expert_ids, y=int32.max_value), dim=1, keepdim=True
                 )
@@ -90,15 +90,27 @@ def main():
         kernel(num_tokens, scores, output)
         expected = torch.sort(scores, dim=1, descending=True, stable=True).indices[:, :num_topk]
         torch.testing.assert_close(output, expected)
+        torch.testing.assert_close(topk_gate(scores, num_topk), expected)
         # Padding must never win when valid experts contain -inf.
         if num_experts % 32:
-            scores.fill_(float("-inf"))
-            kernel(num_tokens, scores, output)
-            torch.testing.assert_close(output, torch.arange(num_topk, device="cuda", dtype=torch.int64)[None, :].expand(num_tokens, -1))
+            edge_scores = torch.full_like(scores, float("-inf"))
+            kernel(num_tokens, edge_scores, output)
+            edge_expected = torch.arange(num_topk, device="cuda", dtype=torch.int64)[None, :].expand(
+                num_tokens, -1
+            )
+            torch.testing.assert_close(output, edge_expected)
+            # The minimum finite score must beat -inf even though it equals
+            # the padding sentinel.
+            edge_scores[:, 1] = torch.finfo(torch.float32).min
+            kernel(num_tokens, edge_scores, output)
+            edge_expected = torch.sort(edge_scores, dim=1, descending=True, stable=True).indices[:, :num_topk]
+            torch.testing.assert_close(output, edge_expected)
+
         def run_tilus():
             out = torch.empty(num_tokens, num_topk, device="cuda", dtype=torch.int64)
             kernel(num_tokens, scores, out)
             return out
+
         tilus_ms = benchmark_func(run_tilus)
         tilekernels_ms = benchmark_func(lambda: topk_gate(scores, num_topk))
         rows.append((num_tokens, num_experts, num_topk, tilus_ms, tilekernels_ms))
