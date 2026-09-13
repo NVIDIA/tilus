@@ -164,3 +164,29 @@ def test_frontend_fingerprints_all_language_modules(monkeypatch, tmp_path: Path)
             assert frontend() != original
     finally:
         module._compiler_fingerprints.cache_clear()
+
+
+def test_backend_tracks_shared_helpers(monkeypatch, tmp_path):
+    import tilus.compiler_fingerprint as module
+
+    content_fingerprints = module._content_fingerprints
+
+    def test_package(stages, **kwargs):
+        return content_fingerprints(stages, package_root=tmp_path / "tilus", **kwargs)
+
+    monkeypatch.setattr(module, "_content_fingerprints", test_package)
+
+    def backend():
+        module._compiler_fingerprints.cache_clear()
+        return module._compiler_fingerprints(str(tmp_path))[1]
+
+    try:
+        for relative in ["ir/utils/thread_group_stack.py", "utils/py.py", "target.py", "option.py"]:
+            source = tmp_path / "tilus" / relative
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_text("old backend helper")
+            original = backend()
+            source.write_text("changed backend semantics")
+            assert backend() != original
+    finally:
+        module._compiler_fingerprints.cache_clear()

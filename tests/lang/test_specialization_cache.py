@@ -7,7 +7,8 @@ from types import SimpleNamespace
 import pytest
 import tilus.lang.instantiated_script as instantiated_script_module
 from tilus.ir.prog import Program
-from tilus.lang.instantiated_script import JitInstance
+from tilus.lang.instantiated_script import CallParameters, JitInstance
+from tilus.lang.script import Attributes, Script
 
 _KERNEL_VALUE = 1
 
@@ -229,3 +230,50 @@ def test_supported_instances_reuse_ir_and_invalidate_globals(monkeypatch, tmp_pa
     changed = JitInstance(_TrackedScript, _call_params(), None, [{}], ())
     assert changed.specialization_cache_path != original.specialization_cache_path
     assert observed == [1, 2]
+
+
+class _CompilerDefaultsScript(Script):
+    def __call__(self):
+        self.attrs.blocks = [1]
+        self.attrs.warps = 4
+        self.attrs.cluster_blocks = Attributes.cluster_blocks
+
+
+def test_compiler_defaults_invalidate_persisted_program(monkeypatch, tmp_path):
+    from tilus.drivers import BuildOptions
+    from tilus.target import nvgpu_sm90, scope
+
+    get_option = instantiated_script_module.tilus.option.get_option
+    monkeypatch.setattr(
+        instantiated_script_module.tilus.option,
+        "get_option",
+        lambda name: str(tmp_path) if name == "cache_dir" else get_option(name),
+    )
+    monkeypatch.setattr(instantiated_script_module, "lazy_init", lambda: None)
+    monkeypatch.setattr(Attributes, "cluster_blocks", (1, 1, 1))
+    transpile = JitInstance._transpile_programs
+    calls = []
+
+    def counted(instance):
+        calls.append(True)
+        return transpile(instance)
+
+    monkeypatch.setattr(JitInstance, "_transpile_programs", counted)
+
+    def instantiate():
+        return JitInstance(_CompilerDefaultsScript, CallParameters(_CompilerDefaultsScript), BuildOptions(), [{}], ())
+
+    def clusters(instance):
+        return next(iter(instance.transpiled_programs[0].functions.values())).metadata.cluster_blocks
+
+    with scope(nvgpu_sm90):
+        original = instantiate()
+        restored = instantiate()
+        assert len(calls) == 1
+        assert restored.specialization_cache_path == original.specialization_cache_path
+        assert clusters(restored) == (1, 1, 1)
+        monkeypatch.setattr(Attributes, "cluster_blocks", (2, 1, 1))
+        changed = instantiate()
+        assert len(calls) == 2
+        assert changed.specialization_cache_path != original.specialization_cache_path
+        assert clusters(changed) == (2, 1, 1)

@@ -20,6 +20,8 @@ from typing import Any
 import numpy as np
 
 from tilus.hidet.ir.type import BaseType
+from tilus.lang.instructions.base import InstructionGroup
+from tilus.lang.script import Attributes
 
 _PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 _SAFE_BUILTINS = {
@@ -91,11 +93,28 @@ def script_dependency_fingerprint(script_cls: type, inputs: Any) -> str | None:
             return ["dict", [[snapshot(key), snapshot(item)] for key, item in value.items()]]
         if isinstance(value, BaseType) and compiler_owned(type(value)):
             return ["type", type(value).__module__, type(value).__qualname__, snapshot(vars(value))]
+        if isinstance(value, InstructionGroup) and compiler_owned(type(value)):
+            return ["instruction_group", snapshot(type(value)), snapshot(vars(value))]
+        if isinstance(value, (staticmethod, classmethod)):
+            return [type(value).__name__, snapshot(value.__func__)]
         if isinstance(value, types.FunctionType):
             return function(value)
         if isinstance(value, type):
             if compiler_owned(value):
-                return ["compiler_type", value.__module__, value.__qualname__]
+                # Source fingerprints cover compiler implementations, but public
+                # class defaults can be configured by user code at runtime.
+                defaults = {}
+                for base in reversed(value.__mro__):
+                    for name, member in vars(base).items():
+                        if (
+                            name.startswith("_")
+                            or callable(member)
+                            or isinstance(member, (staticmethod, classmethod, property))
+                        ):
+                            defaults.pop(name, None)
+                        else:
+                            defaults[name] = member
+                return ["compiler_type", value.__module__, value.__qualname__, snapshot(defaults)]
             if type(value) is not type:
                 raise _UntrackedDependency
             members = []
@@ -159,14 +178,24 @@ def script_dependency_fingerprint(script_cls: type, inputs: Any) -> str | None:
                 continue
             key = name
             current = node
-            while isinstance(value, types.ModuleType):
+            while True:
                 parent = parents.get(current)
-                if not isinstance(parent, ast.Attribute) or parent.value is not current:
-                    raise _UntrackedDependency
-                if parent.attr not in vars(value):
-                    raise _UntrackedDependency
+                attribute_access = isinstance(parent, ast.Attribute) and parent.value is current
+                if isinstance(value, types.ModuleType):
+                    if not attribute_access or parent.attr not in vars(value):
+                        raise _UntrackedDependency
+                    dependencies[key] = ["module", value.__name__]
+                    member = vars(value)[parent.attr]
+                elif isinstance(value, type) and attribute_access:
+                    dependencies[key] = value
+                    try:
+                        member = inspect.getattr_static(value, parent.attr)
+                    except AttributeError:
+                        raise _UntrackedDependency from None
+                else:
+                    break
                 key += "." + parent.attr
-                value = vars(value)[parent.attr]
+                value = member
                 current = parent
             if value is object and isinstance(parents.get(current), ast.Call):
                 raise _UntrackedDependency
@@ -184,7 +213,7 @@ def script_dependency_fingerprint(script_cls: type, inputs: Any) -> str | None:
         ]
 
     try:
-        payload = [sys.version, np.__version__, snapshot(script_cls), snapshot(inputs)]
+        payload = [sys.version, np.__version__, snapshot(Attributes), snapshot(script_cls), snapshot(inputs)]
         return hashlib.sha256(json.dumps(payload, separators=(",", ":")).encode()).hexdigest()
     except (_UntrackedDependency, OSError, TypeError, ValueError, SyntaxError, RecursionError):
         return None

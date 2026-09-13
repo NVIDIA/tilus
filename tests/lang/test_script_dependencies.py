@@ -197,3 +197,58 @@ def test_tracks_method_binding_kind(monkeypatch):
     method = vars(Helper)["value"].__func__
     monkeypatch.setattr(Helper, "value", classmethod(method))
     assert _fingerprint(Kernel) != original
+
+
+def test_tracks_compiler_class_runtime_defaults(monkeypatch):
+    from tilus.lang.script import Attributes
+
+    class Kernel(tilus.Script):
+        def __call__(self):
+            self.attrs.blocks = [1]
+            self.attrs.warps = 4
+            self.attrs.cluster_blocks = Attributes.cluster_blocks
+
+    original = _fingerprint(Kernel)
+    implicit_original = _fingerprint()
+    assert original is not None
+    assert implicit_original is not None
+    monkeypatch.setattr(Attributes, "cluster_blocks", (2, 1, 1))
+    assert _fingerprint(Kernel) != original
+    # Defaults are also consumed implicitly through Script.__init__.
+    assert _fingerprint() != implicit_original
+
+
+def test_tracks_referenced_compiler_class_methods(monkeypatch):
+    from tilus.lang.script import Attributes
+
+    def method():
+        return _GLOBAL["value"]
+
+    monkeypatch.setattr(Attributes, "probe", staticmethod(method), raising=False)
+
+    class Kernel(tilus.Script):
+        def __call__(self):
+            return Attributes.probe()
+
+    original = _fingerprint(Kernel)
+    assert original is not None
+    monkeypatch.setitem(_GLOBAL, "value", 2)
+    assert _fingerprint(Kernel) != original
+
+
+def test_tracks_compiler_method_binding_kind(monkeypatch):
+    from tilus.lang.script import Attributes
+
+    def method(cls=None):
+        return cls is None
+
+    monkeypatch.setattr(Attributes, "probe", staticmethod(method), raising=False)
+
+    class Kernel(tilus.Script):
+        def __call__(self):
+            return Attributes.probe()
+
+    original = _fingerprint(Kernel)
+    assert original is not None
+    monkeypatch.setattr(Attributes, "probe", classmethod(method))
+    assert _fingerprint(Kernel) != original
