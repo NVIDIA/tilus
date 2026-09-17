@@ -25,6 +25,7 @@ import filelock
 
 import tilus.option
 from tilus.backends.codegen import generate_ir_module
+from tilus.compiler_fingerprint import backend_fingerprint
 from tilus.hidet.backend.build import compile_source
 from tilus.hidet.backend.codegen import codegen
 from tilus.hidet.ir.module import IRModule
@@ -189,7 +190,6 @@ def optimize_ir_module(ir_module: IRModule, cache_dir: Path) -> IRModule:
         return lower_with(ir_module, transforms)
 
 
-@functools.lru_cache(maxsize=1024)
 def get_cache_dir(prog: Program, options: BuildOptions) -> Path:
     """
     Resolve the cache directory for the program.
@@ -210,18 +210,40 @@ def get_cache_dir(prog: Program, options: BuildOptions) -> Path:
     cache_dir: Path
         The cache directory.
     """
+    cache_root = str(tilus.option.get_option("cache_dir"))
+    return _get_cache_dir(
+        prog,
+        options,
+        cache_root,
+        tilus.option.get_option("debug.disable_ptxas_opt"),
+        tilus.target.get_current_target(),
+        backend_fingerprint(cache_root),
+    )
+
+
+@functools.lru_cache(maxsize=1024)
+def _get_cache_dir(
+    prog: Program,
+    options: BuildOptions,
+    cache_root: str,
+    disable_ptxas_opt: bool,
+    target: object,
+    compiler_fingerprint: str,
+) -> Path:
+    """Memoized implementation whose key includes all ambient build state."""
     options_dict = dataclasses.asdict(options)
     options_dict.update(
         {
-            "disable_ptxas_opt": tilus.option.get_option("debug.disable_ptxas_opt"),
-            "target": tilus.target.get_current_target(),
+            "disable_ptxas_opt": disable_ptxas_opt,
+            "target": target,
+            "backend_fingerprint": compiler_fingerprint,
         }
     )
 
     prog_text: str = str(prog)
     options_text: str = str(options_dict)
     hex_digest: str = hashlib.sha256(options_text.encode() + prog_text.encode()).hexdigest()[:12]
-    cache_dir: Path = Path(tilus.option.get_option("cache_dir")) / "programs" / hex_digest
+    cache_dir: Path = Path(cache_root) / "programs" / hex_digest
     program_path: Path = cache_dir / "program.txt"
     options_path: Path = cache_dir / "options.txt"
 

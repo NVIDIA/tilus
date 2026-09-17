@@ -19,11 +19,15 @@ import inspect
 import json
 import logging
 import os
+import pickle
 import shutil
+import tempfile
 import traceback
+from functools import lru_cache
 from itertools import product
+from operator import itemgetter
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence, Type
+from typing import Any, Callable, Mapping, Optional, Sequence, Type
 
 import filelock
 import tabulate
@@ -32,12 +36,14 @@ import tvm_ffi
 from tqdm import tqdm
 
 import tilus.option
+from tilus.compiler_fingerprint import backend_fingerprint, frontend_fingerprint
 from tilus.drivers import BuildOptions, build_program, get_cache_dir
 from tilus.hidet.ir.type import DataType, PointerType, TensorPointerType
 from tilus.hidet.utils.py import nocolor
 from tilus.ir.prog import Program
 from tilus.lang.script import Script
-from tilus.runtime import CompiledProgram, load_compiled_program
+from tilus.lang.script_dependencies import script_dependency_fingerprint
+from tilus.runtime import CompiledProgram, compiled_program_exists, load_compiled_program
 from tilus.target import get_current_target, lazy_init
 from tilus.utils import benchmark_func, relative_to_with_walk_up, to_snake_case
 from tilus.utils.multiprocess import parallel_imap
@@ -324,6 +330,13 @@ def _init_divisibility_key():
 _init_divisibility_key()
 
 
+@lru_cache(maxsize=1024)
+def _tuning_key_part(arg: int) -> tuple[int, int]:
+    """Return the divisibility and bucket for one tuning argument."""
+    block = 1 << max((arg.bit_length() - 2), 0)
+    return divisibility_key[arg % 32], (arg + block - 1) // block * block
+
+
 def extract_keys(args: Sequence[Any], const_params: list[int], tuning_params: list[int]) -> tuple[JitKey, TuningKey]:
     """
     Extract the JIT key and the tuning key from the arguments.
@@ -352,9 +365,9 @@ def extract_keys(args: Sequence[Any], const_params: list[int], tuning_params: li
         jit_key.append(args[i])
     for i in tuning_params:
         arg: int = args[i]
-        jit_key.append(divisibility_key[arg % 32])
-        block = 1 << max((arg.bit_length() - 2), 0)
-        tuning_key.append((arg + block - 1) // block * block)
+        divisibility, bucket = _tuning_key_part(arg)
+        jit_key.append(divisibility)
+        tuning_key.append(bucket)
     return tuple(jit_key), tuple(tuning_key)
 
 
@@ -362,13 +375,26 @@ def construct_keys(const_params: Sequence[Any], tuning_params: Sequence[int]) ->
     jit_key = list(const_params)
     tuning_key = []
     for arg in tuning_params:
-        block = 1 << max((arg.bit_length() - 2), 0)
-        tuning_key.append((arg + block - 1) // block * block)
-        jit_key.append(divisibility_key[arg % 32])
+        divisibility, bucket = _tuning_key_part(arg)
+        tuning_key.append(bucket)
+        jit_key.append(divisibility)
     return tuple(jit_key), tuple(tuning_key)
 
 
+def _make_tuple_getter(indices: Sequence[int]) -> Callable[[Sequence[Any]], tuple[Any, ...]]:
+    """Build a low-overhead positional selector that always returns a tuple."""
+    indices = tuple(indices)
+    if not indices:
+        return lambda args: ()
+    if len(indices) == 1:
+        index = indices[0]
+        return lambda args: (args[index],)
+    return itemgetter(*indices)
+
+
 class JitInstance:
+    SPECIALIZATION_CACHE_VERSION = 3
+
     def __init__(
         self,
         script_cls: Type[Script],
@@ -398,8 +424,13 @@ class JitInstance:
         self.dispatch_table: dict[TuningKey, int] = {}
         self.cache_dir: Path = Path()
         self.cache_dir_lock: Path = Path()
+        cache_root = str(tilus.option.get_option("cache_dir"))
+        self.frontend_fingerprint = frontend_fingerprint(cache_root)
+        self.backend_fingerprint = backend_fingerprint(cache_root)
+        self.specialization_cache_path = self._get_specialization_cache_path()
 
-        self._transpile_programs()
+        if not self._load_specialization_cache():
+            self._transpile_programs()
 
     def __str__(self):
         data = {
@@ -407,7 +438,7 @@ class JitInstance:
             "Cache Dir": str(self.cache_dir),
             "Build Options": str(self.build_options),
             "Num Schedules": len(self.schedules),
-            "Valid Programs": len(self.transpiled_programs),
+            "Valid Programs": max(len(self.transpiled_programs), len(self.compiled_programs)),
         }
         return str(tabulate.tabulate(data.items(), tablefmt="simple", colalign=("right", "left")))
 
@@ -415,6 +446,129 @@ class JitInstance:
         if len(self.valid_programs) == 0:
             self._build_programs()
         return self.valid_programs
+
+    def _get_specialization_cache_path(self) -> Path | None:
+        param_info = self.call_params
+        inputs = (
+            self.schedules,
+            self.jit_key,
+            param_info.param_names,
+            param_info.const_params,
+            param_info.kernel_params,
+            param_info.tuning_params,
+        )
+        dependencies = script_dependency_fingerprint(self.script_cls, inputs)
+        if dependencies is None:
+            return None
+        cache_key = repr(
+            (
+                self.SPECIALIZATION_CACHE_VERSION,
+                self.frontend_fingerprint,
+                dependencies,
+                self.build_options,
+                [str(param_type) for param_type in param_info.param_types],
+                get_current_target(),
+            )
+        )
+        digest = hashlib.sha256(cache_key.encode()).hexdigest()[:20]
+        return Path(tilus.option.get_option("cache_dir")) / "specializations" / f"{digest}.json"
+
+    @staticmethod
+    def _atomic_write(path: Path, payload: bytes) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(payload)
+            os.replace(temp_name, path)
+        finally:
+            try:
+                os.unlink(temp_name)
+            except FileNotFoundError:
+                pass
+
+    def _load_specialization_cache(self) -> bool:
+        path = self.specialization_cache_path
+        if path is None or not path.exists():
+            return False
+        try:
+            with open(path, "r") as f:
+                data = json.load(f)
+            if data.get("version") != self.SPECIALIZATION_CACHE_VERSION:
+                return False
+            if data.get("frontend_fingerprint") != self.frontend_fingerprint:
+                return False
+
+            cache_root = Path(tilus.option.get_option("cache_dir")).resolve()
+            cache_dir = (cache_root / data["script_cache_dir"]).resolve()
+            programs_path = (cache_root / data["programs_file"]).resolve()
+            if (
+                not cache_dir.is_relative_to(cache_root)
+                or not programs_path.is_relative_to(cache_root)
+                or not cache_dir.is_dir()
+            ):
+                return False
+
+            programs_payload = programs_path.read_bytes()
+            if hashlib.sha256(programs_payload).hexdigest() != data["programs_digest"]:
+                return False
+            transpiled_schedules, transpiled_programs = pickle.loads(programs_payload)
+            if (
+                not isinstance(transpiled_schedules, list)
+                or not isinstance(transpiled_programs, list)
+                or len(transpiled_schedules) != len(transpiled_programs)
+                or not transpiled_programs
+                or any(not isinstance(program, Program) for program in transpiled_programs)
+                or any(
+                    not isinstance(index, int) or index < 0 or index >= len(self.schedules)
+                    for index in transpiled_schedules
+                )
+            ):
+                return False
+        except (
+            AttributeError,
+            EOFError,
+            ImportError,
+            KeyError,
+            OSError,
+            pickle.PickleError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+            json.JSONDecodeError,
+        ):
+            return False
+
+        self.cache_dir = cache_dir
+        self.cache_dir_lock = cache_dir / ".lock"
+        self.transpiled_schedules = transpiled_schedules
+        self.transpiled_programs = transpiled_programs
+        self.valid_schedules = []
+        self.valid_programs = []
+        self.compiled_programs = []
+
+        return True
+
+    def _dump_specialization_cache(self) -> None:
+        if self.specialization_cache_path is None:
+            return
+        cache_root = Path(tilus.option.get_option("cache_dir")).resolve()
+        path = self.specialization_cache_path
+        programs_payload = pickle.dumps(
+            (self.transpiled_schedules, self.transpiled_programs),
+            protocol=pickle.HIGHEST_PROTOCOL,
+        )
+        programs_digest = hashlib.sha256(programs_payload).hexdigest()
+        programs_path = path.with_name(f"{path.stem}.{programs_digest[:16]}.programs.pkl")
+        data = {
+            "version": self.SPECIALIZATION_CACHE_VERSION,
+            "frontend_fingerprint": self.frontend_fingerprint,
+            "script_cache_dir": str(self.cache_dir.resolve().relative_to(cache_root)),
+            "programs_file": str(programs_path.resolve().relative_to(cache_root)),
+            "programs_digest": programs_digest,
+        }
+        self._atomic_write(programs_path, programs_payload)
+        self._atomic_write(path, json.dumps(data, indent=2).encode())
 
     @staticmethod
     def _instance_name(script_cls: Type[Script], call_params: CallParameters, jit_key: JitKey) -> str:
@@ -461,16 +615,16 @@ class JitInstance:
             return traceback.format_exc()
 
     @staticmethod
-    def _build_program(job: Any) -> str:
+    def _build_program(job: Any) -> tuple[bool, str]:
         assert len(job) == 2
         program: Program = job[0]
         options: BuildOptions = job[1]
         try:
-            build_program(program, options=options)
+            program_cache_dir = build_program(program, options=options)
         except Exception:
-            return traceback.format_exc()
+            return False, traceback.format_exc()
         else:
-            return "success"
+            return True, program_cache_dir
 
     def _transpile_programs(self):
         # prepare the jobs for instantiating the schedules
@@ -590,6 +744,8 @@ class JitInstance:
             lines.extend(["  " + s for s in self.failed_scheduling[0].split("\n")])
             raise RuntimeError("\n".join(lines))
 
+        self._dump_specialization_cache()
+
     @staticmethod
     def _create_link(link_path: Path, target_path: Path) -> None:
         relative_path = relative_to_with_walk_up(link_path.parent, target=target_path)
@@ -605,30 +761,48 @@ class JitInstance:
         # build the programs in parallel
         transpiled_programs = self.transpiled_programs
         transpiled_schedules = self.transpiled_schedules
-        building_jobs = [(program, self.build_options) for program in transpiled_programs]
+        # Resolve the ordinary binary key in the parent before starting workers.
+        # A cache hit needs no compilation process, and every ambient build option
+        # is still checked by get_cache_dir.
+        cached_results = []
+        building_jobs = []
+        for program in transpiled_programs:
+            program_cache_dir = get_cache_dir(program, options=self.build_options)
+            if compiled_program_exists(program_cache_dir):
+                cached_results.append((True, str(program_cache_dir)))
+            else:
+                cached_results.append(None)
+                building_jobs.append((program, self.build_options))
+
+        def build_results():
+            pending = (
+                iter(parallel_imap(func=JitInstance._build_program, jobs=building_jobs)) if building_jobs else iter(())
+            )
+            for cached in cached_results:
+                yield cached if cached is not None else next(pending)
 
         lazy_init()
-        for idx, item in enumerate(
+        for idx, (success, result) in enumerate(
             tqdm(
-                iterable=parallel_imap(func=JitInstance._build_program, jobs=building_jobs),
+                iterable=build_results(),
                 desc="[{}] {}".format("Building", self.instance_name),
-                total=len(building_jobs),
+                total=len(transpiled_programs),
                 miniters=1,
                 ncols=60 + max(60, len(self.instance_name)),
                 delay=3,
             )
         ):
-            program_cache_dir = get_cache_dir(transpiled_programs[idx], options=self.build_options)
-            if item == "success":
+            if success:
+                program_cache_dir = Path(result)
                 self.valid_programs.append(transpiled_programs[idx])
                 self.valid_schedules.append(transpiled_schedules[idx])
-                self.compiled_programs.append(load_compiled_program(program_cache_dir))  #
+                self.compiled_programs.append(load_compiled_program(program_cache_dir))
             else:
-                assert isinstance(item, str)
+                program_cache_dir = get_cache_dir(transpiled_programs[idx], options=self.build_options)
                 sections = {
                     "Schedule": str(self.schedules[idx]),
                     "Program": str(transpiled_programs[idx]),
-                    "Traceback": nocolor(item),
+                    "Traceback": nocolor(result),
                 }
                 lines = []
                 for key, value in sections.items():
@@ -698,7 +872,7 @@ class JitInstance:
             raise RuntimeError("\n".join(lines))
 
     def _pick_best_program(self, args: Sequence[Any]) -> CompiledProgram:
-        if len(self.valid_programs) == 0:
+        if len(self.compiled_programs) == 0:
             self._build_programs()
 
         _, tuning_key = extract_keys(args, self.call_params.const_params, self.call_params.tuning_params)
@@ -780,15 +954,29 @@ class JitInstance:
         # reused when its saved environment fingerprint matches the current one. Otherwise (including a
         # legacy table that predates the fingerprint) it is ignored and the kernel is re-tuned.
         saved_meta = data.get("_metadata") if isinstance(data, dict) else None
-        if not tuning_metadata_matches(saved_meta, collect_tuning_metadata()):
+        self.dispatch_table = {}
+        if (
+            not tuning_metadata_matches(saved_meta, collect_tuning_metadata())
+            or data.get("_frontend_fingerprint") != self.frontend_fingerprint
+            or data.get("_backend_fingerprint") != self.backend_fingerprint
+        ):
             return
-        self.dispatch_table = {tuple(key): value for key, value in data["entries"]}
+        self.dispatch_table = {
+            tuple(key): value
+            for key, value in data["entries"]
+            if isinstance(value, int) and 0 <= value < len(self.compiled_programs)
+        }
 
     def dump_dispatch_table(self):
         table_path = self.cache_dir / "dispatch_table.json"
         table_txt_path = self.cache_dir / "dispatch_table.txt"
         entries = [[list(key), value] for key, value in self.dispatch_table.items()]
-        data = {"_metadata": collect_tuning_metadata(), "entries": entries}
+        data = {
+            "_metadata": collect_tuning_metadata(),
+            "_frontend_fingerprint": self.frontend_fingerprint,
+            "_backend_fingerprint": self.backend_fingerprint,
+            "entries": entries,
+        }
         with open(table_path, "w") as f:
             json.dump(data, f)
         headers = []
@@ -820,6 +1008,10 @@ class InstantiatedScript:
 
         self.jit_instances: dict[JitKey, JitInstance] = {}
         self.dispatch_table: dict[tuple[JitKey, TuningKey], tvm_ffi.Function] = {}
+        self._dispatch_arg_getter = _make_tuple_getter(self.const_params + self.tuning_params)
+        self._kernel_arg_getter = _make_tuple_getter(self.kernel_params)
+        self._last_dispatch_args: Optional[tuple[Any, ...]] = None
+        self._last_compiled_func: Optional[tvm_ffi.Function] = None
 
     def __call__(self, *args, **kwargs):
         if kwargs or self.with_default:
@@ -833,14 +1025,20 @@ class InstantiatedScript:
                     "The number of arguments should be {}, but got {}.".format(len(self.params.param_names), len(args))
                 )
 
-        # extract the JIT key and the tuning key
-        keys = extract_keys(args, self.const_params, self.tuning_params)
-
-        # check if the compiled function exists
-        compiled_func: Optional[tvm_ffi.Function] = self.dispatch_table.get(keys, None)
+        # Most workloads launch the same shape repeatedly. Compare the raw dispatch arguments first,
+        # avoiding key normalization and hashing entirely on that common path.
+        dispatch_args = self._dispatch_arg_getter(args)
+        if dispatch_args == self._last_dispatch_args:
+            compiled_func = self._last_compiled_func
+            keys = None
+        else:
+            keys = extract_keys(args, self.const_params, self.tuning_params)
+            compiled_func = self.dispatch_table.get(keys)
 
         if compiled_func is None:
             # slow path
+            if keys is None:
+                keys = extract_keys(args, self.const_params, self.tuning_params)
             jit_key, tuning_key = keys
             jit_instance: Optional[JitInstance] = self.jit_instances.get(jit_key, None)
             if jit_instance is None:
@@ -851,8 +1049,11 @@ class InstantiatedScript:
             compiled_func = compiled_program.get_launch_func()
             self.dispatch_table[(jit_key, tuning_key)] = compiled_func
 
+        self._last_dispatch_args = dispatch_args
+        self._last_compiled_func = compiled_func
+
         # call the compiled function
-        kernel_args = (args[i] for i in self.kernel_params)
+        kernel_args = self._kernel_arg_getter(args)
         ret = compiled_func(*kernel_args)
 
         return ret
