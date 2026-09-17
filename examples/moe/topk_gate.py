@@ -25,11 +25,17 @@ class TopKGate(tilus.Script):
         self.attrs.blocks = (num_tokens,)
         self.attrs.warps = 1
 
-        scores = self.global_view(scores_ptr, dtype=float32, shape=[num_tokens, self.num_experts])
-        output = self.global_view(output_ptr, dtype=int64, shape=[num_tokens, self.num_topk])
+        scores = self.global_view(
+            scores_ptr, dtype=float32, shape=[num_tokens, self.num_experts]
+        )
+        output = self.global_view(
+            output_ptr, dtype=int64, shape=[num_tokens, self.num_topk]
+        )
         token = self.blockIdx.x
 
-        values = self.load_global(scores, offsets=[token, 0], shape=[1, self.aligned_experts])
+        values = self.load_global(
+            scores, offsets=[token, 0], shape=[1, self.aligned_experts]
+        )
         # TileKernels performs the stable reducer in int32 and widens only at
         # the required int64 output boundary.
         expert_ids = self.register_tensor(
@@ -45,7 +51,9 @@ class TopKGate(tilus.Script):
                 init=lambda _, j: j < self.num_experts,
             )
         else:
-            active = self.register_tensor(dtype=int32, shape=[1, self.aligned_experts], init=lambda _i, _j: 1)
+            active = self.register_tensor(
+                dtype=int32, shape=[1, self.aligned_experts], init=lambda _i, _j: 1
+            )
         # Out-of-bounds vector-load lanes are not necessarily initialized to a
         # value below every valid score.  Mask them before the first max.
         values = self.where(active != 0, x=values, y=padding_value)
@@ -67,7 +75,9 @@ class TopKGate(tilus.Script):
             # warp reduction in the normal finite-score path.
             if best_index[0, 0].item() == int32.max_value:
                 best_index = self.min(
-                    self.where(active != 0, x=expert_ids, y=int32.max_value), dim=1, keepdim=True
+                    self.where(active != 0, x=expert_ids, y=int32.max_value),
+                    dim=1,
+                    keepdim=True,
                 )
             # The reduction result is replicated across the warp.  A direct
             # store from every lane creates 32 identical global writes; only
@@ -81,29 +91,37 @@ class TopKGate(tilus.Script):
 
 def main():
     rows = []
-    for num_tokens, num_experts, num_topk in [(128, 72, 6), (1024, 256, 8), (8192, 256, 8)]:
+    for num_tokens, num_experts, num_topk in [
+        (128, 72, 6),
+        (1024, 256, 8),
+        (8192, 256, 8),
+    ]:
         scores = torch.randn(num_tokens, num_experts, device="cuda", dtype=torch.float32)
         # Make ties observable: the implementation must choose the lower index.
         scores[:, 0] = scores[:, 1]
         kernel = TopKGate(num_experts, num_topk)
         output = torch.empty(num_tokens, num_topk, device="cuda", dtype=torch.int64)
         kernel(num_tokens, scores, output)
-        expected = torch.sort(scores, dim=1, descending=True, stable=True).indices[:, :num_topk]
+        expected = torch.sort(scores, dim=1, descending=True, stable=True).indices[
+            :, :num_topk
+        ]
         torch.testing.assert_close(output, expected)
         torch.testing.assert_close(topk_gate(scores, num_topk), expected)
         # Padding must never win when valid experts contain -inf.
         if num_experts % 32:
             edge_scores = torch.full_like(scores, float("-inf"))
             kernel(num_tokens, edge_scores, output)
-            edge_expected = torch.arange(num_topk, device="cuda", dtype=torch.int64)[None, :].expand(
-                num_tokens, -1
-            )
+            edge_expected = torch.arange(num_topk, device="cuda", dtype=torch.int64)[
+                None, :
+            ].expand(num_tokens, -1)
             torch.testing.assert_close(output, edge_expected)
             # The minimum finite score must beat -inf even though it equals
             # the padding sentinel.
             edge_scores[:, 1] = torch.finfo(torch.float32).min
             kernel(num_tokens, edge_scores, output)
-            edge_expected = torch.sort(edge_scores, dim=1, descending=True, stable=True).indices[:, :num_topk]
+            edge_expected = torch.sort(
+                edge_scores, dim=1, descending=True, stable=True
+            ).indices[:, :num_topk]
             torch.testing.assert_close(output, edge_expected)
 
         def run_tilus():

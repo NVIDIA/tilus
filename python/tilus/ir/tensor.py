@@ -96,11 +96,13 @@ class RegisterTensor(Tensor):
     shape: tuple[int, ...]
     optional_layout: Optional[RegisterLayout] = None
 
-    def __getitem__(self, indices: tuple[Expr | int | slice] | Expr | int | slice) -> RegisterTensor:
+    def __getitem__(self, indices: tuple[Expr | int | slice, ...] | Expr | int | slice) -> RegisterTensor:
         raise RuntimeError("register_tensor[...] could only be used in Tilus Script.")
 
     def __setitem__(
-        self, indices: tuple[Expr | int | slice] | Expr | int | slice, value: RegisterTensor | Expr | int | float | None
+        self,
+        indices: tuple[Expr | int | slice, ...] | Expr | int | slice,
+        value: RegisterTensor | Expr | int | float | None,
     ) -> None:
         raise RuntimeError("register_tensor[...] = value could only be used in Tilus Script.")
 

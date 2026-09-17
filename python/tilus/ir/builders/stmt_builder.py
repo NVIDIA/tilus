@@ -1273,7 +1273,6 @@ class StmtBuilder(StmtBuilderCore):
         inst = StoreGlobalInst.create(dst=dst, x=src, offsets=[as_expr(ofs) for ofs in offsets], dims=dims)
         self.append(inst)
 
-
     def store_global_scatter(
         self,
         dst: GlobalTensor,

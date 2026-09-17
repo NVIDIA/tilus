@@ -32,7 +32,7 @@ from .base import InstructionGroup
 class RootInstructionGroup(InstructionGroup):
     def get_thread_binding(self) -> Expr:
         """Return the physical CUDA thread index within the thread block."""
-        return threadIdx.x
+        return threadIdx.x  # type: ignore[attr-defined]
 
     @property
     def blockIdx(self) -> Dim3:
@@ -300,7 +300,7 @@ class RootInstructionGroup(InstructionGroup):
         *,
         dtype: DataType,
         shape: Sequence[int],
-        init: Optional[Callable[[Var, ...], Expr | int | float | bool] | Expr | int | float] = None,  # type: ignore [misc]
+        init: Optional[Callable[..., Expr | int | float | bool] | Expr | int | float] = None,
     ) -> RegisterTensor:
         """Create a register tensor.
 
@@ -320,7 +320,7 @@ class RootInstructionGroup(InstructionGroup):
             The data type of the tensor elements.
         shape: Sequence[int]
             The shape of the tensor.
-        init: Callable[[Var, ...], Expr | int | float | bool] | Expr | int | float, optional
+        init: Callable[..., Expr | int | float | bool] | Expr | int | float, optional
             The initialization value or function to initialize the tensor elements.
 
         Returns

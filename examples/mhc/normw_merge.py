@@ -20,7 +20,9 @@ class MHCNormWMerge(tilus.Script):
         super().__init__()
         self.block_m, self.block_n, self.warps = block_m, block_n, warps
 
-    def __call__(self, m: int32, n: int32, fn_ptr: ~float32, normw_ptr: ~float32, out_ptr: ~float32):
+    def __call__(
+        self, m: int32, n: int32, fn_ptr: ~float32, normw_ptr: ~float32, out_ptr: ~float32
+    ):
         self.attrs.blocks = (cdiv(m, self.block_m), cdiv(n, self.block_n))
         self.attrs.warps = self.warps
         fn = self.global_view(fn_ptr, dtype=float32, shape=[m, n])
@@ -28,7 +30,9 @@ class MHCNormWMerge(tilus.Script):
         out = self.global_view(out_ptr, dtype=float32, shape=[m, n])
         rows = self.blockIdx.x * self.block_m
         cols = self.blockIdx.y * self.block_n
-        r_fn = self.load_global(fn, offsets=[rows, cols], shape=[self.block_m, self.block_n])
+        r_fn = self.load_global(
+            fn, offsets=[rows, cols], shape=[self.block_m, self.block_n]
+        )
         r_w = self.load_global(normw, offsets=[cols], shape=[self.block_n])
         self.store_global(out, r_fn * r_w, offsets=[rows, cols])
 
@@ -56,7 +60,9 @@ def main():
 
     tilus_ms = benchmark_func(run_tilus, warmup=10, repeat=100)
     tilekernels_ms = benchmark_func(run_tilekernels, warmup=10, repeat=100)
-    print(f"mHC normw merge: Tilus {tilus_ms:.4f} ms, TileKernels {tilekernels_ms:.4f} ms")
+    print(
+        f"mHC normw merge: Tilus {tilus_ms:.4f} ms, TileKernels {tilekernels_ms:.4f} ms"
+    )
 
 
 if __name__ == "__main__":
