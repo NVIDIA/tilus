@@ -111,7 +111,7 @@ def test_repeated_shape_uses_last_dispatch_entry():
 
     ptr = object()
     keys = extract_keys((ptr, 128, 7), script.const_params, script.tuning_params)
-    script.dispatch_table = {keys: launch}
+    script.dispatch_table = {keys: launch}  # type: ignore[dict-item]
     script(ptr, 128, 7)
     script.dispatch_table.clear()
     script(ptr, 128, 7)

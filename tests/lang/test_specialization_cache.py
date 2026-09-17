@@ -3,6 +3,7 @@
 
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 import tilus.lang.instantiated_script as instantiated_script_module
@@ -55,7 +56,7 @@ def _jit_instance(cache_root: Path) -> JitInstance:
     instance.transpiled_programs = [Program.create({}), Program.create({})]
     instance.valid_schedules = [1]
     instance.valid_programs = [instance.transpiled_programs[1]]
-    instance.compiled_programs = [_DummyCompiledProgram(cache_root / "programs" / "abc")]
+    instance.compiled_programs = [cast(Any, _DummyCompiledProgram(cache_root / "programs" / "abc"))]
     instance.dispatch_table = {}
     instance.load_dispatch_table = lambda: None
     return instance
@@ -149,7 +150,7 @@ def test_build_workers_receive_only_uncached_programs(monkeypatch, tmp_path: Pat
         instantiated_script_module, "compiled_program_exists", lambda path: path in [paths[i] for i in cached_indices]
     )
     monkeypatch.setattr(instantiated_script_module, "load_compiled_program", _DummyCompiledProgram)
-    submitted = []
+    submitted: list[Program] = []
 
     def parallel(func, jobs):
         submitted.extend(program for program, options in jobs)
@@ -195,9 +196,9 @@ def test_unsupported_jit_instances_always_transpile(monkeypatch, tmp_path: Path)
         instance._dump_specialization_cache()
 
     monkeypatch.setattr(JitInstance, "_transpile_programs", transpile)
-    JitInstance(_UntrackedScript, _call_params(), None, [], ())
+    JitInstance(cast(type[Script], _UntrackedScript), _call_params(), None, [], ())
     external_state["value"] = 2
-    JitInstance(_UntrackedScript, _call_params(), None, [], ())
+    JitInstance(cast(type[Script], _UntrackedScript), _call_params(), None, [], ())
 
     assert observed == [1, 2]
     assert not (tmp_path / "specializations").exists()
@@ -220,14 +221,14 @@ def test_supported_instances_reuse_ir_and_invalidate_globals(monkeypatch, tmp_pa
         instance._dump_specialization_cache()
 
     monkeypatch.setattr(JitInstance, "_transpile_programs", transpile)
-    original = JitInstance(_TrackedScript, _call_params(), None, [{}], ())
-    restored = JitInstance(_TrackedScript, _call_params(), None, [{}], ())
+    original = JitInstance(cast(type[Script], _TrackedScript), _call_params(), None, [{}], ())
+    restored = JitInstance(cast(type[Script], _TrackedScript), _call_params(), None, [{}], ())
     assert restored.specialization_cache_path == original.specialization_cache_path
     assert len(restored.transpiled_programs) == 1
     assert observed == [1]
 
     monkeypatch.setitem(globals(), "_KERNEL_VALUE", 2)
-    changed = JitInstance(_TrackedScript, _call_params(), None, [{}], ())
+    changed = JitInstance(cast(type[Script], _TrackedScript), _call_params(), None, [{}], ())
     assert changed.specialization_cache_path != original.specialization_cache_path
     assert observed == [1, 2]
 

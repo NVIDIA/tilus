@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import functools
 import hashlib
 import inspect
 import json
@@ -76,6 +77,22 @@ def script_dependency_fingerprint(script_cls: type, inputs: Any) -> str | None:
             return False
         return path.is_relative_to(_PACKAGE_ROOT)
 
+    def instance_fields(value: Any) -> dict[str, Any]:
+        """Instance state excluding values memoized by ``functools.cached_property``.
+
+        Those entries appear in ``__dict__`` only after something touched the
+        property, so including them would make the digest depend on unrelated
+        earlier work. They are derived from the remaining fields and from
+        compiler sources, which the frontend fingerprint already covers.
+        """
+        memoized = {
+            name
+            for klass in type(value).__mro__
+            for name, member in vars(klass).items()
+            if isinstance(member, functools.cached_property)
+        }
+        return {name: item for name, item in vars(value).items() if name not in memoized}
+
     def snapshot(value: Any) -> Any:
         if type(value) in (type(None), bool, int, float, str, bytes):
             return [type(value).__name__, repr(value)]
@@ -92,24 +109,24 @@ def script_dependency_fingerprint(script_cls: type, inputs: Any) -> str | None:
         if type(value) is dict:
             return ["dict", [[snapshot(key), snapshot(item)] for key, item in value.items()]]
         if isinstance(value, BaseType) and compiler_owned(type(value)):
-            return ["type", type(value).__module__, type(value).__qualname__, snapshot(vars(value))]
+            return ["type", type(value).__module__, type(value).__qualname__, snapshot(instance_fields(value))]
         if isinstance(value, InstructionGroup) and compiler_owned(type(value)):
-            return ["instruction_group", snapshot(type(value)), snapshot(vars(value))]
+            return ["instruction_group", snapshot(type(value)), snapshot(instance_fields(value))]
         if isinstance(value, (staticmethod, classmethod)):
             return [type(value).__name__, snapshot(value.__func__)]
         if isinstance(value, types.FunctionType):
-            return function(value)
+            return snapshot_function(value)
         if isinstance(value, type):
             if compiler_owned(value):
                 # Source fingerprints cover compiler implementations, but public
                 # class defaults can be configured by user code at runtime.
-                defaults = {}
+                defaults: dict[str, Any] = {}
                 for base in reversed(value.__mro__):
                     for name, member in vars(base).items():
                         if (
                             name.startswith("_")
                             or callable(member)
-                            or isinstance(member, (staticmethod, classmethod, property))
+                            or isinstance(member, (staticmethod, classmethod, property, functools.cached_property))
                         ):
                             defaults.pop(name, None)
                         else:
@@ -117,7 +134,7 @@ def script_dependency_fingerprint(script_cls: type, inputs: Any) -> str | None:
                 return ["compiler_type", value.__module__, value.__qualname__, snapshot(defaults)]
             if type(value) is not type:
                 raise _UntrackedDependency
-            members = []
+            members: list[list[Any]] = []
             for name, member in sorted(vars(value).items()):
                 if name in ("__dict__", "__weakref__", "__module__", "__doc__"):
                     continue
@@ -137,7 +154,7 @@ def script_dependency_fingerprint(script_cls: type, inputs: Any) -> str | None:
             ]
         raise _UntrackedDependency
 
-    def function(func: types.FunctionType) -> Any:
+    def snapshot_function(func: types.FunctionType) -> Any:
         source = inspect.getsource(func)
         tree = ast.parse(textwrap.dedent(source))
         definition = tree.body[0]
@@ -159,44 +176,46 @@ def script_dependency_fingerprint(script_cls: type, inputs: Any) -> str | None:
         ):
             raise _UntrackedDependency
         env = func.__globals__.copy()
+        raw_builtins = getattr(func, "__builtins__", builtins)
+        builtin_names: dict[str, Any] = raw_builtins if isinstance(raw_builtins, dict) else vars(raw_builtins)
         cells = func.__closure__ or ()
         closure = dict(zip(func.__code__.co_freevars, (cell.cell_contents for cell in cells)))
         env.update(closure)
         parents = {child: parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)}
-        dependencies = {}
+        dependencies: dict[str, Any] = {}
         for node in ast.walk(tree):
             if not isinstance(node, ast.Name) or not isinstance(node.ctx, ast.Load):
                 continue
             name = node.id
             if name in env:
                 value = env[name]
-            elif name in func.__builtins__:
-                value = func.__builtins__[name]
+            elif name in builtin_names:
+                value = builtin_names[name]
             else:
                 # Nested-function parameters and other lexical names are already
                 # represented by the enclosing source/code.
                 continue
             key = name
-            current = node
+            current: ast.AST = node
             while True:
                 parent = parents.get(current)
-                attribute_access = isinstance(parent, ast.Attribute) and parent.value is current
+                attribute = parent if isinstance(parent, ast.Attribute) and parent.value is current else None
                 if isinstance(value, types.ModuleType):
-                    if not attribute_access or parent.attr not in vars(value):
+                    if attribute is None or attribute.attr not in vars(value):
                         raise _UntrackedDependency
                     dependencies[key] = ["module", value.__name__]
-                    member = vars(value)[parent.attr]
-                elif isinstance(value, type) and attribute_access:
+                    member = vars(value)[attribute.attr]
+                elif isinstance(value, type) and attribute is not None:
                     dependencies[key] = value
                     try:
-                        member = inspect.getattr_static(value, parent.attr)
+                        member = inspect.getattr_static(value, attribute.attr)
                     except AttributeError:
                         raise _UntrackedDependency from None
                 else:
                     break
-                key += "." + parent.attr
+                key += "." + attribute.attr
                 value = member
-                current = parent
+                current = attribute
             if value is object and isinstance(parents.get(current), ast.Call):
                 raise _UntrackedDependency
             dependencies[key] = value

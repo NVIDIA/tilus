@@ -32,7 +32,7 @@ class _Script(_Base):
     def __call__(self, ptr: ~tilus.float16):
         helper = _Helper()
         value = helper.method() + self.inherited()
-        tensor = self.register_tensor(tilus.float16, [self.block], init=value)
+        tensor = self.register_tensor(dtype=tilus.float16, shape=[self.block], init=value)
         self.store_global(ptr, tensor)
 
 
@@ -228,7 +228,7 @@ def test_tracks_referenced_compiler_class_methods(monkeypatch):
 
     class Kernel(tilus.Script):
         def __call__(self):
-            return Attributes.probe()
+            return Attributes.probe()  # type: ignore[attr-defined]
 
     original = _fingerprint(Kernel)
     assert original is not None
@@ -246,7 +246,7 @@ def test_tracks_compiler_method_binding_kind(monkeypatch):
 
     class Kernel(tilus.Script):
         def __call__(self):
-            return Attributes.probe()
+            return Attributes.probe()  # type: ignore[attr-defined]
 
     original = _fingerprint(Kernel)
     assert original is not None
