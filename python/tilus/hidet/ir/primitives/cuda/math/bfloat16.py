@@ -43,6 +43,7 @@ class CUDABFloat16MathFunctionSet(MathFunctionSet):
             "round": ["hrint", 1],
             "ceil": ["hceil", 1],
             "floor": ["hfloor", 1],
+            "abs": ["__habs", 1],
             "min": ["__hmin", 2],
             "max": ["__hmax", 2],
             "fma": ["__hfma", 3],
@@ -98,6 +99,9 @@ class CUDABFloat16MathFunctionSet(MathFunctionSet):
 
     def floor(self, a: Expr) -> Expr:
         return self.call("cuda_bf16_floor", a)
+
+    def abs(self, a: Expr) -> Expr:
+        return self.call("cuda_bf16_abs", a)
 
     def min(self, a: Expr, b: Expr) -> Expr:
         return self.call("cuda_bf16_min", a, b)

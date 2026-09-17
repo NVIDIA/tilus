@@ -17,7 +17,7 @@ from typing import Callable, Iterable, Literal, Optional, Sequence, Union
 
 from tilus.hidet.ir.dtypes import boolean
 from tilus.hidet.ir.expr import Constant, Expr, Var, as_expr
-from tilus.hidet.ir.primitives.cuda.vars import blockIdx, gridDim
+from tilus.hidet.ir.primitives.cuda.vars import blockIdx, gridDim, threadIdx
 from tilus.hidet.ir.tools import infer_type
 from tilus.hidet.ir.type import DataType
 from tilus.ir.inst import InstructionError
@@ -30,6 +30,10 @@ from .base import InstructionGroup
 
 
 class RootInstructionGroup(InstructionGroup):
+    def get_thread_binding(self) -> Expr:
+        """Return the physical CUDA thread index within the thread block."""
+        return threadIdx.x  # type: ignore[attr-defined]
+
     @property
     def blockIdx(self) -> Dim3:
         """Get the block index of the current thread block."""
@@ -296,7 +300,7 @@ class RootInstructionGroup(InstructionGroup):
         *,
         dtype: DataType,
         shape: Sequence[int],
-        init: Optional[Callable[[Var, ...], Expr | int | float | bool] | Expr | int | float] = None,  # type: ignore [misc]
+        init: Optional[Callable[..., Expr | int | float | bool] | Expr | int | float] = None,
     ) -> RegisterTensor:
         """Create a register tensor.
 
@@ -316,7 +320,7 @@ class RootInstructionGroup(InstructionGroup):
             The data type of the tensor elements.
         shape: Sequence[int]
             The shape of the tensor.
-        init: Callable[[Var, ...], Expr | int | float | bool] | Expr | int | float, optional
+        init: Callable[..., Expr | int | float | bool] | Expr | int | float, optional
             The initialization value or function to initialize the tensor elements.
 
         Returns

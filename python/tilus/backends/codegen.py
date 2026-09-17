@@ -198,6 +198,11 @@ class FunctionCodegen(IRFunctor):
         current_target = get_current_target()
         if current_target.supports(nvgpu_sm90):
             cluster_blocks = self._function.metadata.cluster_blocks
+            # A 1x1x1 cluster has no cluster semantics.  Do not attach the
+            # Hopper cluster launch attribute for that default: it needlessly
+            # changes ordinary-kernel scheduling/resource configuration.
+            if cluster_blocks == (1, 1, 1):
+                cluster_blocks = None
         else:
             if self._function.metadata.cluster_blocks != (1, 1, 1):
                 raise RuntimeError(
