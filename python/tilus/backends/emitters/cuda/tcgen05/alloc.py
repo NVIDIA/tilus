@@ -38,8 +38,8 @@ from tilus.utils import prod, same_list
 class Tcgen05AllocDeallocEmitter(BaseInstEmitter):
     def get_num_columns(self, tmem_tensor: TMemoryTensor) -> int:
         shape = tmem_tensor.shape
-        if shape[0] != 128:
-            raise NotImplementedError(f"The emitter currently only supports shape[0] == 128, but got {shape[0]}")
+        if shape[0] not in (32, 64, 128):
+            raise NotImplementedError(f"The emitter only supports shape[0] in (32, 64, 128), but got {shape[0]}")
         if shape[-1] * tmem_tensor.dtype.nbits % 32 != 0:
             raise ValueError(
                 f"shape[-1] * dtype.nbits must be divisible by 32, but got {shape[-1]} * {tmem_tensor.dtype.nbits} = {shape[-1] * tmem_tensor.dtype.nbits}"
