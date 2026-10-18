@@ -8,18 +8,15 @@ Starting from a minimal working kernel, each version introduces one new Hopper f
 or optimization technique. By the final version, the kernel exceeds vendor-library
 performance for this shape. The figure below shows the progression: V0 starts at
 ~305 TFLOPS with a minimal kernel that pushes every operand through the register file,
-and each optimization closes the gap to cuBLAS, with V6 passing it at ~800 TFLOPS.
+and each optimization closes the gap to cuBLAS, with V6 passing it at ~756 TFLOPS.
 All kernels and the benchmark script to reproduce the result can be found at
 :github:`examples/hopper_matmul/`.
 
 .. note::
 
-   V6 is the one version that does not compute the same thing as the rest: it
-   accumulates in fp16 inside the WGMMA, while V0--V5 and cuBLAS accumulate in
-   fp32. That is what buys it the register budget for a ``256 x 256`` tile, and
-   it costs about an order of magnitude in accumulated error. :doc:`V6 <v6>`
-   quantifies the trade; V5 is the fastest version that is numerically
-   like-for-like with cuBLAS.
+   Every version, like cuBLAS, takes fp16 inputs, accumulates in fp32, and writes
+   fp16 outputs, so all comparisons are like-for-like. :doc:`V6 <v6>` notes what
+   switching to fp16 accumulation would buy, and what it would cost.
 
 .. plot:: tutorials/matmul-hopper/plots/plot_all.py
 
@@ -80,17 +77,17 @@ this in detail --- it is the most instructive step in the series.
      - 678
      - 88%
    * - :doc:`V6 <v6>`
-     - Four consumers, fp16 accumulation, TMA epilogue
-     - **fp16**
-     - **1.37 ms**
-     - **800**
-     - 93%
+     - Register reallocation, 2-CTA multicast, persistent tiles
+     - fp32
+     - **1.45 ms**
+     - **756**
+     - 94%
    * - cuBLAS
      - ``nvjet_sm90_hsh_320x128_64x3_1x2_h_bz_coopB_TNT``
      - fp32
-     - 1.48 ms
-     - 742
-     - 94%
+     - 1.46 ms
+     - 752
+     - 93%
 
 Tensor pipe utilization is from Nsight Compute
 (``sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed``); the latency and

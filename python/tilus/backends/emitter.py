@@ -59,6 +59,14 @@ class BaseInstEmitter(StmtBuilder):
                 f"got thread_begin={self.current_thread_group_begin}, num_threads={self.current_num_threads}: {msg}."
             )
 
+    def assert_is_warpgroup_aligned(self, inst: Instruction, msg: str) -> None:
+        if self.current_num_threads % 128 != 0 or self.current_thread_group_begin % 128 != 0:
+            raise ValueError(
+                f"Instruction {inst} requires whole warp groups "
+                f"(thread_begin % 128 == 0, num_threads % 128 == 0), "
+                f"got thread_begin={self.current_thread_group_begin}, num_threads={self.current_num_threads}: {msg}."
+            )
+
     def sync(self):
         optional_sync_call = self.contexts.sync_ctx.sync()
         if optional_sync_call is not None:

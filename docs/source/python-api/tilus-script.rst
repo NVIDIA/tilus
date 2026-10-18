@@ -103,6 +103,7 @@ Instructions
    round
    rsqrt
    scan
+   setmaxnreg
    shared_tensor
    sin
    sqrt

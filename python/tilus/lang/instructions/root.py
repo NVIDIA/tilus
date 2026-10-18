@@ -1898,6 +1898,29 @@ class RootInstructionGroup(InstructionGroup):
         """
         self._builder.syncthreads()
 
+    def setmaxnreg(self, nregs: int, action: str) -> None:
+        """Adjust the maximum number of registers per thread of the current warp group.
+
+        Lets warp-specialized kernels rebalance the register file: a producer warp group that
+        only issues TMA can release registers with ``action='dec'``, and consumer warp groups
+        that hold large accumulators can claim them with ``action='inc'``.
+
+        Parameters
+        ----------
+        nregs: int
+            The new per-thread register limit. Must be a multiple of 8 in ``[24, 256]``.
+        action: str
+            ``'inc'`` to raise the limit (blocks until enough registers are free) or ``'dec'``
+            to lower it and release registers. Candidates: ``'inc'``, ``'dec'``.
+
+        Notes
+        -----
+        - **Thread group**: Must be executed by whole warp groups (a multiple of 128 threads).
+        - **Hardware**: Requires compute capability 9.0a+ (sm_90a).
+        - **PTX**: ``setmaxnreg.{inc,dec}.sync.aligned.u32``
+        """
+        self._builder.setmaxnreg(nregs=nregs, action=action)
+
     @typing.overload
     def annotate_layout(self, tensor: RegisterTensor, layout: RegisterLayout) -> None: ...
 

@@ -1,25 +1,29 @@
 .. _tutorial_hopper_matmul_v6:
 
-6. Four Consumers, FP16 Accumulation, and a TMA Epilogue
-=========================================================
+6. Register Reallocation, Multicast, and a Persistent Kernel
+============================================================
 
-:doc:`V5 <v5>` keeps the tensor cores busy inside each consumer group, but two
-costs remain fixed per output tile: the pipeline prologue and drain, and the
-epilogue. With a ``128 x 256`` tile there is only so much compute to amortize
-them over. The obvious response --- make the tile bigger --- runs into the
-constraint that has shaped every version so far: **the accumulator lives in
-registers**.
+:doc:`V5 <v5>` keeps the tensor cores busy inside each consumer group, but it
+still moves more data per FLOP than it needs to, and every CTA pays for its own
+pipeline fill and epilogue. The obvious response --- make the tile bigger --- runs
+into the constraint that has shaped every version so far: **the accumulator lives
+in registers**, and with fp32 accumulation V5's ``128 x 256`` tile already uses half
+the register file.
 
-This version breaks that deadlock with three changes that only work together:
+This version keeps V0--V5's fp32 accumulation, so it stays numerically
+like-for-like with cuBLAS, and makes four changes:
 
-1. **Four consumer warp groups** on a ``256 x 256`` tile, so each group owns a
-   ``64 x 256`` quarter and four independent WGMMA streams are in flight.
-2. **Native fp16 WGMMA accumulation**, halving accumulator register cost so the
-   larger tile fits at all.
-3. **A shared-memory TMA epilogue**, where the four groups take turns staging
-   their quarter through one shared buffer for a bulk TMA store.
+1. **Register reallocation** with :meth:`~tilus.Script.setmaxnreg`: the producer
+   warp group gives up most of its registers so the two consumer groups can hold
+   a ``64 x 320`` fp32 accumulator each, for a ``128 x 320`` tile.
+2. **A 2-CTA cluster with TMA multicast**: two CTAs that need the same B tile each
+   load half of it and multicast it to both, cutting L2 traffic.
+3. **A persistent tile loop**: one CTA per SM walks over output tiles, so the
+   producer prefetches the next tile while the consumers run the epilogue.
+4. **A shared-memory TMA epilogue**, with each consumer group staging its results
+   through its own slot for coalesced bulk stores.
 
-Together with an 8-wide raster group, this is the version that passes cuBLAS.
+Together they take the kernel past cuBLAS on this shape.
 
 
 The Full Kernel
@@ -28,7 +32,7 @@ The Full Kernel
 .. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
    :language: python
    :start-at: class Pipeline
-   :end-at: sa, sb, sc, tma_pipe, epilogue_ready, epilogue_free, 3, k_size
+   :end-before: def main
    :caption: MatmulWGMMAV6 --- full kernel (including Pipeline class)
 
 
@@ -44,32 +48,36 @@ What Changed from V5
      - V6
    * - **Output tile**
      - 128 x 256
-     - **256 x 256**
-   * - **Consumer groups**
-     - 2, each owning a 64 x 256 half
-     - **4**, each owning a 64 x 256 quarter
-   * - **Warps**
-     - 9 (1 producer + 2 groups)
-     - **17** (1 producer + 4 groups)
+     - **128 x 320**
    * - **Accumulator dtype**
-     - fp32 (cast to fp16 in the epilogue)
-     - **fp16**, accumulated natively by WGMMA
+     - fp32
+     - fp32 (unchanged)
+   * - **Warp groups**
+     - 2 consumers + 1 producer warp
+     - 2 consumers + **1 producer warp group**
+   * - **Registers per thread**
+     - Uniform
+     - **232** per consumer thread, **40** per producer thread (``setmaxnreg``)
+   * - **WGMMA shape**
+     - ``m64n256k16``
+     - ``m64n160k16``, two per stage
+   * - **Grid**
+     - One CTA per output tile
+     - **Persistent**: one CTA per SM, in 2-CTA clusters
+   * - **B tile loads**
+     - Each CTA loads its own
+     - Each CTA loads half and **multicasts** it to its cluster peer
    * - **Epilogue**
-     - ``store_global`` from registers, per group
-     - Serialized through one shared buffer, bulk TMA store
-   * - **Epilogue issuer**
-     - Each consumer group
-     - The **producer warp**, after its loads are done
-   * - **Rasterization**
-     - ``swizzle_size=4``
-     - ``swizzle_size=8``
+     - ``store_global`` from registers
+     - Staged through shared memory, bulk TMA store
    * - **Pipeline depth**
      - 4 stages
      - 3 stages (the larger tile costs more shared memory per stage)
    * - **New instructions**
      -
-     - :meth:`~tilus.Script.store_shared`,
-       :meth:`~tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async`,
+     - :meth:`~tilus.Script.setmaxnreg`,
+       :meth:`~tilus.Script.store_shared`,
+       :meth:`~tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote`,
        :meth:`~tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global`,
        :meth:`~tilus.lang.instructions.tma.TmaInstructionGroup.commit_group`,
        :meth:`~tilus.lang.instructions.tma.TmaInstructionGroup.wait_group`
@@ -78,200 +86,181 @@ What Changed from V5
 The Register Budget Problem
 ---------------------------
 
-A CUDA thread can hold at most 255 registers. An accumulator of ``m x n``
-distributed over a 128-thread warp group costs ``m * n / 128`` registers per
-thread in fp32. For V5's ``64 x 256`` per-group accumulator that is **128
-registers** --- already half the budget, before operands, addresses, and loop
+An accumulator of ``m x n`` distributed over a 128-thread warp group costs
+``m * n / 128`` registers per thread in fp32. A wider tile is the most direct way
+to move less data per FLOP --- ``128 x 320`` reads 7% fewer operand bytes per FLOP
+than ``128 x 256`` --- but each consumer would then hold a ``64 x 320``
+accumulator: **160 registers** per thread, before operands, addresses, and loop
 state.
 
-Scaling to a ``256 x 256`` tile with four groups keeps each group's share at
-``64 x 256``, so fp32 would still cost 128 registers per thread. Per-thread that
-is legal, but there are now 512 consumer threads, and ``512 x 128 = 65536`` is
-the entire register file of an SM --- with nothing left for operands, addresses,
-loop state, or the producer warp. V6 instead accumulates in **fp16**:
+The register file is 65,536 registers per SM, and by default every thread of the
+CTA gets the same share. With two consumer warp groups and a producer warp group
+(384 threads) that share is 168 registers, which the consumers cannot fit into:
+compiled at 168, this kernel spills 3.2 KB per thread and runs five times slower.
+But the producer only issues TMA loads and needs a few dozen registers.
+
+:meth:`~tilus.Script.setmaxnreg` lets warp groups trade registers at run time
+(PTX ``setmaxnreg``). The producer releases down to 40 and the consumers claim
+232, which is exactly the same total:
 
 .. figure:: figures/v6_register_budget.svg
    :width: 100%
    :align: center
 
-   The same 64 x 256 quarter per group either way. Doubling the consumer groups
-   doubles the demand on a register file that does not grow; halving the
-   accumulator dtype is what pays it back.
+   ``setmaxnreg`` moves registers from the producer warp group to the consumers.
+   The total is unchanged; only the split is.
 
 .. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
    :language: python
-   :start-at: acc = self.register_tensor(
-   :end-at: )
+   :start-at: with self.thread_group(thread_begin=256, num_threads=128):
+   :end-at: self.produce(ga, gb, sa, sb, tma_pipe, k_size, num_m_pairs, num_n_blocks)
    :dedent: 8
-   :caption: fp16 accumulator
+   :caption: The producer warp group releases registers; one of its warps issues TMA
 
-WGMMA supports fp16 accumulation natively for fp16 operands
-(``wgmma.mma_async...f16.f16.f16``), so this is not a cast --- the tensor cores
-accumulate in half precision throughout. Two fp16 values pack into one 32-bit
-register, halving the accumulator to **64 registers per thread** and leaving room
-for the larger tile and the epilogue.
+Each consumer starts with ``self.setmaxnreg(232, "inc")``, which blocks until the
+producer's release has made enough registers available. The counts must add up:
+if the consumers ask for more than the producer releases, the ``inc`` never
+completes and the kernel hangs.
 
-.. warning::
+.. important::
 
-   fp16 accumulation trades precision for capacity, and the trade is real. Over a
-   K=8192 reduction with unit-variance outputs, the measured absolute error
-   against cuBLAS has mean 0.0023, p99 0.0117, and a maximum of 0.047 --- which is
-   why the benchmark checks V6 with ``atol=5e-2`` while earlier versions use
-   ``1e-2``. Against an fp32 reference, V5 on the same inputs has mean error
-   0.00014 and maximum 0.0020, so this is roughly an order of magnitude, not a
-   rounding detail. It also means the headline comparison below is not
-   like-for-like: cuBLAS is accumulating in fp32. For inference-style workloads
-   the trade is typically fine; for training or ill-conditioned inputs, prefer
-   the fp32 accumulation of :doc:`V5 <v5>`.
+   The order of the thread groups in the source matters to ``ptxas``. With the
+   producer branch first, ``ptxas`` serializes every WGMMA in the kernel ("wgmma
+   serialized due to program dependence on compiler-inserted WG.AR in divergent
+   path"), which cost 5% here. Placing the consumer branches first avoids it. The
+   branches run concurrently either way, so the order changes nothing else.
 
-The B tile is shared by all four groups, so widening the tile in M costs no extra
-B traffic --- the arithmetic intensity of the block improves, which is the whole
-point.
-
-
-Serialized Shared-Memory Epilogue
----------------------------------
-
-With four groups each holding a ``64 x 256`` fp16 quarter, writing results out
-becomes its own problem. Four simultaneous ``store_global`` calls from registers
-produce many small, poorly coalesced transactions. Routing through TMA instead
-requires the data to be in shared memory --- but a full ``256 x 256`` fp16
-staging buffer would be 128 KB, competing with the pipeline's ring buffer for the
-same 228 KB budget.
-
-V6 allocates **one quarter-sized buffer** and has the groups take turns:
-
-.. figure:: figures/v6_epilogue_handoff.svg
-   :width: 100%
-   :align: center
-
-   Each group waits for its predecessor to clear ``sc`` before staging its own
-   quarter, and the producer warp drains it between turns. WG3 releases nothing,
-   which is why ``epilogue_free`` has three barriers rather than four.
+The 320 columns are split into two ``m64n160k16`` WGMMAs per stage, because a
+WGMMA is at most 256 wide and B is loaded as two 160-row halves (a TMA box is also
+at most 256 rows). Both go into one commit group, so V5's ``wait_group(1)``
+overlap is unchanged:
 
 .. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
    :language: python
-   :start-at: sc = self.shared_tensor(dtype=float16, shape=[block_m_slice, block_n])
-   :end-at: epilogue_free = self.mbarrier.alloc([1, 1, 1])
-   :dedent: 8
-   :caption: Shared-memory and barrier allocation, including the epilogue handoff
-
-Two barrier arrays sequence the handoff:
-
-- ``epilogue_ready[i]`` --- consumer *i* has finished writing its quarter into
-  ``sc``. Arrival count 128: every thread of the group participates in
-  :meth:`~tilus.Script.store_shared`.
-- ``epilogue_free[i]`` --- the buffer has been drained after consumer *i*, so
-  consumer *i+1* may write. Arrival count 1, and there are only three of them:
-  the last consumer needs no successor.
-
-Each consumer therefore waits for its predecessor to clear the buffer before
-writing, except consumer 0 which finds it free:
-
-.. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
-   :language: python
-   :start-at: if consumer_idx > 0:
-   :end-at: self.mbarrier.arrive(epilogue_ready[consumer_idx])
-   :dedent: 8
-   :caption: Consumer side of the epilogue handoff
-
-The drain side runs on the **producer warp**, which by this point has finished
-all its TMA loads and would otherwise be idle:
-
-.. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
-   :language: python
-   :start-at: def store_epilogue
-   :end-at: self.mbarrier.arrive(epilogue_free[consumer_idx])
+   :start-at: def mma_stage(
+   :end-at: self.wgmma.commit_group()
    :dedent: 4
-   :caption: Producer-side epilogue: shared memory to global via TMA
+   :caption: One pipeline stage: two 160-wide WGMMA streams
 
-The sequence per quarter is: wait for the quarter to be staged, fence, issue the
-bulk TMA store, wait for it, then release the buffer.
+
+Cluster Multicast
+-----------------
+
+Adjacent tiles in M need the same B tile. V6 launches CTAs in clusters of two and
+gives the two CTAs of a cluster vertically adjacent tiles. Each loads its own A,
+but only **one half** of B, multicast to both CTAs (``multicast_mask=0b11``):
+
+.. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
+   :language: python
+   :start-at: def produce(
+   :end-before: def __call__(
+   :dedent: 4
+   :caption: Producer: A for this CTA, half of B for both
+
+That cuts each CTA's operand traffic per stage from 448 rows to 288. A multicast
+load signals the barrier at the same shared memory offset in every destination
+CTA, so each CTA's ``arrive_and_expect_tx`` still expects the whole stage.
+
+The cost is that the pipeline now spans two CTAs. A producer may refill a stage
+only once **both** CTAs' consumers have finished with it, because its multicast
+writes into its peer's shared memory too. Each consumer therefore releases a stage
+to both CTAs, and the empty barriers count four arrivals:
+
+.. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
+   :language: python
+   :start-at: def release_stage
+   :end-before: def mma_stage(
+   :dedent: 4
+   :caption: Releasing a stage to both producers of the cluster
+
+.. note::
+
+   ``sem="relaxed"`` matters. The default ``release`` semantics at cluster scope
+   made each arrive wait for prior memory operations to become visible cluster
+   wide, which made the kernel twice as slow. The consumer only reads the stage, and
+   its WGMMA reads have completed by the time it arrives, so there is nothing to
+   publish.
+
+``self.cluster.sync()`` brackets the kernel: before the first multicast, so the
+peer's barriers exist, and at the end, so neither CTA exits while the other may
+still write into its shared memory.
+
+
+Persistent Tile Loop
+--------------------
+
+V0--V5 launch one CTA per output tile. Each CTA fills the pipeline, computes, runs
+its epilogue, and exits, and the tensor cores idle through the fill. V6 launches
+**one CTA per SM** and loops over tiles instead. Both CTAs of a cluster walk the
+same sequence of tile pairs, which keeps their multicasts in lockstep:
+
+.. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
+   :language: python
+   :start-at: def tile_offsets
+   :end-before: def release_stage
+   :dedent: 4
+   :caption: Mapping a tile-pair index to this CTA's tile
+
+The ``Pipeline`` stage and phase simply carry over from one tile to the next. The
+producer runs ahead into the next tile's loads as soon as stages free up, so by
+the time the consumers finish an epilogue, the next tile's first stages are
+already in shared memory.
+
+
+Shared-Memory Epilogue
+----------------------
+
+Each consumer writes its ``64 x 320`` result through shared memory and a bulk TMA
+store rather than per-thread ``store_global``. A full staging buffer for both
+groups would be 80 KB on top of the 168 KB ring buffer, past the 228 KB budget, so
+each group gets one ``64 x 160`` slot and stages its two halves in turn:
+
+.. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
+   :language: python
+   :start-at: # Epilogue: each group stages
+   :end-at: self.store_half(sc[consumer_idx], gc, acc1, row, offset_n + half_n)
+   :dedent: 12
+   :caption: Consumer epilogue
+
+.. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
+   :language: python
+   :start-at: def store_half(
+   :end-before: def consume(
+   :dedent: 4
+   :caption: Staging one half and issuing its TMA store
+
+Because each group has its own slot, the two groups never wait on each other. The
+only wait is ``tma.wait_group(n=0, read=True)`` before a slot is rewritten, and it
+waits only for the TMA engine to finish **reading** shared memory, not for the
+global writes to land.
 
 .. important::
 
    The :meth:`fence.proxy_async(space="shared") <tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async>`
    is not optional. :meth:`~tilus.Script.store_shared` writes through the
-   **generic proxy** (the ordinary load/store path), while
+   **generic proxy**, while
    :meth:`tma.shared_to_global() <tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global>`
    reads through the **async proxy** used by the TMA engine. Without a
    ``fence.proxy.async.shared::cta`` between them, the TMA engine may read stale
    data.
 
-``tma.wait_group(n=0, read=True)`` waits only for the TMA engine to finish
-**reading** shared memory --- enough to hand the buffer to the next consumer ---
-rather than for the global writes to become visible, which nothing downstream
-needs.
-
 .. note::
 
-   Global-to-shared TMA reports completion through **mbarrier tx-count**;
-   shared-to-global TMA uses **commit_group + wait_group** instead. See
-   `cp.async.bulk <https://docs.nvidia.com/cuda/parallel-thread-execution/#data-movement-and-conversion-instructions-cp-async-bulk>`__
-   in the PTX documentation.
-
-Note also the ordering of the four TMA loads in the producer's main loop: slabs
-0, 2, 3, then 1. Slab 1's load is issued last so that consumer 1 --- the first
-group that has to *wait* for the shared buffer --- is the least likely to be
-blocked on its input as well.
-
-
-Walkthrough
------------
-
-Producer Warp
-~~~~~~~~~~~~~
-
-.. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
-   :language: python
-   :start-at: with self.thread_group(thread_begin=512, num_threads=32):
-   :end-before: with self.thread_group(thread_begin=0, num_threads=128):
-   :dedent: 8
-   :caption: Producer warp: K-loop, drain, then the epilogue
-
-The producer has three phases. It fills the pipeline over the K loop with five
-TMA loads per stage (four A slabs plus B), drains the outstanding empty-signals,
-and then serves all four epilogue quarters in order.
-
-
-Consumer Warp Groups
-~~~~~~~~~~~~~~~~~~~~
-
-.. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
-   :language: python
-   :start-at: def consume_tile
-   :end-at: self.mbarrier.arrive(epilogue_ready[consumer_idx])
-   :dedent: 4
-   :caption: consume_tile --- shared by all four consumer groups
-
-All four groups run the same ``consume_tile`` method, parameterized by
-``consumer_idx``. The K-loop is V5's overlapped structure verbatim --- prologue
-MMA, steady-state loop with ``wait_group(1)`` and a lagging stage release, final
-``wait_group(0)`` --- followed by the epilogue handoff. The four call sites differ
-only in their thread range and index:
-
-.. literalinclude:: ../../../../examples/hopper_matmul/matmul_v6.py
-   :language: python
-   :start-at: with self.thread_group(thread_begin=0, num_threads=128):
-   :end-at: sa, sb, sc, tma_pipe, epilogue_ready, epilogue_free, 3, k_size
-   :dedent: 8
-   :caption: Four consumer warp groups
-
-``consumer_arrive_count=4`` on the pipeline reflects that all four groups must
-release a stage before the producer may refill it.
+   An earlier version of this tutorial took a different route to a larger tile:
+   it accumulated in **fp16** (``wgmma.mma_async...f16.f16.f16``), which halves the
+   accumulator and fits a ``256 x 256`` tile without register reallocation. That
+   kernel ran at 1.37 ms, but cuBLAS accumulates in fp32, so the comparison was not
+   like-for-like, and the precision cost was real: over a K=8192 reduction with
+   unit-variance outputs, the mean absolute error rose from 0.00014 to 0.0023, and
+   the maximum reached 0.047.
 
 
 Performance
 -----------
 
-V6 reaches **800 TFLOPS** (1.37 ms) against cuBLAS at 742 TFLOPS (1.48 ms), and is
-18% ahead of V5. Nsight Compute puts tensor pipe utilization at 93.2%, essentially
-level with cuBLAS's 93.8%, and DRAM throughput at 20%, the lowest of any version:
-the ``256 x 256`` tile with a shared B tile has made the kernel almost entirely
-compute bound.
-
-Comparing against the cuBLAS timing taken in the same process, V6 wins every run,
-by a **median of 7.8%**:
+V6 reaches **756 TFLOPS** (1.455 ms) against cuBLAS at 752 TFLOPS (1.463 ms) ---
+**101% of cuBLAS**, and 10% ahead of V5. Against the cuBLAS timing taken in the
+same process, V6 wins every run:
 
 .. list-table::
    :header-rows: 1
@@ -280,38 +269,40 @@ by a **median of 7.8%**:
    * - Run
      - V6
      - cuBLAS
-     - V6 faster by
+     - V6 / cuBLAS
    * - 1
-     - 1.3886 ms
-     - 1.5014 ms
-     - 8.1%
+     - 1.4548 ms
+     - 1.4697 ms
+     - 101.0%
    * - 2
-     - 1.3742 ms
-     - 1.4630 ms
-     - 6.5%
+     - 1.4602 ms
+     - 1.4632 ms
+     - 100.2%
    * - 3
-     - 1.3742 ms
-     - 1.4809 ms
-     - 7.8%
+     - 1.4482 ms
+     - 1.4616 ms
+     - 100.9%
 
-Quote the range, not a single run. Both kernels vary by 1--2% run to run, so the
-ratio moves with whichever samples you happen to draw.
+The margin is small, and both kernels vary by 1--2% run to run, so quote the range
+rather than a single run. That the two are this close is not a coincidence:
+cuBLAS's kernel for this shape, ``nvjet_sm90_hsh_320x128_64x3_1x2``, is a 320 x
+128 tile with ``block_k`` 64, 3 stages, and a 1 x 2 cluster, launched at 168
+registers per thread --- the same design. Under Nsight Compute, V6's tensor pipe
+is active 97.9% of active cycles against cuBLAS's 97.1%, and V6 finishes in
+1.548 ms against 1.560 ms at the profiler's pinned clock.
+
+Both kernels also share the same remaining loss: 1,664 tiles over 132 SMs is 12.6
+rounds, so the last round runs with 40% of the SMs idle.
 
 .. warning::
 
-   The margin is also sensitive to how long the timed window is, because an
-   8192\ :sup:`3` fp16 GEMM saturates the board's power budget. At the 30 timed
-   iterations this tutorial uses, V6 leads by 6--8%; at 100 iterations the H100
-   throttles partway through the window and the same three measurements read
-   99%, 99%, and 110% of cuBLAS. The benchmark script takes a 3-second cooldown
-   before every measurement, cuBLAS included, and exposes ``--repeat`` so this
-   can be checked directly. Run it on an idle GPU.
+   The ratio is also sensitive to how long the timed window is, because an
+   8192\ :sup:`3` fp16 GEMM saturates the board's power budget. At 100 timed
+   iterations instead of this tutorial's 30, the H100 throttles partway through
+   the window. The benchmark script takes a 3-second cooldown before every
+   measurement, cuBLAS included, and exposes ``--repeat`` so this can be checked
+   directly. Run it on an idle GPU.
 
-The advantage survives the change of measurement method: under Nsight Compute's
-replay profiling V6 comes in at 1.53 ms against cuBLAS's 1.56 ms --- still ahead,
-but by 2% rather than 8%. Replay pins the SM clock near 1.41 GHz against a
-1.98 GHz maximum, and at reduced clock the memory system is comparatively
-over-provisioned, which is where most of V6's wall-clock advantage comes from.
 The complete source is at :github:`examples/hopper_matmul/matmul_v6.py`.
 
 .. plot:: tutorials/matmul-hopper/plots/plot_v6.py
@@ -330,20 +321,21 @@ shared-memory WGMMA (V1), overlapped loading and computing with a multi-stage
 ring buffer (V2), separated the two into dedicated producer and consumer warps
 (V3), doubled the independent MMA streams and factored the bookkeeping into a
 ``Pipeline`` class (V4), kept a WGMMA group permanently in flight (V5), and
-finally widened the tile to ``256 x 256`` across four consumer groups with fp16
-accumulation and a bulk TMA epilogue (V6).
+finally rebalanced the register file for a ``128 x 320`` tile, shared B across a
+2-CTA cluster, and made the kernel persistent (V6).
 
 Two themes run through the whole series. The first is that Hopper's engines ---
 TMA, the tensor cores, and the SM's own instruction issue --- are independent, and
 performance comes from arranging for all of them to have work queued at all
 times. The second is that the register file is the binding constraint on how
-large a tile a Hopper kernel can hold, which is why the final step needed both
-more warp groups and a narrower accumulator.
+large a tile a Hopper kernel can hold, which is why the final step had to move
+registers from the warp group that does not need them to the ones that do.
 
 .. caution::
 
    The result reported here is specific to this shape (M=N=K=8192), dtype
-   (fp16), accumulation precision (fp16, where cuBLAS uses fp32), GPU (H100 SXM),
-   and benchmark methodology. It is not a claim that this kernel beats cuBLAS
-   across GEMM shapes; the autotune spaces checked into the examples are pinned
-   to a single configuration each, tuned for exactly this workload.
+   (fp16 inputs and outputs, fp32 accumulation), GPU (H100 SXM), and benchmark
+   methodology. It is not a claim about other GEMM shapes: at 4096\ :sup:`3`, for
+   example, the 320-wide tile leaves the last of only four rounds mostly idle, and
+   V6 trails cuBLAS. The autotune spaces checked into the examples are pinned to a
+   single configuration each, tuned for exactly this workload.
