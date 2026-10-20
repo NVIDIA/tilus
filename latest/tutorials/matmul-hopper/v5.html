@@ -49,7 +49,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/matmul-hopper/v5';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="6. Four Consumers, FP16 Accumulation, and a TMA Epilogue" href="v6.html" />
+    <link rel="next" title="6. Register Reallocation, Multicast, and a Persistent Kernel" href="v6.html" />
     <link rel="prev" title="4. Pipeline Abstraction and Two Consumer Warp Groups" href="v4.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -176,7 +176,7 @@
 <li class="toctree-l2"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">5. Overlapping WGMMA Groups</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v6.html">6. Register Reallocation, Multicast, and a Persistent Kernel</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -295,6 +295,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.scan.html">Script.scan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.setmaxnreg.html">Script.setmaxnreg</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
@@ -1179,15 +1180,13 @@ arrival per consumer group, not per thread.</p>
 </section>
 <section id="performance">
 <h2>Performance<a class="headerlink" href="#performance" title="Link to this heading"><span>¶</span></a></h2>
-<p>V5 reaches <strong>678 TFLOPS</strong> (1.62 ms), 6% ahead of V4 and 91% of cuBLAS. Tensor
+<p>V5 reaches <strong>678 TFLOPS</strong> (1.62 ms), 6% ahead of V4 and 90% of cuBLAS. Tensor
 pipe utilization climbs from 80% to 88%, which is exactly the metric this change
 targets — the tensor cores now almost always have a queued group to start on the
 cycle the previous one retires. Since everything else is inherited unchanged from
 V4, the gain is attributable to the overlap alone: holding V4’s three stages and
 changing only <code class="docutils literal notranslate"><span class="pre">wait_group(0)</span></code> to <code class="docutils literal notranslate"><span class="pre">wait_group(1)</span></code> already gets 1.60 ms.</p>
-<p>V5 is also the last version that is numerically like-for-like with cuBLAS. It
-accumulates in fp32, as V0–V4 do; <a class="reference internal" href="v6.html"><span class="doc">V6</span></a> gives that up.
-The complete source is at <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/hopper_matmul/matmul_v5.py"><i class="fab fa-github"></i> examples/hopper_matmul/matmul_v5.py</a>.</p>
+<p>The complete source is at <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/hopper_matmul/matmul_v5.py"><i class="fab fa-github"></i> examples/hopper_matmul/matmul_v5.py</a>.</p>
 <figure class="align-default" id="id6">
 <img alt="../../_images/plot_v51.svg" class="plot-directive" src="../../_images/plot_v51.svg" />
 <figcaption>
@@ -1205,10 +1204,11 @@ V4. The remaining headroom is in two places. First, the tile is still
 <code class="docutils literal notranslate"><span class="pre">128</span> <span class="pre">x</span> <span class="pre">256</span></code>, so pipeline overhead is amortized over a relatively small amount of
 compute. Second, the epilogue is a plain per-thread <code class="docutils literal notranslate"><span class="pre">store_global</span></code> from
 registers, issued by both consumer groups at the same time at the very end.</p>
-<p>In <a class="reference internal" href="v6.html"><span class="doc">the final version</span></a>, the tile grows to <code class="docutils literal notranslate"><span class="pre">256</span> <span class="pre">x</span> <span class="pre">256</span></code> split across
-<strong>four</strong> consumer warp groups, the accumulator switches to native fp16 WGMMA
-accumulation to fit the register budget, and the epilogue routes through a shared
-memory buffer so results leave via a bulk TMA store.</p>
+<p>In <a class="reference internal" href="v6.html"><span class="doc">the final version</span></a>, the tile grows to <code class="docutils literal notranslate"><span class="pre">128</span> <span class="pre">x</span> <span class="pre">320</span></code>. The fp32
+accumulators for it only fit because the producer warp group hands most of its
+registers to the consumers. Two CTAs share each B tile through cluster multicast,
+the kernel becomes persistent, and the epilogue routes through shared memory so
+results leave via bulk TMA stores.</p>
 </section>
 </section>
 
@@ -1237,7 +1237,7 @@ memory buffer so results leave via a bulk TMA store.</p>
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</p>
+        <p class="prev-next-title">6. Register Reallocation, Multicast, and a Persistent Kernel</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

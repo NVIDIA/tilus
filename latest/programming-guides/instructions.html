@@ -176,7 +176,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/matmul-hopper/v6.html">6. Register Reallocation, Multicast, and a Persistent Kernel</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -295,6 +295,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.scan.html">Script.scan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.setmaxnreg.html">Script.setmaxnreg</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
@@ -663,8 +664,9 @@ document.write(`
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prefix-scan">4.1.8. Prefix Scan</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.9. Transform</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.10. Synchronization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#semaphores">4.1.11. Semaphores</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.12. Miscellaneous</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#register-allocation">4.1.11. Register Allocation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#semaphores">4.1.12. Semaphores</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.13. Miscellaneous</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instruction-groups">4.2. Instruction Groups</a><ul class="nav section-nav flex-column">
@@ -976,8 +978,22 @@ shortcuts for <code class="docutils literal notranslate"><span class="pre">op='a
 </table>
 </div>
 </section>
+<section id="register-allocation">
+<h3><span class="section-number">4.1.11. </span>Register Allocation<a class="headerlink" href="#register-allocation" title="Link to this heading"><span>¶</span></a></h3>
+<p>Rebalance the register file between warp groups at run time (Hopper and later). A
+warp-specialized kernel can lower the limit of a producer warp group that only issues TMA and
+raise the limit of consumer warp groups that hold large accumulators.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../python-api/generated/tilus.Script.setmaxnreg.html#tilus.Script.setmaxnreg" title="tilus.Script.setmaxnreg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">setmaxnreg</span></code></a>(nregs, action)</p></td>
+<td><p>Adjust the maximum number of registers per thread of the current warp group.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="semaphores">
-<h3><span class="section-number">4.1.11. </span>Semaphores<a class="headerlink" href="#semaphores" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.12. </span>Semaphores<a class="headerlink" href="#semaphores" title="Link to this heading"><span>¶</span></a></h3>
 <p>Inter-block synchronization using global memory semaphores. <code class="docutils literal notranslate"><span class="pre">lock_semaphore</span></code> spins until the
 semaphore reaches a target value; <code class="docutils literal notranslate"><span class="pre">release_semaphore</span></code> sets it to signal other blocks. Both
 must be called from a single thread (<code class="docutils literal notranslate"><span class="pre">self.single_thread()</span></code>). For tile-level atomic RMW (element-wise
@@ -995,7 +1011,7 @@ and scatter), see <a class="reference internal" href="#atomic-group"><span class
 </div>
 </section>
 <section id="miscellaneous">
-<h3><span class="section-number">4.1.12. </span>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Link to this heading"><span>¶</span></a></h3>
+<h3><span class="section-number">4.1.13. </span>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Link to this heading"><span>¶</span></a></h3>
 <p>Compiler hints, debugging aids, and layout annotations.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
@@ -1342,8 +1358,9 @@ the cheaper destination-less <code class="docutils literal notranslate"><span cl
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prefix-scan">4.1.8. Prefix Scan</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transform">4.1.9. Transform</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#synchronization">4.1.10. Synchronization</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#semaphores">4.1.11. Semaphores</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.12. Miscellaneous</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#register-allocation">4.1.11. Register Allocation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#semaphores">4.1.12. Semaphores</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#miscellaneous">4.1.13. Miscellaneous</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instruction-groups">4.2. Instruction Groups</a><ul class="nav section-nav flex-column">

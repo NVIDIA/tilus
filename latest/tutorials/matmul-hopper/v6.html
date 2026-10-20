@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>6. Four Consumers, FP16 Accumulation, and a TMA Epilogue &#8212; tilus  documentation</title>
+    <title>6. Register Reallocation, Multicast, and a Persistent Kernel &#8212; tilus  documentation</title>
   
   
   
@@ -176,7 +176,7 @@
 <li class="toctree-l2"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v5.html">5. Overlapping WGMMA Groups</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">6. Register Reallocation, Multicast, and a Persistent Kernel</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -295,6 +295,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.scan.html">Script.scan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.setmaxnreg.html">Script.setmaxnreg</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
@@ -642,7 +643,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</h1>
+    <h1>6. Register Reallocation, Multicast, and a Persistent Kernel</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -655,12 +656,9 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-full-kernel">The Full Kernel</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v5">What Changed from V5</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-register-budget-problem">The Register Budget Problem</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#serialized-shared-memory-epilogue">Serialized Shared-Memory Epilogue</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#producer-warp">Producer Warp</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#consumer-warp-groups">Consumer Warp Groups</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cluster-multicast">Cluster Multicast</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#persistent-tile-loop">Persistent Tile Loop</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shared-memory-epilogue">Shared-Memory Epilogue</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#summary">Summary</a></li>
 </ul>
@@ -674,24 +672,28 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="four-consumers-fp16-accumulation-and-a-tma-epilogue">
-<span id="tutorial-hopper-matmul-v6"></span><h1>6. Four Consumers, FP16 Accumulation, and a TMA Epilogue<a class="headerlink" href="#four-consumers-fp16-accumulation-and-a-tma-epilogue" title="Link to this heading"><span>¶</span></a></h1>
-<p><a class="reference internal" href="v5.html"><span class="doc">V5</span></a> keeps the tensor cores busy inside each consumer group, but two
-costs remain fixed per output tile: the pipeline prologue and drain, and the
-epilogue. With a <code class="docutils literal notranslate"><span class="pre">128</span> <span class="pre">x</span> <span class="pre">256</span></code> tile there is only so much compute to amortize
-them over. The obvious response — make the tile bigger — runs into the
-constraint that has shaped every version so far: <strong>the accumulator lives in
-registers</strong>.</p>
-<p>This version breaks that deadlock with three changes that only work together:</p>
+  <section id="register-reallocation-multicast-and-a-persistent-kernel">
+<span id="tutorial-hopper-matmul-v6"></span><h1>6. Register Reallocation, Multicast, and a Persistent Kernel<a class="headerlink" href="#register-reallocation-multicast-and-a-persistent-kernel" title="Link to this heading"><span>¶</span></a></h1>
+<p><a class="reference internal" href="v5.html"><span class="doc">V5</span></a> keeps the tensor cores busy inside each consumer group, but it
+still moves more data per FLOP than it needs to, and every CTA pays for its own
+pipeline fill and epilogue. The obvious response — make the tile bigger — runs
+into the constraint that has shaped every version so far: <strong>the accumulator lives
+in registers</strong>, and with fp32 accumulation V5’s <code class="docutils literal notranslate"><span class="pre">128</span> <span class="pre">x</span> <span class="pre">256</span></code> tile already uses half
+the register file.</p>
+<p>This version keeps V0–V5’s fp32 accumulation, so it stays numerically
+like-for-like with cuBLAS, and makes four changes:</p>
 <ol class="arabic simple">
-<li><p><strong>Four consumer warp groups</strong> on a <code class="docutils literal notranslate"><span class="pre">256</span> <span class="pre">x</span> <span class="pre">256</span></code> tile, so each group owns a
-<code class="docutils literal notranslate"><span class="pre">64</span> <span class="pre">x</span> <span class="pre">256</span></code> quarter and four independent WGMMA streams are in flight.</p></li>
-<li><p><strong>Native fp16 WGMMA accumulation</strong>, halving accumulator register cost so the
-larger tile fits at all.</p></li>
-<li><p><strong>A shared-memory TMA epilogue</strong>, where the four groups take turns staging
-their quarter through one shared buffer for a bulk TMA store.</p></li>
+<li><p><strong>Register reallocation</strong> with <a class="reference internal" href="../../python-api/generated/tilus.Script.setmaxnreg.html#tilus.Script.setmaxnreg" title="tilus.Script.setmaxnreg"><code class="xref py py-meth docutils literal notranslate"><span class="pre">setmaxnreg()</span></code></a>: the producer
+warp group gives up most of its registers so the two consumer groups can hold
+a <code class="docutils literal notranslate"><span class="pre">64</span> <span class="pre">x</span> <span class="pre">320</span></code> fp32 accumulator each, for a <code class="docutils literal notranslate"><span class="pre">128</span> <span class="pre">x</span> <span class="pre">320</span></code> tile.</p></li>
+<li><p><strong>A 2-CTA cluster with TMA multicast</strong>: two CTAs that need the same B tile each
+load half of it and multicast it to both, cutting L2 traffic.</p></li>
+<li><p><strong>A persistent tile loop</strong>: one CTA per SM walks over output tiles, so the
+producer prefetches the next tile while the consumers run the epilogue.</p></li>
+<li><p><strong>A shared-memory TMA epilogue</strong>, with each consumer group staging its results
+through its own slot for coalesced bulk stores.</p></li>
 </ol>
-<p>Together with an 8-wide raster group, this is the version that passes cuBLAS.</p>
+<p>Together they take the kernel past cuBLAS on this shape.</p>
 <section id="the-full-kernel">
 <h2>The Full Kernel<a class="headerlink" href="#the-full-kernel" title="Link to this heading"><span>¶</span></a></h2>
 <div class="literal-block-wrapper docutils container" id="id1">
@@ -751,7 +753,7 @@ their quarter through one shared buffer for a bulk TMA store.</p></li>
 
 
 <span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"num_stages"</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">])</span>
-<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"block_m, block_n"</span><span class="p">,</span> <span class="p">[[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">]])</span>
+<span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"block_m, block_n"</span><span class="p">,</span> <span class="p">[[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">320</span><span class="p">]])</span>
 <span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"block_k"</span><span class="p">,</span> <span class="p">[</span><span class="mi">64</span><span class="p">])</span>
 <span class="nd">@tilus</span><span class="o">.</span><span class="n">autotune</span><span class="p">(</span><span class="s2">"swizzle_size"</span><span class="p">,</span> <span class="p">[</span><span class="mi">8</span><span class="p">])</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">MatmulWGMMAV6</span><span class="p">(</span><span class="n">tilus</span><span class="o">.</span><span class="n">Script</span><span class="p">):</span>
@@ -762,6 +764,10 @@ their quarter through one shared buffer for a bulk TMA store.</p></li>
         <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">=</span> <span class="n">block_n</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span> <span class="o">=</span> <span class="n">block_k</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">swizzle_size</span> <span class="o">=</span> <span class="n">swizzle_size</span>
+        <span class="c1"># Persistent kernel: launch one CTA per SM.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_sms</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_properties</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">current_device</span><span class="p">()</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">multi_processor_count</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">compute_block_coord</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">linear_idx</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">:</span> <span class="nb">int</span>
@@ -782,78 +788,163 @@ their quarter through one shared buffer for a bulk TMA store.</p></li>
             <span class="n">n_block</span> <span class="o">=</span> <span class="n">first_n</span> <span class="o">+</span> <span class="n">r</span>
         <span class="k">return</span> <span class="n">m_block</span><span class="p">,</span> <span class="n">n_block</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">consume_tile</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">tile_offsets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tile</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="c1"># A tile index names a pair of vertically adjacent CTA tiles; each CTA of</span>
+        <span class="c1"># the cluster takes the one matching its rank.</span>
+        <span class="n">m_pair</span><span class="p">,</span> <span class="n">n_block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">)</span>
+        <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="p">(</span><span class="n">m_pair</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">blockRank</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span>
+        <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">n_block</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span>
+        <span class="k">return</span> <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">release_stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">barrier</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">):</span>
+        <span class="c1"># Both CTAs multicast half of B into this stage, so both producers must</span>
+        <span class="c1"># see it released before either refills it.</span>
+        <span class="k">for</span> <span class="n">rank</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx_remote</span><span class="p">(</span>
+                <span class="n">barrier</span><span class="p">,</span> <span class="n">transaction_bytes</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">target_rank</span><span class="o">=</span><span class="n">rank</span><span class="p">,</span> <span class="n">sem</span><span class="o">=</span><span class="s2">"relaxed"</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">mma_stage</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sa</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">sb</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">tma_pipe</span><span class="p">:</span> <span class="n">Pipeline</span><span class="p">,</span>
+        <span class="n">acc0</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">acc1</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">consumer_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># Two m64n160k16 WGMMA streams cover the 320 columns; one commit group.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">fence</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
+            <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="n">consumer_idx</span><span class="p">],</span>
+            <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+            <span class="n">acc0</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
+            <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="n">consumer_idx</span><span class="p">],</span>
+            <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+            <span class="n">acc1</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">store_half</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sc</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">gc</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="n">acc</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+        <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
+        <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fence</span><span class="o">.</span><span class="n">proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="s2">"shared"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">shared_to_global</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_store_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># The staging slot may be rewritten once the TMA engine has read it.</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">read</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">consume</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">sa</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
         <span class="n">sb</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
         <span class="n">sc</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">gc</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
         <span class="n">tma_pipe</span><span class="p">:</span> <span class="n">Pipeline</span><span class="p">,</span>
-        <span class="n">epilogue_ready</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">epilogue_free</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
         <span class="n">consumer_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">k_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_m_pairs</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
+        <span class="n">num_n_blocks</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="n">block_m_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">4</span>
-        <span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span>
-            <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m_slice</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mf">0.0</span>
-        <span class="p">)</span>
-        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">fence</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
-            <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="n">consumer_idx</span><span class="p">],</span>
-            <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
-            <span class="n">acc</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
-        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setmaxnreg</span><span class="p">(</span><span class="mi">232</span><span class="p">,</span> <span class="s2">"inc"</span><span class="p">)</span>
+        <span class="n">half_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">//</span> <span class="mi">2</span>
+        <span class="n">num_tiles</span> <span class="o">=</span> <span class="n">num_m_pairs</span> <span class="o">*</span> <span class="n">num_n_blocks</span>
+        <span class="k">for</span> <span class="n">tile</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_tiles</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gridDim</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_offsets</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">)</span>
+            <span class="n">acc0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="mi">64</span><span class="p">,</span> <span class="n">half_n</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+            <span class="n">acc1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="mi">64</span><span class="p">,</span> <span class="n">half_n</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
-        <span class="p">):</span>
             <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">fence</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
-                <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="n">consumer_idx</span><span class="p">],</span>
-                <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
-                <span class="n">acc</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">prev_consumer_barrier</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mma_stage</span><span class="p">(</span><span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">acc0</span><span class="p">,</span> <span class="n">acc1</span><span class="p">,</span> <span class="n">consumer_idx</span><span class="p">)</span>
             <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">prev_consumer_barrier</span><span class="p">())</span>
-
-        <span class="k">if</span> <span class="n">consumer_idx</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">epilogue_free</span><span class="p">[</span><span class="n">consumer_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">epilogue_ready</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">])</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">store_epilogue</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">sc</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
-        <span class="n">gc</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
-        <span class="n">epilogue_ready</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">epilogue_free</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-        <span class="n">consumer_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
-        <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
-    <span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">epilogue_ready</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">fence</span><span class="o">.</span><span class="n">proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="s2">"shared"</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">shared_to_global</span><span class="p">(</span>
-            <span class="n">sc</span><span class="p">,</span>
-            <span class="n">gc</span><span class="p">,</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span> <span class="o">+</span> <span class="n">consumer_idx</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">4</span><span class="p">),</span> <span class="n">offset_n</span><span class="p">],</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">read</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">consumer_idx</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
+            <span class="p">):</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mma_stage</span><span class="p">(</span><span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">acc0</span><span class="p">,</span> <span class="n">acc1</span><span class="p">,</span> <span class="n">consumer_idx</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">release_stage</span><span class="p">(</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">prev_consumer_barrier</span><span class="p">())</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
             <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">epilogue_free</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">release_stage</span><span class="p">(</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">prev_consumer_barrier</span><span class="p">())</span>
+
+            <span class="c1"># Epilogue: each group stages its two 64x160 halves in turn through</span>
+            <span class="c1"># its own slot of sc, so the two groups never wait on each other.</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">offset_m</span> <span class="o">+</span> <span class="n">consumer_idx</span> <span class="o">*</span> <span class="mi">64</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_store_read</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">store_half</span><span class="p">(</span><span class="n">sc</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">],</span> <span class="n">gc</span><span class="p">,</span> <span class="n">acc0</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_store_read</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">store_half</span><span class="p">(</span><span class="n">sc</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">],</span> <span class="n">gc</span><span class="p">,</span> <span class="n">acc1</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">offset_n</span> <span class="o">+</span> <span class="n">half_n</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">produce</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ga</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="n">gb</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+        <span class="n">sa</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">sb</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+        <span class="n">tma_pipe</span><span class="p">:</span> <span class="n">Pipeline</span><span class="p">,</span>
+        <span class="n">k_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_m_pairs</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
+        <span class="n">num_n_blocks</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">half_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">//</span> <span class="mi">2</span>
+        <span class="n">cta_rank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">blockRank</span>
+        <span class="n">num_tiles</span> <span class="o">=</span> <span class="n">num_m_pairs</span> <span class="o">*</span> <span class="n">num_n_blocks</span>
+        <span class="k">for</span> <span class="n">tile</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_tiles</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gridDim</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_offsets</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span><span class="p">):</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+                    <span class="c1"># Expect the whole stage: this CTA's A plus both halves of</span>
+                    <span class="c1"># B, one loaded here and one multicast by the peer.</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+                        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                        <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
+                        <span class="o">+</span> <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+                    <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
+                    <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+                    <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
+                    <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span> <span class="o">+</span> <span class="mi">64</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+                    <span class="n">src</span><span class="o">=</span><span class="n">gb</span><span class="p">,</span>
+                    <span class="n">dst</span><span class="o">=</span><span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="n">cta_rank</span><span class="p">],</span>
+                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span> <span class="o">+</span> <span class="n">cta_rank</span> <span class="o">*</span> <span class="n">half_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                    <span class="n">multicast_mask</span><span class="o">=</span><span class="mb">0b11</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span><span class="p">):</span>
+            <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
+            <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -866,111 +957,45 @@ their quarter through one shared buffer for a bulk TMA store.</p></li>
     <span class="p">):</span>
         <span class="n">num_stages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
         <span class="n">block_m</span><span class="p">,</span> <span class="n">block_n</span><span class="p">,</span> <span class="n">block_k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span>
-        <span class="n">block_m_slice</span> <span class="o">=</span> <span class="n">block_m</span> <span class="o">//</span> <span class="mi">4</span>
+        <span class="n">half_n</span> <span class="o">=</span> <span class="n">block_n</span> <span class="o">//</span> <span class="mi">2</span>
 
-        <span class="n">num_m_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="n">block_m</span><span class="p">)</span>
+        <span class="n">num_m_pairs</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">cdiv</span><span class="p">(</span><span class="n">m_size</span><span class="p">,</span> <span class="n">block_m</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
         <span class="n">num_n_blocks</span> <span class="o">=</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">n_size</span><span class="p">,</span> <span class="n">block_n</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="n">num_m_blocks</span> <span class="o">*</span> <span class="n">num_n_blocks</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">17</span>
-
-        <span class="n">m_block</span><span class="p">,</span> <span class="n">n_block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">num_m_blocks</span><span class="p">,</span> <span class="n">num_n_blocks</span>
-        <span class="p">)</span>
-        <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">m_block</span> <span class="o">*</span> <span class="n">block_m</span>
-        <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">n_block</span> <span class="o">*</span> <span class="n">block_n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">blocks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_sms</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">cluster_blocks</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">warps</span> <span class="o">=</span> <span class="mi">12</span>  <span class="c1"># 2 consumer WGs + 1 producer WG</span>
 
         <span class="n">ga</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">a_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
         <span class="n">gb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">b_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">n_size</span><span class="p">,</span> <span class="n">k_size</span><span class="p">])</span>
         <span class="n">gc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_view</span><span class="p">(</span><span class="n">c_ptr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">m_size</span><span class="p">,</span> <span class="n">n_size</span><span class="p">])</span>
-        <span class="n">sa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span>
-            <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">num_stages</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">block_m_slice</span><span class="p">,</span> <span class="n">block_k</span><span class="p">]</span>
-        <span class="p">)</span>
-        <span class="n">sb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">num_stages</span><span class="p">,</span> <span class="n">block_n</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
-        <span class="n">sc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m_slice</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
+        <span class="c1"># A as one 64-row slab per consumer; B as two 160-row halves (TMA boxes</span>
+        <span class="c1"># are at most 256 rows); sc as one 64x160 staging slot per consumer.</span>
+        <span class="n">sa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">num_stages</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+        <span class="n">sb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">num_stages</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">half_n</span><span class="p">,</span> <span class="n">block_k</span><span class="p">])</span>
+        <span class="n">sc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="n">half_n</span><span class="p">])</span>
 
+        <span class="c1"># Each stage is released by both consumers of both CTAs.</span>
         <span class="n">tma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">num_stages</span><span class="p">,</span> <span class="n">producer_arrive_count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
-        <span class="n">epilogue_ready</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">([</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">])</span>
-        <span class="n">epilogue_free</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># The peer must not multicast into this CTA before its barriers exist.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
-            <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="n">num_stages</span><span class="p">):</span>
-                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
-                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
-                        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                        <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
-                        <span class="o">+</span> <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
-                        <span class="o">+</span> <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
-                        <span class="o">+</span> <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
-                        <span class="o">+</span> <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
-                    <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-                    <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
-                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-                    <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
-                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">block_m_slice</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-                    <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
-                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">block_m_slice</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-                    <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
-                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span> <span class="o">+</span> <span class="n">block_m_slice</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-                    <span class="n">src</span><span class="o">=</span><span class="n">gb</span><span class="p">,</span>
-                    <span class="n">dst</span><span class="o">=</span><span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
-                    <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-                    <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                <span class="p">)</span>
-                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
-
-            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">num_stages</span><span class="p">,</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">))):</span>
-                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
-                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">store_epilogue</span><span class="p">(</span>
-                <span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">store_epilogue</span><span class="p">(</span>
-                <span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">store_epilogue</span><span class="p">(</span>
-                <span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">store_epilogue</span><span class="p">(</span>
-                <span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span>
-            <span class="p">)</span>
-
+        <span class="c1"># The producer branch is placed after the consumers: with it first,</span>
+        <span class="c1"># ptxas serializes the WGMMAs around the setmaxnreg in the divergent path.</span>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">128</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">consume_tile</span><span class="p">(</span>
-                <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span>
-            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">consume</span><span class="p">(</span><span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">)</span>
 
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">128</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">consume_tile</span><span class="p">(</span>
-                <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">k_size</span>
-            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">consume</span><span class="p">(</span><span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">)</span>
 
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">128</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">consume_tile</span><span class="p">(</span>
-                <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">k_size</span>
-            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setmaxnreg</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span> <span class="s2">"dec"</span><span class="p">)</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">produce</span><span class="p">(</span><span class="n">ga</span><span class="p">,</span> <span class="n">gb</span><span class="p">,</span> <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">)</span>
 
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">128</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">consume_tile</span><span class="p">(</span>
-                <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">k_size</span>
+        <span class="c1"># Keep both CTAs resident until neither will touch the other's memory.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+
 </pre></div>
 </div>
 </div>
@@ -992,40 +1017,45 @@ their quarter through one shared buffer for a bulk TMA store.</p></li>
 <tbody>
 <tr class="row-even"><td><p><strong>Output tile</strong></p></td>
 <td><p>128 x 256</p></td>
-<td><p><strong>256 x 256</strong></p></td>
-</tr>
-<tr class="row-odd"><td><p><strong>Consumer groups</strong></p></td>
-<td><p>2, each owning a 64 x 256 half</p></td>
-<td><p><strong>4</strong>, each owning a 64 x 256 quarter</p></td>
-</tr>
-<tr class="row-even"><td><p><strong>Warps</strong></p></td>
-<td><p>9 (1 producer + 2 groups)</p></td>
-<td><p><strong>17</strong> (1 producer + 4 groups)</p></td>
+<td><p><strong>128 x 320</strong></p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>Accumulator dtype</strong></p></td>
-<td><p>fp32 (cast to fp16 in the epilogue)</p></td>
-<td><p><strong>fp16</strong>, accumulated natively by WGMMA</p></td>
+<td><p>fp32</p></td>
+<td><p>fp32 (unchanged)</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>Epilogue</strong></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">store_global</span></code> from registers, per group</p></td>
-<td><p>Serialized through one shared buffer, bulk TMA store</p></td>
+<tr class="row-even"><td><p><strong>Warp groups</strong></p></td>
+<td><p>2 consumers + 1 producer warp</p></td>
+<td><p>2 consumers + <strong>1 producer warp group</strong></p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Epilogue issuer</strong></p></td>
-<td><p>Each consumer group</p></td>
-<td><p>The <strong>producer warp</strong>, after its loads are done</p></td>
+<tr class="row-odd"><td><p><strong>Registers per thread</strong></p></td>
+<td><p>Uniform</p></td>
+<td><p><strong>232</strong> per consumer thread, <strong>40</strong> per producer thread (<code class="docutils literal notranslate"><span class="pre">setmaxnreg</span></code>)</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>Rasterization</strong></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">swizzle_size=4</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">swizzle_size=8</span></code></p></td>
+<tr class="row-even"><td><p><strong>WGMMA shape</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">m64n256k16</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">m64n160k16</span></code>, two per stage</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Pipeline depth</strong></p></td>
+<tr class="row-odd"><td><p><strong>Grid</strong></p></td>
+<td><p>One CTA per output tile</p></td>
+<td><p><strong>Persistent</strong>: one CTA per SM, in 2-CTA clusters</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>B tile loads</strong></p></td>
+<td><p>Each CTA loads its own</p></td>
+<td><p>Each CTA loads half and <strong>multicasts</strong> it to its cluster peer</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Epilogue</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">store_global</span></code> from registers</p></td>
+<td><p>Staged through shared memory, bulk TMA store</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Pipeline depth</strong></p></td>
 <td><p>4 stages</p></td>
 <td><p>3 stages (the larger tile costs more shared memory per stage)</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>New instructions</strong></p></td>
+<tr class="row-odd"><td><p><strong>New instructions</strong></p></td>
 <td></td>
-<td><p><a class="reference internal" href="../../python-api/generated/tilus.Script.store_shared.html#tilus.Script.store_shared" title="tilus.Script.store_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">store_shared()</span></code></a>,
-<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html#tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async" title="tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">proxy_async()</span></code></a>,
+<td><p><a class="reference internal" href="../../python-api/generated/tilus.Script.setmaxnreg.html#tilus.Script.setmaxnreg" title="tilus.Script.setmaxnreg"><code class="xref py py-meth docutils literal notranslate"><span class="pre">setmaxnreg()</span></code></a>,
+<a class="reference internal" href="../../python-api/generated/tilus.Script.store_shared.html#tilus.Script.store_shared" title="tilus.Script.store_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">store_shared()</span></code></a>,
+<a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote.html#tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote" title="tilus.lang.instructions.mbarrier.BarrierInstructionGroup.arrive_and_expect_tx_remote"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arrive_and_expect_tx_remote()</span></code></a>,
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html#tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global" title="tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global"><code class="xref py py-meth docutils literal notranslate"><span class="pre">shared_to_global()</span></code></a>,
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.commit_group.html#tilus.lang.instructions.tma.TmaInstructionGroup.commit_group" title="tilus.lang.instructions.tma.TmaInstructionGroup.commit_group"><code class="xref py py-meth docutils literal notranslate"><span class="pre">commit_group()</span></code></a>,
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.wait_group.html#tilus.lang.instructions.tma.TmaInstructionGroup.wait_group" title="tilus.lang.instructions.tma.TmaInstructionGroup.wait_group"><code class="xref py py-meth docutils literal notranslate"><span class="pre">wait_group()</span></code></a></p></td>
@@ -1036,331 +1066,272 @@ their quarter through one shared buffer for a bulk TMA store.</p></li>
 </section>
 <section id="the-register-budget-problem">
 <h2>The Register Budget Problem<a class="headerlink" href="#the-register-budget-problem" title="Link to this heading"><span>¶</span></a></h2>
-<p>A CUDA thread can hold at most 255 registers. An accumulator of <code class="docutils literal notranslate"><span class="pre">m</span> <span class="pre">x</span> <span class="pre">n</span></code>
-distributed over a 128-thread warp group costs <code class="docutils literal notranslate"><span class="pre">m</span> <span class="pre">*</span> <span class="pre">n</span> <span class="pre">/</span> <span class="pre">128</span></code> registers per
-thread in fp32. For V5’s <code class="docutils literal notranslate"><span class="pre">64</span> <span class="pre">x</span> <span class="pre">256</span></code> per-group accumulator that is <strong>128
-registers</strong> — already half the budget, before operands, addresses, and loop
+<p>An accumulator of <code class="docutils literal notranslate"><span class="pre">m</span> <span class="pre">x</span> <span class="pre">n</span></code> distributed over a 128-thread warp group costs
+<code class="docutils literal notranslate"><span class="pre">m</span> <span class="pre">*</span> <span class="pre">n</span> <span class="pre">/</span> <span class="pre">128</span></code> registers per thread in fp32. A wider tile is the most direct way
+to move less data per FLOP — <code class="docutils literal notranslate"><span class="pre">128</span> <span class="pre">x</span> <span class="pre">320</span></code> reads 7% fewer operand bytes per FLOP
+than <code class="docutils literal notranslate"><span class="pre">128</span> <span class="pre">x</span> <span class="pre">256</span></code> — but each consumer would then hold a <code class="docutils literal notranslate"><span class="pre">64</span> <span class="pre">x</span> <span class="pre">320</span></code>
+accumulator: <strong>160 registers</strong> per thread, before operands, addresses, and loop
 state.</p>
-<p>Scaling to a <code class="docutils literal notranslate"><span class="pre">256</span> <span class="pre">x</span> <span class="pre">256</span></code> tile with four groups keeps each group’s share at
-<code class="docutils literal notranslate"><span class="pre">64</span> <span class="pre">x</span> <span class="pre">256</span></code>, so fp32 would still cost 128 registers per thread. Per-thread that
-is legal, but there are now 512 consumer threads, and <code class="docutils literal notranslate"><span class="pre">512</span> <span class="pre">x</span> <span class="pre">128</span> <span class="pre">=</span> <span class="pre">65536</span></code> is
-the entire register file of an SM — with nothing left for operands, addresses,
-loop state, or the producer warp. V6 instead accumulates in <strong>fp16</strong>:</p>
+<p>The register file is 65,536 registers per SM, and by default every thread of the
+CTA gets the same share. With two consumer warp groups and a producer warp group
+(384 threads) that share is 168 registers, which the consumers cannot fit into:
+compiled at 168, this kernel spills 3.2 KB per thread and runs five times slower.
+But the producer only issues TMA loads and needs a few dozen registers.</p>
+<p><a class="reference internal" href="../../python-api/generated/tilus.Script.setmaxnreg.html#tilus.Script.setmaxnreg" title="tilus.Script.setmaxnreg"><code class="xref py py-meth docutils literal notranslate"><span class="pre">setmaxnreg()</span></code></a> lets warp groups trade registers at run time
+(PTX <code class="docutils literal notranslate"><span class="pre">setmaxnreg</span></code>). The producer releases down to 40 and the consumers claim
+232, which is exactly the same total:</p>
 <figure class="align-center" id="id2">
 <a class="reference internal image-reference" href="../../_images/v6_register_budget.svg"><img alt="../../_images/v6_register_budget.svg" src="../../_images/v6_register_budget.svg" style="width: 100%;" />
 </a>
 <figcaption>
-<p><span class="caption-text">The same 64 x 256 quarter per group either way. Doubling the consumer groups
-doubles the demand on a register file that does not grow; halving the
-accumulator dtype is what pays it back.</span><a class="headerlink" href="#id2" title="Link to this image"><span>¶</span></a></p>
+<p><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">setmaxnreg</span></code> moves registers from the producer warp group to the consumers.
+The total is unchanged; only the split is.</span><a class="headerlink" href="#id2" title="Link to this image"><span>¶</span></a></p>
 </figcaption>
 </figure>
 <div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-text">fp16 accumulator</span><a class="headerlink" href="#id3" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span>
-    <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m_slice</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mf">0.0</span>
-<span class="p">)</span>
+<div class="code-block-caption"><span class="caption-text">The producer warp group releases registers; one of its warps issues TMA</span><a class="headerlink" href="#id3" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">128</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">setmaxnreg</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span> <span class="s2">"dec"</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">produce</span><span class="p">(</span><span class="n">ga</span><span class="p">,</span> <span class="n">gb</span><span class="p">,</span> <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<p>WGMMA supports fp16 accumulation natively for fp16 operands
-(<code class="docutils literal notranslate"><span class="pre">wgmma.mma_async...f16.f16.f16</span></code>), so this is not a cast — the tensor cores
-accumulate in half precision throughout. Two fp16 values pack into one 32-bit
-register, halving the accumulator to <strong>64 registers per thread</strong> and leaving room
-for the larger tile and the epilogue.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>fp16 accumulation trades precision for capacity, and the trade is real. Over a
-K=8192 reduction with unit-variance outputs, the measured absolute error
-against cuBLAS has mean 0.0023, p99 0.0117, and a maximum of 0.047 — which is
-why the benchmark checks V6 with <code class="docutils literal notranslate"><span class="pre">atol=5e-2</span></code> while earlier versions use
-<code class="docutils literal notranslate"><span class="pre">1e-2</span></code>. Against an fp32 reference, V5 on the same inputs has mean error
-0.00014 and maximum 0.0020, so this is roughly an order of magnitude, not a
-rounding detail. It also means the headline comparison below is not
-like-for-like: cuBLAS is accumulating in fp32. For inference-style workloads
-the trade is typically fine; for training or ill-conditioned inputs, prefer
-the fp32 accumulation of <a class="reference internal" href="v5.html"><span class="doc">V5</span></a>.</p>
+<p>Each consumer starts with <code class="docutils literal notranslate"><span class="pre">self.setmaxnreg(232,</span> <span class="pre">&quot;inc&quot;)</span></code>, which blocks until the
+producer’s release has made enough registers available. The counts must add up:
+if the consumers ask for more than the producer releases, the <code class="docutils literal notranslate"><span class="pre">inc</span></code> never
+completes and the kernel hangs.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>The order of the thread groups in the source matters to <code class="docutils literal notranslate"><span class="pre">ptxas</span></code>. With the
+producer branch first, <code class="docutils literal notranslate"><span class="pre">ptxas</span></code> serializes every WGMMA in the kernel (“wgmma
+serialized due to program dependence on compiler-inserted WG.AR in divergent
+path”), which cost 5% here. Placing the consumer branches first avoids it. The
+branches run concurrently either way, so the order changes nothing else.</p>
 </div>
-<p>The B tile is shared by all four groups, so widening the tile in M costs no extra
-B traffic — the arithmetic intensity of the block improves, which is the whole
-point.</p>
+<p>The 320 columns are split into two <code class="docutils literal notranslate"><span class="pre">m64n160k16</span></code> WGMMAs per stage, because a
+WGMMA is at most 256 wide and B is loaded as two 160-row halves (a TMA box is also
+at most 256 rows). Both go into one commit group, so V5’s <code class="docutils literal notranslate"><span class="pre">wait_group(1)</span></code>
+overlap is unchanged:</p>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">One pipeline stage: two 160-wide WGMMA streams</span><a class="headerlink" href="#id4" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">mma_stage</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">sa</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+    <span class="n">sb</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+    <span class="n">tma_pipe</span><span class="p">:</span> <span class="n">Pipeline</span><span class="p">,</span>
+    <span class="n">acc0</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+    <span class="n">acc1</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
+    <span class="n">consumer_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="c1"># Two m64n160k16 WGMMA streams cover the 320 columns; one commit group.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">fence</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
+        <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="n">consumer_idx</span><span class="p">],</span>
+        <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+        <span class="n">acc0</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
+        <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="n">consumer_idx</span><span class="p">],</span>
+        <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
+        <span class="n">acc1</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
 </section>
-<section id="serialized-shared-memory-epilogue">
-<h2>Serialized Shared-Memory Epilogue<a class="headerlink" href="#serialized-shared-memory-epilogue" title="Link to this heading"><span>¶</span></a></h2>
-<p>With four groups each holding a <code class="docutils literal notranslate"><span class="pre">64</span> <span class="pre">x</span> <span class="pre">256</span></code> fp16 quarter, writing results out
-becomes its own problem. Four simultaneous <code class="docutils literal notranslate"><span class="pre">store_global</span></code> calls from registers
-produce many small, poorly coalesced transactions. Routing through TMA instead
-requires the data to be in shared memory — but a full <code class="docutils literal notranslate"><span class="pre">256</span> <span class="pre">x</span> <span class="pre">256</span></code> fp16
-staging buffer would be 128 KB, competing with the pipeline’s ring buffer for the
-same 228 KB budget.</p>
-<p>V6 allocates <strong>one quarter-sized buffer</strong> and has the groups take turns:</p>
-<figure class="align-center" id="id4">
-<a class="reference internal image-reference" href="../../_images/v6_epilogue_handoff.svg"><img alt="../../_images/v6_epilogue_handoff.svg" src="../../_images/v6_epilogue_handoff.svg" style="width: 100%;" />
-</a>
-<figcaption>
-<p><span class="caption-text">Each group waits for its predecessor to clear <code class="docutils literal notranslate"><span class="pre">sc</span></code> before staging its own
-quarter, and the producer warp drains it between turns. WG3 releases nothing,
-which is why <code class="docutils literal notranslate"><span class="pre">epilogue_free</span></code> has three barriers rather than four.</span><a class="headerlink" href="#id4" title="Link to this image"><span>¶</span></a></p>
-</figcaption>
-</figure>
+<section id="cluster-multicast">
+<h2>Cluster Multicast<a class="headerlink" href="#cluster-multicast" title="Link to this heading"><span>¶</span></a></h2>
+<p>Adjacent tiles in M need the same B tile. V6 launches CTAs in clusters of two and
+gives the two CTAs of a cluster vertically adjacent tiles. Each loads its own A,
+but only <strong>one half</strong> of B, multicast to both CTAs (<code class="docutils literal notranslate"><span class="pre">multicast_mask=0b11</span></code>):</p>
 <div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-text">Shared-memory and barrier allocation, including the epilogue handoff</span><a class="headerlink" href="#id5" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shared_tensor</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m_slice</span><span class="p">,</span> <span class="n">block_n</span><span class="p">])</span>
+<div class="code-block-caption"><span class="caption-text">Producer: A for this CTA, half of B for both</span><a class="headerlink" href="#id5" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">produce</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">ga</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+    <span class="n">gb</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
+    <span class="n">sa</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+    <span class="n">sb</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
+    <span class="n">tma_pipe</span><span class="p">:</span> <span class="n">Pipeline</span><span class="p">,</span>
+    <span class="n">k_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">num_m_pairs</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
+    <span class="n">num_n_blocks</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">half_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">cta_rank</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">blockRank</span>
+    <span class="n">num_tiles</span> <span class="o">=</span> <span class="n">num_m_pairs</span> <span class="o">*</span> <span class="n">num_n_blocks</span>
+    <span class="k">for</span> <span class="n">tile</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blockIdx</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_tiles</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gridDim</span><span class="o">.</span><span class="n">x</span> <span class="o">//</span> <span class="mi">2</span><span class="p">):</span>
+        <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_offsets</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span><span class="p">):</span>
+            <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+                <span class="c1"># Expect the whole stage: this CTA's A plus both halves of</span>
+                <span class="c1"># B, one loaded here and one multicast by the peer.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
+                    <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                    <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
+                    <span class="o">+</span> <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+                <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
+                <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+                <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
+                <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span> <span class="o">+</span> <span class="mi">64</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
+                <span class="n">src</span><span class="o">=</span><span class="n">gb</span><span class="p">,</span>
+                <span class="n">dst</span><span class="o">=</span><span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="n">cta_rank</span><span class="p">],</span>
+                <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span> <span class="o">+</span> <span class="n">cta_rank</span> <span class="o">*</span> <span class="n">half_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
+                <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
+                <span class="n">multicast_mask</span><span class="o">=</span><span class="mb">0b11</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
 
-<span class="n">tma_pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">num_stages</span><span class="p">,</span> <span class="n">producer_arrive_count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">consumer_arrive_count</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
-<span class="n">epilogue_ready</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">([</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">])</span>
-<span class="n">epilogue_free</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">alloc</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span><span class="p">):</span>
+        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
+        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
+
 </pre></div>
 </div>
 </div>
-<p>Two barrier arrays sequence the handoff:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">epilogue_ready[i]</span></code> — consumer <em>i</em> has finished writing its quarter into
-<code class="docutils literal notranslate"><span class="pre">sc</span></code>. Arrival count 128: every thread of the group participates in
-<a class="reference internal" href="../../python-api/generated/tilus.Script.store_shared.html#tilus.Script.store_shared" title="tilus.Script.store_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">store_shared()</span></code></a>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">epilogue_free[i]</span></code> — the buffer has been drained after consumer <em>i</em>, so
-consumer <em>i+1</em> may write. Arrival count 1, and there are only three of them:
-the last consumer needs no successor.</p></li>
-</ul>
-<p>Each consumer therefore waits for its predecessor to clear the buffer before
-writing, except consumer 0 which finds it free:</p>
+<p>That cuts each CTA’s operand traffic per stage from 448 rows to 288. A multicast
+load signals the barrier at the same shared memory offset in every destination
+CTA, so each CTA’s <code class="docutils literal notranslate"><span class="pre">arrive_and_expect_tx</span></code> still expects the whole stage.</p>
+<p>The cost is that the pipeline now spans two CTAs. A producer may refill a stage
+only once <strong>both</strong> CTAs’ consumers have finished with it, because its multicast
+writes into its peer’s shared memory too. Each consumer therefore releases a stage
+to both CTAs, and the empty barriers count four arrivals:</p>
 <div class="literal-block-wrapper docutils container" id="id6">
-<div class="code-block-caption"><span class="caption-text">Consumer side of the epilogue handoff</span><a class="headerlink" href="#id6" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="n">consumer_idx</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">epilogue_free</span><span class="p">[</span><span class="n">consumer_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-<span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">))</span>
-<span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">epilogue_ready</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">])</span>
+<div class="code-block-caption"><span class="caption-text">Releasing a stage to both producers of the cluster</span><a class="headerlink" href="#id6" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">release_stage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">barrier</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">):</span>
+    <span class="c1"># Both CTAs multicast half of B into this stage, so both producers must</span>
+    <span class="c1"># see it released before either refills it.</span>
+    <span class="k">for</span> <span class="n">rank</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx_remote</span><span class="p">(</span>
+            <span class="n">barrier</span><span class="p">,</span> <span class="n">transaction_bytes</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">target_rank</span><span class="o">=</span><span class="n">rank</span><span class="p">,</span> <span class="n">sem</span><span class="o">=</span><span class="s2">"relaxed"</span>
+        <span class="p">)</span>
+
 </pre></div>
 </div>
 </div>
-<p>The drain side runs on the <strong>producer warp</strong>, which by this point has finished
-all its TMA loads and would otherwise be idle:</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">sem=&quot;relaxed&quot;</span></code> matters. The default <code class="docutils literal notranslate"><span class="pre">release</span></code> semantics at cluster scope
+made each arrive wait for prior memory operations to become visible cluster
+wide, which made the kernel twice as slow. The consumer only reads the stage, and
+its WGMMA reads have completed by the time it arrives, so there is nothing to
+publish.</p>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">self.cluster.sync()</span></code> brackets the kernel: before the first multicast, so the
+peer’s barriers exist, and at the end, so neither CTA exits while the other may
+still write into its shared memory.</p>
+</section>
+<section id="persistent-tile-loop">
+<h2>Persistent Tile Loop<a class="headerlink" href="#persistent-tile-loop" title="Link to this heading"><span>¶</span></a></h2>
+<p>V0–V5 launch one CTA per output tile. Each CTA fills the pipeline, computes, runs
+its epilogue, and exits, and the tensor cores idle through the fill. V6 launches
+<strong>one CTA per SM</strong> and loops over tiles instead. Both CTAs of a cluster walk the
+same sequence of tile pairs, which keeps their multicasts in lockstep:</p>
 <div class="literal-block-wrapper docutils container" id="id7">
-<div class="code-block-caption"><span class="caption-text">Producer-side epilogue: shared memory to global via TMA</span><a class="headerlink" href="#id7" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">store_epilogue</span><span class="p">(</span>
+<div class="code-block-caption"><span class="caption-text">Mapping a tile-pair index to this CTA’s tile</span><a class="headerlink" href="#id7" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">tile_offsets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tile</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="c1"># A tile index names a pair of vertically adjacent CTA tiles; each CTA of</span>
+    <span class="c1"># the cluster takes the one matching its rank.</span>
+    <span class="n">m_pair</span><span class="p">,</span> <span class="n">n_block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_block_coord</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">num_m_pairs</span><span class="p">,</span> <span class="n">num_n_blocks</span><span class="p">)</span>
+    <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="p">(</span><span class="n">m_pair</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">blockRank</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span>
+    <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span> <span class="o">=</span> <span class="n">n_block</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span>
+    <span class="k">return</span> <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span>
+
+</pre></div>
+</div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> stage and phase simply carry over from one tile to the next. The
+producer runs ahead into the next tile’s loads as soon as stages free up, so by
+the time the consumers finish an epilogue, the next tile’s first stages are
+already in shared memory.</p>
+</section>
+<section id="shared-memory-epilogue">
+<h2>Shared-Memory Epilogue<a class="headerlink" href="#shared-memory-epilogue" title="Link to this heading"><span>¶</span></a></h2>
+<p>Each consumer writes its <code class="docutils literal notranslate"><span class="pre">64</span> <span class="pre">x</span> <span class="pre">320</span></code> result through shared memory and a bulk TMA
+store rather than per-thread <code class="docutils literal notranslate"><span class="pre">store_global</span></code>. A full staging buffer for both
+groups would be 80 KB on top of the 168 KB ring buffer, past the 228 KB budget, so
+each group gets one <code class="docutils literal notranslate"><span class="pre">64</span> <span class="pre">x</span> <span class="pre">160</span></code> slot and stages its two halves in turn:</p>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-text">Consumer epilogue</span><a class="headerlink" href="#id8" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Epilogue: each group stages its two 64x160 halves in turn through</span>
+<span class="c1"># its own slot of sc, so the two groups never wait on each other.</span>
+<span class="n">row</span> <span class="o">=</span> <span class="n">offset_m</span> <span class="o">+</span> <span class="n">consumer_idx</span> <span class="o">*</span> <span class="mi">64</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">wait_store_read</span><span class="p">()</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">store_half</span><span class="p">(</span><span class="n">sc</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">],</span> <span class="n">gc</span><span class="p">,</span> <span class="n">acc0</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">wait_store_read</span><span class="p">()</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">store_half</span><span class="p">(</span><span class="n">sc</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">],</span> <span class="n">gc</span><span class="p">,</span> <span class="n">acc1</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">offset_n</span> <span class="o">+</span> <span class="n">half_n</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id9">
+<div class="code-block-caption"><span class="caption-text">Staging one half and issuing its TMA store</span><a class="headerlink" href="#id9" title="Link to this code"><span>¶</span></a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">store_half</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sc</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
     <span class="n">gc</span><span class="p">:</span> <span class="n">GlobalTensor</span><span class="p">,</span>
-    <span class="n">epilogue_ready</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-    <span class="n">epilogue_free</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-    <span class="n">consumer_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">acc</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
     <span class="n">offset_m</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
     <span class="n">offset_n</span><span class="p">:</span> <span class="n">int32</span><span class="p">,</span>
 <span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">epilogue_ready</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">))</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">fence</span><span class="o">.</span><span class="n">proxy_async</span><span class="p">(</span><span class="n">space</span><span class="o">=</span><span class="s2">"shared"</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">shared_to_global</span><span class="p">(</span>
-        <span class="n">sc</span><span class="p">,</span>
-        <span class="n">gc</span><span class="p">,</span>
-        <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span> <span class="o">+</span> <span class="n">consumer_idx</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">4</span><span class="p">),</span> <span class="n">offset_n</span><span class="p">],</span>
-    <span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">read</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">consumer_idx</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">epilogue_free</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">shared_to_global</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">wait_store_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># The staging slot may be rewritten once the TMA engine has read it.</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">read</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
 </pre></div>
 </div>
 </div>
-<p>The sequence per quarter is: wait for the quarter to be staged, fence, issue the
-bulk TMA store, wait for it, then release the buffer.</p>
+<p>Because each group has its own slot, the two groups never wait on each other. The
+only wait is <code class="docutils literal notranslate"><span class="pre">tma.wait_group(n=0,</span> <span class="pre">read=True)</span></code> before a slot is rewritten, and it
+waits only for the TMA engine to finish <strong>reading</strong> shared memory, not for the
+global writes to land.</p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
 <p>The <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async.html#tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async" title="tilus.lang.instructions.fence.FenceInstructionGroup.proxy_async"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fence.proxy_async(space=&quot;shared&quot;)</span></code></a>
 is not optional. <a class="reference internal" href="../../python-api/generated/tilus.Script.store_shared.html#tilus.Script.store_shared" title="tilus.Script.store_shared"><code class="xref py py-meth docutils literal notranslate"><span class="pre">store_shared()</span></code></a> writes through the
-<strong>generic proxy</strong> (the ordinary load/store path), while
+<strong>generic proxy</strong>, while
 <a class="reference internal" href="../../python-api/instruction-groups/generated/tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global.html#tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global" title="tilus.lang.instructions.tma.TmaInstructionGroup.shared_to_global"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tma.shared_to_global()</span></code></a>
 reads through the <strong>async proxy</strong> used by the TMA engine. Without a
 <code class="docutils literal notranslate"><span class="pre">fence.proxy.async.shared::cta</span></code> between them, the TMA engine may read stale
 data.</p>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">tma.wait_group(n=0,</span> <span class="pre">read=True)</span></code> waits only for the TMA engine to finish
-<strong>reading</strong> shared memory — enough to hand the buffer to the next consumer —
-rather than for the global writes to become visible, which nothing downstream
-needs.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Global-to-shared TMA reports completion through <strong>mbarrier tx-count</strong>;
-shared-to-global TMA uses <strong>commit_group + wait_group</strong> instead. See
-<a class="reference external" href="https://docs.nvidia.com/cuda/parallel-thread-execution/#data-movement-and-conversion-instructions-cp-async-bulk">cp.async.bulk</a>
-in the PTX documentation.</p>
+<p>An earlier version of this tutorial took a different route to a larger tile:
+it accumulated in <strong>fp16</strong> (<code class="docutils literal notranslate"><span class="pre">wgmma.mma_async...f16.f16.f16</span></code>), which halves the
+accumulator and fits a <code class="docutils literal notranslate"><span class="pre">256</span> <span class="pre">x</span> <span class="pre">256</span></code> tile without register reallocation. That
+kernel ran at 1.37 ms, but cuBLAS accumulates in fp32, so the comparison was not
+like-for-like, and the precision cost was real: over a K=8192 reduction with
+unit-variance outputs, the mean absolute error rose from 0.00014 to 0.0023, and
+the maximum reached 0.047.</p>
 </div>
-<p>Note also the ordering of the four TMA loads in the producer’s main loop: slabs
-0, 2, 3, then 1. Slab 1’s load is issued last so that consumer 1 — the first
-group that has to <em>wait</em> for the shared buffer — is the least likely to be
-blocked on its input as well.</p>
-</section>
-<section id="walkthrough">
-<h2>Walkthrough<a class="headerlink" href="#walkthrough" title="Link to this heading"><span>¶</span></a></h2>
-<section id="producer-warp">
-<h3>Producer Warp<a class="headerlink" href="#producer-warp" title="Link to this heading"><span>¶</span></a></h3>
-<div class="literal-block-wrapper docutils container" id="id8">
-<div class="code-block-caption"><span class="caption-text">Producer warp: K-loop, drain, then the epilogue</span><a class="headerlink" href="#id8" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">32</span><span class="p">):</span>
-    <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="n">num_stages</span><span class="p">):</span>
-        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive_and_expect_tx</span><span class="p">(</span>
-                <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-                <span class="n">transaction_bytes</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
-                <span class="o">+</span> <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
-                <span class="o">+</span> <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
-                <span class="o">+</span> <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span>
-                <span class="o">+</span> <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span>
-            <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-            <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
-            <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-            <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
-            <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">block_m_slice</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-            <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
-            <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">block_m_slice</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-            <span class="n">src</span><span class="o">=</span><span class="n">ga</span><span class="p">,</span>
-            <span class="n">dst</span><span class="o">=</span><span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_m</span> <span class="o">+</span> <span class="n">block_m_slice</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">tma</span><span class="o">.</span><span class="n">global_to_shared</span><span class="p">(</span>
-            <span class="n">src</span><span class="o">=</span><span class="n">gb</span><span class="p">,</span>
-            <span class="n">dst</span><span class="o">=</span><span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_stage</span><span class="p">],</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="p">[</span><span class="n">offset_n</span><span class="p">,</span> <span class="n">offset_k</span><span class="p">],</span>
-            <span class="n">mbarrier</span><span class="o">=</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_barrier</span><span class="p">(),</span>
-        <span class="p">)</span>
-        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
-
-    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">num_stages</span><span class="p">,</span> <span class="n">cdiv</span><span class="p">(</span><span class="n">k_size</span><span class="p">,</span> <span class="n">block_k</span><span class="p">))):</span>
-        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_acquire</span><span class="p">()</span>
-        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">producer_advance</span><span class="p">()</span>
-
-    <span class="bp">self</span><span class="o">.</span><span class="n">store_epilogue</span><span class="p">(</span>
-        <span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span>
-    <span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">store_epilogue</span><span class="p">(</span>
-        <span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span>
-    <span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">store_epilogue</span><span class="p">(</span>
-        <span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span>
-    <span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">store_epilogue</span><span class="p">(</span>
-        <span class="n">sc</span><span class="p">,</span> <span class="n">gc</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">offset_m</span><span class="p">,</span> <span class="n">offset_n</span>
-    <span class="p">)</span>
-
-</pre></div>
-</div>
-</div>
-<p>The producer has three phases. It fills the pipeline over the K loop with five
-TMA loads per stage (four A slabs plus B), drains the outstanding empty-signals,
-and then serves all four epilogue quarters in order.</p>
-</section>
-<section id="consumer-warp-groups">
-<h3>Consumer Warp Groups<a class="headerlink" href="#consumer-warp-groups" title="Link to this heading"><span>¶</span></a></h3>
-<div class="literal-block-wrapper docutils container" id="id9">
-<div class="code-block-caption"><span class="caption-text">consume_tile — shared by all four consumer groups</span><a class="headerlink" href="#id9" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">consume_tile</span><span class="p">(</span>
-    <span class="bp">self</span><span class="p">,</span>
-    <span class="n">sa</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
-    <span class="n">sb</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
-    <span class="n">sc</span><span class="p">:</span> <span class="n">SharedTensor</span><span class="p">,</span>
-    <span class="n">tma_pipe</span><span class="p">:</span> <span class="n">Pipeline</span><span class="p">,</span>
-    <span class="n">epilogue_ready</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-    <span class="n">epilogue_free</span><span class="p">:</span> <span class="n">RegisterTensor</span><span class="p">,</span>
-    <span class="n">consumer_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="n">k_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-<span class="p">):</span>
-    <span class="n">block_m_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_m</span> <span class="o">//</span> <span class="mi">4</span>
-    <span class="n">acc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_tensor</span><span class="p">(</span>
-        <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">block_m_slice</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_n</span><span class="p">],</span> <span class="n">init</span><span class="o">=</span><span class="mf">0.0</span>
-    <span class="p">)</span>
-    <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">fence</span><span class="p">()</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
-        <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="n">consumer_idx</span><span class="p">],</span>
-        <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
-        <span class="n">acc</span><span class="p">,</span>
-    <span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
-    <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
-
-    <span class="k">for</span> <span class="n">offset_k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">(</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">k_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_k</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_stages</span>
-    <span class="p">):</span>
-        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_acquire</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">fence</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">mma</span><span class="p">(</span>
-            <span class="n">sa</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">,</span> <span class="n">consumer_idx</span><span class="p">],</span>
-            <span class="n">sb</span><span class="p">[</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_stage</span><span class="p">]</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span>
-            <span class="n">acc</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">commit_group</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">prev_consumer_barrier</span><span class="p">())</span>
-        <span class="n">tma_pipe</span><span class="o">.</span><span class="n">consumer_advance</span><span class="p">()</span>
-
-    <span class="bp">self</span><span class="o">.</span><span class="n">wgmma</span><span class="o">.</span><span class="n">wait_group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_thread</span><span class="p">():</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">tma_pipe</span><span class="o">.</span><span class="n">prev_consumer_barrier</span><span class="p">())</span>
-
-    <span class="k">if</span> <span class="n">consumer_idx</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">epilogue_free</span><span class="p">[</span><span class="n">consumer_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">store_shared</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float16</span><span class="p">))</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">mbarrier</span><span class="o">.</span><span class="n">arrive</span><span class="p">(</span><span class="n">epilogue_ready</span><span class="p">[</span><span class="n">consumer_idx</span><span class="p">])</span>
-</pre></div>
-</div>
-</div>
-<p>All four groups run the same <code class="docutils literal notranslate"><span class="pre">consume_tile</span></code> method, parameterized by
-<code class="docutils literal notranslate"><span class="pre">consumer_idx</span></code>. The K-loop is V5’s overlapped structure verbatim — prologue
-MMA, steady-state loop with <code class="docutils literal notranslate"><span class="pre">wait_group(1)</span></code> and a lagging stage release, final
-<code class="docutils literal notranslate"><span class="pre">wait_group(0)</span></code> — followed by the epilogue handoff. The four call sites differ
-only in their thread range and index:</p>
-<div class="literal-block-wrapper docutils container" id="id10">
-<div class="code-block-caption"><span class="caption-text">Four consumer warp groups</span><a class="headerlink" href="#id10" title="Link to this code"><span>¶</span></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">128</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">consume_tile</span><span class="p">(</span>
-        <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">k_size</span>
-    <span class="p">)</span>
-
-<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">128</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">consume_tile</span><span class="p">(</span>
-        <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">k_size</span>
-    <span class="p">)</span>
-
-<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">128</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">consume_tile</span><span class="p">(</span>
-        <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">k_size</span>
-    <span class="p">)</span>
-
-<span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_group</span><span class="p">(</span><span class="n">thread_begin</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">128</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">consume_tile</span><span class="p">(</span>
-        <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">tma_pipe</span><span class="p">,</span> <span class="n">epilogue_ready</span><span class="p">,</span> <span class="n">epilogue_free</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">k_size</span>
-</pre></div>
-</div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">consumer_arrive_count=4</span></code> on the pipeline reflects that all four groups must
-release a stage before the producer may refill it.</p>
-</section>
 </section>
 <section id="performance">
 <h2>Performance<a class="headerlink" href="#performance" title="Link to this heading"><span>¶</span></a></h2>
-<p>V6 reaches <strong>800 TFLOPS</strong> (1.37 ms) against cuBLAS at 742 TFLOPS (1.48 ms), and is
-18% ahead of V5. Nsight Compute puts tensor pipe utilization at 93.2%, essentially
-level with cuBLAS’s 93.8%, and DRAM throughput at 20%, the lowest of any version:
-the <code class="docutils literal notranslate"><span class="pre">256</span> <span class="pre">x</span> <span class="pre">256</span></code> tile with a shared B tile has made the kernel almost entirely
-compute bound.</p>
-<p>Comparing against the cuBLAS timing taken in the same process, V6 wins every run,
-by a <strong>median of 7.8%</strong>:</p>
+<p>V6 reaches <strong>756 TFLOPS</strong> (1.455 ms) against cuBLAS at 752 TFLOPS (1.463 ms) —
+<strong>101% of cuBLAS</strong>, and 10% ahead of V5. Against the cuBLAS timing taken in the
+same process, V6 wins every run:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <colgroup>
 <col style="width: 15.8%" />
@@ -1372,52 +1343,53 @@ by a <strong>median of 7.8%</strong>:</p>
 <tr class="row-odd"><th class="head"><p>Run</p></th>
 <th class="head"><p>V6</p></th>
 <th class="head"><p>cuBLAS</p></th>
-<th class="head"><p>V6 faster by</p></th>
+<th class="head"><p>V6 / cuBLAS</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>1</p></td>
-<td><p>1.3886 ms</p></td>
-<td><p>1.5014 ms</p></td>
-<td><p>8.1%</p></td>
+<td><p>1.4548 ms</p></td>
+<td><p>1.4697 ms</p></td>
+<td><p>101.0%</p></td>
 </tr>
 <tr class="row-odd"><td><p>2</p></td>
-<td><p>1.3742 ms</p></td>
-<td><p>1.4630 ms</p></td>
-<td><p>6.5%</p></td>
+<td><p>1.4602 ms</p></td>
+<td><p>1.4632 ms</p></td>
+<td><p>100.2%</p></td>
 </tr>
 <tr class="row-even"><td><p>3</p></td>
-<td><p>1.3742 ms</p></td>
-<td><p>1.4809 ms</p></td>
-<td><p>7.8%</p></td>
+<td><p>1.4482 ms</p></td>
+<td><p>1.4616 ms</p></td>
+<td><p>100.9%</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>Quote the range, not a single run. Both kernels vary by 1–2% run to run, so the
-ratio moves with whichever samples you happen to draw.</p>
+<p>The margin is small, and both kernels vary by 1–2% run to run, so quote the range
+rather than a single run. That the two are this close is not a coincidence:
+cuBLAS’s kernel for this shape, <code class="docutils literal notranslate"><span class="pre">nvjet_sm90_hsh_320x128_64x3_1x2</span></code>, is a 320 x
+128 tile with <code class="docutils literal notranslate"><span class="pre">block_k</span></code> 64, 3 stages, and a 1 x 2 cluster, launched at 168
+registers per thread — the same design. Under Nsight Compute, V6’s tensor pipe
+is active 97.9% of active cycles against cuBLAS’s 97.1%, and V6 finishes in
+1.548 ms against 1.560 ms at the profiler’s pinned clock.</p>
+<p>Both kernels also share the same remaining loss: 1,664 tiles over 132 SMs is 12.6
+rounds, so the last round runs with 40% of the SMs idle.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>The margin is also sensitive to how long the timed window is, because an
-8192<sup>3</sup> fp16 GEMM saturates the board’s power budget. At the 30 timed
-iterations this tutorial uses, V6 leads by 6–8%; at 100 iterations the H100
-throttles partway through the window and the same three measurements read
-99%, 99%, and 110% of cuBLAS. The benchmark script takes a 3-second cooldown
-before every measurement, cuBLAS included, and exposes <code class="docutils literal notranslate"><span class="pre">--repeat</span></code> so this
-can be checked directly. Run it on an idle GPU.</p>
+<p>The ratio is also sensitive to how long the timed window is, because an
+8192<sup>3</sup> fp16 GEMM saturates the board’s power budget. At 100 timed
+iterations instead of this tutorial’s 30, the H100 throttles partway through
+the window. The benchmark script takes a 3-second cooldown before every
+measurement, cuBLAS included, and exposes <code class="docutils literal notranslate"><span class="pre">--repeat</span></code> so this can be checked
+directly. Run it on an idle GPU.</p>
 </div>
-<p>The advantage survives the change of measurement method: under Nsight Compute’s
-replay profiling V6 comes in at 1.53 ms against cuBLAS’s 1.56 ms — still ahead,
-but by 2% rather than 8%. Replay pins the SM clock near 1.41 GHz against a
-1.98 GHz maximum, and at reduced clock the memory system is comparatively
-over-provisioned, which is where most of V6’s wall-clock advantage comes from.
-The complete source is at <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/hopper_matmul/matmul_v6.py"><i class="fab fa-github"></i> examples/hopper_matmul/matmul_v6.py</a>.</p>
-<figure class="align-default" id="id11">
+<p>The complete source is at <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/hopper_matmul/matmul_v6.py"><i class="fab fa-github"></i> examples/hopper_matmul/matmul_v6.py</a>.</p>
+<figure class="align-default" id="id10">
 <img alt="../../_images/plot_v61.svg" class="plot-directive" src="../../_images/plot_v61.svg" />
 <figcaption>
 <p><span class="caption-text">Hopper matmul performance on H100 SXM (M=N=K=8192, fp16). Latency is
 CUDA-event timed, median of three fresh processes. Peak is the published
-dense FP16 tensor core throughput of the H100 SXM.</span><a class="headerlink" href="#id11" title="Link to this image"><span>¶</span></a></p>
+dense FP16 tensor core throughput of the H100 SXM.</span><a class="headerlink" href="#id10" title="Link to this image"><span>¶</span></a></p>
 </figcaption>
 </figure>
 </section>
@@ -1429,21 +1401,22 @@ shared-memory WGMMA (V1), overlapped loading and computing with a multi-stage
 ring buffer (V2), separated the two into dedicated producer and consumer warps
 (V3), doubled the independent MMA streams and factored the bookkeeping into a
 <code class="docutils literal notranslate"><span class="pre">Pipeline</span></code> class (V4), kept a WGMMA group permanently in flight (V5), and
-finally widened the tile to <code class="docutils literal notranslate"><span class="pre">256</span> <span class="pre">x</span> <span class="pre">256</span></code> across four consumer groups with fp16
-accumulation and a bulk TMA epilogue (V6).</p>
+finally rebalanced the register file for a <code class="docutils literal notranslate"><span class="pre">128</span> <span class="pre">x</span> <span class="pre">320</span></code> tile, shared B across a
+2-CTA cluster, and made the kernel persistent (V6).</p>
 <p>Two themes run through the whole series. The first is that Hopper’s engines —
 TMA, the tensor cores, and the SM’s own instruction issue — are independent, and
 performance comes from arranging for all of them to have work queued at all
 times. The second is that the register file is the binding constraint on how
-large a tile a Hopper kernel can hold, which is why the final step needed both
-more warp groups and a narrower accumulator.</p>
+large a tile a Hopper kernel can hold, which is why the final step had to move
+registers from the warp group that does not need them to the ones that do.</p>
 <div class="admonition caution">
 <p class="admonition-title">Caution</p>
 <p>The result reported here is specific to this shape (M=N=K=8192), dtype
-(fp16), accumulation precision (fp16, where cuBLAS uses fp32), GPU (H100 SXM),
-and benchmark methodology. It is not a claim that this kernel beats cuBLAS
-across GEMM shapes; the autotune spaces checked into the examples are pinned
-to a single configuration each, tuned for exactly this workload.</p>
+(fp16 inputs and outputs, fp32 accumulation), GPU (H100 SXM), and benchmark
+methodology. It is not a claim about other GEMM shapes: at 4096<sup>3</sup>, for
+example, the 320-wide tile leaves the last of only four rounds mostly idle, and
+V6 trails cuBLAS. The autotune spaces checked into the examples are pinned to a
+single configuration each, tuned for exactly this workload.</p>
 </div>
 </section>
 </section>
@@ -1496,12 +1469,9 @@ to a single configuration each, tuned for exactly this workload.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-full-kernel">The Full Kernel</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-changed-from-v5">What Changed from V5</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-register-budget-problem">The Register Budget Problem</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#serialized-shared-memory-epilogue">Serialized Shared-Memory Epilogue</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#walkthrough">Walkthrough</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#producer-warp">Producer Warp</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#consumer-warp-groups">Consumer Warp Groups</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cluster-multicast">Cluster Multicast</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#persistent-tile-loop">Persistent Tile Loop</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shared-memory-epilogue">Shared-Memory Epilogue</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#performance">Performance</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#summary">Summary</a></li>
 </ul>

@@ -51,7 +51,7 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="0. A Minimal Blackwell Matmul" href="v0.html" />
-    <link rel="prev" title="6. Four Consumers, FP16 Accumulation, and a TMA Epilogue" href="../matmul-hopper/v6.html" />
+    <link rel="prev" title="6. Register Reallocation, Multicast, and a Persistent Kernel" href="../matmul-hopper/v6.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -177,7 +177,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v3.html">3. Warp Specialization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../matmul-hopper/v6.html">6. Register Reallocation, Multicast, and a Persistent Kernel</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Matmul (Blackwell)</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -296,6 +296,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.scan.html">Script.scan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.setmaxnreg.html">Script.setmaxnreg</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
@@ -703,7 +704,7 @@ utilization (96.6%).</span><a class="headerlink" href="#id1" title="Link to this
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</p>
+        <p class="prev-next-title">6. Register Reallocation, Multicast, and a Persistent Kernel</p>
       </div>
     </a>
     <a class="right-next"

@@ -49,7 +49,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'python-api/generated/tilus.Script.scan';</script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Script.shared_tensor" href="tilus.Script.shared_tensor.html" />
+    <link rel="next" title="Script.setmaxnreg" href="tilus.Script.setmaxnreg.html" />
     <link rel="prev" title="Script.rsqrt" href="tilus.Script.rsqrt.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -176,7 +176,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v3.html">3. Warp Specialization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v5.html">5. Overlapping WGMMA Groups</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tutorials/matmul-hopper/v6.html">6. Register Reallocation, Multicast, and a Persistent Kernel</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../tutorials/matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -295,6 +295,7 @@
 <li class="toctree-l2"><a class="reference internal" href="tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">Script.scan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tilus.Script.setmaxnreg.html">Script.setmaxnreg</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tilus.Script.sqrt.html">Script.sqrt</a></li>
@@ -727,11 +728,11 @@ size matches the input layout’s <code class="docutils literal notranslate"><sp
       </div>
     </a>
     <a class="right-next"
-       href="tilus.Script.shared_tensor.html"
+       href="tilus.Script.setmaxnreg.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Script.shared_tensor</p>
+        <p class="prev-next-title">Script.setmaxnreg</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

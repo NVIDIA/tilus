@@ -211,15 +211,13 @@ half of the output tile.
 Performance
 -----------
 
-V5 reaches **678 TFLOPS** (1.62 ms), 6% ahead of V4 and 91% of cuBLAS. Tensor
+V5 reaches **678 TFLOPS** (1.62 ms), 6% ahead of V4 and 90% of cuBLAS. Tensor
 pipe utilization climbs from 80% to 88%, which is exactly the metric this change
 targets --- the tensor cores now almost always have a queued group to start on the
 cycle the previous one retires. Since everything else is inherited unchanged from
 V4, the gain is attributable to the overlap alone: holding V4's three stages and
 changing only ``wait_group(0)`` to ``wait_group(1)`` already gets 1.60 ms.
 
-V5 is also the last version that is numerically like-for-like with cuBLAS. It
-accumulates in fp32, as V0--V4 do; :doc:`V6 <v6>` gives that up.
 The complete source is at :github:`examples/hopper_matmul/matmul_v5.py`.
 
 .. plot:: tutorials/matmul-hopper/plots/plot_v5.py
@@ -239,7 +237,8 @@ V4. The remaining headroom is in two places. First, the tile is still
 compute. Second, the epilogue is a plain per-thread ``store_global`` from
 registers, issued by both consumer groups at the same time at the very end.
 
-In :doc:`the final version <v6>`, the tile grows to ``256 x 256`` split across
-**four** consumer warp groups, the accumulator switches to native fp16 WGMMA
-accumulation to fit the register budget, and the epilogue routes through a shared
-memory buffer so results leave via a bulk TMA store.
+In :doc:`the final version <v6>`, the tile grows to ``128 x 320``. The fp32
+accumulators for it only fit because the producer warp group hands most of its
+registers to the consumers. Two CTAs share each B tile through cluster multicast,
+the kernel becomes persistent, and the epilogue routes through shared memory so
+results leave via bulk TMA stores.

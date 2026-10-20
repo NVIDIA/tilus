@@ -177,7 +177,7 @@
 <li class="toctree-l2"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
 <li class="toctree-l2"><a class="reference internal" href="v5.html">5. Overlapping WGMMA Groups</a></li>
-<li class="toctree-l2"><a class="reference internal" href="v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+<li class="toctree-l2"><a class="reference internal" href="v6.html">6. Register Reallocation, Multicast, and a Persistent Kernel</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../matmul-blackwell/__init__.html">Matmul (Blackwell)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -296,6 +296,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.round.html">Script.round</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.rsqrt.html">Script.rsqrt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.scan.html">Script.scan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.setmaxnreg.html">Script.setmaxnreg</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.shared_tensor.html">Script.shared_tensor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sin.html">Script.sin</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../python-api/generated/tilus.Script.sqrt.html">Script.sqrt</a></li>
@@ -663,17 +664,14 @@ document.write(`
 or optimization technique. By the final version, the kernel exceeds vendor-library
 performance for this shape. The figure below shows the progression: V0 starts at
 ~305 TFLOPS with a minimal kernel that pushes every operand through the register file,
-and each optimization closes the gap to cuBLAS, with V6 passing it at ~800 TFLOPS.
+and each optimization closes the gap to cuBLAS, with V6 passing it at ~756 TFLOPS.
 All kernels and the benchmark script to reproduce the result can be found at
 <a class="reference external" href="https://github.com/NVIDIA/tilus/blob/main/examples/hopper_matmul/"><i class="fab fa-github"></i> examples/hopper_matmul/</a>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>V6 is the one version that does not compute the same thing as the rest: it
-accumulates in fp16 inside the WGMMA, while V0–V5 and cuBLAS accumulate in
-fp32. That is what buys it the register budget for a <code class="docutils literal notranslate"><span class="pre">256</span> <span class="pre">x</span> <span class="pre">256</span></code> tile, and
-it costs about an order of magnitude in accumulated error. <a class="reference internal" href="v6.html"><span class="doc">V6</span></a>
-quantifies the trade; V5 is the fastest version that is numerically
-like-for-like with cuBLAS.</p>
+<p>Every version, like cuBLAS, takes fp16 inputs, accumulates in fp32, and writes
+fp16 outputs, so all comparisons are like-for-like. <a class="reference internal" href="v6.html"><span class="doc">V6</span></a> notes what
+switching to fp16 accumulation would buy, and what it would cost.</p>
 </div>
 <figure class="align-default" id="id1">
 <img alt="../../_images/plot_all1.svg" class="plot-directive" src="../../_images/plot_all1.svg" />
@@ -751,18 +749,18 @@ this in detail — it is the most instructive step in the series.</p>
 <td><p>88%</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="v6.html"><span class="doc">V6</span></a></p></td>
-<td><p>Four consumers, fp16 accumulation, TMA epilogue</p></td>
-<td><p><strong>fp16</strong></p></td>
-<td><p><strong>1.37 ms</strong></p></td>
-<td><p><strong>800</strong></p></td>
-<td><p>93%</p></td>
+<td><p>Register reallocation, 2-CTA multicast, persistent tiles</p></td>
+<td><p>fp32</p></td>
+<td><p><strong>1.45 ms</strong></p></td>
+<td><p><strong>756</strong></p></td>
+<td><p>94%</p></td>
 </tr>
 <tr class="row-odd"><td><p>cuBLAS</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">nvjet_sm90_hsh_320x128_64x3_1x2_h_bz_coopB_TNT</span></code></p></td>
 <td><p>fp32</p></td>
-<td><p>1.48 ms</p></td>
-<td><p>742</p></td>
-<td><p>94%</p></td>
+<td><p>1.46 ms</p></td>
+<td><p>752</p></td>
+<td><p>93%</p></td>
 </tr>
 </tbody>
 </table>
@@ -784,7 +782,7 @@ with:</p>
 <li class="toctree-l1"><a class="reference internal" href="v3.html">3. Warp Specialization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="v4.html">4. Pipeline Abstraction and Two Consumer Warp Groups</a></li>
 <li class="toctree-l1"><a class="reference internal" href="v5.html">5. Overlapping WGMMA Groups</a></li>
-<li class="toctree-l1"><a class="reference internal" href="v6.html">6. Four Consumers, FP16 Accumulation, and a TMA Epilogue</a></li>
+<li class="toctree-l1"><a class="reference internal" href="v6.html">6. Register Reallocation, Multicast, and a Persistent Kernel</a></li>
 </ul>
 </div>
 </section>
