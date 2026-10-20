@@ -22,6 +22,7 @@ from . import (
     mbarrier,
     mma_dot,
     semaphore,
+    setmaxnreg,
     simt_dot,
     tcgen05,
     wgmma,

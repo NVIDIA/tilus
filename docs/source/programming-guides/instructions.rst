@@ -189,6 +189,18 @@ Synchronize threads within a block or across a cluster. ``sync`` is the block-le
    sync
 
 
+Register Allocation
+~~~~~~~~~~~~~~~~~~~
+
+Rebalance the register file between warp groups at run time (Hopper and later). A
+warp-specialized kernel can lower the limit of a producer warp group that only issues TMA and
+raise the limit of consumer warp groups that hold large accumulators.
+
+.. autosummary::
+
+   setmaxnreg
+
+
 Semaphores
 ~~~~~~~~~~
 

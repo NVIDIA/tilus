@@ -63,6 +63,7 @@ from tilus.ir.instructions.cuda.mbarrier import (
 )
 from tilus.ir.instructions.cuda.mma_dot import DotInst
 from tilus.ir.instructions.cuda.semaphore import LockSemaphoreInst, ReleaseSemaphoreInst
+from tilus.ir.instructions.cuda.setmaxnreg import SetMaxNRegInst
 from tilus.ir.instructions.cuda.tcgen05 import (
     Tcgen05AllocInst,
     Tcgen05CommitInst,
@@ -1442,6 +1443,10 @@ class StmtBuilder(StmtBuilderCore):
 
     def syncthreads(self) -> None:
         inst = SyncThreadsInst.create()
+        self.append(inst)
+
+    def setmaxnreg(self, nregs: int, action: str) -> None:
+        inst = SetMaxNRegInst.create(nregs=nregs, action=action)
         self.append(inst)
 
     def syncthreads_and(self, cond: Union[Expr, bool]) -> Var:

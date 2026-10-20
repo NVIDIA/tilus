@@ -5,9 +5,6 @@ Benchmark data collected on an H100 80GB HBM3 (SXM) with
 
 Latencies are CUDA-event timings (5 warmup + 30 timed iterations), taken as the
 median of three fresh processes. TFLOPS = 2*M*N*K / latency.
-
-Note that V6 accumulates in fp16 while V0-V5 and cuBLAS accumulate in fp32; see
-the tutorial's V6 page for what that costs in accuracy.
 """
 
 import matplotlib.pyplot as plt
@@ -25,12 +22,12 @@ LABELS = [
     "Warp Spec.",
     "2 Consumers",
     "WGMMA Overlap",
-    "4 Consumers",
+    "setmaxnreg + Multicast",
 ]
 
 # Median latency in ms over three fresh processes
-LATENCY_MS = [3.600, 2.037, 2.124, 1.913, 1.714, 1.623, 1.374]
-CUBLAS_LATENCY_MS = 1.481
+LATENCY_MS = [3.600, 2.037, 2.124, 1.913, 1.714, 1.623, 1.455]
+CUBLAS_LATENCY_MS = 1.463
 
 _FLOP = 2 * 8192**3
 

@@ -128,20 +128,14 @@ def parse_ncu_report(report_path: str) -> list[tuple[str, dict]]:
 # REPEAT deliberately differs from the Blackwell script's 100. An 8192^3 fp16
 # GEMM takes ~1.5 ms on an H100, so 100 back-to-back iterations is ~150 ms of
 # power-capped tensor core work and the board throttles partway through the
-# timed window. Measured over three fresh processes at this shape, repeat=30
-# gives v6/cuBLAS = 108.1 / 106.5 / 107.8 %, while repeat=100 gives
-# 99.0 / 98.9 / 110.4 % -- same kernels, but the median lands on whichever side
-# of the throttle transition the run happened to sit. Pass --repeat to compare.
+# timed window. Measured over three fresh processes at this shape (with an
+# earlier fp16-accumulating v6), repeat=30 gave v6/cuBLAS = 108.1 / 106.5 /
+# 107.8 %, while repeat=100 gave 99.0 / 98.9 / 110.4 % -- same kernels, but the
+# median lands on whichever side of the throttle transition the run happened to
+# sit. Pass --repeat to compare.
 WARMUP = 5
 REPEAT = 30
 COOLDOWN_S = 3
-
-# v6 accumulates in fp16 inside the WGMMA (see matmul_v6.py); every other version
-# and cuBLAS accumulate in fp32. Measured at 8192^3 with unit-variance outputs,
-# that raises the mean absolute error from 1.4e-4 to 2.3e-3, so v6 needs its own
-# tolerance. This is a real precision difference, not a benchmarking artifact --
-# see the warning in docs/source/tutorials/matmul-hopper/v6.rst.
-FP16_ACCUMULATE_VERSIONS = {"v6"}
 
 
 def benchmark_all(
@@ -156,7 +150,7 @@ def benchmark_all(
     import torch
     from tilus.utils import benchmark_func
 
-    headers = ["version", "accumulate", "latency (ms)", "tflops", "% of cublas"]
+    headers = ["version", "latency (ms)", "tflops", "% of cublas"]
     rows = []
 
     # Scale both operands by k**0.25 so that C has unit variance: each output
@@ -175,15 +169,16 @@ def benchmark_all(
         return 2 * m_size * n_size * k_size / ms * 1e-9
 
     for name in versions:
-        acc_dtype = "fp16" if name in FP16_ACCUMULATE_VERSIONS else "fp32"
         try:
             matmul = _load_version(name)()
+            # Zero the shared output so a kernel that writes nothing cannot pass
+            # on the previous version's result.
+            c_tilus.zero_()
             matmul(m_size, n_size, k_size, a, b, c_tilus)
             torch.cuda.synchronize()
             torch.matmul(a, b.T, out=c_ref)
             torch.cuda.synchronize()
-            atol = 5e-2 if acc_dtype == "fp16" else 1e-2
-            torch.testing.assert_close(c_tilus, c_ref, atol=atol, rtol=1e-2)
+            torch.testing.assert_close(c_tilus, c_ref, atol=1e-2, rtol=1e-2)
 
             time.sleep(COOLDOWN_S)
             t = benchmark_func(
@@ -191,12 +186,10 @@ def benchmark_all(
                 warmup=WARMUP,
                 repeat=repeat,
             )
-            rows.append([f"tilus_{name}", acc_dtype, t, tf(t), float("nan")])
+            rows.append([f"tilus_{name}", t, tf(t), float("nan")])
         except Exception as e:
             print(f"  tilus_{name}  ERROR: {type(e).__name__}: {e}")
-            rows.append(
-                [f"tilus_{name}", acc_dtype, float("nan"), float("nan"), float("nan")]
-            )
+            rows.append([f"tilus_{name}", float("nan"), float("nan"), float("nan")])
 
     # cuBLAS last, under the same cooldown and iteration count as every version.
     time.sleep(COOLDOWN_S)
@@ -204,10 +197,10 @@ def benchmark_all(
         lambda: torch.matmul(a, b.T, out=c_ref), warmup=WARMUP, repeat=repeat
     )
     cublas_tf = tf(cublas_lat)
-    rows.append(["cublas", "fp32", cublas_lat, cublas_tf, 100.0])
+    rows.append(["cublas", cublas_lat, cublas_tf, 100.0])
 
     for row in rows[:-1]:
-        row[4] = row[3] / cublas_tf * 100.0
+        row[3] = row[2] / cublas_tf * 100.0
 
     df = pandas.DataFrame(rows, columns=headers)
     print(
