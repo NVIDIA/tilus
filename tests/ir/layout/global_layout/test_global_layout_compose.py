@@ -14,8 +14,7 @@
 # limitations under the License.
 import numpy as np
 import pytest
-from tilus.ir.layout import global_layout as global_layout_module
-from tilus.ir.layout.ops import global_ops as global_ops_module
+from tilus.ir.layout import global_column_major, global_compose, global_row_major
 from tilus.ir.utils.veceval import vectorized_evaluate
 
 
@@ -25,10 +24,9 @@ def evaluate_offsets(layout) -> np.ndarray:
     return vectorized_evaluate(layout.offset, {axis: grid[i] for i, axis in enumerate(layout.axes)})
 
 
-@pytest.mark.parametrize("module", [global_layout_module, global_ops_module])
-def test_global_compose_row_major(module):
+def test_global_compose_row_major():
     # a 2x2 grid of 2x3 row-major tiles, where the tiles are also stored in row-major order
-    layout = module.global_compose(module.global_row_major(2, 2), module.global_row_major(2, 3))
+    layout = global_compose(global_row_major(2, 2), global_row_major(2, 3))
     expected = np.array(
         [
             [0, 1, 2, 6, 7, 8],
@@ -40,10 +38,9 @@ def test_global_compose_row_major(module):
     assert np.array_equal(evaluate_offsets(layout), expected)
 
 
-@pytest.mark.parametrize("module", [global_layout_module, global_ops_module])
-def test_global_compose_column_major_tiles(module):
+def test_global_compose_column_major_tiles():
     # a 2x2 grid of 2x3 column-major tiles, where the tiles are stored in row-major order
-    layout = module.global_compose(module.global_row_major(2, 2), module.global_column_major(2, 3))
+    layout = global_compose(global_row_major(2, 2), global_column_major(2, 3))
     expected = np.array(
         [
             [0, 2, 4, 6, 8, 10],
