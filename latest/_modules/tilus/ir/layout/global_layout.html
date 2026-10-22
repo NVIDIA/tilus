@@ -626,15 +626,12 @@ document.write(`
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Sequence</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.dtypes</span><span class="w"> </span><span class="kn">import</span> <span class="n">int32</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.expr</span><span class="w"> </span><span class="kn">import</span> <span class="n">Expr</span><span class="p">,</span> <span class="n">Var</span><span class="p">,</span> <span class="n">as_expr</span><span class="p">,</span> <span class="n">index_vars</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.hidet.ir.utils.index_transform</span><span class="w"> </span><span class="kn">import</span> <span class="n">index_multiply</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">tilus.ir.node</span><span class="w"> </span><span class="kn">import</span> <span class="n">IRNode</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">tilus.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">prod</span>
 
 
 <div class="viewcode-block" id="GlobalLayout">
-<a class="viewcode-back" href="../../../../python-api/tilus-ir/global_layout.html#tilus.ir.layout.GlobalLayout">[docs]</a>
+<a class="viewcode-back" href="../../../../python-api/tilus-ir/global_layout.html#tilus.ir.GlobalLayout">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eq</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">GlobalLayout</span><span class="p">(</span><span class="n">IRNode</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""The layout for global tensor.</span>
@@ -662,7 +659,7 @@ document.write(`
     <span class="n">offset</span><span class="p">:</span> <span class="n">Expr</span>
 
 <div class="viewcode-block" id="GlobalLayout.__call__">
-<a class="viewcode-back" href="../../../../python-api/tilus-ir/global_layout.html#tilus.ir.layout.GlobalLayout.__call__">[docs]</a>
+<a class="viewcode-back" href="../../../../python-api/tilus-ir/global_layout.html#tilus.ir.GlobalLayout.__call__">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">indices</span><span class="p">:</span> <span class="n">Expr</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Compute the offset on given indices.</span>
 
@@ -685,7 +682,7 @@ document.write(`
 
 
 <div class="viewcode-block" id="GlobalLayout.create">
-<a class="viewcode-back" href="../../../../python-api/tilus-ir/global_layout.html#tilus.ir.layout.GlobalLayout.create">[docs]</a>
+<a class="viewcode-back" href="../../../../python-api/tilus-ir/global_layout.html#tilus.ir.GlobalLayout.create">[docs]</a>
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span><span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">],</span> <span class="n">size</span><span class="p">:</span> <span class="n">Expr</span><span class="p">,</span> <span class="n">f_offset</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Var</span><span class="p">]],</span> <span class="n">Expr</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">GlobalLayout</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Create a global layout with custom mapping.</span>
@@ -716,176 +713,6 @@ document.write(`
         <span class="k">return</span> <span class="n">GlobalLayout</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">expr_shape</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">axes</span><span class="p">),</span> <span class="n">offset</span><span class="o">=</span><span class="n">f_offset</span><span class="p">(</span><span class="n">axes</span><span class="p">))</span></div>
 </div>
 
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_generic_repeat</span><span class="p">(</span><span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">],</span> <span class="n">ranks</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">GlobalLayout</span><span class="p">:</span>
-    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">)</span>
-    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">ranks</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">ranks</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">d</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ranks</span><span class="p">)</span>
-    <span class="n">strides</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Expr</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">prod</span><span class="p">([</span><span class="n">s</span> <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="k">if</span> <span class="n">ranks</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">ranks</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">))]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">f_offset</span><span class="p">(</span><span class="n">axes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Var</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">strides</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">))],</span> <span class="n">start</span><span class="o">=</span><span class="n">int32</span><span class="o">.</span><span class="n">zero</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">GlobalLayout</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">prod</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">f_offset</span><span class="o">=</span><span class="n">f_offset</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_global_compose</span><span class="p">(</span><span class="n">lhs</span><span class="p">:</span> <span class="n">GlobalLayout</span><span class="p">,</span> <span class="n">rhs</span><span class="p">:</span> <span class="n">GlobalLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GlobalLayout</span><span class="p">:</span>
-    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-    <span class="n">ndims</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">f_offset</span><span class="p">(</span><span class="n">axes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Var</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
-        <span class="n">lhs_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">//</span> <span class="n">rhs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndims</span><span class="p">)]</span>
-        <span class="n">rhs_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">//</span> <span class="n">rhs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndims</span><span class="p">)]</span>
-        <span class="n">lhs_offset</span> <span class="o">=</span> <span class="n">lhs</span><span class="p">(</span><span class="o">*</span><span class="n">lhs_indices</span><span class="p">)</span>
-        <span class="n">rhs_offset</span> <span class="o">=</span> <span class="n">rhs</span><span class="p">(</span><span class="o">*</span><span class="n">rhs_indices</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">lhs_offset</span> <span class="o">*</span> <span class="n">rhs</span><span class="o">.</span><span class="n">size</span> <span class="o">+</span> <span class="n">rhs_offset</span>
-
-    <span class="n">shape</span> <span class="o">=</span> <span class="n">index_multiply</span><span class="p">(</span><span class="n">lhs</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">rhs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-    <span class="n">size</span> <span class="o">=</span> <span class="n">lhs</span><span class="o">.</span><span class="n">size</span> <span class="o">*</span> <span class="n">rhs</span><span class="o">.</span><span class="n">size</span>
-
-    <span class="k">return</span> <span class="n">GlobalLayout</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">f_offset</span><span class="o">=</span><span class="n">f_offset</span><span class="p">)</span>
-
-
-<div class="viewcode-block" id="global_row_major">
-<a class="viewcode-back" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_row_major.html#tilus.ir.layout.global_row_major">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">global_row_major</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">:</span> <span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GlobalLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Create a global layout with row-major order.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    shape: Sequence[Expr | int]</span>
-<span class="sd">        The shape of the global tensor. Each dimension can be an expression of grid-invariant expression, or a</span>
-<span class="sd">        constant integer.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    ret: GlobalLayout</span>
-<span class="sd">        A global layout with the specified shape in row-major order.</span>
-<span class="sd">    """</span>
-    <span class="k">return</span> <span class="n">_generic_repeat</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">ranks</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">))))</span></div>
-
-
-
-<div class="viewcode-block" id="global_column_major">
-<a class="viewcode-back" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_column_major.html#tilus.ir.layout.global_column_major">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">global_column_major</span><span class="p">(</span><span class="o">*</span><span class="n">shape</span><span class="p">:</span> <span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GlobalLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Create a global layout with column-major order.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    shape: Sequence[Expr | int]</span>
-<span class="sd">        The shape of the global tensor. Each dimension can be an expression of grid-invariant expression, or a</span>
-<span class="sd">        constant integer.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    ret: GlobalLayout</span>
-<span class="sd">        A global layout with the specified shape in column-major order.</span>
-<span class="sd">    """</span>
-    <span class="k">return</span> <span class="n">_generic_repeat</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">ranks</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)))))</span></div>
-
-
-
-<div class="viewcode-block" id="global_compose">
-<a class="viewcode-back" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_compose.html#tilus.ir.layout.global_compose">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">global_compose</span><span class="p">(</span><span class="n">lhs</span><span class="p">:</span> <span class="n">GlobalLayout</span><span class="p">,</span> <span class="n">rhs</span><span class="p">:</span> <span class="n">GlobalLayout</span><span class="p">,</span> <span class="o">*</span><span class="n">others</span><span class="p">:</span> <span class="n">GlobalLayout</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GlobalLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Compose multiple global layouts.</span>
-
-<span class="sd">    This function composes two or more global layouts into a single global layout.</span>
-<span class="sd">    Please refer to our research paper `Tilus &lt;https://arxiv.org/pdf/2504.12984&gt;`_, Section 4.2 for more details on layout composition.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    lhs: GlobalLayout</span>
-<span class="sd">        The left-hand side global layout.</span>
-<span class="sd">    rhs: GlobalLayout</span>
-<span class="sd">        The right-hand side global layout.</span>
-<span class="sd">    others: Sequence[GlobalLayout]</span>
-<span class="sd">        The additional global layouts to be composed with the first two. It's optional and can be empty.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    ret: GlobalLayout</span>
-<span class="sd">        The composed global layout that combines the effects of all input layouts.</span>
-<span class="sd">    """</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">others</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">_global_compose</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">global_compose</span><span class="p">(</span><span class="n">_global_compose</span><span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">),</span> <span class="o">*</span><span class="n">others</span><span class="p">)</span></div>
-
-
-
-<div class="viewcode-block" id="global_strides">
-<a class="viewcode-back" href="../../../../python-api/tilus-ir/generated/tilus.ir.layout.global_strides.html#tilus.ir.layout.global_strides">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">global_strides</span><span class="p">(</span><span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">],</span> <span class="n">strides</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">GlobalLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Create a global layout with specified strides.</span>
-
-<span class="sd">    This function creates a global layout with the given shape and strides. Given the axes and strides, we map the</span>
-<span class="sd">    axes to ``sum(axes[i] * strides[i])`` to compute the offset of the global tensor.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    shape: Sequence[Expr | int]</span>
-<span class="sd">        The shape of the global tensor. Each dimension can be an expression of grid-invariant expression, or a</span>
-<span class="sd">        constant integer.</span>
-<span class="sd">    strides: Sequence[Expr | int]</span>
-<span class="sd">        The strides of the global tensor. Each stride corresponds to the step size in each dimension when traversing</span>
-<span class="sd">        the global tensor. It should have the same length as the shape. Each stride can be an expression of grid-invariant</span>
-<span class="sd">        expression, or a constant integer.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    ret: GlobalLayout</span>
-<span class="sd">        A global layout with the specified shape and strides. The offset is computed as the sum of the product of each</span>
-<span class="sd">        axis and its corresponding stride.</span>
-<span class="sd">    """</span>
-    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">strides</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">f_offset</span><span class="p">(</span><span class="n">axes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Var</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">strides</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">))],</span> <span class="n">start</span><span class="o">=</span><span class="n">int32</span><span class="o">.</span><span class="n">zero</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">GlobalLayout</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">prod</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">f_offset</span><span class="o">=</span><span class="n">f_offset</span><span class="p">)</span></div>
-
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">global_slice</span><span class="p">(</span>
-    <span class="n">layout</span><span class="p">:</span> <span class="n">GlobalLayout</span><span class="p">,</span> <span class="n">offsets</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">],</span> <span class="n">dims</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">shape</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Expr</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GlobalLayout</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Create a sliced global layout from an existing layout.</span>
-
-<span class="sd">    This function creates a new global layout by slicing an existing global layout. The slicing is defined by the</span>
-<span class="sd">    specified offsets, dimensions to slice, and the shape of the resulting layout. The new layout retains the mapping</span>
-<span class="sd">    function of the original layout, adjusted for the specified offsets and dimensions.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    layout: GlobalLayout</span>
-<span class="sd">        The original global layout to be sliced.</span>
-<span class="sd">    offsets: Sequence[Expr | int]</span>
-<span class="sd">        The offsets for each dimension of the original layout. It should have the same length as the original layout's</span>
-<span class="sd">        shape.</span>
-<span class="sd">    dims: Sequence[int]</span>
-<span class="sd">        The dimensions to be sliced from the original layout. Each dimension should be a valid index in the original</span>
-<span class="sd">        layout's shape.</span>
-<span class="sd">    shape: Sequence[Expr | int]</span>
-<span class="sd">        The shape of the resulting sliced global layout. It should have the same length as the number of dimensions</span>
-<span class="sd">        specified in `dims`.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    ret: GlobalLayout</span>
-<span class="sd">        A new global layout that represents the sliced version of the original layout, with the specified shape and</span>
-<span class="sd">        adjusted mapping function.</span>
-<span class="sd">    """</span>
-    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">layout</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">f_offset</span><span class="p">(</span><span class="n">axes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Var</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
-        <span class="n">indices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">dim</span><span class="p">,</span> <span class="n">axis</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">dims</span><span class="p">,</span> <span class="n">axes</span><span class="p">):</span>
-            <span class="n">indices</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">axis</span> <span class="o">+</span> <span class="n">offsets</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">layout</span><span class="p">(</span><span class="o">*</span><span class="n">indices</span><span class="p">)</span> <span class="o">-</span> <span class="n">layout</span><span class="p">(</span><span class="o">*</span><span class="n">offsets</span><span class="p">)</span>  <span class="c1"># type: ignore[arg-type]</span>
-
-    <span class="k">return</span> <span class="n">GlobalLayout</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">prod</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">f_offset</span><span class="o">=</span><span class="n">f_offset</span><span class="p">)</span>
 </pre></div>
 
                 </article>
