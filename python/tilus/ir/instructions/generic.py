@@ -99,7 +99,7 @@ class SliceGlobalInst(Instruction):
         dims: Sequence[int],
         shape: Sequence[Expr | int],
     ) -> SliceGlobalInst:
-        from tilus.ir.layout.global_layout import global_slice
+        from tilus.ir.layout.ops.global_ops import global_slice
 
         output = GlobalTensor.create(dtype=tensor.dtype, layout=global_slice(tensor.layout, offsets, dims, shape))
         return SliceGlobalInst(

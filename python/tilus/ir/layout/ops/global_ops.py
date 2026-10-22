@@ -40,7 +40,7 @@ def _global_compose(lhs: GlobalLayout, rhs: GlobalLayout) -> GlobalLayout:
 
     def f_offset(axes: Sequence[Var]) -> Expr:
         lhs_indices = [axes[i] // rhs.shape[i] for i in range(ndims)]
-        rhs_indices = [axes[i] // rhs.shape[i] for i in range(ndims)]
+        rhs_indices = [axes[i] % rhs.shape[i] for i in range(ndims)]
         lhs_offset = lhs(*lhs_indices)
         rhs_offset = rhs(*rhs_indices)
         return lhs_offset * rhs.size + rhs_offset
