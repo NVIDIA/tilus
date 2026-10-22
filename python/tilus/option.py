@@ -43,7 +43,8 @@ def _get_default_cache_dir() -> str:
             check=True,
         )
         path = Path(__file__).parents[2] / ".cache"
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, OSError):
+        # git exits non-zero outside a work tree and raises FileNotFoundError when it is not installed
         path = Path.home() / ".cache" / "tilus"
     return str(path)
 
