@@ -119,10 +119,16 @@ class Tcgen05WaitInst(Instruction):
 
 @dataclass(frozen=True, eq=False)
 class Tcgen05CopyInst(Instruction):
+    # Multicast pattern as a primitive string ("" for no multicast, "warpx4",
+    # "warpx2_02_13", "warpx2_01_23"). Converted to Tcgen05CopyMulticastKind in
+    # the codegen emitter — primitive types are kept here so IR functors can
+    # walk the field generically.
+    multicast: str = ""
+
     @staticmethod
-    def create(src: SharedTensor, dst: TMemoryTensor) -> Tcgen05CopyInst:
+    def create(src: SharedTensor, dst: TMemoryTensor, multicast: str = "") -> Tcgen05CopyInst:
         # Note: 2D validation is performed at the lang layer (Tcgen05InstructionGroup.copy)
-        return Tcgen05CopyInst(output=None, inputs=(dst, src))
+        return Tcgen05CopyInst(output=None, inputs=(dst, src), multicast=multicast)
 
 
 @dataclass(frozen=True, eq=False)

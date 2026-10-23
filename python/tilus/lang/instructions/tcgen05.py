@@ -21,6 +21,12 @@ from tilus.ir.tensor import RegisterTensor, SharedTensor, TMemoryTensor
 
 from .root import InstructionGroup
 
+# Allowed user-facing names for the tcgen05.copy multicast kwarg. These match
+# the duplication-mode names on TMemoryLayout. Stored as plain strings on the
+# IR (no enum) so functors walk the field generically; converted to
+# Tcgen05CopyMulticastKind at codegen time.
+_VALID_COPY_MULTICAST_NAMES: tuple[str, ...] = ("warpx4", "warpx2_02_13", "warpx2_01_23")
+
 
 class Tcgen05InstructionGroup(InstructionGroup):
     """Tensor Core Generation 05 (tcgen05) instructions for Blackwell GPUs.
@@ -247,30 +253,43 @@ class Tcgen05InstructionGroup(InstructionGroup):
         """
         self._builder.tcgen05_wait_store()
 
-    def copy(self, src: SharedTensor, dst: TMemoryTensor) -> None:
+    def copy(self, src: SharedTensor, dst: TMemoryTensor, multicast: Optional[str] = None) -> None:
         """Copy data from shared memory to tensor memory.
 
-        Asynchronously copies a 2D shared tensor into a 2D tensor memory tensor. Use
+        Asynchronously copies a shared tensor into a tensor memory tensor. Use
         ``tcgen05.commit`` to signal completion via an mbarrier.
 
         Parameters
         ----------
         src: SharedTensor
-            The source shared tensor. Must be 2D.
+            The source shared tensor.
         dst: TMemoryTensor
-            The destination tensor memory tensor. Must be 2D.
+            The destination tensor memory tensor.
+        multicast: Optional[str]
+            Multicast pattern for replicating ``src`` across TMEM sub-partitions.
+
+            - ``None`` (default): plain 1:1 copy (no replication).
+            - ``"warpx4"``: replicate ``src`` to all 4 warp-aligned 32-lane stripes
+              of TMEM. Source ``src`` has 32 unique lane rows; ``dst`` is a TMEM
+              tensor with ``WARPX4`` duplication (``shape[0] == 32``).
+            - ``"warpx2_02_13"`` / ``"warpx2_01_23"``: replicate ``src`` to two
+              warp-pairs (by parity / by halves). Source has 64 unique lane
+              rows; ``dst`` has the matching ``WARPX2_*`` duplication
+              (``shape[0] == 64``).
 
         Notes
         -----
         - **Thread group**: Must be executed by a warp-aligned thread group.
         - **Hardware**: Requires compute capability 10.0+ (sm_100).
-        - **PTX**: ``tcgen05.cp``
+        - **PTX**: ``tcgen05.cp[.warpx4 / .warpx2_02_13 / .warpx2_01_23]``
         """
-        if len(src.shape) != 2:
-            raise InstructionError("copy requires a 2D shared tensor, got shape {}".format(src.shape))
-        if len(dst.shape) != 2:
-            raise InstructionError("copy requires a 2D tensor memory tensor, got shape {}".format(dst.shape))
-        self._builder.tcgen05_copy(src, dst)
+        if multicast is not None and multicast not in _VALID_COPY_MULTICAST_NAMES:
+            raise InstructionError(
+                "Unknown multicast mode {!r}. Expected None or one of: {}".format(
+                    multicast, ", ".join(repr(k) for k in _VALID_COPY_MULTICAST_NAMES)
+                )
+            )
+        self._builder.tcgen05_copy(src, dst, multicast=multicast or "")
 
     def commit(self, mbarrier: Expr | RegisterTensor, cta_group: int = 1, multicast_mask: Optional[int] = None) -> None:
         """Commit pending tcgen05 async operations and signal an mbarrier.
