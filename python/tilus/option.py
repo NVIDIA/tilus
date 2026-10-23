@@ -22,10 +22,12 @@ from tilus.hidet.option import set_option as _set_hidet_option
 
 
 def _get_default_cache_dir() -> str:
-    """Get the default cache directory by checking if the current file is inside a Git repository.
+    """Get the default cache directory by checking if tilus is used from its own Git repository.
 
-    If the current file is inside a Git repository, the cache directory will be set to '.cache' in the root of the
-    repository. Otherwise, the cache directory will be set to '~/.cache/tilus'.
+    If the current file is part of the tilus source repository (e.g., an editable install), the cache directory will
+    be set to '.cache' in the root of the repository. Otherwise (e.g., tilus is installed into a site-packages
+    directory, even one that lives inside another Git repository), the cache directory will be set to
+    '~/.cache/tilus'.
 
     Returns
     -------
@@ -34,17 +36,24 @@ def _get_default_cache_dir() -> str:
     """
     import subprocess
 
+    repo_root = Path(__file__).resolve().parents[2]
     try:
-        # check if the current file is inside a Git repository
-        subprocess.run(
-            ["git", "-C", str(Path(__file__).parent), "rev-parse", "--is-inside-work-tree"],
+        # find the root of the Git work tree that contains the current file
+        result = subprocess.run(
+            ["git", "-C", str(Path(__file__).parent), "rev-parse", "--show-toplevel"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=True,
+            text=True,
         )
-        path = Path(__file__).parents[2] / ".cache"
+        toplevel = Path(result.stdout.strip()).resolve()
     except (subprocess.CalledProcessError, OSError):
         # git exits non-zero outside a work tree and raises FileNotFoundError when it is not installed
+        toplevel = None
+    if toplevel == repo_root:
+        path = repo_root / ".cache"
+    else:
+        # not in a work tree, or in a work tree that is not the tilus repository
         path = Path.home() / ".cache" / "tilus"
     return str(path)
 
