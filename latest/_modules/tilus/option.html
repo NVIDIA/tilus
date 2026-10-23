@@ -631,10 +631,12 @@ document.write(`
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_get_default_cache_dir</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Get the default cache directory by checking if the current file is inside a Git repository.</span>
+<span class="w">    </span><span class="sd">"""Get the default cache directory by checking if tilus is used from its own Git repository.</span>
 
-<span class="sd">    If the current file is inside a Git repository, the cache directory will be set to '.cache' in the root of the</span>
-<span class="sd">    repository. Otherwise, the cache directory will be set to '~/.cache/tilus'.</span>
+<span class="sd">    If the current file is part of the tilus source repository (e.g., an editable install), the cache directory will</span>
+<span class="sd">    be set to '.cache' in the root of the repository. Otherwise (e.g., tilus is installed into a site-packages</span>
+<span class="sd">    directory, even one that lives inside another Git repository), the cache directory will be set to</span>
+<span class="sd">    '~/.cache/tilus'.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -643,16 +645,24 @@ document.write(`
 <span class="sd">    """</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
 
+    <span class="n">repo_root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># check if the current file is inside a Git repository</span>
-        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-            <span class="p">[</span><span class="s2">"git"</span><span class="p">,</span> <span class="s2">"-C"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="p">),</span> <span class="s2">"rev-parse"</span><span class="p">,</span> <span class="s2">"--is-inside-work-tree"</span><span class="p">],</span>
+        <span class="c1"># find the root of the Git work tree that contains the current file</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="p">[</span><span class="s2">"git"</span><span class="p">,</span> <span class="s2">"-C"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="p">),</span> <span class="s2">"rev-parse"</span><span class="p">,</span> <span class="s2">"--show-toplevel"</span><span class="p">],</span>
             <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
             <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
             <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="s2">".cache"</span>
-    <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span><span class="p">:</span>
+        <span class="n">toplevel</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
+        <span class="c1"># git exits non-zero outside a work tree and raises FileNotFoundError when it is not installed</span>
+        <span class="n">toplevel</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">toplevel</span> <span class="o">==</span> <span class="n">repo_root</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">repo_root</span> <span class="o">/</span> <span class="s2">".cache"</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># not in a work tree, or in a work tree that is not the tilus repository</span>
         <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">".cache"</span> <span class="o">/</span> <span class="s2">"tilus"</span>
     <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 
