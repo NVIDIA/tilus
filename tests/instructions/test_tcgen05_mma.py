@@ -193,7 +193,7 @@ class Tcgen05Mma2CTAExample(tilus.Script):
         self.tcgen05.dealloc(t_d)
 
 
-@tilus.testing.requires.nvgpu_sm100a
+@tilus.testing.requires.nvgpu_sm100f
 @pytest.mark.parametrize(
     "operand_dtype, accumulator_dtype, output_dtype, mma_m, mma_n, mma_k",
     [
@@ -221,7 +221,7 @@ def test_tcgen05_mma(operand_dtype, accumulator_dtype, output_dtype, mma_m, mma_
     torch.testing.assert_close(actual, expected, rtol=1e-2, atol=1e-2)
 
 
-@tilus.testing.requires.nvgpu_sm100a
+@tilus.testing.requires.nvgpu_sm100f
 @pytest.mark.parametrize(
     "operand_dtype, accumulator_dtype, output_dtype, mma_m, mma_n, mma_k",
     [

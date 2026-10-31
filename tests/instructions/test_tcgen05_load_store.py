@@ -55,7 +55,7 @@ class Tcgen05LoadStoreExample(tilus.Script):
         self.tcgen05.dealloc(t_a_storage)
 
 
-@tilus.testing.requires.nvgpu_sm100a
+@tilus.testing.requires.nvgpu_sm100f
 @pytest.mark.parametrize("dtype", [int32, float32, float16])
 @pytest.mark.parametrize("block_m", [64, 128])
 @pytest.mark.parametrize("shape", [(128, 64), (234, 567), (1234, 2345)])

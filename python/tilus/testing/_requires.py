@@ -15,7 +15,16 @@
 import functools
 from typing import Any, Callable
 
-from tilus.target import Target, get_current_target, nvgpu_sm80, nvgpu_sm90, nvgpu_sm100, nvgpu_sm100a, scope
+from tilus.target import (
+    Target,
+    get_current_target,
+    nvgpu_sm80,
+    nvgpu_sm90,
+    nvgpu_sm100,
+    nvgpu_sm100a,
+    nvgpu_sm100f,
+    scope,
+)
 
 
 class _CompileOnlyDone(Exception):
@@ -85,3 +94,4 @@ class requires:
     nvgpu_sm80 = _requires(nvgpu_sm80)
     nvgpu_sm100 = _requires(nvgpu_sm100)
     nvgpu_sm100a = _requires(nvgpu_sm100a)
+    nvgpu_sm100f = _requires(nvgpu_sm100f)
