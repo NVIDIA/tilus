@@ -25,6 +25,7 @@
 # limitations under the License.
 import functools
 import os
+import platform
 import shutil
 import subprocess
 import tempfile
@@ -167,6 +168,10 @@ class NVCC(SourceCompiler):
             suffix=target.properties.feature_suffix if target.properties.feature_suffix is not None else "",
         )
         cpu_arch = "native"
+        # -m64 is an x86 option; GCC on aarch64 (e.g. Grace in GH200/GB200) rejects it
+        host_flags = ["-fPIC", "-march={}".format(cpu_arch), "-O3", "-funroll-loops", "-ffast-math"]
+        if platform.machine() in ("x86_64", "AMD64"):
+            host_flags.insert(1, "-m64")
 
         # add tvm-ffi header paths
         include_dirs = list(include_dirs)
@@ -188,7 +193,7 @@ class NVCC(SourceCompiler):
             # optimize host side code via -O3
             "-O3",
             # host compiler options: enable openmp, avx2, unroll loops and fast math
-            "-Xcompiler -fPIC,-m64,-march={cpu_arch},-O3,-funroll-loops,-ffast-math".format(cpu_arch=cpu_arch),
+            "-Xcompiler " + ",".join(host_flags),
             # use c++11 standard
             "-std=c++17",
             # the target PTX and SASS version.
