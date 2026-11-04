@@ -52,7 +52,7 @@ from tilus.ir.instructions.cuda.tcgen05 import (
 from tilus.ir.layout.cuda.tcgen05.smem import canonicalize_shared_layout
 from tilus.ir.layout.utils.cute import CuteLayout
 from tilus.ir.tensor import SharedTensor, TMemoryTensor
-from tilus.target import nvgpu_sm100a
+from tilus.target import get_current_target, nvgpu_sm100a, nvgpu_sm100f
 from tilus.utils import gcd
 
 
@@ -195,7 +195,7 @@ class Tcgen05MmaSSInstMeta:
         )
 
 
-@register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100a)
+@register_emitter(Tcgen05MmaSSInst, target=nvgpu_sm100f)
 class TMemoryMmaSSEmitter(BaseInstEmitter):
     @staticmethod
     def get_mma_kind(a_dtype: DataType, b_dtype: DataType, d_dtype: DataType) -> Tcgen05MmaKind:
@@ -209,6 +209,9 @@ class TMemoryMmaSSEmitter(BaseInstEmitter):
         ) and d_dtype in (float16, float32):
             return Tcgen05MmaKind.F8F6F4
         elif all(dtype in (int8, uint8) for dtype in (a_dtype, b_dtype)) and d_dtype == int32:
+            # unlike the other kinds, .kind::i8 is not a family feature: sm_100a only, not sm_103a
+            if not get_current_target().supports(nvgpu_sm100a):
+                raise CodeGenerationFailed(f"tcgen05.mma .kind::i8 is not supported on {get_current_target()}.")
             return Tcgen05MmaKind.I8
         else:
             raise CodeGenerationFailed(
