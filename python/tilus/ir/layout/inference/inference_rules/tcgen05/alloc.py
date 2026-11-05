@@ -20,7 +20,16 @@ from tilus.ir.layout.inference.rule import (
     register_rule,
 )
 from tilus.ir.layout.ops.tmemory_ops import tmemory_row_major
+from tilus.ir.layout.tmem_layout import TMemoryDuplication
 from tilus.ir.tensor import TMemoryTensor
+
+# Map from shape[0] -> duplication mode that's uniquely determined by the lane size.
+# shape[0]=64 is ambiguous (NONE / WARPX2_02_13 / WARPX2_01_23) and is left for
+# downstream inference (e.g. from a tcgen05.copy multicast hint).
+_LANE_TO_FORCED_DUPLICATION: dict[int, TMemoryDuplication] = {
+    32: TMemoryDuplication.WARPX4,
+    128: TMemoryDuplication.NONE,
+}
 
 
 @register_rule(Tcgen05AllocInst)
@@ -30,4 +39,9 @@ class Tcgen05AllocRule(LayoutInferenceRule):
         tmem = inst.tmemory_output
         if tmem.optional_layout is not None:
             return {}
-        return {tmem: tmemory_row_major(tmem.shape)}
+        lane_size = tmem.shape[0]
+        if lane_size not in _LANE_TO_FORCED_DUPLICATION:
+            # shape[0]=64 — defer to downstream inference (writers/consumers).
+            return {}
+        duplication = _LANE_TO_FORCED_DUPLICATION[lane_size]
+        return {tmem: tmemory_row_major(tmem.shape, duplication=duplication)}
