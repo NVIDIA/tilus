@@ -12,14 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import re
 import struct
+from pathlib import Path
 
 import pytest
 import tilus
 import torch
-from tilus.hidet.ir.dtypes import bfloat16, float16, float32, int8, int16, int32
+from tilus.backends.codegen import generate_ir_module
+from tilus.drivers import BuildOptions, optimize_ir_module, optimize_program
+from tilus.hidet.backend.codegen import codegen
+from tilus.hidet.ir.dtypes import bfloat16, float16, float32, int4b, int8, int16, int32
 from tilus.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
 from tilus.hidet.ir.dtypes.integer_subbyte import IntegerSubbyteType
+from tilus.ir.layout.ops import spatial
+from tilus.target import nvgpu_sm80, scope
+from tilus.testing import requires
 from tilus.utils import dtype_to_torch
 from tqdm import tqdm
 
@@ -251,3 +259,65 @@ def test_cast_int_subbyte_to_int32(dtype: IntegerSubbyteType) -> None:
         y = tilus.kernels.cast(x, dtype=tilus.int32)
         y_expected = tilus.full(shape=[128], fill_value=cast_ix_to_i32_ref(n, dtype=dtype), dtype=tilus.int32)
         torch.testing.assert_close(actual=y.torch(), expected=y_expected.torch(), equal_nan=True)
+
+
+class CastThenReuseSource(tilus.Script):
+    """Cast a register to float16, then store the register itself, which the cast must leave intact."""
+
+    def __init__(self, dtype, vector):
+        super().__init__()
+        self.dtype = dtype
+        self.layout = spatial(32).local(vector)
+
+    def __call__(self, src_ptr: tilus.void_p, cast_ptr: tilus.void_p, copy_ptr: tilus.void_p):
+        self.attrs.blocks = 1
+        self.attrs.warps = 1
+
+        shape = self.layout.shape
+        g_src = self.global_view(src_ptr, dtype=self.dtype, shape=shape)
+        g_cast = self.global_view(cast_ptr, dtype=float16, shape=shape)
+        g_copy = self.global_view(copy_ptr, dtype=self.dtype, shape=shape)
+
+        r_src = self.load_global(g_src, offsets=[0], shape=shape)
+        self.annotate_layout(r_src, self.layout)
+        r_cast = r_src.to(float16)
+        self.annotate_layout(r_cast, self.layout)
+        self.store_global(g_cast, r_cast, offsets=[0])
+        self.store_global(g_copy, r_src, offsets=[0])
+
+
+CAST_REUSE_CASES = [(int8, 4), (int4b, 8)]
+
+
+@pytest.mark.parametrize("dtype, vector", CAST_REUSE_CASES)
+def test_cast_to_float16_does_not_write_source_register_codegen(dtype, vector, tmp_path: Path):
+    with scope(nvgpu_sm80):
+        script = CastThenReuseSource(dtype, vector)
+        program = script._jit_instance_for(None, None, None).transpiled_programs[0]  # type: ignore
+        ir_module = generate_ir_module(optimize_program(program, BuildOptions(), tmp_path))
+        ir_module = optimize_ir_module(ir_module, tmp_path)
+        codegen(ir_module, src_out_path=str(tmp_path / "source.cu"), target="cuda")
+
+    source = (tmp_path / "source.cu").read_text()
+    assert "src_uint32" in source
+    assert re.search(r"src_uint32\[[^\]]*\] = ", source) is None
+
+
+@requires.nvgpu_sm80
+@pytest.mark.parametrize("dtype, vector", CAST_REUSE_CASES)
+def test_cast_to_float16_keeps_source_register(dtype, vector):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    n = 32 * vector
+    src = torch.randint(0, 256, (n * dtype.nbits // 8,), dtype=torch.uint8, device=device)
+    casted = torch.zeros(n, dtype=torch.float16, device=device)
+    copy = torch.zeros_like(src)
+
+    CastThenReuseSource(dtype, vector)(src, casted, copy)
+
+    if dtype == int8:
+        expected = src.to(torch.int8)
+    else:
+        nibbles = torch.stack([src & 0xF, src >> 4], dim=1).flatten().to(torch.int8)
+        expected = torch.where(nibbles >= 8, nibbles - 16, nibbles)
+    torch.testing.assert_close(casted, expected.to(torch.float16))
+    torch.testing.assert_close(copy, src)
