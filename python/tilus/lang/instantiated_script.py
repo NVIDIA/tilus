@@ -44,7 +44,7 @@ from tilus.ir.prog import Program
 from tilus.lang.script import Script
 from tilus.lang.script_dependencies import script_dependency_fingerprint
 from tilus.runtime import CompiledProgram, compiled_program_exists, load_compiled_program
-from tilus.target import get_current_target, lazy_init
+from tilus.target import Target, get_current_target, lazy_init
 from tilus.utils import benchmark_func, relative_to_with_walk_up, to_snake_case
 from tilus.utils.multiprocess import parallel_imap
 
@@ -1006,8 +1006,11 @@ class InstantiatedScript:
         self.kernel_params: list[int] = self.params.kernel_params
         self.tuning_params: list[int] = self.params.tuning_params
 
-        self.jit_instances: dict[JitKey, JitInstance] = {}
+        self.jit_instances: dict[tuple[Target, JitKey], JitInstance] = {}
+        # One table per target, dispatch_table is the one of _last_target.
+        self.dispatch_tables: dict[Target, dict[tuple[JitKey, TuningKey], tvm_ffi.Function]] = {}
         self.dispatch_table: dict[tuple[JitKey, TuningKey], tvm_ffi.Function] = {}
+        self._last_target: Optional[Target] = None
         self._dispatch_arg_getter = _make_tuple_getter(self.const_params + self.tuning_params)
         self._kernel_arg_getter = _make_tuple_getter(self.kernel_params)
         self._last_dispatch_args: Optional[tuple[Any, ...]] = None
@@ -1025,6 +1028,14 @@ class InstantiatedScript:
                     "The number of arguments should be {}, but got {}.".format(len(self.params.param_names), len(args))
                 )
 
+        # A binary belongs to the target it was built for. Switching targets is rare, so the launches below only pay
+        # for this identity check.
+        target = get_current_target()
+        if target is not self._last_target:
+            self.dispatch_table = self.dispatch_tables.setdefault(target, {})
+            self._last_target = target
+            self._last_dispatch_args = None
+
         # Most workloads launch the same shape repeatedly. Compare the raw dispatch arguments first,
         # avoiding key normalization and hashing entirely on that common path.
         dispatch_args = self._dispatch_arg_getter(args)
@@ -1040,10 +1051,7 @@ class InstantiatedScript:
             if keys is None:
                 keys = extract_keys(args, self.const_params, self.tuning_params)
             jit_key, tuning_key = keys
-            jit_instance: Optional[JitInstance] = self.jit_instances.get(jit_key, None)
-            if jit_instance is None:
-                jit_instance = JitInstance(self.script_cls, self.params, self.build_options, self.schedules, jit_key)
-                self.jit_instances[jit_key] = jit_instance
+            jit_instance = self._get_jit_instance(target, jit_key)
 
             compiled_program = jit_instance._pick_best_program(args)
             compiled_func = compiled_program.get_launch_func()
@@ -1098,10 +1106,13 @@ class InstantiatedScript:
                 )
 
         jit_key, _ = extract_keys(args, self.const_params, self.tuning_params)
-        jit_instance: Optional[JitInstance] = self.jit_instances.get(jit_key, None)
+        return self._get_jit_instance(get_current_target(), jit_key)
+
+    def _get_jit_instance(self, target: Target, jit_key: JitKey) -> JitInstance:
+        jit_instance: Optional[JitInstance] = self.jit_instances.get((target, jit_key), None)
         if jit_instance is None:
             jit_instance = JitInstance(self.script_cls, self.params, self.build_options, self.schedules, jit_key)
-            self.jit_instances[jit_key] = jit_instance
+            self.jit_instances[(target, jit_key)] = jit_instance
         return jit_instance
 
 

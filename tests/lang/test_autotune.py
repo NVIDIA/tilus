@@ -33,6 +33,7 @@ from tilus.lang.instantiated_script import (
     span_space,
     tuning_metadata_matches,
 )
+from tilus.target import nvgpu_sm90, scope
 
 
 def test_span_space_single_and_grouped_keys():
@@ -108,13 +109,15 @@ def test_repeated_shape_uses_last_dispatch_entry():
     script._kernel_arg_getter = _make_tuple_getter([0, 1])
     script._last_dispatch_args = None
     script._last_compiled_func = None
+    script._last_target = nvgpu_sm90
 
     ptr = object()
     keys = extract_keys((ptr, 128, 7), script.const_params, script.tuning_params)
     script.dispatch_table = {keys: launch}  # type: ignore[dict-item]
-    script(ptr, 128, 7)
-    script.dispatch_table.clear()
-    script(ptr, 128, 7)
+    with scope(nvgpu_sm90):
+        script(ptr, 128, 7)
+        script.dispatch_table.clear()
+        script(ptr, 128, 7)
 
     assert calls == [(ptr, 128), (ptr, 128)]
 
