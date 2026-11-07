@@ -40,11 +40,11 @@ class SliceRegisterInstEmitter(BaseInstEmitter):
         src_var = self.tensor2var[src_tensor]
 
         with self.for_range(extent=dst_layout.local_size) as dst_local:
-            dst_indices = src_layout.get_global(spatial_index=self.current_thread, local_index=dst_local)
+            dst_indices = dst_layout.get_global(spatial_index=self.current_thread, local_index=dst_local)
             src_indices = list(inst.offsets)
             dims = range(len(src_layout.shape)) if inst.dims is None else inst.dims
-            for dim in dims:
-                src_indices[dim] = src_indices[dim] + dst_indices[dim]
+            for dst_dim, dim in enumerate(dims):
+                src_indices[dim] = src_indices[dim] + dst_indices[dst_dim]
             src_local = src_layout.get_local(global_indices=src_indices)
             self.buffer_store(buf=dst_var, indices=[dst_local], value=src_var[src_local])
 
@@ -61,8 +61,8 @@ class SliceRegisterInstEmitter(BaseInstEmitter):
             dst_global = dst_layout.get_global(spatial_index=self.current_thread, local_index=dst_local)
             src_logical_indices = list(inst.offsets)
             dims = range(len(src_layout.shape)) if inst.dims is None else inst.dims
-            for dim in dims:
-                src_logical_indices[dim] = src_logical_indices[dim] + dst_global[dim]
+            for dst_dim, dim in enumerate(dims):
+                src_logical_indices[dim] = src_logical_indices[dim] + dst_global[dst_dim]
 
             value = const_reg_ctx.get_value(src_tensor, src_logical_indices)
             self.buffer_store(buf=dst_var, indices=[dst_local], value=value)
@@ -74,8 +74,8 @@ class SliceRegisterInstEmitter(BaseInstEmitter):
         )
         src_logical_indices = list(inst.offsets)
         dims = range(len(src_layout.shape)) if inst.dims is None else inst.dims
-        for dim in dims:
-            src_logical_indices[dim] = src_logical_indices[dim] + dst_global[dim]
+        for dst_dim, dim in enumerate(dims):
+            src_logical_indices[dim] = src_logical_indices[dim] + dst_global[dst_dim]
         dst_expr = const_reg_ctx.get_value(src_tensor, src_logical_indices)
         const_reg_ctx.register(dst_tensor, axes=dst_axes, expr=dst_expr)
 
@@ -95,8 +95,8 @@ class SliceAssignInstEmitter(BaseInstEmitter):
             src_indices = src_layout.get_global(spatial_index=self.current_thread, local_index=src_local)
             dst_indices = list(inst.offsets)
             dims = range(len(src_layout.shape)) if inst.dims is None else inst.dims
-            for dim in dims:
-                dst_indices[dim] = dst_indices[dim] + src_indices[dim]
+            for src_dim, dim in enumerate(dims):
+                dst_indices[dim] = dst_indices[dim] + src_indices[src_dim]
             dst_local = dst_layout.get_local(global_indices=dst_indices)
             self.buffer_store(buf=dst_var, indices=[dst_local], value=src_var[src_local])
 
