@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from tilus.backends.emitter import BaseInstEmitter, register_emitter
+from tilus.hidet.ir.expr import logical_and
 from tilus.ir import RegisterTensor
 from tilus.ir.instructions import SliceAssignInst, SliceRegisterInst
 from tilus.ir.layout import RegisterLayout
@@ -91,13 +92,28 @@ class SliceAssignInstEmitter(BaseInstEmitter):
         dst_var = self.tensor2var[dst_tensor]
         src_var = self.tensor2var[src_tensor]
 
+        dims = range(len(src_layout.shape)) if inst.dims is None else inst.dims
+
+        # A dropped destination dim that is distributed across threads selects the threads that own the
+        # assigned slice; get_local() ignores spatial modes, so the other threads must not write.
+        spatial_modes = {mode for mode in dst_layout.spatial_modes if mode >= 0}
+        guarded_dims = [
+            dim
+            for dim in range(len(dst_layout.shape))
+            if dim not in dims and any(mode in spatial_modes for mode in dst_layout.grouped_modes[dim])
+        ]
+
         with self.for_range(extent=src_layout.local_size) as src_local:
             src_indices = src_layout.get_global(spatial_index=self.current_thread, local_index=src_local)
             dst_indices = list(inst.offsets)
-            dims = range(len(src_layout.shape)) if inst.dims is None else inst.dims
             for src_dim, dim in enumerate(dims):
                 dst_indices[dim] = dst_indices[dim] + src_indices[src_dim]
             dst_local = dst_layout.get_local(global_indices=dst_indices)
-            self.buffer_store(buf=dst_var, indices=[dst_local], value=src_var[src_local])
+            if guarded_dims:
+                owned = dst_layout.get_global(spatial_index=self.current_thread, local_index=dst_local)
+                with self.if_then(logical_and(*[owned[dim] == dst_indices[dim] for dim in guarded_dims])):
+                    self.buffer_store(buf=dst_var, indices=[dst_local], value=src_var[src_local])
+            else:
+                self.buffer_store(buf=dst_var, indices=[dst_local], value=src_var[src_local])
 
         self.tensor2var[dst_tensor] = dst_var

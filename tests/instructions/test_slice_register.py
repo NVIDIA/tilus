@@ -22,7 +22,7 @@ from tilus import int32
 from tilus.backends.codegen import generate_ir_module
 from tilus.drivers import BuildOptions, optimize_ir_module, optimize_program
 from tilus.hidet.backend.codegen import codegen
-from tilus.ir.layout.ops import local, spatial
+from tilus.ir.layout.ops import local, replicated, spatial
 from tilus.target import nvgpu_sm80, scope
 from tilus.testing import requires
 
@@ -84,6 +84,51 @@ class ReadColumnAcrossThreads(tilus.Script):
             self.store_global(g_y, r[:, 1], offsets=[0])
 
 
+class AssignAcrossThreads(tilus.Script):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    def __call__(self, x: ~int32, y: ~int32):
+        self.attrs.blocks = 1
+        self.attrs.warps = 1
+
+        g_x = self.global_view(x, dtype=int32, shape=[4, 4])
+        g_y = self.global_view(y, dtype=int32, shape=[4])
+        with self.thread_group(0, num_threads=4):
+            r = self.load_global(g_x, offsets=[0, 0], shape=[4, 4])
+            self.annotate_layout(r, spatial(4, 1).local(1, 4))
+            v = self.load_global(g_y, offsets=[0], shape=[4])
+            if self.dim == 0:
+                # the dropped row dim is distributed across threads: only the owner of row 1 may write
+                self.annotate_layout(v, replicated(4, num_workers=4))
+                r[1, :] = v
+            else:
+                self.annotate_layout(v, spatial(4))
+                r[:, 1] = v
+            self.store_global(g_x, r, offsets=[0, 0])
+
+
+class Slice3D(tilus.Script):
+    """Read and assign r[:, 1, :], whose retained dims (0 and 2) are not contiguous."""
+
+    def __call__(self, x: ~int32, y: ~int32, z: ~int32):
+        self.attrs.blocks = 1
+        self.attrs.warps = 1
+
+        g_x = self.global_view(x, dtype=int32, shape=[2, 3, 4])
+        g_y = self.global_view(y, dtype=int32, shape=[2, 4])
+        g_z = self.global_view(z, dtype=int32, shape=[2, 4])
+        with self.thread_group(0, num_threads=1):
+            r = self.load_global(g_x, offsets=[0, 0, 0], shape=[2, 3, 4])
+            self.annotate_layout(r, local(2, 3, 4))
+            self.store_global(g_z, r[:, 1, :], offsets=[0, 0])
+            v = self.load_global(g_y, offsets=[0, 0], shape=[2, 4])
+            self.annotate_layout(v, local(2, 4))
+            r[:, 1, :] = v
+            self.store_global(g_x, r, offsets=[0, 0, 0])
+
+
 def generated_source(script, tmp_path: Path) -> str:
     with scope(nvgpu_sm80):
         program = script._jit_instance_for(None, None).transpiled_programs[0]  # type: ignore
@@ -96,6 +141,7 @@ def generated_source(script, tmp_path: Path) -> str:
 def copied_indices(source: str, pattern: str) -> list[int]:
     """Evaluate the register index of the matching element copy for each iteration of its loop."""
     match = re.search(pattern, source)
+    assert match is not None, f"no element copy matching {pattern!r} in the generated source"
     return [eval(match["expr"], {match["var"]: i}) for i in range(4)]
 
 
@@ -111,16 +157,15 @@ def test_assign_slice_codegen(dim, expected, tmp_path: Path):
     assert copied_indices(source, r"regs\[(?P<expr>.+)\] = regs_1\[(?P<var>\w+)\];") == expected
 
 
-def matrix(device: str) -> torch.Tensor:
-    return torch.arange(16, dtype=torch.int32, device=device).reshape(4, 4)
+def matrix() -> torch.Tensor:
+    return torch.arange(16, dtype=torch.int32, device="cuda").reshape(4, 4)
 
 
 @requires.nvgpu_sm80
 @pytest.mark.parametrize("dim", [0, 1])
 def test_read_slice(dim):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    x = matrix(device)
-    y = torch.full((4,), -1, dtype=torch.int32, device=device)
+    x = matrix()
+    y = torch.full((4,), -1, dtype=torch.int32, device="cuda")
 
     ReadSlice(dim)(x, y)
 
@@ -129,9 +174,8 @@ def test_read_slice(dim):
 
 @requires.nvgpu_sm80
 def test_read_column_across_threads():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    x = matrix(device)
-    y = torch.full((4,), -1, dtype=torch.int32, device=device)
+    x = matrix()
+    y = torch.full((4,), -1, dtype=torch.int32, device="cuda")
 
     ReadColumnAcrossThreads()(x, y)
 
@@ -141,9 +185,8 @@ def test_read_column_across_threads():
 @requires.nvgpu_sm80
 @pytest.mark.parametrize("dim", [0, 1])
 def test_assign_slice(dim):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    x = matrix(device)
-    y = torch.arange(100, 104, dtype=torch.int32, device=device)
+    x = matrix()
+    y = torch.arange(100, 104, dtype=torch.int32, device="cuda")
     expected = x.clone()
     if dim == 0:
         expected[1, :] = y
@@ -153,3 +196,34 @@ def test_assign_slice(dim):
     AssignSlice(dim)(x, y)
 
     torch.testing.assert_close(x, expected)
+
+
+@requires.nvgpu_sm80
+@pytest.mark.parametrize("dim", [0, 1])
+def test_assign_slice_across_threads(dim):
+    x = matrix()
+    y = torch.arange(100, 104, dtype=torch.int32, device="cuda")
+    expected = x.clone()
+    if dim == 0:
+        expected[1, :] = y
+    else:
+        expected[:, 1] = y
+
+    AssignAcrossThreads(dim)(x, y)
+
+    torch.testing.assert_close(x, expected)
+
+
+@requires.nvgpu_sm80
+def test_slice_3d_non_contiguous_dims():
+    x = torch.arange(24, dtype=torch.int32, device="cuda").reshape(2, 3, 4)
+    y = torch.arange(100, 108, dtype=torch.int32, device="cuda").reshape(2, 4)
+    z = torch.full((2, 4), -1, dtype=torch.int32, device="cuda")
+    expected_x = x.clone()
+    expected_x[:, 1, :] = y
+    expected_z = x[:, 1, :].clone()
+
+    Slice3D()(x, y, z)
+
+    torch.testing.assert_close(z, expected_z)
+    torch.testing.assert_close(x, expected_x)
