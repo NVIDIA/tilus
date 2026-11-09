@@ -12,21 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import re
 import struct
-from pathlib import Path
 
 import pytest
 import tilus
 import torch
-from tilus.backends.codegen import generate_ir_module
-from tilus.drivers import BuildOptions, optimize_ir_module, optimize_program
-from tilus.hidet.backend.codegen import codegen
 from tilus.hidet.ir.dtypes import bfloat16, float16, float32, int4b, int8, int16, int32
 from tilus.hidet.ir.dtypes.floats_subbyte import FloatSubbyteType
 from tilus.hidet.ir.dtypes.integer_subbyte import IntegerSubbyteType
 from tilus.ir.layout.ops import spatial
-from tilus.target import nvgpu_sm80, scope
 from tilus.testing import requires
 from tilus.utils import dtype_to_torch
 from tqdm import tqdm
@@ -286,27 +280,13 @@ class CastThenReuseSource(tilus.Script):
         self.store_global(g_copy, r_src, offsets=[0])
 
 
-CAST_REUSE_CASES = [(int8, 4), (int4b, 8)]
-
-
-@pytest.mark.parametrize("dtype, vector", CAST_REUSE_CASES)
-def test_cast_to_float16_does_not_write_source_register_codegen(dtype, vector, tmp_path: Path):
-    with scope(nvgpu_sm80):
-        script = CastThenReuseSource(dtype, vector)
-        program = script._jit_instance_for(None, None, None).transpiled_programs[0]  # type: ignore
-        ir_module = generate_ir_module(optimize_program(program, BuildOptions(), tmp_path))
-        ir_module = optimize_ir_module(ir_module, tmp_path)
-        codegen(ir_module, src_out_path=str(tmp_path / "source.cu"), target="cuda")
-
-    source = (tmp_path / "source.cu").read_text()
-    assert "src_uint32" in source
-    assert re.search(r"src_uint32\[[^\]]*\] = ", source) is None
+CAST_REUSE_CASES = [(int8, 4), (int4b, 8), (int8, 16), (int4b, 16), (int4b, 32)]
 
 
 @requires.nvgpu_sm80
 @pytest.mark.parametrize("dtype, vector", CAST_REUSE_CASES)
 def test_cast_to_float16_keeps_source_register(dtype, vector):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cuda"
     n = 32 * vector
     src = torch.randint(0, 256, (n * dtype.nbits // 8,), dtype=torch.uint8, device=device)
     casted = torch.zeros(n, dtype=torch.float16, device=device)
