@@ -64,6 +64,21 @@ def test_jit_instance_per_target():
     assert first is again
 
 
+def test_script_cache_dir_per_target():
+    # Transpiling only, no nvcc or GPU needed. The program text is the same on both targets, the cache dir must not be.
+    script = InstantiatedScript(CompileExample, (), {})
+
+    with scope(nvgpu_sm80):
+        first = script._jit_instance_for(None)
+    with scope(nvgpu_sm90):
+        second = script._jit_instance_for(None)
+
+    assert [str(program) for program in first.transpiled_programs] == [
+        str(program) for program in second.transpiled_programs
+    ]
+    assert first.cache_dir != second.cache_dir
+
+
 def test_compile_builds_each_target(monkeypatch):
     # Compiling needs nvcc but no GPU.
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
