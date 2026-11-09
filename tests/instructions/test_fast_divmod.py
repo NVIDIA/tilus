@@ -19,6 +19,7 @@ import tilus
 import torch
 from tilus import int32
 from tilus.hidet.ir.dtypes import uint32
+from tilus.hidet.ir.primitives.cuda.fast_divmod import fastdiv_precompute_m, fastdiv_precompute_s
 from tilus.hidet.lang import attrs, script
 from tilus.hidet.lang.script import script_module
 from tilus.target import nvgpu_sm80, scope
@@ -30,8 +31,6 @@ DIVISORS = sorted({*range(1, 1025), *(2**k + 1 for k in range(11, 31)), *(2**k -
 
 
 def build_precompute_kernel():
-    from tilus.hidet.ir.primitives.cuda.fast_divmod import fastdiv_precompute_m, fastdiv_precompute_s
-
     with script_module() as module:
 
         @typing.no_type_check
@@ -50,6 +49,7 @@ def fastdiv_runtime(a: torch.Tensor, multiplier: int, shift: int) -> torch.Tenso
     """Evaluate cuda_fastdiv_runtime on the host for non-negative dividends."""
     if multiplier == 0:
         return a >> shift
+    # a * multiplier fits in int64 because a < 2^31 and multiplier < 2^32.
     return ((a * multiplier) >> 32) >> shift
 
 
@@ -111,7 +111,7 @@ class FastDivmodExample(tilus.Script):
     ],
 )
 def test_fast_divmod(base, b):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cuda"
     quotient = torch.full((256,), -1, dtype=torch.int32, device=device)
     remainder = torch.full((256,), -1, dtype=torch.int32, device=device)
 
