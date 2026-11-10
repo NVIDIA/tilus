@@ -44,7 +44,7 @@ from tilus.ir.prog import Program
 from tilus.lang.script import Script
 from tilus.lang.script_dependencies import script_dependency_fingerprint
 from tilus.runtime import CompiledProgram, compiled_program_exists, load_compiled_program
-from tilus.target import get_current_target, lazy_init
+from tilus.target import Target, get_current_target, lazy_init
 from tilus.utils import benchmark_func, relative_to_with_walk_up, to_snake_case
 from tilus.utils.multiprocess import parallel_imap
 
@@ -393,7 +393,7 @@ def _make_tuple_getter(indices: Sequence[int]) -> Callable[[Sequence[Any]], tupl
 
 
 class JitInstance:
-    SPECIALIZATION_CACHE_VERSION = 3
+    SPECIALIZATION_CACHE_VERSION = 4
 
     def __init__(
         self,
@@ -671,7 +671,10 @@ class JitInstance:
         # get the cache dir for this jit instance
         concatenated_program_text = "\n".join([str(program) for program in self.transpiled_programs])
         option_text = str(self.build_options)
-        hash_string = option_text + concatenated_program_text
+        # The target is part of the key: the same program text builds a different binary and tunes to a different
+        # dispatch table on each target.
+        target_text = str(get_current_target())
+        hash_string = target_text + option_text + concatenated_program_text
         hash_key = hashlib.sha256(hash_string.encode()).hexdigest()[:8]
         jit_name_items = [str(key) for key in self.jit_key] + [hash_key]
         self.cache_dir = (
@@ -992,6 +995,14 @@ class JitInstance:
             f.write(tabulate.tabulate(rows, headers=headers))
 
 
+_LastDispatch = tuple[
+    Optional[Target],
+    Optional[dict[tuple[JitKey, TuningKey], tvm_ffi.Function]],
+    Optional[tuple[Any, ...]],
+    Optional[tvm_ffi.Function],
+]
+
+
 class InstantiatedScript:
     def __init__(self, script_cls: Type[Script], script_args: Sequence[Any], script_kwargs: Mapping[str, Any]):
         self.script_cls: Type[Script] = script_cls
@@ -1006,12 +1017,14 @@ class InstantiatedScript:
         self.kernel_params: list[int] = self.params.kernel_params
         self.tuning_params: list[int] = self.params.tuning_params
 
-        self.jit_instances: dict[JitKey, JitInstance] = {}
-        self.dispatch_table: dict[tuple[JitKey, TuningKey], tvm_ffi.Function] = {}
+        self.jit_instances: dict[tuple[Target, JitKey], JitInstance] = {}
+        # One dispatch table per target: a binary belongs to the target it was built for.
+        self.dispatch_tables: dict[Target, dict[tuple[JitKey, TuningKey], tvm_ffi.Function]] = {}
         self._dispatch_arg_getter = _make_tuple_getter(self.const_params + self.tuning_params)
         self._kernel_arg_getter = _make_tuple_getter(self.kernel_params)
-        self._last_dispatch_args: Optional[tuple[Any, ...]] = None
-        self._last_compiled_func: Optional[tvm_ffi.Function] = None
+        # The last launch as (target, dispatch table of target, dispatch args, compiled func). It is read and replaced
+        # as one tuple, so concurrent calls under different targets never see a mix of two launches.
+        self._last_dispatch: _LastDispatch = (None, None, None, None)
 
     def __call__(self, *args, **kwargs):
         if kwargs or self.with_default:
@@ -1025,32 +1038,32 @@ class InstantiatedScript:
                     "The number of arguments should be {}, but got {}.".format(len(self.params.param_names), len(args))
                 )
 
+        # Resolve the target and its dispatch table once, so a target change during this call (e.g., from another
+        # thread) cannot make this call record its binary under another target. Switching targets is rare, so the
+        # common path only pays for an identity check.
+        target = get_current_target()
+        last_target, table, last_dispatch_args, last_compiled_func = self._last_dispatch
+        if target is not last_target or table is None:
+            table = self.dispatch_tables.setdefault(target, {})
+            last_dispatch_args = None
+
         # Most workloads launch the same shape repeatedly. Compare the raw dispatch arguments first,
         # avoiding key normalization and hashing entirely on that common path.
         dispatch_args = self._dispatch_arg_getter(args)
-        if dispatch_args == self._last_dispatch_args:
-            compiled_func = self._last_compiled_func
-            keys = None
+        if dispatch_args == last_dispatch_args:
+            compiled_func = last_compiled_func
         else:
             keys = extract_keys(args, self.const_params, self.tuning_params)
-            compiled_func = self.dispatch_table.get(keys)
+            compiled_func = table.get(keys)
+            if compiled_func is None:
+                # slow path
+                jit_key, tuning_key = keys
+                jit_instance = self._get_jit_instance(target, jit_key)
 
-        if compiled_func is None:
-            # slow path
-            if keys is None:
-                keys = extract_keys(args, self.const_params, self.tuning_params)
-            jit_key, tuning_key = keys
-            jit_instance: Optional[JitInstance] = self.jit_instances.get(jit_key, None)
-            if jit_instance is None:
-                jit_instance = JitInstance(self.script_cls, self.params, self.build_options, self.schedules, jit_key)
-                self.jit_instances[jit_key] = jit_instance
-
-            compiled_program = jit_instance._pick_best_program(args)
-            compiled_func = compiled_program.get_launch_func()
-            self.dispatch_table[(jit_key, tuning_key)] = compiled_func
-
-        self._last_dispatch_args = dispatch_args
-        self._last_compiled_func = compiled_func
+                compiled_program = jit_instance._pick_best_program(args)
+                compiled_func = compiled_program.get_launch_func()
+                table[keys] = compiled_func
+            self._last_dispatch = (target, table, dispatch_args, compiled_func)
 
         # call the compiled function
         kernel_args = self._kernel_arg_getter(args)
@@ -1098,10 +1111,13 @@ class InstantiatedScript:
                 )
 
         jit_key, _ = extract_keys(args, self.const_params, self.tuning_params)
-        jit_instance: Optional[JitInstance] = self.jit_instances.get(jit_key, None)
+        return self._get_jit_instance(get_current_target(), jit_key)
+
+    def _get_jit_instance(self, target: Target, jit_key: JitKey) -> JitInstance:
+        jit_instance: Optional[JitInstance] = self.jit_instances.get((target, jit_key), None)
         if jit_instance is None:
             jit_instance = JitInstance(self.script_cls, self.params, self.build_options, self.schedules, jit_key)
-            self.jit_instances[jit_key] = jit_instance
+            self.jit_instances[(target, jit_key)] = jit_instance
         return jit_instance
 
 
