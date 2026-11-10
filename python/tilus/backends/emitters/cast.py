@@ -159,12 +159,12 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             # cast 4 int8 to 4 float16 at each time
             # range for int8: -128 ~ 127, uint8: 0 ~ 255
 
-            # transform int8[a, b, c, d] to uint8[a, b, c, d] + 128
-            self.buffer_store(buf=src_uint32, indices=[i], value=src_uint32[i] ^ uint32(0x80808080))
+            # transform int8[a, b, c, d] to uint8[a, b, c, d] + 128, without changing the source register
+            biased = self.declare_var("biased", uint32, init=src_uint32[i] ^ uint32(0x80808080))
 
             # transform int8[a, b, c, d] + 128 to float16[a, b, c, d] + (1024 + 128)
-            self.append(prmt(d=~dst_uint32[i << 1], a=src_uint32[i], b=uint32(0x00000064), c=uint32(0x4140)))
-            self.append(prmt(d=~dst_uint32[i << 1 | 1], a=src_uint32[i], b=uint32(0x00000064), c=uint32(0x4342)))
+            self.append(prmt(d=~dst_uint32[i << 1], a=biased, b=uint32(0x00000064), c=uint32(0x4140)))
+            self.append(prmt(d=~dst_uint32[i << 1 | 1], a=biased, b=uint32(0x00000064), c=uint32(0x4342)))
 
             # transform float16[a, b, c, d] + (1024 + 128) to float16[a, b, c, d]
             # where 0x6480 = 0b0110010010000000 = 1152
@@ -186,13 +186,14 @@ class NvgpuCastInstEmitter(CastInstBaseEmitter):
             # cast 8 int4b to float16 at each time
             # range for int4b: -8 ~ 7
 
-            # transform int4b[7, 6, 5, 4, 3, 2, 1, 0] to uint4b[7, 6, 5, 4, 3, 2, 1, 0] + 8
-            self.buffer_store(buf=src_uint32, indices=[i], value=src_uint32[i] ^ uint32(0x88888888))
+            # transform int4b[7, 6, 5, 4, 3, 2, 1, 0] to uint4b[7, 6, 5, 4, 3, 2, 1, 0] + 8, without changing the source
+            # register
+            biased = self.declare_var("biased", uint32, init=src_uint32[i] ^ uint32(0x88888888))
 
             # transform int4b[7, 6, 5, 4, 3, 2, 1, 0] + 8 to float16 [4, 0], [5, 1], [6, 2], [7, 3]
             imm_lut = (0xF0 & 0xCC) | 0xAA
-            a = self.declare(v=Var("a", type=uint32), init=src_uint32[i])
-            b = self.declare(v=Var("b", type=uint32), init=src_uint32[i] >> 8)
+            a = self.declare(v=Var("a", type=uint32), init=biased)
+            b = self.declare(v=Var("b", type=uint32), init=biased >> 8)
             h = self.declare(v=tensor_var("h", shape=[4], dtype=uint32))
             self.append(
                 lop3(~h[0], a, uint32(0x000F000F), uint32(0x64006400), imm_lut=imm_lut)
