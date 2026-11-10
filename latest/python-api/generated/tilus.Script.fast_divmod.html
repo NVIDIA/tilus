@@ -671,7 +671,7 @@ document.write(`
 <dt class="sig sig-object py" id="tilus.Script.fast_divmod">
 <span class="sig-prename descclassname"><span class="pre">Script.</span></span><span class="sig-name descname"><span class="pre">fast_divmod</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#tilus.Script.fast_divmod" title="Link to this definition"><span>¶</span></a></dt>
 <dd><p>Fast integer division and modulo using precomputed magic multiplier.</p>
-<p>Computes <code class="docutils literal notranslate"><span class="pre">(a</span> <span class="pre">//</span> <span class="pre">b,</span> <span class="pre">a</span> <span class="pre">%</span> <span class="pre">b)</span></code> for <code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">&gt;=</span> <span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">b</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> using the
+<p>Computes <code class="docutils literal notranslate"><span class="pre">(a</span> <span class="pre">//</span> <span class="pre">b,</span> <span class="pre">a</span> <span class="pre">%</span> <span class="pre">b)</span></code> for <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">&lt;=</span> <span class="pre">a</span> <span class="pre">&lt;</span> <span class="pre">2^31</span></code> and <code class="docutils literal notranslate"><span class="pre">b</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> using the
 FastDivmod algorithm. The divisor <code class="docutils literal notranslate"><span class="pre">b</span></code> must be a grid-constant expression
 (known at kernel launch time). A Hidet IR pass will lower this to
 <code class="docutils literal notranslate"><span class="pre">__umulhi(a,</span> <span class="pre">magic)</span> <span class="pre">&gt;&gt;</span> <span class="pre">shift</span></code> with host-side precomputation of
@@ -679,7 +679,7 @@ FastDivmod algorithm. The divisor <code class="docutils literal notranslate"><sp
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>a</strong> (<em>Expr</em>) – The dividend (int32, must be &gt;= 0).</p></li>
+<li><p><strong>a</strong> (<em>Expr</em>) – The dividend (int32, must satisfy 0 &lt;= a &lt; 2^31).</p></li>
 <li><p><strong>b</strong> (<em>Expr</em>) – The divisor (int32, must be &gt; 0 and grid-constant).</p></li>
 </ul>
 </dd>
