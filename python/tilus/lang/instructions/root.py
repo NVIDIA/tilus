@@ -2032,7 +2032,7 @@ class RootInstructionGroup(InstructionGroup):
     def fast_divmod(self, a: Union[Expr, int], b: Union[Expr, int]) -> tuple:
         """Fast integer division and modulo using precomputed magic multiplier.
 
-        Computes ``(a // b, a % b)`` for ``a >= 0`` and ``b > 0`` using the
+        Computes ``(a // b, a % b)`` for ``0 <= a < 2^31`` and ``b > 0`` using the
         FastDivmod algorithm. The divisor ``b`` must be a grid-constant expression
         (known at kernel launch time). A Hidet IR pass will lower this to
         ``__umulhi(a, magic) >> shift`` with host-side precomputation of
@@ -2041,7 +2041,7 @@ class RootInstructionGroup(InstructionGroup):
         Parameters
         ----------
         a : Expr
-            The dividend (int32, must be >= 0).
+            The dividend (int32, must satisfy 0 <= a < 2^31).
         b : Expr
             The divisor (int32, must be > 0 and grid-constant).
 

@@ -17,7 +17,7 @@ FastDivmod primitives for replacing integer division with multiply-high + shift.
 
 Two primitive functions are registered:
 
-1. ``fastdiv(a, b)`` — semantic placeholder for ``floor(a / b)`` where a >= 0 and b > 0.
+1. ``fastdiv(a, b)`` — semantic placeholder for ``floor(a / b)`` where 0 <= a < 2^31 and b > 0.
    A Hidet IR pass (LowerFastDivPass) replaces this with the runtime computation using
    precomputed magic multiplier and shift.
 
@@ -43,7 +43,7 @@ def register_fast_divmod_primitives():
     @no_type_check
     @script
     def cuda_fastdiv(a: i32, b: i32) -> i32:
-        """Semantic placeholder for floor(a / b) where a >= 0 and b > 0.
+        """Semantic placeholder for floor(a / b) where 0 <= a < 2^31 and b > 0.
 
         This function will be lowered by LowerFastDivPass to use precomputed
         magic multiplier and shift. It should never survive to codegen.
@@ -78,20 +78,21 @@ def register_fast_divmod_primitives():
     def cuda_fastdiv_precompute_m(b: uint32) -> uint32:
         """Host-side: compute magic multiplier for divisor b.
 
-        Uses the Hacker's Delight algorithm for unsigned division by constant.
         For power-of-2 divisors, returns 0 (sentinel) and the runtime uses a simple shift.
-        For non-power-of-2 divisors, finds the smallest p >= 32 such that
-        2^p > nc * (d - 2^p % d), then m = (2^p + d - 2^p % d) / d.
+        For non-power-of-2 divisors, returns m = ceil(2^p / b) with p = 31 + ceil(log2(b)), as
+        CUTLASS FastDivmod does. This is exact for dividends in [0, 2^31) and always fits in 32 bits,
+        while a multiplier that is exact for the whole uint32 range needs 33 bits for some divisors.
         """
         attrs.func_kind = "cpu_internal"
         # Check power of 2: b & (b - 1) == 0
         if (b & (b - uint32(1))) == uint32(0):
             return uint32(0)
-        nc: uint64 = (uint64(1) << uint64(32)) - uint64(1) - uint64((uint64(1) << uint64(32)) % uint64(b))
-        p: uint32 = 32
-        while (uint64(1) << uint64(p)) <= nc * uint64(uint64(b) - (uint64(1) << uint64(p)) % uint64(b)):
+        p: uint32 = 31
+        tmp: uint32 = b - uint32(1)
+        while tmp > uint32(0):
+            tmp = tmp >> uint32(1)
             p = p + uint32(1)
-        m: uint64 = ((uint64(1) << uint64(p)) + uint64(b) - (uint64(1) << uint64(p)) % uint64(b)) / uint64(b)
+        m: uint64 = ((uint64(1) << uint64(p)) + uint64(b) - uint64(1)) / uint64(b)
         return uint32(m)
 
     @no_type_check
@@ -100,7 +101,7 @@ def register_fast_divmod_primitives():
         """Host-side: compute shift for divisor b.
 
         For power-of-2 divisors, returns log2(b).
-        For non-power-of-2 divisors, returns p - 32 where p is from the Hacker's Delight algorithm.
+        For non-power-of-2 divisors, returns p - 32 with p = 31 + ceil(log2(b)), see cuda_fastdiv_precompute_m.
         """
         attrs.func_kind = "cpu_internal"
         if (b & (b - uint32(1))) == uint32(0):
@@ -111,9 +112,10 @@ def register_fast_divmod_primitives():
                 tmp = tmp >> uint32(1)
                 s = s + uint32(1)
             return s
-        nc: uint64 = (uint64(1) << uint64(32)) - uint64(1) - uint64((uint64(1) << uint64(32)) % uint64(b))
-        p: uint32 = 32
-        while (uint64(1) << uint64(p)) <= nc * uint64(uint64(b) - (uint64(1) << uint64(p)) % uint64(b)):
+        p: uint32 = 31
+        rest: uint32 = b - uint32(1)
+        while rest > uint32(0):
+            rest = rest >> uint32(1)
             p = p + uint32(1)
         return p - uint32(32)
 
@@ -122,7 +124,7 @@ def register_fast_divmod_primitives():
 
 
 def fastdiv(a: Expr, b: Expr) -> Expr:
-    """Semantic floor division: floor(a / b) for a >= 0, b > 0.
+    """Semantic floor division: floor(a / b) for 0 <= a < 2^31, b > 0.
 
     Will be lowered by LowerFastDivPass to use precomputed multiplier and shift.
     """
